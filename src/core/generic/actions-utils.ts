@@ -14,19 +14,19 @@ import isUserSuperAdmin from '~/app/admin/utils/is-user-super-admin';
 export function withSession<Args extends any[], Response>(
   fn: (...params: Args) => Response,
 ) {
-  return async (...params: Args) => {
+  return async (...params: Args): Promise<Awaited<Response>> => {
     const client = getSupabaseServerActionClient();
 
     await requireSession(client);
 
-    return fn(...params);
+    return await fn(...params);
   };
 }
 
 export function withAdminSession<Args extends any[], Response>(
   fn: (...params: Args) => Response,
 ) {
-  return async (...params: Args) => {
+  return async (...params: Args): Promise<Awaited<Response>> => {
     const isAdmin = await isUserSuperAdmin({
       client: getSupabaseServerActionClient(),
     });
@@ -35,6 +35,6 @@ export function withAdminSession<Args extends any[], Response>(
       notFound();
     }
 
-    return fn(...params);
+    return await fn(...params);
   };
 }

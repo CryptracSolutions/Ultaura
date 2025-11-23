@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { Database } from '~/database.types';
 import getSupabaseClientKeys from './get-supabase-client-keys';
+import getLogger from '~/core/logger';
 
 /**
  * @name getSupabaseRouteHandlerClient
@@ -23,7 +24,11 @@ const getSupabaseRouteHandlerClient = (
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!serviceRoleKey) {
-      throw new Error('Supabase Service Role Key not provided');
+      const error = new Error(
+        'Supabase Service Role Key not provided. Please set the SUPABASE_SERVICE_ROLE_KEY environment variable.',
+      );
+      getLogger().error({ error }, 'Missing SUPABASE_SERVICE_ROLE_KEY');
+      throw error;
     }
 
     return createClient<Database>(keys.url, serviceRoleKey, {

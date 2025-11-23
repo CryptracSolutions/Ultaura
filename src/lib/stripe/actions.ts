@@ -76,8 +76,9 @@ export const createCheckoutAction = withSession(
 
     // check if the plan exists in the configuration.
     if (!plan) {
-      console.warn(
-        `Plan not found for price ID "${priceId}". Did you forget to add it to the configuration? If the Price ID is incorrect, the checkout will be rejected. Please check the Stripe dashboard`,
+      logger.warn(
+        { priceId },
+        `Plan not found for price ID. Did you forget to add it to the configuration? If the Price ID is incorrect, the checkout will be rejected. Please check the Stripe dashboard`,
       );
     }
 
@@ -228,17 +229,21 @@ export const createBillingPortalSessionAction = withSession(
     const returnUrl = referer || origin || configuration.paths.appHome;
 
     // get the Stripe Billing Portal session
-    const { url } = await createBillingPortalSession({
+    const portalSession = await createBillingPortalSession({
       returnUrl,
       customerId,
     }).catch((e) => {
       logger.error(e, `Stripe Billing Portal redirect error`);
-
-      return redirectToErrorPage(referrerPath);
+      return null;
     });
 
+    if (!portalSession) {
+      redirectToErrorPage(referrerPath);
+      return; // unreachable but helps TypeScript
+    }
+
     // redirect to the Stripe Billing Portal
-    return redirect(url, RedirectType.replace);
+    redirect(portalSession.url, RedirectType.replace);
   },
 );
 

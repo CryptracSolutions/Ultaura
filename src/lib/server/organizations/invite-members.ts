@@ -93,6 +93,14 @@ export default async function inviteMembers(params: Params) {
     // validate that the user has permissions
     // to invite the user based on their roles
     if (!canInviteUser(inviterRole, invite.role)) {
+      logger.info(
+        {
+          inviterRole,
+          targetRole: invite.role,
+          email: invite.email,
+        },
+        `Skipping invitation: inviter lacks permission to invite this role`,
+      );
       continue;
     }
 
@@ -227,7 +235,24 @@ export default async function inviteMembers(params: Params) {
     }
   }
 
-  return Promise.all(requests);
+  const results = await Promise.allSettled(requests);
+
+  const failures = results.filter(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  );
+
+  if (failures.length > 0) {
+    logger.warn(
+      {
+        totalInvites: requests.length,
+        failedCount: failures.length,
+        errors: failures.map((f) => f.reason),
+      },
+      `Some invitations failed to send`,
+    );
+  }
+
+  return results;
 }
 
 async function sendInviteEmail(props: {

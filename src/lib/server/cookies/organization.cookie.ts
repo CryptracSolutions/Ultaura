@@ -11,7 +11,7 @@ export function createOrganizationIdCookie(params: {
   return {
     name: buildOrganizationIdCookieName(params.userId),
     value: params.organizationUid,
-    httpOnly: false,
+    httpOnly: true,
     secure,
     path: '/',
     sameSite: 'lax' as const,

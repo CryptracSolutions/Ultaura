@@ -24,7 +24,18 @@ export const POST = async (req: NextRequest) => {
   const session = await requireSession(client);
   const userId = session.user.id;
 
-  const body = await getOnboardingBodySchema().parseAsync(await req.json());
+  let body;
+  try {
+    const json = await req.json();
+    body = await getOnboardingBodySchema().parseAsync(json);
+  } catch (error) {
+    logger.warn({ error, userId }, 'Invalid onboarding request body');
+    return NextResponse.json(
+      { success: false, error: 'Invalid request body' },
+      { status: 400 },
+    );
+  }
+
   const organizationName = body.organization;
   const invites = body.invites;
 

@@ -109,7 +109,11 @@ class OrganizationSdk {
   public async getSubscription() {
     const data = await this.getCurrent();
 
-    return new OrganizationSubscriptionSdk(data?.subscription);
+    if (!data) {
+      return new OrganizationSubscriptionSdk(undefined);
+    }
+
+    return new OrganizationSubscriptionSdk(data.subscription);
   }
 
   /**

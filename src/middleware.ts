@@ -81,14 +81,14 @@ async function adminMiddleware(request: NextRequest, response: NextResponse) {
   // If user is not logged in, redirect to sign in page.
   // This should never happen, but just in case.
   if (!data.user || error) {
-    return NextResponse.redirect(`${origin}/auth/sign-in`);
+    return NextResponse.redirect(new URL('/auth/sign-in', origin), 307);
   }
 
   const role = data.user?.app_metadata['role'];
 
   // If user is not an admin, redirect to 404 page.
   if (!role || role !== GlobalRole.SuperAdmin) {
-    return NextResponse.redirect(`${origin}/404`);
+    return NextResponse.redirect(new URL('/404', origin), 307);
   }
 
   // in all other cases, return the response

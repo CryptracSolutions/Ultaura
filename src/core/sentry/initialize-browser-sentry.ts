@@ -26,7 +26,8 @@ async function initializeBrowserSentry() {
 
   Sentry.init({
     dsn,
-    integrations: [new BrowserTracing()],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    integrations: [new BrowserTracing() as any],
     tracesSampleRate: 1.0,
     environment: configuration.environment,
   });

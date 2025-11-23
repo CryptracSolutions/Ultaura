@@ -72,7 +72,15 @@ export async function POST(request: Request) {
     switch (event.type) {
       case StripeWebhooks.Completed: {
         const session = event.data.object as Stripe.Checkout.Session;
-        const subscriptionId = session.subscription as string;
+        const subscriptionId = session.subscription;
+
+        if (!subscriptionId || typeof subscriptionId !== 'string') {
+          logger.error(
+            { eventId: event.id },
+            `[Stripe] Missing subscription ID in checkout session`,
+          );
+          return throwBadRequestException('Missing subscription ID');
+        }
 
         const subscription =
           await stripe.subscriptions.retrieve(subscriptionId);
@@ -104,6 +112,7 @@ export async function POST(request: Request) {
     logger.error(
       {
         error,
+        eventType: 'unknown',
       },
       `[Stripe] Webhook handling failed`,
     );
@@ -153,5 +162,11 @@ async function onCheckoutCompleted(
 function getOrganizationUidFromClientReference(
   session: Stripe.Checkout.Session,
 ) {
-  return session.client_reference_id as string;
+  const clientReferenceId = session.client_reference_id;
+
+  if (!clientReferenceId) {
+    throw new Error('Missing client_reference_id in checkout session');
+  }
+
+  return clientReferenceId;
 }
