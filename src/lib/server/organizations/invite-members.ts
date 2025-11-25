@@ -306,7 +306,7 @@ async function sendInviteEmail(props: {
 /**
  * @name getInvitePageFullUrl
  * @description Return the full URL to the invite page link. For example,
- * makerkit.dev/invite/{INVITE_CODE}
+ * jp3.dev/invite/{INVITE_CODE}
  * @param code
  */
 function getInvitePageFullUrl(code: string) {

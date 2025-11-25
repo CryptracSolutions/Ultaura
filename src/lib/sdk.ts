@@ -1,8 +1,8 @@
 /**
- * Makerkit SDK [Experimental]
+ * JP3 SDK [Experimental]
  *
  * This SDK is a wrapper around the Supabase client that provides a more
- * convenient interface for interacting with the Makerkit's core entities,
+ * convenient interface for interacting with JP3's core entities,
  * such as organizations, users, and subscriptions.
  *
  * The SDK is currently experimental and is not recommended for production use.
@@ -46,11 +46,11 @@ import { getMembershipsByOrganizationUid } from '~/app/admin/organizations/queri
 type Client = SupabaseClient<Database>;
 
 /**
- * Retrieves the Makerkit SDK instance.
+ * Retrieves the JP3 SDK instance.
  * Currently, this is an experimental feature and is not recommended for production use.
  *
  * @param {SupabaseClient<Database>} client - The Supabase client instance.
- * @return {MakerkitSdk} - The Makerkit SDK instance.
+ * @return {MakerkitSdk} - The JP3 SDK instance.
  */
 export default function experimental_getSdk(
   client: SupabaseClient<Database>,

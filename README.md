@@ -1,6 +1,6 @@
-# MakerKit - SaaS Starter for Next.js and Supabase
+# JP3 - SaaS Starter for Next.js and Supabase
 
-MakerKit is a SaaS starter project built with Next.js, Supabase and Tailwind CSS.
+JP3 is a SaaS starter project built with Next.js, Supabase and Tailwind CSS.
 
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
@@ -174,7 +174,7 @@ STRIPE_WEBHOOK_SECRET=whsec_***********************
 You should now be able to sign in. To quickly get started, use the following credentials:
 
 ```
-email = test@makerkit.dev
+email = test@jp3.dev
 password = testingpassword
 ```
 

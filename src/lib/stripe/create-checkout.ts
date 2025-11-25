@@ -21,7 +21,7 @@ interface CreateCheckoutParams {
 export default async function createStripeCheckout(
   params: CreateCheckoutParams,
 ) {
-  // in MakerKit, a subscription belongs to an organization,
+  // in JP3, a subscription belongs to an organization,
   // rather than to a user
   // if you wish to change it, use the current user ID instead
   const clientReferenceId = params.organizationUid;
