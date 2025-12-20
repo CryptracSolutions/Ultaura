@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, Phone, Clock, Users, Zap, Shield, Heart } from 'lucide-react';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Check, Phone, Clock, Users, Zap, Shield, Heart, Loader2 } from 'lucide-react';
 import { PLANS, BILLING } from '~/lib/ultaura/constants';
+import { createUltauraCheckout } from '~/lib/ultaura/actions';
 
 type BillingPeriod = 'monthly' | 'annual';
 
@@ -59,13 +61,69 @@ const planIcons: Record<string, React.ReactNode> = {
   payg: <Zap className="w-6 h-6" />,
 };
 
-export function UltauraPricingTable() {
+interface UltauraPricingTableProps {
+  // If provided, enables checkout flow instead of sign-up redirect
+  organizationUid?: string;
+  // Current plan ID (to show "Current Plan" badge)
+  currentPlanId?: string;
+}
+
+export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraPricingTableProps) {
+  const router = useRouter();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
+  const [isPending, startTransition] = useTransition();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const displayPlans = Object.entries(PLANS).filter(([id]) => id !== 'free_trial');
 
+  const handleSelectPlan = async (planId: string) => {
+    setError(null);
+
+    // If no organization (public page), redirect to sign-up
+    if (!organizationUid) {
+      router.push(`/auth/sign-up?plan=${planId}&billing=${billingPeriod}`);
+      return;
+    }
+
+    // Authenticated flow - create checkout session
+    setLoadingPlan(planId);
+    startTransition(async () => {
+      try {
+        const returnUrl = typeof window !== 'undefined'
+          ? `${window.location.origin}/dashboard`
+          : '/dashboard';
+
+        const result = await createUltauraCheckout(
+          planId,
+          billingPeriod,
+          organizationUid,
+          returnUrl
+        );
+
+        if (result.success && result.checkoutUrl) {
+          // Redirect to Stripe Checkout
+          window.location.href = result.checkoutUrl;
+        } else {
+          setError(result.error || 'Failed to start checkout');
+          setLoadingPlan(null);
+        }
+      } catch (err) {
+        setError('An unexpected error occurred');
+        setLoadingPlan(null);
+      }
+    });
+  };
+
   return (
     <div className="w-full">
+      {/* Error Display */}
+      {error && (
+        <div className="mb-8 max-w-md mx-auto p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm text-center">
+          {error}
+        </div>
+      )}
+
       {/* Billing Toggle */}
       <div className="flex justify-center mb-12">
         <div className="inline-flex items-center p-1 bg-muted rounded-lg">
@@ -99,6 +157,8 @@ export function UltauraPricingTable() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
         {displayPlans.map(([planId, plan]) => {
           const isPopular = planId === 'comfort';
+          const isCurrent = planId === currentPlanId;
+          const isLoading = loadingPlan === planId && isPending;
           const price = billingPeriod === 'annual' && plan.annual_price_cents
             ? plan.annual_price_cents / 100 / 12
             : plan.monthly_price_cents / 100;
@@ -110,13 +170,22 @@ export function UltauraPricingTable() {
               className={`relative flex flex-col rounded-2xl border bg-card p-6 ${
                 isPopular
                   ? 'border-primary shadow-lg shadow-primary/10 ring-1 ring-primary'
+                  : isCurrent
+                  ? 'border-success/50 bg-success/5'
                   : 'border-border'
               }`}
             >
-              {isPopular && (
+              {isPopular && !isCurrent && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground">
                     Most Popular
+                  </span>
+                </div>
+              )}
+              {isCurrent && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-success text-success-foreground">
+                    Current Plan
                   </span>
                 </div>
               )}
@@ -160,16 +229,30 @@ export function UltauraPricingTable() {
                 ))}
               </ul>
 
-              <a
-                href={`/auth/sign-up?plan=${planId}`}
-                className={`w-full py-3 px-4 rounded-lg font-medium text-center transition-colors ${
-                  isPopular
+              <button
+                onClick={() => handleSelectPlan(planId)}
+                disabled={isLoading || isCurrent}
+                className={`w-full py-3 px-4 rounded-lg font-medium text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 ${
+                  isCurrent
+                    ? 'bg-muted text-muted-foreground'
+                    : isPopular
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-muted text-foreground hover:bg-muted/80'
                 }`}
               >
-                {planId === 'payg' ? 'Get Started' : 'Start Free Trial'}
-              </a>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : isCurrent ? (
+                  'Current Plan'
+                ) : planId === 'payg' ? (
+                  'Get Started'
+                ) : (
+                  'Start Free Trial'
+                )}
+              </button>
             </div>
           );
         })}
@@ -180,7 +263,7 @@ export function UltauraPricingTable() {
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary">
           <Shield className="w-4 h-4" />
           <span className="text-sm font-medium">
-            All plans include a 20-minute free trial • No credit card required
+            All plans include a 7-day free trial • No credit card required to start
           </span>
         </div>
       </div>

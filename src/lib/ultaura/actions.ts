@@ -666,3 +666,129 @@ async function getPlan(planId: string) {
   if (error) return null;
   return data;
 }
+
+// ============================================
+// CHECKOUT ACTIONS
+// ============================================
+
+// Ultaura plan to Stripe price ID mapping
+const ULTAURA_PRICE_IDS: Record<string, { monthly?: string; annual?: string }> = {
+  care: {
+    monthly: process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID,
+    annual: process.env.STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID,
+  },
+  comfort: {
+    monthly: process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID,
+    annual: process.env.STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID,
+  },
+  family: {
+    monthly: process.env.STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID,
+    annual: process.env.STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID,
+  },
+  payg: {
+    monthly: process.env.STRIPE_ULTAURA_PAYG_PRICE_ID,
+  },
+};
+
+// Create a Stripe checkout session for an Ultaura plan
+export async function createUltauraCheckout(
+  planId: string,
+  billingInterval: 'monthly' | 'annual',
+  organizationUid: string,
+  returnUrl: string
+): Promise<{ success: boolean; checkoutUrl?: string; error?: string }> {
+  // Validate plan
+  if (!['care', 'comfort', 'family', 'payg'].includes(planId)) {
+    return { success: false, error: 'Invalid plan selected' };
+  }
+
+  // Get the price ID
+  const priceConfig = ULTAURA_PRICE_IDS[planId];
+  const priceId = billingInterval === 'annual' && priceConfig?.annual
+    ? priceConfig.annual
+    : priceConfig?.monthly;
+
+  if (!priceId) {
+    logger.error({ planId, billingInterval }, 'Missing Stripe price ID for Ultaura plan');
+    return { success: false, error: 'Pricing configuration error. Please contact support.' };
+  }
+
+  try {
+    // Import Stripe utilities
+    const getStripeInstance = (await import('~/core/stripe/get-stripe')).default;
+    const stripe = await getStripeInstance();
+
+    // Get organization's Stripe customer ID if exists
+    const client = getSupabaseServerComponentClient();
+    const { data: org } = await client
+      .from('organizations')
+      .select('subscription_id')
+      .eq('uuid', organizationUid)
+      .single();
+
+    let customerId: string | undefined;
+    if (org?.subscription_id) {
+      const { data: sub } = await client
+        .from('subscriptions')
+        .select('customer_id')
+        .eq('id', org.subscription_id)
+        .single();
+      customerId = sub?.customer_id;
+    }
+
+    // Determine trial period (7 days for new customers)
+    const trialPeriodDays = customerId ? undefined : 7;
+
+    // Create checkout session
+    const successUrl = `${returnUrl}?success=true&plan=${planId}`;
+    const cancelUrl = `${returnUrl}?canceled=true`;
+
+    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      client_reference_id: organizationUid,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      subscription_data: {
+        trial_period_days: trialPeriodDays,
+        metadata: {
+          organizationUid,
+          ultauraPlanId: planId,
+        },
+      },
+      metadata: {
+        ultauraPlanId: planId,
+      },
+    };
+
+    if (customerId) {
+      sessionParams.customer = customerId;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    if (!session.url) {
+      return { success: false, error: 'Failed to create checkout session' };
+    }
+
+    return { success: true, checkoutUrl: session.url };
+
+  } catch (error) {
+    logger.error({ error, planId }, 'Failed to create Ultaura checkout session');
+    return { success: false, error: 'Failed to create checkout session' };
+  }
+}
+
+// Get the appropriate price ID for a plan
+export function getUltauraPriceId(
+  planId: string,
+  billingInterval: 'monthly' | 'annual'
+): string | null {
+  const priceConfig = ULTAURA_PRICE_IDS[planId];
+  if (!priceConfig) return null;
+
+  if (billingInterval === 'annual' && priceConfig.annual) {
+    return priceConfig.annual;
+  }
+  return priceConfig.monthly || null;
+}
