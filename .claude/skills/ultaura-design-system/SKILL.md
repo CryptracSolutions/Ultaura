@@ -1,5 +1,5 @@
 ---
-name: Ultaura Design System
+name: ultaura-design-system
 description: Apply Ultaura brand guidelines to all UI components, pages, and styling. Use when creating React components, Tailwind classes, layouts, or any visual elements. Ultaura uses Tiffany Blue primary with warm Stone neutrals, OKLCH color format, and Tailwind v4 compatible theming. Designed for a voice companion service targeting caregivers and seniors.
 ---
 
