@@ -780,10 +780,10 @@ export async function createUltauraCheckout(
 }
 
 // Get the appropriate price ID for a plan
-export function getUltauraPriceId(
+export async function getUltauraPriceId(
   planId: string,
   billingInterval: 'monthly' | 'annual'
-): string | null {
+): Promise<string | null> {
   const priceConfig = ULTAURA_PRICE_IDS[planId];
   if (!priceConfig) return null;
 
