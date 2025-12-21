@@ -28,6 +28,10 @@ const links = {
     label: 'Pricing',
     path: '/pricing',
   },
+  About: {
+    label: 'About',
+    path: '/about',
+  },
   FAQ: {
     label: 'FAQ',
     path: '/faq',
@@ -49,6 +53,7 @@ const SiteNavigation = () => {
           <NavigationMenuItem className={className} link={links.Blog} />
           <NavigationMenuItem className={className} link={links.Docs} />
           <NavigationMenuItem className={className} link={links.Pricing} />
+          <NavigationMenuItem className={className} link={links.About} />
           <NavigationMenuItem className={className} link={links.FAQ} />
         </NavigationMenu>
       </div>

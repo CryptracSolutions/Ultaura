@@ -3,7 +3,7 @@
 :root {
   /* Base */
   --radius: 0.625rem;
-  --container-padding: 1.25rem;
+  --container-padding: 1.5rem;
 
   /* Background & Foreground - Stone base with warm undertones */
   --background: oklch(0.995 0.001 106.423);
@@ -176,6 +176,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --spacing-container: var(--container-padding);
 }
 
 /* Base styles */
@@ -186,6 +187,7 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-family-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "rlig" 1, "calt" 1;

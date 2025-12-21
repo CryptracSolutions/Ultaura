@@ -122,7 +122,7 @@ function DataTable<T extends object>({
 
   return (
     <div
-      className={'border border-gray-50 dark:border-dark-800 rounded-md p-1'}
+      className={'border border-border rounded-md p-1'}
     >
       <Table {...tableProps}>
         <TableHeader>

@@ -19,8 +19,8 @@ const Tile: React.FCC & {
   return (
     <div
       className={
-        'flex flex-col space-y-3 rounded-lg border border-gray-100' +
-        ' dark:border-dark-900 bg-background p-5'
+        'flex flex-col space-y-3 rounded-lg border border-border' +
+        ' bg-background p-5'
       }
     >
       {children}
@@ -35,7 +35,7 @@ function TileHeader(props: React.PropsWithChildren) {
 function TileHeading(props: React.PropsWithChildren) {
   return (
     <Heading type={6}>
-      <span className={'font-normal text-gray-500 dark:text-gray-400'}>
+      <span className={'font-normal text-muted-foreground'}>
         {props.children}
       </span>
     </Heading>
@@ -58,11 +58,11 @@ function TileTrend(
   const Icon = useMemo(() => {
     switch (props.trend) {
       case 'up':
-        return <ArrowUpIcon className={'h-4 text-green-500'} />;
+        return <ArrowUpIcon className={'h-4 text-success'} />;
       case 'down':
-        return <ArrowDownIcon className={'h-4 text-red-500'} />;
+        return <ArrowDownIcon className={'h-4 text-destructive'} />;
       case 'stale':
-        return <Bars2Icon className={'h-4 text-yellow-500'} />;
+        return <Bars2Icon className={'h-4 text-warning'} />;
     }
   }, [props.trend]);
 
@@ -86,7 +86,7 @@ function TileBadge(
   if (props.trend === `up`) {
     return (
       <div
-        className={`${className} bg-green-50 text-green-600 dark:bg-green-500/10`}
+        className={`${className} bg-success/10 text-success`}
       >
         <span>{props.children}</span>
       </div>
@@ -95,7 +95,7 @@ function TileBadge(
 
   if (props.trend === `down`) {
     return (
-      <div className={`${className} bg-red-50 text-red-600 dark:bg-red-500/10`}>
+      <div className={`${className} bg-destructive/10 text-destructive`}>
         <span>{props.children}</span>
       </div>
     );
@@ -103,7 +103,7 @@ function TileBadge(
 
   return (
     <div
-      className={`${className} bg-yellow-50 text-yellow-600 dark:bg-yellow-500/10`}
+      className={`${className} bg-warning/10 text-warning`}
     >
       <span>{props.children}</span>
     </div>

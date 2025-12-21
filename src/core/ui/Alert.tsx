@@ -83,15 +83,15 @@ Alert.Heading = AlertHeading;
 function getClassNameBuilder() {
   return cva(
     [
-      `p-4 animate-in dark:bg-transparent fade-in relative flex items-center justify-between text-gray-700 rounded-lg text-sm border`,
+      `p-4 animate-in fade-in relative flex items-center justify-between text-foreground rounded-lg text-sm border`,
     ],
     {
       variants: {
         type: {
-          success: `bg-green-500/5 dark:text-green-500 text-green-800 border-green-500/80`,
-          info: `bg-sky-500/5 dark:text-sky-500 text-sky-800 border-sky-800/50 dark:border-sky-500/50`,
-          error: `bg-red-500/5 dark:text-red-500 text-red-500 border-red-500/80`,
-          warn: `bg-yellow-500/5 dark:text-yellow-500 text-yellow-800 border-yellow-500/80`,
+          success: `bg-success/5 text-success border-success/50`,
+          info: `bg-info/5 text-info border-info/50`,
+          error: `bg-destructive/5 text-destructive border-destructive/50`,
+          warn: `bg-warning/5 text-warning border-warning/50`,
         },
       },
       defaultVariants: {
@@ -105,10 +105,10 @@ function getIconClassNameBuilder() {
   return cva([`rounded-full h-5 w-5`], {
     variants: {
       type: {
-        success: `text-green-800 dark:text-green-500`,
-        info: `text-sky-800 dark:text-sky-500`,
-        error: `text-red-500`,
-        warn: `text-yellow-800 dark:text-yellow-500`,
+        success: `text-success`,
+        info: `text-info`,
+        error: `text-destructive`,
+        warn: `text-warning`,
       },
     },
     defaultVariants: {

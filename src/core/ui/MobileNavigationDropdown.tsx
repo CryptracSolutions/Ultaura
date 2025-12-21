@@ -46,7 +46,7 @@ const MobileNavigationDropdown: React.FC<{
 
       <DropdownMenuContent
         className={
-          'divide-y divide-gray-100 dark:divide-dark-700 w-screen' +
+          'divide-y divide-border w-screen' +
           ' rounded-none'
         }
       >

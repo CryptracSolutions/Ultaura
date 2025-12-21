@@ -18,14 +18,7 @@ module.exports = {
           'system-ui',
         ],
         sans: ['var(--font-family-sans)'],
-        mono: [
-          'JetBrains Mono',
-          'ui-monospace',
-          'SFMono-Regular',
-          'Menlo',
-          'Monaco',
-          'monospace',
-        ],
+        mono: ['var(--font-family-mono)'],
       },
       colors: {
         border: 'var(--border)',

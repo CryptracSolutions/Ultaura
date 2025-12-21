@@ -11,7 +11,7 @@ const Hint: React.FC<React.PropsWithChildren> = ({ children }) => {
   return (
     <span
       className={`block pl-1 text-xs
-        font-normal leading-tight text-gray-500 dark:text-gray-400`}
+        font-normal leading-tight text-muted-foreground`}
     >
       {children}
     </span>
@@ -63,7 +63,7 @@ const ErrorMessage: React.FC<
 
   return (
     <Hint>
-      <span {...props} className={'py-0.5 text-red-700 dark:text-red-500'}>
+      <span {...props} className={'py-0.5 text-destructive'}>
         {error}
       </span>
     </Hint>

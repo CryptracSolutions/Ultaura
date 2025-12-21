@@ -67,7 +67,7 @@ export function SidebarGroup({
     return (
       <span
         className={
-          'text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+          'text-xs font-semibold uppercase text-muted-foreground group-hover:text-foreground'
         }
       >
         {props.children}
@@ -126,7 +126,7 @@ export function SidebarGroup({
 
 export function SidebarDivider() {
   return (
-    <div className={'border-t border-gray-100 dark:border-dark-800 my-2'} />
+    <div className={'border-t border-border my-2'} />
   );
 }
 
@@ -174,7 +174,7 @@ export default Sidebar;
 function getClassNameBuilder() {
   return cva(
     [
-      'fixed flex box-content hidden h-screen flex-col border-r border-gray-100 dark:border-dark-800 lg:flex ' +
+      'fixed flex box-content hidden h-screen flex-col border-r border-border lg:flex ' +
         'transition-[width] duration-100 motion-reduce:transition-none',
     ],
     {
@@ -200,25 +200,25 @@ function getSidebarItemClassBuilder() {
           false: `py-2 px-3 pr-12 space-x-2.5`,
         },
         active: {
-          true: `bg-primary/5 dark:bg-primary-300/10 font-medium`,
-          false: `ring-transparent hover:bg-gray-50 dark:hover:bg-dark-800/40 active:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:active:bg-dark-700`,
+          true: `bg-primary/5 font-medium`,
+          false: `ring-transparent hover:bg-muted active:bg-muted/80 text-muted-foreground hover:text-foreground`,
         },
       },
       compoundVariants: [
         {
           collapsed: true,
           active: true,
-          className: `bg-primary/5 dark:bg-dark-800 text-primary dark:text-white`,
+          className: `bg-primary/5 text-primary`,
         },
         {
           collapsed: false,
           active: true,
-          className: `dark:bg-dark-800 text-primary-700 dark:text-white`,
+          className: `text-primary`,
         },
         {
           collapsed: true,
           active: false,
-          className: `dark:text-gray-300`,
+          className: `text-muted-foreground`,
         },
       ],
     },

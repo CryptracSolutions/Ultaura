@@ -1,6 +1,7 @@
 'use client';
 
 import type { i18n } from 'i18next';
+import { I18nextProvider } from 'react-i18next';
 import isBrowser from '~/core/generic/is-browser';
 import { getCookie } from '~/core/generic/cookies';
 
@@ -16,7 +17,7 @@ function I18nProvider({
     throw withI18nClient(lang);
   }
 
-  return children;
+  return <I18nextProvider i18n={client}>{children}</I18nextProvider>;
 }
 
 export default I18nProvider;

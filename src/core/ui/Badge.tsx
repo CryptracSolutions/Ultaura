@@ -25,11 +25,11 @@ function getClassNameBuilder() {
   return cva([`flex space-x-2 items-center font-medium`], {
     variants: {
       color: {
-        normal: `text-gray-500 bg-gray-100 dark:text-gray-300 dark:bg-dark-800/80`,
-        success: `bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-600`,
-        warn: `bg-yellow-50 dark:bg-yellow-100/10 text-yellow-800`,
-        error: `bg-red-50 dark:bg-red-500/10 text-red-800 dark:text-red-600`,
-        info: `bg-sky-50 dark:bg-sky-500/10 text-sky-800 dark:text-sky-600`,
+        normal: `text-muted-foreground bg-muted`,
+        success: `bg-success/10 text-success`,
+        warn: `bg-warning/10 text-warning`,
+        error: `bg-destructive/10 text-destructive`,
+        info: `bg-info/10 text-info`,
         custom: '',
       },
       size: {

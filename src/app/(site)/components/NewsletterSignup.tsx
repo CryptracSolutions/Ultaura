@@ -7,7 +7,7 @@ function NewsletterSignup() {
       <div>
         <span className={'font-semibold'}>Subscribe to our Newsletter</span>
 
-        <div className={'text-sm text-gray-500 dark:text-gray-400'}>
+        <div className={'text-sm text-muted-foreground'}>
           Get the latest updates from our team.
         </div>
       </div>

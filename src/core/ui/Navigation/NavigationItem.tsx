@@ -65,42 +65,42 @@ function getNavigationMenuItemClassBuilder() {
         // not active - shared
         {
           active: false,
-          className: `active:text-current text-gray-500 dark:text-gray-300 hover:text-current dark:hover:text-primary`,
+          className: `active:text-current text-muted-foreground hover:text-primary`,
         },
         // active - shared
         {
           active: true,
-          className: `text-gray-800 dark:text-white`,
+          className: `text-foreground hover:text-primary`,
         },
         // active - pill
         {
           active: true,
           pill: true,
-          className: `bg-gray-50 text-gray-800 dark:bg-primary-300/10`,
+          className: `bg-muted text-foreground hover:text-primary`,
         },
         // not active - pill
         {
           active: false,
           pill: true,
-          className: `hover:bg-gray-50 active:bg-gray-100 text-gray-500 dark:text-gray-300 dark:hover:bg-background dark:active:bg-dark-900/90`,
+          className: `hover:bg-muted hover:text-primary active:bg-muted/80 text-muted-foreground`,
         },
         // not active - bordered
         {
           active: false,
           bordered: true,
-          className: `hover:bg-gray-50 active:bg-gray-100 dark:active:bg-dark-800 dark:hover:bg-dark/90 transition-colors rounded-lg border-transparent`,
+          className: `hover:bg-muted hover:text-primary active:bg-muted/80 transition-colors rounded-lg border-transparent`,
         },
         // active - bordered
         {
           active: true,
           bordered: true,
-          className: `top-[0.4rem] border-b-[0.25rem] rounded-none border-primary bg-transparent pb-[0.55rem] text-primary-700 dark:text-white`,
+          className: `top-[0.4rem] border-b-[0.25rem] rounded-none border-primary bg-transparent pb-[0.55rem] text-primary`,
         },
         // active - secondary
         {
           active: true,
           secondary: true,
-          className: `bg-transparent font-semibold`,
+          className: `bg-transparent font-semibold hover:text-primary`,
         },
       ],
       variants: {

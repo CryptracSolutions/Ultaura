@@ -12,7 +12,7 @@ export function Section({
   return (
     <div
       className={classNames(
-        'rounded-md dark:border-dark-800 w-full border border-gray-100',
+        'rounded-md w-full border border-border divide-y divide-border',
         className,
       )}
     >
@@ -31,14 +31,14 @@ export function SectionHeader(
   return (
     <div
       className={classNames(
-        'flex flex-col space-y-0.5 px-container pt-container',
+        'flex flex-col space-y-0.5 px-container pt-container pb-container',
         props.className,
       )}
     >
       <Heading type={4}>{props.title}</Heading>
 
       <If condition={props.description}>
-        <p className={'text-gray-500 dark:text-gray-400'}>
+        <p className={'text-muted-foreground'}>
           {props.description}
         </p>
       </If>

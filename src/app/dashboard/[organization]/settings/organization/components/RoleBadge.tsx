@@ -8,10 +8,9 @@ import roles from '~/lib/organizations/roles';
 const roleClassNameBuilder = cva('font-medium', {
   variants: {
     role: {
-      [MembershipRole.Owner]:
-        'bg-yellow-100 dark:bg-yellow-200 text-current dark:text-dark-900',
-      [MembershipRole.Admin]: 'bg-blue-50 dark:bg-blue-500/10 text-blue-500',
-      [MembershipRole.Member]: 'bg-blue-50 dark:bg-blue-500/10 text-blue-500',
+      [MembershipRole.Owner]: 'bg-warning/20 text-warning',
+      [MembershipRole.Admin]: 'bg-info/10 text-info',
+      [MembershipRole.Member]: 'bg-info/10 text-info',
     },
   },
 });
