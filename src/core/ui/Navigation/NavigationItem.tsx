@@ -65,7 +65,7 @@ function getNavigationMenuItemClassBuilder() {
         // not active - shared
         {
           active: false,
-          className: `active:text-current text-gray-500 dark:text-gray-300 hover:text-current dark:hover:text-white`,
+          className: `active:text-current text-gray-500 dark:text-gray-300 hover:text-current dark:hover:text-primary`,
         },
         // active - shared
         {
