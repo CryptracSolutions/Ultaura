@@ -10,12 +10,12 @@ enum Themes {
 
 const configuration = {
   site: {
-    name: 'Awesomely - Your SaaS Title',
-    description: 'Your SaaS Description',
-    themeColor: '#ffffff',
-    themeColorDark: '#0a0a0a',
+    name: 'Ultaura - AI Voice Companion for Seniors',
+    description: 'AI voice companion that provides friendly phone conversations for your elderly loved ones. No app required — just a phone call.',
+    themeColor: '#0ABAB5',
+    themeColorDark: '#088A86',
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
-    siteName: 'Awesomely',
+    siteName: 'Ultaura',
     twitterHandle: '',
     githubHandle: '',
     convertKitFormId: '',
