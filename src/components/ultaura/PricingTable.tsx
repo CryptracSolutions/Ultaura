@@ -26,8 +26,8 @@ const planFeatures: Record<string, string[]> = {
     'Email support',
   ],
   comfort: [
-    '600 minutes per month',
-    '3 phone lines',
+    '900 minutes per month',
+    '2 phone lines',
     'Multiple call times daily',
     'All Care features',
     'Priority support',
@@ -35,8 +35,8 @@ const planFeatures: Record<string, string[]> = {
     'Call summaries',
   ],
   family: [
-    '1,200 minutes per month',
-    '6 phone lines',
+    '2,000 minutes per month',
+    '4 phone lines',
     'Unlimited call scheduling',
     'All Comfort features',
     'Dedicated support',
@@ -45,7 +45,7 @@ const planFeatures: Record<string, string[]> = {
   ],
   payg: [
     'Pay only for what you use',
-    '1 phone line',
+    '4 phone lines',
     'No monthly commitment',
     'All core features',
     'Flexible scheduling',

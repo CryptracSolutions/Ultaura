@@ -2,14 +2,12 @@ import Link from 'next/link';
 
 import Container from '~/core/ui/Container';
 import LogoImage from '~/core/ui/Logo/LogoImage';
-import configuration from '~/configuration';
-import NewsletterSignup from './NewsletterSignup';
 
 const YEAR = new Date().getFullYear();
 
 function Footer() {
   return (
-    <footer className={'py-8 lg:py-24'}>
+    <footer className={'py-8 lg:py-24 border-t border-border'}>
       <Container>
         <div className={'flex flex-col space-y-8 lg:flex-row lg:space-y-0'}>
           <div
@@ -24,15 +22,14 @@ function Footer() {
               </div>
 
               <div>
-                <p className={'text-sm text-gray-500 dark:text-gray-400'}>
-                  Add a short tagline about your product
+                <p className={'text-sm text-muted-foreground'}>
+                  Companionship, one call at a time.
                 </p>
               </div>
 
-              <div className={'flex text-xs text-gray-500 dark:text-gray-400'}>
+              <div className={'flex text-xs text-muted-foreground'}>
                 <p>
-                  © Copyright {YEAR} {configuration.site.siteName}. All Rights
-                  Reserved.
+                  © {YEAR} Ultaura. All Rights Reserved.
                 </p>
               </div>
             </div>
@@ -47,11 +44,29 @@ function Footer() {
           >
             <div>
               <div className={'flex flex-col space-y-4'}>
-                <FooterSectionHeading>About</FooterSectionHeading>
+                <FooterSectionHeading>Product</FooterSectionHeading>
 
                 <FooterSectionList>
                   <FooterLink>
-                    <Link href={'#'}>Who we are</Link>
+                    <Link href={'/pricing'}>Pricing</Link>
+                  </FooterLink>
+                  <FooterLink>
+                    <Link href={'/#how-it-works'}>How It Works</Link>
+                  </FooterLink>
+                  <FooterLink>
+                    <Link href={'/faq'}>FAQ</Link>
+                  </FooterLink>
+                </FooterSectionList>
+              </div>
+            </div>
+
+            <div>
+              <div className={'flex flex-col space-y-4'}>
+                <FooterSectionHeading>Company</FooterSectionHeading>
+
+                <FooterSectionList>
+                  <FooterLink>
+                    <Link href={'/about'}>About Us</Link>
                   </FooterLink>
                   <FooterLink>
                     <Link href={'/blog'}>Blog</Link>
@@ -65,17 +80,17 @@ function Footer() {
 
             <div>
               <div className={'flex flex-col space-y-4'}>
-                <FooterSectionHeading>Product</FooterSectionHeading>
+                <FooterSectionHeading>Legal</FooterSectionHeading>
 
                 <FooterSectionList>
                   <FooterLink>
-                    <Link href={'/docs'}>Documentation</Link>
+                    <Link href={'/terms'}>Terms of Service</Link>
                   </FooterLink>
                   <FooterLink>
-                    <Link href={'#'}>Help Center</Link>
+                    <Link href={'/privacy'}>Privacy Policy</Link>
                   </FooterLink>
                   <FooterLink>
-                    <Link href={'#'}>Changelog</Link>
+                    <Link href={'/accessibility'}>Accessibility</Link>
                   </FooterLink>
                 </FooterSectionList>
               </div>
@@ -83,23 +98,18 @@ function Footer() {
 
             <div>
               <div className={'flex flex-col space-y-4'}>
-                <FooterSectionHeading>Legal</FooterSectionHeading>
+                <FooterSectionHeading>Support</FooterSectionHeading>
 
                 <FooterSectionList>
                   <FooterLink>
-                    <Link href={'#'}>Terms of Service</Link>
+                    <Link href={'/docs'}>Help Center</Link>
                   </FooterLink>
                   <FooterLink>
-                    <Link href={'#'}>Privacy Policy</Link>
-                  </FooterLink>
-                  <FooterLink>
-                    <Link href={'#'}>Cookie Policy</Link>
+                    <a href="mailto:support@ultaura.com">support@ultaura.com</a>
                   </FooterLink>
                 </FooterSectionList>
               </div>
             </div>
-
-            <NewsletterSignup />
           </div>
         </div>
       </Container>
@@ -110,14 +120,14 @@ function Footer() {
 function FooterSectionHeading(props: React.PropsWithChildren) {
   return (
     <p>
-      <span className={'font-semibold'}>{props.children}</span>
+      <span className={'font-semibold text-foreground'}>{props.children}</span>
     </p>
   );
 }
 
 function FooterSectionList(props: React.PropsWithChildren) {
   return (
-    <ul className={'flex flex-col space-y-4 text-gray-500 dark:text-gray-400'}>
+    <ul className={'flex flex-col space-y-4 text-muted-foreground'}>
       {props.children}
     </ul>
   );
@@ -127,8 +137,7 @@ function FooterLink(props: React.PropsWithChildren) {
   return (
     <li
       className={
-        'text-sm [&>a]:transition-colors [&>a]:hover:text-gray-800' +
-        ' dark:[&>a]:hover:text-white'
+        'text-sm [&>a]:transition-colors [&>a]:hover:text-foreground'
       }
     >
       {props.children}
