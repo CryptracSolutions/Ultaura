@@ -12,7 +12,7 @@ const Heading: React.FCC<{ type?: HeadingType; className?: string }> = ({
       return (
         <h1
           className={classNames(
-            `font-heading scroll-m-20 text-4xl font-bold tracking-tight dark:text-white`,
+            `font-heading scroll-m-20 text-4xl font-semibold tracking-[-0.02em] leading-[1.05] text-foreground`,
             className,
           )}
         >
@@ -23,7 +23,7 @@ const Heading: React.FCC<{ type?: HeadingType; className?: string }> = ({
       return (
         <h2
           className={classNames(
-            `font-heading scroll-m-20 pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0`,
+            `font-heading scroll-m-20 pb-2 text-3xl font-semibold tracking-[-0.02em] leading-[1.12] text-foreground transition-colors first:mt-0`,
             className,
           )}
         >
@@ -35,7 +35,7 @@ const Heading: React.FCC<{ type?: HeadingType; className?: string }> = ({
         <h3
           className={classNames(
             'font-heading scroll-m-20' +
-              ' text-2xl font-semibold tracking-tight',
+              ' text-2xl font-semibold tracking-[-0.01em] leading-[1.2] text-foreground',
             className,
           )}
         >
@@ -46,7 +46,7 @@ const Heading: React.FCC<{ type?: HeadingType; className?: string }> = ({
       return (
         <h4
           className={classNames(
-            'font-heading scroll-m-20 text-xl font-semibold tracking-tight',
+            'font-heading scroll-m-20 text-xl font-semibold tracking-[-0.01em] leading-[1.25] text-foreground',
             className,
           )}
         >
@@ -57,7 +57,7 @@ const Heading: React.FCC<{ type?: HeadingType; className?: string }> = ({
       return (
         <h5
           className={classNames(
-            'scroll-m-20 font-heading text-lg font-medium',
+            'scroll-m-20 font-heading text-lg font-medium leading-[1.35] text-foreground',
             className,
           )}
         >
@@ -68,7 +68,7 @@ const Heading: React.FCC<{ type?: HeadingType; className?: string }> = ({
       return (
         <h6
           className={classNames(
-            'scroll-m-20 font-heading text-base' + ' font-medium',
+            'scroll-m-20 font-heading text-base font-medium leading-[1.4] text-foreground',
             className,
           )}
         >

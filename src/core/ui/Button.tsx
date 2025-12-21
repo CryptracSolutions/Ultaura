@@ -15,8 +15,8 @@ const small = `[&>*]:py-2 [&>*]:px-3 text-xs`;
 
 const buttonVariants = cva(
   `inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors
-   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-    disabled:pointer-events-none disabled:opacity-50 active:[&>*]:translate-y-0.5`,
+   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background
+   disabled:pointer-events-none disabled:opacity-50 active:[&>*]:translate-y-0.5`,
   {
     variants: {
       variant: {
@@ -24,13 +24,14 @@ const buttonVariants = cva(
         destructive:
           'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline:
-          'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        outlinePrimary: `border-primary bg-background border-2 hover:border-primary/80`,
+          'border border-border bg-background hover:bg-muted/60 hover:text-foreground',
+        outlinePrimary:
+          'border-2 border-primary bg-background hover:bg-primary/5 hover:border-primary/80',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-secondary/90',
-        ghost: 'hover:bg-accent/50 hover:text-accent-foreground',
+        ghost: 'hover:bg-muted/60 hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        transparent: 'hover:bg-accent hover:text-accent-foreground',
+        transparent: 'hover:bg-muted/60 hover:text-foreground',
         flat: 'bg-primary/5 text-primary hover:bg-primary/10',
         custom: '',
       },
@@ -123,7 +124,7 @@ function InnerButtonContainerElement({
   href: Maybe<string>;
   disabled?: boolean;
 }>) {
-  const className = `flex w-full h-full items-center transition-transform duration-500 ease-out`;
+  const className = `flex w-full h-full items-center transition-transform duration-150 ease-out`;
 
   if (href && !disabled) {
     return (

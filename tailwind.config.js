@@ -4,7 +4,7 @@ module.exports = {
   theme: {
     container: {
       center: true,
-      padding: '2rem',
+      padding: 'var(--container-padding)',
       screens: {
         '2xl': '1400px',
       },
@@ -83,6 +83,13 @@ module.exports = {
           4: 'var(--chart-4)',
           5: 'var(--chart-5)',
         },
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        xl: 'var(--shadow-xl)',
+        glow: 'var(--shadow-glow)',
       },
       borderRadius: {
         lg: 'var(--radius)',
