@@ -287,15 +287,14 @@ All Ultaura tables have Row Level Security:
 ├── supabase/migrations/
 │   └── 20241220000001_ultaura_schema.sql
 ├── .env.ultaura.example
-└── README-ULTAURA.md
 ```
 
 ## Support
 
 For issues specific to Ultaura:
-- Check this README first
+- Check this file first
 - Review telephony server logs
 - Check Supabase logs for database errors
 - Review Twilio console for call issues
 
-For MakerKit-related issues, refer to the main MakerKit documentation.
+For MakerKit-related issues, refer to the main MakerKit documentation: https://makerkit.dev/docs/next-supabase-turbo
