@@ -17,6 +17,8 @@ import {
   render,
 } from '@react-email/components';
 
+import { brandColors } from '~/lib/brand-colors';
+
 interface Props {
   organizationName: string;
   organizationLogo?: string;
@@ -65,7 +67,8 @@ export default function renderInviteEmail(props: Props) {
             )}
             <Section className="text-center mt-[32px] mb-[32px]">
               <Button
-                className="bg-[#0ABAB5] rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
+                className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
+                style={{ backgroundColor: brandColors.primary }}
                 href={props.link}
               >
                 Join {props.organizationName}
@@ -73,7 +76,11 @@ export default function renderInviteEmail(props: Props) {
             </Section>
             <Text className="text-black text-[14px] leading-[24px]">
               or copy and paste this URL into your browser:{' '}
-              <Link href={props.link} className="text-[#0ABAB5] no-underline">
+              <Link
+                href={props.link}
+                className="no-underline"
+                style={{ color: brandColors.primary }}
+              >
                 {props.link}
               </Link>
             </Text>

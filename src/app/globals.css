@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Ensure Tailwind v4 uses class-based dark mode (not prefers-color-scheme) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Base */
   --radius: 0.625rem;

@@ -1,9 +1,9 @@
+import Image from 'next/image';
 import {
   PhoneIcon,
   HeartIcon,
   ShieldCheckIcon,
   EyeIcon,
-  ClockIcon,
   UserPlusIcon,
   CalendarIcon,
   ChartBarIcon,
@@ -17,6 +17,13 @@ import Divider from '~/core/ui/Divider';
 import Heading from '~/core/ui/Heading';
 import { UltauraPricingTable } from '~/components/ultaura/PricingTable';
 import { withI18n } from '~/i18n/with-i18n';
+import { Testimonials } from '~/app/(site)/components/Testimonials';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '~/core/ui/Accordion';
 
 function Home() {
   return (
@@ -25,7 +32,7 @@ function Home() {
       <Container>
         <div
           className={
-            'my-12 flex flex-col items-center md:flex-row lg:my-16' +
+            'my-12 flex flex-col items-center lg:my-16' +
             ' mx-auto flex-1 justify-center animate-in fade-in ' +
             ' duration-1000 slide-in-from-top-12'
           }
@@ -39,8 +46,8 @@ function Home() {
               <span>Phone companionship for</span>
               <span
                 className={
-                  'bg-gradient-to-br bg-clip-text text-transparent' +
-                  ' from-primary to-primary/70 leading-[1.2]'
+                  'leading-[1.2] text-transparent bg-gradient-to-br bg-clip-text' +
+                  ' from-primary to-primary/70'
                 }
               >
                 your loved ones
@@ -59,6 +66,17 @@ function Home() {
               <span className={'text-xs text-muted-foreground'}>
                 Free trial included. No credit card required.
               </span>
+            </div>
+
+            <div className="relative w-full max-w-5xl h-64 md:h-96 lg:h-[30rem] rounded-2xl overflow-hidden shadow-2xl border border-border mt-12 bg-muted/20">
+              <Image
+                src="/assets/images/dashboard.webp"
+                alt="Ultaura Dashboard Preview"
+                fill
+                className="object-cover object-top"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent pointer-events-none" />
             </div>
           </div>
         </div>
@@ -97,7 +115,8 @@ function Home() {
                 <h4 className={'text-lg font-semibold'}>Works on any phone</h4>
 
                 <div className={'text-muted-foreground text-sm'}>
-                  Landlines, cell phones, no smartphone needed. Your loved one just picks up the phone.
+                  Landlines, cell phones, no smartphone needed. Your loved one
+                  just picks up the phone.
                 </div>
               </div>
 
@@ -106,10 +125,13 @@ function Home() {
                   <HeartIcon className={'h-5 w-5'} />
                 </FeatureIcon>
 
-                <h4 className={'text-lg font-semibold'}>Remembers their stories</h4>
+                <h4 className={'text-lg font-semibold'}>
+                  Remembers their stories
+                </h4>
 
                 <div className={'text-muted-foreground text-sm'}>
-                  Ultaura maintains continuity across conversations, remembering names, interests, and past discussions.
+                  Ultaura maintains continuity across conversations, remembering
+                  names, interests, and past discussions.
                 </div>
               </div>
 
@@ -121,7 +143,8 @@ function Home() {
                 <h4 className={'text-lg font-semibold'}>You stay informed</h4>
 
                 <div className={'text-muted-foreground text-sm'}>
-                  See call activity and duration in your dashboard — without reading transcripts. Their privacy is protected.
+                  See call activity and duration in your dashboard — without
+                  reading transcripts. Their privacy is protected.
                 </div>
               </div>
 
@@ -133,7 +156,8 @@ function Home() {
                 <h4 className={'text-lg font-semibold'}>Safe & respectful</h4>
 
                 <div className={'text-muted-foreground text-sm'}>
-                  Built-in crisis protocols, no manipulation, and Ultaura always discloses it&apos;s an AI.
+                  Built-in crisis protocols, no manipulation, and Ultaura always
+                  discloses it&apos;s an AI.
                 </div>
               </div>
             </div>
@@ -207,6 +231,8 @@ function Home() {
         </Container>
       </div>
 
+      <Testimonials />
+
       <Divider />
 
       {/* Pricing Section */}
@@ -217,14 +243,10 @@ function Home() {
           }
         >
           <div className={'flex flex-col items-center space-y-8 text-center'}>
-            <Pill>
-              Simple, transparent pricing
-            </Pill>
+            <Pill>Simple, transparent pricing</Pill>
 
             <div className={'flex flex-col space-y-2.5'}>
-              <Heading type={2}>
-                Choose the plan that fits your family
-              </Heading>
+              <Heading type={2}>Choose the plan that fits your family</Heading>
 
               <SubHeading>
                 All plans include a free trial to get started.
@@ -249,30 +271,60 @@ function Home() {
           </div>
 
           <div className="max-w-3xl mx-auto space-y-6">
-            <FAQItem
-              question="What is a line?"
-              answer="A line is a verified phone number for one person. Each line represents one loved one who will receive calls from Ultaura."
-            />
-            <FAQItem
-              question="Can they call anytime?"
-              answer="Yes! Your loved one can call Ultaura 24/7 for inbound calls. Scheduled outbound calls respect quiet hours that you configure."
-            />
-            <FAQItem
-              question="Is it a real person?"
-              answer="No, Ultaura is an AI voice companion. We always disclose this at the start of each conversation. Ultaura is designed to provide friendly, natural conversation — not to deceive."
-            />
-            <FAQItem
-              question="What about emergencies?"
-              answer="If Ultaura detects distress or concerning language, it gently encourages contacting 988 (mental health crisis line) or 911 for emergencies. Ultaura is not a replacement for emergency services."
-            />
-            <FAQItem
-              question="Do you store conversations?"
-              answer="No transcripts are stored by default. We only keep basic call information (time, duration) visible in your dashboard. Your loved one's privacy is paramount."
-            />
-            <FAQItem
-              question="Does it work with landlines?"
-              answer="Yes! Ultaura works with any phone — landlines, cell phones, even flip phones. No smartphone or app is needed."
-            />
+            <Accordion>
+              <AccordionItem value="line">
+                <AccordionTrigger>What is a line?</AccordionTrigger>
+                <AccordionContent>
+                  A line is a verified phone number for one person. Each line
+                  represents one loved one who will receive calls from Ultaura.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="call-anytime">
+                <AccordionTrigger>Can they call anytime?</AccordionTrigger>
+                <AccordionContent>
+                  Yes! Your loved one can call Ultaura 24/7 for inbound calls.
+                  Scheduled outbound calls respect quiet hours that you
+                  configure.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="real-person">
+                <AccordionTrigger>Is it a real person?</AccordionTrigger>
+                <AccordionContent>
+                  No, Ultaura is an AI voice companion. We always disclose this
+                  at the start of each conversation. Ultaura is designed to
+                  provide friendly, natural conversation — not to deceive.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="emergencies">
+                <AccordionTrigger>What about emergencies?</AccordionTrigger>
+                <AccordionContent>
+                  If Ultaura detects distress or concerning language, it gently
+                  encourages contacting 988 (mental health crisis line) or 911
+                  for emergencies. Ultaura is not a replacement for emergency
+                  services.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="store">
+                <AccordionTrigger>Do you store conversations?</AccordionTrigger>
+                <AccordionContent>
+                  No transcripts are stored by default. We only keep basic call
+                  information (time, duration) visible in your dashboard. Your
+                  loved one&apos;s privacy is paramount.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="landlines">
+                <AccordionTrigger>Does it work with landlines?</AccordionTrigger>
+                <AccordionContent>
+                  Yes! Ultaura works with any phone — landlines, cell phones,
+                  even flip phones. No smartphone or app is needed.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
       </Container>
@@ -283,7 +335,8 @@ function Home() {
           <div className="flex flex-col items-center text-center space-y-6">
             <Heading type={2}>Give the gift of conversation</Heading>
             <SubHeading className="max-w-xl">
-              Start your free trial today and give your loved one a companion who&apos;s always there to listen.
+              Start your free trial today and give your loved one a companion
+              who&apos;s always there to listen.
             </SubHeading>
             <MainCallToActionButton />
           </div>
@@ -334,15 +387,6 @@ function Pill(props: React.PropsWithChildren) {
     >
       <span>{props.children}</span>
     </h2>
-  );
-}
-
-function FAQItem({ question, answer }: { question: string; answer: string }) {
-  return (
-    <div className="border border-border rounded-xl p-6 bg-card">
-      <h4 className="font-semibold text-foreground mb-2">{question}</h4>
-      <p className="text-muted-foreground text-sm">{answer}</p>
-    </div>
   );
 }
 

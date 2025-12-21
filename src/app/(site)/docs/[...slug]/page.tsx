@@ -15,6 +15,7 @@ import DocsCards from '~/app/(site)/docs/components/DocsCards';
 import getPageTree from '../utils/get-documentation-page-tree';
 import { withI18n } from '~/i18n/with-i18n';
 import DocumentationPageLink from '../components/DocumentationPageLink';
+import { Breadcrumbs } from '~/core/ui/Breadcrumbs';
 
 const getPageBySlug = cache((slug: string) => {
   return allDocumentationPages.find((post) => post.resolvedPath === slug);
@@ -53,9 +54,27 @@ function DocumentationPage({ params }: PageParams) {
 
   const description = 'description' in page ? (page.description as string) : '';
 
+  const breadcrumbs = params.slug.reduce<{ label: string; href: string }[]>(
+    (acc, segment, index) => {
+      const path = params.slug.slice(0, index + 1).join('/');
+      const page = allDocumentationPages.find((p) => p.resolvedPath === path);
+
+      acc.push({
+        label:
+          page?.title ?? segment.charAt(0).toUpperCase() + segment.slice(1),
+        href: `/docs/${path}`,
+      });
+
+      return acc;
+    },
+    [],
+  );
+
   return (
     <Container>
       <div className={'py-10 flex flex-col space-y-8 lg:px-16 grow relative'}>
+        <Breadcrumbs items={breadcrumbs} />
+
         <div className={'flex flex-col space-y-1'}>
           <Heading type={1}>{page.title}</Heading>
           <SubHeading>{description}</SubHeading>

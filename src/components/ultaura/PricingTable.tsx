@@ -168,8 +168,8 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
             <div
               key={planId}
               className={`relative flex flex-col rounded-xl border bg-card p-6 transition-all ${
-                isPopular
-                  ? 'border-primary shadow-lg shadow-primary/10 ring-1 ring-primary'
+                isPopular && !isCurrent
+                  ? 'border-primary shadow-xl shadow-primary/20 ring-1 ring-primary lg:scale-105 z-10'
                   : isCurrent
                   ? 'border-2 border-primary bg-primary/5'
                   : 'border-border hover:border-primary/50 hover:shadow-md cursor-pointer'

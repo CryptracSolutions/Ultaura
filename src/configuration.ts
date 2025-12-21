@@ -1,5 +1,6 @@
 import type { Provider } from '@supabase/supabase-js';
 import { StripeCheckoutDisplayMode } from '~/lib/stripe/types';
+import { brandColors } from '~/lib/brand-colors';
 
 const production = process.env.NODE_ENV === 'production';
 
@@ -12,8 +13,8 @@ const configuration = {
   site: {
     name: 'Ultaura - AI Voice Companion for Seniors',
     description: 'AI voice companion that provides friendly phone conversations for your elderly loved ones. No app required — just a phone call.',
-    themeColor: '#0ABAB5',
-    themeColorDark: '#088A86',
+    themeColor: brandColors.primary,
+    themeColorDark: brandColors.primaryDark,
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
     siteName: 'Ultaura',
     twitterHandle: '',

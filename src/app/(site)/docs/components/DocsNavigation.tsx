@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDownIcon, Bars3Icon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import classNames from 'clsx';
 
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Button from '~/core/ui/Button';
 import Heading from '~/core/ui/Heading';
 import If from '~/core/ui/If';
+import { TextFieldInput } from '~/core/ui/TextField';
 
 import isBrowser from '~/core/generic/is-browser';
 import type { ProcessedDocumentationPage } from '../utils/build-documentation-tree';
@@ -139,9 +140,19 @@ export default function DocsNavigation({
         style={{
           height: `calc(100vh - 64px)`,
         }}
-        className="w-80 hidden lg:flex sticky top-2 shrink-0 border-r border-gray-50 dark:border-dark-800 p-4"
+        className="w-80 hidden lg:flex sticky top-2 shrink-0 border-r border-gray-50 dark:border-dark-800 p-4 flex-col space-y-4"
       >
-        <Tree tree={tree} level={0} activePath={activePath} />
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <TextFieldInput
+            placeholder="Search documentation..."
+            className="pl-9"
+          />
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          <Tree tree={tree} level={0} activePath={activePath} />
+        </div>
       </aside>
 
       <div className={'lg:hidden'}>

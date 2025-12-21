@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { allPosts } from 'contentlayer/generated';
 
-import PostPreview from '~/app/(site)/blog/components/PostPreview';
-import GridList from '~/app/(site)/components/GridList';
+import BlogList from '~/app/(site)/blog/components/BlogList';
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
@@ -30,11 +29,7 @@ async function BlogPage() {
           <SubHeading>Tutorials, Guides and Updates from our team</SubHeading>
         </div>
 
-        <GridList>
-          {livePosts.map((post, idx) => {
-            return <PostPreview key={idx} post={post} />;
-          })}
-        </GridList>
+        <BlogList posts={livePosts} />
       </div>
     </Container>
   );

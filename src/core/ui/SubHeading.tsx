@@ -12,10 +12,10 @@ const SubHeading = ({
   const span = (
     <span
       className={classNames(
-        'flex flex-col space-y-1 bg-gradient-to-br text-xl' +
-          ' lg:text-2xl dark:from-white dark:via-gray-300' +
-          ' dark:to-gray-400 bg-clip-text text-gray-500' +
-          ' font-normal dark:text-transparent',
+        'flex flex-col space-y-1 text-xl lg:text-2xl font-normal' +
+          ' text-muted-foreground' +
+          ' dark:text-transparent dark:bg-gradient-to-br dark:from-white dark:via-gray-300' +
+          ' dark:to-gray-400 dark:bg-clip-text',
         className,
       )}
     >
