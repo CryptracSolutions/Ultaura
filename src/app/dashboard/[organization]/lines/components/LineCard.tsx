@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Phone,
@@ -11,8 +12,10 @@ import {
   Play,
   Pause,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
+import { deleteLine } from '~/lib/ultaura/actions';
 import { formatDistanceToNow } from 'date-fns';
 
 interface LineCardProps {
@@ -21,7 +24,31 @@ interface LineCardProps {
 }
 
 export function LineCard({ line, organizationSlug }: LineCardProps) {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete "${line.display_name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setIsMenuOpen(false);
+
+    try {
+      const result = await deleteLine(line.id);
+      if (result.success) {
+        router.refresh();
+      } else {
+        alert(result.error || 'Failed to delete line');
+      }
+    } catch {
+      alert('An unexpected error occurred');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const isVerified = !!line.phone_verified_at;
   const isActive = line.status === 'active';
@@ -130,10 +157,19 @@ export function LineCard({ line, organizationSlug }: LineCardProps) {
                 </Link>
                 <Link
                   href={`/dashboard/${organizationSlug}/lines/${line.id}/settings`}
-                  className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors rounded-b-lg"
+                  className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                 >
                   Settings
                 </Link>
+                <div className="border-t border-border" />
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isDeleting ? 'Deleting...' : 'Delete Line'}
+                </button>
               </div>
             </>
           )}
