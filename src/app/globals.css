@@ -9,7 +9,7 @@
   --container-padding: 1.5rem;
 
   /* Background & Foreground - Stone base with warm undertones */
-  --background: oklch(0.995 0.001 106.423);
+  --background: oklch(0.96 0.006 106.423);
   --foreground: oklch(0.147 0.004 49.25);
 
   /* Card */
