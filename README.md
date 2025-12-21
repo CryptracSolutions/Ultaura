@@ -1,0 +1,111 @@
+# Cookie Banner Plugin
+
+This plugin adds a cookie banner to your Next.js application. It's a simple 
+component that will store the user's consent in a cookie. This banner will 
+stop appearing once the user has given their consent - or rejected it.
+
+## Using the Plugin
+
+### Installation
+
+To install the plugin, you can use git subtrees from your original repository:
+
+```
+git subtree add --prefix plugins/cookie-banner git@github.com:makerkit/next-supabase-saas-kit-plugins.git cookie-banner --squash
+```
+
+After running this command, you will have the plugin in your repository at 
+`plugins/cookie-banner`. Once pulled, you can apply any customization you need.
+
+#### Using the CLI
+
+If you're using the CLI, you can run the following command to install the plugin:
+
+```
+npx @makerkit/cli plugins install
+```
+
+Follow the instructions to install the plugin.
+
+### Translations
+
+Add the translations to your `public/locales/en/common.json` file:
+
+```json
+"cookieBanner": {
+  "title": "Hi, we use cookies.",
+  "description": "This website uses cookies to ensure you get the best 
+experience on our website.",
+  "reject": "Reject", 
+  "accept": "Accept"
+}
+```
+
+### Importing the Plugin
+
+You can import the `CookieBanner` component from the plugin in your `_app.
+tsx` file and add it to your application:
+
+```tsx
+import dynamic from 'next/dynamic';
+
+const CookieBanner = dynamic(
+    () => import('~/plugins/cookie-banner/CookieBanner'),
+    {
+        ssr: false,
+    },
+);
+
+export default function App() {
+  return (
+    <>
+      <CookieBanner />
+      {/* ... */}
+    </>
+  );
+}
+```
+
+## API
+
+To retrieve the current consent status, you can use the `useCookieConsent`:
+
+```tsx
+import { useCookieConsent } from 'plugins/cookie-banner';
+
+function MyComponent() {
+    const consent = useCookieConsent();
+    // ...
+}
+```
+
+
+You can use this hook to decide whether to load third-party scripts or not.
+For example, you can use it to load Google Analytics only if the user has consented:
+
+```tsx
+import { useCookieConsent } from 'plugins/cookie-banner';
+
+function MyAnalyticsScript() {
+  const consent = useCookieConsent();
+    
+  if (consent === 'accepted') {
+    return (
+      <script
+        async
+        src="https://www.googletagmanager.com/gtag/js?id=UA-XXXXXX-X"
+      />
+    );
+  }
+
+  return null;
+}
+```
+
+#### Keeping the plugin up to date
+
+To keep the plugin up to date, you can use git subtrees again:
+
+```
+git subtree pull --prefix plugins/cookie-banner git@github.com:makerkit/next-supabase-saas-kit-plugins.git cookie-banner --squash
+```

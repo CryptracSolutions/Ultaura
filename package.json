@@ -1,0 +1,15 @@
+{
+  "name": "@makerkit/cookie-banner",
+  "version": "1.0.0",
+  "description": "A cookie banner plugin for Next.js Supabase SaaS Kit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/makerkit/next-supabase-saas-kit-plugins.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/makerkit/next-supabase-saas-kit-plugins/issues"
+  },
+  "homepage": "https://github.com/makerkit/next-supabase-saas-kit-plugins#readme"
+}
