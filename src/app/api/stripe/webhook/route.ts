@@ -19,6 +19,12 @@ import {
   updateSubscriptionById,
 } from '~/lib/subscriptions/mutations';
 
+import {
+  syncUltauraSubscription,
+  handleUltauraSubscriptionDeleted,
+  isUltauraPriceId,
+} from '~/lib/ultaura/billing';
+
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import { setOrganizationSubscriptionData } from '~/lib/organizations/database/mutations';
 
@@ -87,6 +93,14 @@ export async function POST(request: Request) {
 
         await onCheckoutCompleted(client, session, subscription);
 
+        // Sync Ultaura subscription if this is an Ultaura plan
+        const priceId = subscription.items.data[0]?.price?.id;
+        if (priceId && isUltauraPriceId(priceId)) {
+          const organizationUid = getOrganizationUidFromClientReference(session);
+          await syncUltauraSubscription(client, subscription, organizationUid);
+          logger.info({ subscriptionId: subscription.id }, '[Ultaura] Synced subscription');
+        }
+
         break;
       }
 
@@ -95,6 +109,9 @@ export async function POST(request: Request) {
 
         await deleteSubscription(client, subscription.id);
 
+        // Handle Ultaura subscription deletion
+        await handleUltauraSubscriptionDeleted(client, subscription.id);
+
         break;
       }
 
@@ -102,6 +119,17 @@ export async function POST(request: Request) {
         const subscription = event.data.object as Stripe.Subscription;
 
         await updateSubscriptionById(client, subscription);
+
+        // Sync Ultaura subscription updates
+        const priceId = subscription.items.data[0]?.price?.id;
+        if (priceId && isUltauraPriceId(priceId)) {
+          // Get organization from subscription metadata or customer
+          const metadata = subscription.metadata;
+          if (metadata?.organization_uid) {
+            await syncUltauraSubscription(client, subscription, metadata.organization_uid);
+            logger.info({ subscriptionId: subscription.id }, '[Ultaura] Updated subscription');
+          }
+        }
 
         break;
       }
