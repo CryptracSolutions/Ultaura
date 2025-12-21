@@ -1,0 +1,4 @@
+packages:
+  - 'plugins/chatbot'
+  - 'plugins/feedback-popup'
+  - 'plugins/cookie-banner'

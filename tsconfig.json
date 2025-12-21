@@ -28,6 +28,9 @@
       "~/*": [
         "./src/*"
       ],
+      "~/plugins/*": [
+        "./plugins/*"
+      ],
       "contentlayer/generated": ["./.contentlayer/generated"]
     }
   },

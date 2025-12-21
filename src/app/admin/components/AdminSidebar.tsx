@@ -1,6 +1,6 @@
 'use client';
 
-import { HomeIcon, UserGroupIcon, UserIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon, HomeIcon, UserGroupIcon, UserIcon } from '@heroicons/react/24/outline';
 import Sidebar, { SidebarContent, SidebarItem } from '~/core/ui/Sidebar';
 import Logo from '~/core/ui/Logo';
 
@@ -32,6 +32,13 @@ function AdminSidebar() {
           Icon={() => <UserGroupIcon className={'h-6'} />}
         >
           Organizations
+        </SidebarItem>
+
+        <SidebarItem
+          path={'/admin/feedback'}
+          Icon={() => <ChatBubbleLeftRightIcon className={'h-6'} />}
+        >
+          Feedback
         </SidebarItem>
       </SidebarContent>
     </Sidebar>

@@ -83,7 +83,7 @@ function ChatBotContainer(
         />
 
         <div
-          ref={(div) => (scrollingDiv.current = div ?? undefined)}
+          ref={(div) => { scrollingDiv.current = div ?? undefined; }}
           className={'overflow-y-auto flex flex-col flex-1'}
         >
           <ChatBotMessages

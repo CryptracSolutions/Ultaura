@@ -1,13 +1,13 @@
 import { subDays } from 'date-fns';
 
-import getSupabaseServerClient from '~/core/supabase/server-client';
+import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import { getSubmissionsSummary } from '~/plugins/feedback-popup/lib/queries';
 import FeedbackSubmission from '~/plugins/feedback-popup/lib/feedback-submission';
 
 let summary: string;
 
 export default async function createDailySubmissionsSummary() {
-  const client = getSupabaseServerClient({
+  const client = getSupabaseServerComponentClient({
     admin: true,
   });
 
@@ -46,7 +46,7 @@ async function createSummary(submissions: FeedbackSubmission[]) {
 
   const output = await generator(text);
 
-  summary = output[0].summary_text;
+  summary = (output as Array<{ summary_text: string }>)[0].summary_text;
 
   return summary;
 }

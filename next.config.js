@@ -9,6 +9,9 @@ const nextConfig = {
   images: {
     remotePatterns: getRemotePatterns(),
   },
+  experimental: {
+    serverComponentsExternalPackages: ['sharp', 'onnxruntime-node'],
+  },
 };
 
 module.exports = withAnalyzer({
