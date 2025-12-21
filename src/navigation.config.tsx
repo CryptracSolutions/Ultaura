@@ -3,6 +3,7 @@ import {
   Squares2X2Icon,
   UserGroupIcon,
   UserIcon,
+  PhoneIcon,
 } from '@heroicons/react/24/outline';
 
 import configuration from '~/configuration';
@@ -42,6 +43,13 @@ const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
         return <Squares2X2Icon className={className} />;
       },
       end: true,
+    },
+    {
+      label: 'Lines',
+      path: getPath(organization, 'lines'),
+      Icon: ({ className }: { className: string }) => {
+        return <PhoneIcon className={className} />;
+      },
     },
     {
       label: 'common:settingsTabLabel',
