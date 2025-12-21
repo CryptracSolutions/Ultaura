@@ -8,8 +8,42 @@ import {
   completeCallSession,
   failCallSession,
 } from '../services/call-session.js';
+import { validateTwilioSignature } from '../utils/twilio.js';
 
 export const twilioStatusRouter = Router();
+
+// Twilio signature validation middleware
+function validateTwilioWebhook(req: Request, res: Response, next: () => void) {
+  if (process.env.SKIP_TWILIO_SIGNATURE_VALIDATION === 'true') {
+    logger.warn('Twilio signature validation skipped (development mode)');
+    next();
+    return;
+  }
+
+  const signature = req.headers['x-twilio-signature'] as string;
+
+  if (!signature) {
+    logger.warn('Missing Twilio signature');
+    res.status(403).send('Forbidden');
+    return;
+  }
+
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const url = `${protocol}://${host}${req.originalUrl}`;
+
+  const isValid = validateTwilioSignature(url, req.body, signature);
+
+  if (!isValid) {
+    logger.warn({ url }, 'Invalid Twilio signature');
+    res.status(403).send('Forbidden');
+    return;
+  }
+
+  next();
+}
+
+twilioStatusRouter.use(validateTwilioWebhook);
 
 // Map Twilio call status to our internal status
 function mapTwilioStatus(twilioStatus: string): 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled' | null {
@@ -57,8 +91,6 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
       CallSid,
       CallStatus,
       CallDuration,
-      From,
-      To,
       Direction,
       Timestamp,
       ErrorCode,

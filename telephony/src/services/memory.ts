@@ -181,8 +181,8 @@ export async function updateMemory(
 
 // Delete (deactivate) a memory - "forget that"
 export async function forgetMemory(
-  accountId: string,
-  lineId: string,
+  _accountId: string,
+  _lineId: string,
   memoryId: string
 ): Promise<boolean> {
   const supabase = getSupabaseClient();
@@ -198,8 +198,8 @@ export async function forgetMemory(
 
 // Mark a memory as line-only (don't tell family)
 export async function markMemoryPrivate(
-  accountId: string,
-  lineId: string,
+  _accountId: string,
+  _lineId: string,
   memoryId: string
 ): Promise<boolean> {
   const supabase = getSupabaseClient();

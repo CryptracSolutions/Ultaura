@@ -12,15 +12,16 @@ interface PageProps {
 }
 
 export default async function LineDetailPage({ params }: PageProps) {
-  const [line, schedules, usage] = await Promise.all([
-    getLine(params.lineId),
-    getSchedules(params.lineId),
-    getUsageSummary(),
-  ]);
+  const line = await getLine(params.lineId);
 
   if (!line) {
     redirect(`/dashboard/${params.organization}/lines`);
   }
+
+  const [schedules, usage] = await Promise.all([
+    getSchedules(params.lineId),
+    getUsageSummary(line.account_id),
+  ]);
 
   // If not verified, redirect to verification
   if (!line.phone_verified_at) {

@@ -159,9 +159,9 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
           const isPopular = planId === 'comfort';
           const isCurrent = planId === currentPlanId;
           const isLoading = loadingPlan === planId && isPending;
-          const price = billingPeriod === 'annual' && plan.annual_price_cents
-            ? plan.annual_price_cents / 100 / 12
-            : plan.monthly_price_cents / 100;
+          const price = billingPeriod === 'annual' && plan.annualPriceCents
+            ? plan.annualPriceCents / 100 / 12
+            : plan.monthlyPriceCents / 100;
           const features = planFeatures[planId] || [];
 
           return (
@@ -195,7 +195,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                   {planIcons[planId]}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
+                  <h3 className="text-lg font-semibold text-foreground">{plan.displayName}</h3>
                 </div>
               </div>
 
@@ -213,9 +213,9 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                     <span className="text-muted-foreground">/month</span>
                   </div>
                 )}
-                {billingPeriod === 'annual' && plan.annual_price_cents && planId !== 'payg' && (
+                {billingPeriod === 'annual' && plan.annualPriceCents && planId !== 'payg' && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    Billed annually (${plan.annual_price_cents / 100}/year)
+                    Billed annually (${plan.annualPriceCents / 100}/year)
                   </p>
                 )}
               </div>

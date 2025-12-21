@@ -16,7 +16,7 @@ import {
   CheckCircle,
   AlertTriangle,
 } from 'lucide-react';
-import { LineRow, ScheduleRow, UsageSummary } from '~/lib/ultaura/types';
+import type { LineRow, ScheduleRow, UsageSummary } from '~/lib/ultaura/types';
 import { updateLine, deleteLine, deleteSchedule, initiateTestCall } from '~/lib/ultaura/actions';
 import { DAYS_OF_WEEK } from '~/lib/ultaura/constants';
 

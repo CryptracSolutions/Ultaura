@@ -2,7 +2,7 @@
 // Polls database for due scheduled calls and initiates them
 
 import cron from 'node-cron';
-import { getSupabaseClient, ScheduleRow, LineRow } from '../utils/supabase.js';
+import { getSupabaseClient, ScheduleRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
 
@@ -126,11 +126,11 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData: any = await response.json();
       throw new Error(errorData.error || 'Failed to initiate call');
     }
 
-    const result = await response.json();
+    const result: any = await response.json();
     logger.info({ scheduleId: schedule.id, sessionId: result.sessionId }, 'Scheduled call initiated');
 
     // Update schedule
@@ -147,12 +147,38 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
 
   } catch (error) {
     logger.error({ error, scheduleId: schedule.id }, 'Failed to initiate scheduled call');
-
-    // Check if we should retry
     const retryPolicy = schedule.retry_policy || { max_retries: 2, retry_window_minutes: 30 };
 
-    // For simplicity, just mark as missed and schedule next run
-    await updateScheduleResult(schedule.id, 'missed', calculateNextRun(schedule));
+    // Check if we should retry
+    const currentRetries = schedule.retry_count || 0;
+
+    if (currentRetries < retryPolicy.max_retries) {
+      // Schedule a retry
+      const retryAt = new Date(Date.now() + (15 * 60 * 1000)); // 15 minutes
+
+      await supabase
+        .from('ultaura_schedules')
+        .update({
+          last_run_at: new Date().toISOString(),
+          last_result: 'failed',
+          next_run_at: retryAt.toISOString(),
+          retry_count: currentRetries + 1,
+        })
+        .eq('id', schedule.id);
+
+      logger.info({ scheduleId: schedule.id, retryAt, attempt: currentRetries + 1 }, 'Scheduled retry');
+    } else {
+      // Max retries exceeded, move to next scheduled time
+      await updateScheduleResult(schedule.id, 'failed', calculateNextRun(schedule));
+
+      // Reset retry count
+      await supabase
+        .from('ultaura_schedules')
+        .update({ retry_count: 0 })
+        .eq('id', schedule.id);
+
+      logger.warn({ scheduleId: schedule.id }, 'Max retries exceeded for scheduled call');
+    }
   }
 }
 
@@ -180,7 +206,7 @@ async function updateScheduleResult(
 
 // Calculate next run time based on RRULE
 function calculateNextRun(schedule: ScheduleRow): string | null {
-  const { rrule, days_of_week, time_of_day, timezone } = schedule;
+  const { days_of_week, time_of_day } = schedule;
 
   // Simple implementation for weekly schedules
   // In production, use a proper RRULE parser like rrule.js

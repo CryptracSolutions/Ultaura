@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import { getUltauraAccount, getLines, getUsageSummary } from '~/lib/ultaura/actions';
 import loadAppData from '~/lib/server/loaders/load-app-data';
 import { LinesPageClient } from './components/LinesPageClient';
@@ -89,22 +90,26 @@ export default async function LinesPage({ params }: PageProps) {
 
       {/* Usage Summary */}
       {usage && (
-        <UsageCard
-          minutesIncluded={usage.minutesIncluded}
-          minutesUsed={usage.minutesUsed}
-          minutesRemaining={usage.minutesRemaining}
-          planName={account.plan_id === 'free_trial' ? 'Free Trial' : account.plan_id}
-          cycleEnd={usage.cycleEnd}
-        />
+        <Suspense fallback={<div className="h-32 w-full rounded-lg bg-muted animate-pulse" />}>
+          <UsageCard
+            minutesIncluded={usage.minutesIncluded}
+            minutesUsed={usage.minutesUsed}
+            minutesRemaining={usage.minutesRemaining}
+            planName={account.plan_id === 'free_trial' ? 'Free Trial' : account.plan_id}
+            cycleEnd={usage.cycleEnd}
+          />
+        </Suspense>
       )}
 
       {/* Lines List */}
-      <LinesPageClient
-        accountId={account.id}
-        lines={lines}
-        planLinesLimit={getPlanLinesLimit(account.plan_id)}
-        organizationSlug={params.organization}
-      />
+      <Suspense fallback={<LinesListSkeleton />}>
+        <LinesPageClient
+          accountId={account.id}
+          lines={lines}
+          planLinesLimit={getPlanLinesLimit(account.plan_id)}
+          organizationSlug={params.organization}
+        />
+      </Suspense>
     </div>
   );
 }
@@ -122,4 +127,24 @@ function getPlanLinesLimit(planId: string): number {
     default:
       return 1;
   }
+}
+
+function LinesListSkeleton() {
+  return (
+    <div className="grid gap-4">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="rounded-lg border border-border p-4 shadow-sm space-y-3 animate-pulse"
+        >
+          <div className="h-4 w-32 rounded bg-muted" />
+          <div className="space-y-2">
+            <div className="h-3 w-full rounded bg-muted" />
+            <div className="h-3 w-5/6 rounded bg-muted" />
+            <div className="h-3 w-2/3 rounded bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }

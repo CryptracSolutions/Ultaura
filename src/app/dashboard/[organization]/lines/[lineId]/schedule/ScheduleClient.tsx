@@ -83,7 +83,7 @@ export function ScheduleClient({ line, organizationSlug }: ScheduleClientProps) 
         </div>
         <h1 className="text-2xl font-semibold text-foreground">Schedule Calls</h1>
         <p className="text-muted-foreground mt-2">
-          Set up regular call times for {line.recipient_name} at {formatPhone(line.phone_e164)}
+          Set up regular call times for {line.display_name} at {formatPhone(line.phone_e164)}
         </p>
       </div>
 
