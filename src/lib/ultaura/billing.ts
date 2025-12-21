@@ -158,7 +158,7 @@ export async function handleUltauraSubscriptionDeleted(
 ): Promise<void> {
   const { error } = await client
     .from('ultaura_subscriptions')
-    .update({ status: 'cancelled' })
+    .update({ status: 'canceled' })
     .eq('stripe_subscription_id', stripeSubscriptionId);
 
   if (error) {
@@ -228,12 +228,12 @@ export function isUltauraPriceId(priceId: string): boolean {
  */
 function mapStripeStatus(
   stripeStatus: Stripe.Subscription.Status,
-): 'active' | 'cancelled' | 'past_due' | 'trialing' {
+): 'active' | 'canceled' | 'past_due' | 'trialing' {
   switch (stripeStatus) {
     case 'active':
       return 'active';
     case 'canceled':
-      return 'cancelled';
+      return 'canceled';
     case 'past_due':
     case 'unpaid':
       return 'past_due';

@@ -101,7 +101,7 @@ export interface ScheduleRow {
   retry_policy: { max_retries: number; retry_window_minutes: number };
   last_run_at: string | null;
   last_result: 'success' | 'missed' | 'suppressed_quiet_hours' | 'failed' | null;
-  retry_count?: number;
+  retry_count: number;
 }
 
 export interface MemoryRow {

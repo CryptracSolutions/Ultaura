@@ -11,6 +11,7 @@ interface GrokBridgeOptions {
   lineId: string;
   accountId: string;
   userName: string;
+  timezone: string;
   language: 'auto' | 'en' | 'es';
   isFirstCall: boolean;
   memories: string;
@@ -401,7 +402,7 @@ ${userName} has approximately ${minutesRemaining} minutes remaining. Near the en
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
             dueAtLocal: args.due_at_local,
-            timezone: 'America/Los_Angeles', // Should get from line
+            timezone: this.options.timezone,
             message: args.message,
           });
           break;

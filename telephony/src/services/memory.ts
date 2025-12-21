@@ -44,7 +44,13 @@ export async function getMemoriesForLine(
       privacyScope: m.privacyScope as 'line_only' | 'shareable_with_payer',
     }));
   } catch (error) {
-    logger.error({ error, lineId }, 'Failed to fetch memories');
+    logger.error({
+      error,
+      accountId,
+      lineId,
+      operation: 'getMemoriesForLine',
+      stack: error instanceof Error ? error.stack : undefined,
+    }, 'Failed to fetch memories - returning empty array. Conversation may lack personalization.');
     return [];
   }
 }

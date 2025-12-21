@@ -94,6 +94,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               lineId: line.id,
               accountId: account.id,
               userName: line.display_name,
+              timezone: line.timezone,
               language: line.preferred_language,
               isFirstCall,
               memories: memoryText,

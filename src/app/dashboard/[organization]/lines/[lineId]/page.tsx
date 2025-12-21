@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getLine, getSchedules, getUsageSummary } from '~/lib/ultaura/actions';
+import { getLine, getSchedules, getUsageSummary, getCallSessions } from '~/lib/ultaura/actions';
 import { LineDetailClient } from './LineDetailClient';
 
 export const metadata: Metadata = {
@@ -18,9 +18,10 @@ export default async function LineDetailPage({ params }: PageProps) {
     redirect(`/dashboard/${params.organization}/lines`);
   }
 
-  const [schedules, usage] = await Promise.all([
+  const [schedules, usage, callSessions] = await Promise.all([
     getSchedules(params.lineId),
     getUsageSummary(line.account_id),
+    getCallSessions(params.lineId, 10),
   ]);
 
   // If not verified, redirect to verification
@@ -33,6 +34,7 @@ export default async function LineDetailPage({ params }: PageProps) {
       line={line}
       schedules={schedules}
       usage={usage}
+      callSessions={callSessions}
       organizationSlug={params.organization}
     />
   );

@@ -19,6 +19,7 @@ import type {
   UltauraAccountRow,
   LineRow,
   ScheduleRow,
+  CallSessionRow,
 } from './types';
 
 const logger = getLogger();
@@ -439,6 +440,24 @@ export async function getSchedules(lineId: string): Promise<ScheduleRow[]> {
   return data || [];
 }
 
+// Get a single schedule by ID
+export async function getSchedule(scheduleId: string): Promise<ScheduleRow | null> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_schedules')
+    .select('*')
+    .eq('id', scheduleId)
+    .single();
+
+  if (error) {
+    logger.error({ error }, 'Failed to get schedule');
+    return null;
+  }
+
+  return data;
+}
+
 // Create a schedule
 export async function createSchedule(
   accountId: string,
@@ -619,6 +638,28 @@ export async function getUsageSummary(accountId: string): Promise<UsageSummary |
     cycleStart: row.cycle_start,
     cycleEnd: row.cycle_end,
   };
+}
+
+// Get call sessions for a line
+export async function getCallSessions(
+  lineId: string,
+  limit: number = 10
+): Promise<CallSessionRow[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_call_sessions')
+    .select('*')
+    .eq('line_id', lineId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    logger.error({ error }, 'Failed to get call sessions');
+    return [];
+  }
+
+  return data || [];
 }
 
 // Get line activity

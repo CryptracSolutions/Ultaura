@@ -186,3 +186,30 @@ export async function checkVerificationCode(
     return false;
   }
 }
+
+// Send SMS message
+export async function sendSms(options: {
+  to: string;
+  body: string;
+}): Promise<string> {
+  const client = getTwilioClient();
+  const from = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!from) {
+    throw new Error('Missing TWILIO_PHONE_NUMBER environment variable');
+  }
+
+  try {
+    const message = await client.messages.create({
+      to: options.to,
+      from,
+      body: options.body,
+    });
+
+    logger.info({ messageSid: message.sid, to: options.to }, 'SMS sent');
+    return message.sid;
+  } catch (error) {
+    logger.error({ error, to: options.to }, 'Failed to send SMS');
+    throw error;
+  }
+}

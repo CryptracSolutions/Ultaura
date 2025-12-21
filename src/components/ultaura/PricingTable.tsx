@@ -167,12 +167,12 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
           return (
             <div
               key={planId}
-              className={`relative flex flex-col rounded-2xl border bg-card p-6 ${
+              className={`relative flex flex-col rounded-xl border bg-card p-6 transition-all ${
                 isPopular
                   ? 'border-primary shadow-lg shadow-primary/10 ring-1 ring-primary'
                   : isCurrent
-                  ? 'border-success/50 bg-success/5'
-                  : 'border-border'
+                  ? 'border-2 border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50 hover:shadow-md cursor-pointer'
               }`}
             >
               {isPopular && !isCurrent && (
@@ -183,8 +183,8 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                 </div>
               )}
               {isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-success text-success-foreground">
+                <div className="absolute -top-3 left-4">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary text-primary-foreground">
                     Current Plan
                   </span>
                 </div>
@@ -222,9 +222,9 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
 
               <ul className="space-y-3 mb-8 flex-1">
                 {features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-success shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">{feature}</span>
+                  <li key={idx} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                    <span className="text-sm text-foreground">{feature}</span>
                   </li>
                 ))}
               </ul>

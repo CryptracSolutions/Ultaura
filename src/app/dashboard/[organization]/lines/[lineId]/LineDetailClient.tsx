@@ -16,14 +16,16 @@ import {
   CheckCircle,
   AlertTriangle,
 } from 'lucide-react';
-import type { LineRow, ScheduleRow, UsageSummary } from '~/lib/ultaura/types';
+import type { LineRow, ScheduleRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
 import { updateLine, deleteLine, deleteSchedule, initiateTestCall } from '~/lib/ultaura/actions';
 import { DAYS_OF_WEEK } from '~/lib/ultaura/constants';
+import { CallActivityList } from './components/CallActivityList';
 
 interface LineDetailClientProps {
   line: LineRow;
   schedules: ScheduleRow[];
   usage: UsageSummary | null;
+  callSessions: CallSessionRow[];
   organizationSlug: string;
 }
 
@@ -31,6 +33,7 @@ export function LineDetailClient({
   line,
   schedules,
   usage,
+  callSessions,
   organizationSlug,
 }: LineDetailClientProps) {
   const router = useRouter();
@@ -268,6 +271,15 @@ export function LineDetailClient({
             )}
           </div>
         )}
+      </div>
+
+      {/* Call History Card */}
+      <div className="bg-card rounded-xl border border-border p-6 mt-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Phone className="w-5 h-5 text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">Recent Calls</h2>
+        </div>
+        <CallActivityList sessions={callSessions} />
       </div>
     </div>
   );
