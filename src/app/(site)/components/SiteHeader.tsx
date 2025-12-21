@@ -11,7 +11,6 @@ import SiteNavigation from './SiteNavigation';
 import useSignOut from '~/core/hooks/use-sign-out';
 import useUserSession from '~/core/hooks/use-user-session';
 
-import DarkModeToggle from '~/components/DarkModeToggle';
 import ProfileDropdown from '~/components/ProfileDropdown';
 
 import configuration from '~/configuration';
@@ -19,7 +18,6 @@ import configuration from '~/configuration';
 const SiteHeader = () => {
   const signOut = useSignOut();
   const userSession = useUserSession();
-  const canSwitchTheme = configuration.features.enableThemeSwitcher;
 
   return (
     <Container>
@@ -42,10 +40,6 @@ const SiteHeader = () => {
                 <ChatBubbleLeftIcon className="h-5 w-5" />
               </button>
             </FeedbackPopupContainer>
-
-            <If condition={canSwitchTheme}>
-              <DarkModeToggle />
-            </If>
           </div>
 
           <If condition={userSession} fallback={<AuthButtons />}>

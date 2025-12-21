@@ -1,7 +1,6 @@
 import './globals.css';
 
 import { cookies } from 'next/headers';
-import classNames from 'clsx';
 
 import initializeServerI18n from '~/i18n/i18n.server';
 import { I18N_COOKIE_NAME } from '~/i18n/i18n.settings';
@@ -17,25 +16,70 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const i18n = await initializeServerI18n(getLanguageCookie());
+  const lightThemeColor = configuration.site.themeColor;
+  const darkThemeColor = configuration.site.themeColorDark;
 
   return (
-    <html lang={i18n.language} className={getClassName()}>
-      <Fonts />
-      <ThemeSetter />
+    <html lang={i18n.language} suppressHydrationWarning>
+      <head>
+        <script
+          // Pre-paint system theme: avoids a flash since the server can't know the OS theme.
+          dangerouslySetInnerHTML={{
+            __html: `
+            (function () {
+              try {
+                var mql = window.matchMedia('(prefers-color-scheme: dark)');
+                var root = document.documentElement;
 
-      <body>{children}</body>
+                function setThemeFromMql() {
+                  var isDark = !!(mql && mql.matches);
+
+                  if (isDark) {
+                    root.classList.add('dark');
+                  } else {
+                    root.classList.remove('dark');
+                  }
+
+                  var color = isDark ? '${darkThemeColor}' : '${lightThemeColor}';
+                  var tag = document.querySelector("meta[name='theme-color']");
+
+                  if (!tag) {
+                    tag = document.createElement('meta');
+                    tag.setAttribute('name', 'theme-color');
+                    document.head.appendChild(tag);
+                  }
+
+                  tag.setAttribute('content', color);
+                }
+
+                // Initial, pre-paint set.
+                setThemeFromMql();
+
+                // Keep in sync even before React hydrates.
+                var handler = function () { setThemeFromMql(); };
+
+                if (mql && typeof mql.addEventListener === 'function') {
+                  mql.addEventListener('change', handler);
+                }
+
+                // Safari < 14
+                if (mql && typeof mql.addListener === 'function') {
+                  mql.addListener(handler);
+                }
+              } catch (e) {}
+            })();
+          `,
+          }}
+        />
+      </head>
+
+      <body>
+        <Fonts />
+        <ThemeSetter />
+        {children}
+      </body>
     </html>
   );
-}
-
-function getClassName() {
-  const themeCookie = cookies().get('theme')?.value;
-  const theme = themeCookie ?? configuration.theme;
-  const dark = theme === 'dark';
-
-  return classNames({
-    dark,
-  });
 }
 
 function getLanguageCookie() {

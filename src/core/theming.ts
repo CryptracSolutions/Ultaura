@@ -37,6 +37,9 @@ export function setTheme(theme: string | null) {
 
       if (isDarkSystemTheme()) {
         root.classList.add(DARK_THEME_CLASSNAME);
+        setMetaTag(DARK_THEME_META_COLOR);
+      } else {
+        setMetaTag(LIGHT_THEME_META_COLOR);
       }
 
       return;

@@ -1,40 +1,65 @@
 export namespace themingPo {
-  function openDarkModeMenu() {
-    cy.cyGet('dark-mode-toggle').click();
+  export function visitWithSystemTheme(path: string, isDark: boolean) {
+    cy.visit(path, {
+      onBeforeLoad(win) {
+        stubMatchMedia(win, isDark);
+      },
+    });
   }
 
-  export function assertIsNotDarkMode() {
+  export function setSystemTheme(isDark: boolean) {
+    cy.window().then((win) => {
+      (win as any).__setSystemTheme?.(isDark);
+    });
+  }
+
+  export function assertIsDark() {
+    cy.get('html').should('have.class', 'dark');
+  }
+
+  export function assertIsLight() {
     cy.get('html').should('not.have.class', 'dark');
   }
+}
 
-  export function assertIsDarkTheme() {
-    cy.get('html').should('have.class', 'dark');
-    cy.getCookie('theme').its('value').should('equal', 'dark');
-  }
+function stubMatchMedia(win: Window, initialIsDark: boolean) {
+  let isDark = initialIsDark;
+  const listeners = new Set<(event: { matches: boolean; media: string }) => void>();
 
-  export function toggleDarkMode() {
-    openDarkModeMenu();
-    cy.cyGet('dark-theme-button').click();
-  }
+  // Keep the API surface compatible with both addEventListener('change') and addListener.
+  (win as any).matchMedia = (query: string) => {
+    const mql = {
+      media: query,
+      get matches() {
+        return isDark;
+      },
+      onchange: null as null | ((event: any) => void),
+      addEventListener: (event: string, cb: any) => {
+        if (event === 'change') {
+          listeners.add(cb);
+        }
+      },
+      removeEventListener: (event: string, cb: any) => {
+        if (event === 'change') {
+          listeners.delete(cb);
+        }
+      },
+      addListener: (cb: any) => {
+        listeners.add(cb);
+      },
+      removeListener: (cb: any) => {
+        listeners.delete(cb);
+      },
+      dispatchEvent: () => true,
+    };
 
-  export function toggleLightMode() {
-    openDarkModeMenu();
-    cy.cyGet('light-theme-button').click();
-  }
+    return mql;
+  };
 
-  export function toggleSystemMode() {
-    openDarkModeMenu();
-    cy.cyGet('system-theme-button').click();
-  }
-
-  function isSystemThemeDark() {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-
-  export function assertIsCorrectSystemTheme() {
-    cy.get('html').should(
-      isSystemThemeDark() ? 'have.class' : 'not.have.class',
-      'dark'
+  (win as any).__setSystemTheme = (nextIsDark: boolean) => {
+    isDark = nextIsDark;
+    listeners.forEach((cb) =>
+      cb({ matches: isDark, media: '(prefers-color-scheme: dark)' })
     );
-  }
+  };
 }

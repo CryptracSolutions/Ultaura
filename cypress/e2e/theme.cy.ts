@@ -1,40 +1,48 @@
 import { themingPo } from '../support/theming.po';
 
 describe(`Theming`, () => {
-  beforeEach(() => {
-    cy.visit('/');
-    cy.wait(500);
-  });
-
-  describe('When setting the dark theme', () => {
-    it('should use the dark theme', () => {
-      themingPo.toggleDarkMode();
-      themingPo.assertIsDarkTheme();
-
-      // check it persists across reloads
-      cy.reload();
-      themingPo.assertIsDarkTheme();
+  describe('When the OS theme is dark', () => {
+    it('should use dark mode', () => {
+      themingPo.visitWithSystemTheme('/', true);
+      themingPo.assertIsDark();
     });
   });
 
-  describe('When setting the light theme', () => {
-    it('should use the light theme', () => {
-      themingPo.toggleLightMode();
-      themingPo.assertIsNotDarkMode();
-
-      // check it persists across reloads
-      cy.reload();
-      themingPo.assertIsNotDarkMode();
+  describe('When the OS theme is light', () => {
+    it('should use light mode', () => {
+      themingPo.visitWithSystemTheme('/', false);
+      themingPo.assertIsLight();
     });
   });
 
-  describe('When setting the system theme', () => {
-    it('should use the selected system theme', () => {
-      themingPo.toggleSystemMode();
-      themingPo.assertIsCorrectSystemTheme();
+  describe('When the OS theme changes', () => {
+    it('should switch automatically', () => {
+      themingPo.visitWithSystemTheme('/', false);
+      themingPo.assertIsLight();
 
-      cy.visit('/auth/sign-in');
-      themingPo.assertIsCorrectSystemTheme();
+      // Prove meta theme-color changes too.
+      cy.get("meta[name='theme-color']")
+        .invoke('attr', 'content')
+        .then((lightMeta) => {
+          themingPo.setSystemTheme(true);
+          themingPo.assertIsDark();
+
+          cy.get("meta[name='theme-color']")
+            .invoke('attr', 'content')
+            .should((darkMeta) => {
+              expect(darkMeta).to.not.equal(lightMeta);
+            });
+        });
+
+      themingPo.setSystemTheme(false);
+      themingPo.assertIsLight();
+    });
+  });
+
+  describe('Across routes', () => {
+    it('should stay in sync with the OS theme', () => {
+      themingPo.visitWithSystemTheme('/auth/sign-in', true);
+      themingPo.assertIsDark();
     });
   });
 });
