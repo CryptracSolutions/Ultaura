@@ -42,6 +42,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let grokBridge: GrokBridge | null = null;
   let isConnected = false;
   let pendingOptOut = false;
+  let minuteCheckInterval: NodeJS.Timeout | null = null;
 
   // Get session info
   const session = await getCallSession(callSessionId);
@@ -129,6 +130,44 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             await grokBridge.connect();
             isConnected = true;
 
+            // Check minutes remaining periodically for trial accounts
+            if (account.status === 'trial') {
+              minuteCheckInterval = setInterval(async () => {
+                const minutesStatus = await shouldWarnLowMinutes(account.id);
+
+                if (minutesStatus.remaining <= 0) {
+                  logger.info({ callSessionId }, 'Trial minutes exhausted mid-call');
+
+                  // Send message to Grok to end the call gracefully
+                  if (grokBridge) {
+                    grokBridge.sendTextInput(
+                      'SYSTEM: The user has run out of free trial minutes. Politely wrap up the conversation, tell them their free minutes are used up, and encourage them to ask their family member to upgrade. Say goodbye warmly.'
+                    );
+                  }
+
+                  // Close connection after a short delay for the goodbye
+                  setTimeout(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                      ws.close(1000, 'Trial minutes exhausted');
+                    }
+                  }, 30000); // 30 seconds for goodbye
+
+                  // Clear the interval
+                  if (minuteCheckInterval) {
+                    clearInterval(minuteCheckInterval);
+                    minuteCheckInterval = null;
+                  }
+                } else if (minutesStatus.critical && isConnected) {
+                  // Warn about low minutes
+                  if (grokBridge) {
+                    grokBridge.sendTextInput(
+                      `SYSTEM: User has only ${minutesStatus.remaining} minutes remaining on their trial. Mention this naturally toward the end of the call.`
+                    );
+                  }
+                }
+              }, 60000); // Check every minute
+            }
+
             // Update session status
             await updateCallStatus(callSessionId, 'in_progress');
 
@@ -136,9 +175,21 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
           } catch (error) {
             logger.error({ error, callSessionId }, 'Failed to initialize Grok bridge');
-            // Send error message to Twilio
-            // In production, generate TTS audio and send it
-            ws.close(1011, 'Failed to connect to AI');
+
+            // Send fallback message via Twilio TTS
+            // We can't easily send TTS through the WebSocket, so we need to close and let Twilio handle it
+            // Update session to reflect the error
+            await updateCallStatus(callSessionId, 'failed', {
+              endReason: 'error',
+            });
+
+            await recordCallEvent(callSessionId, 'error', {
+              type: 'grok_connection_failed',
+              error: error instanceof Error ? error.message : 'Unknown error',
+              fallbackMessage: "I'm sorry, I'm having some technical difficulties right now. Please try calling back in a few minutes, or press 0 for help.",
+            });
+
+            ws.close(1011, 'AI service unavailable');
           }
           break;
 
@@ -153,7 +204,6 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
           if (message.dtmf?.digit) {
             await handleDTMF(message.dtmf.digit, {
               callSessionId,
-              session,
               line,
               account,
               grokBridge,
@@ -183,6 +233,10 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   ws.on('close', async (code, reason) => {
     logger.info({ callSessionId, code, reason: reason.toString() }, 'Media stream WebSocket closed');
 
+    if (minuteCheckInterval) {
+      clearInterval(minuteCheckInterval);
+    }
+
     // Close Grok bridge
     if (grokBridge) {
       grokBridge.close();
@@ -211,7 +265,6 @@ async function handleDTMF(
   digit: string,
   context: {
     callSessionId: string;
-    session: any;
     line: any;
     account: any;
     grokBridge: GrokBridge | null;
@@ -221,7 +274,7 @@ async function handleDTMF(
     getPendingOptOut: () => boolean;
   }
 ): Promise<void> {
-  const { callSessionId, session, line, account, grokBridge, setPendingOptOut, getPendingOptOut } = context;
+  const { callSessionId, line, account, grokBridge, setPendingOptOut, getPendingOptOut } = context;
 
   logger.info({ callSessionId, digit }, 'DTMF received');
 

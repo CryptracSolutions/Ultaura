@@ -86,7 +86,7 @@ async function createUltauraSubscription(
     status: mapStripeStatus(stripeSubscription.status),
     current_period_start: currentPeriodStart.toISOString(),
     current_period_end: currentPeriodEnd.toISOString(),
-    minutes_included: plan.minutes_included,
+    minutes_included: plan.minutesIncluded,
     minutes_used: 0,
     cancel_at_period_end: stripeSubscription.cancel_at_period_end,
   });
@@ -129,7 +129,7 @@ async function upsertUltauraSubscription(
         status: mapStripeStatus(stripeSubscription.status),
         current_period_start: currentPeriodStart.toISOString(),
         current_period_end: currentPeriodEnd.toISOString(),
-        minutes_included: plan.minutes_included,
+        minutes_included: plan.minutesIncluded,
         // Reset minutes used if new billing period
         minutes_used: isNewPeriod ? 0 : existingSub.minutes_used,
         cancel_at_period_end: stripeSubscription.cancel_at_period_end,

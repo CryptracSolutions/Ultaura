@@ -48,16 +48,6 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       // If timezone is provided, parse as local time in that timezone
       if (timezone) {
         const localDate = new Date(dueAtLocal);
-        const formatter = new Intl.DateTimeFormat('en-US', {
-          timeZone: timezone,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        });
         // This is a simplified conversion - in production, use a proper timezone library
         dueAt = localDate;
       } else {

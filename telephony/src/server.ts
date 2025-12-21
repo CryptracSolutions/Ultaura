@@ -6,6 +6,7 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 import dotenv from 'dotenv';
 import pino from 'pino';
+import cors from 'cors';
 
 import { twilioInboundRouter } from './routes/twilio-inbound.js';
 import { twilioOutboundRouter } from './routes/twilio-outbound.js';
@@ -14,6 +15,9 @@ import { callsRouter } from './routes/calls.js';
 import { toolsRouter } from './routes/tools/index.js';
 import { handleMediaStreamConnection } from './websocket/media-stream.js';
 import { startScheduler } from './scheduler/call-scheduler.js';
+import { verifyRouter } from './routes/verify.js';
+import { getSupabaseClient } from './utils/supabase.js';
+import { getTwilioClient } from './utils/twilio.js';
 
 // Load environment variables
 dotenv.config();
@@ -32,19 +36,74 @@ export const logger = pino({
 // Create Express app
 const app = express();
 
+const corsOptions = {
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+    'http://localhost:3000',
+    'https://ultaura.com',
+  ],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'X-Webhook-Secret', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Request logging
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   logger.info({ method: req.method, path: req.path }, 'Incoming request');
   next();
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+// Enhanced health check
+app.get('/health', async (_req, res) => {
+  const health: {
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    timestamp: string;
+    checks: Record<string, { status: string; latency?: number }>;
+  } = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    checks: {},
+  };
+
+  // Check Supabase
+  try {
+    const start = Date.now();
+    const { error } = await getSupabaseClient().from('ultaura_plans').select('id').limit(1);
+    health.checks.database = {
+      status: error ? 'unhealthy' : 'healthy',
+      latency: Date.now() - start,
+    };
+  } catch {
+    health.checks.database = { status: 'unhealthy' };
+    health.status = 'degraded';
+  }
+
+  // Check Twilio credentials
+  try {
+    const client = getTwilioClient();
+    health.checks.twilio = { status: client ? 'healthy' : 'unhealthy' };
+  } catch {
+    health.checks.twilio = { status: 'unhealthy' };
+    health.status = 'degraded';
+  }
+
+  // Check xAI API key
+  health.checks.xai = {
+    status: process.env.XAI_API_KEY ? 'healthy' : 'unhealthy'
+  };
+
+  // Determine overall status
+  const unhealthyChecks = Object.values(health.checks).filter(c => c.status === 'unhealthy');
+  if (unhealthyChecks.length > 0) {
+    health.status = unhealthyChecks.length >= 2 ? 'unhealthy' : 'degraded';
+  }
+
+  const statusCode = health.status === 'unhealthy' ? 503 : 200;
+  res.status(statusCode).json(health);
 });
 
 // Twilio webhook routes
@@ -55,9 +114,10 @@ app.use('/twilio', twilioStatusRouter);
 // Internal API routes
 app.use('/calls', callsRouter);
 app.use('/tools', toolsRouter);
+app.use('/verify', verifyRouter);
 
 // Error handling
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ error: err.message, stack: err.stack }, 'Unhandled error');
   res.status(500).json({ error: 'Internal server error' });
 });

@@ -60,7 +60,6 @@ export class GrokBridge {
   private ws: WebSocket | null = null;
   private options: GrokBridgeOptions;
   private isConnected = false;
-  private pendingToolCalls: Map<string, { name: string; args: string }> = new Map();
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
@@ -185,6 +184,76 @@ export class GrokBridge {
                 },
               },
               required: ['mode'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'request_opt_out',
+            description: 'User has requested to stop receiving calls. Call this when the user says things like "stop calling me", "don\'t call anymore", "unsubscribe", or similar phrases.',
+            parameters: {
+              type: 'object',
+              properties: {
+                confirmed: {
+                  type: 'boolean',
+                  description: 'Whether the user confirmed they want to opt out',
+                },
+              },
+              required: ['confirmed'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'forget_memory',
+            description: 'User wants to forget something they previously shared. Call this when user says "forget that", "never mind", "don\'t remember that", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                what_to_forget: {
+                  type: 'string',
+                  description: 'Brief description of what to forget',
+                },
+              },
+              required: ['what_to_forget'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'mark_private',
+            description: 'User wants to keep something private from their family. Call when user says "don\'t tell my family", "keep this between us", "this is private", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                what_to_keep_private: {
+                  type: 'string',
+                  description: 'Brief description of what to keep private',
+                },
+              },
+              required: ['what_to_keep_private'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'log_safety_concern',
+            description: 'INTERNAL: Log when you detect signs of distress, depression, self-harm ideation, or crisis. Do NOT call this for normal sad feelings. Only for genuine safety concerns.',
+            parameters: {
+              type: 'object',
+              properties: {
+                tier: {
+                  type: 'string',
+                  enum: ['low', 'medium', 'high'],
+                  description: 'low=sad/lonely, medium=distress/hopelessness, high=self-harm/crisis',
+                },
+                signals: {
+                  type: 'string',
+                  description: 'Brief description of concerning statements',
+                },
+                action_taken: {
+                  type: 'string',
+                  enum: ['none', 'suggested_988', 'suggested_911'],
+                  description: 'What action you recommended',
+                },
+              },
+              required: ['tier', 'signals', 'action_taken'],
             },
           },
         ],
@@ -348,6 +417,51 @@ ${userName} has approximately ${minutesRemaining} minutes remaining. Near the en
           });
           break;
 
+        case 'request_opt_out': {
+          const confirmed = args.confirmed;
+          if (confirmed) {
+            result = await this.callToolEndpoint(`${baseUrl}/tools/opt_out`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              source: 'voice',
+            });
+          } else {
+            result = JSON.stringify({
+              success: true,
+              message: 'Ask the user to confirm they want to stop receiving calls.'
+            });
+          }
+          break;
+        }
+
+        case 'forget_memory':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/forget_memory`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            accountId: this.options.accountId,
+            whatToForget: args.what_to_forget,
+          });
+          break;
+
+        case 'mark_private':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_private`, {
+            lineId: this.options.lineId,
+            accountId: this.options.accountId,
+            whatToKeepPrivate: args.what_to_keep_private,
+          });
+          break;
+
+        case 'log_safety_concern':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            accountId: this.options.accountId,
+            tier: args.tier,
+            signals: args.signals,
+            actionTaken: args.action_taken,
+          });
+          break;
+
         default:
           result = JSON.stringify({ error: `Unknown tool: ${name}` });
       }
@@ -421,6 +535,76 @@ ${userName} has approximately ${minutesRemaining} minutes remaining. Near the en
           {
             type: 'input_text',
             text,
+          },
+          {
+            type: 'function',
+            name: 'request_opt_out',
+            description: 'User has requested to stop receiving calls. Call this when the user says things like "stop calling me", "don\'t call anymore", "unsubscribe", or similar phrases.',
+            parameters: {
+              type: 'object',
+              properties: {
+                confirmed: {
+                  type: 'boolean',
+                  description: 'Whether the user confirmed they want to opt out',
+                },
+              },
+              required: ['confirmed'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'forget_memory',
+            description: 'User wants to forget something they previously shared. Call this when user says "forget that", "never mind", "don\'t remember that", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                what_to_forget: {
+                  type: 'string',
+                  description: 'Brief description of what to forget',
+                },
+              },
+              required: ['what_to_forget'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'mark_private',
+            description: 'User wants to keep something private from their family. Call when user says "don\'t tell my family", "keep this between us", "this is private", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                what_to_keep_private: {
+                  type: 'string',
+                  description: 'Brief description of what to keep private',
+                },
+              },
+              required: ['what_to_keep_private'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'log_safety_concern',
+            description: 'INTERNAL: Log when you detect signs of distress, depression, self-harm ideation, or crisis. Do NOT call this for normal sad feelings. Only for genuine safety concerns.',
+            parameters: {
+              type: 'object',
+              properties: {
+                tier: {
+                  type: 'string',
+                  enum: ['low', 'medium', 'high'],
+                  description: 'low=sad/lonely, medium=distress/hopelessness, high=self-harm/crisis',
+                },
+                signals: {
+                  type: 'string',
+                  description: 'Brief description of concerning statements',
+                },
+                action_taken: {
+                  type: 'string',
+                  enum: ['none', 'suggested_988', 'suggested_911'],
+                  description: 'What action you recommended',
+                },
+              },
+              required: ['tier', 'signals', 'action_taken'],
+            },
           },
         ],
       },

@@ -1,8 +1,17 @@
 // Metering service
 // Track minutes usage and manage the minute ledger
 
+import Stripe from 'stripe';
 import { getSupabaseClient, UltauraAccountRow, MinuteLedgerRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
+
+function getStripeClient(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('Missing STRIPE_SECRET_KEY');
+  }
+  return new Stripe(key, { apiVersion: '2024-04-10' });
+}
 
 // Minimum seconds for a billable call
 const MIN_BILLABLE_SECONDS = 30;
@@ -134,6 +143,11 @@ export async function recordUsage(options: {
     p_account_id: accountId,
   });
 
+  // Report overage immediately if applicable
+  if (billableType === 'overage' || billableType === 'payg') {
+    await reportOverageToStripe(accountId, billableMinutes);
+  }
+
   return ledgerEntry;
 }
 
@@ -202,9 +216,62 @@ export async function reportOverageToStripe(
   accountId: string,
   overageMinutes: number
 ): Promise<void> {
-  // TODO: Implement Stripe metered billing reporting
-  // This will use Stripe's Usage Records API
-  logger.info({ accountId, overageMinutes }, 'Overage to report to Stripe (not implemented)');
+  if (overageMinutes <= 0) return;
+
+  const supabase = getSupabaseClient();
+  const stripe = getStripeClient();
+
+  // Get the subscription
+  const { data: subscription } = await supabase
+    .from('ultaura_subscriptions')
+    .select('stripe_subscription_id')
+    .eq('account_id', accountId)
+    .eq('status', 'active')
+    .single();
+
+  if (!subscription?.stripe_subscription_id) {
+    logger.warn({ accountId }, 'No active subscription for overage reporting');
+    return;
+  }
+
+  try {
+    // Get the subscription to find metered item
+    const stripeSub = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+
+    // Find the metered price item (overage)
+    const overagePriceId = process.env.STRIPE_ULTAURA_OVERAGE_PRICE_ID;
+    const meteredItem = stripeSub.items.data.find(
+      item => item.price.id === overagePriceId
+    );
+
+    if (!meteredItem) {
+      logger.warn({ accountId }, 'No metered overage item on subscription');
+      return;
+    }
+
+    // Report usage
+    const usageRecord = await stripe.subscriptionItems.createUsageRecord(
+      meteredItem.id,
+      {
+        quantity: overageMinutes,
+        timestamp: Math.floor(Date.now() / 1000),
+        action: 'increment',
+      }
+    );
+
+    logger.info({
+      accountId,
+      overageMinutes,
+      usageRecordId: usageRecord.id,
+    }, 'Reported overage to Stripe');
+
+    // Mark ledger entries as reported
+    await markReportedOverageEntries(accountId, usageRecord.id);
+
+  } catch (error) {
+    logger.error({ error, accountId }, 'Failed to report overage to Stripe');
+    throw error;
+  }
 }
 
 // Get unreported overage entries for Stripe billing
@@ -226,22 +293,17 @@ export async function getUnreportedOverage(accountId: string): Promise<MinuteLed
   return data || [];
 }
 
-// Mark ledger entries as reported to Stripe
-export async function markAsReportedToStripe(
-  ledgerIds: string[],
-  stripeUsageRecordId: string
-): Promise<void> {
+// Mark ledger entries as reported
+async function markReportedOverageEntries(accountId: string, stripeRecordId: string): Promise<void> {
   const supabase = getSupabaseClient();
 
-  const { error } = await supabase
+  await supabase
     .from('ultaura_minute_ledger')
     .update({
       stripe_usage_reported: true,
-      stripe_usage_record_id: stripeUsageRecordId,
+      stripe_usage_record_id: stripeRecordId,
     })
-    .in('id', ledgerIds);
-
-  if (error) {
-    logger.error({ error, ledgerIds }, 'Failed to mark ledger as reported');
-  }
+    .eq('account_id', accountId)
+    .eq('stripe_usage_reported', false)
+    .in('billable_type', ['overage', 'payg']);
 }

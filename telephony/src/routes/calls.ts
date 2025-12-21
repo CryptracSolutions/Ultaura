@@ -120,7 +120,67 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
 
 // Test call endpoint (for dashboard "Test call now" button)
 callsRouter.post('/test', async (req: Request, res: Response) => {
-  // Same as outbound, but marks it as a test
+  // Forward to outbound with test reason
   req.body.reason = 'test';
-  await callsRouter.handle(req, res, () => {});
+
+  // Call the outbound handler logic directly
+  const { lineId } = req.body;
+
+  if (!lineId) {
+    res.status(400).json({ error: 'Missing lineId' });
+    return;
+  }
+
+  // Get line info
+  const lineWithAccount = await getLineById(lineId);
+  if (!lineWithAccount) {
+    res.status(404).json({ error: 'Line not found' });
+    return;
+  }
+
+  const { line, account } = lineWithAccount;
+
+  // Skip opt-out check for test calls
+  // Skip quiet hours check for test calls
+
+  // Check access (but allow even if low minutes for testing)
+  const accessCheck = await checkLineAccess(line, account, 'outbound');
+  if (!accessCheck.allowed && accessCheck.reason !== 'minutes_exhausted') {
+    res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
+    return;
+  }
+
+  // Create call session
+  const session = await createCallSession({
+    accountId: account.id,
+    lineId: line.id,
+    direction: 'outbound',
+    twilioFrom: process.env.TWILIO_PHONE_NUMBER,
+    twilioTo: line.phone_e164,
+  });
+
+  if (!session) {
+    res.status(500).json({ error: 'Failed to create call session' });
+    return;
+  }
+
+  const baseUrl = process.env.TELEPHONY_BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+
+  try {
+    const callSid = await initiateOutboundCall({
+      to: line.phone_e164,
+      from: process.env.TWILIO_PHONE_NUMBER!,
+      callbackUrl: `${baseUrl}/twilio/voice/outbound`,
+      statusCallbackUrl: `${baseUrl}/twilio/status`,
+      callSessionId: session.id,
+    });
+
+    logger.info({ sessionId: session.id, callSid, lineId, reason: 'test' }, 'Test call initiated');
+
+    res.json({ success: true, sessionId: session.id, callSid });
+  } catch (error) {
+    logger.error({ error, sessionId: session.id }, 'Failed to initiate test call');
+    await failCallSession(session.id, 'error');
+    res.status(500).json({ error: 'Failed to initiate test call' });
+  }
 });

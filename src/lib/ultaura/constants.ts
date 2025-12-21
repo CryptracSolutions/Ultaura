@@ -99,6 +99,7 @@ export const BILLING = {
   TRIAL_DURATION_DAYS: 30,
   LOW_MINUTES_WARNING_THRESHOLD: 15, // Warn when <= 15 minutes remaining
   CRITICAL_MINUTES_THRESHOLD: 5, // Critical warning at <= 5 minutes
+  ANNUAL_DISCOUNT: 0.2,
 } as const;
 
 // ============================================
@@ -202,6 +203,29 @@ export const US_TIMEZONES = [
   { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
   { value: 'Pacific/Honolulu', label: 'Hawaii Time (HST)' },
 ] as const;
+
+export const DAYS_OF_WEEK = [
+  { value: 0, label: 'Sunday', short: 'Sun' },
+  { value: 1, label: 'Monday', short: 'Mon' },
+  { value: 2, label: 'Tuesday', short: 'Tue' },
+  { value: 3, label: 'Wednesday', short: 'Wed' },
+  { value: 4, label: 'Thursday', short: 'Thu' },
+  { value: 5, label: 'Friday', short: 'Fri' },
+  { value: 6, label: 'Saturday', short: 'Sat' },
+] as const;
+
+export const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2);
+  const minutes = index % 2 === 0 ? '00' : '30';
+  const value = `${hour.toString().padStart(2, '0')}:${minutes}`;
+
+  const label = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(Date.UTC(1970, 0, 1, hour, minutes === '30' ? 30 : 0)));
+
+  return { value, label };
+});
 
 // ============================================
 // SAFETY

@@ -142,7 +142,7 @@ export function AddLineModal({
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      US phone numbers only. We'll verify this number in the next step.
+                      US phone numbers only. We’ll verify this number in the next step.
                     </p>
                   </div>
 

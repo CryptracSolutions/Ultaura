@@ -4,9 +4,42 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../server.js';
 import { getCallSession, updateCallStatus } from '../services/call-session.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
-import { generateStreamTwiML, generateMessageTwiML } from '../utils/twilio.js';
+import { generateStreamTwiML, generateMessageTwiML, validateTwilioSignature } from '../utils/twilio.js';
 
 export const twilioOutboundRouter = Router();
+
+// Twilio signature validation middleware
+function validateTwilioWebhook(req: Request, res: Response, next: () => void) {
+  if (process.env.SKIP_TWILIO_SIGNATURE_VALIDATION === 'true') {
+    logger.warn('Twilio signature validation skipped (development mode)');
+    next();
+    return;
+  }
+
+  const signature = req.headers['x-twilio-signature'] as string;
+
+  if (!signature) {
+    logger.warn('Missing Twilio signature');
+    res.status(403).send('Forbidden');
+    return;
+  }
+
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const url = `${protocol}://${host}${req.originalUrl}`;
+
+  const isValid = validateTwilioSignature(url, req.body, signature);
+
+  if (!isValid) {
+    logger.warn({ url }, 'Invalid Twilio signature');
+    res.status(403).send('Forbidden');
+    return;
+  }
+
+  next();
+}
+
+twilioOutboundRouter.use(validateTwilioWebhook);
 
 // Handle outbound call TwiML request (when Twilio answers the call)
 twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {

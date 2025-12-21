@@ -16,7 +16,7 @@ function PricingPage() {
           <Heading type={1}>Simple, Transparent Pricing</Heading>
 
           <SubHeading>
-            Choose the plan that fits your family's needs. All plans include a
+            Choose the plan that fits your family’s needs. All plans include a
             free trial to get started.
           </SubHeading>
         </div>

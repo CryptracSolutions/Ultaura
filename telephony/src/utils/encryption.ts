@@ -137,7 +137,7 @@ export async function getOrCreateAccountDEK(
   accountId: string
 ): Promise<Buffer> {
   // Try to get existing DEK
-  const { data: existingKey, error: fetchError } = await supabase
+  const { data: existingKey } = await supabase
     .from('ultaura_account_crypto_keys')
     .select('*')
     .eq('account_id', accountId)

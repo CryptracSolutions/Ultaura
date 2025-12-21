@@ -18,7 +18,6 @@ interface ScheduleCallRequest {
   daysOfWeek?: number[]; // 0-6, Sunday-Saturday
   timeLocal?: string; // HH:mm format
   timezone?: string;
-  reason?: string;
 }
 
 scheduleCallRouter.post('/', async (req: Request, res: Response) => {
@@ -31,7 +30,6 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
       daysOfWeek,
       timeLocal,
       timezone,
-      reason,
     } = req.body as ScheduleCallRequest;
 
     logger.info({ callSessionId, lineId, mode }, 'Schedule call request');
