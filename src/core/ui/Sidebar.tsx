@@ -36,7 +36,7 @@ export function SidebarContent({
   return (
     <div
       className={cn(
-        'flex w-full flex-col space-y-1 pr-container space-y-1.5',
+        'flex w-full flex-col px-container space-y-1.5',
         className,
       )}
     >
@@ -77,7 +77,7 @@ export function SidebarGroup({
 
   const Wrapper = () => {
     const className = classNames(
-      'group flex items-center justify-between px-container space-x-2.5',
+      'group flex items-center justify-between px-3 space-x-2.5',
       {
         'py-2.5': !sidebarCollapsed,
       },

@@ -46,7 +46,7 @@ export const PLANS: Record<PlanId, Plan> = {
   },
   payg: {
     id: 'payg',
-    displayName: 'Pay As You Go',
+    displayName: 'Usage Based',
     monthlyPriceCents: 0,
     annualPriceCents: 0,
     minutesIncluded: 0,

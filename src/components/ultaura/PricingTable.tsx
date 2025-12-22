@@ -261,7 +261,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary">
           <Shield className="w-4 h-4" />
           <span className="text-sm font-medium">
-            All plans include a 7-day free trial • No credit card required to start
+            All plans include 20 minute free trial • No credit card required to start
           </span>
         </div>
       </div>
