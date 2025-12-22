@@ -86,6 +86,11 @@ export const transferOrganizationOwnershipAction = withSession(
       ReturnType<typeof getTransferOrganizationOwnershipBodySchema>
     >,
   ) => {
+    // Guard: Prevent ownership transfer when team accounts are disabled
+    if (!configuration.features.enableTeamAccounts) {
+      throw new Error(`Team accounts are disabled`);
+    }
+
     const result =
       await getTransferOrganizationOwnershipBodySchema().safeParseAsync(params);
 
@@ -207,6 +212,11 @@ export const transferOrganizationOwnershipAction = withSession(
 
 export const inviteMembersToOrganizationAction = withSession(
   async (payload: z.infer<ReturnType<typeof getInviteMembersBodySchema>>) => {
+    // Guard: Prevent inviting members when team accounts are disabled
+    if (!configuration.features.enableTeamAccounts) {
+      throw new Error(`Team accounts are disabled`);
+    }
+
     const { invites, organizationUid } =
       await getInviteMembersBodySchema().parseAsync(payload);
 

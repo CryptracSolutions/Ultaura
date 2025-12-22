@@ -49,6 +49,14 @@ const configuration = {
       process.env.NEXT_PUBLIC_ENABLE_ORGANIZATION_DELETION,
       false,
     ),
+    enableTeamAccounts: getBoolean(
+      process.env.NEXT_PUBLIC_ENABLE_TEAM_ACCOUNTS,
+      false,
+    ),
+    enableTeamAccountsBilling: getBoolean(
+      process.env.NEXT_PUBLIC_ENABLE_TEAM_ACCOUNTS_BILLING,
+      false,
+    ),
   },
   paths: {
     signIn: '/auth/sign-in',

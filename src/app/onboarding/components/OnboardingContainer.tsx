@@ -14,11 +14,14 @@ import OrganizationInfoStep, {
 import CompleteOnboardingStep from './CompleteOnboardingStep';
 import OrganizationInvitesStep from '~/app/onboarding/components/OrganizationInvitesStep';
 import MembershipRole from '~/lib/organizations/types/membership-role';
+import configuration from '~/configuration';
 
 type Invite = {
   email: string;
   role: MembershipRole;
 };
+
+const enableTeamAccounts = configuration.features.enableTeamAccounts;
 
 /**
  * Represents the list of steps for a user onboarding process.
@@ -29,11 +32,9 @@ type Invite = {
  *
  * @type {Array<string>}
  */
-const STEPS: Array<string> = [
-  'onboarding:info',
-  'onboarding:invites',
-  'onboarding:complete',
-];
+const STEPS: Array<string> = enableTeamAccounts
+  ? ['onboarding:info', 'onboarding:invites', 'onboarding:complete']
+  : ['onboarding:info', 'onboarding:complete'];
 
 function OnboardingContainer(
   props: React.PropsWithChildren<{
@@ -78,6 +79,8 @@ function OnboardingContainer(
     [currentStep],
   );
 
+  const completeStep = enableTeamAccounts ? 2 : 1;
+
   return (
     <CsrfTokenContext.Provider value={props.csrfToken}>
       <Stepper variant={'default'} currentStep={currentStep} steps={STEPS} />
@@ -86,11 +89,11 @@ function OnboardingContainer(
         <OrganizationInfoStep onSubmit={onInfoStepSubmitted} />
       </If>
 
-      <If condition={isStep(1)}>
+      <If condition={enableTeamAccounts && isStep(1)}>
         <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} />
       </If>
 
-      <If condition={isStep(2) && formData}>
+      <If condition={isStep(completeStep) && formData}>
         {(formData) => <CompleteOnboardingStep data={formData} />}
       </If>
     </CsrfTokenContext.Provider>

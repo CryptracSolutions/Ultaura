@@ -45,6 +45,28 @@ const OrganizationsSelector = ({ displayName = true }) => {
 
   const { data, isLoading } = useUserOrganizationsQuery(userId);
 
+  const enableTeamAccounts = configuration.features.enableTeamAccounts;
+
+  // When team accounts are disabled, just show the organization name without selector
+  if (!enableTeamAccounts) {
+    return (
+      <div
+        className={classNames(
+          `text-sm lg:text-base w-full`,
+          {
+            ['max-h-12']: displayName,
+            ['rounded-full !p-0.5 mx-auto']: !displayName,
+          },
+        )}
+      >
+        <OrganizationItem
+          organization={organization}
+          displayName={displayName}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
       <Select

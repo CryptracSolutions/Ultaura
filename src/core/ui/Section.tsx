@@ -12,7 +12,7 @@ export function Section({
   return (
     <div
       className={classNames(
-        'rounded-md w-full border border-border divide-y divide-border',
+        'rounded-md w-full border border-border divide-y divide-border bg-white dark:bg-[#383739]',
         className,
       )}
     >

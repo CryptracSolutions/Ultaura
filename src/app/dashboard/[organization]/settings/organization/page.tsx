@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import Trans from '~/core/ui/Trans';
 import { withI18n } from '~/i18n/with-i18n';
 import { OrganizationDangerZone } from './components/OrganizationDangerZone';
@@ -14,6 +15,11 @@ const allowOrganizationDelete =
   configuration.features.enableOrganizationDeletion;
 
 const OrganizationSettingsPage = () => {
+  // Redirect if team accounts are disabled
+  if (!configuration.features.enableTeamAccounts) {
+    redirect(configuration.paths.appHome);
+  }
+
   return (
     <div className={'flex flex-col space-y-4'}>
       <SettingsTile

@@ -8,15 +8,22 @@ import { PageBody } from '~/core/ui/Page';
 import Trans from '~/core/ui/Trans';
 import configuration from '~/configuration';
 
+const enableTeamAccounts = configuration.features.enableTeamAccounts;
+
 const getLinks = (organizationId: string) => [
   {
     path: getPath(organizationId, 'settings/profile'),
     label: 'common:profileSettingsTabLabel',
   },
-  {
-    path: getPath(organizationId, 'settings/organization'),
-    label: 'common:organizationSettingsTabLabel',
-  },
+  // Only show organization settings tab when team accounts are enabled
+  ...(enableTeamAccounts
+    ? [
+        {
+          path: getPath(organizationId, 'settings/organization'),
+          label: 'common:organizationSettingsTabLabel',
+        },
+      ]
+    : []),
   {
     path: getPath(organizationId, 'settings/subscription'),
     label: 'common:subscriptionSettingsTabLabel',

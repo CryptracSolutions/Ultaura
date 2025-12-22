@@ -24,6 +24,10 @@ const links = {
     label: 'Documentation',
     path: '/docs',
   },
+  Demo: {
+    label: 'Demo',
+    path: '/demo',
+  },
   Pricing: {
     label: 'Pricing',
     path: '/pricing',
@@ -52,6 +56,7 @@ const SiteNavigation = () => {
 
           <NavigationMenuItem className={className} link={links.Blog} />
           <NavigationMenuItem className={className} link={links.Docs} />
+          <NavigationMenuItem className={className} link={links.Demo} />
           <NavigationMenuItem className={className} link={links.Pricing} />
           <NavigationMenuItem className={className} link={links.About} />
           <NavigationMenuItem className={className} link={links.FAQ} />

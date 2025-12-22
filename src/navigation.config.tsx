@@ -8,6 +8,8 @@ import {
 
 import configuration from '~/configuration';
 
+const enableTeamAccounts = configuration.features.enableTeamAccounts;
+
 type Divider = {
   divider: true;
 };
@@ -62,13 +64,18 @@ const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
             return <UserIcon className={className} />;
           },
         },
-        {
-          label: 'common:organizationSettingsTabLabel',
-          path: getPath(organization, paths.organization),
-          Icon: ({ className }: { className: string }) => {
-            return <UserGroupIcon className={className} />;
-          },
-        },
+        // Only show organization settings when team accounts are enabled
+        ...(enableTeamAccounts
+          ? [
+              {
+                label: 'common:organizationSettingsTabLabel',
+                path: getPath(organization, paths.organization),
+                Icon: ({ className }: { className: string }) => {
+                  return <UserGroupIcon className={className} />;
+                },
+              },
+            ]
+          : []),
         {
           label: 'common:subscriptionSettingsTabLabel',
           path: getPath(organization, paths.subscription),

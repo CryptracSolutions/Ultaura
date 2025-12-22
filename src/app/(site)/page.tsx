@@ -3,20 +3,17 @@ import {
   HeartIcon,
   ShieldCheckIcon,
   EyeIcon,
-  UserPlusIcon,
-  CalendarIcon,
-  ChartBarIcon,
-  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
-import Button from '~/core/ui/Button';
 import Divider from '~/core/ui/Divider';
 import Heading from '~/core/ui/Heading';
 import { UltauraPricingTable } from '~/components/ultaura/PricingTable';
 import { withI18n } from '~/i18n/with-i18n';
 import { Testimonials } from '~/app/(site)/components/Testimonials';
+import { HowItWorks } from '~/app/(site)/components/HowItWorks';
+import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import {
   Accordion,
   AccordionContent,
@@ -155,70 +152,7 @@ function Home() {
       </Container>
 
       {/* How It Works */}
-      <div className="bg-muted/50 py-16">
-        <Container>
-          <div className="flex flex-col items-center space-y-12">
-            <div className="text-center space-y-4">
-              <Heading type={2}>How it works</Heading>
-              <SubHeading>Get started in minutes</SubHeading>
-            </div>
-
-            <div className="grid gap-8 md:grid-cols-4 max-w-5xl">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-semibold">
-                  1
-                </div>
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <UserPlusIcon className="h-6 w-6 text-primary" />
-                </div>
-                <h4 className="font-semibold">Sign up & add a line</h4>
-                <p className="text-sm text-muted-foreground">
-                  Create your account and add your loved one&apos;s phone number
-                </p>
-              </div>
-
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-semibold">
-                  2
-                </div>
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <CalendarIcon className="h-6 w-6 text-primary" />
-                </div>
-                <h4 className="font-semibold">Schedule calls</h4>
-                <p className="text-sm text-muted-foreground">
-                  Set up when Ultaura calls, or they can call anytime
-                </p>
-              </div>
-
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-semibold">
-                  3
-                </div>
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <PhoneIcon className="h-6 w-6 text-primary" />
-                </div>
-                <h4 className="font-semibold">Natural conversations</h4>
-                <p className="text-sm text-muted-foreground">
-                  Ultaura chats about their day, interests, memories, and more
-                </p>
-              </div>
-
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-semibold">
-                  4
-                </div>
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <ChartBarIcon className="h-6 w-6 text-primary" />
-                </div>
-                <h4 className="font-semibold">Stay in the loop</h4>
-                <p className="text-sm text-muted-foreground">
-                  See usage and activity in your dashboard
-                </p>
-              </div>
-            </div>
-          </div>
-        </Container>
-      </div>
+      <HowItWorks />
 
       <Testimonials />
 
@@ -376,30 +310,5 @@ function Pill(props: React.PropsWithChildren) {
     >
       <span>{props.children}</span>
     </h2>
-  );
-}
-
-function MainCallToActionButton() {
-  return (
-    <Button
-      className={
-        'bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg' +
-        ' hover:shadow-primary/30'
-      }
-      variant={'custom'}
-      size={'lg'}
-      round
-      href={'/auth/sign-up'}
-    >
-      <span className={'flex items-center justify-center space-x-2 w-full'}>
-        <span>Start Free Trial</span>
-        <ChevronRightIcon
-          className={
-            'h-4 animate-in fade-in slide-in-from-left-8' +
-            ' delay-1000 fill-mode-both duration-1000 zoom-in'
-          }
-        />
-      </span>
-    </Button>
   );
 }

@@ -32,6 +32,11 @@ const OrganizationMembersPage: React.FC<{
     organization: string;
   };
 }> = ({ params }) => {
+  // Redirect if team accounts are disabled
+  if (!configuration.features.enableTeamAccounts) {
+    redirect(configuration.paths.appHome);
+  }
+
   const data = use(loadMembers(params.organization));
 
   return (
