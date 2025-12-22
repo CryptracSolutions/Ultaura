@@ -20,7 +20,7 @@ const SiteHeader = () => {
 
   return (
     <Container>
-      <div className="flex py-1.5 px-1 items-center border-b border-border justify-between">
+      <div className="flex pt-3 pb-1.5 px-1 items-center justify-between">
         <div className={'w-4/12'}>
           <Logo />
         </div>

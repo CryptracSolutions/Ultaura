@@ -5,7 +5,7 @@ const LogoImage: React.FCC<{
 }> = ({ className }) => {
   return (
     <svg
-      className={classNames(`h-[17px] sm:h-[19px]`, className)}
+      className={classNames(`h-[21px] sm:h-[23px]`, className)}
       viewBox="0 0 152 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

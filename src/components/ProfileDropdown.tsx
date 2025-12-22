@@ -151,7 +151,11 @@ const ProfileDropdown: React.FCC<{
         <DropdownMenuSeparator />
 
         <FeedbackPopupContainer>
-          <DropdownMenuItem role={'button'} className={'cursor-pointer'}>
+          <DropdownMenuItem
+            role={'button'}
+            className={'cursor-pointer'}
+            onSelect={(e) => e.preventDefault()}
+          >
             <span className={'flex w-full items-center space-x-2'}>
               <ChatBubbleLeftIcon className={'h-5'} />
               <span>Feedback</span>

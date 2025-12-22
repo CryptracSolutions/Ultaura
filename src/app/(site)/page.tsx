@@ -62,7 +62,7 @@ function Home() {
             <div className={'flex flex-col space-y-4'}>
               <MainCallToActionButton />
 
-              <span className={'text-xs text-muted-foreground'}>
+              <span className={'text-xs text-muted-foreground text-center'}>
                 Free trial included. No credit card required.
               </span>
             </div>
@@ -391,7 +391,7 @@ function MainCallToActionButton() {
       round
       href={'/auth/sign-up'}
     >
-      <span className={'flex items-center space-x-2'}>
+      <span className={'flex items-center justify-center space-x-2 w-full'}>
         <span>Start Free Trial</span>
         <ChevronRightIcon
           className={
