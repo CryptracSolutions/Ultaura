@@ -147,7 +147,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
           >
             Annual
             <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-              Save {Math.round((1 - BILLING.ANNUAL_DISCOUNT) * 100)}%
+              Save {Math.round(BILLING.ANNUAL_DISCOUNT * 100)}%
             </span>
           </button>
         </div>
@@ -213,7 +213,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                     <span className="text-muted-foreground">/month</span>
                   </div>
                 )}
-                {billingPeriod === 'annual' && plan.annualPriceCents && planId !== 'payg' && (
+                {billingPeriod === 'annual' && plan.annualPriceCents > 0 && (
                   <p className="text-sm text-muted-foreground mt-1">
                     Billed annually (${plan.annualPriceCents / 100}/year)
                   </p>
@@ -247,10 +247,8 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                   </>
                 ) : isCurrent ? (
                   'Current Plan'
-                ) : planId === 'payg' ? (
-                  'Get Started'
                 ) : (
-                  'Start Free Trial'
+                  'Start for free'
                 )}
               </button>
             </div>

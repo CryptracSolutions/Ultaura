@@ -36,7 +36,7 @@ export function SidebarContent({
   return (
     <div
       className={cn(
-        'flex w-full flex-col space-y-1 px-container space-y-1.5',
+        'flex w-full flex-col space-y-1 pr-container space-y-1.5',
         className,
       )}
     >
@@ -67,7 +67,7 @@ export function SidebarGroup({
     return (
       <span
         className={
-          'text-xs font-semibold uppercase text-muted-foreground group-hover:text-foreground'
+          'text-xs font-semibold uppercase text-sidebar-foreground group-hover:text-foreground'
         }
       >
         {props.children}
@@ -201,7 +201,7 @@ function getSidebarItemClassBuilder() {
         },
         active: {
           true: `bg-primary/5 font-medium`,
-          false: `ring-transparent hover:bg-muted active:bg-muted/80 text-muted-foreground hover:text-foreground`,
+          false: `ring-transparent hover:bg-muted active:bg-muted/80 text-sidebar-foreground hover:text-foreground`,
         },
       },
       compoundVariants: [
@@ -218,7 +218,7 @@ function getSidebarItemClassBuilder() {
         {
           collapsed: true,
           active: false,
-          className: `text-muted-foreground`,
+          className: `text-sidebar-foreground`,
         },
       ],
     },

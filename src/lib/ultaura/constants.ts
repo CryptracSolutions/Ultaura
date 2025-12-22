@@ -20,8 +20,8 @@ export const PLANS: Record<PlanId, Plan> = {
   care: {
     id: 'care',
     displayName: 'Care',
-    monthlyPriceCents: 4000, // $40
-    annualPriceCents: 40000, // $400
+    monthlyPriceCents: 3900, // $39
+    annualPriceCents: 39900, // $399
     minutesIncluded: 300,
     linesIncluded: 1,
     overageRateCentsPerMin: 15, // $0.15
@@ -29,8 +29,8 @@ export const PLANS: Record<PlanId, Plan> = {
   comfort: {
     id: 'comfort',
     displayName: 'Comfort',
-    monthlyPriceCents: 10000, // $100
-    annualPriceCents: 100000, // $1,000
+    monthlyPriceCents: 9900, // $99
+    annualPriceCents: 99900, // $999
     minutesIncluded: 900,
     linesIncluded: 2,
     overageRateCentsPerMin: 15,
@@ -38,8 +38,8 @@ export const PLANS: Record<PlanId, Plan> = {
   family: {
     id: 'family',
     displayName: 'Family',
-    monthlyPriceCents: 20000, // $200
-    annualPriceCents: 200000, // $2,000
+    monthlyPriceCents: 19900, // $199
+    annualPriceCents: 199900, // $1,999
     minutesIncluded: 2000,
     linesIncluded: 4,
     overageRateCentsPerMin: 15,
@@ -99,7 +99,7 @@ export const BILLING = {
   TRIAL_DURATION_DAYS: 30,
   LOW_MINUTES_WARNING_THRESHOLD: 15, // Warn when <= 15 minutes remaining
   CRITICAL_MINUTES_THRESHOLD: 5, // Critical warning at <= 5 minutes
-  ANNUAL_DISCOUNT: 0.2,
+  ANNUAL_DISCOUNT: 0.15,
 } as const;
 
 // ============================================
