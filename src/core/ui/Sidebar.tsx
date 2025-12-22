@@ -175,7 +175,7 @@ function getClassNameBuilder() {
   return cva(
     [
       'fixed flex box-content hidden h-screen flex-col border-r border-border lg:flex ' +
-        'transition-[width] duration-100 motion-reduce:transition-none',
+        'transition-[width] duration-100 motion-reduce:transition-none bg-[#f8f8f7]',
     ],
     {
       variants: {

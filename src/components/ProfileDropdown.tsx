@@ -70,7 +70,7 @@ const ProfileDropdown: React.FCC<{
         <ProfileAvatar user={userSession} />
 
         <If condition={displayName}>
-          <div className={'flex flex-col text-left w-full truncate'}>
+          <div className={'flex flex-col text-center w-full truncate'}>
             <span className={'text-sm truncate'}>{userDisplayName}</span>
 
             <span
