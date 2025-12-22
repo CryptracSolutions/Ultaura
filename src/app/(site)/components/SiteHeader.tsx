@@ -1,7 +1,6 @@
 'use client';
 
-import { ChevronRightIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
-import { FeedbackPopupContainer } from '~/plugins/feedback-popup/FeedbackPopup';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import Logo from '~/core/ui/Logo';
 import Container from '~/core/ui/Container';
@@ -31,17 +30,6 @@ const SiteHeader = () => {
         </div>
 
         <div className={'flex flex-1 items-center justify-end space-x-4'}>
-          <div className={'items-center flex space-x-2'}>
-            <FeedbackPopupContainer>
-              <button
-                className="p-2 rounded-full hover:bg-muted transition-colors"
-                aria-label="Send feedback"
-              >
-                <ChatBubbleLeftIcon className="h-5 w-5" />
-              </button>
-            </FeedbackPopupContainer>
-          </div>
-
           <If condition={userSession} fallback={<AuthButtons />}>
             {(session) => (
               <ProfileDropdown

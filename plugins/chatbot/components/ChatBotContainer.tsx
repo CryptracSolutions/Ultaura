@@ -67,10 +67,10 @@ function ChatBotContainer(
     <div
       className={
         'animate-in fade-in z-50 slide-in-from-bottom-16 duration-200' +
-        ' bg-white dark:bg-dark-800' +
+        ' bg-white dark:bg-card' +
         ' fixed md:right-8 md:rounded-xl ease-out slide-out-to-bottom-8' +
         ' bottom-0 md:bottom-8 w-full h-[60vh] md:w-[40vw] xl:w-[26vw]' +
-        ' shadow-2xl shadow-primary-500/50 zoom-in-95 border dark:border-dark-700'
+        ' shadow-2xl shadow-primary-500/50 zoom-in-95 border dark:border-border'
       }
     >
       <div className={'flex flex-col h-full'}>
@@ -130,7 +130,7 @@ function ChatBotHeader(
     <div
       className={
         'px-4 py-3 flex border-b md:rounded-t-xl justify-between' +
-        ' items-center dark:border-dark-600'
+        ' items-center dark:border-border'
       }
     >
       <div className={'flex flex-col text-foreground'}>
@@ -212,7 +212,7 @@ function ChatBotMessage({ message }: { message: Message }) {
   const className = classNames(
     `px-2 py-1 flex space-x-2 inline-flex text-sm rounded-md items-center`,
     {
-      'bg-gray-100 dark:bg-dark-700 text-gray-900 dark:text-gray-100': isBot,
+      'bg-gray-100 dark:bg-muted text-gray-900 dark:text-foreground': isBot,
       [`bg-primary-500 text-primary-foreground`]: isUser,
     },
   );
@@ -226,7 +226,7 @@ function ChatBotMessage({ message }: { message: Message }) {
     >
       <div className={'flex space-y-1.5 flex-col overflow-x-hidden'}>
         <span
-          className={classNames('text-sm py-1 px-1 font-medium', {
+          className={classNames('text-sm py-1 px-1 font-medium text-foreground', {
             'text-right pr-2': isUser,
           })}
         >
@@ -301,10 +301,10 @@ function ChatBotInput({
           onChange={handleInputChange}
           name={'message'}
           className={
-            'p-4 h-14 dark:focus:text-white dark:hover:text-white' +
+            'p-4 h-14 dark:text-foreground dark:placeholder:text-muted-foreground' +
             ' rounded-bl-xl rounded-br-xl w-full outline-none' +
-            ' transition-colors resize-none border-t text-sm dark:bg-dark-800' +
-            ' dark:border-dark-700 pr-8'
+            ' transition-colors resize-none border-t text-sm dark:bg-card' +
+            ' dark:border-border pr-8'
           }
           placeholder="Ask our chatbot a question..."
         />
@@ -376,9 +376,9 @@ function ClickablePrompt(
       }
   >,
 ) {
-  const className = `p-1.5 rounded-md text-xs inline-flex border dark:bg-dark-800
-      text-left transition-all dark:hover:border-dark-600 dark:border-dark-700 
-      hover:bg-gray-50 dark:hover:bg-dark-700`;
+  const className = `p-1.5 rounded-md text-xs inline-flex border dark:bg-card
+      text-left transition-all dark:text-foreground dark:hover:border-muted-foreground dark:border-border
+      hover:bg-gray-50 dark:hover:bg-muted`;
 
   if ('href' in props) {
     return (
@@ -396,7 +396,7 @@ function ClickablePrompt(
 }
 
 function BubbleAnimation() {
-  const dotClassName = `rounded-full dark:bg-dark-600 bg-gray-100 h-2.5 w-2.5`;
+  const dotClassName = `rounded-full dark:bg-muted bg-gray-100 h-2.5 w-2.5`;
 
   return (
     <div

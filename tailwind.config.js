@@ -13,7 +13,7 @@ module.exports = {
       fontFamily: {
         heading: [
           'var(--font-family-heading)',
-          'Inter',
+          'Manrope',
           'SF Pro Text',
           'system-ui',
         ],

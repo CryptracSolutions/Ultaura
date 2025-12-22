@@ -1,6 +1,6 @@
 'use client';
 
-import { Inter as SansFont, JetBrains_Mono as MonoFont } from 'next/font/google';
+import { Manrope as SansFont, JetBrains_Mono as MonoFont } from 'next/font/google';
 import { useServerInsertedHTML } from 'next/navigation';
 
 const sans = SansFont({
@@ -8,7 +8,7 @@ const sans = SansFont({
   variable: '--font-family-sans',
   fallback: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
   preload: true,
-  weight: ['300', '400', '500', '600', '700', '800'],
+  weight: ['400', '500', '600', '700'],
 });
 
 const mono = MonoFont({
@@ -30,8 +30,8 @@ function Fonts() {
         dangerouslySetInnerHTML={{
           __html: `
           :root {
-            --font-family-sans: 'Inter', ${sans.style.fontFamily}, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            --font-family-heading: 'Inter', ${heading.style.fontFamily}, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-family-sans: 'Manrope', ${sans.style.fontFamily}, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-family-heading: 'Manrope', ${heading.style.fontFamily}, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
             --font-family-mono: 'JetBrains Mono', ${mono.style.fontFamily}, ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
           }
         `,

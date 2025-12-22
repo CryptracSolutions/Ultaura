@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import {
   PhoneIcon,
   HeartIcon,
@@ -37,7 +36,7 @@ function Home() {
             ' duration-1000 slide-in-from-top-12'
           }
         >
-          <div className={'flex w-full flex-1 flex-col items-center space-y-8'}>
+          <div className={'flex w-full flex-1 flex-col space-y-8'}>
             <Pill>
               <span>AI-powered companionship for your loved ones</span>
             </Pill>
@@ -54,13 +53,13 @@ function Home() {
               </span>
             </HeroTitle>
 
-            <SubHeading className={'text-center max-w-2xl'}>
+            <SubHeading className={'max-w-2xl'}>
               <span>Ultaura is an AI voice companion that calls your parents</span>
               <span>and grandparents for friendly conversation —</span>
               <span>no app required.</span>
             </SubHeading>
 
-            <div className={'flex flex-col items-center space-y-4'}>
+            <div className={'flex flex-col space-y-4'}>
               <MainCallToActionButton />
 
               <span className={'text-xs text-muted-foreground'}>
@@ -68,16 +67,6 @@ function Home() {
               </span>
             </div>
 
-            <div className="relative w-full max-w-5xl h-64 md:h-96 lg:h-[30rem] rounded-2xl overflow-hidden shadow-2xl border border-border mt-12 bg-muted/20">
-              <Image
-                src="/assets/images/dashboard.webp"
-                alt="Ultaura Dashboard Preview"
-                fill
-                className="object-cover object-top"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent pointer-events-none" />
-            </div>
           </div>
         </div>
       </Container>
@@ -107,7 +96,7 @@ function Home() {
 
           <div>
             <div className={'grid gap-12 lg:grid-cols-4'}>
-              <div className={'flex flex-col space-y-3'}>
+              <div className={'flex flex-col space-y-3 items-center text-center'}>
                 <FeatureIcon>
                   <PhoneIcon className={'h-5 w-5'} />
                 </FeatureIcon>
@@ -120,7 +109,7 @@ function Home() {
                 </div>
               </div>
 
-              <div className={'flex flex-col space-y-3'}>
+              <div className={'flex flex-col space-y-3 items-center text-center'}>
                 <FeatureIcon>
                   <HeartIcon className={'h-5 w-5'} />
                 </FeatureIcon>
@@ -135,7 +124,7 @@ function Home() {
                 </div>
               </div>
 
-              <div className={'flex flex-col space-y-3'}>
+              <div className={'flex flex-col space-y-3 items-center text-center'}>
                 <FeatureIcon>
                   <EyeIcon className={'h-5 w-5'} />
                 </FeatureIcon>
@@ -148,7 +137,7 @@ function Home() {
                 </div>
               </div>
 
-              <div className={'flex flex-col space-y-3'}>
+              <div className={'flex flex-col space-y-3 items-center text-center'}>
                 <FeatureIcon>
                   <ShieldCheckIcon className={'h-5 w-5'} />
                 </FeatureIcon>
@@ -352,8 +341,8 @@ function HeroTitle({ children }: React.PropsWithChildren) {
   return (
     <h1
       className={
-        'text-center text-4xl text-foreground md:text-5xl' +
-        ' flex flex-col font-heading font-medium xl:text-7xl 2xl:text-[5.2rem]'
+        'text-3xl text-foreground md:text-4xl' +
+        ' flex flex-col font-heading font-medium xl:text-6xl 2xl:text-7xl'
       }
     >
       {children}
@@ -366,8 +355,8 @@ function FeatureIcon(props: React.PropsWithChildren) {
     <div className={'flex'}>
       <div
         className={
-          'rounded-xl bg-primary/10 p-4 border' +
-          ' border-primary/10'
+          'rounded-xl bg-primary/10 p-4 border border-primary/10' +
+          ' hover:bg-primary hover:border-primary transition-colors duration-200'
         }
       >
         {props.children}
@@ -380,7 +369,7 @@ function Pill(props: React.PropsWithChildren) {
   return (
     <h2
       className={
-        'inline-flex w-auto items-center space-x-2' +
+        'inline-flex w-fit items-center space-x-2' +
         ' rounded-full bg-primary/10 px-4 py-2 text-center text-sm' +
         ' font-medium text-primary'
       }
