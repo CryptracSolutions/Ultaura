@@ -29,9 +29,7 @@ function ThemeSetter() {
     }
 
     // Safari < 14
-    // eslint-disable-next-line deprecation/deprecation
     if (typeof (mql as unknown as { addListener?: unknown }).addListener === 'function') {
-      // eslint-disable-next-line deprecation/deprecation
       mql.addListener(handler);
     }
 
@@ -41,11 +39,9 @@ function ThemeSetter() {
       }
 
       // Safari < 14
-      // eslint-disable-next-line deprecation/deprecation
       if (
         typeof (mql as unknown as { removeListener?: unknown }).removeListener === 'function'
       ) {
-        // eslint-disable-next-line deprecation/deprecation
         mql.removeListener(handler);
       }
     };

@@ -48,3 +48,4 @@ export default function BlogList({ posts }: { posts: Post[] }) {
   );
 }
 
+
