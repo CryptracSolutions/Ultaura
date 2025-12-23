@@ -205,22 +205,70 @@ function Home() {
           <div className="absolute -left-24 top-6 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
           <div className="absolute -right-28 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
-          <div className="relative grid gap-12 lg:grid-cols-[1.05fr_1.3fr] lg:items-start">
-            <div className="flex flex-col space-y-8">
-              <div className="space-y-4">
-                <Pill>Designed for seniors and their families</Pill>
-                <Heading type={2}>Why families choose Ultaura</Heading>
-                <SubHeading as={'h3'} className="max-w-xl">
-                  Simple, safe, and meaningful conversations with zero tech
-                  friction.
-                </SubHeading>
+          <div className="relative">
+            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-4 text-center">
+              <Pill>Designed for seniors and their families</Pill>
+              <Heading type={2}>Why families choose Ultaura</Heading>
+              <SubHeading as={'h3'}>
+                Simple, safe, and meaningful conversations with zero tech
+                friction.
+              </SubHeading>
+            </div>
+
+            <div className="mt-12 grid gap-6 md:grid-cols-2">
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                <FeatureIcon>
+                  <PhoneIcon className={'h-5 w-5'} />
+                </FeatureIcon>
+                <h4 className="mt-4 text-lg font-semibold">Works on any phone</h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Landlines, cell phones, and flip phones. They just pick up and
+                  talk.
+                </p>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Caregiver peace of mind
-                </div>
-                <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                <FeatureIcon>
+                  <HeartIcon className={'h-5 w-5'} />
+                </FeatureIcon>
+                <h4 className="mt-4 text-lg font-semibold">
+                  Remembers their stories
+                </h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Continuity across calls so conversations feel personal and
+                  familiar.
+                </p>
+              </div>
+
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                <FeatureIcon>
+                  <EyeIcon className={'h-5 w-5'} />
+                </FeatureIcon>
+                <h4 className="mt-4 text-lg font-semibold">You stay informed</h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Dashboard summaries show call activity and duration without
+                  exposing transcripts.
+                </p>
+              </div>
+
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                <FeatureIcon>
+                  <ShieldCheckIcon className={'h-5 w-5'} />
+                </FeatureIcon>
+                <h4 className="mt-4 text-lg font-semibold">Safe & respectful</h4>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Built-in crisis protocols, no manipulation, and clear AI
+                  disclosure every time.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-10 rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Caregiver peace of mind
+              </div>
+              <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+                <div className="space-y-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-primary" />
                     Works on any phone, no app needed.
@@ -234,7 +282,8 @@ function Home() {
                     Built-in safety protocols and transparency.
                   </div>
                 </div>
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
                     <div className="text-xs text-muted-foreground">Setup</div>
                     <div className="text-lg font-semibold text-foreground">
@@ -248,54 +297,6 @@ function Home() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="group rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-                <FeatureIcon>
-                  <PhoneIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">Works on any phone</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Landlines, cell phones, and flip phones. They just pick up and
-                  talk.
-                </p>
-              </div>
-
-              <div className="group rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-                <FeatureIcon>
-                  <HeartIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">
-                  Remembers their stories
-                </h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Continuity across calls so conversations feel personal and
-                  familiar.
-                </p>
-              </div>
-
-              <div className="group rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-                <FeatureIcon>
-                  <EyeIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">You stay informed</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Dashboard summaries show call activity and duration without
-                  exposing transcripts.
-                </p>
-              </div>
-
-              <div className="group rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-                <FeatureIcon>
-                  <ShieldCheckIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">Safe & respectful</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Built-in crisis protocols, no manipulation, and clear AI
-                  disclosure every time.
-                </p>
               </div>
             </div>
           </div>
