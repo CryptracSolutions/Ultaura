@@ -3,12 +3,16 @@ import {
   HeartIcon,
   ShieldCheckIcon,
   EyeIcon,
+  CheckCircleIcon,
+  MicrophoneIcon,
+  PlayCircleIcon,
 } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Divider from '~/core/ui/Divider';
 import Heading from '~/core/ui/Heading';
+import Button from '~/core/ui/Button';
 import { UltauraPricingTable } from '~/components/ultaura/PricingTable';
 import { withI18n } from '~/i18n/with-i18n';
 import { Testimonials } from '~/app/(site)/components/Testimonials';
@@ -26,44 +30,190 @@ function Home() {
     <div className={'flex flex-col space-y-16'}>
       {/* Hero Section */}
       <Container>
-        <div
-          className={
-            'my-12 flex flex-col items-center lg:my-16' +
-            ' mx-auto flex-1 justify-center animate-in fade-in ' +
-            ' duration-1000 slide-in-from-top-12'
-          }
-        >
-          <div className={'flex w-full flex-1 flex-col space-y-8'}>
-            <Pill>
-              <span>AI-powered companionship for your loved ones</span>
-            </Pill>
+        <div className="relative my-12 lg:my-20">
+          <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
-            <HeroTitle>
-              <span>Phone companionship for</span>
-              <span
-                className={
-                  'leading-[1.2] text-transparent bg-gradient-to-br bg-clip-text' +
-                  ' from-primary to-primary/70'
-                }
-              >
-                your loved ones
-              </span>
-            </HeroTitle>
+          <div className="relative grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
+            <div className="flex flex-col space-y-6">
+              <Pill>
+                <span>
+                  AI-powered <span className="text-primary">companionship</span>{' '}
+                  for your loved ones
+                </span>
+              </Pill>
 
-            <SubHeading className={'max-w-2xl'}>
-              <span>Ultaura is an AI voice companion that calls your parents</span>
-              <span>and grandparents for friendly conversation —</span>
-              <span>no app required.</span>
-            </SubHeading>
+              <h1 className="text-4xl font-heading font-medium text-foreground md:text-5xl xl:text-6xl 2xl:text-7xl">
+                <span className="block leading-[1.1]">
+                  <span className="text-primary">Companionship</span>
+                </span>
+                <span className="block leading-[1.1]">for your</span>
+                <span className="block leading-[1.1] text-transparent bg-gradient-to-br bg-clip-text from-primary to-primary/70">
+                  loved ones
+                </span>
+              </h1>
 
-            <div className={'flex flex-col space-y-4'}>
-              <MainCallToActionButton />
+              <SubHeading className={'max-w-2xl'}>
+                <span>Ultaura is an AI voice companion that calls your parents</span>
+                <span>and grandparents for friendly conversation —</span>
+                <span>no app required.</span>
+              </SubHeading>
 
-              <span className={'text-xs text-muted-foreground text-center'}>
+              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                {[
+                  'Works on any phone',
+                  'No setup for your loved one',
+                  'Privacy-first by design',
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1"
+                  >
+                    <CheckCircleIcon className="h-4 w-4 text-primary" />
+                    {item}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <MainCallToActionButton />
+                <Button
+                  variant="outline"
+                  size="lg"
+                  round
+                  href="/demo"
+                  className="border-primary/30 text-primary hover:bg-primary/5"
+                >
+                  <span className="flex items-center gap-2">
+                    <PlayCircleIcon className="h-5 w-5" />
+                    Try the voices
+                  </span>
+                </Button>
+              </div>
+
+              <span className={'text-xs text-muted-foreground'}>
                 Free trial included. No credit card required.
               </span>
             </div>
 
+            <div className="relative">
+              <div className="rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="uppercase tracking-[0.18em]">Live call</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                    In progress
+                  </span>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <div className="rounded-2xl border border-border/60 bg-background p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-end gap-1">
+                        {[3, 7, 4, 8, 5, 10, 6, 9, 4, 7, 3, 8].map((height) => (
+                          <span
+                            key={`wave-${height}`}
+                            className="w-2 rounded-full bg-primary/40"
+                            style={{ height: `${height + 6}px` }}
+                          />
+                        ))}
+                      </div>
+
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        02:18
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex w-full items-center justify-start gap-4 rounded-2xl bg-muted/40 p-4 text-left">
+                    <div className="rounded-xl border border-primary/10 bg-primary/10 p-3 text-primary">
+                      <MicrophoneIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold">Warm voice</div>
+                      <div className="text-xs text-muted-foreground">
+                        Soft, friendly cadence
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {['Warm', 'Clear', 'Gentle', 'Bright'].map((chip) => (
+                      <span
+                        key={chip}
+                        className={
+                          'rounded-full border border-border bg-background px-3 py-1' +
+                          (chip === 'Warm'
+                            ? ' border-primary/40 bg-primary/10 text-primary'
+                            : '')
+                        }
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border/60 bg-background p-4">
+                      <div className="text-xs text-muted-foreground">
+                        Call cadence
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-foreground">
+                        Tue, Thu • 6:30 PM
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background p-4">
+                      <div className="text-xs text-muted-foreground">
+                        Topics today
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-foreground">
+                        Garden updates, old friends
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/60 bg-background p-4">
+                    <div className="text-xs text-muted-foreground">
+                      Recent activity
+                    </div>
+                    <div className="mt-2 flex items-center gap-3 text-xs">
+                      <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                        Today 6:30 PM
+                      </span>
+                      <span className="text-muted-foreground">Tue 6:30 PM</span>
+                      <span className="text-muted-foreground">Sun 5:00 PM</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/60 bg-background p-4">
+                    <div className="text-xs text-muted-foreground">
+                      Caregiver view
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-foreground">
+                      18 min call • calm mood
+                    </div>
+                  </div>
+
+                  <div className="hidden rounded-2xl border border-border/60 bg-background p-4 lg:block">
+                    <div className="text-xs text-muted-foreground">
+                      Weekly trend
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-2 w-20 rounded-full bg-primary/30" />
+                      <div className="h-2 w-12 rounded-full bg-primary/60" />
+                      <div className="h-2 w-6 rounded-full bg-primary" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>No transcripts stored</span>
+                  <span>•</span>
+                  <span>Privacy-first</span>
+                  <span>•</span>
+                  <span>Always discloses AI</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </Container>
@@ -270,19 +420,6 @@ function Home() {
 }
 
 export default withI18n(Home);
-
-function HeroTitle({ children }: React.PropsWithChildren) {
-  return (
-    <h1
-      className={
-        'text-3xl text-foreground md:text-4xl' +
-        ' flex flex-col font-heading font-medium xl:text-6xl 2xl:text-7xl'
-      }
-    >
-      {children}
-    </h1>
-  );
-}
 
 function FeatureIcon(props: React.PropsWithChildren) {
   return (
