@@ -38,7 +38,7 @@ const AppSidebar: React.FC<{
             className={'h-[15px] sm:h-[16px]'}
             label={'Dashboard'}
             showWordmark={!ctx.collapsed}
-            wordmarkClassName={'text-sm font-semibold leading-none text-primary'}
+            wordmarkClassName={'text-lg font-semibold leading-none text-primary'}
           />
         </div>
       </SidebarContent>

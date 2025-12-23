@@ -162,8 +162,7 @@
     0 4px 14px 0 oklch(0 0 0 / 0.55),
     0 34px 70px -34px oklch(0 0 0 / 0.72);
 
-  --shadow-glow: 0 0 0 1px oklch(0.75 0.12 180.426 / 0.26),
-    0 26px 70px -34px oklch(0.75 0.12 180.426 / 0.45);
+  --shadow-glow: none;
 }
 
 /* Tailwind v4 Theme Registration */
