@@ -269,7 +269,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
       {/* FAQ Preview */}
       <div className="mt-16 max-w-3xl mx-auto text-center">
         <h2 className="text-2xl font-semibold text-foreground mb-4">
-          Questions about pricing?
+          Questions?
         </h2>
         <p className="text-muted-foreground mb-6">
           Our team is here to help you find the right plan for your family.
@@ -279,7 +279,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
           href="/contact"
           className="inline-flex items-center gap-2 text-primary hover:underline font-medium"
         >
-          Contact Sales
+          Contact Us
           <span aria-hidden="true">→</span>
         </a>
       </div>
