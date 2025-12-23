@@ -55,7 +55,7 @@ function Home() {
 
               <SubHeading className={'max-w-2xl'}>
                 <span>Ultaura is an AI voice companion that calls your parents</span>
-                <span>and grandparents for friendly conversation —</span>
+                <span>and grandparents for friendly conversation and reminders —</span>
                 <span>no app required.</span>
               </SubHeading>
 
