@@ -283,7 +283,7 @@ function Home() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 lg:-mt-2">
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
                     <div className="text-xs text-muted-foreground">Setup</div>
                     <div className="text-lg font-semibold text-foreground">
