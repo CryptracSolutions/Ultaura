@@ -101,13 +101,5 @@ export const metadata = {
     description: configuration.site.description,
     creator: configuration.site.twitterHandle,
   },
-  icons: {
-    icon: '/assets/images/favicon/favicon.ico',
-    shortcut: '/shortcut-icon.png',
-    apple: '/assets/images/favicon/apple-touch-icon.png',
-    other: {
-      rel: 'apple-touch-icon-precomposed',
-      url: '/apple-touch-icon-precomposed.png',
-    },
-  },
+  manifest: '/manifest.json',
 };
