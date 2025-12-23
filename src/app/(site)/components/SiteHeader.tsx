@@ -22,7 +22,11 @@ const SiteHeader = () => {
     <Container>
       <div className="flex pt-3 pb-1.5 px-1 items-center justify-between">
         <div className={'w-4/12'}>
-          <Logo />
+          <Logo
+            className={'h-10'}
+            showWordmark
+            wordmarkClassName={'text-2xl font-semibold leading-none'}
+          />
         </div>
 
         <div className={'w-4/12 justify-center hidden lg:flex'}>
