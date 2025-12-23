@@ -68,7 +68,7 @@ export function AccordionTrigger({
     >
       {children}
       <ChevronDownIcon
-        className={cn('h-5 w-5 transition-transform duration-200', {
+        className={cn('h-5 w-5 text-primary transition-transform duration-200', {
           'rotate-180': isOpen,
         })}
       />

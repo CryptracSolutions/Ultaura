@@ -112,7 +112,7 @@ function Home() {
                         {[3, 7, 4, 8, 5, 10, 6, 9, 4, 7, 3, 8].map((height) => (
                           <span
                             key={`wave-${height}`}
-                            className="w-2 rounded-full bg-primary/40"
+                            className="w-2 rounded-full bg-primary"
                             style={{ height: `${height + 6}px` }}
                           />
                         ))}
@@ -389,7 +389,9 @@ function Home() {
             <div className="rounded-3xl border border-border/60 bg-background/90 p-6 shadow-sm">
               <Accordion>
                 <AccordionItem value="line">
-                  <AccordionTrigger>What is a line?</AccordionTrigger>
+                  <AccordionTrigger className="hover:bg-transparent">
+                    What is a line?
+                  </AccordionTrigger>
                   <AccordionContent>
                     A line is a verified phone number for one person. Each line
                     represents one loved one who will receive calls from
@@ -398,7 +400,9 @@ function Home() {
                 </AccordionItem>
 
                 <AccordionItem value="call-anytime">
-                  <AccordionTrigger>Can they call anytime?</AccordionTrigger>
+                  <AccordionTrigger className="hover:bg-transparent">
+                    Can they call anytime?
+                  </AccordionTrigger>
                   <AccordionContent>
                     Yes! Your loved one can call Ultaura 24/7 for inbound calls.
                     Scheduled outbound calls respect quiet hours that you
@@ -407,7 +411,9 @@ function Home() {
                 </AccordionItem>
 
                 <AccordionItem value="real-person">
-                  <AccordionTrigger>Is it a real person?</AccordionTrigger>
+                  <AccordionTrigger className="hover:bg-transparent">
+                    Is it a real person?
+                  </AccordionTrigger>
                   <AccordionContent>
                     No, Ultaura is an AI voice companion. We always disclose
                     this at the start of each conversation. Ultaura is designed
@@ -416,7 +422,9 @@ function Home() {
                 </AccordionItem>
 
                 <AccordionItem value="emergencies">
-                  <AccordionTrigger>What about emergencies?</AccordionTrigger>
+                  <AccordionTrigger className="hover:bg-transparent">
+                    What about emergencies?
+                  </AccordionTrigger>
                   <AccordionContent>
                     If Ultaura detects distress or concerning language, it
                     gently encourages contacting 988 (mental health crisis
@@ -426,7 +434,9 @@ function Home() {
                 </AccordionItem>
 
                 <AccordionItem value="store">
-                  <AccordionTrigger>Do you store conversations?</AccordionTrigger>
+                  <AccordionTrigger className="hover:bg-transparent">
+                    Do you store conversations?
+                  </AccordionTrigger>
                   <AccordionContent>
                     No transcripts are stored by default. We only keep basic
                     call information (time, duration) visible in your dashboard.
@@ -435,7 +445,7 @@ function Home() {
                 </AccordionItem>
 
                 <AccordionItem value="landlines">
-                  <AccordionTrigger>
+                  <AccordionTrigger className="hover:bg-transparent">
                     Does it work with landlines?
                   </AccordionTrigger>
                   <AccordionContent>

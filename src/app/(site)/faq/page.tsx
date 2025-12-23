@@ -131,7 +131,9 @@ const FAQPage = () => {
                       key={itemIndex}
                       value={`${index}-${itemIndex}`}
                     >
-                      <AccordionTrigger>{item.question}</AccordionTrigger>
+                      <AccordionTrigger className="hover:bg-transparent">
+                        {item.question}
+                      </AccordionTrigger>
                       <AccordionContent>{item.answer}</AccordionContent>
                     </AccordionItem>
                   ))}
