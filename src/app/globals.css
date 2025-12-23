@@ -85,6 +85,12 @@
   /* Soft glow for hero/spotlight moments */
   --shadow-glow: 0 0 0 1px oklch(0.696 0.119 180.426 / 0.20),
     0 24px 64px -32px oklch(0.696 0.119 180.426 / 0.55);
+
+  /* Surface Hierarchy System */
+  --surface-base: var(--background);
+  --surface-subtle: oklch(0.97 0.001 106.424 / 0.15);
+  --surface-elevated: oklch(0.97 0.001 106.424 / 0.30);
+  --surface-accent: oklch(0.696 0.119 180.426 / 0.05);
 }
 
 .dark {
@@ -163,6 +169,12 @@
     0 34px 70px -34px oklch(0 0 0 / 0.72);
 
   --shadow-glow: none;
+
+  /* Surface Hierarchy System - Dark mode needs higher contrast */
+  --surface-base: var(--background);
+  --surface-subtle: oklch(0.268 0.007 34.298 / 0.25);
+  --surface-elevated: oklch(0.268 0.007 34.298 / 0.45);
+  --surface-accent: oklch(0.75 0.12 180.426 / 0.08);
 }
 
 /* Tailwind v4 Theme Registration */
@@ -205,6 +217,10 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-surface-base: var(--surface-base);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-accent: var(--surface-accent);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

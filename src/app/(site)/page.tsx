@@ -10,7 +10,6 @@ import {
 
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
-import Divider from '~/core/ui/Divider';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
 import { UltauraPricingTable } from '~/components/ultaura/PricingTable';
@@ -201,10 +200,7 @@ function Home() {
 
       {/* Value Props */}
       <Container>
-        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-muted/20 px-6 py-16 lg:px-12">
-          <div className="absolute -left-24 top-6 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute -right-28 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
-
+        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-surface-elevated px-6 py-16 lg:px-12">
           <div className="relative">
             <div className="mx-auto flex max-w-3xl flex-col items-center space-y-4 text-center">
               <Pill>Designed for seniors and their families</Pill>
@@ -308,42 +304,33 @@ function Home() {
 
       <Testimonials />
 
-      <Divider />
-
       {/* Pricing Section */}
-      <Container>
-        <div
-          className={
-            'flex flex-col items-center justify-center py-16 space-y-16'
-          }
-        >
-          <div className={'flex flex-col items-center space-y-8 text-center'}>
-            <Pill>Simple, transparent pricing</Pill>
+      <section className="bg-surface-accent py-16">
+        <Container>
+          <div className="flex flex-col items-center justify-center space-y-16">
+            <div className="flex flex-col items-center space-y-8 text-center">
+              <Pill>Simple, transparent pricing</Pill>
 
-            <div className={'flex flex-col space-y-2.5'}>
-              <Heading type={2}>Choose the <span className="text-primary">plan</span> that fits your family</Heading>
+              <div className="flex flex-col space-y-2.5">
+                <Heading type={2}>Choose the <span className="text-primary">plan</span> that fits your family</Heading>
 
-              <SubHeading>
-                All plans include a free trial to get started.
-              </SubHeading>
+                <SubHeading>
+                  All plans include a free trial to get started.
+                </SubHeading>
+              </div>
+            </div>
+
+            <div className="w-full">
+              <UltauraPricingTable />
             </div>
           </div>
-
-          <div className={'w-full'}>
-            <UltauraPricingTable />
-          </div>
-        </div>
-      </Container>
-
-      <Divider />
+        </Container>
+      </section>
 
       {/* FAQ Section */}
-      <Container>
-        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-muted/20 px-6 py-16 lg:px-12">
-          <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute -right-24 bottom-4 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
-
-          <div className="relative grid gap-12 lg:grid-cols-[0.9fr_1.1fr]">
+      <section className="bg-surface-subtle py-16">
+        <Container>
+          <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="flex flex-col justify-between gap-8">
               <div className="space-y-4">
                 <Pill>Support that feels human</Pill>
@@ -354,7 +341,7 @@ function Home() {
                 </SubHeading>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
+              <div className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-foreground">
                   Still need help?
                 </h3>
@@ -386,7 +373,7 @@ function Home() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-border/60 bg-background/90 p-6 shadow-sm">
+            <div className="rounded-3xl border border-border/60 bg-background p-6 shadow-sm">
               <Accordion>
                 <AccordionItem value="line">
                   <AccordionTrigger className="hover:bg-transparent">
@@ -456,13 +443,14 @@ function Home() {
               </Accordion>
             </div>
           </div>
-        </div>
-      </Container>
+        </Container>
+      </section>
 
       {/* Final CTA */}
-      <div className="bg-primary/5 py-16">
+      <section className="relative bg-surface-accent py-16 overflow-hidden">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
         <Container>
-          <div className="flex flex-col items-center text-center space-y-6">
+          <div className="relative flex flex-col items-center text-center space-y-6">
             <Heading type={2}>Give the gift of conversation</Heading>
             <SubHeading className="max-w-xl">
               Start your free trial today and give your loved one a companion
@@ -471,7 +459,7 @@ function Home() {
             <MainCallToActionButton />
           </div>
         </Container>
-      </div>
+      </section>
     </div>
   );
 }

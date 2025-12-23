@@ -126,10 +126,7 @@ export function Testimonials() {
   }, [pageIndex]);
 
   return (
-    <div className="relative overflow-hidden py-24">
-      <div className="absolute inset-0 bg-gradient-to-b from-muted/40 via-background to-background" />
-      <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-      <div className="absolute -right-24 bottom-6 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
+    <section className="py-24">
       <Container>
         <div className="relative flex flex-col items-center space-y-12">
           <div className="w-full max-w-6xl space-y-4 text-right">
@@ -220,6 +217,6 @@ export function Testimonials() {
           </div>
         </div>
       </Container>
-    </div>
+    </section>
   );
 }

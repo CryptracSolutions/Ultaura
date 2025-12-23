@@ -49,11 +49,7 @@ const TRUST_POINTS = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="relative overflow-hidden py-24">
-      <div className="absolute inset-0 bg-gradient-to-b from-muted/60 via-muted/20 to-background" />
-      <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="absolute -right-20 bottom-8 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
-
+    <section id="how-it-works" className="bg-surface-subtle py-24">
       <Container>
         <div className="relative grid gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
           <div className="flex flex-col space-y-6">
