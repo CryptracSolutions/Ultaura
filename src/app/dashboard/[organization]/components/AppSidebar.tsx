@@ -22,7 +22,7 @@ import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organi
 import SubscriptionStatusBadge from './organizations/SubscriptionStatusBadge';
 
 import configuration from '~/configuration';
-import OrganizationsSelector from './organizations/OrganizationsSelector';
+import Logo from '~/core/ui/Logo';
 
 const AppSidebar: React.FC<{
   organizationUid: string;
@@ -32,7 +32,13 @@ const AppSidebar: React.FC<{
   return (
     <Sidebar collapsed={ctx.collapsed}>
       <SidebarContent className={'my-4'}>
-        <OrganizationsSelector displayName={!ctx.collapsed} />
+        <div className={ctx.collapsed ? 'flex w-full justify-center' : ''}>
+          <Logo
+            href={configuration.paths.appHome}
+            className={'h-[15px] sm:h-[16px]'}
+            label={'Dashboard'}
+          />
+        </div>
       </SidebarContent>
 
       <SidebarContent className={`h-[calc(100%-160px)] overflow-y-auto`}>
@@ -64,11 +70,10 @@ function CollapsibleButton({
   onClick: (collapsed: boolean) => void;
 }>) {
   const className = classNames(
-    `bg-background absolute -right-[10.5px] bottom-4 cursor-pointer block`,
+    `bg-transparent absolute -right-[10.5px] bottom-4 cursor-pointer block`,
   );
 
-  const iconClassName =
-    'bg-background text-gray-300 dark:text-gray-600 h-5 w-5';
+  const iconClassName = 'bg-transparent text-primary h-5 w-5';
 
   return (
     <Tooltip>

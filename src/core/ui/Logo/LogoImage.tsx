@@ -1,11 +1,11 @@
-import classNames from 'clsx';
+import { cn } from '~/core/generic/shadcn-utils';
 
 const LogoImage: React.FCC<{
   className?: string;
 }> = ({ className }) => {
   return (
     <svg
-      className={classNames(`h-[21px] sm:h-[23px]`, className)}
+      className={cn('h-[21px] sm:h-[23px]', className)}
       viewBox="0 0 152 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
