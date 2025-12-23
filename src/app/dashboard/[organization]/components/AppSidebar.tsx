@@ -34,8 +34,8 @@ const AppSidebar: React.FC<{
       <SidebarContent className={'my-4'}>
         <div className={ctx.collapsed ? 'flex w-full justify-center' : ''}>
           <Logo
-            href={configuration.paths.appHome}
-            className={'h-[15px] sm:h-[16px]'}
+            href={'/'}
+            className={'h-[30px] sm:h-[32px]'}
             label={'Dashboard'}
             showWordmark={!ctx.collapsed}
             wordmarkClassName={'text-lg font-semibold leading-none text-primary'}

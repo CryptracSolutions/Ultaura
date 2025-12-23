@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import Container from '~/core/ui/Container';
-import LogoImage from '~/core/ui/Logo/LogoImage';
+import Logo from '~/core/ui/Logo';
 
 const YEAR = new Date().getFullYear();
 
@@ -18,7 +18,11 @@ function Footer() {
           >
             <div className={'flex flex-col space-y-4'}>
               <div>
-                <LogoImage className={'w-[85px] md:w-[115px]'} />
+                <Logo
+                  className={'h-10'}
+                  showWordmark
+                  wordmarkClassName={'text-2xl font-semibold leading-none'}
+                />
               </div>
 
               <div>

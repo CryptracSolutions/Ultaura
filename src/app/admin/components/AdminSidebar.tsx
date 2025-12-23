@@ -8,7 +8,7 @@ function AdminSidebar() {
   return (
     <Sidebar>
       <SidebarContent className={'mt-4 mb-8 pt-2'}>
-        <Logo href={'/admin'} />
+        <Logo href={'/'} />
       </SidebarContent>
 
       <SidebarContent>
