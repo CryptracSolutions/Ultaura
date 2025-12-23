@@ -103,11 +103,14 @@ export function HowItWorks() {
           </div>
 
           <div className="relative">
-            <ol className="relative space-y-6 pl-12">
-              <div className="pointer-events-none absolute left-5 top-2 h-[calc(100%-16px)] w-px bg-border/70" />
+            <ol
+              className="relative space-y-6"
+              style={{ '--hiw-track-x': '1.75rem' } as React.CSSProperties}
+            >
+              <div className="pointer-events-none absolute left-[var(--hiw-track-x)] top-4 h-[calc(100%-32px)] w-px -translate-x-1/2 bg-primary" />
               {HOW_IT_WORKS_STEPS.map((step, index) => (
-                <li key={step.title} className="relative">
-                  <div className="absolute -left-1 top-6 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-sm font-semibold text-foreground shadow-sm">
+                <li key={step.title} className="relative pl-16">
+                  <div className="absolute left-[var(--hiw-track-x)] top-1/2 z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-primary bg-background text-xs font-semibold text-primary shadow-sm">
                     {index + 1}
                   </div>
                   <div className="rounded-2xl border border-border bg-background/90 p-6 shadow-sm">

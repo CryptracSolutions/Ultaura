@@ -287,13 +287,13 @@ function Home() {
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
                     <div className="text-xs text-muted-foreground">Setup</div>
                     <div className="text-lg font-semibold text-foreground">
-                      Under 2 minutes
+                      Less than 5 minutes
                     </div>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
                     <div className="text-xs text-muted-foreground">Coverage</div>
                     <div className="text-lg font-semibold text-foreground">
-                      Landline to mobile
+                      Mobile and Landline
                     </div>
                   </div>
                 </div>
