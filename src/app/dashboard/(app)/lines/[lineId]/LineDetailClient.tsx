@@ -12,18 +12,17 @@ import {
   Play,
   Trash2,
   Edit2,
-  Plus,
   CheckCircle,
   AlertTriangle,
   Save,
   X,
   MessageCircle,
   Bell,
+  ChevronRight,
 } from 'lucide-react';
-import type { LineRow, ScheduleRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
-import type { ReminderRow } from '~/lib/ultaura/actions';
-import { updateLine, deleteLine, deleteSchedule, initiateTestCall } from '~/lib/ultaura/actions';
-import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
+import type { LineRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
+import { updateLine, deleteLine, initiateTestCall } from '~/lib/ultaura/actions';
+import { formatTime } from '~/lib/ultaura/constants';
 import { CallActivityList } from './components/CallActivityList';
 
 const MAX_INTEREST_TOPICS = 5;
@@ -56,20 +55,18 @@ const INTEREST_TOPIC_OPTIONS = [
 
 interface LineDetailClientProps {
   line: LineRow;
-  schedules: ScheduleRow[];
   usage: UsageSummary | null;
   callSessions: CallSessionRow[];
+  activeSchedulesCount: number;
   pendingRemindersCount: number;
-  nextReminder: ReminderRow | null;
 }
 
 export function LineDetailClient({
   line,
-  schedules,
   usage,
   callSessions,
+  activeSchedulesCount,
   pendingRemindersCount,
-  nextReminder,
 }: LineDetailClientProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -162,24 +159,6 @@ export function LineDetailClient({
       setIsTestCalling(false);
     }
   };
-
-  const handleDeleteSchedule = async (scheduleId: string) => {
-    if (!confirm('Delete this schedule?')) return;
-
-    try {
-      const result = await deleteSchedule(scheduleId);
-      if (result.success) {
-        router.refresh();
-      } else {
-        setError(result.error || 'Failed to delete schedule');
-      }
-    } catch {
-      setError('An unexpected error occurred');
-    }
-  };
-
-  const activeSchedules = schedules.filter((s) => s.enabled);
-  const inactiveSchedules = schedules.filter((s) => !s.enabled);
 
   const startEditingTopics = () => {
     const interests = line.seed_interests ?? [];
@@ -489,132 +468,49 @@ export function LineDetailClient({
         )}
       </div>
 
-      {/* Schedules Card */}
+      {/* Quick Links */}
       <div className="bg-card rounded-xl border border-border p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-muted-foreground" />
-            <h2 className="font-semibold text-foreground">Call Schedules</h2>
-          </div>
+        <div className="space-y-3">
           <Link
-            href={`/dashboard/lines/${line.id}/schedule`}
-            className="inline-flex items-center gap-2 text-sm bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+            href="/dashboard/calls"
+            className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
           >
-            <Plus className="w-4 h-4" />
-            Add Schedule
-          </Link>
-        </div>
-
-        {schedules.length === 0 ? (
-          <div className="text-center py-8">
-            <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground mb-4">No schedules set up yet</p>
-            <Link
-              href={`/dashboard/lines/${line.id}/schedule`}
-              className="inline-flex items-center gap-2 text-primary hover:underline"
-            >
-              <Plus className="w-4 h-4" />
-              Create your first schedule
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {activeSchedules.map((schedule) => (
-              <ScheduleRowItem
-                key={schedule.id}
-                schedule={schedule}
-                onDelete={() => handleDeleteSchedule(schedule.id)}
-                lineId={line.id}
-              />
-            ))}
-            {inactiveSchedules.length > 0 && (
-              <>
-                <div className="border-t border-border pt-4 mt-4">
-                  <p className="text-sm text-muted-foreground mb-3">Inactive Schedules</p>
-                </div>
-                {inactiveSchedules.map((schedule) => (
-                  <ScheduleRowItem
-                    key={schedule.id}
-                    schedule={schedule}
-                    onDelete={() => handleDeleteSchedule(schedule.id)}
-                    lineId={line.id}
-                  />
-                ))}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Reminders Card */}
-      <div className="bg-card rounded-xl border border-border p-6 mt-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-muted-foreground" />
-            <h2 className="font-semibold text-foreground">Reminders</h2>
-            {pendingRemindersCount > 0 && (
-              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                {pendingRemindersCount} scheduled
-              </span>
-            )}
-          </div>
-          <Link
-            href={`/dashboard/lines/${line.id}/reminders`}
-            className="inline-flex items-center gap-2 text-sm bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Reminder
-          </Link>
-        </div>
-
-        {nextReminder ? (
-          <div className="space-y-4">
-            <div className="p-4 rounded-lg border border-border bg-background">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground">Next Reminder</p>
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {nextReminder.message}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {new Date(nextReminder.due_at).toLocaleString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: true,
-                      timeZone: line.timezone,
-                    })}
-                  </p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Call Schedules</p>
+                <p className="text-sm text-muted-foreground">
+                  {activeSchedulesCount === 0
+                    ? 'No schedules set up'
+                    : `${activeSchedulesCount} active schedule${activeSchedulesCount !== 1 ? 's' : ''}`}
+                </p>
               </div>
             </div>
-            {pendingRemindersCount > 1 && (
-              <Link
-                href={`/dashboard/lines/${line.id}/reminders`}
-                className="block text-center text-sm text-primary hover:underline"
-              >
-                View all {pendingRemindersCount} scheduled reminders
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground mb-4">No reminders scheduled</p>
-            <Link
-              href={`/dashboard/lines/${line.id}/reminders`}
-              className="inline-flex items-center gap-2 text-primary hover:underline"
-            >
-              <Plus className="w-4 h-4" />
-              Create a reminder
-            </Link>
-          </div>
-        )}
+            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </Link>
+
+          <Link
+            href="/dashboard/reminders"
+            className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Bell className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Reminders</p>
+                <p className="text-sm text-muted-foreground">
+                  {pendingRemindersCount === 0
+                    ? 'No reminders scheduled'
+                    : `${pendingRemindersCount} reminder${pendingRemindersCount !== 1 ? 's' : ''} scheduled`}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </Link>
+        </div>
       </div>
 
       {/* Call History Card */}
@@ -624,53 +520,6 @@ export function LineDetailClient({
           <h2 className="font-semibold text-foreground">Recent Calls</h2>
         </div>
         <CallActivityList sessions={callSessions} />
-      </div>
-    </div>
-  );
-}
-
-interface ScheduleRowItemProps {
-  schedule: ScheduleRow;
-  onDelete: () => void;
-  lineId: string;
-}
-
-function ScheduleRowItem({ schedule, onDelete, lineId }: ScheduleRowItemProps) {
-  const daysDisplay = schedule.days_of_week
-    .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.short || d)
-    .join(', ');
-
-  return (
-    <div
-      className={`flex items-center justify-between p-4 rounded-lg border ${
-        schedule.enabled ? 'border-border bg-background' : 'border-border/50 bg-muted/50'
-      }`}
-    >
-      <div className="flex items-center gap-4">
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            schedule.enabled ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-          }`}
-        >
-          <Clock className="w-5 h-5" />
-        </div>
-        <div>
-          <p className={`font-medium ${schedule.enabled ? 'text-foreground' : 'text-muted-foreground'}`}>
-            {formatTime(schedule.time_of_day)}
-          </p>
-          <p className="text-sm text-muted-foreground">{daysDisplay}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Link
-          href={`/dashboard/lines/${lineId}/schedule/${schedule.id}`}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
-        >
-          <Edit2 className="w-4 h-4 text-muted-foreground" />
-        </Link>
-        <button onClick={onDelete} className="p-2 rounded-lg hover:bg-destructive/10 transition-colors">
-          <Trash2 className="w-4 h-4 text-destructive" />
-        </button>
       </div>
     </div>
   );

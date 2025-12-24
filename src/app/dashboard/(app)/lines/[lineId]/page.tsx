@@ -3,6 +3,19 @@ import { redirect } from 'next/navigation';
 import { getLine, getSchedules, getUsageSummary, getCallSessions, getReminders } from '~/lib/ultaura/actions';
 import { LineDetailClient } from './LineDetailClient';
 
+// Helper to get counts without fetching full data
+async function getScheduleAndReminderCounts(lineId: string) {
+  const [schedules, reminders] = await Promise.all([
+    getSchedules(lineId),
+    getReminders(lineId),
+  ]);
+
+  return {
+    activeSchedulesCount: schedules.filter(s => s.enabled).length,
+    pendingRemindersCount: reminders.filter(r => r.status === 'scheduled').length,
+  };
+}
+
 export const metadata: Metadata = {
   title: 'Line Details - Ultaura',
 };
@@ -18,31 +31,24 @@ export default async function LineDetailPage({ params }: PageProps) {
     redirect('/dashboard/lines');
   }
 
-  const [schedules, usage, callSessions, reminders] = await Promise.all([
-    getSchedules(params.lineId),
-    getUsageSummary(line.account_id),
-    getCallSessions(params.lineId, 10),
-    getReminders(params.lineId),
-  ]);
-
   // If not verified, redirect to verification
   if (!line.phone_verified_at) {
     redirect(`/dashboard/lines/${params.lineId}/verify`);
   }
 
-  // Compute pending reminders count and next reminder
-  const scheduledReminders = reminders.filter(r => r.status === 'scheduled');
-  const pendingRemindersCount = scheduledReminders.length;
-  const nextReminder = scheduledReminders.length > 0 ? scheduledReminders[0] : null;
+  const [usage, callSessions, counts] = await Promise.all([
+    getUsageSummary(line.account_id),
+    getCallSessions(params.lineId, 10),
+    getScheduleAndReminderCounts(params.lineId),
+  ]);
 
   return (
     <LineDetailClient
       line={line}
-      schedules={schedules}
       usage={usage}
       callSessions={callSessions}
-      pendingRemindersCount={pendingRemindersCount}
-      nextReminder={nextReminder}
+      activeSchedulesCount={counts.activeSchedulesCount}
+      pendingRemindersCount={counts.pendingRemindersCount}
     />
   );
 }

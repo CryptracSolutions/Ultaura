@@ -171,13 +171,6 @@ export function LineCard({ line }: LineCardProps) {
                     View Details
                   </Link>
                   <Link
-                    href={`/dashboard/lines/${line.id}/schedule`}
-                    className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Edit Schedule
-                  </Link>
-                  <Link
                     href={`/dashboard/lines/${line.id}/settings`}
                     className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     onClick={(e) => e.stopPropagation()}
