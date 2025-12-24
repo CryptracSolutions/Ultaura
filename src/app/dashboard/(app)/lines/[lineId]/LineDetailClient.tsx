@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Phone,
   Calendar,
-  Clock,
   Settings,
   Play,
   Trash2,
@@ -472,7 +471,7 @@ export function LineDetailClient({
       <div className="bg-card rounded-xl border border-border p-6">
         <div className="space-y-3">
           <Link
-            href="/dashboard/calls"
+            href={`/dashboard/lines/${line.id}/schedule`}
             className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
           >
             <div className="flex items-center gap-3">
@@ -492,7 +491,7 @@ export function LineDetailClient({
           </Link>
 
           <Link
-            href="/dashboard/reminders"
+            href={`/dashboard/lines/${line.id}/reminders`}
             className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
           >
             <div className="flex items-center gap-3">
