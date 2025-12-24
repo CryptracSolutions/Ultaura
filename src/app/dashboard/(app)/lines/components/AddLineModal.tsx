@@ -13,6 +13,34 @@ import {
   SelectItem,
 } from '~/core/ui/Select';
 
+const MAX_INTEREST_TOPICS = 5;
+
+// Curated topics that tend to work well for 60+ conversation starters
+const INTEREST_TOPIC_OPTIONS = [
+  'Family',
+  'Grandkids',
+  'Friends',
+  'Memories',
+  'Hometown',
+  'Holidays',
+  'Cooking',
+  'Baking',
+  'Gardening',
+  'Music',
+  'Movies',
+  'TV shows',
+  'Reading',
+  'Faith / spirituality',
+  'Pets',
+  'Sports',
+  'Travel',
+  'History',
+  'Nature',
+  'Games & puzzles',
+  'Hobbies & crafts',
+  'Community events',
+];
+
 interface AddLineModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -34,12 +62,41 @@ export function AddLineModal({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [language, setLanguage] = useState<'auto' | 'en' | 'es'>('auto');
   const [timezone, setTimezone] = useState('America/Los_Angeles');
-  const [interests, setInterests] = useState('');
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [customTopics, setCustomTopics] = useState('');
   const [avoidTopics, setAvoidTopics] = useState('');
   const [disclosure, setDisclosure] = useState(false);
   const [consent, setConsent] = useState(false);
 
   if (!isOpen) return null;
+
+  const normalizeTopic = (topic: string) => topic.trim();
+
+  const parseCustomTopics = (raw: string) =>
+    raw
+      .split(',')
+      .map(normalizeTopic)
+      .filter(Boolean);
+
+  const customTopicList = parseCustomTopics(customTopics);
+
+  const combinedTopics = Array.from(
+    new Set(
+      [...selectedTopics, ...customTopicList].map((topic) => normalizeTopic(topic)),
+    ),
+  ).slice(0, MAX_INTEREST_TOPICS);
+
+  const selectedCount = combinedTopics.length;
+  const customDisabled = selectedTopics.length >= MAX_INTEREST_TOPICS;
+
+  const toggleTopic = (topic: string) => {
+    setSelectedTopics((prev) => {
+      const exists = prev.includes(topic);
+      if (exists) return prev.filter((t) => t !== topic);
+      if (combinedTopics.length >= MAX_INTEREST_TOPICS) return prev;
+      return [...prev, topic];
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +119,7 @@ export function AddLineModal({
         phoneE164,
         preferredLanguage: language,
         timezone,
-        seedInterests: interests ? interests.split(',').map(s => s.trim()) : undefined,
+        seedInterests: combinedTopics.length ? combinedTopics : undefined,
         seedAvoidTopics: avoidTopics ? avoidTopics.split(',').map(s => s.trim()) : undefined,
       });
 
@@ -195,19 +252,62 @@ export function AddLineModal({
                 <>
                   {/* Interests */}
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">
-                      Topics They Enjoy (optional)
-                    </label>
-                    <textarea
-                      value={interests}
-                      onChange={(e) => setInterests(e.target.value)}
-                      placeholder="e.g., gardening, cooking, family, sports..."
-                      rows={2}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Separate topics with commas
-                    </p>
+                    <div className="flex items-center justify-between gap-4">
+                      <label className="block text-sm font-medium text-foreground">
+                        Topics They Enjoy (optional)
+                      </label>
+                      <div className="text-xs text-muted-foreground">
+                        Selected: {selectedCount}/{MAX_INTEREST_TOPICS}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {INTEREST_TOPIC_OPTIONS.map((topic) => {
+                        const isSelected = selectedTopics.includes(topic);
+                        const disabled =
+                          !isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS;
+
+                        return (
+                          <button
+                            key={topic}
+                            type="button"
+                            onClick={() => toggleTopic(topic)}
+                            disabled={disabled}
+                            className={[
+                              'rounded-full border px-3 py-1 text-sm transition-colors',
+                              isSelected
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border bg-background text-foreground hover:bg-muted',
+                              disabled ? 'opacity-50 cursor-not-allowed' : '',
+                            ].join(' ')}
+                          >
+                            {topic}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-muted-foreground">
+                        Other topics (comma-separated)
+                      </label>
+                      <input
+                        value={customTopics}
+                        onChange={(e) => setCustomTopics(e.target.value)}
+                        placeholder="e.g., baseball, baking, church"
+                        disabled={customDisabled}
+                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      />
+                      {customDisabled ? (
+                        <p className="text-xs text-muted-foreground">
+                          Remove a selected topic to add a custom one.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          We'll save up to {MAX_INTEREST_TOPICS} total topics.
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Topics to Avoid */}
