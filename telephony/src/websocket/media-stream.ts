@@ -98,6 +98,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               language: line.preferred_language,
               isFirstCall,
               memories: memoryText,
+              seedInterests: line.seed_interests,
+              seedAvoidTopics: line.seed_avoid_topics,
               lowMinutesWarning: minutesStatus.warn,
               minutesRemaining: minutesStatus.remaining,
               onAudioReceived: (audioBase64: string) => {

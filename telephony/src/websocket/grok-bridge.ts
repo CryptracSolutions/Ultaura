@@ -15,6 +15,8 @@ interface GrokBridgeOptions {
   language: 'auto' | 'en' | 'es';
   isFirstCall: boolean;
   memories: string;
+  seedInterests: string[] | null;
+  seedAvoidTopics: string[] | null;
   lowMinutesWarning: boolean;
   minutesRemaining: number;
   onAudioReceived: (audioBase64: string) => void;
@@ -267,7 +269,7 @@ export class GrokBridge {
 
   // Build the system prompt
   private buildSystemPrompt(): string {
-    const { userName, language, isFirstCall, memories, lowMinutesWarning, minutesRemaining } = this.options;
+    const { userName, language, isFirstCall, memories, seedInterests, seedAvoidTopics, lowMinutesWarning, minutesRemaining } = this.options;
 
     let prompt = `You are Ultaura, a warm and friendly AI voice companion. You are speaking with ${userName} on the phone.
 
@@ -305,6 +307,27 @@ If distress or self-harm mentioned:
 - web_search: Look up current events (keep summaries neutral)
 
 `;
+
+    // Add seed interests from family/caregiver
+    if (seedInterests && seedInterests.length > 0) {
+      prompt += `
+## Interests (provided by family)
+${userName}'s family mentioned they enjoy: ${seedInterests.join(', ')}.
+Use these as natural conversation starters or when the conversation lulls.
+Don't force these topics - weave them in organically.
+
+`;
+    }
+
+    // Add topics to avoid from family/caregiver
+    if (seedAvoidTopics && seedAvoidTopics.length > 0) {
+      prompt += `
+## Topics to Avoid (provided by family)
+Please avoid discussing: ${seedAvoidTopics.join(', ')}.
+If ${userName} brings up these topics themselves, you may engage gently, but do not initiate.
+
+`;
+    }
 
     if (isFirstCall) {
       prompt += `
