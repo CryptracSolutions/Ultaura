@@ -30,7 +30,8 @@ function Home() {
       {/* Hero Section */}
       <Container>
         <div className="relative my-12 lg:my-20">
-          <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
+          <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
           <div className="relative grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
@@ -212,7 +213,7 @@ function Home() {
             </div>
 
             <div className="mt-12 grid gap-6 md:grid-cols-2">
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
                 <FeatureIcon>
                   <PhoneIcon className={'h-5 w-5'} />
                 </FeatureIcon>
@@ -223,7 +224,7 @@ function Home() {
                 </p>
               </div>
 
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
                 <FeatureIcon>
                   <HeartIcon className={'h-5 w-5'} />
                 </FeatureIcon>
@@ -236,7 +237,7 @@ function Home() {
                 </p>
               </div>
 
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
                 <FeatureIcon>
                   <EyeIcon className={'h-5 w-5'} />
                 </FeatureIcon>
@@ -247,7 +248,7 @@ function Home() {
                 </p>
               </div>
 
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
                 <FeatureIcon>
                   <ShieldCheckIcon className={'h-5 w-5'} />
                 </FeatureIcon>
