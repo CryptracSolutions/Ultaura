@@ -111,8 +111,8 @@ export function HowItWorks() {
                   </div>
                   <div className="rounded-2xl border border-border bg-background/90 p-6 shadow-sm">
                     <div className="flex items-start gap-4">
-                      <div className="rounded-xl border border-primary/10 bg-primary/10 p-3 text-primary">
-                        <step.icon className="h-5 w-5" />
+                      <div className="group rounded-xl border border-primary/10 bg-primary/10 p-3 transition-colors duration-200 hover:border-primary hover:bg-primary">
+                        <step.icon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
                       </div>
                       <div className="space-y-2">
                         <h4 className="text-base font-semibold text-foreground">

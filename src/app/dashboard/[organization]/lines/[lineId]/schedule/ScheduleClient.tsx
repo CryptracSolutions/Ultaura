@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Clock, Check } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { LineRow } from '~/lib/ultaura/types';
 import { createSchedule } from '~/lib/ultaura/actions';
 import { DAYS_OF_WEEK, TIME_OPTIONS } from '~/lib/ultaura/constants';
@@ -125,20 +126,21 @@ export function ScheduleClient({ line, organizationSlug }: ScheduleClientProps) 
           <label className="block text-sm font-medium text-foreground mb-3">
             What time should we call?
           </label>
-          <div className="relative">
-            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-            <select
-              value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-lg border border-input bg-background text-foreground appearance-none focus:border-primary focus:ring-2 focus:ring-ring"
-            >
+          <Select value={selectedTime} onValueChange={setSelectedTime}>
+            <SelectTrigger className="w-full py-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-muted-foreground" />
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
               {TIME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <SelectItem key={option.value} value={option.value}>
                   {option.label}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-          </div>
+            </SelectContent>
+          </Select>
           <p className="text-xs text-muted-foreground mt-2">
             Times are in {line.timezone}. Quiet hours: {line.quiet_hours_start} - {line.quiet_hours_end}
           </p>
