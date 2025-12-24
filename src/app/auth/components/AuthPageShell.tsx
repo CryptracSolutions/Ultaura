@@ -1,6 +1,8 @@
 import Logo from '~/core/ui/Logo';
 import I18nProvider from '~/i18n/I18nProvider';
 
+import AuthBrandPanel from '~/app/auth/components/AuthBrandPanel';
+
 function AuthPageShell({
   children,
   language,
@@ -8,19 +10,28 @@ function AuthPageShell({
   language?: string;
 }>) {
   return (
-    <div
-      className={
-        'flex h-screen flex-col items-center justify-center space-y-4' +
-        ' md:space-y-8 lg:space-y-16 lg:bg-gray-50 dark:lg:bg-background' +
-        ' animate-in fade-in slide-in-from-top-8 duration-1000'
-      }
-    >
-      <Logo />
+    <div className={'min-h-screen w-full lg:grid lg:grid-cols-2'}>
+      <AuthBrandPanel />
 
       <div
-        className={`flex w-full max-w-sm flex-col items-center space-y-4 rounded-xl border-transparent bg-white px-2 py-1 dark:bg-background md:w-8/12 md:border md:px-8 md:py-6 md:shadow-xl dark:md:border-dark-800 lg:w-5/12 lg:px-6 xl:w-4/12 2xl:w-3/12`}
+        className={
+          'flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10' +
+          ' lg:min-h-0 lg:px-10' +
+          ' animate-in fade-in slide-in-from-top-8 duration-1000'
+        }
       >
-        <I18nProvider lang={language}>{children}</I18nProvider>
+        <div className={'mb-8 flex w-full max-w-md items-center justify-center lg:hidden'}>
+          <Logo className={'h-10 w-auto'} label={'Ultaura'} />
+        </div>
+
+        <div
+          className={
+            'flex w-full max-w-md flex-col items-center space-y-4 rounded-xl border border-border bg-card text-card-foreground px-4 py-6 shadow-lg' +
+            ' lg:px-8'
+          }
+        >
+          <I18nProvider lang={language}>{children}</I18nProvider>
+        </div>
       </div>
     </div>
   );
