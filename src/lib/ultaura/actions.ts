@@ -815,6 +815,51 @@ export async function getLineActivity(accountId: string): Promise<LineActivity[]
   return activities;
 }
 
+// Get all upcoming scheduled calls for the dashboard
+export async function getUpcomingScheduledCalls(accountId: string): Promise<{
+  scheduleId: string;
+  lineId: string;
+  displayName: string;
+  nextRunAt: string;
+  timeOfDay: string;
+  daysOfWeek: number[];
+}[]> {
+  const client = getSupabaseServerComponentClient();
+
+  // Fetch enabled schedules with their associated line info
+  const { data: schedules, error } = await client
+    .from('ultaura_schedules')
+    .select(`
+      id,
+      line_id,
+      next_run_at,
+      time_of_day,
+      days_of_week,
+      enabled,
+      ultaura_lines!inner (
+        display_name
+      )
+    `)
+    .eq('account_id', accountId)
+    .eq('enabled', true)
+    .not('next_run_at', 'is', null)
+    .order('next_run_at', { ascending: true });
+
+  if (error) {
+    logger.error({ error }, 'Failed to get upcoming scheduled calls');
+    return [];
+  }
+
+  return (schedules || []).map((schedule) => ({
+    scheduleId: schedule.id,
+    lineId: schedule.line_id,
+    displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
+    nextRunAt: schedule.next_run_at!,
+    timeOfDay: schedule.time_of_day,
+    daysOfWeek: schedule.days_of_week,
+  }));
+}
+
 // ============================================
 // TEST CALL ACTION
 // ============================================

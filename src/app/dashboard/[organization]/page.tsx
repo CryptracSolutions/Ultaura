@@ -5,7 +5,7 @@ import { withI18n } from '~/i18n/with-i18n';
 import Trans from '~/core/ui/Trans';
 import { PageBody } from '~/core/ui/Page';
 import loadAppData from '~/lib/server/loaders/load-app-data';
-import { getLines, getLineActivity, getUltauraAccount, getUsageSummary } from '~/lib/ultaura/actions';
+import { getLines, getLineActivity, getUltauraAccount, getUsageSummary, getUpcomingScheduledCalls } from '~/lib/ultaura/actions';
 
 export const metadata = {
   title: 'Dashboard',
@@ -62,24 +62,19 @@ async function DashboardPage({ params }: PageProps) {
     );
   }
 
-  const [lines, usage, activity] = await Promise.all([
+  const [lines, usage, activity, upcomingSchedules] = await Promise.all([
     getLines(account.id),
     getUsageSummary(account.id),
     getLineActivity(account.id),
+    getUpcomingScheduledCalls(account.id),
   ]);
 
   const unverifiedCount = lines.filter((l) => !l.phone_verified_at).length;
   const activeCount = lines.filter((l) => l.status === 'active').length;
   const pausedCount = lines.filter((l) => l.status === 'paused').length;
 
-  const upcoming = activity
-    .filter((a) => Boolean(a.nextScheduledAt))
-    .sort((a, b) => {
-      const aTime = a.nextScheduledAt ? new Date(a.nextScheduledAt).getTime() : Number.POSITIVE_INFINITY;
-      const bTime = b.nextScheduledAt ? new Date(b.nextScheduledAt).getTime() : Number.POSITIVE_INFINITY;
-      return aTime - bTime;
-    })
-    .slice(0, 6);
+  // Get upcoming scheduled calls (already sorted by next_run_at)
+  const upcoming = upcomingSchedules.slice(0, 6);
 
   const recent = activity
     .filter((a) => Boolean(a.lastCallAt))
@@ -224,7 +219,7 @@ async function DashboardPage({ params }: PageProps) {
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {upcoming.map((item) => (
                   <div
-                    key={item.lineId}
+                    key={item.scheduleId}
                     className="rounded-lg border border-border bg-background p-4"
                   >
                     <div className="flex items-center justify-between gap-4">
@@ -232,7 +227,7 @@ async function DashboardPage({ params }: PageProps) {
                         {item.displayName}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatDateTime(item.nextScheduledAt!)}
+                        {formatDateTime(item.nextRunAt)}
                       </div>
                     </div>
                     <div className="mt-2">
