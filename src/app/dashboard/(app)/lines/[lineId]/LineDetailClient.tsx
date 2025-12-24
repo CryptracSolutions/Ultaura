@@ -18,8 +18,10 @@ import {
   Save,
   X,
   MessageCircle,
+  Bell,
 } from 'lucide-react';
 import type { LineRow, ScheduleRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
+import type { ReminderRow } from '~/lib/ultaura/actions';
 import { updateLine, deleteLine, deleteSchedule, initiateTestCall } from '~/lib/ultaura/actions';
 import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
 import { CallActivityList } from './components/CallActivityList';
@@ -57,6 +59,8 @@ interface LineDetailClientProps {
   schedules: ScheduleRow[];
   usage: UsageSummary | null;
   callSessions: CallSessionRow[];
+  pendingRemindersCount: number;
+  nextReminder: ReminderRow | null;
 }
 
 export function LineDetailClient({
@@ -64,6 +68,8 @@ export function LineDetailClient({
   schedules,
   usage,
   callSessions,
+  pendingRemindersCount,
+  nextReminder,
 }: LineDetailClientProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);

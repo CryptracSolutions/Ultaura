@@ -894,6 +894,188 @@ export async function initiateTestCall(lineId: string): Promise<{ success: boole
 }
 
 // ============================================
+// REMINDER ACTIONS
+// ============================================
+
+export interface ReminderRow {
+  id: string;
+  account_id: string;
+  line_id: string;
+  created_at: string;
+  due_at: string;
+  timezone: string;
+  message: string;
+  delivery_method: string;
+  status: 'scheduled' | 'sent' | 'missed' | 'canceled';
+  privacy_scope: 'line_only' | 'shareable_with_payer';
+  created_by_call_session_id: string | null;
+}
+
+// Get reminders for a line
+export async function getReminders(lineId: string): Promise<ReminderRow[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_reminders')
+    .select('*')
+    .eq('line_id', lineId)
+    .order('due_at', { ascending: true });
+
+  if (error) {
+    logger.error({ error }, 'Failed to get reminders');
+    return [];
+  }
+
+  return data || [];
+}
+
+// Get a single reminder by ID
+export async function getReminder(reminderId: string): Promise<ReminderRow | null> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_reminders')
+    .select('*')
+    .eq('id', reminderId)
+    .single();
+
+  if (error) {
+    logger.error({ error }, 'Failed to get reminder');
+    return null;
+  }
+
+  return data;
+}
+
+// Create a reminder from dashboard
+export async function createReminder(input: {
+  lineId: string;
+  dueAt: string;
+  message: string;
+  timezone: string;
+}): Promise<{ success: boolean; reminder?: ReminderRow; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  // Get line to get account_id
+  const line = await getLine(input.lineId);
+  if (!line) {
+    return { success: false, error: 'Line not found' };
+  }
+
+  // Validate due date is in the future
+  const dueDate = new Date(input.dueAt);
+  if (dueDate.getTime() < Date.now()) {
+    return { success: false, error: 'Reminder time must be in the future' };
+  }
+
+  // Validate message length
+  if (!input.message || input.message.trim().length === 0) {
+    return { success: false, error: 'Message is required' };
+  }
+
+  if (input.message.length > 500) {
+    return { success: false, error: 'Message must be 500 characters or less' };
+  }
+
+  const { data: reminder, error } = await client
+    .from('ultaura_reminders')
+    .insert({
+      account_id: line.account_id,
+      line_id: input.lineId,
+      due_at: input.dueAt,
+      timezone: input.timezone || line.timezone,
+      message: input.message.trim(),
+      delivery_method: 'outbound_call',
+      status: 'scheduled',
+      privacy_scope: 'line_only',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error({ error }, 'Failed to create reminder');
+    return { success: false, error: 'Failed to create reminder' };
+  }
+
+  revalidatePath(`/dashboard/lines/${input.lineId}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${input.lineId}`, 'page');
+
+  return { success: true, reminder };
+}
+
+// Cancel a reminder
+export async function cancelReminder(reminderId: string): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  // Get reminder to check status and get lineId for revalidation
+  const reminder = await getReminder(reminderId);
+  if (!reminder) {
+    return { success: false, error: 'Reminder not found' };
+  }
+
+  if (reminder.status !== 'scheduled') {
+    return { success: false, error: 'Can only cancel scheduled reminders' };
+  }
+
+  const { error } = await client
+    .from('ultaura_reminders')
+    .update({ status: 'canceled' })
+    .eq('id', reminderId);
+
+  if (error) {
+    logger.error({ error }, 'Failed to cancel reminder');
+    return { success: false, error: 'Failed to cancel reminder' };
+  }
+
+  revalidatePath(`/dashboard/lines/${reminder.line_id}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${reminder.line_id}`, 'page');
+
+  return { success: true };
+}
+
+// Get pending reminder count for a line
+export async function getPendingReminderCount(lineId: string): Promise<number> {
+  const client = getSupabaseServerComponentClient();
+
+  const { count, error } = await client
+    .from('ultaura_reminders')
+    .select('*', { count: 'exact', head: true })
+    .eq('line_id', lineId)
+    .eq('status', 'scheduled');
+
+  if (error) {
+    logger.error({ error }, 'Failed to get pending reminder count');
+    return 0;
+  }
+
+  return count || 0;
+}
+
+// Get next upcoming reminder for a line
+export async function getNextReminder(lineId: string): Promise<ReminderRow | null> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_reminders')
+    .select('*')
+    .eq('line_id', lineId)
+    .eq('status', 'scheduled')
+    .gte('due_at', new Date().toISOString())
+    .order('due_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (error.code !== 'PGRST116') {
+      logger.error({ error }, 'Failed to get next reminder');
+    }
+    return null;
+  }
+
+  return data;
+}
+
+// ============================================
 // HELPER FUNCTIONS
 // ============================================
 

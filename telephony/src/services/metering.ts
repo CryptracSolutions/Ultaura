@@ -67,8 +67,9 @@ export async function recordUsage(options: {
   callSessionId: string;
   secondsConnected: number;
   direction: 'inbound' | 'outbound';
+  isReminderCall?: boolean;
 }): Promise<MinuteLedgerRow | null> {
-  const { accountId, lineId, callSessionId, secondsConnected, direction } = options;
+  const { accountId, lineId, callSessionId, secondsConnected, direction, isReminderCall } = options;
 
   const supabase = getSupabaseClient();
 
@@ -85,9 +86,15 @@ export async function recordUsage(options: {
   }
 
   // Calculate billable minutes
-  const billableMinutes = calculateBillableMinutes(secondsConnected);
+  let billableMinutes = calculateBillableMinutes(secondsConnected);
 
-  // Skip if less than minimum billable
+  // Reminder calls have a minimum of 1 minute charge
+  if (isReminderCall && billableMinutes < 1) {
+    billableMinutes = 1;
+    logger.info({ callSessionId, isReminderCall }, 'Applying 1-minute minimum for reminder call');
+  }
+
+  // Skip if less than minimum billable (unless it's a reminder call)
   if (billableMinutes === 0) {
     logger.info({ callSessionId, secondsConnected }, 'Call too short to bill');
     return null;

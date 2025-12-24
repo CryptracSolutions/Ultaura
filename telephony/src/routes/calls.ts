@@ -33,14 +33,16 @@ callsRouter.use(verifyInternalAccess);
 // Initiate an outbound call
 callsRouter.post('/outbound', async (req: Request, res: Response) => {
   try {
-    const { lineId, reason } = req.body;
+    const { lineId, reason, reminderId, reminderMessage } = req.body;
 
     if (!lineId) {
       res.status(400).json({ error: 'Missing lineId' });
       return;
     }
 
-    logger.info({ lineId, reason }, 'Outbound call request');
+    const isReminderCall = reason === 'reminder' && !!reminderMessage;
+
+    logger.info({ lineId, reason, isReminderCall }, 'Outbound call request');
 
     // Get line info
     const lineWithAccount = await getLineById(lineId);
@@ -80,6 +82,9 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       direction: 'outbound',
       twilioFrom: process.env.TWILIO_PHONE_NUMBER,
       twilioTo: line.phone_e164,
+      isReminderCall,
+      reminderId: isReminderCall ? reminderId : undefined,
+      reminderMessage: isReminderCall ? reminderMessage : undefined,
     });
 
     if (!session) {
@@ -100,7 +105,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
         callSessionId: session.id,
       });
 
-      logger.info({ sessionId: session.id, callSid, lineId }, 'Outbound call initiated');
+      logger.info({ sessionId: session.id, callSid, lineId, isReminderCall }, 'Outbound call initiated');
 
       res.json({
         success: true,

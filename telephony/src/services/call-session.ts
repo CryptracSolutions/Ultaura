@@ -19,6 +19,10 @@ export async function createCallSession(options: {
   twilioCallSid?: string;
   twilioFrom?: string;
   twilioTo?: string;
+  // Reminder call fields
+  isReminderCall?: boolean;
+  reminderId?: string;
+  reminderMessage?: string;
 }): Promise<CallSessionRow | null> {
   const supabase = getSupabaseClient();
 
@@ -35,6 +39,9 @@ export async function createCallSession(options: {
       twilio_call_sid: options.twilioCallSid,
       twilio_from: options.twilioFrom,
       twilio_to: options.twilioTo,
+      is_reminder_call: options.isReminderCall || false,
+      reminder_id: options.reminderId || null,
+      reminder_message: options.reminderMessage || null,
     })
     .select()
     .single();
@@ -181,16 +188,18 @@ export async function completeCallSession(
     return;
   }
 
-  logger.info({ sessionId, secondsConnected, endReason: options.endReason }, 'Call session completed');
+  logger.info({ sessionId, secondsConnected, endReason: options.endReason, isReminderCall: session.is_reminder_call }, 'Call session completed');
 
-  // Record usage if call was long enough
-  if (secondsConnected >= 30) {
+  // Record usage if call was long enough (or if it's a reminder call - always bill at least 1 min)
+  const shouldRecordUsage = secondsConnected >= 30 || session.is_reminder_call;
+  if (shouldRecordUsage) {
     await recordUsage({
       accountId: session.account_id,
       lineId: session.line_id,
       callSessionId: sessionId,
       secondsConnected,
       direction: session.direction as 'inbound' | 'outbound',
+      isReminderCall: session.is_reminder_call,
     });
 
     // Update line's last successful call

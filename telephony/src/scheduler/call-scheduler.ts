@@ -325,6 +325,7 @@ async function processReminder(reminder: {
       body: JSON.stringify({
         lineId: reminder.line_id,
         reason: 'reminder',
+        reminderId: reminder.id,
         reminderMessage: reminder.message,
       }),
     });

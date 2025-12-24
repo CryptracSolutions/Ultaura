@@ -19,6 +19,9 @@ interface GrokBridgeOptions {
   seedAvoidTopics: string[] | null;
   lowMinutesWarning: boolean;
   minutesRemaining: number;
+  // Reminder call fields
+  isReminderCall: boolean;
+  reminderMessage: string | null;
   onAudioReceived: (audioBase64: string) => void;
   onClearBuffer: () => void;
   onError: (error: Error) => void;
@@ -269,7 +272,12 @@ export class GrokBridge {
 
   // Build the system prompt
   private buildSystemPrompt(): string {
-    const { userName, language, isFirstCall, memories, seedInterests, seedAvoidTopics, lowMinutesWarning, minutesRemaining } = this.options;
+    const { userName, language, isFirstCall, memories, seedInterests, seedAvoidTopics, lowMinutesWarning, minutesRemaining, isReminderCall, reminderMessage } = this.options;
+
+    // Use dedicated short prompt for reminder calls
+    if (isReminderCall && reminderMessage) {
+      return this.buildReminderPrompt(userName, reminderMessage, language);
+    }
 
     let prompt = `You are Ultaura, a warm and friendly AI voice companion. You are speaking with ${userName} on the phone.
 
@@ -348,6 +356,38 @@ This is your first call with ${userName}. Take time to:
 ${userName} has approximately ${minutesRemaining} minutes remaining. Near the end of the call, gently mention this.
 `;
     }
+
+    // Language instruction
+    if (language === 'es') {
+      prompt += `\n## Language\nSpeak in Spanish. Use formal "usted" unless they indicate otherwise.`;
+    } else if (language === 'auto') {
+      prompt += `\n## Language\nStart in English. If they speak another language, switch smoothly.`;
+    }
+
+    return prompt;
+  }
+
+  // Build a focused prompt for reminder calls
+  private buildReminderPrompt(userName: string, reminderMessage: string, language: 'auto' | 'en' | 'es'): string {
+    let prompt = `You are Ultaura calling with a quick reminder for ${userName}.
+
+## Your Task
+Deliver this reminder: "${reminderMessage}"
+
+## Style
+- Keep it brief and friendly (aim for under 30 seconds)
+- Greet them warmly by name
+- Deliver the reminder clearly
+- Ask if they have any quick questions about the reminder
+- Say goodbye warmly
+- Do NOT try to start a full conversation - this is just a quick reminder call
+
+## Example Flow
+"Hello ${userName}, this is Ultaura calling with a quick reminder. ${reminderMessage}. Is there anything you'd like me to help with regarding this? ...Alright, take care and have a wonderful day!"
+
+## Safety
+If they mention distress or need help beyond the reminder, stay calm and empathetic. Suggest calling 988 if it seems serious.
+`;
 
     // Language instruction
     if (language === 'es') {

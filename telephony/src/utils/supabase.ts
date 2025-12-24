@@ -85,6 +85,10 @@ export interface CallSessionRow {
   tool_invocations: number;
   cost_estimate_cents_twilio: number | null;
   cost_estimate_cents_model: number | null;
+  // Reminder call fields
+  is_reminder_call: boolean;
+  reminder_id: string | null;
+  reminder_message: string | null;
 }
 
 export interface ScheduleRow {
