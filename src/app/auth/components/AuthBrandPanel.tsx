@@ -19,7 +19,7 @@ function AuthBrandPanel() {
 
       <div className={'relative mx-auto flex max-w-md flex-col items-center text-center text-white'}>
         <Logo
-          className={'h-16 w-auto brightness-0 invert'}
+          className={'h-[77px] w-auto brightness-0 invert'}
           label={'Ultaura'}
         />
 
@@ -27,7 +27,7 @@ function AuthBrandPanel() {
           AI Voice Companion for Seniors
         </p>
 
-        <ul className={'mt-6 space-y-3 text-sm/6 text-white/90'}>
+        <ul className={'mx-auto mt-6 w-full max-w-sm space-y-3 text-left text-sm/6 text-white/90'}>
           <li className={'flex items-start gap-3'}>
             <span className={'mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/90'} />
             <span>Simple, natural voice conversations</span>
@@ -41,6 +41,16 @@ function AuthBrandPanel() {
           <li className={'flex items-start gap-3'}>
             <span className={'mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/90'} />
             <span>Easy setup for families and caregivers</span>
+          </li>
+
+          <li className={'flex items-start gap-3'}>
+            <span className={'mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/90'} />
+            <span>Set reminders and schedule calls as needed</span>
+          </li>
+
+          <li className={'flex items-start gap-3'}>
+            <span className={'mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/90'} />
+            <span>Monitor well-being in a family dashboard to better support loved ones</span>
           </li>
         </ul>
       </div>

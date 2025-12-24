@@ -108,111 +108,141 @@ export function LineCard({ line }: LineCardProps) {
     return 'text-primary';
   };
 
+  // Determine link destination based on verification status
+  const linkHref = isVerified
+    ? `/dashboard/lines/${line.id}`
+    : `/dashboard/lines/${line.id}/verify`;
+
   return (
     <div
-      className={`bg-card rounded-xl border p-6 shadow-sm hover:shadow-md transition-all ${
+      className={`bg-card rounded-xl border shadow-sm hover:shadow-md transition-all relative ${
         !isVerified ? 'border-warning/50' : isOptedOut || isDisabled ? 'border-destructive/50' : 'border-border'
       }`}
     >
+      {/* Clickable card link - covers the main area */}
+      <Link
+        href={linkHref}
+        className="absolute inset-0 z-0 rounded-xl"
+        aria-label={`View ${line.display_name}`}
+      />
+
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-full ${getIconBgClass()} flex items-center justify-center`}>
-            <Phone className={`w-6 h-6 ${getIconColorClass()}`} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-foreground">{line.display_name}</h3>
-              {getStatusBadge()}
+      <div className="relative z-10 p-6 pb-0">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4 pointer-events-none">
+            <div className={`w-12 h-12 rounded-full ${getIconBgClass()} flex items-center justify-center`}>
+              <Phone className={`w-6 h-6 ${getIconColorClass()}`} />
             </div>
-            <p className="text-sm text-muted-foreground">{formattedPhone}</p>
-          </div>
-        </div>
-        <div className="relative">
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 rounded-md hover:bg-muted transition-colors"
-          >
-            <MoreVertical className="w-5 h-5 text-muted-foreground" />
-          </button>
-          {isMenuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setIsMenuOpen(false)}
-              />
-              <div className="absolute right-0 mt-1 w-48 bg-popover rounded-lg shadow-lg border border-border z-20">
-                <Link
-                  href={`/dashboard/lines/${line.id}`}
-                  className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors rounded-t-lg"
-                >
-                  View Details
-                </Link>
-                <Link
-                  href={`/dashboard/lines/${line.id}/schedule`}
-                  className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                >
-                  Edit Schedule
-                </Link>
-                <Link
-                  href={`/dashboard/lines/${line.id}/settings`}
-                  className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                >
-                  Settings
-                </Link>
-                <div className="border-t border-border" />
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2 disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {isDeleting ? 'Deleting...' : 'Delete Line'}
-                </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground">{line.display_name}</h3>
+                {getStatusBadge()}
               </div>
-            </>
-          )}
+              <p className="text-sm text-muted-foreground">{formattedPhone}</p>
+            </div>
+          </div>
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsMenuOpen(!isMenuOpen);
+              }}
+              className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto"
+            >
+              <MoreVertical className="w-5 h-5 text-muted-foreground" />
+            </button>
+            {isMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsMenuOpen(false);
+                  }}
+                />
+                <div className="absolute right-0 mt-1 w-48 bg-popover rounded-lg shadow-lg border border-border z-20 pointer-events-auto">
+                  <Link
+                    href={`/dashboard/lines/${line.id}`}
+                    className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors rounded-t-lg"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    View Details
+                  </Link>
+                  <Link
+                    href={`/dashboard/lines/${line.id}/schedule`}
+                    className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Edit Schedule
+                  </Link>
+                  <Link
+                    href={`/dashboard/lines/${line.id}/settings`}
+                    className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Settings
+                  </Link>
+                  <div className="border-t border-border" />
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDelete();
+                    }}
+                    disabled={isDeleting}
+                    className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {isDeleting ? 'Deleting...' : 'Delete Line'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Verification Banner */}
       {!isVerified && (
-        <div className="mt-4">
-          <Link
-            href={`/dashboard/lines/${line.id}/verify`}
-            className="flex items-center gap-2 w-full justify-center rounded-lg border border-warning/50 bg-warning/5 px-4 py-2 text-sm font-medium text-warning hover:bg-warning/10 transition-colors"
+        <div className="relative z-10 px-6 pb-6 pt-4 pointer-events-none">
+          <div
+            className="flex items-center gap-2 w-full justify-center rounded-lg border border-warning/50 bg-warning/5 px-4 py-2 text-sm font-medium text-warning"
           >
             <ShieldCheck className="w-4 h-4" />
             Verify Phone Number
-          </Link>
+          </div>
         </div>
       )}
 
       {/* Call Info */}
       {isVerified && (
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                Last call
-              </p>
-              <p className="font-medium text-foreground">
-                {line.last_successful_call_at
-                  ? formatDistanceToNow(new Date(line.last_successful_call_at), { addSuffix: true })
-                  : 'Never'}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                Next scheduled
-              </p>
-              <p className="font-medium text-foreground">
-                {line.next_scheduled_call_at
-                  ? formatNextCall(line.next_scheduled_call_at)
-                  : 'Not scheduled'}
-              </p>
+        <div className="relative z-10 px-6 pb-6 pt-4 pointer-events-none">
+          <div className="pt-4 border-t border-border">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Last call
+                </p>
+                <p className="font-medium text-foreground">
+                  {line.last_successful_call_at
+                    ? formatDistanceToNow(new Date(line.last_successful_call_at), { addSuffix: true })
+                    : 'Never'}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Next scheduled
+                </p>
+                <p className="font-medium text-foreground">
+                  {line.next_scheduled_call_at
+                    ? formatNextCall(line.next_scheduled_call_at)
+                    : 'Not scheduled'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -220,14 +250,16 @@ export function LineCard({ line }: LineCardProps) {
 
       {/* Opted Out Warning */}
       {isOptedOut && (
-        <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-destructive mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-destructive">Outbound calls stopped</p>
-              <p className="text-xs text-destructive/80 mt-0.5">
-                This person has opted out of receiving calls.
-              </p>
+        <div className="relative z-10 px-6 pb-6 pointer-events-none">
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-destructive">Outbound calls stopped</p>
+                <p className="text-xs text-destructive/80 mt-0.5">
+                  This person has opted out of receiving calls.
+                </p>
+              </div>
             </div>
           </div>
         </div>

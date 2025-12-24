@@ -860,6 +860,51 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
   }));
 }
 
+// Get all schedules for an account (across all lines, including disabled)
+export async function getAllSchedules(accountId: string): Promise<{
+  scheduleId: string;
+  lineId: string;
+  displayName: string;
+  enabled: boolean;
+  nextRunAt: string | null;
+  timeOfDay: string;
+  daysOfWeek: number[];
+}[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data: schedules, error } = await client
+    .from('ultaura_schedules')
+    .select(`
+      id,
+      line_id,
+      next_run_at,
+      time_of_day,
+      days_of_week,
+      enabled,
+      ultaura_lines!inner (
+        display_name
+      )
+    `)
+    .eq('account_id', accountId)
+    .order('enabled', { ascending: false })
+    .order('next_run_at', { ascending: true, nullsFirst: false });
+
+  if (error) {
+    logger.error({ error }, 'Failed to get all schedules');
+    return [];
+  }
+
+  return (schedules || []).map((schedule) => ({
+    scheduleId: schedule.id,
+    lineId: schedule.line_id,
+    displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
+    enabled: schedule.enabled,
+    nextRunAt: schedule.next_run_at,
+    timeOfDay: schedule.time_of_day,
+    daysOfWeek: schedule.days_of_week,
+  }));
+}
+
 // ============================================
 // TEST CALL ACTION
 // ============================================
@@ -1116,6 +1161,50 @@ export async function getUpcomingReminders(accountId: string): Promise<{
     message: reminder.message,
     dueAt: reminder.due_at,
     timezone: reminder.timezone,
+  }));
+}
+
+// Get all reminders for an account (across all lines, all statuses)
+export async function getAllReminders(accountId: string): Promise<{
+  reminderId: string;
+  lineId: string;
+  displayName: string;
+  message: string;
+  dueAt: string;
+  timezone: string;
+  status: 'scheduled' | 'sent' | 'missed' | 'canceled';
+}[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data: reminders, error } = await client
+    .from('ultaura_reminders')
+    .select(`
+      id,
+      line_id,
+      message,
+      due_at,
+      timezone,
+      status,
+      ultaura_lines!inner (
+        display_name
+      )
+    `)
+    .eq('account_id', accountId)
+    .order('due_at', { ascending: true });
+
+  if (error) {
+    logger.error({ error }, 'Failed to get all reminders');
+    return [];
+  }
+
+  return (reminders || []).map((reminder) => ({
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
+    message: reminder.message,
+    dueAt: reminder.due_at,
+    timezone: reminder.timezone,
+    status: reminder.status as 'scheduled' | 'sent' | 'missed' | 'canceled',
   }));
 }
 
