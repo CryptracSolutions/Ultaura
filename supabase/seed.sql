@@ -88,9 +88,9 @@ INSERT INTO ultaura_accounts (
   1,  -- Replace with actual org ID
   'Test Account',
   'test@example.com',
-  'trial',
-  'free_trial',
-  20,
+  'active',
+  'family',
+  2000,
   NOW(),
   NOW() + INTERVAL '30 days'
 ) ON CONFLICT (id) DO NOTHING;

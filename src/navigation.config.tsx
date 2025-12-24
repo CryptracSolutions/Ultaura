@@ -36,11 +36,11 @@ type NavigationConfig = {
 
 const paths = configuration.paths.settings;
 
-const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
+const NAVIGATION_CONFIG = (): NavigationConfig => ({
   items: [
     {
       label: 'common:dashboardTabLabel',
-      path: getPath(organization, ''),
+      path: getPath(''),
       Icon: ({ className }: { className: string }) => {
         return <Squares2X2Icon className={className} />;
       },
@@ -48,7 +48,7 @@ const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
     },
     {
       label: 'Lines',
-      path: getPath(organization, 'lines'),
+      path: getPath('lines'),
       Icon: ({ className }: { className: string }) => {
         return <PhoneIcon className={className} />;
       },
@@ -59,7 +59,7 @@ const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
       children: [
         {
           label: 'common:profileSettingsTabLabel',
-          path: getPath(organization, paths.profile),
+          path: getPath(paths.profile),
           Icon: ({ className }: { className: string }) => {
             return <UserIcon className={className} />;
           },
@@ -69,7 +69,7 @@ const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
           ? [
               {
                 label: 'common:organizationSettingsTabLabel',
-                path: getPath(organization, paths.organization),
+                path: getPath(paths.organization),
                 Icon: ({ className }: { className: string }) => {
                   return <UserGroupIcon className={className} />;
                 },
@@ -78,7 +78,7 @@ const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
           : []),
         {
           label: 'common:subscriptionSettingsTabLabel',
-          path: getPath(organization, paths.subscription),
+          path: getPath(paths.subscription),
           Icon: ({ className }: { className: string }) => {
             return <CreditCardIcon className={className} />;
           },
@@ -90,8 +90,8 @@ const NAVIGATION_CONFIG = (organization: string): NavigationConfig => ({
 
 export default NAVIGATION_CONFIG;
 
-function getPath(organizationId: string, path: string) {
+function getPath(path: string) {
   const appPrefix = configuration.paths.appPrefix;
 
-  return [appPrefix, organizationId, path].filter(Boolean).join('/');
+  return [appPrefix, path].filter(Boolean).join('/');
 }

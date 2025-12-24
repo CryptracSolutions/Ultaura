@@ -7,7 +7,7 @@ import { getI18n } from 'react-i18next';
 
 import DataTable from '~/core/ui/DataTable';
 import { getOrganizations } from '~/app/admin/organizations/queries';
-import SubscriptionStatusBadge from '~/app/dashboard/[organization]/components/organizations/SubscriptionStatusBadge';
+import SubscriptionStatusBadge from '~/app/dashboard/(app)/components/organizations/SubscriptionStatusBadge';
 
 import {
   DropdownMenu,

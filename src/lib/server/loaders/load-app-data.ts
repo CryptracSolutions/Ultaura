@@ -10,6 +10,7 @@ import {
 } from 'next/dist/client/components/redirect';
 
 import getCurrentOrganization from '~/lib/server/organizations/get-current-organization';
+import { getOrganizationsByUserId } from '~/lib/organizations/database/queries';
 
 import getUIStateCookies from '~/lib/server/loaders/utils/get-ui-state-cookies';
 import { getUserDataById } from '../queries';
@@ -122,6 +123,120 @@ const loadAppData = cache(async (organizationUid: string) => {
 
     // in case of any error, we redirect the user to the home page
     // to avoid any potential infinite loop
+    return redirectToHomePage();
+  }
+});
+
+/**
+ * @name loadAppDataForUser
+ * @description Loads application data by getting the organization from the
+ * authenticated user instead of from URL parameters. Used when organizations
+ * are not included in the URL structure (1:1 user:organization mapping).
+ */
+export const loadAppDataForUser = cache(async () => {
+  const logger = getLogger();
+
+  try {
+    const client = getSupabaseServerComponentClient();
+    const session = await requireSession(client);
+
+    const user = session.user;
+    const userId = user.id;
+
+    // Get user record from database
+    const userRecord = await getUserDataById(client, userId);
+
+    const isOnboarded = Boolean(userRecord?.onboarded);
+
+    if (!userRecord) {
+      logger.info(
+        {
+          name: 'loadAppDataForUser',
+          userId,
+        },
+        `User record not found in the database. Redirecting to onboarding...`,
+      );
+
+      return redirectToOnboarding();
+    }
+
+    if (!isOnboarded) {
+      logger.info(
+        {
+          name: 'loadAppDataForUser',
+        },
+        `User is not yet onboarded. Redirecting to onboarding...`,
+      );
+
+      return redirectToOnboarding();
+    }
+
+    // Get user's organizations (should be exactly one in 1:1 mapping)
+    const { data: organizationsData, error: orgsError } =
+      await getOrganizationsByUserId(client, userId);
+
+    if (orgsError || !organizationsData || organizationsData.length === 0) {
+      logger.info(
+        {
+          name: 'loadAppDataForUser',
+          userId,
+        },
+        `User is not a member of any organization. Redirecting to home...`,
+      );
+
+      return redirect(configuration.paths.appHome);
+    }
+
+    // Use the first (and should be only) organization
+    const { organization, role } = organizationsData[0];
+
+    if (!organization) {
+      logger.info(
+        {
+          name: 'loadAppDataForUser',
+          userId,
+        },
+        `Organization not found. Redirecting to home...`,
+      );
+
+      return redirect(configuration.paths.appHome);
+    }
+
+    const csrfToken = getCsrfToken();
+
+    // Initialize i18n server-side
+    const { language } = await initializeServerI18n(getLanguageCookie());
+
+    return {
+      language,
+      csrfToken,
+      auth: {
+        accessToken: session.access_token,
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+        },
+      },
+      user: userRecord,
+      organization,
+      role,
+      ui: getUIStateCookies(),
+    };
+  } catch (error) {
+    if (isRedirectError(error)) {
+      const url = getURLFromRedirectError(error);
+      return redirect(url);
+    }
+
+    logger.warn(
+      {
+        name: 'loadAppDataForUser',
+        error: JSON.stringify(error),
+      },
+      `Could not load application data`,
+    );
+
     return redirectToHomePage();
   }
 });

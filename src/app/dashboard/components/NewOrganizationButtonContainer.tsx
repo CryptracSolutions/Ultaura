@@ -6,7 +6,7 @@ import { useState } from 'react';
 import CardButton from '~/core/ui/CardButton';
 import Trans from '~/core/ui/Trans';
 
-import CreateOrganizationModal from '~/app/dashboard/[organization]/components/organizations/CreateOrganizationModal';
+import CreateOrganizationModal from '~/app/dashboard/(app)/components/organizations/CreateOrganizationModal';
 import CsrfTokenContext from '~/lib/contexts/csrf';
 
 function NewOrganizationButtonContainer({

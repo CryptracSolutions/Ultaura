@@ -24,7 +24,7 @@ import useSignOut from '~/core/hooks/use-sign-out';
 
 import Modal from '~/core/ui/Modal';
 import Heading from '~/core/ui/Heading';
-import OrganizationsSelector from '~/app/dashboard/[organization]/components/organizations/OrganizationsSelector';
+import OrganizationsSelector from '~/app/dashboard/(app)/components/organizations/OrganizationsSelector';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
@@ -33,7 +33,7 @@ const MobileAppNavigation = () => {
     return null;
   }
 
-  const Links = NAVIGATION_CONFIG(currentOrganization.uuid).items.map(
+  const Links = NAVIGATION_CONFIG().items.map(
     (item, index) => {
       if ('children' in item) {
         return item.children.map((child) => {

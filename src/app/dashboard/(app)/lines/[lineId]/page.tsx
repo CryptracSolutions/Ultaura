@@ -1,0 +1,40 @@
+import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { getLine, getSchedules, getUsageSummary, getCallSessions } from '~/lib/ultaura/actions';
+import { LineDetailClient } from './LineDetailClient';
+
+export const metadata: Metadata = {
+  title: 'Line Details - Ultaura',
+};
+
+interface PageProps {
+  params: { lineId: string };
+}
+
+export default async function LineDetailPage({ params }: PageProps) {
+  const line = await getLine(params.lineId);
+
+  if (!line) {
+    redirect('/dashboard/lines');
+  }
+
+  const [schedules, usage, callSessions] = await Promise.all([
+    getSchedules(params.lineId),
+    getUsageSummary(line.account_id),
+    getCallSessions(params.lineId, 10),
+  ]);
+
+  // If not verified, redirect to verification
+  if (!line.phone_verified_at) {
+    redirect(`/dashboard/lines/${params.lineId}/verify`);
+  }
+
+  return (
+    <LineDetailClient
+      line={line}
+      schedules={schedules}
+      usage={usage}
+      callSessions={callSessions}
+    />
+  );
+}

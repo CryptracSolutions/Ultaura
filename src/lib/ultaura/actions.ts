@@ -183,7 +183,7 @@ export async function createLine(input: CreateLineInput): Promise<{ success: boo
     return { success: false, error: 'Failed to create line' };
   }
 
-  revalidatePath('/dashboard/[organization]/lines', 'page');
+  revalidatePath('/dashboard/lines', 'page');
 
   return { success: true, lineId: line.id };
 }
@@ -218,7 +218,7 @@ export async function updateLine(
     return { success: false, error: 'Failed to update line' };
   }
 
-  revalidatePath('/dashboard/[organization]/lines', 'page');
+  revalidatePath('/dashboard/lines', 'page');
 
   return { success: true };
 }
@@ -237,7 +237,7 @@ export async function deleteLine(lineId: string): Promise<{ success: boolean; er
     return { success: false, error: 'Failed to delete line' };
   }
 
-  revalidatePath('/dashboard/[organization]/lines', 'page');
+  revalidatePath('/dashboard/lines', 'page');
 
   return { success: true };
 }
@@ -279,7 +279,7 @@ export async function addTrustedContact(
 
   if (error) return { success: false, error: error.message };
 
-  revalidatePath(`/dashboard/[organization]/lines/${lineId}/contacts`);
+  revalidatePath(`/dashboard/lines/${lineId}/contacts`);
   return { success: true };
 }
 
@@ -294,7 +294,7 @@ export async function removeTrustedContact(contactId: string): Promise<{ success
   await client.from('ultaura_trusted_contacts').delete().eq('id', contactId);
 
   if (data?.line_id) {
-    revalidatePath(`/dashboard/[organization]/lines/${data.line_id}/contacts`);
+    revalidatePath(`/dashboard/lines/${data.line_id}/contacts`);
   }
   return { success: true };
 }
@@ -406,7 +406,7 @@ export async function checkPhoneVerification(
         .eq('line_id', lineId)
         .eq('status', 'pending');
 
-      revalidatePath('/dashboard/[organization]/lines', 'page');
+      revalidatePath('/dashboard/lines', 'page');
 
       return { success: true };
     } else {
@@ -643,8 +643,8 @@ export async function createSchedule(
     evidence: { timestamp: new Date().toISOString() },
   });
 
-  revalidatePath('/dashboard/[organization]/lines', 'page');
-  revalidatePath('/dashboard/[organization]/schedules', 'page');
+  revalidatePath('/dashboard/lines', 'page');
+  revalidatePath('/dashboard/schedules', 'page');
 
   return { success: true, scheduleId: schedule.id };
 }
@@ -695,7 +695,7 @@ export async function updateSchedule(
     return { success: false, error: 'Failed to update schedule' };
   }
 
-  revalidatePath('/dashboard/[organization]/schedules', 'page');
+  revalidatePath('/dashboard/schedules', 'page');
 
   return { success: true };
 }
@@ -714,7 +714,7 @@ export async function deleteSchedule(scheduleId: string): Promise<{ success: boo
     return { success: false, error: 'Failed to delete schedule' };
   }
 
-  revalidatePath('/dashboard/[organization]/schedules', 'page');
+  revalidatePath('/dashboard/schedules', 'page');
 
   return { success: true };
 }
