@@ -5,7 +5,7 @@ import { withI18n } from '~/i18n/with-i18n';
 import Trans from '~/core/ui/Trans';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
-import { getLines, getLineActivity, getUltauraAccount, getUsageSummary, getUpcomingScheduledCalls } from '~/lib/ultaura/actions';
+import { getLines, getLineActivity, getUltauraAccount, getUsageSummary, getUpcomingScheduledCalls, getUpcomingReminders } from '~/lib/ultaura/actions';
 
 export const metadata = {
   title: 'Dashboard',
@@ -58,11 +58,12 @@ async function DashboardPage() {
     );
   }
 
-  const [lines, usage, activity, upcomingSchedules] = await Promise.all([
+  const [lines, usage, activity, upcomingSchedules, upcomingReminders] = await Promise.all([
     getLines(account.id),
     getUsageSummary(account.id),
     getLineActivity(account.id),
     getUpcomingScheduledCalls(account.id),
+    getUpcomingReminders(account.id),
   ]);
 
   const unverifiedCount = lines.filter((l) => !l.phone_verified_at).length;
@@ -232,6 +233,56 @@ async function DashboardPage() {
                         className="text-sm text-primary hover:underline"
                       >
                         Edit schedule
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming reminders */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-base font-semibold text-foreground">
+                Upcoming reminders
+              </h2>
+              <Link
+                href="/dashboard/lines"
+                className="text-sm text-primary hover:underline"
+              >
+                Manage reminders
+              </Link>
+            </div>
+
+            {upcomingReminders.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No reminders scheduled. Add reminders for medication, appointments, or important tasks.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {upcomingReminders.slice(0, 4).map((reminder) => (
+                  <div
+                    key={reminder.reminderId}
+                    className="rounded-lg border border-border bg-background p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="font-medium text-foreground">
+                        {reminder.displayName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateTime(reminder.dueAt)}
+                      </div>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+                      {reminder.message}
+                    </p>
+                    <div className="mt-2">
+                      <Link
+                        href={`/dashboard/lines/${reminder.lineId}/reminders`}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View reminders
                       </Link>
                     </div>
                   </div>

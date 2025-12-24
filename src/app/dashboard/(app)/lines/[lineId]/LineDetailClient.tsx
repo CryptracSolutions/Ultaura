@@ -546,6 +546,77 @@ export function LineDetailClient({
         )}
       </div>
 
+      {/* Reminders Card */}
+      <div className="bg-card rounded-xl border border-border p-6 mt-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5 text-muted-foreground" />
+            <h2 className="font-semibold text-foreground">Reminders</h2>
+            {pendingRemindersCount > 0 && (
+              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                {pendingRemindersCount} scheduled
+              </span>
+            )}
+          </div>
+          <Link
+            href={`/dashboard/lines/${line.id}/reminders`}
+            className="inline-flex items-center gap-2 text-sm bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Reminder
+          </Link>
+        </div>
+
+        {nextReminder ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg border border-border bg-background">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground">Next Reminder</p>
+                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                    {nextReminder.message}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {new Date(nextReminder.due_at).toLocaleString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true,
+                      timeZone: line.timezone,
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+            {pendingRemindersCount > 1 && (
+              <Link
+                href={`/dashboard/lines/${line.id}/reminders`}
+                className="block text-center text-sm text-primary hover:underline"
+              >
+                View all {pendingRemindersCount} scheduled reminders
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground mb-4">No reminders scheduled</p>
+            <Link
+              href={`/dashboard/lines/${line.id}/reminders`}
+              className="inline-flex items-center gap-2 text-primary hover:underline"
+            >
+              <Plus className="w-4 h-4" />
+              Create a reminder
+            </Link>
+          </div>
+        )}
+      </div>
+
       {/* Call History Card */}
       <div className="bg-card rounded-xl border border-border p-6 mt-6">
         <div className="flex items-center gap-2 mb-6">

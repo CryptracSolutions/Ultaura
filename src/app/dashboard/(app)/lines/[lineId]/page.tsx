@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getLine, getSchedules, getUsageSummary, getCallSessions } from '~/lib/ultaura/actions';
+import { getLine, getSchedules, getUsageSummary, getCallSessions, getReminders } from '~/lib/ultaura/actions';
 import { LineDetailClient } from './LineDetailClient';
 
 export const metadata: Metadata = {
@@ -18,10 +18,11 @@ export default async function LineDetailPage({ params }: PageProps) {
     redirect('/dashboard/lines');
   }
 
-  const [schedules, usage, callSessions] = await Promise.all([
+  const [schedules, usage, callSessions, reminders] = await Promise.all([
     getSchedules(params.lineId),
     getUsageSummary(line.account_id),
     getCallSessions(params.lineId, 10),
+    getReminders(params.lineId),
   ]);
 
   // If not verified, redirect to verification
@@ -29,12 +30,19 @@ export default async function LineDetailPage({ params }: PageProps) {
     redirect(`/dashboard/lines/${params.lineId}/verify`);
   }
 
+  // Compute pending reminders count and next reminder
+  const scheduledReminders = reminders.filter(r => r.status === 'scheduled');
+  const pendingRemindersCount = scheduledReminders.length;
+  const nextReminder = scheduledReminders.length > 0 ? scheduledReminders[0] : null;
+
   return (
     <LineDetailClient
       line={line}
       schedules={schedules}
       usage={usage}
       callSessions={callSessions}
+      pendingRemindersCount={pendingRemindersCount}
+      nextReminder={nextReminder}
     />
   );
 }

@@ -1075,6 +1075,50 @@ export async function getNextReminder(lineId: string): Promise<ReminderRow | nul
   return data;
 }
 
+// Get upcoming reminders for an account (across all lines)
+export async function getUpcomingReminders(accountId: string): Promise<{
+  reminderId: string;
+  lineId: string;
+  displayName: string;
+  message: string;
+  dueAt: string;
+  timezone: string;
+}[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data: reminders, error } = await client
+    .from('ultaura_reminders')
+    .select(`
+      id,
+      line_id,
+      message,
+      due_at,
+      timezone,
+      ultaura_lines!inner (
+        display_name
+      )
+    `)
+    .eq('account_id', accountId)
+    .eq('status', 'scheduled')
+    .gte('due_at', new Date().toISOString())
+    .order('due_at', { ascending: true })
+    .limit(10);
+
+  if (error) {
+    logger.error({ error }, 'Failed to get upcoming reminders');
+    return [];
+  }
+
+  return (reminders || []).map((reminder) => ({
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
+    message: reminder.message,
+    dueAt: reminder.due_at,
+    timezone: reminder.timezone,
+  }));
+}
+
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
