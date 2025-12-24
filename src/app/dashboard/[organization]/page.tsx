@@ -1,54 +1,322 @@
-import loadDynamic from 'next/dynamic';
-import { PlusCircleIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 import AppHeader from './components/AppHeader';
 import { withI18n } from '~/i18n/with-i18n';
-import Spinner from '~/core/ui/Spinner';
 import Trans from '~/core/ui/Trans';
-import Button from '~/core/ui/Button';
 import { PageBody } from '~/core/ui/Page';
-
-const DashboardDemo = loadDynamic(() => import('./components/DashboardDemo'), {
-  ssr: false,
-  loading: () => (
-    <div
-      className={
-        'flex flex-1 items-center h-full justify-center flex-col space-y-4' +
-        ' py-24'
-      }
-    >
-      <Spinner className={'text-primary'} />
-
-      <div>
-        <Trans i18nKey={'common:loading'} />
-      </div>
-    </div>
-  ),
-});
+import loadAppData from '~/lib/server/loaders/load-app-data';
+import { getLines, getLineActivity, getUltauraAccount, getUsageSummary } from '~/lib/ultaura/actions';
 
 export const metadata = {
   title: 'Dashboard',
 };
 
-function DashboardPage() {
+interface PageProps {
+  params: { organization: string };
+}
+
+async function DashboardPage({ params }: PageProps) {
+  const appData = await loadAppData(params.organization);
+  const organizationId = appData.organization?.id;
+
+  if (!organizationId) {
+    return (
+      <PageBody>
+        <div className="py-8">
+          <p className="text-muted-foreground">Organization not found.</p>
+        </div>
+      </PageBody>
+    );
+  }
+
+  const account = await getUltauraAccount(organizationId);
+
+  if (!account) {
+    return (
+      <>
+        <AppHeader
+          title={<Trans i18nKey={'common:dashboardTabLabel'} />}
+          description={<Trans i18nKey={'common:dashboardTabDescription'} />}
+        />
+
+        <PageBody>
+          <div className="py-8">
+            <div className="max-w-lg rounded-xl border border-border bg-card p-6">
+              <h2 className="text-lg font-semibold text-foreground">
+                Set up Ultaura for your family
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Start a free trial to add a loved one, set schedules, and view
+                call activity in one place.
+              </p>
+              <Link
+                href={`/dashboard/${params.organization}/settings/subscription`}
+                className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Start free trial
+              </Link>
+            </div>
+          </div>
+        </PageBody>
+      </>
+    );
+  }
+
+  const [lines, usage, activity] = await Promise.all([
+    getLines(account.id),
+    getUsageSummary(account.id),
+    getLineActivity(account.id),
+  ]);
+
+  const unverifiedCount = lines.filter((l) => !l.phone_verified_at).length;
+  const activeCount = lines.filter((l) => l.status === 'active').length;
+  const pausedCount = lines.filter((l) => l.status === 'paused').length;
+
+  const upcoming = activity
+    .filter((a) => Boolean(a.nextScheduledAt))
+    .sort((a, b) => {
+      const aTime = a.nextScheduledAt ? new Date(a.nextScheduledAt).getTime() : Number.POSITIVE_INFINITY;
+      const bTime = b.nextScheduledAt ? new Date(b.nextScheduledAt).getTime() : Number.POSITIVE_INFINITY;
+      return aTime - bTime;
+    })
+    .slice(0, 6);
+
+  const recent = activity
+    .filter((a) => Boolean(a.lastCallAt))
+    .sort((a, b) => {
+      const aTime = a.lastCallAt ? new Date(a.lastCallAt).getTime() : 0;
+      const bTime = b.lastCallAt ? new Date(b.lastCallAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, 8);
+
   return (
     <>
       <AppHeader
         title={<Trans i18nKey={'common:dashboardTabLabel'} />}
         description={<Trans i18nKey={'common:dashboardTabDescription'} />}
-      >
-        <Button size={'sm'} variant={'outline'}>
-          <PlusCircleIcon className={'w-4 mr-2'} />
-
-          <span>Add Widget</span>
-        </Button>
-      </AppHeader>
+      />
 
       <PageBody>
-        <DashboardDemo />
+        <div className="flex flex-col space-y-6 pb-24">
+          {/* Alerts */}
+          {(unverifiedCount > 0 || (usage && usage.minutesRemaining <= 5)) && (
+            <div className="grid gap-3">
+              {unverifiedCount > 0 && (
+                <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+                  <div className="font-medium text-foreground">
+                    Verification needed
+                  </div>
+                  <div className="mt-1 text-muted-foreground">
+                    {unverifiedCount} line{unverifiedCount === 1 ? '' : 's'}{' '}
+                    {unverifiedCount === 1 ? 'is' : 'are'} not verified yet.
+                  </div>
+                  <Link
+                    href={`/dashboard/${params.organization}/lines`}
+                    className="mt-2 inline-flex text-primary hover:underline"
+                  >
+                    Go to lines
+                  </Link>
+                </div>
+              )}
+
+              {usage && usage.minutesRemaining <= 5 && (
+                <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+                  <div className="font-medium text-foreground">
+                    Minutes running low
+                  </div>
+                  <div className="mt-1 text-muted-foreground">
+                    You have {usage.minutesRemaining} minute
+                    {usage.minutesRemaining === 1 ? '' : 's'} remaining.
+                  </div>
+                  <Link
+                    href={`/dashboard/${params.organization}/settings/subscription`}
+                    className="mt-2 inline-flex text-primary hover:underline"
+                  >
+                    Manage subscription
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* At a glance */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="text-sm text-muted-foreground">Lines</div>
+              <div className="mt-2 flex items-end justify-between gap-4">
+                <div className="text-2xl font-semibold text-foreground">
+                  {lines.length}
+                </div>
+              </div>
+              <div className="mt-3">
+                <Link
+                  href={`/dashboard/${params.organization}/lines`}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Manage lines
+                </Link>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {activeCount} active
+                  {pausedCount > 0 ? ` • ${pausedCount} paused` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="text-sm text-muted-foreground">Minutes</div>
+              <div className="mt-2 text-2xl font-semibold text-foreground">
+                {usage ? usage.minutesRemaining : '—'}
+              </div>
+              <div className="mt-3">
+                <Link
+                  href={`/dashboard/${params.organization}/settings/subscription`}
+                  className="text-sm text-primary hover:underline"
+                >
+                  View plan
+                </Link>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {usage
+                    ? `${usage.minutesUsed} used • ${usage.minutesIncluded} included`
+                    : 'Usage not available yet.'}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="text-sm text-muted-foreground">Quick actions</div>
+              <div className="mt-3 grid gap-2">
+                <Link
+                  href={`/dashboard/${params.organization}/lines`}
+                  className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  Add or edit schedules
+                </Link>
+                <Link
+                  href={`/dashboard/${params.organization}/lines`}
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Add a loved one
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Upcoming scheduled calls */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-base font-semibold text-foreground">
+                Upcoming calls
+              </h2>
+              <Link
+                href={`/dashboard/${params.organization}/lines`}
+                className="text-sm text-primary hover:underline"
+              >
+                View all
+              </Link>
+            </div>
+
+            {upcoming.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No scheduled calls yet. Add a schedule to start recurring check-ins.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {upcoming.map((item) => (
+                  <div
+                    key={item.lineId}
+                    className="rounded-lg border border-border bg-background p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="font-medium text-foreground">
+                        {item.displayName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateTime(item.nextScheduledAt!)}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <Link
+                        href={`/dashboard/${params.organization}/lines/${item.lineId}/schedule`}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Edit schedule
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent calls */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-base font-semibold text-foreground">
+                Recent call activity
+              </h2>
+              <Link
+                href={`/dashboard/${params.organization}/lines`}
+                className="text-sm text-primary hover:underline"
+              >
+                Open a line
+              </Link>
+            </div>
+
+            {recent.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No calls yet. Once calls start, you’ll see timestamps and durations here — not transcripts.
+              </p>
+            ) : (
+              <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-background">
+                {recent.map((item) => (
+                  <div
+                    key={item.lineId}
+                    className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <div className="font-medium text-foreground">
+                        {item.displayName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateTime(item.lastCallAt!)}
+                        {typeof item.lastCallDuration === 'number'
+                          ? ` • ${formatDuration(item.lastCallDuration)}`
+                          : ''}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/dashboard/${params.organization}/lines/${item.lineId}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      View details
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </PageBody>
     </>
   );
 }
 
 export default withI18n(DashboardPage);
+
+function formatDateTime(iso: string) {
+  const date = new Date(iso);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function formatDuration(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins <= 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
+}

@@ -222,10 +222,22 @@ export const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
   const label = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'UTC',
   }).format(new Date(Date.UTC(1970, 0, 1, hour, minutes === '30' ? 30 : 0)));
 
   return { value, label };
 });
+
+/**
+ * Format a 24-hour time string (HH:MM) to 12-hour format with AM/PM
+ */
+export function formatTime(time: string): string {
+  const [hours, minutes] = time.split(':');
+  const h = parseInt(hours);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+}
 
 // ============================================
 // SAFETY

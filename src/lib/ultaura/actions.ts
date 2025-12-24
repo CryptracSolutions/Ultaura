@@ -458,6 +458,139 @@ export async function getSchedule(scheduleId: string): Promise<ScheduleRow | nul
   return data;
 }
 
+/**
+ * Calculate the next run time for a schedule, properly accounting for timezone.
+ * Returns a Date in UTC that represents when the call should be made.
+ */
+function getNextRunAt(timeOfDay: string, timezone: string, daysOfWeek: number[]): Date {
+  const [targetHours, targetMinutes] = timeOfDay.split(':').map(Number);
+
+  // Get current time in the target timezone
+  const now = new Date();
+  const tzFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    weekday: 'short',
+    hour12: false,
+  });
+
+  // Parse current local time in target timezone
+  const parts = tzFormatter.formatToParts(now);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+  const currentHours = parseInt(getPart('hour'));
+  const currentMinutes = parseInt(getPart('minute'));
+  const currentDay = parseInt(getPart('day'));
+  const currentMonth = parseInt(getPart('month'));
+  const currentYear = parseInt(getPart('year'));
+
+  // Map weekday name to day number (0=Sun, 1=Mon, etc.)
+  const weekdayMap: Record<string, number> = {
+    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+  };
+  const currentDayOfWeek = weekdayMap[getPart('weekday')] ?? 0;
+
+  // Calculate if time has passed today in the target timezone
+  const currentTimeMinutes = currentHours * 60 + currentMinutes;
+  const targetTimeMinutes = targetHours * 60 + targetMinutes;
+
+  // Start from today and find the next valid day
+  let daysToAdd = 0;
+
+  // If time has already passed today, start from tomorrow
+  if (targetTimeMinutes <= currentTimeMinutes) {
+    daysToAdd = 1;
+  }
+
+  // Find the next day that matches the schedule
+  let candidateDayOfWeek = (currentDayOfWeek + daysToAdd) % 7;
+  while (!daysOfWeek.includes(candidateDayOfWeek)) {
+    daysToAdd++;
+    candidateDayOfWeek = (currentDayOfWeek + daysToAdd) % 7;
+    if (daysToAdd > 7) break; // Safety limit
+  }
+
+  // Calculate the target date in the target timezone
+  const targetDate = new Date(Date.UTC(currentYear, currentMonth - 1, currentDay));
+  targetDate.setUTCDate(targetDate.getUTCDate() + daysToAdd);
+
+  // Create the target datetime string in the target timezone
+  const targetDateStr = `${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth() + 1).padStart(2, '0')}-${String(targetDate.getUTCDate()).padStart(2, '0')}`;
+  const targetTimeStr = `${String(targetHours).padStart(2, '0')}:${String(targetMinutes).padStart(2, '0')}:00`;
+
+  // Convert local time in target timezone to UTC
+  // We create a date string and use the formatter to find the UTC offset
+  const localDateTime = new Date(`${targetDateStr}T${targetTimeStr}`);
+
+  // Get the UTC offset for the target timezone at that specific date/time
+  // by comparing the formatted time in UTC vs the target timezone
+  const utcFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  const tzFormatterForOffset = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  // Use a reference point to calculate offset
+  const refTime = new Date(`${targetDateStr}T12:00:00Z`);
+  const utcParts = utcFormatter.formatToParts(refTime);
+  const tzParts = tzFormatterForOffset.formatToParts(refTime);
+
+  const getPartValue = (parts: Intl.DateTimeFormatPart[], type: string) =>
+    parseInt(parts.find(p => p.type === type)?.value || '0');
+
+  const utcHour = getPartValue(utcParts, 'hour');
+  const tzHour = getPartValue(tzParts, 'hour');
+  const utcDay = getPartValue(utcParts, 'day');
+  const tzDay = getPartValue(tzParts, 'day');
+
+  // Calculate offset in hours (timezone hour - UTC hour, adjusted for day boundary)
+  let offsetHours = tzHour - utcHour;
+  if (tzDay > utcDay) offsetHours += 24;
+  if (tzDay < utcDay) offsetHours -= 24;
+
+  // The target time in UTC is the local time minus the offset
+  const utcTargetHours = targetHours - offsetHours;
+
+  // Create the final UTC date
+  const result = new Date(Date.UTC(
+    targetDate.getUTCFullYear(),
+    targetDate.getUTCMonth(),
+    targetDate.getUTCDate(),
+    utcTargetHours,
+    targetMinutes,
+    0,
+    0
+  ));
+
+  // Handle day rollover if UTC hours went negative or over 24
+  if (utcTargetHours < 0) {
+    result.setUTCDate(result.getUTCDate() - 1);
+    result.setUTCHours(24 + utcTargetHours);
+  } else if (utcTargetHours >= 24) {
+    result.setUTCDate(result.getUTCDate() + 1);
+    result.setUTCHours(utcTargetHours - 24);
+  }
+
+  return result;
+}
+
 // Create a schedule
 export async function createSchedule(
   accountId: string,
@@ -470,19 +603,8 @@ export async function createSchedule(
   const rruleDays = input.daysOfWeek.map(d => dayNames[d]).join(',');
   const rrule = `FREQ=WEEKLY;BYDAY=${rruleDays}`;
 
-  // Calculate next run
-  const [hours, minutes] = input.timeOfDay.split(':').map(Number);
-  const now = new Date();
-  const next = new Date();
-  next.setHours(hours, minutes, 0, 0);
-
-  if (next.getTime() <= now.getTime()) {
-    next.setDate(next.getDate() + 1);
-  }
-
-  while (!input.daysOfWeek.includes(next.getDay())) {
-    next.setDate(next.getDate() + 1);
-  }
+  // Calculate next run using timezone-aware helper
+  const next = getNextRunAt(input.timeOfDay, input.timezone, input.daysOfWeek);
 
   const { data: schedule, error } = await client
     .from('ultaura_schedules')
@@ -547,29 +669,19 @@ export async function updateSchedule(
   if (input.retryPolicy !== undefined) updates.retry_policy = input.retryPolicy;
 
   // Recalculate next run if schedule changed
-  if (input.daysOfWeek || input.timeOfDay) {
+  if (input.daysOfWeek || input.timeOfDay || input.timezone) {
     const { data: current } = await client
       .from('ultaura_schedules')
-      .select('days_of_week, time_of_day')
+      .select('days_of_week, time_of_day, timezone')
       .eq('id', scheduleId)
       .single();
 
     const daysOfWeek = input.daysOfWeek || current?.days_of_week || [];
     const timeOfDay = input.timeOfDay || current?.time_of_day || '18:00';
+    const timezone = input.timezone || current?.timezone || 'America/Los_Angeles';
 
-    const [hours, minutes] = timeOfDay.split(':').map(Number);
-    const now = new Date();
-    const next = new Date();
-    next.setHours(hours, minutes, 0, 0);
-
-    if (next.getTime() <= now.getTime()) {
-      next.setDate(next.getDate() + 1);
-    }
-
-    while (!daysOfWeek.includes(next.getDay())) {
-      next.setDate(next.getDate() + 1);
-    }
-
+    // Use timezone-aware helper to calculate next run
+    const next = getNextRunAt(timeOfDay, timezone, daysOfWeek);
     updates.next_run_at = next.toISOString();
   }
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Save, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/actions';
 import {
@@ -65,7 +66,7 @@ export function SettingsClient({ line, organizationSlug }: SettingsClientProps) 
     quietHoursEnd !== line.quiet_hours_end;
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="w-full p-6">
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -101,17 +102,18 @@ export function SettingsClient({ line, organizationSlug }: SettingsClientProps) 
               <Globe className="w-4 h-4 text-muted-foreground" />
               Timezone
             </label>
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-ring focus:outline-none"
-            >
-              {US_TIMEZONES.map((tz) => (
-                <option key={tz.value} value={tz.value}>
-                  {tz.label}
-                </option>
-              ))}
-            </select>
+            <Select value={timezone} onValueChange={setTimezone}>
+              <SelectTrigger className="w-full py-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {US_TIMEZONES.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-sm text-muted-foreground mt-1">
               All call times and quiet hours are based on this timezone.
             </p>
@@ -123,17 +125,18 @@ export function SettingsClient({ line, organizationSlug }: SettingsClientProps) 
               <MessageSquare className="w-4 h-4 text-muted-foreground" />
               Preferred Language
             </label>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as 'auto' | 'en' | 'es')}
-              className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-ring focus:outline-none"
-            >
-              {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <Select value={language} onValueChange={(val) => setLanguage(val as 'auto' | 'en' | 'es')}>
+              <SelectTrigger className="w-full py-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Spanish Formality (only show if Spanish selected) */}
@@ -176,31 +179,33 @@ export function SettingsClient({ line, organizationSlug }: SettingsClientProps) 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Start</label>
-                <select
-                  value={quietHoursStart}
-                  onChange={(e) => setQuietHoursStart(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-ring focus:outline-none"
-                >
-                  {TIME_OPTIONS.map((time) => (
-                    <option key={time.value} value={time.value}>
-                      {time.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={quietHoursStart} onValueChange={setQuietHoursStart}>
+                  <SelectTrigger className="w-full py-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_OPTIONS.map((time) => (
+                      <SelectItem key={time.value} value={time.value}>
+                        {time.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">End</label>
-                <select
-                  value={quietHoursEnd}
-                  onChange={(e) => setQuietHoursEnd(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-ring focus:outline-none"
-                >
-                  {TIME_OPTIONS.map((time) => (
-                    <option key={time.value} value={time.value}>
-                      {time.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={quietHoursEnd} onValueChange={setQuietHoursEnd}>
+                  <SelectTrigger className="w-full py-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_OPTIONS.map((time) => (
+                      <SelectItem key={time.value} value={time.value}>
+                        {time.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

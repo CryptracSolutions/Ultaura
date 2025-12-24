@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { LineRow, ScheduleRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
 import { updateLine, deleteLine, deleteSchedule, initiateTestCall } from '~/lib/ultaura/actions';
-import { DAYS_OF_WEEK } from '~/lib/ultaura/constants';
+import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
 import { CallActivityList } from './components/CallActivityList';
 
 interface LineDetailClientProps {
@@ -47,14 +47,6 @@ export function LineDetailClient({
       return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
     }
     return e164;
-  };
-
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const h = parseInt(hours);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour12 = h % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
   };
 
   const handleDelete = async () => {
@@ -116,7 +108,7 @@ export function LineDetailClient({
   const inactiveSchedules = schedules.filter((s) => !s.enabled);
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="w-full p-6">
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -293,14 +285,6 @@ interface ScheduleRowProps {
 }
 
 function ScheduleRow({ schedule, onDelete, organizationSlug, lineId }: ScheduleRowProps) {
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const h = parseInt(hours);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour12 = h % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
   const daysDisplay = schedule.days_of_week
     .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.short || d)
     .join(', ');
