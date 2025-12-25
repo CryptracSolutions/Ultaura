@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
+  XMarkIcon,
   QuestionMarkCircleIcon,
   ChatBubbleLeftIcon,
   PhoneIcon,
@@ -13,14 +14,6 @@ import {
   PhoneArrowUpRightIcon,
   LifebuoyIcon,
 } from '@heroicons/react/24/outline';
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '~/core/ui/Dropdown';
 
 import Trans from '~/core/ui/Trans';
 
@@ -51,6 +44,8 @@ const MobileAppNavigation = () => {
     setFeedbackOpen(true);
   };
 
+  const closeMenu = () => setMenuOpen(false);
+
   // Extract navigation items and settings from config
   const navConfig = NAVIGATION_CONFIG();
   const mainNavItems = navConfig.items.filter(
@@ -63,154 +58,183 @@ const MobileAppNavigation = () => {
 
   return (
     <>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger>
-          <Bars3Icon className={'h-9'} />
-        </DropdownMenuTrigger>
+      {/* Hamburger Trigger */}
+      <button
+        onClick={() => setMenuOpen(true)}
+        className="p-1 -ml-1"
+        aria-label="Open menu"
+      >
+        <Bars3Icon className="h-8 w-8" />
+      </button>
 
-        <DropdownMenuContent sideOffset={10} className={'rounded-none w-screen max-h-[calc(100vh-60px)] overflow-y-auto'}>
-          {/* Menu Section */}
-          <MenuSection label="Menu">
-            {mainNavItems.map((item) => (
-              <DropdownLink
-                key={item.path}
-                Icon={item.Icon}
-                path={item.path}
-                label={item.label}
-              />
-            ))}
-          </MenuSection>
+      {/* Full Screen Menu */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 bg-background">
+          {/* Header with Close Button */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <span className="text-lg font-semibold">Menu</span>
+            <button
+              onClick={closeMenu}
+              className="p-2 hover:bg-muted rounded-md transition-colors"
+              aria-label="Close menu"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
 
-          {/* Settings Section */}
-          {settingsGroup && (
-            <MenuSection label="Settings">
-              {settingsGroup.children.map((child) => (
-                <DropdownLink
-                  key={child.path}
-                  Icon={child.Icon}
-                  path={child.path}
-                  label={child.label}
+          {/* Menu Content */}
+          <div className="overflow-y-auto h-[calc(100vh-57px)]">
+            {/* Menu Section */}
+            <MenuSection label="Menu">
+              {mainNavItems.map((item) => (
+                <MenuLink
+                  key={item.path}
+                  Icon={item.Icon}
+                  path={item.path}
+                  label={item.label}
+                  onClick={closeMenu}
                 />
               ))}
             </MenuSection>
-          )}
 
-          {/* Quick Actions Section */}
-          <MenuSection label="Quick Actions">
-            <DropdownMenuItem asChild>
-              <Link
-                href="/dashboard/lines?action=add"
-                className="flex w-full items-center space-x-4 h-12"
-              >
-                <PhoneIcon className="h-6" />
-                <span>Add Line</span>
-              </Link>
-            </DropdownMenuItem>
+            {/* Settings Section */}
+            {settingsGroup && (
+              <MenuSection label="Settings">
+                {settingsGroup.children.map((child) => (
+                  <MenuLink
+                    key={child.path}
+                    Icon={child.Icon}
+                    path={child.path}
+                    label={child.label}
+                    onClick={closeMenu}
+                  />
+                ))}
+              </MenuSection>
+            )}
 
-            <DropdownMenuItem asChild>
-              <Link
-                href="/dashboard/reminders?action=add"
-                className="flex w-full items-center space-x-4 h-12"
-              >
-                <BellIcon className="h-6" />
-                <span>Add Reminder</span>
-              </Link>
-            </DropdownMenuItem>
+            {/* Quick Actions Section */}
+            <MenuSection label="Quick Actions">
+              <MenuLink
+                Icon={PhoneIcon}
+                path="/dashboard/lines?action=add"
+                label="Add Line"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                Icon={BellIcon}
+                path="/dashboard/reminders?action=add"
+                label="Add Reminder"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                Icon={PhoneArrowUpRightIcon}
+                path="/dashboard/calls?action=add"
+                label="Schedule Call"
+                onClick={closeMenu}
+              />
+            </MenuSection>
 
-            <DropdownMenuItem asChild>
-              <Link
-                href="/dashboard/calls?action=add"
-                className="flex w-full items-center space-x-4 h-12"
-              >
-                <PhoneArrowUpRightIcon className="h-6" />
-                <span>Schedule Call</span>
-              </Link>
-            </DropdownMenuItem>
-          </MenuSection>
+            {/* Support Section */}
+            <MenuSection label="Support">
+              <MenuLink
+                Icon={QuestionMarkCircleIcon}
+                path="/docs"
+                label="Documentation"
+                onClick={closeMenu}
+              />
+              <MenuButton
+                Icon={LifebuoyIcon}
+                label="Help"
+                onClick={handleHelpClick}
+              />
+              <MenuButton
+                Icon={ChatBubbleLeftIcon}
+                label="Feedback"
+                onClick={handleFeedbackClick}
+              />
+            </MenuSection>
 
-          {/* Support Section */}
-          <MenuSection label="Support">
-            <DropdownMenuItem asChild>
-              <Link
-                href="/docs"
-                className="flex w-full items-center space-x-4 h-12"
-              >
-                <QuestionMarkCircleIcon className="h-6" />
-                <span>Documentation</span>
-              </Link>
-            </DropdownMenuItem>
+            {/* Account Section */}
+            <MenuSection label="Account">
+              <SignOutButton onSignOut={closeMenu} />
+            </MenuSection>
+          </div>
+        </div>
+      )}
 
-            <DropdownMenuItem
-              className="flex w-full items-center space-x-4 h-12 cursor-pointer"
-              onSelect={handleHelpClick}
-            >
-              <LifebuoyIcon className="h-6" />
-              <span>Help</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              className="flex w-full items-center space-x-4 h-12 cursor-pointer"
-              onSelect={handleFeedbackClick}
-            >
-              <ChatBubbleLeftIcon className="h-6" />
-              <span>Feedback</span>
-            </DropdownMenuItem>
-          </MenuSection>
-
-          {/* Account Section */}
-          <MenuSection label="Account">
-            <SignOutDropdownItem />
-          </MenuSection>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-    <MobileFeedbackModal
-      isOpen={feedbackOpen}
-      onClose={() => setFeedbackOpen(false)}
-    />
-  </>
+      <MobileFeedbackModal
+        isOpen={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+      />
+    </>
   );
 };
 
 export default MobileAppNavigation;
 
-function DropdownLink(
-  props: React.PropsWithChildren<{
-    path: string;
-    label: string;
-    Icon: React.ElementType;
-  }>,
-) {
+function MenuLink({
+  path,
+  label,
+  Icon,
+  onClick,
+}: {
+  path: string;
+  label: string;
+  Icon: React.ElementType;
+  onClick: () => void;
+}) {
   return (
-    <DropdownMenuItem asChild key={props.path}>
-      <Link
-        href={props.path}
-        className={'flex w-full items-center space-x-4 h-12'}
-      >
-        <props.Icon className={'h-6'} />
-
-        <span>
-          <Trans i18nKey={props.label} defaults={props.label} />
-        </span>
-      </Link>
-    </DropdownMenuItem>
+    <Link
+      href={path}
+      onClick={onClick}
+      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors"
+    >
+      <Icon className="h-6 w-6 text-muted-foreground" />
+      <span className="text-foreground">
+        <Trans i18nKey={label} defaults={label} />
+      </span>
+    </Link>
   );
 }
 
-function SignOutDropdownItem() {
+function MenuButton({
+  label,
+  Icon,
+  onClick,
+}: {
+  label: string;
+  Icon: React.ElementType;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors"
+    >
+      <Icon className="h-6 w-6 text-muted-foreground" />
+      <span className="text-foreground">{label}</span>
+    </button>
+  );
+}
+
+function SignOutButton({ onSignOut }: { onSignOut: () => void }) {
   const signOut = useSignOut();
 
-  return (
-    <DropdownMenuItem
-      className={'flex w-full items-center space-x-4 h-12'}
-      onClick={signOut}
-    >
-      <ArrowLeftOnRectangleIcon className={'h-6'} />
+  const handleSignOut = () => {
+    onSignOut();
+    signOut();
+  };
 
-      <span>
-        <Trans i18nKey={'common:signOut'} defaults={'Sign out'} />
+  return (
+    <button
+      onClick={handleSignOut}
+      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors"
+    >
+      <ArrowLeftOnRectangleIcon className="h-6 w-6 text-muted-foreground" />
+      <span className="text-foreground">
+        <Trans i18nKey="common:signOut" defaults="Sign out" />
       </span>
-    </DropdownMenuItem>
+    </button>
   );
 }
 
@@ -222,10 +246,10 @@ function MenuSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="py-1">
-      <DropdownMenuLabel className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="py-2">
+      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
-      </DropdownMenuLabel>
+      </div>
       {children}
     </div>
   );
