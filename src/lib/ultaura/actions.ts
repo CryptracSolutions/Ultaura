@@ -120,17 +120,35 @@ export async function getLines(accountId: string): Promise<LineRow[]> {
 export async function getLine(lineId: string): Promise<LineRow | null> {
   const client = getSupabaseServerComponentClient();
 
-  let query = client.from('ultaura_lines').select('*');
+  let data: LineRow | null = null;
+  let error: { message: string } | null = null;
 
   if (lineId.length === 8) {
-    // Truncated ID - match by prefix
-    query = query.ilike('id', `${lineId}-%`);
+    // Truncated ID - fetch all lines and filter by prefix
+    // (UUID columns need text cast for LIKE, which isn't directly supported by client)
+    const result = await client
+      .from('ultaura_lines')
+      .select('*');
+
+    if (result.error) {
+      error = result.error;
+    } else if (result.data) {
+      // Find line where ID starts with the short ID
+      const match = result.data.find(line =>
+        line.id.toLowerCase().startsWith(lineId.toLowerCase())
+      );
+      data = match || null;
+    }
   } else {
     // Full UUID - exact match
-    query = query.eq('id', lineId);
+    const result = await client
+      .from('ultaura_lines')
+      .select('*')
+      .eq('id', lineId)
+      .single();
+    data = result.data;
+    error = result.error;
   }
-
-  const { data, error } = await query.single();
 
   if (error) {
     logger.error({ error }, 'Failed to get line');
