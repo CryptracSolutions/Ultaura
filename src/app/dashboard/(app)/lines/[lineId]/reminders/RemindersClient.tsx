@@ -7,6 +7,7 @@ import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle } from 'lucide-reac
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/actions';
 import { createReminder, cancelReminder } from '~/lib/ultaura/actions';
+import { getShortLineId } from '~/lib/ultaura';
 
 interface RemindersClientProps {
   line: LineRow;
@@ -118,7 +119,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   return (
     <div className="w-full p-6">
       <Link
-        href={`/dashboard/lines/${line.id}`}
+        href={`/dashboard/lines/${getShortLineId(line.id)}`}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

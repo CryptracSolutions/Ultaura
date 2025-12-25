@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule } from '~/lib/ultaura/actions';
-import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
+import { DAYS_OF_WEEK, formatTime, getShortLineId } from '~/lib/ultaura';
 
 interface Schedule {
   scheduleId: string;
@@ -103,7 +103,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
             {lines.map((line) => (
               <Link
                 key={line.id}
-                href={`/dashboard/lines/${line.id}/schedule`}
+                href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -154,7 +154,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                       </p>
                     </div>
                     <Link
-                      href={`/dashboard/lines/${line.id}/schedule`}
+                      href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
@@ -170,7 +170,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                       <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No schedules set up yet</p>
                       <Link
-                        href={`/dashboard/lines/${line.id}/schedule`}
+                        href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
                         className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
                       >
                         <Plus className="w-4 h-4" />
@@ -278,7 +278,7 @@ function ScheduleRow({
 
       <div className="flex items-center gap-2 shrink-0">
         <Link
-          href={`/dashboard/lines/${schedule.lineId}/schedule/${schedule.scheduleId}`}
+          href={`/dashboard/lines/${getShortLineId(schedule.lineId)}/schedule/${schedule.scheduleId}`}
           className="p-2 rounded-lg hover:bg-muted transition-colors"
           title="Edit schedule"
         >

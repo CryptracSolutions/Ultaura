@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/actions';
+import { getShortLineId } from '~/lib/ultaura';
 import { formatDistanceToNow } from 'date-fns';
 
 interface LineCardProps {
@@ -109,9 +110,10 @@ export function LineCard({ line }: LineCardProps) {
   };
 
   // Determine link destination based on verification status
+  const shortId = getShortLineId(line.id);
   const linkHref = isVerified
-    ? `/dashboard/lines/${line.id}`
-    : `/dashboard/lines/${line.id}/verify`;
+    ? `/dashboard/lines/${shortId}`
+    : `/dashboard/lines/${shortId}/verify`;
 
   return (
     <div
@@ -167,14 +169,14 @@ export function LineCard({ line }: LineCardProps) {
                   className="absolute right-0 mt-1 w-48 bg-background rounded-lg shadow-2xl border border-border/80 ring-1 ring-border/60 z-50 pointer-events-auto"
                 >
                   <Link
-                    href={`/dashboard/lines/${line.id}`}
+                    href={`/dashboard/lines/${shortId}`}
                     className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors rounded-t-lg"
                     onClick={(e) => e.stopPropagation()}
                   >
                     View Details
                   </Link>
                   <Link
-                    href={`/dashboard/lines/${line.id}/settings`}
+                    href={`/dashboard/lines/${shortId}/settings`}
                     className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >

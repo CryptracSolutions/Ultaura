@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Phone, Globe, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/actions';
-import { US_TIMEZONES, LANGUAGE_LABELS } from '~/lib/ultaura/constants';
+import { US_TIMEZONES, LANGUAGE_LABELS, getShortLineId } from '~/lib/ultaura';
 import {
   Select,
   SelectTrigger,
@@ -125,7 +125,7 @@ export function AddLineModal({
 
       if (result.success && result.lineId) {
         onClose();
-        router.push(`/dashboard/lines/${result.lineId}/verify`);
+        router.push(`/dashboard/lines/${getShortLineId(result.lineId)}/verify`);
       } else {
         setError(result.error || 'Failed to create line');
       }

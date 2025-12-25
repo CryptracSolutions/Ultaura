@@ -12,7 +12,8 @@ import {
   LANGUAGE_LABELS,
   SPANISH_FORMALITY_LABELS,
   TIME_OPTIONS,
-} from '~/lib/ultaura/constants';
+  getShortLineId,
+} from '~/lib/ultaura';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -45,7 +46,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
       });
 
       if (result.success) {
-        router.push(`/dashboard/lines/${line.id}`);
+        router.push(`/dashboard/lines/${getShortLineId(line.id)}`);
         router.refresh();
       } else {
         setError(result.error || 'Failed to update settings');
@@ -69,7 +70,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
       {/* Header */}
       <div className="mb-8">
         <Link
-          href={`/dashboard/lines/${line.id}`}
+          href={`/dashboard/lines/${getShortLineId(line.id)}`}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -213,7 +214,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
         {/* Actions */}
         <div className="mt-6 flex items-center justify-end gap-3">
           <Link
-            href={`/dashboard/lines/${line.id}`}
+            href={`/dashboard/lines/${getShortLineId(line.id)}`}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors"
           >
             <X className="w-4 h-4" />

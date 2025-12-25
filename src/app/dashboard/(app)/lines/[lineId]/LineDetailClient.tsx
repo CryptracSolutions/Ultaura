@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import type { LineRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
 import { updateLine, deleteLine, initiateTestCall } from '~/lib/ultaura/actions';
-import { formatTime } from '~/lib/ultaura/constants';
+import { formatTime, getShortLineId } from '~/lib/ultaura';
 import { CallActivityList } from './components/CallActivityList';
 
 const MAX_INTEREST_TOPICS = 5;
@@ -271,7 +271,7 @@ export function LineDetailClient({
             <h2 className="font-semibold text-foreground">Line Settings</h2>
           </div>
           <Link
-            href={`/dashboard/lines/${line.id}/settings`}
+            href={`/dashboard/lines/${getShortLineId(line.id)}/settings`}
             className="text-sm text-primary hover:underline"
           >
             Edit
@@ -468,7 +468,7 @@ export function LineDetailClient({
       <div className="bg-card rounded-xl border border-border p-6">
         <div className="space-y-3">
           <Link
-            href={`/dashboard/lines/${line.id}/schedule`}
+            href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
             className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
           >
             <div className="flex items-center gap-3">
@@ -488,7 +488,7 @@ export function LineDetailClient({
           </Link>
 
           <Link
-            href={`/dashboard/lines/${line.id}/reminders`}
+            href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
             className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
           >
             <div className="flex items-center gap-3">

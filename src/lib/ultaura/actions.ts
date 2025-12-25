@@ -7,6 +7,7 @@
 import { revalidatePath } from 'next/cache';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getLogger from '~/core/logger';
+import { getShortLineId } from '~/lib/ultaura';
 import type {
   Line,
   Schedule,
@@ -115,15 +116,21 @@ export async function getLines(accountId: string): Promise<LineRow[]> {
   return data || [];
 }
 
-// Get a single line
+// Get a single line (supports both full UUID and truncated 8-char ID)
 export async function getLine(lineId: string): Promise<LineRow | null> {
   const client = getSupabaseServerComponentClient();
 
-  const { data, error } = await client
-    .from('ultaura_lines')
-    .select('*')
-    .eq('id', lineId)
-    .single();
+  let query = client.from('ultaura_lines').select('*');
+
+  if (lineId.length === 8) {
+    // Truncated ID - match by prefix
+    query = query.ilike('id', `${lineId}-%`);
+  } else {
+    // Full UUID - exact match
+    query = query.eq('id', lineId);
+  }
+
+  const { data, error } = await query.single();
 
   if (error) {
     logger.error({ error }, 'Failed to get line');
@@ -279,7 +286,7 @@ export async function addTrustedContact(
 
   if (error) return { success: false, error: error.message };
 
-  revalidatePath(`/dashboard/lines/${lineId}/contacts`);
+  revalidatePath(`/dashboard/lines/${getShortLineId(lineId)}/contacts`);
   return { success: true };
 }
 
@@ -294,7 +301,7 @@ export async function removeTrustedContact(contactId: string): Promise<{ success
   await client.from('ultaura_trusted_contacts').delete().eq('id', contactId);
 
   if (data?.line_id) {
-    revalidatePath(`/dashboard/lines/${data.line_id}/contacts`);
+    revalidatePath(`/dashboard/lines/${getShortLineId(data.line_id)}/contacts`);
   }
   return { success: true };
 }
@@ -1042,8 +1049,8 @@ export async function createReminder(input: {
     return { success: false, error: 'Failed to create reminder' };
   }
 
-  revalidatePath(`/dashboard/lines/${input.lineId}/reminders`, 'page');
-  revalidatePath(`/dashboard/lines/${input.lineId}`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(input.lineId)}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(input.lineId)}`, 'page');
 
   return { success: true, reminder };
 }
@@ -1072,8 +1079,8 @@ export async function cancelReminder(reminderId: string): Promise<{ success: boo
     return { success: false, error: 'Failed to cancel reminder' };
   }
 
-  revalidatePath(`/dashboard/lines/${reminder.line_id}/reminders`, 'page');
-  revalidatePath(`/dashboard/lines/${reminder.line_id}`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');
 
   return { success: true };
 }

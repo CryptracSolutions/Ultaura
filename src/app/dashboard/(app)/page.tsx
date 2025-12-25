@@ -6,6 +6,7 @@ import Trans from '~/core/ui/Trans';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getLines, getLineActivity, getUltauraAccount, getUsageSummary, getUpcomingScheduledCalls, getUpcomingReminders } from '~/lib/ultaura/actions';
+import { getShortLineId } from '~/lib/ultaura';
 
 export const metadata = {
   title: 'Dashboard',
@@ -239,7 +240,7 @@ async function DashboardPage() {
                     </div>
                     <div className="mt-2">
                       <Link
-                        href={`/dashboard/lines/${item.lineId}/schedule`}
+                        href={`/dashboard/lines/${getShortLineId(item.lineId)}/schedule`}
                         className="text-sm text-primary hover:underline"
                       >
                         Edit schedule
@@ -293,7 +294,7 @@ async function DashboardPage() {
                     </p>
                     <div className="mt-2">
                       <Link
-                        href={`/dashboard/lines/${reminder.lineId}/reminders`}
+                        href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders`}
                         className="text-sm text-primary hover:underline"
                       >
                         View reminders
@@ -342,7 +343,7 @@ async function DashboardPage() {
                       </div>
                     </div>
                     <Link
-                      href={`/dashboard/lines/${item.lineId}`}
+                      href={`/dashboard/lines/${getShortLineId(item.lineId)}`}
                       className="text-sm text-primary hover:underline"
                     >
                       View details

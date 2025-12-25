@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/actions';
+import { getShortLineId } from '~/lib/ultaura';
 
 interface Reminder {
   reminderId: string;
@@ -131,7 +132,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
             {lines.map((line) => (
               <Link
                 key={line.id}
-                href={`/dashboard/lines/${line.id}/reminders`}
+                href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -182,7 +183,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                       </p>
                     </div>
                     <Link
-                      href={`/dashboard/lines/${line.id}/reminders`}
+                      href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
@@ -198,7 +199,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                       <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No reminders set up yet</p>
                       <Link
-                        href={`/dashboard/lines/${line.id}/reminders`}
+                        href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
                         className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
                       >
                         <Plus className="w-4 h-4" />
@@ -241,7 +242,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                       {pastReminders.length > 5 && (
                         <div className="px-6 py-3 text-center">
                           <Link
-                            href={`/dashboard/lines/${line.id}/reminders`}
+                            href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
                             className="text-sm text-primary hover:underline"
                           >
                             View all {pastReminders.length} past reminders

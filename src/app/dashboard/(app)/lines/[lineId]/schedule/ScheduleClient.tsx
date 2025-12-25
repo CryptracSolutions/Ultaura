@@ -7,7 +7,7 @@ import { ArrowLeft, Calendar, Clock, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { LineRow } from '~/lib/ultaura/types';
 import { createSchedule } from '~/lib/ultaura/actions';
-import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
+import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime, getShortLineId } from '~/lib/ultaura';
 
 interface ScheduleClientProps {
   line: LineRow;
@@ -48,7 +48,7 @@ export function ScheduleClient({ line }: ScheduleClientProps) {
       });
 
       if (result.success) {
-        router.push(`/dashboard/lines/${line.id}`);
+        router.push(`/dashboard/lines/${getShortLineId(line.id)}`);
       } else {
         setError(result.error || 'Failed to create schedule');
       }
@@ -70,7 +70,7 @@ export function ScheduleClient({ line }: ScheduleClientProps) {
   return (
     <div className="w-full p-6">
       <Link
-        href={`/dashboard/lines/${line.id}`}
+        href={`/dashboard/lines/${getShortLineId(line.id)}`}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -219,7 +219,7 @@ export function ScheduleClient({ line }: ScheduleClientProps) {
         {/* Submit */}
         <div className="flex gap-3">
           <Link
-            href={`/dashboard/lines/${line.id}`}
+            href={`/dashboard/lines/${getShortLineId(line.id)}`}
             className="flex-1 py-3 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
           >
             Cancel
