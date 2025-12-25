@@ -1,8 +1,11 @@
+'use client';
+
 import Link from 'next/link';
 import Bars3Icon from '@heroicons/react/24/outline/Bars3Icon';
 
 import NavigationMenuItem from '~/core/ui/Navigation/NavigationItem';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
+import useUserSession from '~/core/hooks/use-user-session';
 
 import {
   DropdownMenuContent,
@@ -15,6 +18,10 @@ const links = {
   SignIn: {
     label: 'Sign In',
     path: '/auth/sign-in',
+  },
+  SignUp: {
+    label: 'Sign Up',
+    path: '/auth/sign-up',
   },
   Blog: {
     label: 'Blog',
@@ -71,6 +78,13 @@ const SiteNavigation = () => {
 };
 
 function MobileDropdown() {
+  const userSession = useUserSession();
+
+  // Filter out auth links if user is authenticated
+  const mobileLinks = Object.entries(links).filter(
+    ([key]) => !((key === 'SignIn' || key === 'SignUp') && userSession)
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger aria-label={'Open Menu'}>
@@ -78,7 +92,7 @@ function MobileDropdown() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent>
-        {Object.values(links).map((item) => {
+        {mobileLinks.map(([, item]) => {
           const className = 'flex w-full h-full items-center';
 
           return (

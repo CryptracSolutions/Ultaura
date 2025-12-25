@@ -15,9 +15,9 @@ async function SiteLayout(props: React.PropsWithChildren) {
 
   return (
     <I18nProvider lang={language}>
-      <div className="overflow-x-hidden">
-        <SiteHeaderSessionProvider data={session} />
+      <SiteHeaderSessionProvider data={session} />
 
+      <div className="overflow-x-hidden">
         {props.children}
 
         <Footer />
