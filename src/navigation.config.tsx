@@ -44,10 +44,10 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       end: true,
     },
     {
-      label: 'Calls',
-      path: getPath('calls'),
+      label: 'Lines',
+      path: getPath('lines'),
       Icon: ({ className }: { className: string }) => {
-        return <CalendarDaysIcon className={className} />;
+        return <PhoneIcon className={className} />;
       },
     },
     {
@@ -58,10 +58,10 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       },
     },
     {
-      label: 'Lines',
-      path: getPath('lines'),
+      label: 'Calls',
+      path: getPath('calls'),
       Icon: ({ className }: { className: string }) => {
-        return <PhoneIcon className={className} />;
+        return <CalendarDaysIcon className={className} />;
       },
     },
     {

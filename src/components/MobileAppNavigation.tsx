@@ -18,7 +18,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '~/core/ui/Dropdown';
 
@@ -51,35 +51,15 @@ const MobileAppNavigation = () => {
     setFeedbackOpen(true);
   };
 
-  const Links = NAVIGATION_CONFIG().items.map(
-    (item, index) => {
-      if ('children' in item) {
-        return item.children.map((child) => {
-          return (
-            <DropdownLink
-              key={child.path}
-              Icon={child.Icon}
-              path={child.path}
-              label={child.label}
-            />
-          );
-        });
-      }
+  // Extract navigation items and settings from config
+  const navConfig = NAVIGATION_CONFIG();
+  const mainNavItems = navConfig.items.filter(
+    (item) => !('children' in item) && !('divider' in item)
+  ) as Array<{ path: string; label: string; Icon: React.ElementType }>;
 
-      if ('divider' in item) {
-        return <DropdownMenuSeparator key={index} />;
-      }
-
-      return (
-        <DropdownLink
-          key={item.path}
-          Icon={item.Icon}
-          path={item.path}
-          label={item.label}
-        />
-      );
-    },
-  );
+  const settingsGroup = navConfig.items.find(
+    (item) => 'children' in item
+  ) as { children: Array<{ path: string; label: string; Icon: React.ElementType }> } | undefined;
 
   return (
     <>
@@ -89,72 +69,100 @@ const MobileAppNavigation = () => {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent sideOffset={10} className={'rounded-none w-screen max-h-[calc(100vh-60px)] overflow-y-auto'}>
-          {Links}
+          {/* Menu Section */}
+          <MenuSection label="Menu">
+            {mainNavItems.map((item) => (
+              <DropdownLink
+                key={item.path}
+                Icon={item.Icon}
+                path={item.path}
+                label={item.label}
+              />
+            ))}
+          </MenuSection>
 
-        <DropdownMenuSeparator />
+          {/* Settings Section */}
+          {settingsGroup && (
+            <MenuSection label="Settings">
+              {settingsGroup.children.map((child) => (
+                <DropdownLink
+                  key={child.path}
+                  Icon={child.Icon}
+                  path={child.path}
+                  label={child.label}
+                />
+              ))}
+            </MenuSection>
+          )}
 
-        <DropdownMenuItem asChild>
-          <Link
-            href="/dashboard/lines?action=add"
-            className="flex w-full items-center space-x-4 h-12"
-          >
-            <PhoneIcon className="h-6" />
-            <span>Add Line</span>
-          </Link>
-        </DropdownMenuItem>
+          {/* Quick Actions Section */}
+          <MenuSection label="Quick Actions">
+            <DropdownMenuItem asChild>
+              <Link
+                href="/dashboard/lines?action=add"
+                className="flex w-full items-center space-x-4 h-12"
+              >
+                <PhoneIcon className="h-6" />
+                <span>Add Line</span>
+              </Link>
+            </DropdownMenuItem>
 
-        <DropdownMenuItem asChild>
-          <Link
-            href="/dashboard/reminders?action=add"
-            className="flex w-full items-center space-x-4 h-12"
-          >
-            <BellIcon className="h-6" />
-            <span>Add Reminder</span>
-          </Link>
-        </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href="/dashboard/reminders?action=add"
+                className="flex w-full items-center space-x-4 h-12"
+              >
+                <BellIcon className="h-6" />
+                <span>Add Reminder</span>
+              </Link>
+            </DropdownMenuItem>
 
-        <DropdownMenuItem asChild>
-          <Link
-            href="/dashboard/calls?action=add"
-            className="flex w-full items-center space-x-4 h-12"
-          >
-            <PhoneArrowUpRightIcon className="h-6" />
-            <span>Schedule Call</span>
-          </Link>
-        </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href="/dashboard/calls?action=add"
+                className="flex w-full items-center space-x-4 h-12"
+              >
+                <PhoneArrowUpRightIcon className="h-6" />
+                <span>Schedule Call</span>
+              </Link>
+            </DropdownMenuItem>
+          </MenuSection>
 
-        <DropdownMenuSeparator />
+          {/* Support Section */}
+          <MenuSection label="Support">
+            <DropdownMenuItem asChild>
+              <Link
+                href="/docs"
+                className="flex w-full items-center space-x-4 h-12"
+              >
+                <QuestionMarkCircleIcon className="h-6" />
+                <span>Documentation</span>
+              </Link>
+            </DropdownMenuItem>
 
-        <DropdownMenuItem asChild>
-          <Link
-            href="/docs"
-            className="flex w-full items-center space-x-4 h-12"
-          >
-            <QuestionMarkCircleIcon className="h-6" />
-            <span>Documentation</span>
-          </Link>
-        </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex w-full items-center space-x-4 h-12 cursor-pointer"
+              onSelect={handleHelpClick}
+            >
+              <LifebuoyIcon className="h-6" />
+              <span>Help</span>
+            </DropdownMenuItem>
 
-        <DropdownMenuItem
-          className="flex w-full items-center space-x-4 h-12 cursor-pointer"
-          onSelect={handleHelpClick}
-        >
-          <LifebuoyIcon className="h-6" />
-          <span>Help</span>
-        </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex w-full items-center space-x-4 h-12 cursor-pointer"
+              onSelect={handleFeedbackClick}
+            >
+              <ChatBubbleLeftIcon className="h-6" />
+              <span>Feedback</span>
+            </DropdownMenuItem>
+          </MenuSection>
 
-        <DropdownMenuItem
-          className="flex w-full items-center space-x-4 h-12 cursor-pointer"
-          onSelect={handleFeedbackClick}
-        >
-          <ChatBubbleLeftIcon className="h-6" />
-          <span>Feedback</span>
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-        <SignOutDropdownItem />
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {/* Account Section */}
+          <MenuSection label="Account">
+            <SignOutDropdownItem />
+          </MenuSection>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
     <MobileFeedbackModal
       isOpen={feedbackOpen}
@@ -203,5 +211,22 @@ function SignOutDropdownItem() {
         <Trans i18nKey={'common:signOut'} defaults={'Sign out'} />
       </span>
     </DropdownMenuItem>
+  );
+}
+
+function MenuSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="py-1">
+      <DropdownMenuLabel className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </DropdownMenuLabel>
+      {children}
+    </div>
   );
 }
