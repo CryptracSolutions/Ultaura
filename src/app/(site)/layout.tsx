@@ -15,11 +15,13 @@ async function SiteLayout(props: React.PropsWithChildren) {
 
   return (
     <I18nProvider lang={language}>
-      <SiteHeaderSessionProvider data={session} />
+      <div className="overflow-x-hidden">
+        <SiteHeaderSessionProvider data={session} />
 
-      {props.children}
+        {props.children}
 
-      <Footer />
+        <Footer />
+      </div>
 
       <ChatBot />
     </I18nProvider>
