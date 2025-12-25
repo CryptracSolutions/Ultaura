@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import classNames from 'clsx';
 
 import {
   ArrowLeftOnRectangleIcon,
@@ -27,24 +28,39 @@ import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
   const { open: openHelp } = useHelpPanel();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  const openMenu = () => {
+    setIsVisible(true);
+    // Small delay to ensure DOM renders before animation starts
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsAnimatingIn(true);
+      });
+    });
+  };
+
+  const closeMenu = () => {
+    setIsAnimatingIn(false);
+    // Wait for animation to complete before hiding
+    setTimeout(() => setIsVisible(false), 300);
+  };
 
   if (!currentOrganization?.uuid) {
     return null;
   }
 
   const handleHelpClick = () => {
-    setMenuOpen(false);
-    openHelp();
+    closeMenu();
+    setTimeout(() => openHelp(), 200);
   };
 
   const handleFeedbackClick = () => {
-    setMenuOpen(false);
-    setFeedbackOpen(true);
+    closeMenu();
+    setTimeout(() => setFeedbackOpen(true), 200);
   };
-
-  const closeMenu = () => setMenuOpen(false);
 
   // Extract navigation items and settings from config
   const navConfig = NAVIGATION_CONFIG();
@@ -60,7 +76,7 @@ const MobileAppNavigation = () => {
     <>
       {/* Hamburger Trigger */}
       <button
-        onClick={() => setMenuOpen(true)}
+        onClick={openMenu}
         className="p-1 -ml-1"
         aria-label="Open menu"
       >
@@ -68,8 +84,16 @@ const MobileAppNavigation = () => {
       </button>
 
       {/* Full Screen Menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-background">
+      {isVisible && (
+        <div
+          className={classNames(
+            'fixed inset-0 z-50 bg-background transition-transform duration-300 ease-out',
+            {
+              'translate-x-0': isAnimatingIn,
+              '-translate-x-full': !isAnimatingIn,
+            }
+          )}
+        >
           {/* Header with Close Button */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-lg font-semibold">Menu</span>
