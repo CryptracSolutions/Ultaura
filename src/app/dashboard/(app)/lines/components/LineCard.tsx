@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -26,148 +26,6 @@ export function LineCard({ line }: LineCardProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isMenuOpen) return;
-    if (typeof window === 'undefined') return;
-
-    const el = menuRef.current;
-    if (!el) return;
-
-    const cs = window.getComputedStyle(el);
-    const root = window.getComputedStyle(document.documentElement);
-
-    const chain: Array<{
-      tag: string;
-      className: string;
-      opacity: string;
-      transform: string;
-      filter: string;
-      backdropFilter: string;
-      mixBlendMode: string;
-      zIndex: string;
-    }> = [];
-
-    let cur: HTMLElement | null = el;
-    for (let i = 0; i < 30; i += 1) {
-      const ccs = window.getComputedStyle(cur);
-      chain.push({
-        tag: cur.tagName.toLowerCase(),
-        className: (cur.getAttribute('class') || '').slice(0, 200),
-        opacity: ccs.opacity,
-        transform: ccs.transform,
-        filter: ccs.filter,
-        backdropFilter: (ccs as any).backdropFilter || '',
-        mixBlendMode: (ccs as any).mixBlendMode || '',
-        zIndex: ccs.zIndex,
-      });
-      cur = cur.parentElement;
-      if (!cur) break;
-    }
-
-    const rect = el.getBoundingClientRect();
-    const cx = Math.round(rect.left + rect.width / 2);
-    const cy = Math.round(rect.top + rect.height / 2);
-
-    const hit = (document.elementsFromPoint?.(cx, cy) || []).slice(0, 8);
-    const hitInfo = hit.map((node) => {
-      const n = node as HTMLElement;
-      const ncs = window.getComputedStyle(n);
-      return {
-        tag: n.tagName.toLowerCase(),
-        className: (n.getAttribute('class') || '').slice(0, 200),
-        bg: ncs.backgroundColor,
-        opacity: ncs.opacity,
-        position: ncs.position,
-        zIndex: ncs.zIndex,
-        pointerEvents: ncs.pointerEvents,
-        isMenuEl: n === el,
-      };
-    });
-
-    // #region agent log - menu transparency debug
-    fetch(
-      'http://127.0.0.1:7242/ingest/bfc7f6db-53e6-40c2-9811-6a220af63ed2',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'post-fix-3',
-          hypothesisId: 'H5',
-          location: 'LineCard.tsx:menu-open-computed-style',
-          message: 'LineCard menu opened: computed styles + theme vars',
-          data: {
-            lineId: String(line.id),
-            themeClass: (document.documentElement.getAttribute('class') || '').slice(0, 200),
-            cssVars: {
-              popover: root.getPropertyValue('--popover').trim(),
-              colorPopover: root.getPropertyValue('--color-popover').trim(),
-              background: root.getPropertyValue('--background').trim(),
-              card: root.getPropertyValue('--card').trim(),
-              surfaceElevated: root.getPropertyValue('--surface-elevated').trim(),
-              colorSurfaceElevated: root.getPropertyValue('--color-surface-elevated').trim(),
-            },
-            menu: {
-              className: (el.getAttribute('class') || '').slice(0, 250),
-              rect: {
-                left: Math.round(rect.left),
-                top: Math.round(rect.top),
-                width: Math.round(rect.width),
-                height: Math.round(rect.height),
-              },
-              backgroundColor: cs.backgroundColor,
-              opacity: cs.opacity,
-              zIndex: cs.zIndex,
-              position: cs.position,
-              filter: cs.filter,
-              backdropFilter: (cs as any).backdropFilter || '',
-              mixBlendMode: (cs as any).mixBlendMode || '',
-              boxShadow: cs.boxShadow,
-              borderColor: cs.borderColor,
-            },
-            ancestorChain: chain,
-            hitTest: {
-              point: { x: cx, y: cy },
-              topElements: hitInfo,
-            },
-          },
-          timestamp: Date.now(),
-        }),
-      },
-    ).catch(() => {});
-    // #region agent log - menu transparency debug
-    fetch(
-      'http://127.0.0.1:7242/ingest/bfc7f6db-53e6-40c2-9811-6a220af63ed2',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'post-fix-3',
-          hypothesisId: 'H4',
-          location: 'LineCard.tsx:oklch-support-check',
-          message: 'CSS.supports checks for oklch and computed background-color',
-          data: {
-            lineId: String(line.id),
-            ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-            supports: {
-              bgOklchLiteral: typeof CSS !== 'undefined' ? CSS.supports('background-color', 'oklch(1 0 0)') : null,
-              colorOklchLiteral: typeof CSS !== 'undefined' ? CSS.supports('color', 'oklch(1 0 0)') : null,
-              bgComputed: typeof CSS !== 'undefined' ? CSS.supports('background-color', cs.backgroundColor) : null,
-            },
-            computed: {
-              backgroundColor: cs.backgroundColor,
-            },
-          },
-          timestamp: Date.now(),
-        }),
-      },
-    ).catch(() => {});
-    // #endregion agent log - menu transparency debug
-    // #endregion agent log - menu transparency debug
-  }, [isMenuOpen, line.id]);
 
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete "${line.display_name}"? This cannot be undone.`)) {
@@ -269,7 +127,7 @@ export function LineCard({ line }: LineCardProps) {
       />
 
       {/* Header */}
-      <div className="relative z-10 p-6 pb-0">
+      <div className={`relative ${isMenuOpen ? 'z-50' : 'z-10'} p-6 pb-0`}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4 pointer-events-none">
             <div className={`w-12 h-12 rounded-full ${getIconBgClass()} flex items-center justify-center`}>
@@ -289,24 +147,6 @@ export function LineCard({ line }: LineCardProps) {
                 e.preventDefault();
                 e.stopPropagation();
                 const next = !isMenuOpen;
-                // #region agent log - menu transparency debug
-                fetch(
-                  'http://127.0.0.1:7242/ingest/bfc7f6db-53e6-40c2-9811-6a220af63ed2',
-                  {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      sessionId: 'debug-session',
-                      runId: 'post-fix-3',
-                      hypothesisId: 'H2',
-                      location: 'LineCard.tsx:menu-button-click',
-                      message: 'LineCard menu button clicked',
-                      data: { lineId: String(line.id), nextIsMenuOpen: next },
-                      timestamp: Date.now(),
-                    }),
-                  },
-                ).catch(() => {});
-                // #endregion agent log - menu transparency debug
                 setIsMenuOpen(next);
               }}
               className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto"
@@ -316,34 +156,15 @@ export function LineCard({ line }: LineCardProps) {
             {isMenuOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-40 bg-black/20 dark:bg-black/55"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    // #region agent log - menu transparency debug
-                    fetch(
-                      'http://127.0.0.1:7242/ingest/bfc7f6db-53e6-40c2-9811-6a220af63ed2',
-                      {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          sessionId: 'debug-session',
-                          runId: 'post-fix-3',
-                          hypothesisId: 'H3',
-                          location: 'LineCard.tsx:menu-overlay-click',
-                          message: 'LineCard menu dismissed via overlay click',
-                          data: { lineId: String(line.id) },
-                          timestamp: Date.now(),
-                        }),
-                      },
-                    ).catch(() => {});
-                    // #endregion agent log - menu transparency debug
                     setIsMenuOpen(false);
                   }}
                 />
                 <div
-                  ref={menuRef}
-                  className="absolute right-0 mt-1 w-48 bg-muted rounded-lg shadow-xl border border-border/70 ring-1 ring-border/40 z-20 pointer-events-auto"
+                  className="absolute right-0 mt-1 w-48 bg-background rounded-lg shadow-2xl border border-border/80 ring-1 ring-border/60 z-50 pointer-events-auto"
                 >
                   <Link
                     href={`/dashboard/lines/${line.id}`}
