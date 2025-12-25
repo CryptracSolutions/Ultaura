@@ -3,6 +3,8 @@ import {
   PhoneIcon,
   CalendarDaysIcon,
   BellIcon,
+  UserIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 import configuration from '~/configuration';
@@ -61,6 +63,26 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       Icon: ({ className }: { className: string }) => {
         return <PhoneIcon className={className} />;
       },
+    },
+    {
+      label: 'Settings',
+      collapsible: false,
+      children: [
+        {
+          label: 'Profile',
+          path: getPath('settings/profile'),
+          Icon: ({ className }: { className: string }) => {
+            return <UserIcon className={className} />;
+          },
+        },
+        {
+          label: 'Subscription',
+          path: getPath('settings/subscription'),
+          Icon: ({ className }: { className: string }) => {
+            return <CreditCardIcon className={className} />;
+          },
+        },
+      ],
     },
   ],
 });

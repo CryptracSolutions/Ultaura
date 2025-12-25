@@ -11,8 +11,6 @@ import {
   QuestionMarkCircleIcon,
   EllipsisVerticalIcon,
   ChatBubbleLeftIcon,
-  UserIcon,
-  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -117,30 +115,6 @@ const ProfileDropdown: React.FCC<{
             <Squares2X2Icon className={'h-5'} />
             <span>
               <Trans i18nKey={'common:dashboardTabLabel'} />
-            </span>
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem asChild>
-          <Link
-            className={'flex h-full w-full items-center space-x-2'}
-            href={'/dashboard/settings/profile'}
-          >
-            <UserIcon className={'h-5'} />
-            <span>
-              <Trans i18nKey={'common:profileSettingsTabLabel'} />
-            </span>
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem asChild>
-          <Link
-            className={'flex h-full w-full items-center space-x-2'}
-            href={'/dashboard/settings/subscription'}
-          >
-            <CreditCardIcon className={'h-5'} />
-            <span>
-              <Trans i18nKey={'common:subscriptionSettingsTabLabel'} />
             </span>
           </Link>
         </DropdownMenuItem>
