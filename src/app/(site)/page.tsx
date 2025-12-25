@@ -109,9 +109,9 @@ function Home() {
                   <div className="rounded-2xl border border-border/60 bg-background p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-end gap-1">
-                        {[3, 7, 4, 8, 5, 10, 6, 9, 4, 7, 3, 8].map((height) => (
+                        {[3, 7, 4, 8, 5, 10, 6, 9, 4, 7, 3, 8].map((height, i) => (
                           <span
-                            key={`wave-${height}`}
+                            key={i}
                             className="w-2 rounded-full bg-primary"
                             style={{ height: `${height + 6}px` }}
                           />
