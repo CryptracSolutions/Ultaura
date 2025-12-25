@@ -24,6 +24,7 @@ import useSignOut from '~/core/hooks/use-sign-out';
 
 import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
+import Logo from '~/core/ui/Logo';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
@@ -100,7 +101,13 @@ const MobileAppNavigation = () => {
         >
           {/* Header with Close Button */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <span className="text-lg font-semibold">Menu</span>
+            <Logo
+              href="/"
+              className="h-9"
+              label="Home"
+              showWordmark
+              wordmarkClassName="text-xl font-semibold leading-none text-primary"
+            />
             <button
               onClick={closeMenu}
               className="p-2 hover:bg-muted rounded-md transition-colors"
