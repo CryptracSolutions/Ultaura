@@ -16,6 +16,7 @@ import OrganizationContext from '~/lib/contexts/organization';
 import CsrfTokenContext from '~/lib/contexts/csrf';
 import SidebarContext from '~/lib/contexts/sidebar';
 import UserSessionContext from '~/core/session/contexts/user-session';
+import { HelpPanelProvider, useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import I18nProvider from '~/i18n/I18nProvider';
 
 import { setCookie } from '~/core/generic/cookies';
@@ -71,15 +72,17 @@ const OrganizationScopeLayout: React.FCC<{
               <AuthChangeListener
                 whenSignedOut={'/'}
               >
-                <main>
-                  <Toaster richColors={false} />
+                <HelpPanelProvider>
+                  <main>
+                    <Toaster richColors={false} />
 
-                  <RouteShellWithSidebar
-                    collapsed={data.ui.sidebarState === 'collapsed'}
-                  >
-                    {children}
-                  </RouteShellWithSidebar>
-                </main>
+                    <RouteShellWithSidebar
+                      collapsed={data.ui.sidebarState === 'collapsed'}
+                    >
+                      {children}
+                    </RouteShellWithSidebar>
+                  </main>
+                </HelpPanelProvider>
               </AuthChangeListener>
             </I18nProvider>
           </CsrfTokenContext.Provider>
@@ -97,7 +100,7 @@ function RouteShellWithSidebar(
   }>,
 ) {
   const [collapsed, setCollapsed] = useCollapsible(props.collapsed);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const { isOpen: isHelpOpen, open: openHelp, close: closeHelp } = useHelpPanel();
   const className = getClassNameBuilder()({ collapsed, helpOpen: isHelpOpen });
 
   return (
@@ -106,11 +109,11 @@ function RouteShellWithSidebar(
         contentContainerClassName={className}
         sidebar={<AppSidebar />}
       >
-        <TopNavBar onHelpClick={() => setIsHelpOpen(true)} />
+        <TopNavBar onHelpClick={openHelp} />
         {props.children}
       </Page>
 
-      <HelpPanel isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      <HelpPanel isOpen={isHelpOpen} onClose={closeHelp} />
     </SidebarContext.Provider>
   );
 }

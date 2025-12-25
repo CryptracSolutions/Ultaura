@@ -1,16 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 
 import {
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
-  BuildingLibraryIcon,
   QuestionMarkCircleIcon,
   ChatBubbleLeftIcon,
   PhoneIcon,
   BellIcon,
   PhoneArrowUpRightIcon,
+  LifebuoyIcon,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -27,17 +28,28 @@ import NAVIGATION_CONFIG from '../navigation.config';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import useSignOut from '~/core/hooks/use-sign-out';
 
-import Modal from '~/core/ui/Modal';
-import Heading from '~/core/ui/Heading';
-import OrganizationsSelector from '~/app/dashboard/(app)/components/organizations/OrganizationsSelector';
-import { FeedbackPopupContainer } from '~/plugins/feedback-popup/FeedbackPopup';
+import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
+import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
+  const { open: openHelp } = useHelpPanel();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   if (!currentOrganization?.uuid) {
     return null;
   }
+
+  const handleHelpClick = () => {
+    setMenuOpen(false);
+    openHelp();
+  };
+
+  const handleFeedbackClick = () => {
+    setMenuOpen(false);
+    setFeedbackOpen(true);
+  };
 
   const Links = NAVIGATION_CONFIG().items.map(
     (item, index) => {
@@ -70,15 +82,14 @@ const MobileAppNavigation = () => {
   );
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Bars3Icon className={'h-9'} />
-      </DropdownMenuTrigger>
+    <>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger>
+          <Bars3Icon className={'h-9'} />
+        </DropdownMenuTrigger>
 
-      <DropdownMenuContent sideOffset={10} className={'rounded-none w-screen'}>
-        <OrganizationsModal />
-
-        {Links}
+        <DropdownMenuContent sideOffset={10} className={'rounded-none w-screen max-h-[calc(100vh-60px)] overflow-y-auto'}>
+          {Links}
 
         <DropdownMenuSeparator />
 
@@ -124,20 +135,32 @@ const MobileAppNavigation = () => {
           </Link>
         </DropdownMenuItem>
 
-        <FeedbackPopupContainer>
-          <DropdownMenuItem
-            className="flex w-full items-center space-x-4 h-12 cursor-pointer"
-            onSelect={(e) => e.preventDefault()}
-          >
-            <ChatBubbleLeftIcon className="h-6" />
-            <span>Feedback</span>
-          </DropdownMenuItem>
-        </FeedbackPopupContainer>
+        <DropdownMenuItem
+          className="flex w-full items-center space-x-4 h-12 cursor-pointer"
+          onSelect={handleHelpClick}
+        >
+          <LifebuoyIcon className="h-6" />
+          <span>Help</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          className="flex w-full items-center space-x-4 h-12 cursor-pointer"
+          onSelect={handleFeedbackClick}
+        >
+          <ChatBubbleLeftIcon className="h-6" />
+          <span>Feedback</span>
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator />
         <SignOutDropdownItem />
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <MobileFeedbackModal
+      isOpen={feedbackOpen}
+      onClose={() => setFeedbackOpen(false)}
+    />
+  </>
   );
 };
 
@@ -180,33 +203,5 @@ function SignOutDropdownItem() {
         <Trans i18nKey={'common:signOut'} defaults={'Sign out'} />
       </span>
     </DropdownMenuItem>
-  );
-}
-
-function OrganizationsModal() {
-  return (
-    <Modal
-      Trigger={
-        <DropdownMenuItem
-          className={'h-12'}
-          onSelect={(e) => e.preventDefault()}
-        >
-          <button className={'flex items-center space-x-4'}>
-            <BuildingLibraryIcon className={'h-6'} />
-
-            <span>
-              <Trans i18nKey={'common:yourOrganizations'} />
-            </span>
-          </button>
-        </DropdownMenuItem>
-      }
-      heading={<Trans i18nKey={'common:yourOrganizations'} />}
-    >
-      <div className={'flex flex-col space-y-6 py-4'}>
-        <Heading type={6}>Select an organization below to switch to it</Heading>
-
-        <OrganizationsSelector displayName />
-      </div>
-    </Modal>
   );
 }

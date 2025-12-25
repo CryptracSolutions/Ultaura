@@ -67,7 +67,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   return (
     <div
       className={classNames(
-        'fixed top-0 right-0 h-full w-[350px] bg-sidebar border-l border-border shadow-xl z-50',
+        'fixed top-0 right-0 h-full w-full lg:w-[350px] bg-sidebar border-l border-border shadow-xl z-50',
         'transform transition-transform duration-300 ease-in-out',
         {
           'translate-x-0': isOpen,
