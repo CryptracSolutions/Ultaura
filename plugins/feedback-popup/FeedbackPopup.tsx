@@ -55,7 +55,6 @@ export function FeedbackPopupContainer({
       <PopoverContent
         collisionPadding={50}
         className={'w-96'}
-        onInteractOutside={(e) => e.preventDefault()}
       >
         <FormContainer metadata={metadata} onClose={() => setOpen(false)} />
       </PopoverContent>

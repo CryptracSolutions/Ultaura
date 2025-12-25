@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Phone, Plus } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { LineCard } from './LineCard';
@@ -17,7 +18,18 @@ export function LinesPageClient({
   lines,
   planLinesLimit,
 }: LinesPageClientProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Open modal if ?action=add is in the URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'add') {
+      setIsAddModalOpen(true);
+      // Clean up the URL
+      router.replace('/dashboard/lines', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const canAddLine = lines.length < planLinesLimit;
 

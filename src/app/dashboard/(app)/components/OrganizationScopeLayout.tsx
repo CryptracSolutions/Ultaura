@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import useCollapsible from '~/core/hooks/use-sidebar-state';
 import AppSidebar from '~/app/dashboard/(app)/components/AppSidebar';
+import TopNavBar from '~/components/TopNavBar';
 import Toaster from '~/components/Toaster';
 import SentryBrowserWrapper from '~/components/SentryProvider';
 
@@ -103,6 +104,7 @@ function RouteShellWithSidebar(
         contentContainerClassName={className}
         sidebar={<AppSidebar />}
       >
+        <TopNavBar />
         {props.children}
       </Page>
     </SidebarContext.Provider>

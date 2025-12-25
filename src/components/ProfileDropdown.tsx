@@ -8,9 +8,7 @@ import {
   ArrowLeftOnRectangleIcon,
   Squares2X2Icon,
   BuildingLibraryIcon,
-  QuestionMarkCircleIcon,
   EllipsisVerticalIcon,
-  ChatBubbleLeftIcon,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -29,7 +27,6 @@ import type UserSession from '~/core/session/types/user-session';
 import If from '~/core/ui/If';
 import GlobalRole from '~/core/session/types/global-role';
 import useUser from '~/core/hooks/use-user';
-import { FeedbackPopupContainer } from '~/plugins/feedback-popup/FeedbackPopup';
 
 const ProfileDropdown: React.FCC<{
   userSession: Maybe<UserSession>;
@@ -119,21 +116,6 @@ const ProfileDropdown: React.FCC<{
           </Link>
         </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem asChild>
-          <Link
-            className={'flex h-full w-full items-center space-x-2'}
-            href={'/docs'}
-          >
-            <QuestionMarkCircleIcon className={'h-5'} />
-
-            <span>
-              <Trans i18nKey={'common:documentation'} />
-            </span>
-          </Link>
-        </DropdownMenuItem>
-
         <If condition={isSuperAdmin}>
           <DropdownMenuSeparator />
 
@@ -147,21 +129,6 @@ const ProfileDropdown: React.FCC<{
             </Link>
           </DropdownMenuItem>
         </If>
-
-        <DropdownMenuSeparator />
-
-        <FeedbackPopupContainer>
-          <DropdownMenuItem
-            role={'button'}
-            className={'cursor-pointer'}
-            onSelect={(e) => e.preventDefault()}
-          >
-            <span className={'flex w-full items-center space-x-2'}>
-              <ChatBubbleLeftIcon className={'h-5'} />
-              <span>Feedback</span>
-            </span>
-          </DropdownMenuItem>
-        </FeedbackPopupContainer>
 
         <DropdownMenuSeparator />
 

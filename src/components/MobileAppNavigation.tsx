@@ -6,6 +6,11 @@ import {
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
   BuildingLibraryIcon,
+  QuestionMarkCircleIcon,
+  ChatBubbleLeftIcon,
+  PhoneIcon,
+  BellIcon,
+  PhoneArrowUpRightIcon,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -25,6 +30,7 @@ import useSignOut from '~/core/hooks/use-sign-out';
 import Modal from '~/core/ui/Modal';
 import Heading from '~/core/ui/Heading';
 import OrganizationsSelector from '~/app/dashboard/(app)/components/organizations/OrganizationsSelector';
+import { FeedbackPopupContainer } from '~/plugins/feedback-popup/FeedbackPopup';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
@@ -73,6 +79,60 @@ const MobileAppNavigation = () => {
         <OrganizationsModal />
 
         {Links}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem asChild>
+          <Link
+            href="/dashboard/lines?action=add"
+            className="flex w-full items-center space-x-4 h-12"
+          >
+            <PhoneIcon className="h-6" />
+            <span>Add Line</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link
+            href="/dashboard/reminders?action=add"
+            className="flex w-full items-center space-x-4 h-12"
+          >
+            <BellIcon className="h-6" />
+            <span>Add Reminder</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link
+            href="/dashboard/calls?action=add"
+            className="flex w-full items-center space-x-4 h-12"
+          >
+            <PhoneArrowUpRightIcon className="h-6" />
+            <span>Schedule Call</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem asChild>
+          <Link
+            href="/docs"
+            className="flex w-full items-center space-x-4 h-12"
+          >
+            <QuestionMarkCircleIcon className="h-6" />
+            <span>Documentation</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <FeedbackPopupContainer>
+          <DropdownMenuItem
+            className="flex w-full items-center space-x-4 h-12 cursor-pointer"
+            onSelect={(e) => e.preventDefault()}
+          >
+            <ChatBubbleLeftIcon className="h-6" />
+            <span>Feedback</span>
+          </DropdownMenuItem>
+        </FeedbackPopupContainer>
 
         <DropdownMenuSeparator />
         <SignOutDropdownItem />
