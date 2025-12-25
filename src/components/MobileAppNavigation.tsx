@@ -29,23 +29,27 @@ const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
   const { open: openHelp } = useHelpPanel();
   const [isVisible, setIsVisible] = useState(false);
-  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+  const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const openMenu = () => {
     setIsVisible(true);
+    setAnimationState('opening');
     // Small delay to ensure DOM renders before animation starts
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        setIsAnimatingIn(true);
+        setAnimationState('open');
       });
     });
   };
 
   const closeMenu = () => {
-    setIsAnimatingIn(false);
+    setAnimationState('closing');
     // Wait for animation to complete before hiding
-    setTimeout(() => setIsVisible(false), 300);
+    setTimeout(() => {
+      setIsVisible(false);
+      setAnimationState('closed');
+    }, 300);
   };
 
   if (!currentOrganization?.uuid) {
@@ -89,8 +93,8 @@ const MobileAppNavigation = () => {
           className={classNames(
             'fixed inset-0 z-50 bg-background transition-transform duration-300 ease-out',
             {
-              'translate-x-0': isAnimatingIn,
-              '-translate-x-full': !isAnimatingIn,
+              'translate-x-0': animationState === 'open',
+              '-translate-x-full': animationState === 'opening' || animationState === 'closing',
             }
           )}
         >
