@@ -67,7 +67,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   return (
     <div
       className={classNames(
-        'fixed top-0 right-0 h-full w-[350px] bg-background border-l border-border shadow-xl z-50',
+        'fixed top-0 right-0 h-full w-[350px] bg-sidebar border-l border-border shadow-xl z-50',
         'transform transition-transform duration-300 ease-in-out',
         {
           'translate-x-0': isOpen,
@@ -80,7 +80,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
         <div className="px-4 py-3 flex border-b border-border justify-between items-center">
           <div className="flex flex-col">
             <span className="font-semibold text-foreground">Help</span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-sidebar-foreground">
               Ask us anything
             </span>
           </div>
@@ -119,10 +119,9 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               onChange={handleInputChange}
               name="message"
               className={classNames(
-                'p-4 h-14 w-full outline-none resize-none text-sm',
-                'dark:text-foreground dark:placeholder:text-muted-foreground',
-                'dark:bg-background pr-12',
-                'focus:ring-2 focus:ring-primary/20 transition-all'
+                'p-4 h-14 w-full outline-none resize-none text-sm bg-sidebar',
+                'text-foreground placeholder:text-sidebar-foreground/60',
+                'pr-12 focus:ring-2 focus:ring-primary/20 transition-all'
               )}
               placeholder="Ask a question..."
             />
