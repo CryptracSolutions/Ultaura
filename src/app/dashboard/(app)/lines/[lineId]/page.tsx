@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getLine, getSchedules, getUsageSummary, getCallSessions, getReminders } from '~/lib/ultaura/actions';
 import { LineDetailClient } from './LineDetailClient';
+import AppHeader from '../../components/AppHeader';
+import { PageBody } from '~/core/ui/Page';
 
 // Helper to get counts without fetching full data
 async function getScheduleAndReminderCounts(lineId: string) {
@@ -43,12 +45,17 @@ export default async function LineDetailPage({ params }: PageProps) {
   ]);
 
   return (
-    <LineDetailClient
-      line={line}
-      usage={usage}
-      callSessions={callSessions}
-      activeSchedulesCount={counts.activeSchedulesCount}
-      pendingRemindersCount={counts.pendingRemindersCount}
-    />
+    <>
+      <AppHeader title={line.display_name} description="View and manage this phone line" />
+      <PageBody>
+        <LineDetailClient
+          line={line}
+          usage={usage}
+          callSessions={callSessions}
+          activeSchedulesCount={counts.activeSchedulesCount}
+          pendingRemindersCount={counts.pendingRemindersCount}
+        />
+      </PageBody>
+    </>
   );
 }

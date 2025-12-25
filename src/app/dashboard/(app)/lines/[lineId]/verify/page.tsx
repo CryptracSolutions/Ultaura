@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getLine } from '~/lib/ultaura/actions';
 import { VerifyPhoneClient } from './VerifyPhoneClient';
+import AppHeader from '../../../components/AppHeader';
+import { PageBody } from '~/core/ui/Page';
 
 export const metadata: Metadata = {
   title: 'Verify Phone - Ultaura',
@@ -27,12 +29,17 @@ export default async function VerifyPhonePage({ params }: PageProps) {
   const formattedPhone = formatPhoneNumber(line.phone_e164);
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center p-6">
-      <VerifyPhoneClient
-        lineId={line.id}
-        phoneNumber={formattedPhone}
-      />
-    </div>
+    <>
+      <AppHeader title="Verify Phone" description="Confirm ownership of this phone number" />
+      <PageBody>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <VerifyPhoneClient
+            lineId={line.id}
+            phoneNumber={formattedPhone}
+          />
+        </div>
+      </PageBody>
+    </>
   );
 }
 

@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getLine, getReminders } from '~/lib/ultaura/actions';
 import { RemindersClient } from './RemindersClient';
+import AppHeader from '../../../components/AppHeader';
+import { PageBody } from '~/core/ui/Page';
 
 export const metadata: Metadata = {
   title: 'Reminders - Ultaura',
@@ -25,5 +27,12 @@ export default async function RemindersPage({ params }: PageProps) {
 
   const reminders = await getReminders(params.lineId);
 
-  return <RemindersClient line={line} reminders={reminders} />;
+  return (
+    <>
+      <AppHeader title={`Reminders for ${line.display_name}`} description="Set up medication and activity reminders" />
+      <PageBody>
+        <RemindersClient line={line} reminders={reminders} />
+      </PageBody>
+    </>
+  );
 }

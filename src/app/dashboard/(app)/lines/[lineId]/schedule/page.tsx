@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getLine } from '~/lib/ultaura/actions';
 import { ScheduleClient } from './ScheduleClient';
+import AppHeader from '../../../components/AppHeader';
+import { PageBody } from '~/core/ui/Page';
 
 export const metadata: Metadata = {
   title: 'Schedule Calls - Ultaura',
@@ -23,5 +25,12 @@ export default async function SchedulePage({ params }: PageProps) {
     redirect(`/dashboard/lines/${params.lineId}/verify`);
   }
 
-  return <ScheduleClient line={line} />;
+  return (
+    <>
+      <AppHeader title={`Schedule for ${line.display_name}`} description="Set up recurring check-in calls" />
+      <PageBody>
+        <ScheduleClient line={line} />
+      </PageBody>
+    </>
+  );
 }

@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getLine, getSchedule } from '~/lib/ultaura/actions';
 import { EditScheduleClient } from './EditScheduleClient';
+import AppHeader from '../../../../components/AppHeader';
+import { PageBody } from '~/core/ui/Page';
 
 export const metadata: Metadata = {
   title: 'Edit Schedule - Ultaura',
@@ -26,5 +28,12 @@ export default async function EditSchedulePage({ params }: PageProps) {
     redirect(`/dashboard/lines/${params.lineId}`);
   }
 
-  return <EditScheduleClient line={line} schedule={schedule} />;
+  return (
+    <>
+      <AppHeader title="Edit Schedule" description={`Modify schedule for ${line.display_name}`} />
+      <PageBody>
+        <EditScheduleClient line={line} schedule={schedule} />
+      </PageBody>
+    </>
+  );
 }

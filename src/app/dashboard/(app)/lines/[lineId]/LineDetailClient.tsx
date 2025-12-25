@@ -229,14 +229,11 @@ export function LineDetailClient({
         </Link>
 
         <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">{line.display_name}</h1>
-            <p className="text-muted-foreground flex items-center gap-2 mt-1">
-              <Phone className="w-4 h-4" />
-              {formatPhone(line.phone_e164)}
-              <CheckCircle className="w-4 h-4 text-success" />
-              <span className="text-sm text-success">Verified</span>
-            </p>
+          <div className="text-muted-foreground flex items-center gap-2">
+            <Phone className="w-4 h-4" />
+            {formatPhone(line.phone_e164)}
+            <CheckCircle className="w-4 h-4 text-success" />
+            <span className="text-sm text-success">Verified</span>
           </div>
           <div className="flex items-center gap-2">
             <button

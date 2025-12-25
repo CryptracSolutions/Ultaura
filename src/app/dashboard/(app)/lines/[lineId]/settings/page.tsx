@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getLine } from '~/lib/ultaura/actions';
 import { SettingsClient } from './SettingsClient';
+import AppHeader from '../../../components/AppHeader';
+import { PageBody } from '~/core/ui/Page';
 
 export const metadata: Metadata = {
   title: 'Line Settings - Ultaura',
@@ -23,5 +25,12 @@ export default async function LineSettingsPage({ params }: PageProps) {
     redirect(`/dashboard/lines/${params.lineId}/verify`);
   }
 
-  return <SettingsClient line={line} />;
+  return (
+    <>
+      <AppHeader title={`Settings for ${line.display_name}`} description="Manage line preferences and information" />
+      <PageBody>
+        <SettingsClient line={line} />
+      </PageBody>
+    </>
+  );
 }

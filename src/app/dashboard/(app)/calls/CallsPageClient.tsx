@@ -94,22 +94,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <CalendarDays className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Call Schedules</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage when Ultaura calls your loved ones
-            </p>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* Add Schedule Buttons */}
       {lines.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-6">
