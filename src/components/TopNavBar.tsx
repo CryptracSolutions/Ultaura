@@ -41,11 +41,18 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpClick }) => {
         <TooltipContent>Help</TooltipContent>
       </Tooltip>
 
-      <FeedbackPopupContainer>
-        <IconButton label="Send Feedback">
-          <ChatBubbleLeftIcon className="h-5 w-5" />
-        </IconButton>
-      </FeedbackPopupContainer>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div>
+            <FeedbackPopupContainer>
+              <IconButton label="Send Feedback">
+                <ChatBubbleLeftIcon className="h-5 w-5" />
+              </IconButton>
+            </FeedbackPopupContainer>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>Feedback</TooltipContent>
+      </Tooltip>
     </div>
   );
 };
