@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import useCollapsible from '~/core/hooks/use-sidebar-state';
 import AppSidebar from '~/app/dashboard/(app)/components/AppSidebar';
 import TopNavBar from '~/components/TopNavBar';
+import HelpPanel from '~/components/HelpPanel';
 import Toaster from '~/components/Toaster';
 import SentryBrowserWrapper from '~/components/SentryProvider';
 
@@ -96,7 +97,8 @@ function RouteShellWithSidebar(
   }>,
 ) {
   const [collapsed, setCollapsed] = useCollapsible(props.collapsed);
-  const className = getClassNameBuilder()({ collapsed });
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const className = getClassNameBuilder()({ collapsed, helpOpen: isHelpOpen });
 
   return (
     <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
@@ -104,21 +106,27 @@ function RouteShellWithSidebar(
         contentContainerClassName={className}
         sidebar={<AppSidebar />}
       >
-        <TopNavBar />
+        <TopNavBar onHelpClick={() => setIsHelpOpen(true)} />
         {props.children}
       </Page>
+
+      <HelpPanel isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </SidebarContext.Provider>
   );
 }
 
 function getClassNameBuilder() {
   return cva(
-    ['ml-0 transition-[margin] duration-300 motion-reduce:transition-none'],
+    ['ml-0 mr-0 transition-[margin] duration-300 motion-reduce:transition-none'],
     {
       variants: {
         collapsed: {
           true: 'lg:ml-[6rem]',
           false: 'lg:ml-[17rem]',
+        },
+        helpOpen: {
+          true: 'lg:mr-[350px]',
+          false: 'lg:mr-0',
         },
       },
     },
