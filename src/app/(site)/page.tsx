@@ -29,7 +29,7 @@ function Home() {
     <div className={'flex flex-col space-y-16'}>
       {/* Hero Section */}
       <Container>
-        <div className="relative my-12 lg:my-20">
+        <div className="relative my-12 lg:my-20 overflow-hidden">
           <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
