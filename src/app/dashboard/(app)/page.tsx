@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Repeat } from 'lucide-react';
+import { Repeat, Phone, Clock, Zap } from 'lucide-react';
 
 import AppHeader from './components/AppHeader';
 import { withI18n } from '~/i18n/with-i18n';
@@ -178,68 +178,94 @@ async function DashboardPage() {
 
           {/* At a glance */}
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="flex flex-col rounded-xl border border-border bg-card p-5">
-              <div className="text-sm text-muted-foreground">Lines</div>
-              <div className="mt-2 flex items-end justify-between gap-4">
-                <div className="text-2xl font-semibold text-foreground">
-                  {lines.length}
-                </div>
+            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2 mb-1">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <div className="text-base font-medium text-foreground">Lines</div>
               </div>
-              <div className="mt-auto">
+              <div className="text-3xl font-bold text-foreground">
+                {lines.length}
+              </div>
+              <div className="flex-1" />
+              <div className="mt-auto space-y-2">
+                <div className="text-xs text-muted-foreground">
+                  {activeCount} active{pausedCount > 0 ? ` • ${pausedCount} paused` : ''}
+                </div>
                 <Link
                   href="/dashboard/lines"
-                  className="text-sm text-primary hover:underline"
+                  className="inline-flex items-center text-sm font-medium text-primary hover:underline"
                 >
-                  Manage lines
+                  Manage lines →
                 </Link>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {activeCount} active
-                  {pausedCount > 0 ? ` • ${pausedCount} paused` : ''}
-                </div>
               </div>
             </div>
 
-            <div className="flex flex-col rounded-xl border border-border bg-card p-5">
-              <div className="text-sm text-muted-foreground">Minutes</div>
-              <div className="mt-2 text-2xl font-semibold text-foreground">
+            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <div className="text-base font-medium text-foreground">Minutes</div>
+              </div>
+              <div className="text-3xl font-bold text-foreground">
                 {usage ? usage.minutesRemaining : '—'}
               </div>
-              <div className="mt-auto">
-                <Link
-                  href="/dashboard/settings/subscription"
-                  className="text-sm text-primary hover:underline"
-                >
-                  View plan
-                </Link>
-                <div className="mt-1 text-xs text-muted-foreground">
+              {usage && (
+                <div className="mt-3">
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min((usage.minutesUsed / usage.minutesIncluded) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              <div className="flex-1" />
+              <div className="mt-auto space-y-2">
+                <div className="text-xs text-muted-foreground">
                   {usage
                     ? `${usage.minutesUsed} used • ${usage.minutesIncluded} included`
                     : 'Usage not available yet.'}
                 </div>
+                <Link
+                  href="/dashboard/settings/subscription"
+                  className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+                >
+                  View plan →
+                </Link>
               </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="text-sm text-muted-foreground">Quick actions</div>
-              <div className="mt-3 grid gap-2">
-                <Link
-                  href="/dashboard/calls"
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  View schedules
-                </Link>
-                <Link
-                  href="/dashboard/reminders"
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  View reminders
-                </Link>
-                <Link
-                  href="/dashboard/lines"
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  View lines
-                </Link>
+            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="h-4 w-4 text-muted-foreground" />
+                <div className="text-base font-medium text-foreground">Quick actions</div>
+              </div>
+              <div className="text-3xl font-bold text-foreground">
+                3
+              </div>
+              <div className="mt-auto space-y-2">
+                <div className="text-xs text-muted-foreground">
+                  Available actions
+                </div>
+                <div className="grid gap-2">
+                  <Link
+                    href="/dashboard/calls"
+                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    View schedules
+                  </Link>
+                  <Link
+                    href="/dashboard/reminders"
+                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    View reminders
+                  </Link>
+                  <Link
+                    href="/dashboard/lines"
+                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    View lines
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
