@@ -228,18 +228,20 @@ export function LineDetailClient({
           Back to Lines
         </Link>
 
-        <div className="flex items-start justify-between">
-          <div className="text-muted-foreground flex items-center gap-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="text-muted-foreground flex items-center gap-2 flex-wrap">
             <Phone className="w-4 h-4" />
-            {formatPhone(line.phone_e164)}
-            <CheckCircle className="w-4 h-4 text-success" />
-            <span className="text-sm text-success">Verified</span>
+            <span className="font-medium">{formatPhone(line.phone_e164)}</span>
+            <div className="flex items-center gap-1">
+              <CheckCircle className="w-4 h-4 text-success" />
+              <span className="text-sm text-success">Verified</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
               onClick={handleTestCall}
               disabled={isTestCalling}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 w-full sm:w-auto"
             >
               <Play className="w-4 h-4" />
               {isTestCalling ? 'Calling...' : 'Test Call'}
@@ -247,7 +249,7 @@ export function LineDetailClient({
             <button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 w-full sm:w-auto"
             >
               <Trash2 className="w-4 h-4" />
               {isDeleting ? 'Deleting...' : 'Delete'}
