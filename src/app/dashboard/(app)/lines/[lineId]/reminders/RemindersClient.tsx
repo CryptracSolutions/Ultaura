@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward } from 'lucide-react';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
@@ -76,6 +78,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [skippingId, setSkippingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reminderToCancel, setReminderToCancel] = useState<string | null>(null);
 
   // Form state
   const [message, setMessage] = useState('');
@@ -150,6 +153,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
     setIsSubmitting(false);
 
     if (result.success) {
+      toast.success('Reminder created');
       setShowForm(false);
       setMessage('');
       setDate('');
@@ -175,23 +179,27 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
     setSkippingId(null);
 
     if (result.success) {
+      toast.success('Next occurrence skipped');
       router.refresh();
     } else {
-      setError(result.error || 'Failed to skip reminder');
+      toast.error(result.error || 'Failed to skip reminder');
     }
   };
 
-  const handleCancel = async (reminderId: string) => {
-    setCancelingId(reminderId);
+  const handleConfirmCancel = async () => {
+    if (!reminderToCancel) return;
+    setCancelingId(reminderToCancel);
 
-    const result = await cancelReminder(reminderId);
+    const result = await cancelReminder(reminderToCancel);
 
     setCancelingId(null);
 
     if (result.success) {
+      toast.success('Reminder canceled');
       router.refresh();
     } else {
-      setError(result.error || 'Failed to cancel reminder');
+      toast.error(result.error || 'Failed to cancel reminder');
+      throw new Error('Cancel failed');
     }
   };
 
@@ -501,7 +509,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
 
                   {/* Cancel button */}
                   <button
-                    onClick={() => handleCancel(reminder.id)}
+                    onClick={() => setReminderToCancel(reminder.id)}
                     disabled={cancelingId === reminder.id}
                     className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                     title={reminder.is_recurring ? "Cancel entire series" : "Cancel reminder"}
@@ -574,6 +582,16 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
           </button>
         </div>
       )}
+
+      <ConfirmationDialog
+        open={reminderToCancel !== null}
+        onOpenChange={(open) => !open && setReminderToCancel(null)}
+        title="Cancel Reminder"
+        description="Are you sure you want to cancel this reminder?"
+        confirmLabel="Cancel Reminder"
+        variant="destructive"
+        onConfirm={handleConfirmCancel}
+      />
     </div>
   );
 }
