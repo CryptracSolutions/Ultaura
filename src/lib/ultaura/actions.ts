@@ -1023,6 +1023,13 @@ export async function createReminder(input: {
   dueAt: string;
   message: string;
   timezone: string;
+  recurrence?: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+    interval?: number;
+    daysOfWeek?: number[];
+    dayOfMonth?: number;
+    endsAt?: string;
+  };
 }): Promise<{ success: boolean; reminder?: ReminderRow; error?: string }> {
   const client = getSupabaseServerComponentClient();
 
@@ -1047,6 +1054,55 @@ export async function createReminder(input: {
     return { success: false, error: 'Message must be 500 characters or less' };
   }
 
+  // Build recurrence fields
+  let isRecurring = false;
+  let rrule: string | null = null;
+  let intervalDays: number | null = null;
+  let daysOfWeek: number[] | null = null;
+  let dayOfMonth: number | null = null;
+  let timeOfDay: string | null = null;
+  let endsAt: string | null = null;
+
+  if (input.recurrence) {
+    isRecurring = true;
+    const { frequency, interval, daysOfWeek: dow, dayOfMonth: dom, endsAt: ends } = input.recurrence;
+
+    // Extract time from dueAt
+    timeOfDay = `${String(dueDate.getHours()).padStart(2, '0')}:${String(dueDate.getMinutes()).padStart(2, '0')}`;
+
+    // Build RRULE based on frequency
+    const dayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+    switch (frequency) {
+      case 'daily':
+        intervalDays = interval || 1;
+        rrule = intervalDays > 1 ? `FREQ=DAILY;INTERVAL=${intervalDays}` : 'FREQ=DAILY';
+        break;
+
+      case 'weekly':
+        daysOfWeek = dow && dow.length > 0 ? dow : [dueDate.getDay()];
+        const byDay = daysOfWeek.map(d => dayNames[d]).join(',');
+        rrule = interval && interval > 1
+          ? `FREQ=WEEKLY;INTERVAL=${interval};BYDAY=${byDay}`
+          : `FREQ=WEEKLY;BYDAY=${byDay}`;
+        break;
+
+      case 'monthly':
+        dayOfMonth = dom || dueDate.getDate();
+        rrule = interval && interval > 1
+          ? `FREQ=MONTHLY;INTERVAL=${interval};BYMONTHDAY=${dayOfMonth}`
+          : `FREQ=MONTHLY;BYMONTHDAY=${dayOfMonth}`;
+        break;
+
+      case 'custom':
+        intervalDays = interval || 1;
+        rrule = `FREQ=DAILY;INTERVAL=${intervalDays}`;
+        break;
+    }
+
+    endsAt = ends || null;
+  }
+
   const { data: reminder, error } = await client
     .from('ultaura_reminders')
     .insert({
@@ -1058,6 +1114,14 @@ export async function createReminder(input: {
       delivery_method: 'outbound_call',
       status: 'scheduled',
       privacy_scope: 'line_only',
+      // Recurrence fields
+      is_recurring: isRecurring,
+      rrule,
+      interval_days: intervalDays,
+      days_of_week: daysOfWeek,
+      day_of_month: dayOfMonth,
+      time_of_day: timeOfDay,
+      ends_at: endsAt,
     })
     .select()
     .single();
@@ -1095,6 +1159,117 @@ export async function cancelReminder(reminderId: string): Promise<{ success: boo
   if (error) {
     logger.error({ error }, 'Failed to cancel reminder');
     return { success: false, error: 'Failed to cancel reminder' };
+  }
+
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');
+
+  return { success: true };
+}
+
+/**
+ * Calculate the next occurrence for a recurring reminder.
+ * Helper function used by skipNextOccurrence.
+ */
+function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
+  if (!reminder.is_recurring || !reminder.rrule || !reminder.time_of_day) {
+    return null;
+  }
+
+  const currentDueAt = new Date(reminder.due_at);
+
+  // Parse RRULE to determine frequency
+  const freqMatch = reminder.rrule.match(/FREQ=(\w+)/);
+  const intervalMatch = reminder.rrule.match(/INTERVAL=(\d+)/);
+
+  const freq = freqMatch?.[1] || 'DAILY';
+  const interval = intervalMatch ? parseInt(intervalMatch[1]) : (reminder.interval_days || 1);
+
+  let nextDate = new Date(currentDueAt);
+
+  switch (freq) {
+    case 'DAILY':
+      nextDate.setDate(nextDate.getDate() + interval);
+      break;
+
+    case 'WEEKLY':
+      if (reminder.days_of_week && reminder.days_of_week.length > 0) {
+        nextDate.setDate(nextDate.getDate() + 1);
+        let attempts = 0;
+        while (!reminder.days_of_week.includes(nextDate.getDay()) && attempts < 14) {
+          nextDate.setDate(nextDate.getDate() + 1);
+          attempts++;
+        }
+        if (interval > 1) {
+          nextDate.setDate(nextDate.getDate() + (interval - 1) * 7);
+        }
+      } else {
+        nextDate.setDate(nextDate.getDate() + 7 * interval);
+      }
+      break;
+
+    case 'MONTHLY':
+      nextDate.setMonth(nextDate.getMonth() + interval);
+      if (reminder.day_of_month) {
+        const maxDays = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+        nextDate.setDate(Math.min(reminder.day_of_month, maxDays));
+      }
+      break;
+
+    default:
+      return null;
+  }
+
+  // Set the time from time_of_day
+  const [hours, minutes] = reminder.time_of_day.split(':').map(Number);
+  nextDate.setHours(hours, minutes, 0, 0);
+
+  return nextDate.toISOString();
+}
+
+// Skip the next occurrence of a recurring reminder
+export async function skipNextOccurrence(reminderId: string): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  // Get reminder
+  const reminder = await getReminder(reminderId);
+  if (!reminder) {
+    return { success: false, error: 'Reminder not found' };
+  }
+
+  if (!reminder.is_recurring) {
+    return { success: false, error: 'Can only skip recurring reminders' };
+  }
+
+  if (reminder.status !== 'scheduled') {
+    return { success: false, error: 'Reminder is not scheduled' };
+  }
+
+  // Calculate next occurrence
+  const nextDueAt = calculateNextReminderOccurrence(reminder);
+
+  if (!nextDueAt) {
+    return { success: false, error: 'Could not calculate next occurrence' };
+  }
+
+  // Check if series should end
+  if (reminder.ends_at && new Date(nextDueAt) > new Date(reminder.ends_at)) {
+    // Skipping would end the series - cancel instead
+    return cancelReminder(reminderId);
+  }
+
+  // Update reminder to next occurrence
+  const { error } = await client
+    .from('ultaura_reminders')
+    .update({
+      due_at: nextDueAt,
+      // Don't increment occurrence_count since we're skipping
+    })
+    .eq('id', reminderId);
+
+  if (error) {
+    logger.error({ error }, 'Failed to skip reminder occurrence');
+    return { success: false, error: 'Failed to skip occurrence' };
   }
 
   revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');

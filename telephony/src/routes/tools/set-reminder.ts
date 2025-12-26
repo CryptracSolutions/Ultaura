@@ -65,6 +65,74 @@ interface SetReminderRequest {
   timezone: string;
   message: string;
   privacyScope?: 'line_only' | 'shareable_with_payer';
+  // Recurrence fields
+  isRecurring?: boolean;
+  frequency?: 'daily' | 'weekly' | 'monthly' | 'custom';
+  interval?: number;
+  daysOfWeek?: number[];
+  dayOfMonth?: number;
+  endsAtLocal?: string;
+}
+
+type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
+
+/**
+ * Build RRULE string and related fields from recurrence parameters.
+ */
+function buildRecurrenceFields(
+  frequency: RecurrenceFrequency,
+  interval: number | undefined,
+  daysOfWeek: number[] | undefined,
+  dayOfMonth: number | undefined,
+  dueAt: Date
+): {
+  rrule: string;
+  intervalDays: number | null;
+  daysOfWeekVal: number[] | null;
+  dayOfMonthVal: number | null;
+} {
+  const dayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  let rrule: string;
+  let intervalDays: number | null = null;
+  let daysOfWeekVal: number[] | null = null;
+  let dayOfMonthVal: number | null = null;
+
+  switch (frequency) {
+    case 'daily':
+      intervalDays = interval || 1;
+      rrule = intervalDays > 1 ? `FREQ=DAILY;INTERVAL=${intervalDays}` : 'FREQ=DAILY';
+      break;
+
+    case 'weekly':
+      daysOfWeekVal = daysOfWeek && daysOfWeek.length > 0 ? daysOfWeek : [dueAt.getDay()];
+      const byDay = daysOfWeekVal.map(d => dayNames[d]).join(',');
+      if (interval && interval > 1) {
+        rrule = `FREQ=WEEKLY;INTERVAL=${interval};BYDAY=${byDay}`;
+      } else {
+        rrule = `FREQ=WEEKLY;BYDAY=${byDay}`;
+      }
+      break;
+
+    case 'monthly':
+      dayOfMonthVal = dayOfMonth || dueAt.getDate();
+      if (interval && interval > 1) {
+        rrule = `FREQ=MONTHLY;INTERVAL=${interval};BYMONTHDAY=${dayOfMonthVal}`;
+      } else {
+        rrule = `FREQ=MONTHLY;BYMONTHDAY=${dayOfMonthVal}`;
+      }
+      break;
+
+    case 'custom':
+      intervalDays = interval || 1;
+      rrule = `FREQ=DAILY;INTERVAL=${intervalDays}`;
+      break;
+
+    default:
+      rrule = 'FREQ=DAILY';
+      intervalDays = 1;
+  }
+
+  return { rrule, intervalDays, daysOfWeekVal, dayOfMonthVal };
 }
 
 setReminderRouter.post('/', async (req: Request, res: Response) => {
@@ -76,9 +144,23 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       timezone,
       message,
       privacyScope = 'line_only',
+      // Recurrence fields
+      isRecurring = false,
+      frequency,
+      interval,
+      daysOfWeek,
+      dayOfMonth,
+      endsAtLocal,
     } = req.body as SetReminderRequest;
 
-    logger.info({ callSessionId, lineId, dueAtLocal, message }, 'Set reminder request');
+    logger.info({
+      callSessionId,
+      lineId,
+      dueAtLocal,
+      message,
+      isRecurring,
+      frequency,
+    }, 'Set reminder request');
 
     // Validate required fields
     if (!callSessionId || !lineId || !dueAtLocal || !message) {
@@ -120,6 +202,45 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const supabase = getSupabaseClient();
+    const tz = timezone || 'America/Los_Angeles';
+
+    // Build recurrence fields if this is a recurring reminder
+    let rrule: string | null = null;
+    let intervalDays: number | null = null;
+    let daysOfWeekVal: number[] | null = null;
+    let dayOfMonthVal: number | null = null;
+    let timeOfDay: string | null = null;
+    let endsAt: string | null = null;
+
+    if (isRecurring && frequency) {
+      const recurrenceFields = buildRecurrenceFields(frequency, interval, daysOfWeek, dayOfMonth, dueAt);
+      rrule = recurrenceFields.rrule;
+      intervalDays = recurrenceFields.intervalDays;
+      daysOfWeekVal = recurrenceFields.daysOfWeekVal;
+      dayOfMonthVal = recurrenceFields.dayOfMonthVal;
+
+      // Extract time from dueAtLocal for recurring reminders
+      const timeMatch = dueAtLocal.match(/T(\d{2}:\d{2})/);
+      timeOfDay = timeMatch ? timeMatch[1] : '09:00';
+
+      // Convert end date if provided
+      if (endsAtLocal) {
+        try {
+          endsAt = localToUtc(endsAtLocal, tz).toISOString();
+        } catch {
+          logger.warn({ endsAtLocal }, 'Failed to parse end date, ignoring');
+        }
+      }
+
+      logger.info({
+        rrule,
+        intervalDays,
+        daysOfWeekVal,
+        dayOfMonthVal,
+        timeOfDay,
+        endsAt,
+      }, 'Built recurrence fields');
+    }
 
     // Create the reminder
     const { data: reminder, error } = await supabase
@@ -128,12 +249,20 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
         account_id: session.account_id,
         line_id: lineId,
         due_at: dueAt.toISOString(),
-        timezone: timezone || 'America/Los_Angeles',
+        timezone: tz,
         message: message.slice(0, 500), // Limit message length
         delivery_method: 'outbound_call',
         status: 'scheduled',
         privacy_scope: privacyScope,
         created_by_call_session_id: callSessionId,
+        // Recurrence fields
+        is_recurring: isRecurring,
+        rrule,
+        interval_days: intervalDays,
+        days_of_week: daysOfWeekVal,
+        day_of_month: dayOfMonthVal,
+        time_of_day: timeOfDay,
+        ends_at: endsAt,
       })
       .select()
       .single();
@@ -167,11 +296,31 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
 
     logger.info({ reminderId: reminder.id, dueAt: reminder.due_at }, 'Reminder created');
 
+    // Build response message
+    let responseMessage = `Reminder set for ${dueAt.toLocaleString()}`;
+    if (isRecurring && rrule) {
+      if (frequency === 'daily') {
+        responseMessage = intervalDays && intervalDays > 1
+          ? `Recurring reminder set: every ${intervalDays} days starting ${dueAt.toLocaleString()}`
+          : `Recurring reminder set: daily starting ${dueAt.toLocaleString()}`;
+      } else if (frequency === 'weekly') {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const days = daysOfWeekVal?.map(d => dayNames[d]).join(', ') || '';
+        responseMessage = `Recurring reminder set: every ${days} starting ${dueAt.toLocaleString()}`;
+      } else if (frequency === 'monthly') {
+        responseMessage = `Recurring reminder set: monthly on day ${dayOfMonthVal} starting ${dueAt.toLocaleString()}`;
+      } else if (frequency === 'custom') {
+        responseMessage = `Recurring reminder set: every ${intervalDays} days starting ${dueAt.toLocaleString()}`;
+      }
+    }
+
     res.json({
       success: true,
       reminderId: reminder.id,
       dueAt: reminder.due_at,
-      message: `Reminder set for ${dueAt.toLocaleString()}`,
+      isRecurring,
+      rrule,
+      message: responseMessage,
     });
   } catch (error) {
     logger.error({ error }, 'Error setting reminder');

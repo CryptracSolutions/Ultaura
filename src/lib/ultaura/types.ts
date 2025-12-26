@@ -230,6 +230,16 @@ export interface UpdateScheduleInput {
 // REMINDERS
 // ============================================
 
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
+
+export interface RecurrencePattern {
+  frequency: RecurrenceFrequency;
+  interval?: number; // Every N days/weeks/months
+  daysOfWeek?: number[]; // [0-6] for weekly
+  dayOfMonth?: number; // 1-31 for monthly
+  endsAt?: string; // ISO date
+}
+
 export interface Reminder {
   id: string;
   accountId: string;
@@ -242,6 +252,15 @@ export interface Reminder {
   status: ReminderStatus;
   privacyScope: PrivacyScope;
   createdByCallSessionId: string | null;
+  // Recurrence fields
+  isRecurring: boolean;
+  rrule: string | null;
+  intervalDays: number | null;
+  daysOfWeek: number[] | null;
+  dayOfMonth: number | null;
+  timeOfDay: string | null;
+  endsAt: string | null;
+  occurrenceCount: number;
 }
 
 // ============================================

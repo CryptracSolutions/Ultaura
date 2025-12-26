@@ -147,7 +147,15 @@ export class GrokBridge {
           {
             type: 'function',
             name: 'set_reminder',
-            description: 'Set a reminder for the user. The reminder will be delivered via phone call.',
+            description: `Set a reminder for the user. Supports one-time and recurring reminders.
+
+For recurring reminders, parse natural language like:
+- "every day at 9am" -> is_recurring: true, frequency: "daily"
+- "every 3 days" -> is_recurring: true, frequency: "custom", interval: 3
+- "every Monday and Friday at 2pm" -> is_recurring: true, frequency: "weekly", days_of_week: [1, 5]
+- "on the 15th of every month" -> is_recurring: true, frequency: "monthly", day_of_month: 15
+- "remind me daily about medication" -> is_recurring: true, frequency: "daily"
+- "every week on Tuesday until next month" -> is_recurring: true, frequency: "weekly", days_of_week: [2], ends_at_local: date`,
             parameters: {
               type: 'object',
               properties: {
@@ -157,7 +165,37 @@ export class GrokBridge {
                 },
                 due_at_local: {
                   type: 'string',
-                  description: 'When to remind, in ISO 8601 format in user\'s local time',
+                  description: 'First occurrence: ISO 8601 format in user\'s local time (e.g., 2025-12-27T14:00:00)',
+                },
+                is_recurring: {
+                  type: 'boolean',
+                  description: 'Whether this reminder repeats. Default false for one-time reminders.',
+                },
+                frequency: {
+                  type: 'string',
+                  enum: ['daily', 'weekly', 'monthly', 'custom'],
+                  description: 'How often the reminder repeats. Required if is_recurring is true.',
+                },
+                interval: {
+                  type: 'integer',
+                  description: 'For custom frequency: repeat every N days. Default 1.',
+                  minimum: 1,
+                  maximum: 365,
+                },
+                days_of_week: {
+                  type: 'array',
+                  items: { type: 'integer', minimum: 0, maximum: 6 },
+                  description: 'For weekly: days of week (0=Sunday, 1=Monday, ..., 6=Saturday)',
+                },
+                day_of_month: {
+                  type: 'integer',
+                  description: 'For monthly: day of month (1-31)',
+                  minimum: 1,
+                  maximum: 31,
+                },
+                ends_at_local: {
+                  type: 'string',
+                  description: 'Optional: ISO 8601 date when recurrence ends',
                 },
               },
               required: ['message', 'due_at_local'],
@@ -310,7 +348,9 @@ If distress or self-harm mentioned:
 5. Never leave them feeling abandoned
 
 ## Tools Available
-- set_reminder: Set reminders delivered via phone call
+- set_reminder: Set one-time or recurring reminders delivered via phone call
+  - For recurring reminders, parse phrases like "every day", "every Monday and Friday", "every 3 days", "on the 15th of each month"
+  - Always ask for confirmation before setting recurring reminders
 - schedule_call: Adjust when you call them
 - web_search: Look up current events (keep summaries neutral)
 
@@ -467,6 +507,13 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
             dueAtLocal: args.due_at_local,
             timezone: this.options.timezone,
             message: args.message,
+            // Recurrence fields
+            isRecurring: args.is_recurring || false,
+            frequency: args.frequency,
+            interval: args.interval,
+            daysOfWeek: args.days_of_week,
+            dayOfMonth: args.day_of_month,
+            endsAtLocal: args.ends_at_local,
           });
           break;
 

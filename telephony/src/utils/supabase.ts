@@ -158,6 +158,15 @@ export interface ReminderRow {
   status: 'scheduled' | 'sent' | 'missed' | 'canceled';
   privacy_scope: 'line_only' | 'shareable_with_payer';
   created_by_call_session_id: string | null;
+  // Recurrence fields
+  is_recurring: boolean;
+  rrule: string | null;
+  interval_days: number | null;
+  days_of_week: number[] | null;
+  day_of_month: number | null;
+  time_of_day: string | null;
+  ends_at: string | null;
+  occurrence_count: number;
 }
 
 export interface AccountCryptoKeyRow {
