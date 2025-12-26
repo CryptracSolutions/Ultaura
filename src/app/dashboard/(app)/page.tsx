@@ -135,14 +135,14 @@ async function DashboardPage() {
 
           {/* At a glance */}
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex flex-col rounded-xl border border-border bg-card p-5">
               <div className="text-sm text-muted-foreground">Lines</div>
               <div className="mt-2 flex items-end justify-between gap-4">
                 <div className="text-2xl font-semibold text-foreground">
                   {lines.length}
                 </div>
               </div>
-              <div className="mt-3">
+              <div className="mt-auto">
                 <Link
                   href="/dashboard/lines"
                   className="text-sm text-primary hover:underline"
@@ -156,12 +156,12 @@ async function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex flex-col rounded-xl border border-border bg-card p-5">
               <div className="text-sm text-muted-foreground">Minutes</div>
               <div className="mt-2 text-2xl font-semibold text-foreground">
                 {usage ? usage.minutesRemaining : '—'}
               </div>
-              <div className="mt-3">
+              <div className="mt-auto">
                 <Link
                   href="/dashboard/settings/subscription"
                   className="text-sm text-primary hover:underline"
@@ -195,7 +195,7 @@ async function DashboardPage() {
                   href="/dashboard/lines"
                   className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
-                  View Lines
+                  View lines
                 </Link>
               </div>
             </div>
