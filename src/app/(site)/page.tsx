@@ -264,7 +264,7 @@ function Home() {
               <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 Caregiver peace of mind
               </div>
-              <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+              <div className="mt-4">
                 <div className="space-y-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-primary" />
@@ -277,21 +277,6 @@ function Home() {
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-primary" />
                     Built-in safety protocols and transparency.
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 lg:-mt-2">
-                  <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <div className="text-xs text-muted-foreground">Setup</div>
-                    <div className="text-lg font-semibold text-foreground">
-                      Less than 5 minutes
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <div className="text-xs text-muted-foreground">Coverage</div>
-                    <div className="text-lg font-semibold text-foreground">
-                      Mobile and Landline
-                    </div>
                   </div>
                 </div>
               </div>
