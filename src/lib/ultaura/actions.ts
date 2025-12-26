@@ -979,6 +979,15 @@ export interface ReminderRow {
   status: 'scheduled' | 'sent' | 'missed' | 'canceled';
   privacy_scope: 'line_only' | 'shareable_with_payer';
   created_by_call_session_id: string | null;
+  // Recurrence fields
+  is_recurring: boolean;
+  rrule: string | null;
+  interval_days: number | null;
+  days_of_week: number[] | null;
+  day_of_month: number | null;
+  time_of_day: string | null;
+  ends_at: string | null;
+  occurrence_count: number;
 }
 
 // Get reminders for a line
@@ -1328,6 +1337,11 @@ export async function getUpcomingReminders(accountId: string): Promise<{
   message: string;
   dueAt: string;
   timezone: string;
+  isRecurring: boolean;
+  rrule: string | null;
+  intervalDays: number | null;
+  daysOfWeek: number[] | null;
+  dayOfMonth: number | null;
 }[]> {
   const client = getSupabaseServerComponentClient();
 
@@ -1339,6 +1353,11 @@ export async function getUpcomingReminders(accountId: string): Promise<{
       message,
       due_at,
       timezone,
+      is_recurring,
+      rrule,
+      interval_days,
+      days_of_week,
+      day_of_month,
       ultaura_lines!inner (
         display_name
       )
@@ -1361,6 +1380,11 @@ export async function getUpcomingReminders(accountId: string): Promise<{
     message: reminder.message,
     dueAt: reminder.due_at,
     timezone: reminder.timezone,
+    isRecurring: reminder.is_recurring,
+    rrule: reminder.rrule,
+    intervalDays: reminder.interval_days,
+    daysOfWeek: reminder.days_of_week,
+    dayOfMonth: reminder.day_of_month,
   }));
 }
 
@@ -1373,6 +1397,11 @@ export async function getAllReminders(accountId: string): Promise<{
   dueAt: string;
   timezone: string;
   status: 'scheduled' | 'sent' | 'missed' | 'canceled';
+  isRecurring: boolean;
+  rrule: string | null;
+  intervalDays: number | null;
+  daysOfWeek: number[] | null;
+  dayOfMonth: number | null;
 }[]> {
   const client = getSupabaseServerComponentClient();
 
@@ -1385,6 +1414,11 @@ export async function getAllReminders(accountId: string): Promise<{
       due_at,
       timezone,
       status,
+      is_recurring,
+      rrule,
+      interval_days,
+      days_of_week,
+      day_of_month,
       ultaura_lines!inner (
         display_name
       )
@@ -1405,6 +1439,11 @@ export async function getAllReminders(accountId: string): Promise<{
     dueAt: reminder.due_at,
     timezone: reminder.timezone,
     status: reminder.status as 'scheduled' | 'sent' | 'missed' | 'canceled',
+    isRecurring: reminder.is_recurring,
+    rrule: reminder.rrule,
+    intervalDays: reminder.interval_days,
+    daysOfWeek: reminder.days_of_week,
+    dayOfMonth: reminder.day_of_month,
   }));
 }
 

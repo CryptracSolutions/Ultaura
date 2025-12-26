@@ -12,6 +12,7 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
+  Repeat,
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/actions';
@@ -26,6 +27,47 @@ interface Reminder {
   dueAt: string;
   timezone: string;
   status: 'scheduled' | 'sent' | 'missed' | 'canceled';
+  isRecurring: boolean;
+  rrule: string | null;
+  intervalDays: number | null;
+  daysOfWeek: number[] | null;
+  dayOfMonth: number | null;
+}
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function getOrdinalSuffix(n: number): string {
+  if (n > 3 && n < 21) return 'th';
+  switch (n % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+
+function formatRecurrence(reminder: Reminder): string {
+  if (!reminder.isRecurring || !reminder.rrule) return '';
+
+  if (reminder.rrule.includes('FREQ=DAILY')) {
+    const interval = reminder.intervalDays || 1;
+    return interval === 1 ? 'Daily' : `Every ${interval} days`;
+  }
+
+  if (reminder.rrule.includes('FREQ=WEEKLY')) {
+    if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
+      const days = reminder.daysOfWeek.map(d => DAY_NAMES[d]).join(', ');
+      return `Weekly on ${days}`;
+    }
+    return 'Weekly';
+  }
+
+  if (reminder.rrule.includes('FREQ=MONTHLY')) {
+    const day = reminder.dayOfMonth || 1;
+    return `Monthly on the ${day}${getOrdinalSuffix(day)}`;
+  }
+
+  return 'Recurring';
 }
 
 interface RemindersPageClientProps {
@@ -310,6 +352,12 @@ function ReminderRow({
             {reminder.status === 'scheduled' && (
               <span className="text-primary font-medium">
                 {formatRelativeTime(reminder.dueAt)}
+              </span>
+            )}
+            {reminder.isRecurring && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
+                <Repeat className="w-3 h-3" />
+                {formatRecurrence(reminder)}
               </span>
             )}
             <span

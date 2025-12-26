@@ -40,8 +40,8 @@ export default async function LineDetailPage({ params }: PageProps) {
 
   const [usage, callSessions, counts] = await Promise.all([
     getUsageSummary(line.account_id),
-    getCallSessions(params.lineId, 10),
-    getScheduleAndReminderCounts(params.lineId),
+    getCallSessions(line.id, 10),
+    getScheduleAndReminderCounts(line.id),
   ]);
 
   return (
