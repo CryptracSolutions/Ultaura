@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   Bell,
   Plus,
@@ -15,6 +16,7 @@ import {
 import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/actions';
 import { getShortLineId } from '~/lib/ultaura';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface Reminder {
   reminderId: string;
@@ -56,7 +58,7 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType; la
 
 export function RemindersPageClient({ lines, reminders }: RemindersPageClientProps) {
   const router = useRouter();
-  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [reminderToCancel, setReminderToCancel] = useState<string | null>(null);
 
   // Group reminders by line
   const remindersByLine = reminders.reduce((acc, reminder) => {
@@ -67,22 +69,16 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
     return acc;
   }, {} as Record<string, Reminder[]>);
 
-  const handleCancelReminder = async (reminderId: string) => {
-    if (!confirm('Cancel this reminder?')) return;
+  const handleCancelReminder = async () => {
+    if (!reminderToCancel) return;
 
-    setCancelingId(reminderId);
-    try {
-      const result = await cancelReminder(reminderId);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert(result.error || 'Failed to cancel reminder');
-      }
-    } catch {
-      alert('An unexpected error occurred');
-    } finally {
-      setCancelingId(null);
+    const result = await cancelReminder(reminderToCancel);
+    if (!result.success) {
+      toast.error(result.error || 'Failed to cancel reminder');
+      throw new Error('Cancel failed');
     }
+    toast.success('Reminder canceled');
+    router.refresh();
   };
 
   const formatDateTime = (isoString: string, timezone: string) => {
@@ -213,8 +209,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                         <ReminderRow
                           key={reminder.reminderId}
                           reminder={reminder}
-                          onCancel={() => handleCancelReminder(reminder.reminderId)}
-                          isCanceling={cancelingId === reminder.reminderId}
+                          onCancel={() => setReminderToCancel(reminder.reminderId)}
                           formatDateTime={formatDateTime}
                           formatRelativeTime={formatRelativeTime}
                         />
@@ -233,7 +228,6 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                           key={reminder.reminderId}
                           reminder={reminder}
                           onCancel={() => {}}
-                          isCanceling={false}
                           formatDateTime={formatDateTime}
                           formatRelativeTime={formatRelativeTime}
                           isPast
@@ -257,6 +251,16 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
           })}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={reminderToCancel !== null}
+        onOpenChange={(open) => !open && setReminderToCancel(null)}
+        title="Cancel Reminder"
+        description="Are you sure you want to cancel this reminder?"
+        confirmLabel="Cancel Reminder"
+        variant="destructive"
+        onConfirm={handleCancelReminder}
+      />
     </div>
   );
 }
@@ -264,7 +268,6 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
 interface ReminderRowProps {
   reminder: Reminder;
   onCancel: () => void;
-  isCanceling: boolean;
   formatDateTime: (isoString: string, timezone: string) => string;
   formatRelativeTime: (isoString: string) => string;
   isPast?: boolean;
@@ -273,7 +276,6 @@ interface ReminderRowProps {
 function ReminderRow({
   reminder,
   onCancel,
-  isCanceling,
   formatDateTime,
   formatRelativeTime,
   isPast = false,
@@ -322,15 +324,10 @@ function ReminderRow({
       {reminder.status === 'scheduled' && (
         <button
           onClick={onCancel}
-          disabled={isCanceling}
-          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 shrink-0"
+          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
           title="Cancel reminder"
         >
-          {isCanceling ? (
-            <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-          ) : (
-            <X className="w-4 h-4" />
-          )}
+          <X className="w-4 h-4" />
         </button>
       )}
     </div>

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   CalendarDays,
   Clock,
@@ -15,6 +16,7 @@ import {
 import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule } from '~/lib/ultaura/actions';
 import { DAYS_OF_WEEK, formatTime, getShortLineId } from '~/lib/ultaura';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface Schedule {
   scheduleId: string;
@@ -33,7 +35,7 @@ interface CallsPageClientProps {
 
 export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
   const router = useRouter();
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
 
   // Group schedules by line
   const schedulesByLine = schedules.reduce((acc, schedule) => {
@@ -44,22 +46,16 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
     return acc;
   }, {} as Record<string, Schedule[]>);
 
-  const handleDeleteSchedule = async (scheduleId: string) => {
-    if (!confirm('Delete this schedule?')) return;
+  const handleDeleteSchedule = async () => {
+    if (!scheduleToDelete) return;
 
-    setIsDeleting(scheduleId);
-    try {
-      const result = await deleteSchedule(scheduleId);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert(result.error || 'Failed to delete schedule');
-      }
-    } catch {
-      alert('An unexpected error occurred');
-    } finally {
-      setIsDeleting(null);
+    const result = await deleteSchedule(scheduleToDelete);
+    if (!result.success) {
+      toast.error(result.error || 'Failed to delete schedule');
+      throw new Error('Delete failed');
     }
+    toast.success('Schedule deleted');
+    router.refresh();
   };
 
   const formatDays = (days: number[]) => {
@@ -184,8 +180,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                         <ScheduleRow
                           key={schedule.scheduleId}
                           schedule={schedule}
-                          onDelete={() => handleDeleteSchedule(schedule.scheduleId)}
-                          isDeleting={isDeleting === schedule.scheduleId}
+                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                           formatDays={formatDays}
                           formatNextCall={formatNextCall}
                         />
@@ -203,8 +198,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                         <ScheduleRow
                           key={schedule.scheduleId}
                           schedule={schedule}
-                          onDelete={() => handleDeleteSchedule(schedule.scheduleId)}
-                          isDeleting={isDeleting === schedule.scheduleId}
+                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                           formatDays={formatDays}
                           formatNextCall={formatNextCall}
                         />
@@ -217,6 +211,16 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
           })}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={scheduleToDelete !== null}
+        onOpenChange={(open) => !open && setScheduleToDelete(null)}
+        title="Delete Schedule"
+        description="Are you sure you want to delete this schedule?"
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteSchedule}
+      />
     </div>
   );
 }
@@ -224,7 +228,6 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
 interface ScheduleRowProps {
   schedule: Schedule;
   onDelete: () => void;
-  isDeleting: boolean;
   formatDays: (days: number[]) => string;
   formatNextCall: (nextRunAt: string | null) => string;
 }
@@ -232,7 +235,6 @@ interface ScheduleRowProps {
 function ScheduleRow({
   schedule,
   onDelete,
-  isDeleting,
   formatDays,
   formatNextCall,
 }: ScheduleRowProps) {
@@ -286,8 +288,7 @@ function ScheduleRow({
         </Link>
         <button
           onClick={onDelete}
-          disabled={isDeleting}
-          className="p-2 rounded-lg hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          className="p-2 rounded-lg hover:bg-destructive/10 transition-colors"
           title="Delete schedule"
         >
           <Trash2 className="w-4 h-4 text-destructive" />

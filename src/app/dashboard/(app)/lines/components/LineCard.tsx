@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   Phone,
   MoreVertical,
@@ -18,6 +19,7 @@ import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/actions';
 import { getShortLineId } from '~/lib/ultaura';
 import { formatDistanceToNow } from 'date-fns';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface LineCardProps {
   line: LineRow;
@@ -26,28 +28,21 @@ interface LineCardProps {
 export function LineCard({ line }: LineCardProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete "${line.display_name}"? This cannot be undone.`)) {
-      return;
+    const result = await deleteLine(line.id);
+    if (!result.success) {
+      toast.error(result.error || 'Failed to delete line');
+      throw new Error('Delete failed');
     }
+    toast.success('Line deleted');
+    router.refresh();
+  };
 
-    setIsDeleting(true);
+  const openDeleteDialog = () => {
     setIsMenuOpen(false);
-
-    try {
-      const result = await deleteLine(line.id);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert(result.error || 'Failed to delete line');
-      }
-    } catch {
-      alert('An unexpected error occurred');
-    } finally {
-      setIsDeleting(false);
-    }
+    setDeleteDialogOpen(true);
   };
 
   const isVerified = !!line.phone_verified_at;
@@ -187,13 +182,12 @@ export function LineCard({ line }: LineCardProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleDelete();
+                      openDeleteDialog();
                     }}
-                    disabled={isDeleting}
-                    className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2 disabled:opacity-50"
+                    className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
-                    {isDeleting ? 'Deleting...' : 'Delete Line'}
+                    Delete Line
                   </button>
                 </div>
               </>
@@ -262,6 +256,16 @@ export function LineCard({ line }: LineCardProps) {
           </div>
         </div>
       )}
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Line"
+        description={`Are you sure you want to delete "${line.display_name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

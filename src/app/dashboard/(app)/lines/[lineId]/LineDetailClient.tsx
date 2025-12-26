@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   Phone,
@@ -23,6 +24,7 @@ import type { LineRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types'
 import { updateLine, deleteLine, initiateTestCall } from '~/lib/ultaura/actions';
 import { formatTime, getShortLineId } from '~/lib/ultaura';
 import { CallActivityList } from './components/CallActivityList';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 const MAX_INTEREST_TOPICS = 5;
 
@@ -68,7 +70,7 @@ export function LineDetailClient({
   pendingRemindersCount,
 }: LineDetailClientProps) {
   const router = useRouter();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isTestCalling, setIsTestCalling] = useState(false);
   const [isEditingTopics, setIsEditingTopics] = useState(false);
   const [isSavingTopics, setIsSavingTopics] = useState(false);
@@ -120,23 +122,13 @@ export function LineDetailClient({
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this line? This cannot be undone.')) {
-      return;
+    const result = await deleteLine(line.id);
+    if (!result.success) {
+      toast.error(result.error || 'Failed to delete line');
+      throw new Error('Delete failed');
     }
-
-    setIsDeleting(true);
-    try {
-      const result = await deleteLine(line.id);
-      if (result.success) {
-        router.push('/dashboard/lines');
-      } else {
-        setError(result.error || 'Failed to delete line');
-      }
-    } catch {
-      setError('An unexpected error occurred');
-    } finally {
-      setIsDeleting(false);
-    }
+    toast.success('Line deleted');
+    router.push('/dashboard/lines');
   };
 
   const handleTestCall = async () => {
@@ -247,12 +239,11 @@ export function LineDetailClient({
               {isTestCalling ? 'Calling...' : 'Test Call'}
             </button>
             <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 w-full sm:w-auto"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors w-full sm:w-auto"
             >
               <Trash2 className="w-4 h-4" />
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              Delete
             </button>
           </div>
         </div>
@@ -520,6 +511,16 @@ export function LineDetailClient({
         </div>
         <CallActivityList sessions={callSessions} />
       </div>
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Line"
+        description="Are you sure you want to delete this line? This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
