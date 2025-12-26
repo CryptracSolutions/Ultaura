@@ -34,7 +34,7 @@ export function LinesPageClient({
   const canAddLine = lines.length < planLinesLimit;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Add Line Button */}
       <div>
         {canAddLine ? (

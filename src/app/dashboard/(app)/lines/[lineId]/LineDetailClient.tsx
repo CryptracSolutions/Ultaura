@@ -217,7 +217,7 @@ export function LineDetailClient({
   };
 
   return (
-    <div className="w-full p-6">
+    <div className="w-full p-6 pb-12">
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -322,28 +322,7 @@ export function LineDetailClient({
             <h2 className="font-semibold text-foreground">Conversation topics</h2>
           </div>
 
-          {isEditingTopics ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={cancelEditingTopics}
-                disabled={isSavingTopics}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                <X className="w-4 h-4" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={saveTopics}
-                disabled={isSavingTopics}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {isSavingTopics ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          ) : (
+          {!isEditingTopics && (
             <button
               type="button"
               onClick={startEditingTopics}
@@ -432,6 +411,28 @@ export function LineDetailClient({
               <p className="text-xs text-muted-foreground">
                 Separate topics with commas.
               </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end pt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={cancelEditingTopics}
+                disabled={isSavingTopics}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveTopics}
+                disabled={isSavingTopics}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {isSavingTopics ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         ) : (

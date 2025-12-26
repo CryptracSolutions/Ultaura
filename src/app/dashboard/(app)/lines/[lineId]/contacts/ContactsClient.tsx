@@ -79,7 +79,7 @@ export function ContactsClient({ lineId }: ContactsClientProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex justify-between items-center">
         <p className="text-muted-foreground">
           Trusted contacts can be notified if we detect signs of distress during calls

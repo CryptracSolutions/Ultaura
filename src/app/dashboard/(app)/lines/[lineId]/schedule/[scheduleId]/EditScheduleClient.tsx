@@ -71,7 +71,7 @@ export function EditScheduleClient({
   };
 
   return (
-    <div className="w-full p-6">
+    <div className="w-full p-6 pb-12">
       <Link
         href={`/dashboard/lines/${getShortLineId(line.id)}`}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"

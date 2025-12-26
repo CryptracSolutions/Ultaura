@@ -123,7 +123,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
   const scheduledCount = reminders.filter((r) => r.status === 'scheduled').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Add Reminder Buttons */}
       {lines.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-6">

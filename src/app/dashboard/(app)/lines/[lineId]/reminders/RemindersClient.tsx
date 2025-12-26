@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
+import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/actions';
 import { createReminder, cancelReminder, skipNextOccurrence } from '~/lib/ultaura/actions';
@@ -201,7 +203,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   const pastReminders = reminders.filter(r => r.status !== 'scheduled');
 
   return (
-    <div className="w-full p-6">
+    <div className="w-full p-6 pb-12">
       <Link
         href={`/dashboard/lines/${getShortLineId(line.id)}`}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
@@ -295,11 +297,9 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
             {/* Recurrence Options */}
             <div className="border-t border-input pt-4">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={isRecurring}
-                  onChange={(e) => setIsRecurring(e.target.checked)}
-                  className="w-4 h-4 rounded border-input text-primary focus:ring-primary"
+                  onCheckedChange={(checked) => setIsRecurring(checked === true)}
                 />
                 <span className="text-sm font-medium">Repeat this reminder</span>
               </label>
@@ -309,16 +309,17 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                   {/* Frequency selector */}
                   <div>
                     <label className="block text-sm font-medium mb-2">How often?</label>
-                    <select
-                      value={frequency}
-                      onChange={(e) => setFrequency(e.target.value as RecurrenceFrequency)}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="custom">Custom interval</option>
-                    </select>
+                    <Select value={frequency} onValueChange={(val) => setFrequency(val as RecurrenceFrequency)}>
+                      <SelectTrigger className="w-full py-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="custom">Custom interval</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Custom interval */}
@@ -381,11 +382,9 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                   {/* Optional end date */}
                   <div>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={hasEndDate}
-                        onChange={(e) => setHasEndDate(e.target.checked)}
-                        className="w-4 h-4 rounded border-input text-primary focus:ring-primary"
+                        onCheckedChange={(checked) => setHasEndDate(checked === true)}
                       />
                       <span className="text-sm">Set an end date</span>
                     </label>
@@ -411,7 +410,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
               </p>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => {
@@ -428,14 +427,14 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                   setEndDate('');
                   setError(null);
                 }}
-                className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
+                className="w-full sm:flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !message.trim() || !date || !time}
-                className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                className="w-full sm:flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   'Creating...'

@@ -94,7 +94,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Add Schedule Buttons */}
       {lines.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-6">
