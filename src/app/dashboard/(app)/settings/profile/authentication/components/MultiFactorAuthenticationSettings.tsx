@@ -40,7 +40,7 @@ function MultiFactorAuthenticationSettings() {
   const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
 
   return (
-    <div>
+    <div className="pb-12">
       <SettingsTile
         heading={<Trans i18nKey={'profile:multiFactorAuth'} />}
         subHeading={<Trans i18nKey={'profile:multiFactorAuthSubheading'} />}

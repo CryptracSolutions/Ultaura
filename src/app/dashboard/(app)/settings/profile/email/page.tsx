@@ -9,12 +9,14 @@ export const metadata = {
 
 const ProfileEmailSettingsPage = () => {
   return (
-    <SettingsTile
-      heading={<Trans i18nKey={'profile:emailTab'} />}
-      subHeading={<Trans i18nKey={'profile:emailTabTabSubheading'} />}
-    >
-      <UpdateEmailFormContainer />
-    </SettingsTile>
+    <div className="pb-12">
+      <SettingsTile
+        heading={<Trans i18nKey={'profile:emailTab'} />}
+        subHeading={<Trans i18nKey={'profile:emailTabTabSubheading'} />}
+      >
+        <UpdateEmailFormContainer />
+      </SettingsTile>
+    </div>
   );
 };
 

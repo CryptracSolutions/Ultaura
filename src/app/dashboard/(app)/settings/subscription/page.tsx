@@ -11,7 +11,7 @@ export const metadata = {
 
 const SubscriptionSettingsPage = () => {
   return (
-    <div className={'flex flex-col space-y-4 w-full'}>
+    <div className={'flex flex-col space-y-4 w-full pb-12'}>
       <div className={'flex flex-col px-2 space-y-1'}>
         <Heading type={4}>
           <Trans i18nKey={'common:subscriptionSettingsTabLabel'} />

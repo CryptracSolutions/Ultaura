@@ -18,7 +18,7 @@ const PlanSelectionForm: React.FCC<{
   customerId: Maybe<string>;
 }> = ({ organization, customerId }) => {
   return (
-    <div className={'flex flex-col space-y-6'}>
+    <div className={'flex flex-col space-y-6 pb-12'}>
       <IfHasPermissions
         condition={canChangeBilling}
         fallback={<NoPermissionsAlert />}

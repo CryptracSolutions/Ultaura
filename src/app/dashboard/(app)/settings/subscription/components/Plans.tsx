@@ -29,10 +29,10 @@ const Plans: React.FC = () => {
   }
 
   return (
-    <div className={'flex flex-col space-y-4'}>
+    <div className={'flex flex-col space-y-4 pb-12'}>
       <div>
         <div
-          className={'border w-full lg:w-9/12 xl:w-6/12 rounded-xl divide-y'}
+          className={'border w-full rounded-md divide-y divide-border bg-white dark:bg-[#383739]'}
         >
           <div className={'p-6'}>
             <SubscriptionCard subscription={subscription} />

@@ -9,15 +9,17 @@ export const metadata = {
 
 const ProfilePasswordSettingsPage = () => {
   return (
-    <Section>
-      <SectionHeader
-        title={<Trans i18nKey={'profile:passwordTab'} />}
-        description={<Trans i18nKey={'profile:passwordTabSubheading'} />}
-      />
-      <SectionBody>
-        <UpdatePasswordFormContainer />
-      </SectionBody>
-    </Section>
+    <div className="pb-12">
+      <Section>
+        <SectionHeader
+          title={<Trans i18nKey={'profile:passwordTab'} />}
+          description={<Trans i18nKey={'profile:passwordTabSubheading'} />}
+        />
+        <SectionBody>
+          <UpdatePasswordFormContainer />
+        </SectionBody>
+      </Section>
+    </div>
   );
 };
 

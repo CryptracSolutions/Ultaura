@@ -48,7 +48,7 @@ function UpdateProfileFormContainer() {
   }
 
   return (
-    <div className={'flex flex-col space-y-8'}>
+    <div className={'flex flex-col space-y-8 pb-12'}>
       <SettingsTile
         heading={<Trans i18nKey={'profile:generalTab'} />}
         subHeading={<Trans i18nKey={'profile:generalTabSubheading'} />}
