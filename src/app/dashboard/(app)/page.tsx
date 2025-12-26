@@ -239,13 +239,8 @@ async function DashboardPage() {
                 <Zap className="h-4 w-4 text-muted-foreground" />
                 <div className="text-base font-medium text-foreground">Quick actions</div>
               </div>
-              <div className="text-3xl font-bold text-foreground">
-                3
-              </div>
+              <div className="flex-1" />
               <div className="mt-auto space-y-2">
-                <div className="text-xs text-muted-foreground">
-                  Available actions
-                </div>
                 <div className="grid gap-2">
                   <Link
                     href="/dashboard/calls"
