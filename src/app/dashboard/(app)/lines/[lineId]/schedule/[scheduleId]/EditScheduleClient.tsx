@@ -128,13 +128,13 @@ export function EditScheduleClient({
           <label className="block text-sm font-medium text-foreground mb-3">
             Which days should we call?
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
             {DAYS_OF_WEEK.map((day) => (
               <button
                 key={day.value}
                 type="button"
                 onClick={() => toggleDay(day.value)}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                className={`px-3 py-3 sm:px-4 sm:py-2 rounded-lg border text-sm font-medium transition-colors ${
                   selectedDays.includes(day.value)
                     ? 'bg-primary text-primary-foreground border-primary'
                     : 'bg-background text-foreground border-input hover:bg-muted'
@@ -197,17 +197,17 @@ export function EditScheduleClient({
         </div>
 
         {/* Submit */}
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <Link
             href={`/dashboard/lines/${getShortLineId(line.id)}`}
-            className="flex-1 py-3 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
+            className="w-full sm:flex-1 py-3 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={isLoading || !hasChanges}
-            className="flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+            className="w-full sm:flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
           >
             {isLoading ? (
               'Saving...'

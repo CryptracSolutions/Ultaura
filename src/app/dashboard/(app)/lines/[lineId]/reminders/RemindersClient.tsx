@@ -210,7 +210,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
         Back to Line Details
       </Link>
 
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <Bell className="w-6 h-6 text-primary" />
@@ -227,7 +227,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             New Reminder
@@ -459,7 +459,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
             {scheduledReminders.map((reminder) => (
               <div
                 key={reminder.id}
-                className="p-4 rounded-lg border border-input bg-card flex items-start justify-between gap-4"
+                className="p-4 rounded-lg border border-input bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground">{reminder.message}</p>
@@ -483,7 +483,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   {/* Skip button for recurring reminders */}
                   {reminder.is_recurring && (
                     <button
