@@ -29,7 +29,7 @@ export default async function RemindersPage({ params }: PageProps) {
 
   return (
     <>
-      <AppHeader title={`Reminders for ${line.display_name}`} description="Set up medication and activity reminders" />
+      <AppHeader title={`Reminders for ${line.display_name}`} description="Set up helpful reminders for any routine, task, or event" />
       <PageBody>
         <RemindersClient line={line} reminders={reminders} />
       </PageBody>

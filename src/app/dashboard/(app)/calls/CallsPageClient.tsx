@@ -153,7 +153,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                       href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
                       className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
-                      Details
+                      Manage
                     </Link>
                   </div>
                 </div>

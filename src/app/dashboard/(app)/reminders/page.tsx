@@ -16,7 +16,7 @@ export default async function RemindersPage() {
   if (!organizationId) {
     return (
       <>
-        <AppHeader title="Reminders" description="Set up medication and activity reminders" />
+        <AppHeader title="Reminders" description="Set up helpful reminders for any routine, task, or event" />
         <PageBody>
           <p className="text-muted-foreground">Organization not found.</p>
         </PageBody>
@@ -29,7 +29,7 @@ export default async function RemindersPage() {
   if (!account) {
     return (
       <>
-        <AppHeader title="Reminders" description="Set up medication and activity reminders" />
+        <AppHeader title="Reminders" description="Set up helpful reminders for any routine, task, or event" />
         <PageBody>
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
@@ -58,7 +58,7 @@ export default async function RemindersPage() {
 
   return (
     <>
-      <AppHeader title="Reminders" description="Set up medication and activity reminders" />
+      <AppHeader title="Reminders" description="Set up helpful reminders for any routine, task, or event" />
       <PageBody>
         <RemindersPageClient
           lines={verifiedLines}
