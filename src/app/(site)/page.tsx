@@ -217,71 +217,121 @@ function Home() {
               </SubHeading>
             </div>
 
-            <div className="mt-12 grid gap-6 md:grid-cols-2">
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <PhoneIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">Works on any phone</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Landlines, cell phones, and flip phones. They just pick up and
-                  talk.
-                </p>
-              </div>
-
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <HeartIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">
-                  Remembers their stories
-                </h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Continuity across calls so conversations feel personal and
-                  familiar.
-                </p>
-              </div>
-
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <EyeIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">You stay informed</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Dashboard summaries show call activity and duration without
-                  exposing transcripts.
-                </p>
-              </div>
-
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <ShieldCheckIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">Safe & respectful</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Built-in crisis protocols, no manipulation, and clear AI
-                  disclosure every time.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-10 rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Caregiver peace of mind
-              </div>
-              <div className="mt-4">
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    Works on any phone, no app needed.
+            <div className="mt-12 grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
+                <div className="space-y-6 divide-y divide-border/60">
+                  <div className="flex items-start gap-4 pb-6">
+                    <FeatureIcon>
+                      <PhoneIcon className={'h-5 w-5'} />
+                    </FeatureIcon>
+                    <div>
+                      <h4 className="text-base font-semibold text-foreground">
+                        Works on any phone
+                      </h4>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Landlines, cell phones, and flip phones. They just pick
+                        up and talk.
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    You see activity and duration, never transcripts.
+
+                  <div className="flex items-start gap-4 pt-6 pb-6">
+                    <FeatureIcon>
+                      <HeartIcon className={'h-5 w-5'} />
+                    </FeatureIcon>
+                    <div>
+                      <h4 className="text-base font-semibold text-foreground">
+                        Remembers their stories
+                      </h4>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Continuity across calls so conversations feel personal
+                        and familiar.
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    Built-in safety protocols and transparency.
+
+                  <div className="flex items-start gap-4 pt-6 pb-6">
+                    <FeatureIcon>
+                      <EyeIcon className={'h-5 w-5'} />
+                    </FeatureIcon>
+                    <div>
+                      <h4 className="text-base font-semibold text-foreground">
+                        You stay informed
+                      </h4>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Dashboard summaries show call activity and duration
+                        without exposing transcripts.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 pt-6">
+                    <FeatureIcon>
+                      <ShieldCheckIcon className={'h-5 w-5'} />
+                    </FeatureIcon>
+                    <div>
+                      <h4 className="text-base font-semibold text-foreground">
+                        Safe & respectful
+                      </h4>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Built-in crisis protocols, no manipulation, and clear AI
+                        disclosure every time.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
+                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Caregiver peace of mind
+                </div>
+                <div className="mt-4 space-y-6">
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="h-4 w-4 text-primary" />
+                      Works on any phone, no app needed.
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="h-4 w-4 text-primary" />
+                      You see activity and duration, never transcripts.
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="h-4 w-4 text-primary" />
+                      Built-in safety protocols and transparency.
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      What you see
+                    </div>
+                    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <CheckCircleIcon className="h-4 w-4 text-primary" />
+                        Call cadence and duration summaries
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircleIcon className="h-4 w-4 text-primary" />
+                        Recent activity snapshots
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      What we keep
+                    </div>
+                    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <CheckCircleIcon className="h-4 w-4 text-primary" />
+                        Basic call info like time and duration
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircleIcon className="h-4 w-4 text-primary" />
+                        No transcripts stored by default
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
