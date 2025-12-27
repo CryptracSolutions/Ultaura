@@ -16,6 +16,7 @@ import { toolsRouter } from './routes/tools/index.js';
 import { handleMediaStreamConnection } from './websocket/media-stream.js';
 import { startScheduler } from './scheduler/call-scheduler.js';
 import { verifyRouter } from './routes/verify.js';
+import { internalSmsRouter } from './routes/internal/sms.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
 
@@ -115,6 +116,7 @@ app.use('/twilio', twilioStatusRouter);
 app.use('/calls', callsRouter);
 app.use('/tools', toolsRouter);
 app.use('/verify', verifyRouter);
+app.use('/internal', internalSmsRouter);
 
 // Error handling
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

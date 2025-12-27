@@ -181,6 +181,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               minutesRemaining,
               isReminderCall: session.is_reminder_call,
               reminderMessage: session.reminder_message,
+              currentPlanId: account.plan_id,
+              accountStatus: account.status,
               onAudioReceived: (audioBase64: string) => {
                 // Send audio back to Twilio
                 if (ws.readyState === WebSocket.OPEN && streamSid) {

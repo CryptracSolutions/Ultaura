@@ -46,6 +46,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const accountId = body?.accountId as string | undefined;
   const planId = body?.planId as string | undefined;
+  const phoneNumber = body?.phoneNumber as string | undefined;
 
   if (!accountId || !planId) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -157,6 +158,29 @@ export async function POST(request: Request) {
     text,
     html,
   });
+
+  // Send SMS if phone number provided
+  if (phoneNumber && session.url) {
+    const telephonyBaseUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+    const smsBody = `Ultaura: Complete your ${planDisplay.name} upgrade: ${session.url}`;
+
+    try {
+      await fetch(`${telephonyBaseUrl}/internal/sms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        },
+        body: JSON.stringify({
+          to: phoneNumber,
+          body: smsBody,
+        }),
+      });
+    } catch (smsError) {
+      // Log but don't fail - email was already sent successfully
+      console.error('Failed to send upgrade SMS:', smsError);
+    }
+  }
 
   return NextResponse.json({ success: true });
 }

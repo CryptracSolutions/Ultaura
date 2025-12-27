@@ -22,6 +22,9 @@ interface GrokBridgeOptions {
   // Reminder call fields
   isReminderCall: boolean;
   reminderMessage: string | null;
+  // Plan info for upgrade context
+  currentPlanId: string;
+  accountStatus: 'trial' | 'active' | 'past_due' | 'canceled';
   onAudioReceived: (audioBase64: string) => void;
   onClearBuffer: () => void;
   onError: (error: Error) => void;
@@ -420,6 +423,26 @@ For recurring reminders, parse natural language like:
               required: ['reminder_id'],
             },
           },
+          {
+            type: 'function',
+            name: 'request_upgrade',
+            description: 'User wants to upgrade their plan or learn about plan options. Call when user says "I want to upgrade", "can I get more minutes", "tell me about your plans", "what plans do you have", or similar.',
+            parameters: {
+              type: 'object',
+              properties: {
+                plan_id: {
+                  type: 'string',
+                  enum: ['care', 'comfort', 'family', 'payg'],
+                  description: 'The plan to upgrade to. If not specified, explain all plans first and ask which they prefer.',
+                },
+                send_link: {
+                  type: 'boolean',
+                  description: 'Set to true after user confirms their plan choice to send the checkout link via text message.',
+                },
+              },
+              required: [],
+            },
+          },
         ],
       },
     };
@@ -473,7 +496,27 @@ If distress or self-harm mentioned:
   - Always ask for confirmation before setting recurring reminders
 - schedule_call: Adjust when you call them
 - choose_overage_action: Record a user decision to continue, upgrade, or stop after an overage or trial prompt
+- request_upgrade: Help user upgrade their plan - explain options and send checkout link
 - web_search: Look up current events (keep summaries neutral)
+
+`;
+
+    // Add plan info for upgrade context
+    const { currentPlanId, accountStatus } = this.options;
+    const planStatusLabel = accountStatus === 'trial' ? 'Free Trial' : accountStatus === 'active' ? 'Active Subscription' : accountStatus;
+
+    prompt += `
+## Plans & Pricing
+If the user asks about upgrading or wants more minutes, explain these plans:
+- Care: $39/month, 300 minutes, 1 phone line
+- Comfort: $99/month, 900 minutes, 2 phone lines
+- Family: $199/month, 2000 minutes, 4 phone lines
+- Pay as you go: $0/month + $0.15 per minute, 4 phone lines
+
+Current plan: ${currentPlanId === 'free_trial' ? 'Free Trial' : currentPlanId}
+Account status: ${planStatusLabel}
+
+Use the request_upgrade tool when user wants to upgrade. First explain options, then once they choose, confirm their choice, then send the link.
 
 `;
 
@@ -751,6 +794,16 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
             reminderId: args.reminder_id,
+          });
+          break;
+
+        case 'request_upgrade':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/request_upgrade`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            accountId: this.options.accountId,
+            planId: args.plan_id,
+            sendLink: args.send_link,
           });
           break;
 
