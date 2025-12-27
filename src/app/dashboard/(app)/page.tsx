@@ -326,7 +326,7 @@ async function DashboardPage() {
                 Recent call activity
               </h2>
               <Link
-                href="/dashboard/lines"
+                href="/dashboard/lines?action=add"
                 className="text-sm text-primary hover:underline"
               >
                 Open a line

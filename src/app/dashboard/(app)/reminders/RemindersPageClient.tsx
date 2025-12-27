@@ -190,7 +190,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
             Add a phone line first, then you can set up reminders.
           </p>
           <Link
-            href="/dashboard/lines"
+            href="/dashboard/lines?action=add"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
