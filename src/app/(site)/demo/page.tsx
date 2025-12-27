@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   PlayCircleIcon,
-  PauseCircleIcon,
+  StopCircleIcon,
   CheckCircleIcon,
   ChatBubbleLeftRightIcon,
   GlobeAltIcon,
@@ -13,45 +13,15 @@ import {
   SpeakerWaveIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
+import { VOICE_DEMO, GROK } from '~/lib/ultaura/constants';
 
-// Voice sample data - matches GROK.VOICES from constants
-const VOICE_SAMPLES = [
-  {
-    id: 'ara',
-    name: 'Ara',
-    description: 'Warm and nurturing',
-    traits: ['Gentle', 'Comforting', 'Patient'],
-  },
-  {
-    id: 'eve',
-    name: 'Eve',
-    description: 'Bright and cheerful',
-    traits: ['Upbeat', 'Friendly', 'Energetic'],
-  },
-  {
-    id: 'leo',
-    name: 'Leo',
-    description: 'Calm and reassuring',
-    traits: ['Steady', 'Warm', 'Thoughtful'],
-  },
-  {
-    id: 'rex',
-    name: 'Rex',
-    description: 'Clear and articulate',
-    traits: ['Clear', 'Confident', 'Engaging'],
-  },
-  {
-    id: 'sal',
-    name: 'Sal',
-    description: 'Conversational and natural',
-    traits: ['Natural', 'Relaxed', 'Personable'],
-  },
-];
+type Voice = (typeof GROK.VOICES)[number];
 
 const TECH_FEATURES = [
   {
@@ -86,24 +56,130 @@ const TECH_FEATURES = [
   },
 ];
 
-export default function DemoPage() {
-  const [selectedVoice, setSelectedVoice] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+type PlayState = 'idle' | 'loading' | 'playing' | 'error';
 
-  // Placeholder for audio playback - will be implemented when samples are ready
-  const handlePlayVoice = (voiceId: string) => {
-    if (selectedVoice === voiceId && isPlaying) {
-      setIsPlaying(false);
+export default function DemoPage() {
+  // Text input state
+  const [customText, setCustomText] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
+  // Playback state
+  const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
+  const [playState, setPlayState] = useState<PlayState>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Audio ref for playback
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Get the current text to play
+  const currentText = selectedPreset
+    ? VOICE_DEMO.PRESET_PHRASES.find((p) => p.id === selectedPreset)?.text || ''
+    : customText;
+
+  // Handle preset selection
+  const handlePresetClick = (presetId: string) => {
+    if (selectedPreset === presetId) {
+      setSelectedPreset(null);
     } else {
-      setSelectedVoice(voiceId);
-      setIsPlaying(true);
-      // Audio playback will be added when samples are available
-      setTimeout(() => setIsPlaying(false), 3000);
+      setSelectedPreset(presetId);
+      setCustomText(''); // Clear custom text when preset is selected
     }
+    setErrorMessage(null);
+  };
+
+  // Handle custom text change
+  const handleCustomTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCustomText(e.target.value);
+    setSelectedPreset(null); // Clear preset when typing custom text
+    setErrorMessage(null);
+  };
+
+  // Handle voice play
+  const handlePlayVoice = useCallback(
+    async (voice: Voice) => {
+      // If already playing this voice, stop it
+      if (selectedVoice === voice && playState === 'playing') {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        setPlayState('idle');
+        setSelectedVoice(null);
+        return;
+      }
+
+      // Check if there's text to play
+      if (!currentText.trim()) {
+        setErrorMessage('Please enter some text or select a preset phrase first.');
+        return;
+      }
+
+      setSelectedVoice(voice);
+      setPlayState('loading');
+      setErrorMessage(null);
+
+      try {
+        const response = await fetch('/api/voice-demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: currentText,
+            voice: voice,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 503) {
+          // API not yet available - show friendly message
+          setPlayState('idle');
+          setErrorMessage(
+            'Voice demo coming soon! We\'re waiting for the xAI TTS API to launch.'
+          );
+          return;
+        }
+
+        if (response.status === 429) {
+          setPlayState('error');
+          setErrorMessage('Too many requests. Please wait a moment and try again.');
+          return;
+        }
+
+        if (!response.ok) {
+          setPlayState('error');
+          setErrorMessage(data.error || 'Something went wrong. Please try again.');
+          return;
+        }
+
+        // When TTS API is available, this will handle audio playback:
+        // const audioBlob = await response.blob();
+        // const audioUrl = URL.createObjectURL(audioBlob);
+        // if (audioRef.current) {
+        //   audioRef.current.src = audioUrl;
+        //   audioRef.current.play();
+        // }
+
+        setPlayState('idle');
+      } catch (error) {
+        console.error('Voice demo error:', error);
+        setPlayState('error');
+        setErrorMessage('Failed to connect. Please check your internet connection.');
+      }
+    },
+    [currentText, selectedVoice, playState]
+  );
+
+  // Handle audio end
+  const handleAudioEnd = () => {
+    setPlayState('idle');
+    setSelectedVoice(null);
   };
 
   return (
     <div className="flex flex-col space-y-24 pb-24">
+      {/* Hidden audio element for playback */}
+      <audio ref={audioRef} onEnded={handleAudioEnd} className="hidden" />
+
       {/* Hero */}
       <div className="bg-muted/30 py-24">
         <Container>
@@ -120,75 +196,160 @@ export default function DemoPage() {
         </Container>
       </div>
 
+      {/* Text Input Section */}
+      <Container>
+        <div className="max-w-3xl mx-auto space-y-8">
+          <div className="text-center">
+            <Heading type={2}>What should they say?</Heading>
+            <p className="mt-2 text-muted-foreground">
+              Choose a preset phrase or write your own
+            </p>
+          </div>
+
+          {/* Preset Phrase Buttons */}
+          <div className="flex flex-wrap gap-2 justify-center">
+            {VOICE_DEMO.PRESET_PHRASES.map((phrase) => (
+              <button
+                key={phrase.id}
+                onClick={() => handlePresetClick(phrase.id)}
+                className={`
+                  px-4 py-2 rounded-full text-sm font-medium transition-all
+                  ${
+                    selectedPreset === phrase.id
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                  }
+                `}
+              >
+                {phrase.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Text Input */}
+          <div className="space-y-2">
+            <div className="relative">
+              <textarea
+                value={selectedPreset ? '' : customText}
+                onChange={handleCustomTextChange}
+                placeholder={
+                  selectedPreset
+                    ? VOICE_DEMO.PRESET_PHRASES.find((p) => p.id === selectedPreset)
+                        ?.text
+                    : 'Or type your own text here...'
+                }
+                disabled={!!selectedPreset}
+                maxLength={VOICE_DEMO.MAX_TEXT_LENGTH}
+                rows={3}
+                className={`
+                  w-full rounded-xl border bg-background px-4 py-3 text-foreground
+                  placeholder:text-muted-foreground focus:outline-none focus:ring-2
+                  focus:ring-primary/50 resize-none transition-colors
+                  ${
+                    selectedPreset
+                      ? 'border-primary/30 bg-primary/5'
+                      : 'border-border'
+                  }
+                `}
+              />
+              <div className="absolute bottom-2 right-3 text-xs text-muted-foreground">
+                {(selectedPreset
+                  ? VOICE_DEMO.PRESET_PHRASES.find((p) => p.id === selectedPreset)
+                      ?.text.length || 0
+                  : customText.length
+                )}{' '}
+                / {VOICE_DEMO.MAX_TEXT_LENGTH}
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+                {errorMessage}
+              </div>
+            )}
+          </div>
+        </div>
+      </Container>
+
       {/* Voice Selector */}
       <Container>
         <div className="max-w-4xl mx-auto space-y-8">
           <div className="text-center">
             <Heading type={2}>Choose a voice</Heading>
             <p className="mt-2 text-muted-foreground">
-              Click to preview each voice personality
+              Click a voice to hear your text spoken aloud
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {VOICE_SAMPLES.map((voice) => (
-              <button
-                key={voice.id}
-                onClick={() => handlePlayVoice(voice.id)}
-                className={`
-                  group relative flex flex-col items-center rounded-2xl border p-6
-                  transition-all duration-200 text-left
-                  ${
-                    selectedVoice === voice.id
-                      ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
-                      : 'border-border bg-background hover:border-primary/50 hover:shadow-md'
-                  }
-                `}
-              >
-                {/* Play/Pause Icon */}
-                <div
+            {GROK.VOICES.map((voice) => {
+              const voiceInfo = VOICE_DEMO.VOICE_INFO[voice];
+              const isSelected = selectedVoice === voice;
+              const isLoading = isSelected && playState === 'loading';
+              const isPlaying = isSelected && playState === 'playing';
+
+              return (
+                <button
+                  key={voice}
+                  onClick={() => handlePlayVoice(voice)}
+                  disabled={playState === 'loading' && !isSelected}
                   className={`
-                    mb-4 rounded-full p-4 transition-colors
+                    group relative flex flex-col items-center rounded-2xl border p-6
+                    transition-all duration-200 text-left disabled:opacity-50
                     ${
-                      selectedVoice === voice.id && isPlaying
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground'
+                      isSelected
+                        ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
+                        : 'border-border bg-background hover:border-primary/50 hover:shadow-md'
                     }
                   `}
                 >
-                  {selectedVoice === voice.id && isPlaying ? (
-                    <PauseCircleIcon className="h-8 w-8" />
-                  ) : (
-                    <PlayCircleIcon className="h-8 w-8" />
-                  )}
-                </div>
+                  {/* Play/Stop/Loading Icon */}
+                  <div
+                    className={`
+                      mb-4 rounded-full p-4 transition-colors
+                      ${
+                        isPlaying || isLoading
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground'
+                      }
+                    `}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    ) : isPlaying ? (
+                      <StopCircleIcon className="h-8 w-8" />
+                    ) : (
+                      <PlayCircleIcon className="h-8 w-8" />
+                    )}
+                  </div>
 
-                <h3 className="text-lg font-semibold text-foreground">
-                  {voice.name}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {voice.description}
-                </p>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {voice}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {voiceInfo.description}
+                  </p>
 
-                <div className="mt-3 flex flex-wrap gap-1 justify-center">
-                  {voice.traits.map((trait) => (
-                    <span
-                      key={trait}
-                      className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                    >
-                      {trait}
-                    </span>
-                  ))}
-                </div>
-              </button>
-            ))}
+                  <div className="mt-3 flex flex-wrap gap-1 justify-center">
+                    {voiceInfo.traits.map((trait) => (
+                      <span
+                        key={trait}
+                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                      >
+                        {trait}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <div className="text-center">
             <p className="text-sm text-muted-foreground inline-flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-              Voice samples coming soon. Sign up for early access to be
-              notified.
+              Interactive voice demo coming soon — API integration in progress
             </p>
           </div>
         </div>

@@ -364,3 +364,70 @@ export const VALIDATION = {
   VERIFICATION_CODE_LENGTH: 6,
   VERIFICATION_EXPIRY_MINUTES: 10,
 } as const;
+
+// ============================================
+// VOICE DEMO
+// ============================================
+
+export const VOICE_DEMO = {
+  // Maximum text length for TTS
+  MAX_TEXT_LENGTH: 200,
+
+  // Rate limiting
+  MAX_REQUESTS_PER_MINUTE: 10,
+
+  // Preset demo phrases
+  PRESET_PHRASES: [
+    {
+      id: 'greeting',
+      label: 'Friendly greeting',
+      text: "Hello! It's so nice to talk with you. How has your day been going?",
+    },
+    {
+      id: 'memory',
+      label: 'Memory prompt',
+      text: "I'd love to hear about one of your favorite memories. What comes to mind?",
+    },
+    {
+      id: 'reminder',
+      label: 'Medication reminder',
+      text: "Just a gentle reminder — don't forget to take your afternoon medication with a glass of water.",
+    },
+    {
+      id: 'weather',
+      label: 'Weather chat',
+      text: "It looks like it might be a beautiful day outside. Have you had a chance to look out the window?",
+    },
+    {
+      id: 'closing',
+      label: 'Warm goodbye',
+      text: "It was wonderful chatting with you today. I hope you have a lovely rest of your day!",
+    },
+  ],
+
+  // Voice descriptions for demo
+  VOICE_INFO: {
+    Ara: {
+      description: 'Warm and nurturing',
+      traits: ['Gentle', 'Comforting', 'Patient'],
+    },
+    Eve: {
+      description: 'Bright and cheerful',
+      traits: ['Upbeat', 'Friendly', 'Energetic'],
+    },
+    Leo: {
+      description: 'Calm and reassuring',
+      traits: ['Steady', 'Warm', 'Thoughtful'],
+    },
+    Rex: {
+      description: 'Clear and articulate',
+      traits: ['Clear', 'Confident', 'Engaging'],
+    },
+    Sal: {
+      description: 'Conversational and natural',
+      traits: ['Natural', 'Relaxed', 'Personable'],
+    },
+  },
+} as const;
+
+export type PresetPhrase = typeof VOICE_DEMO.PRESET_PHRASES[number];
