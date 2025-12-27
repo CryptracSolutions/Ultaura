@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Calendar, Clock, Check, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ArrowLeft, Clock, Check, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '~/core/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
 import { updateSchedule } from '~/lib/ultaura/actions';
@@ -81,146 +82,144 @@ export function EditScheduleClient({
         Back to Line Details
       </Link>
 
-      <div className="mb-8 flex items-start gap-4">
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-          <Calendar className="w-6 h-6 text-primary" />
-        </div>
-
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Edit Schedule
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Update call schedule for {line.display_name}
-          </p>
-        </div>
-      </div>
-
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+        <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Enable/Disable Toggle */}
-        <div className="bg-card rounded-xl border border-border p-4">
-          <button
-            type="button"
-            onClick={() => setEnabled(!enabled)}
-            className="flex items-center justify-between w-full"
-          >
+      <Card>
+        <CardHeader>
+          <CardTitle>Schedule settings</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Update the schedule for {line.display_name}. Times are in {line.timezone}.
+          </p>
+        </CardHeader>
+
+        <CardContent className="pt-0">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Enable/Disable Toggle */}
+            <div className="rounded-lg border border-input bg-background p-4">
+              <button
+                type="button"
+                onClick={() => setEnabled(!enabled)}
+                className="flex items-center justify-between w-full"
+              >
+                <div>
+                  <p className="font-medium text-foreground">Schedule Active</p>
+                  <p className="text-sm text-muted-foreground">
+                    {enabled ? 'Calls will be made on schedule' : 'Schedule is paused'}
+                  </p>
+                </div>
+                {enabled ? (
+                  <ToggleRight className="w-10 h-10 text-primary" />
+                ) : (
+                  <ToggleLeft className="w-10 h-10 text-muted-foreground" />
+                )}
+              </button>
+            </div>
+
+            {/* Day Selection */}
             <div>
-              <p className="font-medium text-foreground">Schedule Active</p>
-              <p className="text-sm text-muted-foreground">
-                {enabled ? 'Calls will be made on schedule' : 'Schedule is paused'}
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Which days should we call?
+              </label>
+              <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                {DAYS_OF_WEEK.map((day) => (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => toggleDay(day.value)}
+                    className={`px-3 py-3 sm:px-4 sm:py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      selectedDays.includes(day.value)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-foreground border-input hover:bg-muted'
+                    }`}
+                  >
+                    {day.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Time Selection */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                What time should we call?
+              </label>
+              <Select value={selectedTime} onValueChange={setSelectedTime}>
+                <SelectTrigger className="w-full py-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-muted-foreground" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Times are in {line.timezone}. Quiet hours: {formatTime(line.quiet_hours_start)} -{' '}
+                {formatTime(line.quiet_hours_end)}
               </p>
             </div>
-            {enabled ? (
-              <ToggleRight className="w-10 h-10 text-primary" />
-            ) : (
-              <ToggleLeft className="w-10 h-10 text-muted-foreground" />
-            )}
-          </button>
-        </div>
 
-        {/* Day Selection */}
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-3">
-            Which days should we call?
-          </label>
-          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-            {DAYS_OF_WEEK.map((day) => (
-              <button
-                key={day.value}
-                type="button"
-                onClick={() => toggleDay(day.value)}
-                className={`px-3 py-3 sm:px-4 sm:py-2 rounded-lg border text-sm font-medium transition-colors ${
-                  selectedDays.includes(day.value)
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-foreground border-input hover:bg-muted'
-                }`}
+            {/* Summary */}
+            <div className="bg-muted/50 rounded-lg p-4">
+              <h3 className="font-medium text-foreground mb-2">Schedule Summary</h3>
+              <p className="text-sm text-muted-foreground">
+                {!enabled ? (
+                  <span className="text-warning">Schedule is currently paused</span>
+                ) : selectedDays.length > 0 ? (
+                  <>
+                    Calls will be made on{' '}
+                    <span className="text-foreground font-medium">
+                      {selectedDays
+                        .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.label)
+                        .join(', ')}
+                    </span>{' '}
+                    at{' '}
+                    <span className="text-foreground font-medium">
+                      {TIME_OPTIONS.find((t) => t.value === selectedTime)?.label || selectedTime}
+                    </span>
+                  </>
+                ) : (
+                  'Select days and time to schedule calls'
+                )}
+              </p>
+            </div>
+
+            {/* Submit */}
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link
+                href={`/dashboard/lines/${getShortLineId(line.id)}`}
+                className="w-full sm:flex-1 py-3 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
               >
-                {day.short}
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={isLoading || !hasChanges}
+                className="w-full sm:flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  'Saving...'
+                ) : (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Save Changes
+                  </>
+                )}
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Time Selection */}
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-3">
-            What time should we call?
-          </label>
-          <Select value={selectedTime} onValueChange={setSelectedTime}>
-            <SelectTrigger className="w-full py-3">
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-muted-foreground" />
-                <SelectValue />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {TIME_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground mt-2">
-            Times are in {line.timezone}. Quiet hours: {formatTime(line.quiet_hours_start)} - {formatTime(line.quiet_hours_end)}
-          </p>
-        </div>
-
-        {/* Summary */}
-        <div className="bg-muted/50 rounded-lg p-4">
-          <h3 className="font-medium text-foreground mb-2">Schedule Summary</h3>
-          <p className="text-sm text-muted-foreground">
-            {!enabled ? (
-              <span className="text-warning">Schedule is currently paused</span>
-            ) : selectedDays.length > 0 ? (
-              <>
-                Calls will be made on{' '}
-                <span className="text-foreground font-medium">
-                  {selectedDays
-                    .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.label)
-                    .join(', ')}
-                </span>{' '}
-                at{' '}
-                <span className="text-foreground font-medium">
-                  {TIME_OPTIONS.find((t) => t.value === selectedTime)?.label || selectedTime}
-                </span>
-              </>
-            ) : (
-              'Select days and time to schedule calls'
-            )}
-          </p>
-        </div>
-
-        {/* Submit */}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link
-            href={`/dashboard/lines/${getShortLineId(line.id)}`}
-            className="w-full sm:flex-1 py-3 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
-          >
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={isLoading || !hasChanges}
-            className="w-full sm:flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-          >
-            {isLoading ? (
-              'Saving...'
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                Save Changes
-              </>
-            )}
-          </button>
-        </div>
-      </form>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

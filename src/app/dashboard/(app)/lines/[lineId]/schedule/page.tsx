@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getLine } from '~/lib/ultaura/actions';
+import { getLine, getSchedules } from '~/lib/ultaura/actions';
 import { ScheduleClient } from './ScheduleClient';
 import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
@@ -25,11 +25,13 @@ export default async function SchedulePage({ params }: PageProps) {
     redirect(`/dashboard/lines/${params.lineId}/verify`);
   }
 
+  const schedules = await getSchedules(line.id);
+
   return (
     <>
       <AppHeader title={`Schedule for ${line.display_name}`} description="Set up recurring check-in calls" />
       <PageBody>
-        <ScheduleClient line={line} />
+        <ScheduleClient line={line} schedules={schedules} />
       </PageBody>
     </>
   );
