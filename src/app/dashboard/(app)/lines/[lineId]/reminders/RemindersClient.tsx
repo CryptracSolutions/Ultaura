@@ -90,7 +90,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const didAutoOpenEditRef = useRef(false);
+  const handledEditIdRef = useRef<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
@@ -293,12 +293,17 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   // Allow deep-linking into the edit modal (e.g. from the global reminders list)
   useEffect(() => {
     const editId = searchParams.get('edit');
-    if (!editId || didAutoOpenEditRef.current) return;
+    if (!editId) {
+      handledEditIdRef.current = null;
+      return;
+    }
+
+    if (handledEditIdRef.current === editId) return;
+    handledEditIdRef.current = editId;
 
     const reminder = reminders.find((r) => r.id === editId);
     if (!reminder) return;
 
-    didAutoOpenEditRef.current = true;
     openEditModal(reminder);
 
     // Clean up the URL so refresh/back doesn't keep reopening

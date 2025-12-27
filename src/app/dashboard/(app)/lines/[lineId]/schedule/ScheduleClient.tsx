@@ -27,7 +27,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const didAutoOpenEditRef = useRef(false);
+  const handledEditIdRef = useRef<string | null>(null);
   const editLoadSeqRef = useRef(0);
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Weekdays
   const [selectedTime, setSelectedTime] = useState('09:00');
@@ -98,12 +98,18 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
   // Allow deep-linking into the edit modal (e.g. from the Calls page)
   useEffect(() => {
     const editId = searchParams.get('edit');
-    if (!editId || didAutoOpenEditRef.current) return;
+    if (!editId) {
+      handledEditIdRef.current = null;
+      return;
+    }
+
+    // Avoid re-opening multiple times for the same URL param while it exists
+    if (handledEditIdRef.current === editId) return;
+    handledEditIdRef.current = editId;
 
     const schedule = schedules.find((s) => s.id === editId);
     if (!schedule) return;
 
-    didAutoOpenEditRef.current = true;
     void openEditModal(schedule);
 
     // Clean up the URL so refresh/back doesn't keep reopening

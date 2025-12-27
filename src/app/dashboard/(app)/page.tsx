@@ -300,7 +300,7 @@ async function DashboardPage() {
                     href="/dashboard/calls"
                     className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
-                    View schedules
+                    View call schedules
                   </Link>
                   <Link
                     href="/dashboard/reminders"
