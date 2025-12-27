@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, Clock, Check, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '~/core/ui/Dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
 import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/actions';
@@ -602,7 +602,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
         }}
       >
         <DialogContent
-          className="max-w-md"
+          className="max-w-[468px]"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">
@@ -693,35 +693,37 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
               </p>
             </div>
 
-            <DialogFooter className="pt-1">
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setEditingSchedule(null)}
                 disabled={isEditLoading || isEditSaving}
-                className="py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
+                className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isEditLoading || isEditSaving || editSelectedDays.length === 0}
-                className="py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isEditLoading ? (
-                  <>
-                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Loading...
-                  </>
-                ) : isEditSaving ? (
-                  <>
-                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save changes'
-                )}
+                <span className="inline-flex w-full items-center justify-center gap-2">
+                  {isEditLoading ? (
+                    <>
+                      <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Loading...
+                    </>
+                  ) : isEditSaving ? (
+                    <>
+                      <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </span>
               </button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

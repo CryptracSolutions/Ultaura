@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -849,79 +850,111 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
       />
 
       {/* Edit Modal */}
-      {editingReminder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setEditingReminder(null)}
-          />
-          <div className="relative bg-card border border-input rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
-            <h2 className="font-semibold text-lg mb-4">Edit Reminder</h2>
+      <Dialog
+        open={editingReminder !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingReminder(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-[468px]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">Edit reminder</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Update message and time for {line.display_name}
+              </DialogDescription>
+            </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setEditingReminder(null)}
+              disabled={isEditSubmitting}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleEditSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Message
+              </label>
+              <textarea
+                value={editMessage}
+                onChange={(e) => setEditMessage(e.target.value)}
+                rows={3}
+                maxLength={500}
+                disabled={isEditSubmitting}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {editMessage.length}/500 characters
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Message
+                  Date
                 </label>
-                <textarea
-                  value={editMessage}
-                  onChange={(e) => setEditMessage(e.target.value)}
-                  rows={3}
-                  maxLength={500}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  min={today}
+                  disabled={isEditSubmitting}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {editMessage.length}/500 characters
-                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    min={today}
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Time
-                  </label>
-                  <input
-                    type="time"
-                    value={editTime}
-                    onChange={(e) => setEditTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Time
+                </label>
+                <input
+                  type="time"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                  disabled={isEditSubmitting}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                />
               </div>
+            </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingReminder(null)}
-                  className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isEditSubmitting || !editMessage.trim()}
-                  className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isEditSubmitting ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingReminder(null)}
+                disabled={isEditSubmitting}
+                className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isEditSubmitting || !editMessage.trim()}
+                className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="inline-flex w-full items-center justify-center gap-2">
+                  {isEditSubmitting ? (
+                    <>
+                      <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </span>
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

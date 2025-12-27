@@ -225,7 +225,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                       href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
                       className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
-                      View all
+                      Details
                     </Link>
                   </div>
                 </div>
