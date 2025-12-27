@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~
 import { updateOverageCap } from '~/lib/ultaura/actions';
 
 const CAP_OPTIONS = [
-  { value: 0, label: 'No cap' },
+  { value: 0, label: 'No limit' },
   { value: 1000, label: '$10' },
   { value: 2500, label: '$25' },
   { value: 5000, label: '$50' },
