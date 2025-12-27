@@ -1,3 +1,4 @@
+import type { Stripe } from 'stripe';
 import { NextResponse } from 'next/server';
 import configuration from '~/configuration';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
 
   const { data: organization, error: orgError } = await client
     .from('organizations')
-    .select('uuid, subscription_id')
+    .select('uuid')
     .eq('id', account.organization_id)
     .single();
 
@@ -79,15 +80,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
   }
 
-  let customerId: string | undefined;
-  if (organization.subscription_id) {
-    const { data: subscription } = await client
-      .from('subscriptions')
-      .select('customer_id')
-      .eq('id', organization.subscription_id)
-      .single();
-    customerId = subscription?.customer_id;
+  const { data: orgSubscription, error: orgSubscriptionError } = await client
+    .from('organizations_subscriptions')
+    .select('customer_id')
+    .eq('organization_id', account.organization_id)
+    .maybeSingle();
+
+  if (orgSubscriptionError) {
+    return NextResponse.json(
+      { error: 'Failed to fetch organization subscription' },
+      { status: 500 },
+    );
   }
+
+  const customerId = orgSubscription?.customer_id;
 
   const returnBase =
     configuration.site.siteUrl || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -97,7 +103,7 @@ export async function POST(request: Request) {
   const priceId = PLAN_PRICE_IDS[planId];
   const trialPeriodDays = customerId ? undefined : 7;
 
-  const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
     client_reference_id: organization.uuid,
