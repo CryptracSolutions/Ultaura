@@ -168,6 +168,11 @@ export function ReminderActivity({ lineId, initialEvents }: ReminderActivityProp
                     {TRIGGER_LABELS[event.triggered_by]}
                   </span>
                 </div>
+                {event.reminder_message && (
+                  <p className="text-sm text-foreground mt-0.5 truncate">
+                    &ldquo;{event.reminder_message}&rdquo;
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {formatRelativeTime(event.created_at)}
                 </p>

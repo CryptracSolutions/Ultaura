@@ -6,12 +6,19 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '~/core/ui/Dropdown';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/actions';
 import { createReminder, cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/actions';
 import { getShortLineId } from '~/lib/ultaura';
+import { ReminderActivity } from './ReminderActivity';
 
 const SNOOZE_OPTIONS = [
   { value: 15, label: '15 minutes' },
@@ -665,33 +672,44 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
 
                   {/* Snooze dropdown - only show if not paused and under snooze limit */}
                   {!reminder.is_paused && reminder.current_snooze_count < 3 && (
-                    <div className="relative">
-                      <button
-                        onClick={() => setSnoozeDropdownId(snoozeDropdownId === reminder.id ? null : reminder.id)}
-                        disabled={snoozingId === reminder.id}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
-                        title="Snooze reminder"
+                    <DropdownMenu
+                      open={snoozeDropdownId === reminder.id}
+                      onOpenChange={(open) =>
+                        setSnoozeDropdownId(open ? reminder.id : null)
+                      }
+                    >
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          disabled={snoozingId === reminder.id}
+                          className="p-2 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                          title="Snooze reminder"
+                        >
+                          {snoozingId === reminder.id ? (
+                            <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <AlarmClock className="w-4 h-4" />
+                          )}
+                        </button>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent
+                        align="end"
+                        sideOffset={8}
+                        className="min-w-[140px]"
                       >
-                        {snoozingId === reminder.id ? (
-                          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        ) : (
-                          <AlarmClock className="w-4 h-4" />
-                        )}
-                      </button>
-                      {snoozeDropdownId === reminder.id && (
-                        <div className="absolute right-0 top-full mt-1 z-10 bg-card border border-input rounded-lg shadow-lg py-1 min-w-[140px]">
-                          {SNOOZE_OPTIONS.map((option) => (
-                            <button
-                              key={option.value}
-                              onClick={() => handleSnooze(reminder.id, option.value)}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                        {SNOOZE_OPTIONS.map((option) => (
+                          <DropdownMenuItem
+                            key={option.value}
+                            className="cursor-pointer"
+                            onSelect={() =>
+                              handleSnooze(reminder.id, option.value)
+                            }
+                          >
+                            {option.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
 
                   {/* Skip button for recurring reminders */}
@@ -762,6 +780,14 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Reminder Activity Timeline - for caregiver visibility */}
+      {reminders.length > 0 && (
+        <div className="mt-8">
+          <h2 className="font-semibold text-lg mb-4">Reminder Activity</h2>
+          <ReminderActivity lineId={line.id} />
         </div>
       )}
 

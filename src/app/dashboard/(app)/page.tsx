@@ -235,10 +235,6 @@ async function DashboardPage() {
             </div>
 
             <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-2 mb-1">
-                <Zap className="h-4 w-4 text-muted-foreground" />
-                <div className="text-base font-medium text-foreground">Quick actions</div>
-              </div>
               <div className="flex-1" />
               <div className="mt-auto space-y-2">
                 <div className="grid gap-2">

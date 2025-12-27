@@ -1008,6 +1008,7 @@ export interface ReminderEventRow {
   triggered_by: 'dashboard' | 'voice' | 'system';
   call_session_id: string | null;
   metadata: Record<string, unknown> | null;
+  reminder_message?: string; // Joined from reminders table
 }
 
 // Get reminders for a line
@@ -1386,13 +1387,17 @@ export async function getReminderEvents(reminderId: string): Promise<ReminderEve
 
 /**
  * Get all reminder events for a line (for caregiver activity view)
+ * Joins with reminders table to include the reminder message
  */
 export async function getLineReminderEvents(lineId: string, limit = 50): Promise<ReminderEventRow[]> {
   const client = getSupabaseServerComponentClient();
 
   const { data, error } = await client
     .from('ultaura_reminder_events')
-    .select('*')
+    .select(`
+      *,
+      ultaura_reminders!inner(message)
+    `)
     .eq('line_id', lineId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -1402,7 +1407,12 @@ export async function getLineReminderEvents(lineId: string, limit = 50): Promise
     return [];
   }
 
-  return data || [];
+  // Flatten the joined data to include reminder_message
+  return (data || []).map(event => ({
+    ...event,
+    reminder_message: event.ultaura_reminders?.message,
+    ultaura_reminders: undefined, // Remove the nested object
+  }));
 }
 
 // ============================================
