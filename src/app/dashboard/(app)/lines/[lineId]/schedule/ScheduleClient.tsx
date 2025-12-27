@@ -278,7 +278,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Line Details
+        Line Details
       </Link>
 
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

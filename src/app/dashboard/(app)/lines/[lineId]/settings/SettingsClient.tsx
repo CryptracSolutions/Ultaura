@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Save, X, Bell } from 'lucide-react';
+import { toast } from 'sonner';
+import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Bell } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
 import type { LineRow } from '~/lib/ultaura/types';
@@ -51,6 +52,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
       });
 
       if (result.success) {
+        toast.success('Settings saved');
         router.push(`/dashboard/lines/${getShortLineId(line.id)}`);
         router.refresh();
       } else {
@@ -239,20 +241,18 @@ export function SettingsClient({ line }: SettingsClientProps) {
         </div>
 
         {/* Actions */}
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <div className="mt-6 flex gap-3 pt-2">
           <Link
             href={`/dashboard/lines/${getShortLineId(line.id)}`}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors"
           >
-            <X className="w-4 h-4" />
             Cancel
           </Link>
           <button
             type="submit"
             disabled={isLoading || !hasChanges}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" />
             {isLoading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
