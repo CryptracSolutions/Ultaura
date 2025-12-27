@@ -12,6 +12,19 @@ export type CallDirection = 'inbound' | 'outbound';
 export type BillableType = 'trial' | 'included' | 'overage' | 'payg';
 export type ScheduleResult = 'success' | 'missed' | 'suppressed_quiet_hours' | 'failed';
 export type ReminderStatus = 'scheduled' | 'sent' | 'missed' | 'canceled';
+export type ReminderDeliveryStatus = 'completed' | 'no_answer' | 'failed';
+export type ReminderEventType =
+  | 'created'
+  | 'edited'
+  | 'paused'
+  | 'resumed'
+  | 'snoozed'
+  | 'skipped'
+  | 'canceled'
+  | 'delivered'
+  | 'no_answer'
+  | 'failed';
+export type ReminderEventTrigger = 'dashboard' | 'voice' | 'system';
 export type PrivacyScope = 'line_only' | 'shareable_with_payer';
 export type MemoryType = 'fact' | 'preference' | 'follow_up';
 export type SafetyTier = 'low' | 'medium' | 'high';
@@ -83,6 +96,7 @@ export interface Line {
   nextScheduledCallAt: string | null;
   seedInterests: string[] | null;
   seedAvoidTopics: string[] | null;
+  allowVoiceReminderControl: boolean;
 }
 
 export interface CreateLineInput {
@@ -107,6 +121,7 @@ export interface UpdateLineInput {
   inboundAllowed?: boolean;
   seedInterests?: string[];
   seedAvoidTopics?: string[];
+  allowVoiceReminderControl?: boolean;
 }
 
 // ============================================
@@ -261,6 +276,25 @@ export interface Reminder {
   timeOfDay: string | null;
   endsAt: string | null;
   occurrenceCount: number;
+  // Pause/snooze fields
+  isPaused: boolean;
+  pausedAt: string | null;
+  snoozedUntil: string | null;
+  originalDueAt: string | null;
+  currentSnoozeCount: number;
+  lastDeliveryStatus: ReminderDeliveryStatus | null;
+}
+
+export interface ReminderEvent {
+  id: string;
+  accountId: string;
+  reminderId: string;
+  lineId: string;
+  createdAt: string;
+  eventType: ReminderEventType;
+  triggeredBy: ReminderEventTrigger;
+  callSessionId: string | null;
+  metadata: Record<string, unknown> | null;
 }
 
 // ============================================
@@ -531,6 +565,7 @@ export interface LineRow {
   next_scheduled_call_at: string | null;
   seed_interests: string[] | null;
   seed_avoid_topics: string[] | null;
+  allow_voice_reminder_control: boolean;
 }
 
 export interface ScheduleRow {

@@ -300,6 +300,105 @@ For recurring reminders, parse natural language like:
               required: ['tier', 'signals', 'action_taken'],
             },
           },
+          // Reminder management tools
+          {
+            type: 'function',
+            name: 'list_reminders',
+            description: 'List the user\'s upcoming reminders. Call this when they ask "what reminders do I have?", "show me my reminders", etc.',
+            parameters: {
+              type: 'object',
+              properties: {},
+              required: [],
+            },
+          },
+          {
+            type: 'function',
+            name: 'edit_reminder',
+            description: 'Edit an existing reminder. Can change the message or time. Call when user says "change my reminder", "update the medication reminder", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                reminder_id: {
+                  type: 'string',
+                  description: 'The ID of the reminder to edit (from list_reminders)',
+                },
+                new_message: {
+                  type: 'string',
+                  description: 'New reminder message (optional)',
+                },
+                new_time_local: {
+                  type: 'string',
+                  description: 'New time in ISO 8601 format in user\'s local time (optional)',
+                },
+              },
+              required: ['reminder_id'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'pause_reminder',
+            description: 'Pause a reminder so it stops firing until resumed. Call when user says "pause my reminder", "stop the medication reminder for now", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                reminder_id: {
+                  type: 'string',
+                  description: 'The ID of the reminder to pause',
+                },
+              },
+              required: ['reminder_id'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'resume_reminder',
+            description: 'Resume a paused reminder. Call when user says "start my reminder again", "unpause the medication reminder", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                reminder_id: {
+                  type: 'string',
+                  description: 'The ID of the reminder to resume',
+                },
+              },
+              required: ['reminder_id'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'snooze_reminder',
+            description: 'Snooze a reminder for a specified duration. Best used during a reminder call when user says "remind me later", "snooze for an hour", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                reminder_id: {
+                  type: 'string',
+                  description: 'The ID of the reminder to snooze (optional if this is a reminder call)',
+                },
+                snooze_minutes: {
+                  type: 'integer',
+                  enum: [15, 30, 60, 120, 1440],
+                  description: 'How long to snooze: 15 (15 min), 30 (30 min), 60 (1 hour), 120 (2 hours), or 1440 (tomorrow)',
+                },
+              },
+              required: ['snooze_minutes'],
+            },
+          },
+          {
+            type: 'function',
+            name: 'cancel_reminder',
+            description: 'Cancel a reminder completely. For recurring reminders, this cancels the entire series. Call when user says "delete my reminder", "cancel the appointment reminder", etc.',
+            parameters: {
+              type: 'object',
+              properties: {
+                reminder_id: {
+                  type: 'string',
+                  description: 'The ID of the reminder to cancel',
+                },
+              },
+              required: ['reminder_id'],
+            },
+          },
         ],
       },
     };
@@ -570,6 +669,58 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
             tier: args.tier,
             signals: args.signals,
             actionTaken: args.action_taken,
+          });
+          break;
+
+        // Reminder management tools
+        case 'list_reminders':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/list_reminders`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+          break;
+
+        case 'edit_reminder':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/edit_reminder`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            reminderId: args.reminder_id,
+            newMessage: args.new_message,
+            newTimeLocal: args.new_time_local,
+            timezone: this.options.timezone,
+          });
+          break;
+
+        case 'pause_reminder':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/pause_reminder`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            reminderId: args.reminder_id,
+          });
+          break;
+
+        case 'resume_reminder':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/resume_reminder`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            reminderId: args.reminder_id,
+          });
+          break;
+
+        case 'snooze_reminder':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/snooze_reminder`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            reminderId: args.reminder_id,
+            snoozeMinutes: args.snooze_minutes,
+          });
+          break;
+
+        case 'cancel_reminder':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/cancel_reminder`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            reminderId: args.reminder_id,
           });
           break;
 

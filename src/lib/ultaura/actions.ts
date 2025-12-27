@@ -232,6 +232,7 @@ export async function updateLine(
   if (input.inboundAllowed !== undefined) updates.inbound_allowed = input.inboundAllowed;
   if (input.seedInterests !== undefined) updates.seed_interests = input.seedInterests;
   if (input.seedAvoidTopics !== undefined) updates.seed_avoid_topics = input.seedAvoidTopics;
+  if (input.allowVoiceReminderControl !== undefined) updates.allow_voice_reminder_control = input.allowVoiceReminderControl;
 
   const { error } = await client
     .from('ultaura_lines')
@@ -988,6 +989,25 @@ export interface ReminderRow {
   time_of_day: string | null;
   ends_at: string | null;
   occurrence_count: number;
+  // Pause/snooze fields
+  is_paused: boolean;
+  paused_at: string | null;
+  snoozed_until: string | null;
+  original_due_at: string | null;
+  current_snooze_count: number;
+  last_delivery_status: 'completed' | 'no_answer' | 'failed' | null;
+}
+
+export interface ReminderEventRow {
+  id: string;
+  account_id: string;
+  reminder_id: string;
+  line_id: string;
+  created_at: string;
+  event_type: 'created' | 'edited' | 'paused' | 'resumed' | 'snoozed' | 'skipped' | 'canceled' | 'delivered' | 'no_answer' | 'failed';
+  triggered_by: 'dashboard' | 'voice' | 'system';
+  call_session_id: string | null;
+  metadata: Record<string, unknown> | null;
 }
 
 // Get reminders for a line
@@ -1170,6 +1190,15 @@ export async function cancelReminder(reminderId: string): Promise<{ success: boo
     return { success: false, error: 'Failed to cancel reminder' };
   }
 
+  // Log the cancel event
+  await logReminderEvent({
+    accountId: reminder.account_id,
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    eventType: 'canceled',
+    triggeredBy: 'dashboard',
+  });
+
   revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
   revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');
 
@@ -1280,6 +1309,418 @@ export async function skipNextOccurrence(reminderId: string): Promise<{ success:
     logger.error({ error }, 'Failed to skip reminder occurrence');
     return { success: false, error: 'Failed to skip occurrence' };
   }
+
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');
+
+  // Log the skip event
+  await logReminderEvent({
+    accountId: reminder.account_id,
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    eventType: 'skipped',
+    triggeredBy: 'dashboard',
+    metadata: { skippedDueAt: reminder.due_at, nextDueAt },
+  });
+
+  return { success: true };
+}
+
+// ============================================
+// REMINDER EVENT LOGGING
+// ============================================
+
+/**
+ * Log a reminder event for audit trail and caregiver visibility
+ */
+export async function logReminderEvent(params: {
+  accountId: string;
+  reminderId: string;
+  lineId: string;
+  eventType: ReminderEventRow['event_type'];
+  triggeredBy: ReminderEventRow['triggered_by'];
+  callSessionId?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  const { error } = await client
+    .from('ultaura_reminder_events')
+    .insert({
+      account_id: params.accountId,
+      reminder_id: params.reminderId,
+      line_id: params.lineId,
+      event_type: params.eventType,
+      triggered_by: params.triggeredBy,
+      call_session_id: params.callSessionId || null,
+      metadata: params.metadata || null,
+    });
+
+  if (error) {
+    logger.error({ error }, 'Failed to log reminder event');
+    return { success: false, error: 'Failed to log event' };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Get events for a specific reminder
+ */
+export async function getReminderEvents(reminderId: string): Promise<ReminderEventRow[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_reminder_events')
+    .select('*')
+    .eq('reminder_id', reminderId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error({ error }, 'Failed to get reminder events');
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get all reminder events for a line (for caregiver activity view)
+ */
+export async function getLineReminderEvents(lineId: string, limit = 50): Promise<ReminderEventRow[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_reminder_events')
+    .select('*')
+    .eq('line_id', lineId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    logger.error({ error }, 'Failed to get line reminder events');
+    return [];
+  }
+
+  return data || [];
+}
+
+// ============================================
+// PAUSE / RESUME REMINDERS
+// ============================================
+
+/**
+ * Pause a reminder indefinitely
+ */
+export async function pauseReminder(reminderId: string): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  const reminder = await getReminder(reminderId);
+  if (!reminder) {
+    return { success: false, error: 'Reminder not found' };
+  }
+
+  if (reminder.status !== 'scheduled') {
+    return { success: false, error: 'Can only pause scheduled reminders' };
+  }
+
+  if (reminder.is_paused) {
+    return { success: false, error: 'Reminder is already paused' };
+  }
+
+  const { error } = await client
+    .from('ultaura_reminders')
+    .update({
+      is_paused: true,
+      paused_at: new Date().toISOString(),
+    })
+    .eq('id', reminderId);
+
+  if (error) {
+    logger.error({ error }, 'Failed to pause reminder');
+    return { success: false, error: 'Failed to pause reminder' };
+  }
+
+  // Log the pause event
+  await logReminderEvent({
+    accountId: reminder.account_id,
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    eventType: 'paused',
+    triggeredBy: 'dashboard',
+  });
+
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');
+
+  return { success: true };
+}
+
+/**
+ * Resume a paused reminder
+ */
+export async function resumeReminder(reminderId: string): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  const reminder = await getReminder(reminderId);
+  if (!reminder) {
+    return { success: false, error: 'Reminder not found' };
+  }
+
+  if (!reminder.is_paused) {
+    return { success: false, error: 'Reminder is not paused' };
+  }
+
+  // Reset snooze count when resuming
+  const { error } = await client
+    .from('ultaura_reminders')
+    .update({
+      is_paused: false,
+      paused_at: null,
+      current_snooze_count: 0,
+    })
+    .eq('id', reminderId);
+
+  if (error) {
+    logger.error({ error }, 'Failed to resume reminder');
+    return { success: false, error: 'Failed to resume reminder' };
+  }
+
+  // Log the resume event
+  await logReminderEvent({
+    accountId: reminder.account_id,
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    eventType: 'resumed',
+    triggeredBy: 'dashboard',
+  });
+
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');
+
+  return { success: true };
+}
+
+// ============================================
+// SNOOZE REMINDERS
+// ============================================
+
+const MAX_SNOOZE_COUNT = 3;
+const VALID_SNOOZE_MINUTES = [15, 30, 60, 120, 1440]; // 15m, 30m, 1h, 2h, tomorrow
+
+/**
+ * Snooze a reminder for a specified duration
+ */
+export async function snoozeReminder(
+  reminderId: string,
+  minutes: number
+): Promise<{ success: boolean; error?: string; newDueAt?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  if (!VALID_SNOOZE_MINUTES.includes(minutes)) {
+    return { success: false, error: 'Invalid snooze duration' };
+  }
+
+  const reminder = await getReminder(reminderId);
+  if (!reminder) {
+    return { success: false, error: 'Reminder not found' };
+  }
+
+  if (reminder.status !== 'scheduled') {
+    return { success: false, error: 'Can only snooze scheduled reminders' };
+  }
+
+  if (reminder.is_paused) {
+    return { success: false, error: 'Cannot snooze a paused reminder' };
+  }
+
+  // Check snooze count limit
+  if (reminder.current_snooze_count >= MAX_SNOOZE_COUNT) {
+    return { success: false, error: `Maximum snooze limit (${MAX_SNOOZE_COUNT}) reached` };
+  }
+
+  const now = new Date();
+  const newDueAt = new Date(now.getTime() + minutes * 60 * 1000);
+
+  // Store original due_at if this is the first snooze
+  const originalDueAt = reminder.original_due_at || reminder.due_at;
+
+  const { error } = await client
+    .from('ultaura_reminders')
+    .update({
+      due_at: newDueAt.toISOString(),
+      original_due_at: originalDueAt,
+      snoozed_until: newDueAt.toISOString(),
+      current_snooze_count: reminder.current_snooze_count + 1,
+    })
+    .eq('id', reminderId);
+
+  if (error) {
+    logger.error({ error }, 'Failed to snooze reminder');
+    return { success: false, error: 'Failed to snooze reminder' };
+  }
+
+  // Log the snooze event
+  await logReminderEvent({
+    accountId: reminder.account_id,
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    eventType: 'snoozed',
+    triggeredBy: 'dashboard',
+    metadata: {
+      snoozeMinutes: minutes,
+      snoozeCount: reminder.current_snooze_count + 1,
+      originalDueAt,
+      newDueAt: newDueAt.toISOString(),
+    },
+  });
+
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');
+
+  return { success: true, newDueAt: newDueAt.toISOString() };
+}
+
+// ============================================
+// EDIT REMINDERS
+// ============================================
+
+export interface EditReminderInput {
+  message?: string;
+  dueAt?: string;
+  recurrence?: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'custom' | 'once';
+    interval?: number;
+    daysOfWeek?: number[];
+    dayOfMonth?: number;
+    endsAt?: string;
+  };
+}
+
+/**
+ * Edit a reminder's message, time, or recurrence
+ */
+export async function editReminder(
+  reminderId: string,
+  input: EditReminderInput
+): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  const reminder = await getReminder(reminderId);
+  if (!reminder) {
+    return { success: false, error: 'Reminder not found' };
+  }
+
+  if (reminder.status !== 'scheduled') {
+    return { success: false, error: 'Can only edit scheduled reminders' };
+  }
+
+  // Build update object
+  const updates: Record<string, unknown> = {};
+  const oldValues: Record<string, unknown> = {};
+
+  if (input.message !== undefined && input.message !== reminder.message) {
+    if (!input.message.trim()) {
+      return { success: false, error: 'Message cannot be empty' };
+    }
+    if (input.message.length > 500) {
+      return { success: false, error: 'Message must be 500 characters or less' };
+    }
+    oldValues.message = reminder.message;
+    updates.message = input.message.trim();
+  }
+
+  if (input.dueAt !== undefined) {
+    const dueDate = new Date(input.dueAt);
+    if (dueDate <= new Date()) {
+      return { success: false, error: 'Due date must be in the future' };
+    }
+    oldValues.dueAt = reminder.due_at;
+    updates.due_at = dueDate.toISOString();
+
+    // Extract time for recurring reminders
+    const hours = dueDate.getHours().toString().padStart(2, '0');
+    const minutes = dueDate.getMinutes().toString().padStart(2, '0');
+    updates.time_of_day = `${hours}:${minutes}`;
+  }
+
+  if (input.recurrence !== undefined) {
+    oldValues.isRecurring = reminder.is_recurring;
+    oldValues.rrule = reminder.rrule;
+
+    if (input.recurrence.frequency === 'once') {
+      // Convert to one-time reminder
+      updates.is_recurring = false;
+      updates.rrule = null;
+      updates.interval_days = null;
+      updates.days_of_week = null;
+      updates.day_of_month = null;
+      updates.ends_at = null;
+    } else {
+      // Set up recurrence
+      updates.is_recurring = true;
+
+      const { frequency, interval = 1, daysOfWeek, dayOfMonth, endsAt } = input.recurrence;
+      let rrule = '';
+
+      switch (frequency) {
+        case 'daily':
+          rrule = interval > 1 ? `FREQ=DAILY;INTERVAL=${interval}` : 'FREQ=DAILY';
+          updates.interval_days = interval;
+          break;
+        case 'weekly':
+          if (!daysOfWeek || daysOfWeek.length === 0) {
+            return { success: false, error: 'Weekly reminders require at least one day' };
+          }
+          const dayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+          const byDay = daysOfWeek.map(d => dayMap[d]).join(',');
+          rrule = interval > 1
+            ? `FREQ=WEEKLY;INTERVAL=${interval};BYDAY=${byDay}`
+            : `FREQ=WEEKLY;BYDAY=${byDay}`;
+          updates.days_of_week = daysOfWeek;
+          break;
+        case 'monthly':
+          const day = dayOfMonth || 1;
+          rrule = interval > 1
+            ? `FREQ=MONTHLY;INTERVAL=${interval};BYMONTHDAY=${day}`
+            : `FREQ=MONTHLY;BYMONTHDAY=${day}`;
+          updates.day_of_month = day;
+          break;
+        case 'custom':
+          rrule = `FREQ=DAILY;INTERVAL=${interval}`;
+          updates.interval_days = interval;
+          break;
+      }
+
+      updates.rrule = rrule;
+      updates.ends_at = endsAt ? new Date(endsAt).toISOString() : null;
+    }
+  }
+
+  // Check if there are any changes
+  if (Object.keys(updates).length === 0) {
+    return { success: false, error: 'No changes to apply' };
+  }
+
+  const { error } = await client
+    .from('ultaura_reminders')
+    .update(updates)
+    .eq('id', reminderId);
+
+  if (error) {
+    logger.error({ error }, 'Failed to edit reminder');
+    return { success: false, error: 'Failed to edit reminder' };
+  }
+
+  // Log the edit event
+  await logReminderEvent({
+    accountId: reminder.account_id,
+    reminderId: reminder.id,
+    lineId: reminder.line_id,
+    eventType: 'edited',
+    triggeredBy: 'dashboard',
+    metadata: { oldValues, newValues: updates },
+  });
 
   revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}/reminders`, 'page');
   revalidatePath(`/dashboard/lines/${getShortLineId(reminder.line_id)}`, 'page');

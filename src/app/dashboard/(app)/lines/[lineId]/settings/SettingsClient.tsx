@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Save, X } from 'lucide-react';
+import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Save, X, Bell } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
+import { Switch } from '~/core/ui/Switch';
 import type { LineRow } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/actions';
 import {
@@ -30,6 +31,9 @@ export function SettingsClient({ line }: SettingsClientProps) {
   const [spanishFormality, setSpanishFormality] = useState(line.spanish_formality);
   const [quietHoursStart, setQuietHoursStart] = useState(line.quiet_hours_start);
   const [quietHoursEnd, setQuietHoursEnd] = useState(line.quiet_hours_end);
+  const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
+    line.allow_voice_reminder_control ?? true
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +47,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
         spanishFormality,
         quietHoursStart,
         quietHoursEnd,
+        allowVoiceReminderControl,
       });
 
       if (result.success) {
@@ -63,7 +68,8 @@ export function SettingsClient({ line }: SettingsClientProps) {
     language !== line.preferred_language ||
     spanishFormality !== line.spanish_formality ||
     quietHoursStart !== line.quiet_hours_start ||
-    quietHoursEnd !== line.quiet_hours_end;
+    quietHoursEnd !== line.quiet_hours_end ||
+    allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true);
 
   return (
     <div className="w-full p-6 pb-12">
@@ -207,6 +213,27 @@ export function SettingsClient({ line }: SettingsClientProps) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
+
+          {/* Voice Reminder Control */}
+          <div className="pt-6 border-t border-border">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Bell className="w-4 h-4 text-muted-foreground" />
+                  Voice Reminder Control
+                </label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  When enabled, {line.display_name} can create, edit, pause, and cancel
+                  reminders during phone calls. Disable this to restrict reminder
+                  management to the dashboard only.
+                </p>
+              </div>
+              <Switch
+                checked={allowVoiceReminderControl}
+                onCheckedChange={setAllowVoiceReminderControl}
+              />
             </div>
           </div>
         </div>

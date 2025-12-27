@@ -405,12 +405,14 @@ async function processReminders(): Promise<void> {
 
   const now = new Date().toISOString();
 
-  // Find due reminders
+  // Find due reminders (not paused, not snoozed)
   const { data: dueReminders, error } = await supabase
     .from('ultaura_reminders')
     .select('*')
     .eq('status', 'scheduled')
+    .eq('is_paused', false)
     .lte('due_at', now)
+    .or(`snoozed_until.is.null,snoozed_until.lte.${now}`)
     .limit(BATCH_SIZE);
 
   if (error) {
@@ -495,8 +497,23 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       // One-time reminder: mark as sent
       await supabase
         .from('ultaura_reminders')
-        .update({ status: 'sent' })
+        .update({
+          status: 'sent',
+          last_delivery_status: 'completed',
+          current_snooze_count: 0,
+          snoozed_until: null,
+          original_due_at: null,
+        })
         .eq('id', reminder.id);
+
+      // Log delivery event
+      await supabase.from('ultaura_reminder_events').insert({
+        account_id: reminder.account_id,
+        reminder_id: reminder.id,
+        line_id: reminder.line_id,
+        event_type: 'delivered',
+        triggered_by: 'system',
+      });
     }
 
   } catch (error) {
@@ -523,8 +540,21 @@ async function handleRecurringReminderSuccess(
       .update({
         status: 'sent',
         occurrence_count: (reminder.occurrence_count || 0) + 1,
+        last_delivery_status: 'completed',
+        current_snooze_count: 0,
+        snoozed_until: null,
+        original_due_at: null,
       })
       .eq('id', reminder.id);
+
+    // Log delivery event
+    await supabase.from('ultaura_reminder_events').insert({
+      account_id: reminder.account_id,
+      reminder_id: reminder.id,
+      line_id: reminder.line_id,
+      event_type: 'delivered',
+      triggered_by: 'system',
+    });
     return;
   }
 
@@ -535,20 +565,47 @@ async function handleRecurringReminderSuccess(
       .update({
         status: 'sent',
         occurrence_count: (reminder.occurrence_count || 0) + 1,
+        last_delivery_status: 'completed',
+        current_snooze_count: 0,
+        snoozed_until: null,
+        original_due_at: null,
       })
       .eq('id', reminder.id);
+
+    // Log delivery event
+    await supabase.from('ultaura_reminder_events').insert({
+      account_id: reminder.account_id,
+      reminder_id: reminder.id,
+      line_id: reminder.line_id,
+      event_type: 'delivered',
+      triggered_by: 'system',
+    });
     return;
   }
 
-  // Reschedule for next occurrence
+  // Reschedule for next occurrence - reset snooze state
   await supabase
     .from('ultaura_reminders')
     .update({
       due_at: nextDueAt,
       status: 'scheduled',
       occurrence_count: (reminder.occurrence_count || 0) + 1,
+      last_delivery_status: 'completed',
+      current_snooze_count: 0,
+      snoozed_until: null,
+      original_due_at: null,
     })
     .eq('id', reminder.id);
+
+  // Log delivery event
+  await supabase.from('ultaura_reminder_events').insert({
+    account_id: reminder.account_id,
+    reminder_id: reminder.id,
+    line_id: reminder.line_id,
+    event_type: 'delivered',
+    triggered_by: 'system',
+    metadata: { nextDueAt },
+  });
 
   logger.info({
     reminderId: reminder.id,
@@ -566,6 +623,8 @@ async function handleReminderFailure(
   reminder: ReminderRow,
   status: 'missed' | 'canceled'
 ): Promise<void> {
+  const eventType = status === 'missed' ? 'no_answer' : 'failed';
+
   if (reminder.is_recurring) {
     // For recurring reminders that fail, still advance to next occurrence
     // so we don't keep trying the same failed occurrence
@@ -577,9 +636,24 @@ async function handleReminderFailure(
         .update({
           due_at: nextDueAt,
           status: 'scheduled',
+          last_delivery_status: 'no_answer',
           // Don't increment occurrence_count since this one was missed
+          // Reset snooze count for next occurrence
+          current_snooze_count: 0,
+          snoozed_until: null,
+          original_due_at: null,
         })
         .eq('id', reminder.id);
+
+      // Log the failure event
+      await supabase.from('ultaura_reminder_events').insert({
+        account_id: reminder.account_id,
+        reminder_id: reminder.id,
+        line_id: reminder.line_id,
+        event_type: eventType,
+        triggered_by: 'system',
+        metadata: { nextDueAt },
+      });
 
       logger.info({ reminderId: reminder.id, nextDueAt }, 'Recurring reminder missed, rescheduled for next occurrence');
       return;
@@ -589,6 +663,18 @@ async function handleReminderFailure(
   // One-time reminder or recurring with no next occurrence: mark as missed
   await supabase
     .from('ultaura_reminders')
-    .update({ status })
+    .update({
+      status,
+      last_delivery_status: status === 'missed' ? 'no_answer' : 'failed',
+    })
     .eq('id', reminder.id);
+
+  // Log the failure event
+  await supabase.from('ultaura_reminder_events').insert({
+    account_id: reminder.account_id,
+    reminder_id: reminder.id,
+    line_id: reminder.line_id,
+    event_type: eventType,
+    triggered_by: 'system',
+  });
 }

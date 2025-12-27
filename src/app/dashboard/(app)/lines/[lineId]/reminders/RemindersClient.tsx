@@ -4,14 +4,22 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward } from 'lucide-react';
+import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/actions';
-import { createReminder, cancelReminder, skipNextOccurrence } from '~/lib/ultaura/actions';
+import { createReminder, cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/actions';
 import { getShortLineId } from '~/lib/ultaura';
+
+const SNOOZE_OPTIONS = [
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 hour' },
+  { value: 120, label: '2 hours' },
+  { value: 1440, label: 'Tomorrow' },
+];
 
 type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
 
@@ -77,8 +85,19 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [skippingId, setSkippingId] = useState<string | null>(null);
+  const [pausingId, setPausingId] = useState<string | null>(null);
+  const [resumingId, setResumingId] = useState<string | null>(null);
+  const [snoozingId, setSnoozingId] = useState<string | null>(null);
+  const [snoozeDropdownId, setSnoozeDropdownId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reminderToCancel, setReminderToCancel] = useState<string | null>(null);
+
+  // Edit modal state
+  const [editingReminder, setEditingReminder] = useState<ReminderRow | null>(null);
+  const [editMessage, setEditMessage] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // Form state
   const [message, setMessage] = useState('');
@@ -200,6 +219,101 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
     } else {
       toast.error(result.error || 'Failed to cancel reminder');
       throw new Error('Cancel failed');
+    }
+  };
+
+  const handlePause = async (reminderId: string) => {
+    setPausingId(reminderId);
+
+    const result = await pauseReminder(reminderId);
+
+    setPausingId(null);
+
+    if (result.success) {
+      toast.success('Reminder paused');
+      router.refresh();
+    } else {
+      toast.error(result.error || 'Failed to pause reminder');
+    }
+  };
+
+  const handleResume = async (reminderId: string) => {
+    setResumingId(reminderId);
+
+    const result = await resumeReminder(reminderId);
+
+    setResumingId(null);
+
+    if (result.success) {
+      toast.success('Reminder resumed');
+      router.refresh();
+    } else {
+      toast.error(result.error || 'Failed to resume reminder');
+    }
+  };
+
+  const handleSnooze = async (reminderId: string, minutes: number) => {
+    setSnoozingId(reminderId);
+    setSnoozeDropdownId(null);
+
+    const result = await snoozeReminder(reminderId, minutes);
+
+    setSnoozingId(null);
+
+    if (result.success) {
+      const option = SNOOZE_OPTIONS.find(o => o.value === minutes);
+      toast.success(`Snoozed for ${option?.label || minutes + ' minutes'}`);
+      router.refresh();
+    } else {
+      toast.error(result.error || 'Failed to snooze reminder');
+    }
+  };
+
+  const openEditModal = (reminder: ReminderRow) => {
+    setEditingReminder(reminder);
+    setEditMessage(reminder.message);
+    // Parse the due_at to get date and time in local format
+    const dueDate = new Date(reminder.due_at);
+    setEditDate(dueDate.toISOString().split('T')[0]);
+    const hours = dueDate.getHours().toString().padStart(2, '0');
+    const minutes = dueDate.getMinutes().toString().padStart(2, '0');
+    setEditTime(`${hours}:${minutes}`);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReminder) return;
+
+    setIsEditSubmitting(true);
+
+    const updates: { message?: string; dueAt?: string } = {};
+
+    if (editMessage.trim() !== editingReminder.message) {
+      updates.message = editMessage.trim();
+    }
+
+    const newDueAt = new Date(`${editDate}T${editTime}:00`);
+    const oldDueAt = new Date(editingReminder.due_at);
+    if (newDueAt.getTime() !== oldDueAt.getTime()) {
+      updates.dueAt = newDueAt.toISOString();
+    }
+
+    if (Object.keys(updates).length === 0) {
+      toast.info('No changes to save');
+      setIsEditSubmitting(false);
+      return;
+    }
+
+    const result = await editReminder(editingReminder.id, updates);
+
+    setIsEditSubmitting(false);
+
+    if (result.success) {
+      toast.success('Reminder updated');
+      setEditingReminder(null);
+      router.refresh();
+    } else {
+      toast.error(result.error || 'Failed to update reminder');
     }
   };
 
@@ -466,7 +580,9 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
             {scheduledReminders.map((reminder) => (
               <div
                 key={reminder.id}
-                className="p-4 rounded-lg border border-input bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                className={`p-4 rounded-lg border bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${
+                  reminder.is_paused ? 'border-yellow-300 dark:border-yellow-700' : 'border-input'
+                }`}
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground">{reminder.message}</p>
@@ -476,6 +592,22 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                       {formatDateTime(reminder.due_at)}
                     </span>
 
+                    {/* Paused badge */}
+                    {reminder.is_paused && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs font-medium">
+                        <Pause className="w-3 h-3" />
+                        Paused
+                      </span>
+                    )}
+
+                    {/* Snoozed badge */}
+                    {reminder.snoozed_until && !reminder.is_paused && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-medium">
+                        <AlarmClock className="w-3 h-3" />
+                        Snoozed ({reminder.current_snooze_count}/3)
+                      </span>
+                    )}
+
                     {/* Recurrence badge */}
                     {reminder.is_recurring && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
@@ -484,15 +616,86 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                       </span>
                     )}
 
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[reminder.status]}`}>
-                      {STATUS_LABELS[reminder.status]}
-                    </span>
+                    {!reminder.is_paused && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[reminder.status]}`}>
+                        {STATUS_LABELS[reminder.status]}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0 flex-wrap">
+                  {/* Edit button */}
+                  <button
+                    onClick={() => openEditModal(reminder)}
+                    className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="Edit reminder"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+
+                  {/* Pause/Resume button */}
+                  {reminder.is_paused ? (
+                    <button
+                      onClick={() => handleResume(reminder.id)}
+                      disabled={resumingId === reminder.id}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
+                      title="Resume reminder"
+                    >
+                      {resumingId === reminder.id ? (
+                        <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handlePause(reminder.id)}
+                      disabled={pausingId === reminder.id}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors disabled:opacity-50"
+                      title="Pause reminder"
+                    >
+                      {pausingId === reminder.id ? (
+                        <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Pause className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Snooze dropdown - only show if not paused and under snooze limit */}
+                  {!reminder.is_paused && reminder.current_snooze_count < 3 && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setSnoozeDropdownId(snoozeDropdownId === reminder.id ? null : reminder.id)}
+                        disabled={snoozingId === reminder.id}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                        title="Snooze reminder"
+                      >
+                        {snoozingId === reminder.id ? (
+                          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <AlarmClock className="w-4 h-4" />
+                        )}
+                      </button>
+                      {snoozeDropdownId === reminder.id && (
+                        <div className="absolute right-0 top-full mt-1 z-10 bg-card border border-input rounded-lg shadow-lg py-1 min-w-[140px]">
+                          {SNOOZE_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              onClick={() => handleSnooze(reminder.id, option.value)}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Skip button for recurring reminders */}
-                  {reminder.is_recurring && (
+                  {reminder.is_recurring && !reminder.is_paused && (
                     <button
                       onClick={() => handleSkip(reminder.id)}
                       disabled={skippingId === reminder.id}
@@ -592,6 +795,81 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
         variant="destructive"
         onConfirm={handleConfirmCancel}
       />
+
+      {/* Edit Modal */}
+      {editingReminder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setEditingReminder(null)}
+          />
+          <div className="relative bg-card border border-input rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="font-semibold text-lg mb-4">Edit Reminder</h2>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Message
+                </label>
+                <textarea
+                  value={editMessage}
+                  onChange={(e) => setEditMessage(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {editMessage.length}/500 characters
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    min={today}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingReminder(null)}
+                  className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditSubmitting || !editMessage.trim()}
+                  className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isEditSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
