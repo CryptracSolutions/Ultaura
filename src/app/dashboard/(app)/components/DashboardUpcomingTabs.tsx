@@ -9,8 +9,8 @@ import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 type TabValue = 'calls' | 'reminders';
 
 const DASHBOARD_TABS = [
-  { value: 'calls' as const, label: 'Upcoming calls', path: '/dashboard?tab=calls' },
-  { value: 'reminders' as const, label: 'Upcoming reminders', path: '/dashboard?tab=reminders' },
+  { value: 'calls' as const, label: 'Calls', path: '/dashboard?tab=calls' },
+  { value: 'reminders' as const, label: 'Reminders', path: '/dashboard?tab=reminders' },
 ];
 
 export function DashboardUpcomingTabs(props: {

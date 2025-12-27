@@ -460,16 +460,16 @@ async function DashboardPage() {
                           <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
                             {reminder.message}
                           </p>
-                          <div className="mt-2 flex items-center gap-2">
+                          <div className="mt-2 flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
                             {reminder.isRecurring && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
+                              <span className="inline-flex max-w-full items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
                                 <Repeat className="w-3 h-3" />
                                 {formatRecurrence(reminder)}
                               </span>
                             )}
                             <Link
                               href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders`}
-                              className="text-sm text-primary hover:underline"
+                              className="text-sm text-primary hover:underline sm:ml-auto"
                             >
                               View reminders
                             </Link>
