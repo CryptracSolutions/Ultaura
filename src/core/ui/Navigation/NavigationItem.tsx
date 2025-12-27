@@ -19,12 +19,25 @@ interface Link {
 const NavigationMenuItem: React.FCC<{
   link: Link;
   depth?: number;
+  active?: boolean;
   disabled?: boolean;
   shallow?: boolean;
+  scroll?: boolean;
   className?: string;
-}> = ({ link, disabled, shallow, depth, ...props }) => {
+}> = ({
+  link,
+  disabled,
+  shallow,
+  scroll,
+  depth,
+  active: activeOverride,
+  ...props
+}) => {
   const pathName = usePathname() ?? '';
-  const active = isRouteActive(link.path, pathName, depth ?? 3);
+  const active =
+    typeof activeOverride === 'boolean'
+      ? activeOverride
+      : isRouteActive(link.path, pathName, depth ?? 3);
   const menuProps = useContext(NavigationMenuContext);
   const label = link.label;
 
@@ -44,6 +57,7 @@ const NavigationMenuItem: React.FCC<{
         aria-disabled={disabled}
         href={disabled ? '' : link.path}
         shallow={shallow ?? active}
+        scroll={scroll}
       >
         <Trans i18nKey={label} defaults={label} />
       </Link>

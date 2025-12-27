@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Repeat, Phone, Clock, Zap } from 'lucide-react';
 
 import AppHeader from './components/AppHeader';
+import { DashboardUpcomingTabs } from './components/DashboardUpcomingTabs';
 import { withI18n } from '~/i18n/with-i18n';
 import Trans from '~/core/ui/Trans';
 import { PageBody } from '~/core/ui/Page';
@@ -366,115 +367,120 @@ async function DashboardPage() {
             )}
           </div>
 
-          {/* Upcoming scheduled calls */}
           <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-base font-semibold text-foreground">
-                Upcoming calls
-              </h2>
-              <Link
-                href="/dashboard/calls"
-                className="text-sm text-primary hover:underline"
-              >
-                View all
-              </Link>
-            </div>
-
-            {upcoming.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                No scheduled calls yet.{' '}
-                <Link href="/dashboard/calls" className="text-primary hover:underline">
-                  Add a schedule
-                </Link>{' '}
-                to start recurring check-ins.
-              </p>
-            ) : (
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {upcoming.map((item) => (
-                  <div
-                    key={item.scheduleId}
-                    className="rounded-lg border border-border bg-background p-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="font-medium text-foreground">
-                        {item.displayName}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateTime(item.nextRunAt)}
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <Link
-                        href={`/dashboard/lines/${getShortLineId(item.lineId)}/schedule`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        Edit schedule
-                      </Link>
-                    </div>
+            <DashboardUpcomingTabs
+              callsContent={
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <h2 className="text-base font-semibold text-foreground">
+                      Upcoming calls
+                    </h2>
+                    <Link
+                      href="/dashboard/calls"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      View all
+                    </Link>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* Upcoming reminders */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-base font-semibold text-foreground">
-                Upcoming reminders
-              </h2>
-              <Link
-                href="/dashboard/reminders"
-                className="text-sm text-primary hover:underline"
-              >
-                View all
-              </Link>
-            </div>
-
-            {upcomingReminders.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                No reminders scheduled.{' '}
-                <Link href="/dashboard/reminders" className="text-primary hover:underline">
-                  Add a reminder
-                </Link>{' '}
-                for medication, appointments, or important tasks.
-              </p>
-            ) : (
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {upcomingReminders.slice(0, 4).map((reminder) => (
-                  <div
-                    key={reminder.reminderId}
-                    className="rounded-lg border border-border bg-background p-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="font-medium text-foreground">
-                        {reminder.displayName}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateTime(reminder.dueAt)}
-                      </div>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
-                      {reminder.message}
+                  {upcoming.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      No scheduled calls yet.{' '}
+                      <Link href="/dashboard/calls" className="text-primary hover:underline">
+                        Add a schedule
+                      </Link>{' '}
+                      to start recurring check-ins.
                     </p>
-                    <div className="mt-2 flex items-center gap-2">
-                      {reminder.isRecurring && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
-                          <Repeat className="w-3 h-3" />
-                          {formatRecurrence(reminder)}
-                        </span>
-                      )}
-                      <Link
-                        href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        View reminders
-                      </Link>
+                  ) : (
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {upcoming.map((item) => (
+                        <div
+                          key={item.scheduleId}
+                          className="rounded-lg border border-border bg-background p-4"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="font-medium text-foreground">
+                              {item.displayName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatDateTime(item.nextRunAt)}
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <Link
+                              href={`/dashboard/lines/${getShortLineId(item.lineId)}/schedule`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              Edit schedule
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  )}
+                </>
+              }
+              remindersContent={
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <h2 className="text-base font-semibold text-foreground">
+                      Upcoming reminders
+                    </h2>
+                    <Link
+                      href="/dashboard/reminders"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      View all
+                    </Link>
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {upcomingReminders.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      No reminders scheduled.{' '}
+                      <Link href="/dashboard/reminders" className="text-primary hover:underline">
+                        Add a reminder
+                      </Link>{' '}
+                      for medication, appointments, or important tasks.
+                    </p>
+                  ) : (
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {upcomingReminders.slice(0, 4).map((reminder) => (
+                        <div
+                          key={reminder.reminderId}
+                          className="rounded-lg border border-border bg-background p-4"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="font-medium text-foreground">
+                              {reminder.displayName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatDateTime(reminder.dueAt)}
+                            </div>
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+                            {reminder.message}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            {reminder.isRecurring && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
+                                <Repeat className="w-3 h-3" />
+                                {formatRecurrence(reminder)}
+                              </span>
+                            )}
+                            <Link
+                              href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              View reminders
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              }
+            />
           </div>
 
         </div>
