@@ -7,6 +7,7 @@ import { UsageCard } from './components/UsageCard';
 import { AlertBanner } from './components/AlertBanner';
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
+import { PLANS } from '~/lib/ultaura/constants';
 
 export const metadata: Metadata = {
   title: 'Lines - Ultaura',
@@ -59,8 +60,9 @@ export default async function LinesPage() {
   ]);
 
   // Determine if we should show any alerts
+  const isPayg = account.plan_id === 'payg';
   const showTrialAlert = account.status === 'trial' && usage && usage.minutesRemaining <= 5;
-  const showLowMinutesAlert = account.status !== 'trial' && usage && usage.minutesRemaining <= 15;
+  const showLowMinutesAlert = !isPayg && account.status !== 'trial' && usage && usage.minutesRemaining <= 15;
 
   return (
     <>
@@ -92,7 +94,8 @@ export default async function LinesPage() {
                 minutesIncluded={usage.minutesIncluded}
                 minutesUsed={usage.minutesUsed}
                 minutesRemaining={usage.minutesRemaining}
-                planName={account.plan_id === 'free_trial' ? 'Free Trial' : account.plan_id}
+                planName={PLANS[account.plan_id as keyof typeof PLANS]?.displayName ?? account.plan_id}
+                planId={account.plan_id}
                 cycleEnd={usage.cycleEnd}
               />
             </Suspense>

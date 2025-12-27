@@ -132,7 +132,7 @@ export function LineDetailClient({
   };
 
   const handleTestCall = async () => {
-    if (!usage || usage.minutesRemaining <= 0) {
+    if (!usage || (usage.minutesRemaining <= 0 && usage.minutesIncluded > 0)) {
       setError('No minutes remaining. Please upgrade your plan.');
       return;
     }

@@ -1,5 +1,6 @@
 import {
   Squares2X2Icon,
+  ChartBarIcon,
   PhoneIcon,
   CalendarDaysIcon,
   BellIcon,
@@ -43,6 +44,13 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
         return <Squares2X2Icon className={className} />;
       },
       end: true,
+    },
+    {
+      label: 'Usage',
+      path: getPath('usage'),
+      Icon: ({ className }: { className: string }) => {
+        return <ChartBarIcon className={className} />;
+      },
     },
     {
       label: 'Lines',

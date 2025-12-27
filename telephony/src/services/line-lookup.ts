@@ -3,6 +3,9 @@
 
 import { getSupabaseClient, LineRow, UltauraAccountRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
+import { getUsageSummary } from './metering.js';
+
+const OVERAGE_RATE_CENTS = 15;
 
 export interface LineWithAccount {
   line: LineRow;
@@ -72,7 +75,7 @@ export async function getLineById(lineId: string): Promise<LineWithAccount | nul
 // Check if a line can make/receive calls
 export interface LineAccessCheck {
   allowed: boolean;
-  reason?: 'disabled' | 'inbound_blocked' | 'do_not_call' | 'not_verified' | 'minutes_exhausted' | 'account_canceled';
+  reason?: 'disabled' | 'inbound_blocked' | 'do_not_call' | 'not_verified' | 'minutes_exhausted' | 'minutes_cap' | 'account_canceled';
   minutesRemaining?: number;
 }
 
@@ -111,6 +114,21 @@ export async function checkLineAccess(
   // For trial accounts, enforce hard stop
   if (account.status === 'trial' && minutesRemaining <= 0) {
     return { allowed: false, reason: 'minutes_exhausted', minutesRemaining: 0 };
+  }
+
+  // Enforce spending cap for payg or overage billing
+  const capCents = account.overage_cents_cap ?? 0;
+  if (capCents > 0) {
+    const usage = await getUsageSummary(account.id);
+    if (usage) {
+      const billableMinutes =
+        account.plan_id === 'payg' ? usage.minutesUsed : usage.overageMinutes;
+      const usageCostCents = billableMinutes * OVERAGE_RATE_CENTS;
+
+      if (usageCostCents >= capCents) {
+        return { allowed: false, reason: 'minutes_cap', minutesRemaining };
+      }
+    }
   }
 
   return { allowed: true, minutesRemaining };

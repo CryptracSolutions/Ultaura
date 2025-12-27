@@ -48,6 +48,7 @@ const MESSAGES = {
   UNRECOGNIZED: "Hello, this is Ultaura. I don't recognize this phone number. If you'd like to set up phone companionship for yourself or a loved one, please visit our website. Goodbye.",
   DISABLED: "Hello, this phone line is currently disabled. Please contact your family member or caregiver to re-enable it. Goodbye.",
   MINUTES_EXHAUSTED: "Hello, your free trial minutes have been used up. To continue using Ultaura, please ask your family member to upgrade your plan. I hope we can talk again soon. Goodbye.",
+  MINUTES_CAP: "Hello, this account has reached its monthly spending cap. Please ask your family member or caregiver to adjust the cap or wait until the next billing cycle. Goodbye.",
   INBOUND_BLOCKED: "Hello, inbound calls are not enabled for this line. Please contact your family member or caregiver. Goodbye.",
   NOT_VERIFIED: "Hello, this phone number has not been verified yet. Please ask your family member to complete the verification process. Goodbye.",
   ACCOUNT_CANCELED: "Hello, the account associated with this phone number is no longer active. Goodbye.",
@@ -93,6 +94,9 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
           break;
         case 'minutes_exhausted':
           message = MESSAGES.MINUTES_EXHAUSTED;
+          break;
+        case 'minutes_cap':
+          message = MESSAGES.MINUTES_CAP;
           break;
         case 'account_canceled':
           message = MESSAGES.ACCOUNT_CANCELED;

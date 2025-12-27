@@ -8,8 +8,14 @@ import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getLines, getLineActivity, getUltauraAccount, getUsageSummary, getUpcomingScheduledCalls, getUpcomingReminders } from '~/lib/ultaura/actions';
 import { getShortLineId } from '~/lib/ultaura';
+import { BILLING } from '~/lib/ultaura/constants';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const RATE_CENTS = BILLING.OVERAGE_RATE_CENTS;
+
+function formatCurrency(cents: number) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 function getOrdinalSuffix(n: number): string {
   if (n > 3 && n < 21) return 'th';
@@ -113,6 +119,22 @@ async function DashboardPage() {
   const unverifiedCount = lines.filter((l) => !l.phone_verified_at).length;
   const activeCount = lines.filter((l) => l.status === 'active').length;
   const pausedCount = lines.filter((l) => l.status === 'paused').length;
+  const isPayg = account.plan_id === 'payg';
+  const overageMinutes = usage?.overageMinutes ?? 0;
+  const usageCostCents = usage
+    ? (isPayg ? usage.minutesUsed * RATE_CENTS : overageMinutes * RATE_CENTS)
+    : 0;
+  const capCents = account.overage_cents_cap ?? 0;
+  const capPercent = capCents > 0 && usage ? Math.min((usageCostCents / capCents) * 100, 100) : 0;
+  const capReached = capCents > 0 && usageCostCents >= capCents;
+  const includedUsagePercent =
+    usage && usage.minutesIncluded > 0
+      ? Math.min((Math.min(usage.minutesUsed, usage.minutesIncluded) / usage.minutesIncluded) * 100, 100)
+      : 0;
+  const overagePercent =
+    usage && usage.minutesIncluded > 0
+      ? Math.min((overageMinutes / usage.minutesIncluded) * 100, 100)
+      : 0;
 
   // Get upcoming scheduled calls (already sorted by next_run_at)
   const upcoming = upcomingSchedules.slice(0, 6);
@@ -136,7 +158,7 @@ async function DashboardPage() {
       <PageBody>
         <div className="flex flex-col space-y-6 pb-24">
           {/* Alerts */}
-          {(unverifiedCount > 0 || (usage && usage.minutesRemaining <= 5)) && (
+          {(unverifiedCount > 0 || (usage && !isPayg && usage.minutesRemaining <= 5)) && (
             <div className="grid gap-3">
               {unverifiedCount > 0 && (
                 <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
@@ -156,7 +178,7 @@ async function DashboardPage() {
                 </div>
               )}
 
-              {usage && usage.minutesRemaining <= 5 && (
+              {usage && !isPayg && usage.minutesRemaining <= 5 && (
                 <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
                   <div className="font-medium text-foreground">
                     Minutes running low
@@ -206,30 +228,66 @@ async function DashboardPage() {
                 <div className="text-base font-medium text-foreground">Minutes</div>
               </div>
               <div className="text-3xl font-bold text-foreground">
-                {usage ? usage.minutesRemaining : '—'}
+                {usage
+                  ? isPayg
+                    ? usage.minutesUsed
+                    : overageMinutes > 0
+                    ? overageMinutes
+                    : usage.minutesRemaining
+                  : '—'}
               </div>
               {usage && (
+                <div className="text-xs text-muted-foreground">
+                  {isPayg
+                    ? 'minutes used'
+                    : overageMinutes > 0
+                    ? 'minutes over'
+                    : 'minutes remaining'}
+                </div>
+              )}
+              {usage && (
                 <div className="mt-3">
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min((usage.minutesUsed / usage.minutesIncluded) * 100, 100)}%` }}
-                    ></div>
-                  </div>
+                  {isPayg ? (
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-2 transition-all duration-300 ${capReached ? 'bg-warning' : 'bg-primary'}`}
+                        style={{ width: `${capPercent}%` }}
+                      ></div>
+                    </div>
+                  ) : (
+                    <div className="relative w-full bg-muted rounded-full h-2 overflow-visible">
+                      <div className="absolute inset-0 flex overflow-visible">
+                        <div
+                          className={`h-2 ${overageMinutes > 0 ? 'rounded-l-full' : 'rounded-full'} bg-primary transition-all duration-300`}
+                          style={{ width: `${includedUsagePercent}%` }}
+                        ></div>
+                        {overageMinutes > 0 && (
+                          <div
+                            className="h-2 rounded-r-full bg-warning transition-all duration-300"
+                            style={{ width: `${overagePercent}%` }}
+                          ></div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex-1" />
               <div className="mt-auto space-y-2">
                 <div className="text-xs text-muted-foreground">
                   {usage
-                    ? `${usage.minutesUsed} used • ${usage.minutesIncluded} included`
+                    ? isPayg
+                      ? `${usage.minutesUsed} minutes • ${formatCurrency(usageCostCents)} est.`
+                      : `${usage.minutesUsed} used • ${usage.minutesIncluded} included${
+                          overageMinutes > 0 ? ` • ${overageMinutes} over` : ''
+                        }`
                     : 'Usage not available yet.'}
                 </div>
                 <Link
-                  href="/dashboard/settings/subscription"
+                  href="/dashboard/usage"
                   className="inline-flex items-center text-sm font-medium text-primary hover:underline"
                 >
-                  View plan →
+                  View usage →
                 </Link>
               </div>
             </div>

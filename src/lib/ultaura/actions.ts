@@ -778,6 +778,25 @@ export async function getUsageSummary(accountId: string): Promise<UsageSummary |
   };
 }
 
+export async function updateOverageCap(accountId: string, overageCentsCap: number): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+
+  const { error } = await client
+    .from('ultaura_accounts')
+    .update({ overage_cents_cap: overageCentsCap })
+    .eq('id', accountId);
+
+  if (error) {
+    logger.error({ error, accountId }, 'Failed to update overage cap');
+    return { success: false, error: 'Failed to update overage cap' };
+  }
+
+  revalidatePath('/dashboard/usage', 'page');
+  revalidatePath('/dashboard', 'page');
+
+  return { success: true };
+}
+
 // Get call sessions for a line
 export async function getCallSessions(
   lineId: string,
