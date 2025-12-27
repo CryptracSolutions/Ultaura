@@ -113,7 +113,7 @@ export async function checkLineAccess(
 
   // For trial accounts, enforce hard stop
   if (account.status === 'trial' && minutesRemaining <= 0) {
-    return { allowed: false, reason: 'minutes_exhausted', minutesRemaining: 0 };
+    return { allowed: true, minutesRemaining: 0 };
   }
 
   // Enforce spending cap for payg or overage billing

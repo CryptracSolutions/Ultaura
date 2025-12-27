@@ -270,6 +270,11 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
     await updateScheduleResult(schedule.id, 'failed', calculateNextRun(schedule));
     return;
   }
+  if (account.status === 'trial' && (accessCheck.minutesRemaining ?? 0) <= 0) {
+    logger.info({ scheduleId: schedule.id }, 'Trial minutes exhausted, skipping scheduled call');
+    await updateScheduleResult(schedule.id, 'failed', calculateNextRun(schedule));
+    return;
+  }
 
   // Initiate the call
   try {
@@ -462,6 +467,11 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
   const accessCheck = await checkLineAccess(line, account, 'outbound');
   if (!accessCheck.allowed) {
     logger.info({ reminderId: reminder.id, reason: accessCheck.reason }, 'Access denied for reminder');
+    await handleReminderFailure(supabase, reminder, 'missed');
+    return;
+  }
+  if (account.status === 'trial' && (accessCheck.minutesRemaining ?? 0) <= 0) {
+    logger.info({ reminderId: reminder.id }, 'Trial minutes exhausted, skipping reminder');
     await handleReminderFailure(supabase, reminder, 'missed');
     return;
   }

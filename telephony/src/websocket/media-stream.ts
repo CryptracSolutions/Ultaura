@@ -6,7 +6,7 @@ import { logger } from '../server.js';
 import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent } from '../services/call-session.js';
 import { getLineById, recordOptOut } from '../services/line-lookup.js';
 import { getMemoriesForLine, formatMemoriesForPrompt } from '../services/memory.js';
-import { shouldWarnLowMinutes } from '../services/metering.js';
+import { getUsageSummary } from '../services/metering.js';
 import { GrokBridge } from './grok-bridge.js';
 
 interface TwilioMessage {
@@ -34,6 +34,13 @@ interface TwilioMessage {
   };
 }
 
+const PLAN_OPTIONS = [
+  { id: 'care', name: 'Care', minutes: 300, price: '$39 per month' },
+  { id: 'comfort', name: 'Comfort', minutes: 900, price: '$99 per month' },
+  { id: 'family', name: 'Family', minutes: 2000, price: '$199 per month' },
+  { id: 'payg', name: 'Pay as you go', minutes: null, price: '$0 per month plus $0.15 per minute' },
+];
+
 // Handle a new Twilio Media Stream connection
 export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: string): Promise<void> {
   logger.info({ callSessionId }, 'Media stream connection started');
@@ -43,6 +50,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let isConnected = false;
   let pendingOptOut = false;
   let minuteCheckInterval: NodeJS.Timeout | null = null;
+  let overagePromptTimeout: NodeJS.Timeout | null = null;
+  let overagePromptActive = false;
 
   // Get session info
   const session = await getCallSession(callSessionId);
@@ -61,6 +70,72 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   }
 
   const { line, account } = lineWithAccount;
+  const isPayg = account.plan_id === 'payg';
+
+  const formatPlanOptions = () =>
+    PLAN_OPTIONS.map((option) => {
+      if (option.minutes) {
+        return `${option.name} (${option.minutes} minutes per month, ${option.price})`;
+      }
+      return `${option.name} (${option.price})`;
+    }).join('; ');
+
+  const getMinutesStatus = async () => {
+    if (isPayg) {
+      return { remaining: 0, warn: false, critical: false };
+    }
+
+    const usage = await getUsageSummary(account.id);
+    const remaining = usage?.minutesRemaining ?? 0;
+
+    return {
+      remaining,
+      warn: remaining > 0 && remaining <= 15,
+      critical: remaining > 0 && remaining <= 5,
+    };
+  };
+
+  const clearOveragePrompt = () => {
+    overagePromptActive = false;
+    if (overagePromptTimeout) {
+      clearTimeout(overagePromptTimeout);
+      overagePromptTimeout = null;
+    }
+  };
+
+  const sendOveragePrompt = (mode: 'trial' | 'overage') => {
+    if (!grokBridge || overagePromptActive) {
+      return;
+    }
+
+    overagePromptActive = true;
+
+    const planOptions = formatPlanOptions();
+    const prompt =
+      mode === 'trial'
+        ? `SYSTEM: The user has used all free trial minutes. At the start of the call, explain that the free trial minutes are used up and ask if they would like to upgrade or stop the call (do not offer to continue). Offer these options: ${planOptions}. Ask which plan they prefer. Once they decide, call choose_overage_action with action "upgrade" and plan_id ("care", "comfort", "family", or "payg"), or action "stop" if they decline. Do not ask for payment details; tell them you will email a secure link to the billing email on file. If they do not respond within one minute, give a short warm goodbye and end the call.`
+        : `SYSTEM: The user has 0 included minutes remaining. Continuing will incur overage charges at $0.15 per minute. At the start of the call, explain this and ask if they would like to continue with overage charges, upgrade, or stop the call. If they want to upgrade, offer these options: ${planOptions}. Ask which plan they prefer. Once they decide, call choose_overage_action with action "continue", "upgrade", or "stop". If upgrading, include plan_id ("care", "comfort", "family", or "payg"). Do not ask for payment details; tell them you will email a secure link to the billing email on file. If they do not respond within one minute, give a short warm goodbye and end the call.`;
+
+    grokBridge.sendTextInput(prompt);
+
+    overagePromptTimeout = setTimeout(() => {
+      if (!overagePromptActive || !grokBridge) {
+        return;
+      }
+
+      grokBridge.sendTextInput(
+        'SYSTEM: The user did not respond. Give a short warm goodbye and end the call now.'
+      );
+
+      if (ws.readyState === WebSocket.OPEN) {
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.close(1000, 'No response to overage prompt');
+          }
+        }, 15000);
+      }
+    }, 60000);
+  };
 
   // Handle messages from Twilio
   ws.on('message', async (data: Buffer) => {
@@ -86,7 +161,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             const isFirstCall = !line.last_successful_call_at;
 
             // Check minutes status
-            const minutesStatus = await shouldWarnLowMinutes(account.id);
+            const minutesStatus = await getMinutesStatus();
+            const minutesRemaining = minutesStatus.remaining;
+            const shouldPromptOverage = !isPayg && minutesRemaining <= 0 && !session.is_reminder_call;
 
             // Create Grok bridge
             grokBridge = new GrokBridge({
@@ -101,7 +178,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               seedInterests: line.seed_interests,
               seedAvoidTopics: line.seed_avoid_topics,
               lowMinutesWarning: minutesStatus.warn,
-              minutesRemaining: minutesStatus.remaining,
+              minutesRemaining,
               isReminderCall: session.is_reminder_call,
               reminderMessage: session.reminder_message,
               onAudioReceived: (audioBase64: string) => {
@@ -129,33 +206,37 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               onToolCall: async (toolName: string, args: Record<string, unknown>) => {
                 logger.info({ callSessionId, toolName, args }, 'Tool call from Grok');
                 await recordCallEvent(callSessionId, 'tool_call', { tool: toolName, args });
+
+                if (toolName === 'choose_overage_action' && typeof args.action === 'string') {
+                  clearOveragePrompt();
+
+                  if (args.action === 'stop' && ws.readyState === WebSocket.OPEN) {
+                    setTimeout(() => {
+                      if (ws.readyState === WebSocket.OPEN) {
+                        ws.close(1000, 'User requested to stop');
+                      }
+                    }, 15000);
+                  }
+                }
               },
             });
 
             await grokBridge.connect();
             isConnected = true;
 
+            if (shouldPromptOverage) {
+              sendOveragePrompt(account.status === 'trial' ? 'trial' : 'overage');
+            }
+
             // Check minutes remaining periodically for trial accounts
-            if (account.status === 'trial') {
+            if (account.status === 'trial' && minutesRemaining > 0 && !session.is_reminder_call) {
               minuteCheckInterval = setInterval(async () => {
-                const minutesStatus = await shouldWarnLowMinutes(account.id);
+                const minutesStatus = await getMinutesStatus();
 
                 if (minutesStatus.remaining <= 0) {
                   logger.info({ callSessionId }, 'Trial minutes exhausted mid-call');
 
-                  // Send message to Grok to end the call gracefully
-                  if (grokBridge) {
-                    grokBridge.sendTextInput(
-                      'SYSTEM: The user has run out of free trial minutes. Politely wrap up the conversation, tell them their free minutes are used up, and encourage them to ask their family member to upgrade. Say goodbye warmly.'
-                    );
-                  }
-
-                  // Close connection after a short delay for the goodbye
-                  setTimeout(() => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                      ws.close(1000, 'Trial minutes exhausted');
-                    }
-                  }, 30000); // 30 seconds for goodbye
+                  sendOveragePrompt('trial');
 
                   // Clear the interval
                   if (minuteCheckInterval) {
@@ -241,6 +322,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     if (minuteCheckInterval) {
       clearInterval(minuteCheckInterval);
     }
+
+    clearOveragePrompt();
 
     // Close Grok bridge
     if (grokBridge) {

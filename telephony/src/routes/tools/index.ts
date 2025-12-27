@@ -7,6 +7,7 @@ import { optOutRouter } from './opt-out.js';
 import { forgetMemoryRouter } from './forget-memory.js';
 import { markPrivateRouter } from './mark-private.js';
 import { safetyEventRouter } from './safety-event.js';
+import { overageActionRouter } from './overage-action.js';
 // Reminder management tools
 import { listRemindersRouter } from './list-reminders.js';
 import { editReminderRouter } from './edit-reminder.js';
@@ -23,6 +24,7 @@ toolsRouter.use('/opt_out', optOutRouter);
 toolsRouter.use('/forget_memory', forgetMemoryRouter);
 toolsRouter.use('/mark_private', markPrivateRouter);
 toolsRouter.use('/safety_event', safetyEventRouter);
+toolsRouter.use('/overage_action', overageActionRouter);
 // Reminder management routes
 toolsRouter.use('/list_reminders', listRemindersRouter);
 toolsRouter.use('/edit_reminder', editReminderRouter);

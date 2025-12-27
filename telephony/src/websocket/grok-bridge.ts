@@ -232,6 +232,27 @@ For recurring reminders, parse natural language like:
           },
           {
             type: 'function',
+            name: 'choose_overage_action',
+            description: 'Record the user decision when asked about overage or trial minutes',
+            parameters: {
+              type: 'object',
+              properties: {
+                action: {
+                  type: 'string',
+                  enum: ['continue', 'upgrade', 'stop'],
+                  description: 'The user choice after the overage or trial prompt',
+                },
+                plan_id: {
+                  type: 'string',
+                  enum: ['care', 'comfort', 'family', 'payg'],
+                  description: 'Required when action is upgrade',
+                },
+              },
+              required: ['action'],
+            },
+          },
+          {
+            type: 'function',
             name: 'request_opt_out',
             description: 'User has requested to stop receiving calls. Call this when the user says things like "stop calling me", "don\'t call anymore", "unsubscribe", or similar phrases.',
             parameters: {
@@ -451,6 +472,7 @@ If distress or self-harm mentioned:
   - For recurring reminders, parse phrases like "every day", "every Monday and Friday", "every 3 days", "on the 15th of each month"
   - Always ask for confirmation before setting recurring reminders
 - schedule_call: Adjust when you call them
+- choose_overage_action: Record a user decision to continue, upgrade, or stop after an overage or trial prompt
 - web_search: Look up current events (keep summaries neutral)
 
 `;
@@ -624,6 +646,14 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
             when: args.when,
             daysOfWeek: args.days_of_week,
             timeLocal: args.time_local,
+          });
+          break;
+
+        case 'choose_overage_action':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/overage_action`, {
+            callSessionId: this.options.callSessionId,
+            action: args.action,
+            planId: args.plan_id,
           });
           break;
 
