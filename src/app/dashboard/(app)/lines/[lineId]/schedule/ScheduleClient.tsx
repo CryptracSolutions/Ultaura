@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Clock, Check, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, AlertCircle, Calendar } from 'lucide-react';
+import { ArrowLeft, Clock, Check, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '~/core/ui/Dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
-import { createSchedule, deleteSchedule, updateSchedule } from '~/lib/ultaura/actions';
+import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/actions';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime, getShortLineId } from '~/lib/ultaura';
 
 interface ScheduleClientProps {
@@ -16,8 +17,18 @@ interface ScheduleClientProps {
   schedules: ScheduleRow[];
 }
 
+function normalizeTimeOfDay(timeOfDay: string): string {
+  // Our UI time picker uses HH:MM values, but DB values may come back as HH:MM:SS
+  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
+  return match ? match[1] : timeOfDay;
+}
+
 export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const didAutoOpenEditRef = useRef(false);
+  const editLoadSeqRef = useRef(0);
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Weekdays
   const [selectedTime, setSelectedTime] = useState('09:00');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +39,14 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
 
+  // Edit modal state
+  const [editingSchedule, setEditingSchedule] = useState<ScheduleRow | null>(null);
+  const [editSelectedDays, setEditSelectedDays] = useState<number[]>([]);
+  const [editSelectedTime, setEditSelectedTime] = useState('09:00');
+  const [editEnabled, setEditEnabled] = useState(true);
+  const [isEditLoading, setIsEditLoading] = useState(false);
+  const [isEditSaving, setIsEditSaving] = useState(false);
+
   const toggleDay = (day: number) => {
     if (selectedDays.includes(day)) {
       setSelectedDays(selectedDays.filter((d) => d !== day));
@@ -35,6 +54,64 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
       setSelectedDays([...selectedDays, day].sort());
     }
   };
+
+  const toggleEditDay = (day: number) => {
+    if (editSelectedDays.includes(day)) {
+      setEditSelectedDays(editSelectedDays.filter((d) => d !== day));
+    } else {
+      setEditSelectedDays([...editSelectedDays, day].sort());
+    }
+  };
+
+  const openEditModal = async (schedule: ScheduleRow) => {
+    setShowCreate(false);
+    setEditingSchedule(schedule);
+    setIsEditLoading(true);
+
+    const requestSeq = ++editLoadSeqRef.current;
+
+    try {
+      const latest = await getSchedule(schedule.id);
+      if (editLoadSeqRef.current !== requestSeq) return;
+
+      if (!latest) {
+        toast.error('Failed to load schedule');
+        setEditingSchedule(null);
+        return;
+      }
+
+      setEditingSchedule(latest);
+      setEditSelectedDays(latest.days_of_week);
+      setEditSelectedTime(normalizeTimeOfDay(latest.time_of_day));
+      setEditEnabled(latest.enabled);
+    } catch {
+      if (editLoadSeqRef.current !== requestSeq) return;
+      toast.error('Failed to load schedule');
+      setEditingSchedule(null);
+    } finally {
+      if (editLoadSeqRef.current === requestSeq) {
+        setIsEditLoading(false);
+      }
+    }
+  };
+
+  // Allow deep-linking into the edit modal (e.g. from the Calls page)
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || didAutoOpenEditRef.current) return;
+
+    const schedule = schedules.find((s) => s.id === editId);
+    if (!schedule) return;
+
+    didAutoOpenEditRef.current = true;
+    void openEditModal(schedule);
+
+    // Clean up the URL so refresh/back doesn't keep reopening
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('edit');
+    const nextUrl = next.toString() ? `${pathname}?${next}` : pathname;
+    router.replace(nextUrl);
+  }, [pathname, router, schedules, searchParams]);
 
   const formatDateTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -55,8 +132,9 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
       .filter(Boolean)
       .join(', ');
 
+    const normalizedTime = normalizeTimeOfDay(schedule.time_of_day);
     const timeLabel =
-      TIME_OPTIONS.find((t) => t.value === schedule.time_of_day)?.label ?? schedule.time_of_day;
+      TIME_OPTIONS.find((t) => t.value === normalizedTime)?.label ?? normalizedTime;
 
     return { days, timeLabel };
   };
@@ -151,6 +229,39 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
     } finally {
       setDeletingId(null);
       setScheduleToDelete(null);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSchedule) return;
+    if (editSelectedDays.length === 0) {
+      toast.error('Please select at least one day');
+      return;
+    }
+
+    setIsEditSaving(true);
+    setError(null);
+
+    try {
+      const result = await updateSchedule(editingSchedule.id, {
+        enabled: editEnabled,
+        daysOfWeek: editSelectedDays,
+        timeOfDay: editSelectedTime,
+        timezone: line.timezone,
+      });
+
+      if (result.success) {
+        toast.success('Schedule updated');
+        setEditingSchedule(null);
+        router.refresh();
+      } else {
+        setError(result.error || 'Failed to update schedule');
+      }
+    } catch {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsEditSaving(false);
     }
   };
 
@@ -398,7 +509,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
 
                     <div className="flex items-center gap-1 shrink-0 flex-wrap">
                       <Link
-                        href={`/dashboard/lines/${getShortLineId(line.id)}/schedule/${schedule.id}`}
+                        href={`/dashboard/lines/${getShortLineId(line.id)}/schedule?edit=${schedule.id}`}
                         className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                         title="Edit schedule"
                       >
@@ -408,15 +519,19 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
                       <button
                         onClick={() => handleToggleEnabled(schedule)}
                         disabled={isToggling}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-                        title={schedule.enabled ? 'Pause schedule' : 'Enable schedule'}
+                        className={`p-2 rounded-lg text-muted-foreground transition-colors disabled:opacity-50 ${
+                          schedule.enabled
+                            ? 'hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                            : 'hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                        }`}
+                        title={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
                       >
                         {isToggling ? (
                           <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                         ) : schedule.enabled ? (
-                          <ToggleRight className="w-5 h-5" />
+                          <Pause className="w-4 h-4" />
                         ) : (
-                          <ToggleLeft className="w-5 h-5" />
+                          <Play className="w-4 h-4" />
                         )}
                       </button>
 
@@ -468,6 +583,142 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
         variant="destructive"
         onConfirm={handleConfirmDelete}
       />
+
+      {/* Edit Modal */}
+      <Dialog
+        open={editingSchedule !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingSchedule(null);
+            setIsEditLoading(false);
+            setIsEditSaving(false);
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-md"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">Edit schedule</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Update days and time for {line.display_name}
+              </DialogDescription>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setEditingSchedule(null)}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleEditSubmit} className="space-y-5">
+            <div className="rounded-lg border border-input bg-background p-4">
+              <button
+                type="button"
+                onClick={() => setEditEnabled(!editEnabled)}
+                disabled={isEditLoading || isEditSaving}
+                className="flex items-center justify-between w-full"
+              >
+                <div className="text-left">
+                  <p className="font-medium text-foreground">Schedule active</p>
+                  <p className="text-sm text-muted-foreground">
+                    {editEnabled ? 'Calls will be made on schedule' : 'Schedule is paused'}
+                  </p>
+                </div>
+                {editEnabled ? (
+                  <ToggleRight className="w-8 h-8 text-primary" />
+                ) : (
+                  <ToggleLeft className="w-8 h-8 text-muted-foreground" />
+                )}
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Days
+              </label>
+              <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                {DAYS_OF_WEEK.map((day) => (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => toggleEditDay(day.value)}
+                    disabled={isEditLoading || isEditSaving}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      editSelectedDays.includes(day.value)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-foreground border-input hover:bg-muted'
+                    }`}
+                  >
+                    {day.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Time
+              </label>
+              <Select value={editSelectedTime} onValueChange={setEditSelectedTime}>
+                <SelectTrigger className="w-full py-3" disabled={isEditLoading || isEditSaving}>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-muted-foreground" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Times are in {line.timezone}. Quiet hours: {formatTime(line.quiet_hours_start)} -{' '}
+                {formatTime(line.quiet_hours_end)}
+              </p>
+            </div>
+
+            <DialogFooter className="pt-1">
+              <button
+                type="button"
+                onClick={() => setEditingSchedule(null)}
+                disabled={isEditLoading || isEditSaving}
+                className="py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isEditLoading || isEditSaving || editSelectedDays.length === 0}
+                className="py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+              >
+                {isEditLoading ? (
+                  <>
+                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Loading...
+                  </>
+                ) : isEditSaving ? (
+                  <>
+                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save changes'
+                )}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

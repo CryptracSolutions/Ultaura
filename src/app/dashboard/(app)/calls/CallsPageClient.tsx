@@ -280,18 +280,18 @@ function ScheduleRow({
 
       <div className="flex items-center gap-2 shrink-0">
         <Link
-          href={`/dashboard/lines/${getShortLineId(schedule.lineId)}/schedule/${schedule.scheduleId}`}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
+          href={`/dashboard/lines/${getShortLineId(schedule.lineId)}/schedule?edit=${schedule.scheduleId}`}
+          className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           title="Edit schedule"
         >
-          <Edit2 className="w-4 h-4 text-muted-foreground" />
+          <Edit2 className="w-4 h-4" />
         </Link>
         <button
           onClick={onDelete}
-          className="p-2 rounded-lg hover:bg-destructive/10 transition-colors"
+          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           title="Delete schedule"
         >
-          <Trash2 className="w-4 h-4 text-destructive" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
     </div>

@@ -9,6 +9,7 @@ import {
   Plus,
   Clock,
   X,
+  Edit2,
   CheckCircle,
   AlertCircle,
   XCircle,
@@ -369,13 +370,22 @@ function ReminderRow({
       </div>
 
       {reminder.status === 'scheduled' && (
-        <button
-          onClick={onCancel}
-          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-          title="Cancel reminder"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <Link
+            href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders?edit=${reminder.reminderId}`}
+            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            title="Edit reminder"
+          >
+            <Edit2 className="w-4 h-4" />
+          </Link>
+          <button
+            onClick={onCancel}
+            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Cancel reminder"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
     </div>
   );

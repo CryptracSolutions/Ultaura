@@ -16,13 +16,18 @@ interface EditScheduleClientProps {
   schedule: ScheduleRow;
 }
 
+function normalizeTimeOfDay(timeOfDay: string): string {
+  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
+  return match ? match[1] : timeOfDay;
+}
+
 export function EditScheduleClient({
   line,
   schedule,
 }: EditScheduleClientProps) {
   const router = useRouter();
   const [selectedDays, setSelectedDays] = useState<number[]>(schedule.days_of_week);
-  const [selectedTime, setSelectedTime] = useState(schedule.time_of_day);
+  const [selectedTime, setSelectedTime] = useState(normalizeTimeOfDay(schedule.time_of_day));
   const [enabled, setEnabled] = useState(schedule.enabled);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +42,7 @@ export function EditScheduleClient({
 
   const hasChanges =
     enabled !== schedule.enabled ||
-    selectedTime !== schedule.time_of_day ||
+    selectedTime !== normalizeTimeOfDay(schedule.time_of_day) ||
     JSON.stringify(selectedDays.sort()) !== JSON.stringify(schedule.days_of_week.sort());
 
   const handleSubmit = async (e: React.FormEvent) => {

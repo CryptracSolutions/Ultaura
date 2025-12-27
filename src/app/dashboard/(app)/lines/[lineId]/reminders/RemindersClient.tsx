@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
@@ -88,6 +88,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function RemindersClient({ line, reminders }: RemindersClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const didAutoOpenEditRef = useRef(false);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
@@ -286,6 +289,24 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
     const minutes = dueDate.getMinutes().toString().padStart(2, '0');
     setEditTime(`${hours}:${minutes}`);
   };
+
+  // Allow deep-linking into the edit modal (e.g. from the global reminders list)
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || didAutoOpenEditRef.current) return;
+
+    const reminder = reminders.find((r) => r.id === editId);
+    if (!reminder) return;
+
+    didAutoOpenEditRef.current = true;
+    openEditModal(reminder);
+
+    // Clean up the URL so refresh/back doesn't keep reopening
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('edit');
+    const nextUrl = next.toString() ? `${pathname}?${next}` : pathname;
+    router.replace(nextUrl);
+  }, [pathname, reminders, router, searchParams]);
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
