@@ -46,13 +46,6 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       end: true,
     },
     {
-      label: 'Usage',
-      path: getPath('usage'),
-      Icon: ({ className }: { className: string }) => {
-        return <ChartBarIcon className={className} />;
-      },
-    },
-    {
       label: 'Lines',
       path: getPath('lines'),
       Icon: ({ className }: { className: string }) => {
@@ -78,6 +71,13 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       },
       activeMatch: (currentPath: string) =>
         isCallsRouteActive(currentPath),
+    },
+    {
+      label: 'Usage',
+      path: getPath('usage'),
+      Icon: ({ className }: { className: string }) => {
+        return <ChartBarIcon className={className} />;
+      },
     },
     {
       label: 'Settings',

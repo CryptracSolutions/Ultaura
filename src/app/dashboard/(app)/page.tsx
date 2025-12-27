@@ -318,6 +318,54 @@ async function DashboardPage() {
             </div>
           </div>
 
+          {/* Recent calls */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-base font-semibold text-foreground">
+                Recent call activity
+              </h2>
+              <Link
+                href="/dashboard/lines"
+                className="text-sm text-primary hover:underline"
+              >
+                Open a line
+              </Link>
+            </div>
+
+            {recent.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No calls yet. Once calls start, you'll see timestamps and durations here — not transcripts.
+              </p>
+            ) : (
+              <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-background">
+                {recent.map((item) => (
+                  <div
+                    key={item.lineId}
+                    className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <div className="font-medium text-foreground">
+                        {item.displayName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateTime(item.lastCallAt!)}
+                        {typeof item.lastCallDuration === 'number'
+                          ? ` • ${formatDuration(item.lastCallDuration)}`
+                          : ''}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/dashboard/lines/${getShortLineId(item.lineId)}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      View details
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Upcoming scheduled calls */}
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center justify-between gap-4">
@@ -429,53 +477,6 @@ async function DashboardPage() {
             )}
           </div>
 
-          {/* Recent calls */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-base font-semibold text-foreground">
-                Recent call activity
-              </h2>
-              <Link
-                href="/dashboard/lines"
-                className="text-sm text-primary hover:underline"
-              >
-                Open a line
-              </Link>
-            </div>
-
-            {recent.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                No calls yet. Once calls start, you'll see timestamps and durations here — not transcripts.
-              </p>
-            ) : (
-              <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-background">
-                {recent.map((item) => (
-                  <div
-                    key={item.lineId}
-                    className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <div className="font-medium text-foreground">
-                        {item.displayName}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateTime(item.lastCallAt!)}
-                        {typeof item.lastCallDuration === 'number'
-                          ? ` • ${formatDuration(item.lastCallDuration)}`
-                          : ''}
-                      </div>
-                    </div>
-                    <Link
-                      href={`/dashboard/lines/${getShortLineId(item.lineId)}`}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      View details
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </PageBody>
     </>

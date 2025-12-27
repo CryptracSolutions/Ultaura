@@ -90,9 +90,9 @@ export default async function UsagePage() {
       <AppHeader title="Usage" description="Track minutes, overages, and spending caps" />
       <PageBody>
         <div className="flex flex-col gap-6 pb-24">
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6">
             <div
-              className={`rounded-xl border bg-card p-6 shadow-sm lg:col-span-2 ${
+              className={`rounded-xl border bg-card p-6 shadow-sm ${
                 hasOverage ? 'border-warning/40' : 'border-border'
               }`}
             >
