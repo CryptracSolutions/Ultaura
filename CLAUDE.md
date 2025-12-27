@@ -1,20 +1,21 @@
 # Ultaura - AI Voice Companion for Seniors
 
-Ultaura is an AI-powered voice companion service designed to provide daily check-in calls for elderly individuals. Built on the MakerKit SaaS template, it integrates Twilio for telephony and xAI's Grok Voice Agent for natural conversations.
+AI-powered voice companion providing daily check-in calls for elderly individuals. Built on MakerKit SaaS template with Twilio telephony and xAI Grok Voice Agent.
 
 ## Overview
 
-Ultaura makes automated phone calls to seniors at scheduled times, engaging them in friendly conversation, providing medication reminders, activity suggestions, and companionship. Family members (payers) can manage lines, schedules, and view usage through a web dashboard.
+Ultaura makes automated phone calls to seniors at scheduled times for friendly conversation, medication reminders, activity suggestions, and companionship. Family members (payers) manage lines, schedules, and usage through a web dashboard.
 
 ### Key Features
 
 - **Scheduled Check-in Calls**: Configure daily call times with quiet hours
-- **Natural Voice Conversations**: Powered by xAI Grok Voice Agent
-- **Medication Reminders**: AI can remind about medications during calls
-- **Memory System**: Remembers previous conversations for personalized interactions
-- **Safety Monitoring**: Detects concerning language and can alert caregivers
-- **Multi-Line Support**: Family plans support up to 6 phone lines
-- **Usage-Based Billing**: Minutes pooled at account level with overage billing
+- **Natural Voice Conversations**: Powered by xAI Grok Voice Agent (Ara voice)
+- **Recurring Reminders**: RRULE-based with pause/snooze/skip functionality
+- **Memory System**: Encrypted storage of conversation context for personalization
+- **Safety Monitoring**: Detects distress keywords, logs events with severity tiers
+- **Trusted Contacts**: Emergency contacts notified during safety events
+- **Multi-Line Support**: Up to 4 lines on Family plan
+- **Usage-Based Billing**: Minutes pooled at account level with overage at $0.15/min
 
 ## Architecture
 
@@ -24,32 +25,45 @@ Ultaura makes automated phone calls to seniors at scheduled times, engaging them
 │   Dashboard     │     │  (Express.js)    │     │                 │
 └─────────────────┘     └──────────────────┘     └────────┬────────┘
         │                       │                         │
-        │                       │                         │
         ▼                       ▼                         ▼
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │    Supabase     │     │  xAI Grok Voice  │     │  Media Stream   │
-│    Database     │     │     Agent        │◀────│   WebSocket     │
+│    Database     │     │  (Realtime API)  │◀────│   WebSocket     │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
 ```
 
 ### Components
 
-1. **Next.js Dashboard** (`/src/app/dashboard/[organization]/lines/`)
-   - Line management (add/edit/delete phone lines)
-   - Schedule configuration
-   - Usage monitoring
-   - Phone verification
+1. **Next.js Dashboard** (`/src/app/dashboard/(app)/lines/`)
+   - Line management with phone verification
+   - Schedule and reminder configuration
+   - Trusted contacts management
+   - Usage monitoring and billing
 
 2. **Telephony Backend** (`/telephony/`)
-   - Express.js server handling Twilio webhooks
-   - WebSocket bridge between Twilio Media Streams and Grok
-   - Call scheduling and minute metering
-   - Memory encryption/decryption
+   - Express.js server on port 3001
+   - WebSocket bridge: Twilio Media Streams ↔ Grok Realtime API
+   - Call scheduler (30-sec polling, RRULE support)
+   - Minute metering with Stripe overage reporting
+   - 16 Grok tool handlers for reminders, safety, opt-out
 
 3. **Database** (`/supabase/migrations/`)
-   - Ultaura-specific tables with RLS policies
-   - Minute ledger for usage tracking
-   - Encrypted memory storage
+   - 24 migration files with RLS policies
+   - Core tables: accounts, lines, schedules, reminders
+   - Billing: subscriptions, minute_ledger
+   - Safety: trusted_contacts, safety_events, opt_outs
+
+## Plans & Pricing
+
+| Plan | Monthly | Annual | Minutes | Lines |
+|------|---------|--------|---------|-------|
+| Free Trial | $0 | - | 20 | 1 |
+| Care | $39 | $399 | 300 | 1 |
+| Comfort | $99 | $999 | 900 | 2 |
+| Family | $199 | $1,999 | 2,000 | 4 |
+| PAYG | $0 | - | 0 | 4 |
+
+All overages: $0.15/min (except Free Trial: hard stop)
 
 ## Setup Instructions
 
@@ -57,201 +71,185 @@ Ultaura makes automated phone calls to seniors at scheduled times, engaging them
 
 - Node.js 18+
 - Supabase project (or local Docker)
-- Twilio account with:
-  - Programmable Voice enabled
-  - Phone number capable of making calls
-  - Verify service for phone verification
+- Twilio: Programmable Voice + Verify Service + phone number
 - xAI account with Grok Voice Agent API access
-- Stripe account (for billing)
+- Stripe account
 
 ### 1. Environment Configuration
-
-Copy the Ultaura environment template:
 
 ```bash
 cp .env.ultaura.example .env.local
 ```
 
-Fill in all required values. See `.env.ultaura.example` for detailed descriptions.
+**Required Environment Variables:**
+
+```bash
+# Twilio
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=        # E.164 format
+TWILIO_VERIFY_SERVICE_SID=
+
+# xAI Grok
+XAI_API_KEY=
+XAI_REALTIME_URL=wss://api.x.ai/v1/realtime
+XAI_GROK_MODEL=grok-3-fast
+
+# Telephony Backend
+TELEPHONY_PORT=3001
+TELEPHONY_PUBLIC_URL=       # Public URL for Twilio webhooks
+TELEPHONY_BACKEND_URL=http://localhost:3001
+TELEPHONY_WEBHOOK_SECRET=
+TELEPHONY_WEBSOCKET_URL=    # WebSocket URL for Twilio
+
+# Encryption
+ULTAURA_KEK_BASE64=         # Key Encryption Key
+
+# Stripe (8 price IDs)
+STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID=
+STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID=
+STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID=
+STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID=
+STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID=
+STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID=
+STRIPE_ULTAURA_PAYG_PRICE_ID=
+STRIPE_ULTAURA_OVERAGE_PRICE_ID=
+```
 
 ### 2. Database Migration
 
-Apply the Ultaura database schema:
-
 ```bash
 npx supabase db push
-# Or if using migrations:
-npx supabase migration up
+# Or: npx supabase migration up
 ```
 
-This creates all Ultaura tables with proper RLS policies.
+### 3. Twilio Webhooks
 
-### 3. Stripe Products Setup
-
-Create the following products and prices in Stripe Dashboard:
-
-| Plan | Monthly Price | Annual Price | Minutes |
-|------|--------------|--------------|---------|
-| Care | $40/month | $400/year | 300 |
-| Comfort | $100/month | $1,000/year | 600 |
-| Family | $200/month | $2,000/year | 1,200 |
-| Pay As You Go | $0.15/min | - | 0 |
-
-For metered billing (overages), create a metered price at $0.15/min.
-
-Copy the price IDs to your `.env.local` file.
-
-### 4. Twilio Configuration
-
-1. Get a phone number capable of making outbound calls
-2. Create a Verify Service for phone verification
-3. Configure webhooks (after deploying telephony server):
-
+Configure after deploying telephony server:
 ```
-Voice Webhook: https://your-telephony-server.com/twilio/inbound
-Status Callback: https://your-telephony-server.com/twilio/status
+Voice Webhook: https://your-server.com/twilio/voice/inbound
+Status Callback: https://your-server.com/twilio/status
 ```
 
-### 5. Start the Telephony Server
+### 4. Start Telephony Server
 
 ```bash
-cd telephony
-npm install
-npm run dev
+cd telephony && npm install && npm run dev
 ```
 
-For production, use Docker:
-
+Production:
 ```bash
 docker build -t ultaura-telephony ./telephony
 docker run -p 3001:3001 --env-file .env.local ultaura-telephony
 ```
 
-### 6. Tunnel for Development
-
-Use ngrok to expose the telephony server:
+### 5. Development Tunnel
 
 ```bash
 ngrok http 3001
 ```
+Update `TELEPHONY_PUBLIC_URL` with ngrok URL.
 
-Update `TELEPHONY_PUBLIC_URL` in `.env.local` with the ngrok URL.
-
-## Usage Flow
-
-### 1. User Signs Up
-
-1. User creates account via MakerKit auth
-2. Selects Ultaura plan and completes Stripe checkout
-3. Webhook syncs subscription to `ultaura_subscriptions`
-
-### 2. Add a Phone Line
-
-1. User enters recipient name and phone number
-2. User selects SMS or voice verification
-3. Twilio sends verification code
-4. User enters code to verify ownership
-
-### 3. Schedule Calls
-
-1. User selects days of week
-2. User picks call time (respecting quiet hours)
-3. Schedule saved to database
-4. Scheduler picks up and initiates calls at configured times
-
-### 4. Call Flow
+## Call Flow
 
 1. Scheduler triggers outbound call via Twilio
-2. Twilio connects, opens Media Stream WebSocket
-3. Telephony server bridges audio to Grok Voice Agent
-4. Grok converses naturally, using tools for reminders
+2. Twilio connects, opens Media Stream WebSocket at `/twilio/media`
+3. Telephony bridges audio to Grok Realtime API
+4. Grok converses using 16 available tools (reminders, safety, etc.)
 5. Call ends, usage recorded in minute ledger
 6. Memory summaries encrypted and stored
+7. Overage reported to Stripe if applicable
+
+## Database Tables
+
+**Core:**
+- `ultaura_accounts` - Account records tied to organizations
+- `ultaura_lines` - Phone number profiles with preferences
+- `ultaura_subscriptions` - Stripe subscription records
+
+**Calling:**
+- `ultaura_schedules` - Recurring call schedules (RRULE support)
+- `ultaura_call_sessions` - Individual call records
+- `ultaura_call_events` - Call event log (DTMF, tools, errors)
+
+**Reminders:**
+- `ultaura_reminders` - Reminders with recurrence, pause, snooze
+- `ultaura_reminder_events` - Reminder action audit trail
+
+**Billing:**
+- `ultaura_minute_ledger` - Call minute tracking for billing
+
+**Safety & Privacy:**
+- `ultaura_trusted_contacts` - Emergency contacts
+- `ultaura_safety_events` - Safety incidents (low/medium/high tiers)
+- `ultaura_consents` - Consent records (calls, SMS, data)
+- `ultaura_opt_outs` - Do-not-call tracking
+
+**Encryption:**
+- `ultaura_account_crypto_keys` - DEKs wrapped with KEK
+- `ultaura_memories` - Encrypted memory storage
 
 ## API Reference
 
 ### Server Actions (`/src/lib/ultaura/actions.ts`)
 
-```typescript
-// Account & Lines
-getOrCreateUltauraAccount()
-getLines()
-getLine(lineId: string)
-createLine(data: CreateLineInput)
-updateLine(lineId: string, data: UpdateLineInput)
-deleteLine(lineId: string)
+**Account & Lines:** getOrCreateUltauraAccount, getUltauraAccount, getLines, getLine, createLine, updateLine, deleteLine
 
-// Phone Verification
-startPhoneVerification(lineId: string, channel: 'sms' | 'call')
-checkPhoneVerification(lineId: string, code: string)
+**Phone Verification:** startPhoneVerification, checkPhoneVerification
 
-// Schedules
-getSchedules(lineId: string)
-createSchedule(data: CreateScheduleInput)
-updateSchedule(scheduleId: string, data: UpdateScheduleInput)
-deleteSchedule(scheduleId: string)
+**Schedules:** getSchedules, getSchedule, createSchedule, updateSchedule, deleteSchedule, getUpcomingScheduledCalls, getAllSchedules
 
-// Usage
-getUsageSummary()
+**Reminders:** getReminders, getReminder, createReminder, editReminder, pauseReminder, resumeReminder, snoozeReminder, cancelReminder, skipNextOccurrence, getUpcomingReminders, getAllReminders
 
-// Calls
-initiateTestCall(lineId: string)
-```
+**Trusted Contacts:** getTrustedContacts, addTrustedContact, removeTrustedContact
+
+**Usage & Billing:** getUsageSummary, getCallSessions, getLineActivity, updateOverageCap, initiateTestCall
+
+**Checkout:** createUltauraCheckout, getUltauraPriceId
 
 ### Telephony API Endpoints
 
 ```
-POST /twilio/inbound     - Twilio inbound call webhook
-POST /twilio/outbound    - Initiate outbound call
-POST /twilio/status      - Call status callback
-WS   /media-stream       - Twilio Media Stream WebSocket
-POST /calls/initiate     - Internal: Start a call
-POST /tools/set_reminder - Grok tool: Set reminder
-POST /tools/schedule_call - Grok tool: Schedule call
+POST /twilio/voice/inbound   - Inbound call webhook
+POST /twilio/voice/outbound  - Outbound call TwiML
+POST /twilio/status          - Call status callback
+WS   /twilio/media           - Twilio Media Stream WebSocket
+POST /calls/outbound         - Initiate outbound call
+POST /calls/test             - Test call endpoint
+POST /verify/*               - Phone verification
 ```
 
-## Security Considerations
+**Grok Tool Endpoints (`/tools/*`):**
+- Reminders: set-reminder, list-reminders, edit-reminder, pause-reminder, resume-reminder, snooze-reminder, cancel-reminder
+- Scheduling: schedule-call
+- Billing: overage-action, request-upgrade
+- Privacy: opt-out, forget-memory, mark-private
+- Safety: safety-event
+
+## Security
 
 ### Phone Verification
-All lines must be verified before receiving calls to prevent abuse.
+All lines must be verified via Twilio Verify before receiving calls.
 
 ### Memory Encryption
-Memory values are encrypted with AES-256-GCM using envelope encryption:
-- KEK (Key Encryption Key) stored in environment
+AES-256-GCM envelope encryption:
+- KEK (Key Encryption Key) in environment
 - DEK (Data Encryption Key) per account, wrapped with KEK
-- AAD includes account and line IDs for binding
+- AAD binding includes account and line IDs
+
+### Safety Monitoring
+- Detects distress keywords (suicide, self-harm, hopeless, etc.)
+- Logs events with tiers: low, medium, high
+- Actions: none, suggested_988, suggested_911, notified_contact
+
+### Consent & Opt-out
+- Tracks payer/line consent for calls, SMS, data retention
+- Respects opt-out requests by channel (calls, SMS, all)
 
 ### RLS Policies
-All Ultaura tables have Row Level Security:
-- Users can only access their organization's data
+All tables have Row Level Security:
+- Users access only their organization's data
 - Service role required for telephony operations
-
-### Rate Limiting
-- Phone verification: 5 attempts per hour
-- API calls: Standard MakerKit rate limiting applies
-
-## Troubleshooting
-
-### Call Not Connecting
-1. Check Twilio console for errors
-2. Verify webhook URL is accessible
-3. Check telephony server logs
-4. Ensure phone number is verified
-
-### Grok Not Responding
-1. Verify XAI_API_KEY is correct
-2. Check WebSocket connection in logs
-3. Ensure audio format is correct (mulaw, 8kHz)
-
-### Usage Not Tracking
-1. Check minute ledger entries in database
-2. Verify call session is created
-3. Check metering service logs
-
-### Verification Code Not Received
-1. Check Twilio Verify logs
-2. Ensure phone number format is E.164
-3. Verify TWILIO_VERIFY_SERVICE_SID
 
 ## File Structure
 
@@ -262,39 +260,78 @@ All Ultaura tables have Row Level Security:
 │   │   ├── types.ts          # TypeScript types
 │   │   ├── constants.ts      # Plans, settings
 │   │   ├── prompts.ts        # Grok system prompts
-│   │   ├── actions.ts        # Server actions
+│   │   ├── actions.ts        # Server actions (61KB)
 │   │   ├── billing.ts        # Stripe integration
 │   │   └── index.ts          # Exports
-│   ├── app/dashboard/[organization]/lines/
-│   │   ├── page.tsx          # Lines list
-│   │   ├── components/       # UI components
-│   │   └── [lineId]/
-│   │       ├── page.tsx      # Line detail
-│   │       ├── verify/       # Phone verification
-│   │       └── schedule/     # Schedule management
+│   ├── app/dashboard/(app)/
+│   │   ├── lines/
+│   │   │   ├── page.tsx              # Lines list
+│   │   │   ├── components/           # LineCard, AddLineModal
+│   │   │   └── [lineId]/
+│   │   │       ├── page.tsx          # Line detail
+│   │   │       ├── settings/         # Line settings
+│   │   │       ├── verify/           # Phone verification
+│   │   │       ├── schedule/         # Schedule management
+│   │   │       ├── contacts/         # Trusted contacts
+│   │   │       └── reminders/        # Line reminders
+│   │   ├── reminders/                # All reminders view
+│   │   ├── calls/                    # Call history
+│   │   └── usage/                    # Usage dashboard
 │   └── components/ultaura/
-│       └── PricingTable.tsx  # Pricing UI
+│       ├── PricingTable.tsx
+│       └── ErrorBoundary.tsx
 ├── telephony/
 │   ├── src/
-│   │   ├── server.ts         # Express server
-│   │   ├── routes/           # API routes
-│   │   ├── services/         # Business logic
-│   │   ├── websocket/        # WebSocket handlers
-│   │   ├── scheduler/        # Call scheduling
-│   │   └── utils/            # Helpers
+│   │   ├── server.ts                 # Express server (port 3001)
+│   │   ├── routes/
+│   │   │   ├── twilio-inbound.ts
+│   │   │   ├── twilio-outbound.ts
+│   │   │   ├── twilio-status.ts
+│   │   │   ├── calls.ts
+│   │   │   ├── verify.ts
+│   │   │   └── tools/                # 16 Grok tool handlers
+│   │   ├── services/
+│   │   │   ├── call-session.ts       # Call lifecycle
+│   │   │   ├── metering.ts           # Minute tracking
+│   │   │   ├── memory.ts             # Memory encryption
+│   │   │   └── line-lookup.ts
+│   │   ├── websocket/
+│   │   │   ├── media-stream.ts       # Twilio WS handler
+│   │   │   └── grok-bridge.ts        # xAI Realtime bridge
+│   │   └── scheduler/
+│   │       └── call-scheduler.ts     # 30-sec cron
 │   ├── Dockerfile
 │   └── package.json
-├── supabase/migrations/
-│   └── 20241220000001_ultaura_schema.sql
-├── .env.ultaura.example
+├── supabase/migrations/              # 24 migration files
+└── .env.ultaura.example
 ```
+
+## Troubleshooting
+
+### Call Not Connecting
+1. Check Twilio console for errors
+2. Verify webhook URL accessible (use ngrok in dev)
+3. Check telephony server logs
+4. Ensure phone is verified
+
+### Grok Not Responding
+1. Verify XAI_API_KEY is correct
+2. Check WebSocket connection in logs
+3. Audio format: mulaw, 8kHz
+
+### Usage Not Tracking
+1. Check `ultaura_minute_ledger` entries
+2. Verify call session created
+3. Check metering service logs
+
+### Verification Code Not Received
+1. Check Twilio Verify logs
+2. Phone format must be E.164
+3. Verify TWILIO_VERIFY_SERVICE_SID
 
 ## Support
 
-For issues specific to Ultaura:
-- Check this file first
-- Review telephony server logs
-- Check Supabase logs for database errors
-- Review Twilio console for call issues
-
-For MakerKit-related issues, refer to the main MakerKit documentation: https://makerkit.dev/docs/next-supabase-turbo
+- Check this file and telephony server logs
+- Supabase logs for database errors
+- Twilio console for call issues
+- MakerKit docs: https://makerkit.dev/docs/next-supabase-turbo
