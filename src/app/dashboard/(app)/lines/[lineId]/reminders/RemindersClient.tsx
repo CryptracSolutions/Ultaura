@@ -897,7 +897,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Date
@@ -908,7 +908,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                   onChange={(e) => setEditDate(e.target.value)}
                   min={today}
                   disabled={isEditSubmitting}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                 />
               </div>
 
@@ -921,7 +921,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                   value={editTime}
                   onChange={(e) => setEditTime(e.target.value)}
                   disabled={isEditSubmitting}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                 />
               </div>
             </div>

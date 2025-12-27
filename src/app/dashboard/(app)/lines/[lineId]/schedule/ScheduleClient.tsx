@@ -203,13 +203,16 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
       });
 
       if (result.success) {
-        toast.success(schedule.enabled ? 'Schedule paused' : 'Schedule enabled');
+        toast.success(schedule.enabled ? 'Schedule paused' : 'Schedule resumed');
         router.refresh();
       } else {
-        setError(result.error || 'Failed to update schedule');
+        const message = result.error || 'Failed to update schedule';
+        setError(message);
+        toast.error(message);
       }
     } catch {
       setError('An unexpected error occurred');
+      toast.error('An unexpected error occurred');
     } finally {
       setTogglingId(null);
     }
@@ -228,10 +231,13 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
         toast.success('Schedule deleted');
         router.refresh();
       } else {
-        setError(result.error || 'Failed to delete schedule');
+        const message = result.error || 'Failed to delete schedule';
+        setError(message);
+        toast.error(message);
       }
     } catch {
       setError('An unexpected error occurred');
+      toast.error('An unexpected error occurred');
     } finally {
       setDeletingId(null);
       setScheduleToDelete(null);
@@ -262,10 +268,13 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
         setEditingSchedule(null);
         router.refresh();
       } else {
-        setError(result.error || 'Failed to update schedule');
+        const message = result.error || 'Failed to update schedule';
+        setError(message);
+        toast.error(message);
       }
     } catch {
       setError('An unexpected error occurred');
+      toast.error('An unexpected error occurred');
     } finally {
       setIsEditSaving(false);
     }
@@ -542,7 +551,10 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
                       </button>
 
                       <button
-                        onClick={() => setScheduleToDelete(schedule.id)}
+                        onClick={() => {
+                          setScheduleToDelete(schedule.id);
+                          toast.message('Confirm delete schedule');
+                        }}
                         disabled={isDeleting}
                         className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                         title="Delete schedule"
@@ -656,7 +668,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
                     type="button"
                     onClick={() => toggleEditDay(day.value)}
                     disabled={isEditLoading || isEditSaving}
-                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`px-3 py-3 rounded-lg border text-sm font-medium transition-colors ${
                       editSelectedDays.includes(day.value)
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background text-foreground border-input hover:bg-muted'
@@ -673,7 +685,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
                 Time
               </label>
               <Select value={editSelectedTime} onValueChange={setEditSelectedTime}>
-                <SelectTrigger className="w-full py-3" disabled={isEditLoading || isEditSaving}>
+                <SelectTrigger className="w-full h-11" disabled={isEditLoading || isEditSaving}>
                   <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-muted-foreground" />
                     <SelectValue />
