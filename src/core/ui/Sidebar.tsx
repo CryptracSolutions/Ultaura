@@ -135,15 +135,19 @@ export function SidebarItem({
   path,
   children,
   Icon,
+  activeMatch,
 }: React.PropsWithChildren<{
   path: string;
   Icon: React.ElementType;
   end?: boolean;
+  activeMatch?: (currentPath: string) => boolean;
 }>) {
   const { collapsed } = useContext(SidebarContext);
 
   const currentPath = usePathname() ?? '';
-  const active = isRouteActive(path, currentPath, end ? 0 : 3);
+  const active = activeMatch
+    ? activeMatch(currentPath)
+    : isRouteActive(path, currentPath, end ? 0 : 3);
 
   const className = getSidebarItemClassBuilder()({
     collapsed,

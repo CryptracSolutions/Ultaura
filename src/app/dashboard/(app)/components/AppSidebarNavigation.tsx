@@ -28,6 +28,7 @@ function AppSidebarNavigation() {
                     end={child.end}
                     path={child.path}
                     Icon={child.Icon}
+                    activeMatch={child.activeMatch}
                   >
                     <Trans i18nKey={child.label} defaults={child.label} />
                   </SidebarItem>
@@ -43,6 +44,7 @@ function AppSidebarNavigation() {
             end={item.end}
             path={item.path}
             Icon={item.Icon}
+            activeMatch={item.activeMatch}
           >
             <Trans i18nKey={item.label} defaults={item.label} />
           </SidebarItem>

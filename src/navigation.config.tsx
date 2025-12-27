@@ -18,6 +18,7 @@ type NavigationItemLink = {
   path: string;
   Icon: (props: { className: string }) => JSX.Element;
   end?: boolean;
+  activeMatch?: (currentPath: string) => boolean;
 };
 
 type NavigationGroup = {
@@ -49,6 +50,8 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       Icon: ({ className }: { className: string }) => {
         return <PhoneIcon className={className} />;
       },
+      activeMatch: (currentPath: string) =>
+        isLineRouteActive(currentPath),
     },
     {
       label: 'Reminders',
@@ -56,6 +59,8 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       Icon: ({ className }: { className: string }) => {
         return <BellIcon className={className} />;
       },
+      activeMatch: (currentPath: string) =>
+        isRemindersRouteActive(currentPath),
     },
     {
       label: 'Calls',
@@ -63,6 +68,8 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       Icon: ({ className }: { className: string }) => {
         return <CalendarDaysIcon className={className} />;
       },
+      activeMatch: (currentPath: string) =>
+        isCallsRouteActive(currentPath),
     },
     {
       label: 'Settings',
@@ -93,4 +100,58 @@ function getPath(path: string) {
   const appPrefix = configuration.paths.appPrefix;
 
   return [appPrefix, path].filter(Boolean).join('/');
+}
+
+const remindersRoutePattern = createRoutePattern(
+  getPath('reminders'),
+);
+const callsRoutePattern = createRoutePattern(getPath('calls'));
+const linesRoutePattern = createRoutePattern(getPath('lines'));
+const lineRemindersRoutePattern = createRoutePattern(
+  getPath('lines/:lineId/reminders'),
+);
+const lineScheduleRoutePattern = createRoutePattern(
+  getPath('lines/:lineId/schedule'),
+);
+
+function isRemindersRouteActive(currentPath: string) {
+  return (
+    remindersRoutePattern.test(currentPath) ||
+    lineRemindersRoutePattern.test(currentPath)
+  );
+}
+
+function isCallsRouteActive(currentPath: string) {
+  return (
+    callsRoutePattern.test(currentPath) ||
+    lineScheduleRoutePattern.test(currentPath)
+  );
+}
+
+function isLineRouteActive(currentPath: string) {
+  if (
+    lineRemindersRoutePattern.test(currentPath) ||
+    lineScheduleRoutePattern.test(currentPath)
+  ) {
+    return false;
+  }
+
+  return linesRoutePattern.test(currentPath);
+}
+
+function createRoutePattern(path: string) {
+  const segments = path.split('/').filter(Boolean);
+  const patternSegments = segments.map((segment) => {
+    if (segment.startsWith(':')) {
+      return '[^/]+';
+    }
+
+    return escapeRegExp(segment);
+  });
+
+  return new RegExp(`^/${patternSegments.join('/')}(?:/|$)`);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
