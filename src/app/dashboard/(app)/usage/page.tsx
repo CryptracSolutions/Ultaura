@@ -226,7 +226,7 @@ export default async function UsagePage() {
             </div>
 
             <div
-              className={`rounded-xl border bg-card p-6 shadow-sm ${
+              className={`rounded-xl border bg-card p-6 shadow-sm flex flex-col ${
                 capReached ? 'border-warning/40' : 'border-border'
               }`}
             >
@@ -242,7 +242,7 @@ export default async function UsagePage() {
                 <UsageCapControl accountId={account.id} capCents={capCents} />
               </div>
 
-              <div className="mt-5 space-y-2">
+              <div className="mt-6 space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{capCents > 0 ? `Cap at ${formatCurrency(capCents)}` : 'No cap set'}</span>
                   {capCents > 0 && <span>{formatCurrency(usageCostCents)} used</span>}

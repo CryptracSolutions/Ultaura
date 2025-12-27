@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { ArrowLeft, Calendar, Clock, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { LineRow } from '~/lib/ultaura/types';
@@ -48,7 +49,8 @@ export function ScheduleClient({ line }: ScheduleClientProps) {
       });
 
       if (result.success) {
-        router.push(`/dashboard/lines/${getShortLineId(line.id)}`);
+        toast.success('Schedule created');
+        router.refresh();
       } else {
         setError(result.error || 'Failed to create schedule');
       }

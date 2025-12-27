@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { toast } from 'sonner';
 import { AlertTriangle } from 'lucide-react';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
@@ -39,6 +40,7 @@ export default function UsageCapControl({ accountId, capCents }: UsageCapControl
         if (!result?.success) {
           throw new Error(result?.error || 'Update failed');
         }
+        toast.success('Spending cap updated');
       } catch (err) {
         setValue(previous);
         setError('Unable to update the spending cap. Please try again.');

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { ArrowLeft, Calendar, Clock, Check, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
@@ -58,7 +59,7 @@ export function EditScheduleClient({
       });
 
       if (result.success) {
-        router.push(`/dashboard/lines/${getShortLineId(line.id)}`);
+        toast.success('Schedule updated');
         router.refresh();
       } else {
         setError(result.error || 'Failed to update schedule');
