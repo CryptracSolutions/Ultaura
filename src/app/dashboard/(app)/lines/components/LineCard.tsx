@@ -153,7 +153,7 @@ export function LineCard({ line }: LineCardProps) {
             {isMenuOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-40 bg-black/20 dark:bg-black/55"
+                  className="fixed inset-0 z-40 bg-transparent backdrop-blur-none"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

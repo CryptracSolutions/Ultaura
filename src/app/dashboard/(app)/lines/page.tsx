@@ -3,7 +3,6 @@ import { Suspense } from 'react';
 import { getUltauraAccount, getLines, getUsageSummary } from '~/lib/ultaura/actions';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { LinesPageClient } from './components/LinesPageClient';
-import { UsageCard } from './components/UsageCard';
 import { AlertBanner } from './components/AlertBanner';
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
@@ -85,20 +84,6 @@ export default async function LinesPage() {
               title="Minutes running low"
               message={`You have ${usage.minutesRemaining} minutes remaining this month.`}
             />
-          )}
-
-          {/* Usage Summary */}
-          {usage && (
-            <Suspense fallback={<div className="h-32 w-full rounded-lg bg-muted animate-pulse" />}>
-              <UsageCard
-                minutesIncluded={usage.minutesIncluded}
-                minutesUsed={usage.minutesUsed}
-                minutesRemaining={usage.minutesRemaining}
-                planName={PLANS[account.plan_id as keyof typeof PLANS]?.displayName ?? account.plan_id}
-                planId={account.plan_id}
-                cycleEnd={usage.cycleEnd}
-              />
-            </Suspense>
           )}
 
           {/* Lines List */}

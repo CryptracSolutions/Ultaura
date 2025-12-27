@@ -237,7 +237,7 @@ async function DashboardPage() {
                   : '—'}
               </div>
               {usage && (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground mb-1">
                   {isPayg
                     ? 'minutes used'
                     : overageMinutes > 0
@@ -246,7 +246,7 @@ async function DashboardPage() {
                 </div>
               )}
               {usage && (
-                <div className="mt-3">
+                <div className="mt-2">
                   {isPayg ? (
                     <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                       <div
@@ -293,8 +293,7 @@ async function DashboardPage() {
             </div>
 
             <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex-1" />
-              <div className="mt-auto space-y-2">
+              <div className="flex flex-col justify-center flex-1">
                 <div className="grid gap-2">
                   <Link
                     href="/dashboard/calls"

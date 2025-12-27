@@ -29,7 +29,7 @@ const HOW_IT_WORKS_STEPS = [
   {
     title: 'Natural conversations',
     description:
-      'Ultaura chats about their day, memories, and interests while keeping the tone respectful.',
+      'Ultaura chats about their day, memories, and interests — responding in real-time with expressive, human-like voice.',
     icon: SparklesIcon,
   },
   {

@@ -6,6 +6,10 @@ import {
   CheckCircleIcon,
   MicrophoneIcon,
   PlayCircleIcon,
+  ChatBubbleLeftRightIcon,
+  GlobeAltIcon,
+  HandRaisedIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
@@ -64,6 +68,7 @@ function Home() {
                   'Works on any phone',
                   'No setup for your loved one',
                   'Privacy-first by design',
+                  '100+ languages',
                 ].map((item) => (
                   <span
                     key={item}
@@ -285,6 +290,63 @@ function Home() {
         </div>
       </Container>
 
+      {/* Voice Technology Section */}
+      <section className="py-24">
+        <Container>
+          <div className="flex flex-col items-center space-y-12">
+            {/* Section Header */}
+            <div className="text-center space-y-4 max-w-3xl">
+              <Pill>Powered by next-generation voice AI</Pill>
+              <Heading type={2}>
+                Conversations that feel{' '}
+                <span className="text-primary">natural</span>
+              </Heading>
+              <SubHeading>
+                Advanced voice technology designed for real connection, not
+                robotic responses.
+              </SubHeading>
+            </div>
+
+            {/* Feature Cards - 2x2 Grid */}
+            <div className="grid gap-6 md:grid-cols-2 max-w-4xl w-full">
+              <TechFeatureCard
+                icon={ChatBubbleLeftRightIcon}
+                title="Conversations flow naturally"
+                description="No awkward pauses or interruptions. Your loved one can speak freely, and Ultaura responds instantly."
+                highlight="Real-time response"
+              />
+
+              <TechFeatureCard
+                icon={SparklesIcon}
+                title="A voice that feels human"
+                description="Ultaura can laugh at a joke, sigh with understanding, or express genuine warmth. Not a flat, robotic tone."
+                highlight="Expressive audio"
+              />
+
+              <TechFeatureCard
+                icon={HandRaisedIcon}
+                title="Interrupt just like a real call"
+                description="Your loved one can jump in anytime to change the subject or add a thought. Ultaura adapts naturally."
+                highlight="Natural turn-taking"
+              />
+
+              <TechFeatureCard
+                icon={GlobeAltIcon}
+                title="Speaks their language"
+                description="Whether English, Spanish, Mandarin, or another language, Ultaura auto-detects and responds with native-quality pronunciation."
+                highlight="100+ languages"
+              />
+            </div>
+
+            {/* Subtle tech badge */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <span>Built on Grok Voice Agent technology</span>
+            </div>
+          </div>
+        </Container>
+      </section>
+
       {/* How It Works */}
       <HowItWorks />
 
@@ -426,6 +488,19 @@ function Home() {
                     even flip phones. No smartphone or app is needed.
                   </AccordionContent>
                 </AccordionItem>
+
+                <AccordionItem value="voice-technology">
+                  <AccordionTrigger className="hover:bg-transparent">
+                    How does the voice technology work?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Ultaura uses advanced voice AI that responds in under a
+                    second, supports natural interruptions, and can express
+                    warmth and emotion. It automatically detects your loved
+                    one&apos;s language and responds with native-quality
+                    pronunciation in over 100 languages.
+                  </AccordionContent>
+                </AccordionItem>
               </Accordion>
             </div>
           </div>
@@ -478,5 +553,34 @@ function Pill(props: React.PropsWithChildren) {
     >
       <span>{props.children}</span>
     </h2>
+  );
+}
+
+function TechFeatureCard({
+  icon: Icon,
+  title,
+  description,
+  highlight,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  highlight: string;
+}) {
+  return (
+    <div className="group flex flex-col rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm hover:border-primary/30 transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="rounded-xl border border-primary/10 bg-primary/10 p-3 transition-colors duration-200 group-hover:border-primary group-hover:bg-primary">
+          <Icon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
+        </div>
+        <div className="flex-1 space-y-2">
+          <h4 className="text-base font-semibold text-foreground">{title}</h4>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+            {highlight}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
