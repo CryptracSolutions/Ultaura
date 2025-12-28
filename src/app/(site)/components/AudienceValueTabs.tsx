@@ -148,7 +148,7 @@ export function AudienceValueTabs() {
               <div
                 role="tablist"
                 aria-label="Choose audience"
-                className="relative grid grid-cols-3 rounded-2xl bg-background/70 p-0.5"
+                className="relative grid grid-cols-3 rounded-2xl bg-background/70 p-1"
               >
                 {AUDIENCES.map((audience) => {
                   const selected = audience.id === active;
@@ -164,7 +164,7 @@ export function AudienceValueTabs() {
                       className={classNames(
                         'rounded-xl px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
                         selected
-                          ? 'bg-background text-primary shadow-sm'
+                          ? 'text-primary'
                           : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
@@ -219,6 +219,14 @@ export function AudienceValueTabs() {
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
                         See cadence and comfort signals at a glance.
                       </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                        Get notified only when something needs attention.
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                        Maintain meaningful connections without daily intrusion.
+                      </div>
                     </div>
                   ) : null}
 
@@ -239,6 +247,14 @@ export function AudienceValueTabs() {
                       <div className="mt-2 flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
                         Respectful conversations that honor independence.
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                        Natural AI conversations that feel genuinely caring.
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                        24/7 availability for comfort and companionship.
                       </div>
                     </div>
                   ) : null}
@@ -261,6 +277,14 @@ export function AudienceValueTabs() {
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
                         Designed for multi-resident routines and staffing
                         changes.
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                        Reduces daily check-in workload for care teams.
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                        Maintains consistent care quality during staff transitions.
                       </div>
                     </div>
                   ) : null}
