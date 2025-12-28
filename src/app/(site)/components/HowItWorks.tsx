@@ -57,7 +57,9 @@ export function HowItWorks() {
               <div className="inline-flex w-fit items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
                 Fast setup. Real connection.
               </div>
-              <Heading type={2}>How it works</Heading>
+              <Heading type={2}>
+                <span className="text-primary">How</span> it works
+              </Heading>
               <SubHeading className="max-w-xl">
                 A simple, respectful flow that keeps your loved one engaged and
                 you informed.

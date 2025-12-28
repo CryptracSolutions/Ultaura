@@ -1,8 +1,4 @@
 import {
-  PhoneIcon,
-  HeartIcon,
-  ShieldCheckIcon,
-  EyeIcon,
   CheckCircleIcon,
   MicrophoneIcon,
   PlayCircleIcon,
@@ -17,27 +13,13 @@ import { withI18n } from '~/i18n/with-i18n';
 import { Testimonials } from '~/app/(site)/components/Testimonials';
 import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
+import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '~/core/ui/Accordion';
-
-const HERO_TESTIMONIALS = [
-  {
-    content:
-      "Ultaura has been a lifesaver. My mom loves the daily calls, and I feel better knowing she's chatting with someone who remembers her stories and asks about them.",
-    author: 'Sarah M.',
-    role: 'Daughter',
-  },
-  {
-    content:
-      'I was skeptical at first, but the conversations are surprisingly natural. It helps my dad with the loneliness between visits.',
-    author: 'James P.',
-    role: 'Son',
-  },
-];
 
 function Home() {
   return (
@@ -209,238 +191,10 @@ function Home() {
             </div>
           </div>
 
-          <div className="mt-12 space-y-10">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  What you&apos;ll see
-                </div>
-                <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
-                    <span>Call summary</span>
-                    <span className="font-semibold text-foreground">
-                      18 min • calm mood
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
-                    <span>Recent activity</span>
-                    <span className="font-semibold text-foreground">
-                      Tue 6:30 PM · Sun 5:00 PM
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  What we won&apos;t do
-                </div>
-                <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    No manipulation or deception.
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    Never pretend to be human.
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    No upsells or pressure tactics.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="rounded-2xl border border-border/60 bg-background/90 p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  For families
-                </div>
-                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    Set up in minutes for your parent or grandparent.
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    See call cadence and comfort signals at a glance.
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background/90 p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  For care teams
-                </div>
-                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    Designed for multi-resident routines and shift changes.
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    Scheduling windows and quiet hours built in.
-                  </div>
-                </div>
-                <Button
-                  variant="link"
-                  href="/contact"
-                  className="mt-4 h-auto px-0 text-primary"
-                >
-                  For care teams →
-                </Button>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background/90 p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  For seniors
-                </div>
-                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    Just answer the call — nothing to install.
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                    Respectful conversations that honor independence.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Loved by families
-              </div>
-              <div className="grid gap-6 lg:grid-cols-2">
-                {HERO_TESTIMONIALS.map((testimonial) => (
-                  <div
-                    key={testimonial.author}
-                    className="rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm"
-                  >
-                    <div className="space-y-3">
-                      <div className="text-primary/80 text-xs">★★★★★</div>
-                      <p className="text-sm text-muted-foreground">
-                        &ldquo;{testimonial.content}&rdquo;
-                      </p>
-                    </div>
-                    <div className="mt-4 text-sm">
-                      <div className="font-semibold text-foreground">
-                        {testimonial.author}
-                      </div>
-                      <div className="text-muted-foreground">
-                        {testimonial.role}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       </Container>
 
-      {/* Value Props */}
-      <Container>
-        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-surface-elevated px-6 py-16 lg:px-12">
-          <div className="relative">
-            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-4 text-center">
-              <Pill>Designed for seniors and their families</Pill>
-              <Heading type={2}>Why families choose Ultaura</Heading>
-              <SubHeading as={'h3'}>
-                Simple, safe, and meaningful conversations with zero tech
-                friction.
-              </SubHeading>
-            </div>
-
-            <div className="mt-12 grid gap-6 md:grid-cols-2">
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <PhoneIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">Works on any phone</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Landlines, cell phones, and flip phones. They just pick up and
-                  talk.
-                </p>
-              </div>
-
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <HeartIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">
-                  Remembers their stories
-                </h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Continuity across calls so conversations feel personal and
-                  familiar.
-                </p>
-              </div>
-
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <EyeIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">You stay informed</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Dashboard summaries show call activity and duration without
-                  exposing transcripts.
-                </p>
-              </div>
-
-              <div className="group flex flex-col items-center rounded-2xl border border-border/60 bg-background/90 p-6 text-center shadow-sm">
-                <FeatureIcon>
-                  <ShieldCheckIcon className={'h-5 w-5'} />
-                </FeatureIcon>
-                <h4 className="mt-4 text-lg font-semibold">Safe & respectful</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Built-in crisis protocols, no manipulation, and clear AI
-                  disclosure every time.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-10 rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Caregiver peace of mind
-              </div>
-              <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    Works on any phone, no app needed.
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    You see activity and duration, never transcripts.
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    Built-in safety protocols and transparency.
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 lg:-mt-2">
-                  <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <div className="text-xs text-muted-foreground">Setup</div>
-                    <div className="text-lg font-semibold text-foreground">
-                      Less than 5 minutes
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <div className="text-xs text-muted-foreground">Coverage</div>
-                    <div className="text-lg font-semibold text-foreground">
-                      Mobile and Landline
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Container>
+      <AudienceValueTabs />
 
       {/* How It Works */}
       <HowItWorks />
@@ -484,35 +238,54 @@ function Home() {
                 </SubHeading>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-foreground">
-                  Still need help?
-                </h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  We&apos;re happy to talk through voice options, schedules, or
-                  anything else. Expect a quick, thoughtful response.
-                </p>
-                <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    Voice demos and recommendations
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Still need help?
+                  </h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    We&apos;re happy to talk through voice options, schedules, or
+                    anything else. Expect a quick, thoughtful response.
+                  </p>
+                  <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                      Voice demos and recommendations
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                      Billing and line setup questions
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                      Privacy and safety policies
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    Billing and line setup questions
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    Privacy and safety policies
-                  </div>
+                  <Button
+                    round
+                    href="/contact"
+                    className="mt-6 w-fit bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    Contact Us
+                  </Button>
                 </div>
-                <Button
-                  round
-                  href="/contact"
-                  className="mt-6 w-fit bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  Contact Us
-                </Button>
+
+                <div className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm">
+                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    For care teams
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Running an assisted living community or care team? We&apos;ll
+                    help you fit check-ins into real schedules and routines.
+                  </p>
+                  <Button
+                    variant="link"
+                    href="/contact"
+                    className="mt-3 h-auto px-0 text-primary"
+                  >
+                    Talk to us →
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -608,21 +381,6 @@ function Home() {
 }
 
 export default withI18n(Home);
-
-function FeatureIcon(props: React.PropsWithChildren) {
-  return (
-    <div className={'flex'}>
-      <div
-        className={
-          'rounded-xl bg-primary/10 p-4 border border-primary/10' +
-          ' hover:bg-primary hover:border-primary transition-colors duration-200'
-        }
-      >
-        {props.children}
-      </div>
-    </div>
-  );
-}
 
 function Pill(props: React.PropsWithChildren) {
   return (
