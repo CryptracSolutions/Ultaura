@@ -14,6 +14,7 @@ import { Testimonials } from '~/app/(site)/components/Testimonials';
 import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
+import { TrustBadgeStrip } from '~/app/(site)/components/TrustBadgeStrip';
 import {
   Accordion,
   AccordionContent,
