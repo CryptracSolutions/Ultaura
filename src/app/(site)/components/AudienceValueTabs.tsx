@@ -43,10 +43,10 @@ const AUDIENCES: Array<{
 ];
 
 const ALWAYS_INCLUDED = [
-  'Works on any phone',
-  'No app required',
-  'Always discloses AI',
-  'No transcripts stored by default',
+  'Daily check-in calls',
+  'Medication & routine reminders',
+  'Caregiver dashboard summaries',
+  'Safety protocols + trusted contacts',
 ];
 
 const PROMISES = [

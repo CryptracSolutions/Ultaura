@@ -88,7 +88,7 @@ function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="h-4 w-4 text-primary" />
-                  Works on landlines
+                  Works on any phone (landlines included)
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="h-4 w-4 text-primary" />
@@ -354,6 +354,28 @@ function Home() {
                   <AccordionContent>
                     Yes! Ultaura works with any phone — landlines, cell phones,
                     even flip phones. No smartphone or app is needed.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="cost">
+                  <AccordionTrigger className="hover:bg-transparent">
+                    How much does it cost?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Plans start at $39/month for one line with 300 minutes included.
+                    Additional minutes are $0.15 each. We offer annual plans with
+                    15% savings, and usage-based options for larger families.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="customize">
+                  <AccordionTrigger className="hover:bg-transparent">
+                    Can I customize the call schedule?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Absolutely! Set custom call times, quiet hours, and recurring
+                    schedules that fit your loved one&apos;s routine. You can pause,
+                    skip, or adjust calls anytime through your dashboard.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
