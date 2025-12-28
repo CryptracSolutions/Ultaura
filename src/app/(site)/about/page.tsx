@@ -171,7 +171,7 @@ function PrincipleCard({
   description: string;
 }) {
   return (
-    <div className="p-6 rounded-xl bg-background border border-border shadow-sm flex flex-col items-center text-center space-y-4">
+    <div className="p-6 rounded-xl bg-sidebar border border-border/60 shadow-xl flex flex-col items-center text-center space-y-4">
       <div className="p-3 bg-primary/10 rounded-full text-primary">
         <Icon className="h-6 w-6" />
       </div>

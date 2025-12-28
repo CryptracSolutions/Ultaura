@@ -36,7 +36,7 @@ const AUDIENCES: Array<{
   },
   {
     id: 'care-teams',
-    label: 'Care teams',
+    label: 'Caregivers',
     short: 'Designed for multi-resident workflows.',
     icon: ClockIcon,
   },
@@ -72,7 +72,7 @@ function CardShell(props: React.PropsWithChildren<{ className?: string }>) {
   return (
     <div
       className={classNames(
-        'rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm',
+        'rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl',
         props.className,
       )}
     >
@@ -188,7 +188,7 @@ export function AudienceValueTabs() {
               className="mx-auto mt-10 w-full max-w-6xl"
             >
               <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                <CardShell className="p-7">
+                <CardShell>
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
                       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
@@ -348,7 +348,7 @@ export function AudienceValueTabs() {
               </div>
             </div>
 
-            <div className="mx-auto mt-10 w-full max-w-6xl rounded-2xl border border-border/60 bg-background/90 p-5 shadow-sm">
+            <div className="mx-auto mt-10 w-full max-w-6xl rounded-2xl border border-border/60 bg-sidebar p-5 shadow-xl">
               <div className="grid place-items-center gap-3 text-center text-sm text-muted-foreground md:grid-cols-3">
                 {PROMISES.map((item) => (
                   <div key={item} className="flex items-center justify-center gap-2">

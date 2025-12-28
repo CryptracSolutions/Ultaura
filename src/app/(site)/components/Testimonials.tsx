@@ -143,8 +143,8 @@ export function Testimonials() {
               <div
                 key={index}
                 className={
-                  'group flex h-full flex-col space-y-6 rounded-2xl border border-border/70' +
-                  ' bg-background/90 p-8 shadow-sm'
+                  'group flex h-full flex-col space-y-6 rounded-2xl border border-border/60' +
+                  ' bg-sidebar p-8 shadow-xl'
                 }
               >
                 <div className="space-y-4">

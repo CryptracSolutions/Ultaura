@@ -53,7 +53,7 @@ function Home() {
               <SubHeading className={'max-w-2xl'}>
                 <span>Peace of mind for caregivers.</span>
                 <span>
-                  Warm, natural phone calls to your parent — no app required.
+                  Warm, natural phone calls to your parent or grandparent — no app required
                 </span>
               </SubHeading>
 
@@ -125,7 +125,7 @@ function Home() {
                     </div>
                   </div>
 
-                  <div className="flex w-full items-center justify-start gap-4 rounded-2xl bg-muted/40 p-4 text-left">
+                  <div className="flex w-full items-center justify-start gap-4 rounded-2xl bg-background p-4 text-left">
                     <div className="rounded-xl border border-primary/10 bg-primary/10 p-3 text-primary">
                       <MicrophoneIcon className="h-5 w-5" />
                     </div>
@@ -138,12 +138,12 @@ function Home() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    {['Warm', 'Clear', 'Gentle', 'Bright'].map((chip) => (
+                    {['Ara', 'Rex', 'Sal', 'Eve', 'Leo'].map((chip) => (
                       <span
                         key={chip}
                         className={
                           'rounded-full border border-border bg-background px-3 py-1' +
-                          (chip === 'Warm'
+                          (chip === 'Ara'
                             ? ' border-primary/40 bg-primary/10 text-primary'
                             : '')
                         }

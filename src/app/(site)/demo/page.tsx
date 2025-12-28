@@ -234,7 +234,7 @@ export default function DemoPage() {
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-border/60 bg-background/90 p-6 shadow-xl backdrop-blur">
+                <div className="rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl backdrop-blur">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                       Demo studio
@@ -424,7 +424,7 @@ export default function DemoPage() {
               {TECH_FEATURES.map((feature) => (
                 <div
                   key={feature.title}
-                  className="group flex items-start gap-4 rounded-2xl border border-border/60 bg-background/90 p-6 shadow-sm transition-colors hover:border-primary/30"
+                  className="group flex items-start gap-4 rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl transition-colors hover:border-primary/30"
                 >
                   <div className="rounded-xl border border-primary/10 bg-primary/10 p-3 transition-colors duration-200 group-hover:border-primary group-hover:bg-primary">
                     <feature.icon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />

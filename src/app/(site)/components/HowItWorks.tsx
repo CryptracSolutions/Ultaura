@@ -111,7 +111,7 @@ export function HowItWorks() {
                   <div className="absolute left-[var(--hiw-track-x)] top-1/2 z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-primary bg-background text-xs font-semibold text-primary shadow-sm">
                     {index + 1}
                   </div>
-                  <div className="rounded-2xl border border-border bg-background/90 p-6 shadow-sm">
+                  <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
                     <div className="flex items-start gap-4">
                       <div className="group rounded-xl border border-primary/10 bg-primary/10 p-3 transition-colors duration-200 hover:border-primary hover:bg-primary">
                         <step.icon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
