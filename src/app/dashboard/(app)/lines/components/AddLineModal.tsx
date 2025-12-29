@@ -204,7 +204,7 @@ export function AddLineModal({
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      US phone numbers only. We'll verify this number in the next step.
+                      US phone numbers only. We&apos;ll verify this number in the next step.
                     </p>
                   </div>
 
@@ -304,7 +304,7 @@ export function AddLineModal({
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          We'll save up to {MAX_INTEREST_TOPICS} total topics.
+                          We&apos;ll save up to {MAX_INTEREST_TOPICS} total topics.
                         </p>
                       )}
                     </div>

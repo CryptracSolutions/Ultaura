@@ -335,7 +335,7 @@ async function DashboardPage() {
 
             {recent.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                No calls yet. Once calls start, you'll see timestamps and durations here — not transcripts.
+                No calls yet. Once calls start, you&apos;ll see timestamps and durations here — not transcripts.
               </p>
             ) : (
               <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-background">

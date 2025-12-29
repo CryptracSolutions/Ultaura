@@ -47,7 +47,7 @@ export function LinesPageClient({
           </button>
         ) : (
           <p className="text-sm text-muted-foreground">
-            You've reached the line limit for your plan ({planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}).
+            You&apos;ve reached the line limit for your plan ({planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}).
             <a
               href="/dashboard/settings/subscription"
               className="text-primary hover:underline ml-1"

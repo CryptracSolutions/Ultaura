@@ -381,7 +381,7 @@ export function LineDetailClient({
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    We'll save up to {MAX_INTEREST_TOPICS} total topics.
+                    We&apos;ll save up to {MAX_INTEREST_TOPICS} total topics.
                   </p>
                 )}
               </div>

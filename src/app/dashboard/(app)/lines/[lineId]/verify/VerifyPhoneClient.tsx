@@ -180,7 +180,7 @@ export function VerifyPhoneClient({
         </button>
 
         <p className="text-center text-sm text-muted-foreground mt-4">
-          Didn't receive a code?{' '}
+          Didn&apos;t receive a code?{' '}
           <button
             onClick={handleResend}
             disabled={isLoading}
@@ -202,7 +202,7 @@ export function VerifyPhoneClient({
         </div>
         <h2 className="text-2xl font-semibold text-foreground">Verify phone number</h2>
         <p className="text-muted-foreground mt-2">
-          We'll send a code to {phoneNumber}
+          We&apos;ll send a code to {phoneNumber}
         </p>
       </div>
 
@@ -233,7 +233,7 @@ export function VerifyPhoneClient({
         </div>
 
         <p className="text-xs text-center text-muted-foreground">
-          For landlines, choose "Call me" to receive a voice code.
+          For landlines, choose &quot;Call me&quot; to receive a voice code.
         </p>
       </div>
     </div>

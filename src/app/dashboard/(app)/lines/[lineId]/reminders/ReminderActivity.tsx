@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Clock,
   Pause,
@@ -104,18 +104,18 @@ export function ReminderActivity({ lineId, initialEvents }: ReminderActivityProp
   const [isLoading, setIsLoading] = useState(!initialEvents);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    if (!initialEvents) {
-      loadEvents();
-    }
-  }, [lineId, initialEvents]);
-
-  async function loadEvents() {
+  const loadEvents = useCallback(async () => {
     setIsLoading(true);
     const data = await getLineReminderEvents(lineId, 50);
     setEvents(data);
     setIsLoading(false);
-  }
+  }, [lineId]);
+
+  useEffect(() => {
+    if (!initialEvents) {
+      loadEvents();
+    }
+  }, [initialEvents, loadEvents]);
 
   if (isLoading) {
     return (
