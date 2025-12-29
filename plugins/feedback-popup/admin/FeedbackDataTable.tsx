@@ -205,10 +205,10 @@ function FeedbackActions(
 
         <Modal isOpen={modalOpen} heading={`Delete Feedback Submission`}>
           <form
-            action={(data) => {
+            action={async (data) => {
               setModalOpen(false);
 
-              return deleteFeedbackSubmissionAction(data);
+              await deleteFeedbackSubmissionAction(data);
             }}
           >
             <input value={id} type={'hidden'} name={'id'} />
