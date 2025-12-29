@@ -215,7 +215,9 @@ export const deleteFeedbackSubmissionAction = withAdminSession(
 );
 
 async function createEmbedding(text: string) {
-  const { pipeline } = await import('@xenova/transformers');
+  const { pipeline } = await import(
+    /* webpackIgnore: true */ '@xenova/transformers',
+  );
 
   const generateEmbedding = await pipeline(
     'feature-extraction',
