@@ -29,14 +29,14 @@ export async function determineBillableType(
   account: UltauraAccountRow,
   minutes: number
 ): Promise<'trial' | 'included' | 'overage' | 'payg'> {
-  // PAYG accounts always pay per minute
-  if (account.plan_id === 'payg') {
-    return 'payg';
-  }
-
   // Trial accounts
   if (account.status === 'trial') {
     return 'trial';
+  }
+
+  // PAYG accounts always pay per minute
+  if (account.plan_id === 'payg') {
+    return 'payg';
   }
 
   // Get current usage

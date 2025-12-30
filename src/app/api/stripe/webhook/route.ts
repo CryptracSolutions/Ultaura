@@ -94,8 +94,12 @@ export async function POST(request: Request) {
         await onCheckoutCompleted(client, session, subscription);
 
         // Sync Ultaura subscription if this is an Ultaura plan
-        const priceId = subscription.items.data[0]?.price?.id;
-        if (priceId && isUltauraPriceId(priceId)) {
+        const hasUltauraPrice = subscription.items.data.some((item) => {
+          const priceId = item.price?.id;
+          return !!priceId && isUltauraPriceId(priceId);
+        });
+
+        if (hasUltauraPrice) {
           const organizationUid = getOrganizationUidFromClientReference(session);
           await syncUltauraSubscription(client, subscription, organizationUid);
           logger.info({ subscriptionId: subscription.id }, '[Ultaura] Synced subscription');
@@ -121,13 +125,22 @@ export async function POST(request: Request) {
         await updateSubscriptionById(client, subscription);
 
         // Sync Ultaura subscription updates
-        const priceId = subscription.items.data[0]?.price?.id;
-        if (priceId && isUltauraPriceId(priceId)) {
-          // Get organization from subscription metadata or customer
+        const hasUltauraPrice = subscription.items.data.some((item) => {
+          const priceId = item.price?.id;
+          return !!priceId && isUltauraPriceId(priceId);
+        });
+
+        if (hasUltauraPrice) {
+          // Get organization from subscription metadata
           const metadata = subscription.metadata;
-          if (metadata?.organization_uid) {
-            await syncUltauraSubscription(client, subscription, metadata.organization_uid);
+          const organizationUid =
+            metadata?.organization_uid || (metadata as Record<string, string | undefined>)?.organizationUid;
+
+          if (organizationUid) {
+            await syncUltauraSubscription(client, subscription, organizationUid);
             logger.info({ subscriptionId: subscription.id }, '[Ultaura] Updated subscription');
+          } else {
+            logger.warn({ subscriptionId: subscription.id }, '[Ultaura] Missing organization UID on subscription metadata');
           }
         }
 

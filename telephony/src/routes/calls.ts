@@ -150,7 +150,7 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
 
   // Check access (but allow even if low minutes for testing)
   const accessCheck = await checkLineAccess(line, account, 'outbound');
-  if (!accessCheck.allowed && accessCheck.reason !== 'minutes_exhausted') {
+  if (!accessCheck.allowed) {
     res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
     return;
   }

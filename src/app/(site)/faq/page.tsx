@@ -80,7 +80,7 @@ const CATEGORIES = [
       },
       {
         question: `Do you offer a free trial?`,
-        answer: `Yes! Every plan includes a free trial with 20 minutes of calls so you and your loved one can try Ultaura before committing. No credit card required to start.`,
+        answer: `Yes! Every plan includes a 3-day free trial so you and your loved one can try Ultaura before committing. No credit card required to start.`,
       },
     ],
   },

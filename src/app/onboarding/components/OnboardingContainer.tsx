@@ -11,10 +11,13 @@ import OrganizationInfoStep, {
   OrganizationInfoStepData,
 } from './OrganizationInfoStep';
 
+import PlanSelectionStep from './PlanSelectionStep';
+
 import CompleteOnboardingStep from './CompleteOnboardingStep';
 import OrganizationInvitesStep from '~/app/onboarding/components/OrganizationInvitesStep';
 import MembershipRole from '~/lib/organizations/types/membership-role';
 import configuration from '~/configuration';
+import type { PlanId } from '~/lib/ultaura/types';
 
 type Invite = {
   email: string;
@@ -33,8 +36,8 @@ const enableTeamAccounts = configuration.features.enableTeamAccounts;
  * @type {Array<string>}
  */
 const STEPS: Array<string> = enableTeamAccounts
-  ? ['onboarding:info', 'onboarding:invites', 'onboarding:complete']
-  : ['onboarding:info', 'onboarding:complete'];
+  ? ['onboarding:info', 'onboarding:plan', 'onboarding:invites', 'onboarding:complete']
+  : ['onboarding:info', 'onboarding:plan', 'onboarding:complete'];
 
 function OnboardingContainer(
   props: React.PropsWithChildren<{
@@ -45,6 +48,7 @@ function OnboardingContainer(
     defaultValues: {
       data: {
         organization: '',
+        selectedPlanId: 'comfort' as PlanId,
         invites: [] as Invite[],
       },
       currentStep: 0,
@@ -58,6 +62,14 @@ function OnboardingContainer(
   const onInfoStepSubmitted = useCallback(
     (organizationInfo: OrganizationInfoStepData) => {
       form.setValue('data.organization', organizationInfo.organization);
+      nextStep();
+    },
+    [form, nextStep],
+  );
+
+  const onPlanStepSubmitted = useCallback(
+    (planId: PlanId) => {
+      form.setValue('data.selectedPlanId', planId);
       nextStep();
     },
     [form, nextStep],
@@ -79,7 +91,8 @@ function OnboardingContainer(
     [currentStep],
   );
 
-  const completeStep = enableTeamAccounts ? 2 : 1;
+  const invitesStep = enableTeamAccounts ? 2 : null;
+  const completeStep = enableTeamAccounts ? 3 : 2;
 
   return (
     <CsrfTokenContext.Provider value={props.csrfToken}>
@@ -89,7 +102,11 @@ function OnboardingContainer(
         <OrganizationInfoStep onSubmit={onInfoStepSubmitted} />
       </If>
 
-      <If condition={enableTeamAccounts && isStep(1)}>
+      <If condition={isStep(1)}>
+        <PlanSelectionStep onSubmit={onPlanStepSubmitted} />
+      </If>
+
+      <If condition={enableTeamAccounts && invitesStep !== null && isStep(invitesStep)}>
         <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} />
       </If>
 

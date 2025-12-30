@@ -23,9 +23,10 @@ import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface LineCardProps {
   line: LineRow;
+  disabled?: boolean;
 }
 
-export function LineCard({ line }: LineCardProps) {
+export function LineCard({ line, disabled = false }: LineCardProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -177,18 +178,22 @@ export function LineCard({ line }: LineCardProps) {
                   >
                     Settings
                   </Link>
-                  <div className="border-t border-border" />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openDeleteDialog();
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete Line
-                  </button>
+                  {!disabled && (
+                    <>
+                      <div className="border-t border-border" />
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openDeleteDialog();
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete Line
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             )}

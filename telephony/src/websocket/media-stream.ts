@@ -49,7 +49,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let grokBridge: GrokBridge | null = null;
   let isConnected = false;
   let pendingOptOut = false;
-  let minuteCheckInterval: NodeJS.Timeout | null = null;
+  let trialExpiryTimeout: NodeJS.Timeout | null = null;
   let overagePromptTimeout: NodeJS.Timeout | null = null;
   let overagePromptActive = false;
 
@@ -81,6 +81,12 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     }).join('; ');
 
   const getMinutesStatus = async () => {
+    // Trial accounts have unlimited usage during the trial period.
+    // We still track minutes used, but we do not warn or prompt for overage.
+    if (account.status === 'trial') {
+      return { remaining: 0, warn: false, critical: false };
+    }
+
     if (isPayg) {
       return { remaining: 0, warn: false, critical: false };
     }
@@ -103,7 +109,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     }
   };
 
-  const sendOveragePrompt = (mode: 'trial' | 'overage') => {
+  const sendOveragePrompt = () => {
     if (!grokBridge || overagePromptActive) {
       return;
     }
@@ -111,10 +117,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     overagePromptActive = true;
 
     const planOptions = formatPlanOptions();
-    const prompt =
-      mode === 'trial'
-        ? `SYSTEM: The user has used all free trial minutes. At the start of the call, explain that the free trial minutes are used up and ask if they would like to upgrade or stop the call (do not offer to continue). Offer these options: ${planOptions}. Ask which plan they prefer. Once they decide, call choose_overage_action with action "upgrade" and plan_id ("care", "comfort", "family", or "payg"), or action "stop" if they decline. Do not ask for payment details; tell them you will email a secure link to the billing email on file. If they do not respond within one minute, give a short warm goodbye and end the call.`
-        : `SYSTEM: The user has 0 included minutes remaining. Continuing will incur overage charges at $0.15 per minute. At the start of the call, explain this and ask if they would like to continue with overage charges, upgrade, or stop the call. If they want to upgrade, offer these options: ${planOptions}. Ask which plan they prefer. Once they decide, call choose_overage_action with action "continue", "upgrade", or "stop". If upgrading, include plan_id ("care", "comfort", "family", or "payg"). Do not ask for payment details; tell them you will email a secure link to the billing email on file. If they do not respond within one minute, give a short warm goodbye and end the call.`;
+    const prompt = `SYSTEM: The user has 0 included minutes remaining. Continuing will incur overage charges at $0.15 per minute. At the start of the call, explain this and ask if they would like to continue with overage charges, upgrade, or stop the call. If they want to upgrade, offer these options: ${planOptions}. Ask which plan they prefer. Once they decide, call choose_overage_action with action "continue", "upgrade", or "stop". If upgrading, include plan_id ("care", "comfort", "family", or "payg"). Do not ask for payment details; tell them you will email a secure link to the billing email on file. If they do not respond within one minute, give a short warm goodbye and end the call.`;
 
     grokBridge.sendTextInput(prompt);
 
@@ -163,7 +166,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             // Check minutes status
             const minutesStatus = await getMinutesStatus();
             const minutesRemaining = minutesStatus.remaining;
-            const shouldPromptOverage = !isPayg && minutesRemaining <= 0 && !session.is_reminder_call;
+            const shouldPromptOverage =
+              account.status !== 'trial' && !isPayg && minutesRemaining <= 0 && !session.is_reminder_call;
 
             // Create Grok bridge
             grokBridge = new GrokBridge({
@@ -227,33 +231,25 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             isConnected = true;
 
             if (shouldPromptOverage) {
-              sendOveragePrompt(account.status === 'trial' ? 'trial' : 'overage');
+              sendOveragePrompt();
             }
 
-            // Check minutes remaining periodically for trial accounts
-            if (account.status === 'trial' && minutesRemaining > 0 && !session.is_reminder_call) {
-              minuteCheckInterval = setInterval(async () => {
-                const minutesStatus = await getMinutesStatus();
+            // If the trial expires mid-call, let the call continue but add a gentle wrap-up note.
+            if (account.status === 'trial' && account.trial_ends_at && !session.is_reminder_call) {
+              const trialEndsMs = new Date(account.trial_ends_at).getTime();
+              const msUntilTrialEnds = trialEndsMs - Date.now();
 
-                if (minutesStatus.remaining <= 0) {
-                  logger.info({ callSessionId }, 'Trial minutes exhausted mid-call');
-
-                  sendOveragePrompt('trial');
-
-                  // Clear the interval
-                  if (minuteCheckInterval) {
-                    clearInterval(minuteCheckInterval);
-                    minuteCheckInterval = null;
+              if (msUntilTrialEnds > 0 && msUntilTrialEnds <= 60 * 60 * 1000) {
+                trialExpiryTimeout = setTimeout(() => {
+                  if (!grokBridge || ws.readyState !== WebSocket.OPEN) {
+                    return;
                   }
-                } else if (minutesStatus.critical && isConnected) {
-                  // Warn about low minutes
-                  if (grokBridge) {
-                    grokBridge.sendTextInput(
-                      `SYSTEM: User has only ${minutesStatus.remaining} minutes remaining on their trial. Mention this naturally toward the end of the call.`
-                    );
-                  }
-                }
-              }, 60000); // Check every minute
+
+                  grokBridge.sendTextInput(
+                    `SYSTEM: The user's 3-day free trial has now ended. Please wrap up this call warmly and mention that to continue using Ultaura, their family member will need to subscribe to a plan in the dashboard. End with a kind goodbye.`
+                  );
+                }, msUntilTrialEnds);
+              }
             }
 
             // Update session status
@@ -321,8 +317,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   ws.on('close', async (code, reason) => {
     logger.info({ callSessionId, code, reason: reason.toString() }, 'Media stream WebSocket closed');
 
-    if (minuteCheckInterval) {
-      clearInterval(minuteCheckInterval);
+    if (trialExpiryTimeout) {
+      clearTimeout(trialExpiryTimeout);
+      trialExpiryTimeout = null;
     }
 
     clearOveragePrompt();

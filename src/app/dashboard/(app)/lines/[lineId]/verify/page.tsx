@@ -1,9 +1,12 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getLine } from '~/lib/ultaura/actions';
+import { getLine, getTrialInfo } from '~/lib/ultaura/actions';
 import { VerifyPhoneClient } from './VerifyPhoneClient';
 import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
+import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
+import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
+import { PLANS } from '~/lib/ultaura/constants';
 
 export const metadata: Metadata = {
   title: 'Verify Phone - Ultaura',
@@ -28,15 +31,25 @@ export default async function VerifyPhonePage({ params }: PageProps) {
   // Format phone for display
   const formattedPhone = formatPhoneNumber(line.phone_e164);
 
+  const trialInfo = await getTrialInfo(line.account_id);
+  const isTrialExpired = trialInfo?.isExpired ?? false;
+  const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
+  const trialPlanId = trialInfo?.trialPlanId ?? null;
+  const trialPlanName = trialPlanId ? (PLANS[trialPlanId]?.displayName ?? 'Trial') : 'Trial';
+
   return (
     <>
-      <AppHeader title="Verify Phone" description="Confirm ownership of this phone number" />
+      <AppHeader title="Verify Phone" description="Confirm ownership of this phone number">
+        {isTrialActive && trialInfo ? (
+          <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />
+        ) : null}
+      </AppHeader>
       <PageBody>
         <div className="min-h-[60vh] flex items-center justify-center">
-          <VerifyPhoneClient
-            lineId={line.id}
-            phoneNumber={formattedPhone}
-          />
+          <div className="w-full space-y-6">
+            {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+            <VerifyPhoneClient lineId={line.id} phoneNumber={formattedPhone} disabled={isTrialExpired} />
+          </div>
         </div>
       </PageBody>
     </>

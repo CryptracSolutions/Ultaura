@@ -7,6 +7,8 @@ import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount, getUsageSummary } from '~/lib/ultaura/actions';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import UsageCapControl from './components/UsageCapControl';
+import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
+import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 
 export const metadata = {
   title: 'Usage - Ultaura',
@@ -50,7 +52,7 @@ export default async function UsagePage() {
                 Set up Ultaura to see usage
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a free trial to activate minute tracking and spending caps.
+                Start a 3-day free trial to activate minute tracking and spending caps.
               </p>
             </div>
           </div>
@@ -64,6 +66,17 @@ export default async function UsagePage() {
   const isPayg = account.plan_id === 'payg';
   const planName = isPayg ? 'Pay as you go' : plan?.displayName ?? 'Plan';
 
+  const isOnTrial = account.status === 'trial';
+  const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
+  const msRemaining = isOnTrial && trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : 0;
+  const isTrialExpired = isOnTrial && !!trialEndsAt && msRemaining <= 0;
+  const isTrialActive = isOnTrial && !!trialEndsAt && msRemaining > 0;
+  const trialDaysRemaining = isTrialActive
+    ? Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)))
+    : 0;
+  const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
+  const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
+
   const minutesIncluded = usage?.minutesIncluded ?? 0;
   const minutesUsed = usage?.minutesUsed ?? 0;
   const overageMinutes = usage?.overageMinutes ?? 0;
@@ -72,24 +85,31 @@ export default async function UsagePage() {
 
   const overageCostCents = overageMinutes * RATE_CENTS;
   const paygCostCents = minutesUsed * RATE_CENTS;
-  const usageCostCents = isPayg ? paygCostCents : overageCostCents;
+  const usageCostCents = isOnTrial ? 0 : isPayg ? paygCostCents : overageCostCents;
 
   const capCents = account.overage_cents_cap ?? 0;
   const capReached = capCents > 0 && usageCostCents >= capCents;
   const capPercent = capCents > 0 ? Math.min((usageCostCents / capCents) * 100, 100) : 0;
 
   const includedUsagePercent =
-    minutesIncluded > 0 ? Math.min((Math.min(minutesUsed, minutesIncluded) / minutesIncluded) * 100, 100) : 0;
+    !isOnTrial && minutesIncluded > 0
+      ? Math.min((Math.min(minutesUsed, minutesIncluded) / minutesIncluded) * 100, 100)
+      : 0;
   const overagePercent =
-    minutesIncluded > 0 ? Math.min((overageMinutes / minutesIncluded) * 100, 100) : 0;
+    !isOnTrial && minutesIncluded > 0 ? Math.min((overageMinutes / minutesIncluded) * 100, 100) : 0;
 
-  const hasOverage = !isPayg && overageMinutes > 0;
+  const hasOverage = !isOnTrial && !isPayg && overageMinutes > 0;
 
   return (
     <>
-      <AppHeader title="Usage" description="Track minutes, overages, and spending caps" />
+      <AppHeader title="Usage" description="Track minutes, overages, and spending caps">
+        {isTrialActive ? (
+          <TrialStatusBadge daysRemaining={trialDaysRemaining} planName={trialPlanName} />
+        ) : null}
+      </AppHeader>
       <PageBody>
         <div className="flex flex-col gap-6 pb-24">
+          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
           <div className="grid gap-6">
             <div
               className={`rounded-xl border bg-card p-6 shadow-sm ${
@@ -100,17 +120,19 @@ export default async function UsagePage() {
                 <div className="flex items-center gap-3">
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                      isPayg
+                      isOnTrial || isPayg
                         ? 'bg-primary/10 text-primary'
                         : hasOverage
                         ? 'bg-warning/10 text-warning'
                         : 'bg-muted text-foreground'
                     }`}
                   >
-                    {isPayg ? <Zap className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                    {isOnTrial ? <Clock className="h-5 w-5" /> : isPayg ? <Zap className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground">{planName} plan</div>
+                    <div className="text-sm text-muted-foreground">
+                      {isOnTrial ? `${trialPlanName} trial` : `${planName} plan`}
+                    </div>
                     <h2 className="text-lg font-semibold text-foreground">Usage this cycle</h2>
                   </div>
                 </div>
@@ -124,7 +146,43 @@ export default async function UsagePage() {
 
               {usage ? (
                 <div className="mt-6 space-y-4">
-                  {isPayg ? (
+                  {isOnTrial ? (
+                    <>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border/60 bg-background p-4">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Minutes used
+                          </div>
+                          <div className="mt-2 text-3xl font-semibold text-foreground">
+                            {minutesUsed}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-border/60 bg-background p-4">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Cost during trial
+                          </div>
+                          <div className="mt-2 text-3xl font-semibold text-foreground">
+                            {formatCurrency(0)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        Unlimited minutes during trial.
+                      </div>
+                      {cycleEnd && (
+                        <div className="text-xs text-muted-foreground">
+                          {isTrialActive ? `Trial ends ${cycleEnd}.` : `Trial ended ${cycleEnd}.`}
+                        </div>
+                      )}
+                      <Link
+                        href="/dashboard/settings/subscription"
+                        className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+                      >
+                        Choose a plan →
+                      </Link>
+                    </>
+                  ) : isPayg ? (
                     <>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="rounded-lg border border-border/60 bg-background p-4">
@@ -235,11 +293,13 @@ export default async function UsagePage() {
                 <h3 className="text-sm font-semibold text-foreground">Spending cap</h3>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Stop all calls when usage hits your monthly cap.
+                {isTrialActive
+                  ? 'Spending caps apply after you subscribe.'
+                  : 'Stop all calls when usage hits your monthly cap.'}
               </p>
 
               <div className="mt-4">
-                <UsageCapControl accountId={account.id} capCents={capCents} />
+                <UsageCapControl accountId={account.id} capCents={capCents} disabled={isTrialExpired} />
               </div>
 
               <div className="mt-6 space-y-2">

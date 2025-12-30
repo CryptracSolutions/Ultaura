@@ -236,7 +236,7 @@ For recurring reminders, parse natural language like:
           {
             type: 'function',
             name: 'choose_overage_action',
-            description: 'Record the user decision when asked about overage or trial minutes',
+            description: 'Record the user decision when asked about overage charges or trial expiration',
             parameters: {
               type: 'object',
               properties: {
@@ -503,7 +503,12 @@ If distress or self-harm mentioned:
 
     // Add plan info for upgrade context
     const { currentPlanId, accountStatus } = this.options;
-    const planStatusLabel = accountStatus === 'trial' ? 'Free Trial' : accountStatus === 'active' ? 'Active Subscription' : accountStatus;
+    const planStatusLabel =
+      accountStatus === 'trial'
+        ? 'Trial'
+        : accountStatus === 'active'
+          ? 'Active Subscription'
+          : accountStatus;
 
     prompt += `
 ## Plans & Pricing
@@ -513,7 +518,7 @@ If the user asks about upgrading or wants more minutes, explain these plans:
 - Family: $199/month, 2000 minutes, 4 phone lines
 - Pay as you go: $0/month + $0.15 per minute, 4 phone lines
 
-Current plan: ${currentPlanId === 'free_trial' ? 'Free Trial' : currentPlanId}
+Current plan: ${currentPlanId === 'free_trial' ? 'Trial' : currentPlanId}
 Account status: ${planStatusLabel}
 
 Use the request_upgrade tool when user wants to upgrade. First explain options, then once they choose, confirm their choice, then send the link.

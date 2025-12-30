@@ -17,11 +17,13 @@ import type {
   UpdateLineInput,
   CreateScheduleInput,
   UpdateScheduleInput,
+  PlanId,
   UltauraAccountRow,
   LineRow,
   ScheduleRow,
   CallSessionRow,
 } from './types';
+import { BILLING, PLANS } from './constants';
 
 const logger = getLogger();
 
@@ -50,6 +52,11 @@ export async function getOrCreateUltauraAccount(
   }
 
   // Create new account
+  const now = new Date();
+  const trialEndsAt = new Date(now.getTime() + BILLING.TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+  const defaultTrialPlanId: PlanId = 'comfort';
+  const plan = PLANS[defaultTrialPlanId];
+
   const { data: account, error } = await client
     .from('ultaura_accounts')
     .insert({
@@ -58,10 +65,14 @@ export async function getOrCreateUltauraAccount(
       billing_email: email,
       created_by_user_id: userId,
       status: 'trial',
-      plan_id: 'free_trial',
-      minutes_included: 20,
-      cycle_start: new Date().toISOString(),
-      cycle_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      plan_id: defaultTrialPlanId,
+      trial_plan_id: defaultTrialPlanId,
+      trial_starts_at: now.toISOString(),
+      trial_ends_at: trialEndsAt.toISOString(),
+      minutes_included: plan.minutesIncluded,
+      minutes_used: 0,
+      cycle_start: now.toISOString(),
+      cycle_end: trialEndsAt.toISOString(),
     })
     .select('id')
     .single();
@@ -92,6 +103,38 @@ export async function getUltauraAccount(organizationId: number): Promise<Ultaura
   }
 
   return data;
+}
+
+// ============================================
+// TRIAL HELPERS
+// ============================================
+
+export async function isTrialExpired(accountId: string): Promise<boolean> {
+  const account = await getUltauraAccountById(accountId);
+  if (!account) return false;
+
+  return getTrialStatus(account).isExpired;
+}
+
+export async function getTrialInfo(accountId: string): Promise<{
+  isOnTrial: boolean;
+  isExpired: boolean;
+  trialPlanId: PlanId | null;
+  trialEndsAt: string | null;
+  daysRemaining: number;
+} | null> {
+  const account = await getUltauraAccountById(accountId);
+  if (!account) return null;
+
+  const status = getTrialStatus(account);
+
+  return {
+    isOnTrial: status.isOnTrial,
+    isExpired: status.isExpired,
+    trialPlanId: status.trialPlanId,
+    trialEndsAt: status.trialEndsAt,
+    daysRemaining: status.daysRemaining,
+  };
 }
 
 // ============================================
@@ -168,6 +211,11 @@ export async function createLine(input: CreateLineInput): Promise<{ success: boo
     return { success: false, error: 'Account not found' };
   }
 
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   const existingLines = await getLines(input.accountId);
   const plan = await getPlan(account.plan_id);
 
@@ -220,6 +268,26 @@ export async function updateLine(
 ): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseServerComponentClient();
 
+  const { data: line, error: lineError } = await client
+    .from('ultaura_lines')
+    .select('account_id')
+    .eq('id', lineId)
+    .single();
+
+  if (lineError || !line) {
+    return { success: false, error: 'Line not found' };
+  }
+
+  const account = await getUltauraAccountById(line.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   const updates: Record<string, unknown> = {};
 
   if (input.displayName !== undefined) updates.display_name = input.displayName;
@@ -252,6 +320,26 @@ export async function updateLine(
 // Delete a line
 export async function deleteLine(lineId: string): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseServerComponentClient();
+
+  const { data: line, error: lineError } = await client
+    .from('ultaura_lines')
+    .select('account_id')
+    .eq('id', lineId)
+    .single();
+
+  if (lineError || !line) {
+    return { success: false, error: 'Line not found' };
+  }
+
+  const account = await getUltauraAccountById(line.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
 
   const { error } = await client
     .from('ultaura_lines')
@@ -293,6 +381,14 @@ export async function addTrustedContact(
   const line = await getLine(lineId);
   if (!line) return { success: false, error: 'Line not found' };
 
+  const account = await getUltauraAccountById(line.account_id);
+  if (!account) return { success: false, error: 'Account not found' };
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   const { error } = await client.from('ultaura_trusted_contacts').insert({
     account_id: line.account_id,
     line_id: lineId,
@@ -309,13 +405,23 @@ export async function addTrustedContact(
   return { success: true };
 }
 
-export async function removeTrustedContact(contactId: string): Promise<{ success: boolean }> {
+export async function removeTrustedContact(contactId: string): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseServerComponentClient();
   const { data } = await client
     .from('ultaura_trusted_contacts')
-    .select('line_id')
+    .select('line_id, account_id')
     .eq('id', contactId)
     .single();
+
+  if (data?.account_id) {
+    const account = await getUltauraAccountById(data.account_id);
+    if (account) {
+      const trialStatus = getTrialStatus(account);
+      if (trialStatus.isExpired) {
+        return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+      }
+    }
+  }
 
   await client.from('ultaura_trusted_contacts').delete().eq('id', contactId);
 
@@ -340,6 +446,16 @@ export async function startPhoneVerification(
   const line = await getLine(lineId);
   if (!line) {
     return { success: false, error: 'Line not found' };
+  }
+
+  const account = await getUltauraAccountById(line.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
   }
 
   // Call the telephony backend to send verification
@@ -390,6 +506,16 @@ export async function checkPhoneVerification(
   const line = await getLine(lineId);
   if (!line) {
     return { success: false, error: 'Line not found' };
+  }
+
+  const account = await getUltauraAccountById(line.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
   }
 
   // Call the telephony backend to check verification
@@ -624,6 +750,16 @@ export async function createSchedule(
 ): Promise<{ success: boolean; scheduleId?: string; error?: string }> {
   const client = getSupabaseServerComponentClient();
 
+  const account = await getUltauraAccountById(accountId);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   // Build RRULE
   const dayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   const rruleDays = input.daysOfWeek.map(d => dayNames[d]).join(',');
@@ -682,6 +818,26 @@ export async function updateSchedule(
 ): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseServerComponentClient();
 
+  const { data: schedule, error: scheduleError } = await client
+    .from('ultaura_schedules')
+    .select('account_id')
+    .eq('id', scheduleId)
+    .single();
+
+  if (scheduleError || !schedule) {
+    return { success: false, error: 'Schedule not found' };
+  }
+
+  const account = await getUltauraAccountById(schedule.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   const updates: Record<string, unknown> = {};
 
   if (input.enabled !== undefined) updates.enabled = input.enabled;
@@ -729,6 +885,26 @@ export async function updateSchedule(
 // Delete a schedule
 export async function deleteSchedule(scheduleId: string): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseServerComponentClient();
+
+  const { data: schedule, error: scheduleError } = await client
+    .from('ultaura_schedules')
+    .select('account_id')
+    .eq('id', scheduleId)
+    .single();
+
+  if (scheduleError || !schedule) {
+    return { success: false, error: 'Schedule not found' };
+  }
+
+  const account = await getUltauraAccountById(schedule.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
 
   const { error } = await client
     .from('ultaura_schedules')
@@ -780,6 +956,16 @@ export async function getUsageSummary(accountId: string): Promise<UsageSummary |
 
 export async function updateOverageCap(accountId: string, overageCentsCap: number): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseServerComponentClient();
+
+  const account = await getUltauraAccountById(accountId);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
 
   const { error } = await client
     .from('ultaura_accounts')
@@ -958,6 +1144,21 @@ export async function getAllSchedules(accountId: string): Promise<{
 export async function initiateTestCall(lineId: string): Promise<{ success: boolean; error?: string }> {
   const telephonyUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
 
+  const line = await getLine(lineId);
+  if (!line) {
+    return { success: false, error: 'Line not found' };
+  }
+
+  const account = await getUltauraAccountById(line.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   try {
     const response = await fetch(`${telephonyUrl}/calls/outbound`, {
       method: 'POST',
@@ -1088,6 +1289,16 @@ export async function createReminder(input: {
     return { success: false, error: 'Line not found' };
   }
 
+  const account = await getUltauraAccountById(line.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   // Validate due date is in the future
   const dueDate = new Date(input.dueAt);
   if (dueDate.getTime() < Date.now()) {
@@ -1196,6 +1407,16 @@ export async function cancelReminder(reminderId: string): Promise<{ success: boo
     return { success: false, error: 'Reminder not found' };
   }
 
+  const account = await getUltauraAccountById(reminder.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   if (reminder.status !== 'scheduled') {
     return { success: false, error: 'Can only cancel scheduled reminders' };
   }
@@ -1293,6 +1514,16 @@ export async function skipNextOccurrence(reminderId: string): Promise<{ success:
   const reminder = await getReminder(reminderId);
   if (!reminder) {
     return { success: false, error: 'Reminder not found' };
+  }
+
+  const account = await getUltauraAccountById(reminder.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
   }
 
   if (!reminder.is_recurring) {
@@ -1449,6 +1680,16 @@ export async function pauseReminder(reminderId: string): Promise<{ success: bool
     return { success: false, error: 'Reminder not found' };
   }
 
+  const account = await getUltauraAccountById(reminder.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
   if (reminder.status !== 'scheduled') {
     return { success: false, error: 'Can only pause scheduled reminders' };
   }
@@ -1494,6 +1735,16 @@ export async function resumeReminder(reminderId: string): Promise<{ success: boo
   const reminder = await getReminder(reminderId);
   if (!reminder) {
     return { success: false, error: 'Reminder not found' };
+  }
+
+  const account = await getUltauraAccountById(reminder.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
   }
 
   if (!reminder.is_paused) {
@@ -1553,6 +1804,16 @@ export async function snoozeReminder(
   const reminder = await getReminder(reminderId);
   if (!reminder) {
     return { success: false, error: 'Reminder not found' };
+  }
+
+  const account = await getUltauraAccountById(reminder.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
   }
 
   if (reminder.status !== 'scheduled') {
@@ -1638,6 +1899,16 @@ export async function editReminder(
   const reminder = await getReminder(reminderId);
   if (!reminder) {
     return { success: false, error: 'Reminder not found' };
+  }
+
+  const account = await getUltauraAccountById(reminder.account_id);
+  if (!account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  const trialStatus = getTrialStatus(account);
+  if (trialStatus.isExpired) {
+    return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
   }
 
   if (reminder.status !== 'scheduled') {
@@ -1934,6 +2205,33 @@ async function getUltauraAccountById(accountId: string): Promise<UltauraAccountR
   return data;
 }
 
+function getTrialStatus(account: UltauraAccountRow): {
+  isOnTrial: boolean;
+  isExpired: boolean;
+  trialPlanId: PlanId | null;
+  trialEndsAt: string | null;
+  daysRemaining: number;
+} {
+  const isOnTrial = account.status === 'trial';
+  const trialEndsAt = isOnTrial
+    ? (account.trial_ends_at ?? account.cycle_end ?? null)
+    : null;
+
+  const trialPlanId = isOnTrial
+    ? ((account.trial_plan_id ?? account.plan_id) as PlanId)
+    : null;
+
+  if (!isOnTrial || !trialEndsAt) {
+    return { isOnTrial, isExpired: false, trialPlanId, trialEndsAt, daysRemaining: 0 };
+  }
+
+  const msRemaining = new Date(trialEndsAt).getTime() - Date.now();
+  const isExpired = msRemaining <= 0;
+  const daysRemaining = Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)));
+
+  return { isOnTrial, isExpired, trialPlanId, trialEndsAt, daysRemaining };
+}
+
 async function getPlan(planId: string) {
   const client = getSupabaseServerComponentClient();
 
@@ -2000,24 +2298,31 @@ export async function createUltauraCheckout(
 
     // Get organization's Stripe customer ID if exists
     const client = getSupabaseServerComponentClient();
-    const { data: org } = await client
+    const { data: org, error: orgError } = await client
       .from('organizations')
-      .select('subscription_id')
+      .select('id')
       .eq('uuid', organizationUid)
       .single();
 
-    let customerId: string | undefined;
-    if (org?.subscription_id) {
-      const { data: sub } = await client
-        .from('subscriptions')
-        .select('customer_id')
-        .eq('id', org.subscription_id)
-        .single();
-      customerId = sub?.customer_id;
+    if (orgError || !org) {
+      logger.error({ orgError, organizationUid }, 'Failed to load organization for checkout');
+      return { success: false, error: 'Unable to load organization details. Please try again.' };
     }
 
-    // Determine trial period (7 days for new customers)
-    const trialPeriodDays = customerId ? undefined : 7;
+    const { data: orgSubscription, error: orgSubscriptionError } = await client
+      .from('organizations_subscriptions')
+      .select('customer_id')
+      .eq('organization_id', org.id)
+      .maybeSingle();
+
+    if (orgSubscriptionError) {
+      logger.error(
+        { orgSubscriptionError, organizationUid },
+        'Failed to load organization subscription for checkout',
+      );
+    }
+
+    const customerId = orgSubscription?.customer_id ?? undefined;
 
     // Create checkout session
     const successUrl = `${returnUrl}?success=true&plan=${planId}`;
@@ -2030,14 +2335,14 @@ export async function createUltauraCheckout(
       success_url: successUrl,
       cancel_url: cancelUrl,
       subscription_data: {
-        trial_period_days: trialPeriodDays,
         metadata: {
-          organizationUid,
-          ultauraPlanId: planId,
+          organization_uid: organizationUid,
+          ultaura_plan_id: planId,
         },
       },
       metadata: {
-        ultauraPlanId: planId,
+        organization_uid: organizationUid,
+        ultaura_plan_id: planId,
       },
     };
 

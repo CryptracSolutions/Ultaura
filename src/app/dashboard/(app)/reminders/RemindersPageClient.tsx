@@ -74,6 +74,7 @@ function formatRecurrence(reminder: Reminder): string {
 interface RemindersPageClientProps {
   lines: LineRow[];
   reminders: Reminder[];
+  disabled?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType; label: string }> = {
@@ -99,7 +100,7 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType; la
   },
 };
 
-export function RemindersPageClient({ lines, reminders }: RemindersPageClientProps) {
+export function RemindersPageClient({ lines, reminders, disabled = false }: RemindersPageClientProps) {
   const router = useRouter();
   const [reminderToCancel, setReminderToCancel] = useState<string | null>(null);
 
@@ -114,6 +115,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
 
   const handleCancelReminder = async () => {
     if (!reminderToCancel) return;
+    if (disabled) return;
 
     const result = await cancelReminder(reminderToCancel);
     if (!result.success) {
@@ -164,7 +166,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
   return (
     <div className="space-y-6 pb-12">
       {/* Add Reminder Buttons */}
-      {lines.length > 0 && (
+      {!disabled && lines.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="font-medium text-foreground mb-4">Add a new reminder</h2>
           <div className="flex flex-wrap gap-3">
@@ -190,13 +192,15 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
           <p className="text-muted-foreground mb-4">
             Add a phone line first, then you can set up reminders.
           </p>
-          <Link
-            href="/dashboard/lines?action=add"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add a Phone Line
-          </Link>
+          {!disabled && (
+            <Link
+              href="/dashboard/lines?action=add"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add a Phone Line
+            </Link>
+          )}
         </div>
       )}
 
@@ -225,7 +229,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                       href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
                       className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
-                      Manage
+                      {disabled ? 'View' : 'Manage'}
                     </Link>
                   </div>
                 </div>
@@ -254,6 +258,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                           onCancel={() => setReminderToCancel(reminder.reminderId)}
                           formatDateTime={formatDateTime}
                           formatRelativeTime={formatRelativeTime}
+                          disabled={disabled}
                         />
                       ))}
 
@@ -273,6 +278,7 @@ export function RemindersPageClient({ lines, reminders }: RemindersPageClientPro
                           formatDateTime={formatDateTime}
                           formatRelativeTime={formatRelativeTime}
                           isPast
+                          disabled
                         />
                       ))}
                       {pastReminders.length > 5 && (
@@ -313,6 +319,7 @@ interface ReminderRowProps {
   formatDateTime: (isoString: string, timezone: string) => string;
   formatRelativeTime: (isoString: string) => string;
   isPast?: boolean;
+  disabled?: boolean;
 }
 
 function ReminderRow({
@@ -321,6 +328,7 @@ function ReminderRow({
   formatDateTime,
   formatRelativeTime,
   isPast = false,
+  disabled = false,
 }: ReminderRowProps) {
   const statusConfig = STATUS_CONFIG[reminder.status];
   const StatusIcon = statusConfig.icon;
@@ -369,7 +377,7 @@ function ReminderRow({
         </div>
       </div>
 
-      {reminder.status === 'scheduled' && (
+      {reminder.status === 'scheduled' && !disabled && (
         <div className="flex items-center gap-1 shrink-0">
           <Link
             href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders?edit=${reminder.reminderId}`}

@@ -184,8 +184,6 @@ export const CALL_MESSAGES = {
 
   LINE_DISABLED: 'Hello, this phone line is currently disabled. Please contact your family member or caregiver to re-enable it. Goodbye.',
 
-  MINUTES_EXHAUSTED_TRIAL: 'Hello, your free trial minutes have been used up. To continue using Ultaura, please ask your family member to upgrade your plan. I hope we can talk again soon. Goodbye.',
-
   MINUTES_EXHAUSTED_PAID: 'Hello, your included minutes for this month have been used. Additional calls will be charged as overage. Would you like to continue anyway?',
 
   // Outbound call messages
@@ -195,8 +193,6 @@ export const CALL_MESSAGES = {
 
   // End call messages
   GOODBYE: (name: string) => `It was lovely talking with you, ${name}. Take care of yourself, and I\'ll talk to you again soon. Goodbye.`,
-
-  GOODBYE_TRIAL_WARNING: (name: string, minutes: number) => `It was lovely talking with you, ${name}. Just so you know, you have about ${minutes} minutes left in your trial. Take care, and I\'ll talk to you soon. Goodbye.`,
 
   // Error messages
   ERROR_GENERIC: 'I\'m sorry, I\'m having some technical difficulties. Let me try to reconnect.',

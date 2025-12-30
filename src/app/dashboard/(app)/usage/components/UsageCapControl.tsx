@@ -18,9 +18,10 @@ const CAP_OPTIONS = [
 interface UsageCapControlProps {
   accountId: string;
   capCents: number;
+  disabled?: boolean;
 }
 
-export default function UsageCapControl({ accountId, capCents }: UsageCapControlProps) {
+export default function UsageCapControl({ accountId, capCents, disabled = false }: UsageCapControlProps) {
   const [value, setValue] = useState(String(capCents ?? 0));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -30,6 +31,8 @@ export default function UsageCapControl({ accountId, capCents }: UsageCapControl
   }, [capCents]);
 
   const handleChange = (nextValue: string) => {
+    if (disabled) return;
+
     const previous = value;
     setValue(nextValue);
     setError(null);
@@ -50,7 +53,7 @@ export default function UsageCapControl({ accountId, capCents }: UsageCapControl
 
   return (
     <div className="space-y-2">
-      <Select value={value} onValueChange={handleChange} disabled={isPending}>
+      <Select value={value} onValueChange={handleChange} disabled={disabled || isPending}>
         <SelectTrigger>
           <SelectValue />
         </SelectTrigger>

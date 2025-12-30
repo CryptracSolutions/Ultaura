@@ -37,6 +37,9 @@ export interface UltauraAccountRow {
   default_locale: string;
   status: 'trial' | 'active' | 'past_due' | 'canceled';
   plan_id: string;
+  trial_plan_id: string | null;
+  trial_starts_at: string | null;
+  trial_ends_at: string | null;
   minutes_included: number;
   minutes_used: number;
   cycle_start: string | null;

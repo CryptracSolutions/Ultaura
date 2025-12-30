@@ -2,20 +2,13 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Phone, Clock, Users, Zap, Shield, Heart, Loader2 } from 'lucide-react';
+import { Check, Clock, Users, Zap, Shield, Heart, Loader2 } from 'lucide-react';
 import { PLANS, BILLING } from '~/lib/ultaura/constants';
 import { createUltauraCheckout } from '~/lib/ultaura/actions';
 
 type BillingPeriod = 'monthly' | 'annual';
 
 const planFeatures: Record<string, string[]> = {
-  free_trial: [
-    '20 minutes of calls',
-    '1 phone line',
-    'Morning check-in calls',
-    'Basic reminders',
-    'Try before you buy',
-  ],
   care: [
     '300 minutes per month',
     '1 phone line',
@@ -54,7 +47,6 @@ const planFeatures: Record<string, string[]> = {
 };
 
 const planIcons: Record<string, React.ReactNode> = {
-  free_trial: <Phone className="w-6 h-6" />,
   care: <Heart className="w-6 h-6" />,
   comfort: <Clock className="w-6 h-6" />,
   family: <Users className="w-6 h-6" />,
@@ -248,7 +240,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                 ) : isCurrent ? (
                   'Current Plan'
                 ) : (
-                  'Start for free'
+                  organizationUid ? 'Choose plan' : 'Start 3-day free trial'
                 )}
               </button>
             </div>
@@ -261,7 +253,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary">
           <Shield className="w-4 h-4" />
           <span className="text-sm font-medium">
-            All plans include 20 minute free trial • No credit card required to start
+            All plans include a 3-day free trial • No credit card required to start
           </span>
         </div>
       </div>

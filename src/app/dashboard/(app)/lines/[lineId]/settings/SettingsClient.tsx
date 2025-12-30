@@ -19,9 +19,10 @@ import {
 
 interface SettingsClientProps {
   line: LineRow;
+  disabled?: boolean;
 }
 
-export function SettingsClient({ line }: SettingsClientProps) {
+export function SettingsClient({ line, disabled = false }: SettingsClientProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +39,8 @@ export function SettingsClient({ line }: SettingsClientProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (disabled) return;
+
     setIsLoading(true);
     setError(null);
 
@@ -111,7 +114,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
               Timezone
             </label>
             <Select value={timezone} onValueChange={setTimezone}>
-              <SelectTrigger className="w-full py-3">
+              <SelectTrigger className="w-full py-3" disabled={disabled}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -134,7 +137,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
               Preferred Language
             </label>
             <Select value={language} onValueChange={(val) => setLanguage(val as 'auto' | 'en' | 'es')}>
-              <SelectTrigger className="w-full py-3">
+              <SelectTrigger className="w-full py-3" disabled={disabled}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -159,11 +162,12 @@ export function SettingsClient({ line }: SettingsClientProps) {
                     key={value}
                     type="button"
                     onClick={() => setSpanishFormality(value as 'usted' | 'tu')}
+                    disabled={disabled}
                     className={`flex-1 px-4 py-3 rounded-lg border transition-colors ${
                       spanishFormality === value
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-input bg-background text-foreground hover:border-primary/50'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {label}
                   </button>
@@ -188,7 +192,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Start</label>
                 <Select value={quietHoursStart} onValueChange={setQuietHoursStart}>
-                  <SelectTrigger className="w-full py-3">
+                  <SelectTrigger className="w-full py-3" disabled={disabled}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -203,7 +207,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">End</label>
                 <Select value={quietHoursEnd} onValueChange={setQuietHoursEnd}>
-                  <SelectTrigger className="w-full py-3">
+                  <SelectTrigger className="w-full py-3" disabled={disabled}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -235,6 +239,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
               <Switch
                 checked={allowVoiceReminderControl}
                 onCheckedChange={setAllowVoiceReminderControl}
+                disabled={disabled}
               />
             </div>
           </div>
@@ -250,7 +255,7 @@ export function SettingsClient({ line }: SettingsClientProps) {
           </Link>
           <button
             type="submit"
-            disabled={isLoading || !hasChanges}
+            disabled={disabled || isLoading || !hasChanges}
             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Saving...' : 'Save Changes'}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime, getShortLineId } from '~/lib/ul
 interface ScheduleClientProps {
   line: LineRow;
   schedules: ScheduleRow[];
+  disabled?: boolean;
 }
 
 function normalizeTimeOfDay(timeOfDay: string): string {
@@ -23,7 +24,7 @@ function normalizeTimeOfDay(timeOfDay: string): string {
   return match ? match[1] : timeOfDay;
 }
 
-export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
+export function ScheduleClient({ line, schedules, disabled = false }: ScheduleClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -63,7 +64,9 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
     }
   };
 
-  const openEditModal = async (schedule: ScheduleRow) => {
+  const openEditModal = useCallback(async (schedule: ScheduleRow) => {
+    if (disabled) return;
+
     setShowCreate(false);
     setEditingSchedule(schedule);
     setIsEditLoading(true);
@@ -93,10 +96,12 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
         setIsEditLoading(false);
       }
     }
-  };
+  }, [disabled]);
 
   // Allow deep-linking into the edit modal (e.g. from the Calls page)
   useEffect(() => {
+    if (disabled) return;
+
     const editId = searchParams.get('edit');
     if (!editId) {
       handledEditIdRef.current = null;
@@ -117,7 +122,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
     next.delete('edit');
     const nextUrl = next.toString() ? `${pathname}?${next}` : pathname;
     router.replace(nextUrl);
-  }, [pathname, router, schedules, searchParams]);
+  }, [disabled, openEditModal, pathname, router, schedules, searchParams]);
 
   const formatDateTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -155,6 +160,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (disabled) return;
 
     if (selectedDays.length === 0) {
       setError('Please select at least one day');
@@ -193,6 +199,8 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
   };
 
   const handleToggleEnabled = async (schedule: ScheduleRow) => {
+    if (disabled) return;
+
     setTogglingId(schedule.id);
     setError(null);
 
@@ -220,6 +228,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
 
   const handleConfirmDelete = async () => {
     if (!scheduleToDelete) return;
+    if (disabled) return;
 
     setDeletingId(scheduleToDelete);
     setError(null);
@@ -247,6 +256,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSchedule) return;
+    if (disabled) return;
     if (editSelectedDays.length === 0) {
       toast.error('Please select at least one day');
       return;
@@ -304,7 +314,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
           </div>
         </div>
 
-        {!showCreate && (
+        {!showCreate && !disabled && (
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
@@ -322,7 +332,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
         </div>
       )}
 
-      {showCreate && (
+      {showCreate && !disabled && (
         <div className="mb-8 p-6 rounded-lg border border-input bg-card">
           <h2 className="font-semibold text-lg mb-4">Create New Schedule</h2>
 
@@ -497,11 +507,11 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
 
                 return (
                   <div
-                    key={schedule.id}
-                    className={`p-4 rounded-lg border bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${
-                      schedule.enabled
-                        ? 'border-input'
-                        : 'border-yellow-300 dark:border-yellow-700'
+                      key={schedule.id}
+                      className={`p-4 rounded-lg border bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${
+                        schedule.enabled
+                          ? 'border-input'
+                          : 'border-yellow-300 dark:border-yellow-700'
                     }`}
                   >
                     <div className="flex-1 min-w-0">
@@ -523,48 +533,52 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0 flex-wrap">
-                      <Link
-                        href={`/dashboard/lines/${getShortLineId(line.id)}/schedule?edit=${schedule.id}`}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        title="Edit schedule"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Link>
+                      {!disabled && (
+                        <>
+                          <Link
+                            href={`/dashboard/lines/${getShortLineId(line.id)}/schedule?edit=${schedule.id}`}
+                            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="Edit schedule"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Link>
 
-                      <button
-                        onClick={() => handleToggleEnabled(schedule)}
-                        disabled={isToggling}
-                        className={`p-2 rounded-lg text-muted-foreground transition-colors disabled:opacity-50 ${
-                          schedule.enabled
-                            ? 'hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-                            : 'hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
-                        }`}
-                        title={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
-                      >
-                        {isToggling ? (
-                          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        ) : schedule.enabled ? (
-                          <Pause className="w-4 h-4" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                      </button>
+                          <button
+                            onClick={() => handleToggleEnabled(schedule)}
+                            disabled={isToggling}
+                            className={`p-2 rounded-lg text-muted-foreground transition-colors disabled:opacity-50 ${
+                              schedule.enabled
+                                ? 'hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                                : 'hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                            }`}
+                            title={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
+                          >
+                            {isToggling ? (
+                              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            ) : schedule.enabled ? (
+                              <Pause className="w-4 h-4" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                          </button>
 
-                      <button
-                        onClick={() => {
-                          setScheduleToDelete(schedule.id);
-                          toast.message('Confirm delete schedule');
-                        }}
-                        disabled={isDeleting}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                        title="Delete schedule"
-                      >
-                        {isDeleting ? (
-                          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
+                          <button
+                            onClick={() => {
+                              setScheduleToDelete(schedule.id);
+                              toast.message('Confirm delete schedule');
+                            }}
+                            disabled={isDeleting}
+                            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                            title="Delete schedule"
+                          >
+                            {isDeleting ? (
+                              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -582,13 +596,15 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
           <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
             Create a schedule for regular check-in calls. Times are in {line.timezone}.
           </p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Create First Schedule
-          </button>
+          {!disabled && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create First Schedule
+            </button>
+          )}
         </div>
       )}
 
@@ -640,7 +656,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
               <button
                 type="button"
                 onClick={() => setEditEnabled(!editEnabled)}
-                disabled={isEditLoading || isEditSaving}
+                disabled={disabled || isEditLoading || isEditSaving}
                 className="flex items-center justify-between w-full"
               >
                 <div className="text-left">
@@ -667,7 +683,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
                     key={day.value}
                     type="button"
                     onClick={() => toggleEditDay(day.value)}
-                    disabled={isEditLoading || isEditSaving}
+                    disabled={disabled || isEditLoading || isEditSaving}
                     className={`px-3 py-3 rounded-lg border text-sm font-medium transition-colors ${
                       editSelectedDays.includes(day.value)
                         ? 'bg-primary text-primary-foreground border-primary'
@@ -685,7 +701,7 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
                 Time
               </label>
               <Select value={editSelectedTime} onValueChange={setEditSelectedTime}>
-                <SelectTrigger className="w-full h-11" disabled={isEditLoading || isEditSaving}>
+                <SelectTrigger className="w-full h-11" disabled={disabled || isEditLoading || isEditSaving}>
                   <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-muted-foreground" />
                     <SelectValue />
@@ -709,14 +725,14 @@ export function ScheduleClient({ line, schedules }: ScheduleClientProps) {
               <button
                 type="button"
                 onClick={() => setEditingSchedule(null)}
-                disabled={isEditLoading || isEditSaving}
+                disabled={disabled || isEditLoading || isEditSaving}
                 className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isEditLoading || isEditSaving || editSelectedDays.length === 0}
+                disabled={disabled || isEditLoading || isEditSaving || editSelectedDays.length === 0}
                 className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="inline-flex w-full items-center justify-center gap-2">

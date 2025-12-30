@@ -31,9 +31,10 @@ interface Schedule {
 interface CallsPageClientProps {
   lines: LineRow[];
   schedules: Schedule[];
+  disabled?: boolean;
 }
 
-export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
+export function CallsPageClient({ lines, schedules, disabled = false }: CallsPageClientProps) {
   const router = useRouter();
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
 
@@ -92,7 +93,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
   return (
     <div className="space-y-6 pb-12">
       {/* Add Schedule Buttons */}
-      {lines.length > 0 && (
+      {!disabled && lines.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="font-medium text-foreground mb-4">Add a new schedule</h2>
           <div className="flex flex-wrap gap-3">
@@ -118,13 +119,15 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
           <p className="text-muted-foreground mb-4">
             Add a phone line first, then you can set up call schedules.
           </p>
-          <Link
-            href="/dashboard/lines?action=add"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add a Phone Line
-          </Link>
+          {!disabled && (
+            <Link
+              href="/dashboard/lines?action=add"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add a Phone Line
+            </Link>
+          )}
         </div>
       )}
 
@@ -153,7 +156,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                       href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
                       className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
-                      Manage
+                      {disabled ? 'View' : 'Manage'}
                     </Link>
                   </div>
                 </div>
@@ -182,6 +185,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                           onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                           formatDays={formatDays}
                           formatNextCall={formatNextCall}
+                          disabled={disabled}
                         />
                       ))}
 
@@ -200,6 +204,7 @@ export function CallsPageClient({ lines, schedules }: CallsPageClientProps) {
                           onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                           formatDays={formatDays}
                           formatNextCall={formatNextCall}
+                          disabled={disabled}
                         />
                       ))}
                     </>
@@ -229,6 +234,7 @@ interface ScheduleRowProps {
   onDelete: () => void;
   formatDays: (days: number[]) => string;
   formatNextCall: (nextRunAt: string | null) => string;
+  disabled?: boolean;
 }
 
 function ScheduleRow({
@@ -236,6 +242,7 @@ function ScheduleRow({
   onDelete,
   formatDays,
   formatNextCall,
+  disabled = false,
 }: ScheduleRowProps) {
   return (
     <div
@@ -277,22 +284,24 @@ function ScheduleRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <Link
-          href={`/dashboard/lines/${getShortLineId(schedule.lineId)}/schedule?edit=${schedule.scheduleId}`}
-          className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          title="Edit schedule"
-        >
-          <Edit2 className="w-4 h-4" />
-        </Link>
-        <button
-          onClick={onDelete}
-          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          title="Delete schedule"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
+      {!disabled && (
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href={`/dashboard/lines/${getShortLineId(schedule.lineId)}/schedule?edit=${schedule.scheduleId}`}
+            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            title="Edit schedule"
+          >
+            <Edit2 className="w-4 h-4" />
+          </Link>
+          <button
+            onClick={onDelete}
+            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Delete schedule"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

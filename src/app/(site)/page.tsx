@@ -74,7 +74,7 @@ function Home() {
               </div>
 
               <span className={'text-xs text-muted-foreground'}>
-                20 free minutes • no credit card • cancel anytime
+                3-day free trial • no credit card • cancel anytime
               </span>
 
               <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
@@ -212,7 +212,7 @@ function Home() {
                 <Heading type={2}>Choose the <span className="text-primary">plan</span> that fits your family</Heading>
 
                 <SubHeading>
-                  All plans include a free trial to get started.
+                  All plans include a 3-day free trial to get started.
                 </SubHeading>
               </div>
             </div>
@@ -391,7 +391,7 @@ function Home() {
           <div className="relative flex flex-col items-center text-center space-y-6">
             <Heading type={2}>Give the gift of conversation</Heading>
             <SubHeading className="max-w-xl">
-              Start your free trial today and give your loved one a companion
+              Start your 3-day free trial today and give your loved one a companion
               who&apos;s always there to listen.
             </SubHeading>
             <MainCallToActionButton />

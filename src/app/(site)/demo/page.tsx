@@ -473,11 +473,11 @@ export default function DemoPage() {
             <Heading type={2}>Ready to get started?</Heading>
             <p className="text-lg text-muted-foreground">
               Give your loved one a companion who&apos;s always happy to listen.
-              Start with 20 free minutes, no credit card required.
+              Start with a 3-day free trial, no credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" round href="/auth/sign-up">
-                Start Free Trial
+                Start 3-day free trial
               </Button>
               <Button
                 size="lg"

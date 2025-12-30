@@ -16,11 +16,13 @@ import inviteMembers from '~/lib/server/organizations/invite-members';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 
 import configuration from '~/configuration';
+import { BILLING, PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
 
 export const POST = async (req: NextRequest) => {
   const logger = getLogger();
 
   const client = getSupabaseRouteHandlerClient();
+  const adminClient = getSupabaseRouteHandlerClient({ admin: true });
   const session = await requireSession(client);
   const userId = session.user.id;
 
@@ -37,6 +39,7 @@ export const POST = async (req: NextRequest) => {
   }
 
   const organizationName = body.organization;
+  const selectedPlanId = body.selectedPlanId;
   const invites = body.invites;
 
   const payload = {
@@ -84,6 +87,65 @@ export const POST = async (req: NextRequest) => {
     inviterId: userId,
   });
 
+  // Create Ultaura account with a 3-day trial on the chosen plan (no credit card required)
+  try {
+    const { data: orgRow, error: orgError } = await adminClient
+      .from('organizations')
+      .select('id')
+      .eq('uuid', organizationUid)
+      .single();
+
+    if (orgError || !orgRow) {
+      logger.error({ orgError, organizationUid }, 'Failed to fetch organization for Ultaura account creation');
+      return throwInternalServerErrorException();
+    }
+
+    const { data: existingAccount, error: existingAccountError } = await adminClient
+      .from('ultaura_accounts')
+      .select('id')
+      .eq('organization_id', orgRow.id)
+      .maybeSingle();
+
+    if (existingAccountError) {
+      logger.error({ existingAccountError, organizationUid }, 'Failed to check existing Ultaura account');
+      return throwInternalServerErrorException();
+    }
+
+    if (!existingAccount) {
+      const plan = PLANS[selectedPlanId];
+      const now = new Date();
+      const trialEnds = new Date(
+        now.getTime() + BILLING.TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000,
+      );
+
+      const { error: accountError } = await adminClient
+        .from('ultaura_accounts')
+        .insert({
+          organization_id: orgRow.id,
+          name: organizationName,
+          billing_email: session.user.email ?? '',
+          created_by_user_id: userId,
+          status: 'trial',
+          plan_id: selectedPlanId,
+          trial_plan_id: selectedPlanId,
+          trial_starts_at: now.toISOString(),
+          trial_ends_at: trialEnds.toISOString(),
+          minutes_included: plan.minutesIncluded,
+          minutes_used: 0,
+          cycle_start: now.toISOString(),
+          cycle_end: trialEnds.toISOString(),
+        });
+
+      if (accountError) {
+        logger.error({ accountError, organizationUid }, 'Failed to create Ultaura account during onboarding');
+        return throwInternalServerErrorException();
+      }
+    }
+  } catch (error) {
+    logger.error({ error, organizationUid }, 'Failed to create Ultaura account during onboarding');
+    return throwInternalServerErrorException();
+  }
+
   logger.info(
     {
       userId,
@@ -94,7 +156,7 @@ export const POST = async (req: NextRequest) => {
 
   cookies().set(createOrganizationIdCookie({ userId, organizationUid }));
 
-  const returnUrl = [configuration.paths.appHome, organizationUid].join('/');
+  const returnUrl = configuration.paths.appHome;
 
   return NextResponse.json({
     success: true,
@@ -105,6 +167,7 @@ export const POST = async (req: NextRequest) => {
 function getOnboardingBodySchema() {
   return z.object({
     organization: z.string().trim().min(1),
+    selectedPlanId: z.enum(TRIAL_ELIGIBLE_PLANS),
     invites: z.array(
       z.object({
         email: z.string().email(),

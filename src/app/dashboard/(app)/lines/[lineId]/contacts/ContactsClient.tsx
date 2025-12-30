@@ -23,9 +23,10 @@ interface TrustedContact {
 
 interface ContactsClientProps {
   lineId: string;
+  disabled?: boolean;
 }
 
-export function ContactsClient({ lineId }: ContactsClientProps) {
+export function ContactsClient({ lineId, disabled = false }: ContactsClientProps) {
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newContact, setNewContact] = useState({
@@ -45,6 +46,8 @@ export function ContactsClient({ lineId }: ContactsClientProps) {
 
   async function handleAddContact(e: React.FormEvent) {
     e.preventDefault();
+    if (disabled) return;
+
     try {
       const result = await addTrustedContact(lineId, {
         name: newContact.name,
@@ -68,8 +71,14 @@ export function ContactsClient({ lineId }: ContactsClientProps) {
   }
 
   async function handleRemoveContact(contactId: string) {
+    if (disabled) return;
+
     try {
-      await removeTrustedContact(contactId);
+      const result = await removeTrustedContact(contactId);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to remove contact');
+        return;
+      }
       toast.success('Trusted contact removed');
       loadContacts();
     } catch (error) {
@@ -85,13 +94,13 @@ export function ContactsClient({ lineId }: ContactsClientProps) {
           Trusted contacts can be notified if we detect signs of distress during calls
           (only with the caller&apos;s consent).
         </p>
-        <Button onClick={() => setIsAdding(true)}>
+        <Button onClick={() => setIsAdding(true)} disabled={disabled}>
           <Plus className="h-4 w-4 mr-2" />
           Add Contact
         </Button>
       </div>
 
-      {isAdding && (
+      {isAdding && !disabled && (
         <Card>
           <CardHeader>
             <CardTitle>Add Trusted Contact</CardTitle>
@@ -149,6 +158,7 @@ export function ContactsClient({ lineId }: ContactsClientProps) {
                 variant="ghost"
                 size="icon"
                 onClick={() => handleRemoveContact(contact.id)}
+                disabled={disabled}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

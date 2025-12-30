@@ -93,14 +93,14 @@ async function DashboardPage() {
                 Set up Ultaura for your family
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a free trial to add a loved one, set schedules, and view
+                Start a 3-day free trial to add a loved one, set schedules, and view
                 call activity in one place.
               </p>
               <Link
                 href="/dashboard/settings/subscription"
                 className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
               >
-                Start free trial
+                Start 3-day free trial
               </Link>
             </div>
           </div>
@@ -121,9 +121,10 @@ async function DashboardPage() {
   const activeCount = lines.filter((l) => l.status === 'active').length;
   const pausedCount = lines.filter((l) => l.status === 'paused').length;
   const isPayg = account.plan_id === 'payg';
+  const isOnTrial = account.status === 'trial';
   const overageMinutes = usage?.overageMinutes ?? 0;
   const usageCostCents = usage
-    ? (isPayg ? usage.minutesUsed * RATE_CENTS : overageMinutes * RATE_CENTS)
+    ? (isOnTrial ? 0 : isPayg ? usage.minutesUsed * RATE_CENTS : overageMinutes * RATE_CENTS)
     : 0;
   const capCents = account.overage_cents_cap ?? 0;
   const capPercent = capCents > 0 && usage ? Math.min((usageCostCents / capCents) * 100, 100) : 0;
@@ -159,7 +160,7 @@ async function DashboardPage() {
       <PageBody>
         <div className="flex flex-col space-y-6 pb-24">
           {/* Alerts */}
-          {(unverifiedCount > 0 || (usage && !isPayg && usage.minutesRemaining <= 5)) && (
+          {(unverifiedCount > 0 || (usage && !isPayg && !isOnTrial && usage.minutesRemaining <= 5)) && (
             <div className="grid gap-3">
               {unverifiedCount > 0 && (
                 <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
@@ -179,7 +180,7 @@ async function DashboardPage() {
                 </div>
               )}
 
-              {usage && !isPayg && usage.minutesRemaining <= 5 && (
+              {usage && !isPayg && !isOnTrial && usage.minutesRemaining <= 5 && (
                 <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
                   <div className="font-medium text-foreground">
                     Minutes running low
@@ -230,7 +231,9 @@ async function DashboardPage() {
               </div>
               <div className="text-3xl font-bold text-foreground">
                 {usage
-                  ? isPayg
+                  ? isOnTrial
+                    ? usage.minutesUsed
+                    : isPayg
                     ? usage.minutesUsed
                     : overageMinutes > 0
                     ? overageMinutes
@@ -239,14 +242,16 @@ async function DashboardPage() {
               </div>
               {usage && (
                 <div className="text-xs text-muted-foreground mb-1">
-                  {isPayg
+                  {isOnTrial
+                    ? 'minutes used'
+                    : isPayg
                     ? 'minutes used'
                     : overageMinutes > 0
                     ? 'minutes over'
                     : 'minutes remaining'}
                 </div>
               )}
-              {usage && (
+              {usage && !isOnTrial && (
                 <div className="mt-2">
                   {isPayg ? (
                     <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
@@ -277,7 +282,9 @@ async function DashboardPage() {
               <div className="mt-auto space-y-2">
                 <div className="text-xs text-muted-foreground">
                   {usage
-                    ? isPayg
+                    ? isOnTrial
+                      ? `${usage.minutesUsed} minutes • ${formatCurrency(0)} during trial`
+                      : isPayg
                       ? `${usage.minutesUsed} minutes • ${formatCurrency(usageCostCents)} est.`
                       : `${usage.minutesUsed} used • ${usage.minutesIncluded} included${
                           overageMinutes > 0 ? ` • ${overageMinutes} over` : ''

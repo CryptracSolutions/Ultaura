@@ -14,6 +14,7 @@ import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime, getShortLineId } from '~/lib/ul
 interface EditScheduleClientProps {
   line: LineRow;
   schedule: ScheduleRow;
+  disabled?: boolean;
 }
 
 function normalizeTimeOfDay(timeOfDay: string): string {
@@ -24,6 +25,7 @@ function normalizeTimeOfDay(timeOfDay: string): string {
 export function EditScheduleClient({
   line,
   schedule,
+  disabled = false,
 }: EditScheduleClientProps) {
   const router = useRouter();
   const [selectedDays, setSelectedDays] = useState<number[]>(schedule.days_of_week);
@@ -33,6 +35,8 @@ export function EditScheduleClient({
   const [error, setError] = useState<string | null>(null);
 
   const toggleDay = (day: number) => {
+    if (disabled) return;
+
     if (selectedDays.includes(day)) {
       setSelectedDays(selectedDays.filter((d) => d !== day));
     } else {
@@ -47,6 +51,7 @@ export function EditScheduleClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (disabled) return;
 
     if (selectedDays.length === 0) {
       setError('Please select at least one day');
@@ -109,6 +114,7 @@ export function EditScheduleClient({
               <button
                 type="button"
                 onClick={() => setEnabled(!enabled)}
+                disabled={disabled}
                 className="flex items-center justify-between w-full"
               >
                 <div>
@@ -136,11 +142,12 @@ export function EditScheduleClient({
                     key={day.value}
                     type="button"
                     onClick={() => toggleDay(day.value)}
+                    disabled={disabled}
                     className={`px-3 py-3 sm:px-4 sm:py-2 rounded-lg border text-sm font-medium transition-colors ${
                       selectedDays.includes(day.value)
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background text-foreground border-input hover:bg-muted'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {day.short}
                   </button>
@@ -154,7 +161,7 @@ export function EditScheduleClient({
                 What time should we call?
               </label>
               <Select value={selectedTime} onValueChange={setSelectedTime}>
-                <SelectTrigger className="w-full py-3">
+                <SelectTrigger className="w-full py-3" disabled={disabled}>
                   <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-muted-foreground" />
                     <SelectValue />
@@ -209,7 +216,7 @@ export function EditScheduleClient({
               </Link>
               <button
                 type="submit"
-                disabled={isLoading || !hasChanges}
+                disabled={disabled || isLoading || !hasChanges}
                 className="w-full sm:flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
                 {isLoading ? (

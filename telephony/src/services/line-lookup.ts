@@ -75,8 +75,21 @@ export async function getLineById(lineId: string): Promise<LineWithAccount | nul
 // Check if a line can make/receive calls
 export interface LineAccessCheck {
   allowed: boolean;
-  reason?: 'disabled' | 'inbound_blocked' | 'do_not_call' | 'not_verified' | 'minutes_exhausted' | 'minutes_cap' | 'account_canceled';
+  reason?: 'disabled' | 'inbound_blocked' | 'do_not_call' | 'not_verified' | 'minutes_cap' | 'trial_expired' | 'account_canceled';
   minutesRemaining?: number;
+}
+
+function isTrialExpired(account: UltauraAccountRow): boolean {
+  if (account.status !== 'trial') {
+    return false;
+  }
+
+  const trialEndsAt = account.trial_ends_at ?? account.cycle_end;
+  if (!trialEndsAt) {
+    return false;
+  }
+
+  return new Date(trialEndsAt).getTime() <= Date.now();
 }
 
 export async function checkLineAccess(
@@ -108,13 +121,17 @@ export async function checkLineAccess(
     return { allowed: false, reason: 'not_verified' };
   }
 
-  // Check minutes
-  const minutesRemaining = await getMinutesRemaining(account.id);
+  // Trial enforcement: time-based 3-day trial, no minute/spending-cap enforcement while active
+  if (account.status === 'trial') {
+    if (isTrialExpired(account)) {
+      return { allowed: false, reason: 'trial_expired' };
+    }
 
-  // For trial accounts, enforce hard stop
-  if (account.status === 'trial' && minutesRemaining <= 0) {
-    return { allowed: true, minutesRemaining: 0 };
+    return { allowed: true };
   }
+
+  // Check minutes (non-trial accounts)
+  const minutesRemaining = await getMinutesRemaining(account.id);
 
   // Enforce spending cap for payg or overage billing
   const capCents = account.overage_cents_cap ?? 0;

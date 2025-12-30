@@ -149,10 +149,10 @@ function AboutPage() {
               Ready to give the gift of companionship?
             </Heading>
             <p className="text-muted-foreground">
-              Start with 20 free minutes. No credit card required.
+              Start with a 3-day free trial. No credit card required.
             </p>
             <Button size="lg" href="/auth/sign-up">
-              Start Free Trial
+              Start 3-day free trial
             </Button>
           </div>
         </div>

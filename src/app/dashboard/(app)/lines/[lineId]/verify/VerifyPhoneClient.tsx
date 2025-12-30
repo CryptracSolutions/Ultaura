@@ -2,17 +2,20 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ShieldCheck, MessageSquare, Phone, ArrowLeft, CheckCircle } from 'lucide-react';
 import { startPhoneVerification, checkPhoneVerification } from '~/lib/ultaura/actions';
 
 interface VerifyPhoneClientProps {
   lineId: string;
   phoneNumber: string;
+  disabled?: boolean;
 }
 
 export function VerifyPhoneClient({
   lineId,
   phoneNumber,
+  disabled = false,
 }: VerifyPhoneClientProps) {
   const router = useRouter();
   const [step, setStep] = useState<'choose' | 'enter' | 'success'>('choose');
@@ -28,6 +31,26 @@ export function VerifyPhoneClient({
       inputRefs.current[0].focus();
     }
   }, [step]);
+
+  if (disabled) {
+    return (
+      <div className="max-w-md w-full mx-auto text-center">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+          <ShieldCheck className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-semibold text-foreground">Verification unavailable</h2>
+        <p className="text-muted-foreground mt-2">
+          Subscribe to verify this phone number and continue using Ultaura.
+        </p>
+        <Link
+          href="/dashboard/settings/subscription"
+          className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-3 text-primary-foreground font-medium hover:bg-primary/90 transition-colors mt-6"
+        >
+          Choose a Plan
+        </Link>
+      </div>
+    );
+  }
 
   const handleSendCode = async (selectedChannel: 'sms' | 'call') => {
     setChannel(selectedChannel);

@@ -89,9 +89,31 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     // Check access
     const accessCheck = await checkLineAccess(line, account, 'outbound');
     if (!accessCheck.allowed) {
+      // If the call session was created before the trial ended, allow the call to proceed.
+      // This avoids blocking calls that were initiated just before trial expiration.
+      if (accessCheck.reason === 'trial_expired' && account.status === 'trial') {
+        const trialEndsAt = account.trial_ends_at ?? account.cycle_end;
+        if (trialEndsAt) {
+          const trialEndsMs = new Date(trialEndsAt).getTime();
+          const sessionCreatedMs = new Date(session.created_at).getTime();
+
+          if (sessionCreatedMs < trialEndsMs) {
+            logger.info({ callSessionId, trialEndsAt }, 'Trial expired after call initiation; allowing outbound call to proceed');
+          } else {
+            logger.info({ lineId: line.id, reason: accessCheck.reason }, 'Line access denied for outbound');
+            res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an issue with your account. Please contact support. Goodbye."));
+            return;
+          }
+        } else {
+          logger.info({ lineId: line.id, reason: accessCheck.reason }, 'Line access denied for outbound');
+          res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an issue with your account. Please contact support. Goodbye."));
+          return;
+        }
+      } else {
       logger.info({ lineId: line.id, reason: accessCheck.reason }, 'Line access denied for outbound');
       res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an issue with your account. Please contact support. Goodbye."));
       return;
+      }
     }
 
     // Update call session with Twilio SID

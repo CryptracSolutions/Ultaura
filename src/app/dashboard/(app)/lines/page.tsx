@@ -7,6 +7,8 @@ import { AlertBanner } from './components/AlertBanner';
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { PLANS } from '~/lib/ultaura/constants';
+import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
+import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 
 export const metadata: Metadata = {
   title: 'Lines - Ultaura',
@@ -38,13 +40,13 @@ export default async function LinesPage() {
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
             <p className="text-muted-foreground mb-6">
-              Set up phone companionship for your loved ones. Start with a free trial.
+              Set up phone companionship for your loved ones. Start with a 3-day free trial.
             </p>
             <a
               href="/dashboard/settings/subscription"
               className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
             >
-              Start Free Trial
+              Start 3-day free trial
             </a>
           </div>
         </PageBody>
@@ -58,26 +60,32 @@ export default async function LinesPage() {
     getUsageSummary(account.id),
   ]);
 
+  const isOnTrial = account.status === 'trial';
+  const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
+  const msRemaining = trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : 0;
+  const isTrialExpired = isOnTrial && !!trialEndsAt && msRemaining <= 0;
+  const trialDaysRemaining =
+    isOnTrial && trialEndsAt ? Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000))) : 0;
+
+  const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
+  const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
+
   // Determine if we should show any alerts
   const isPayg = account.plan_id === 'payg';
-  const showTrialAlert = account.status === 'trial' && usage && usage.minutesRemaining <= 5;
   const showLowMinutesAlert = !isPayg && account.status !== 'trial' && usage && usage.minutesRemaining <= 15;
 
   return (
     <>
-      <AppHeader title="Phone Lines" description="Manage phone numbers for your loved ones" />
+      <AppHeader title="Phone Lines" description="Manage phone numbers for your loved ones">
+        {isOnTrial && !isTrialExpired ? (
+          <TrialStatusBadge daysRemaining={trialDaysRemaining} planName={trialPlanName} />
+        ) : null}
+      </AppHeader>
       <PageBody>
         <div className="space-y-6">
+          {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
+
           {/* Alerts */}
-          {showTrialAlert && (
-            <AlertBanner
-              type="warning"
-              title="Trial ending soon"
-              message={`You have ${usage.minutesRemaining} minutes remaining in your trial.`}
-              actionLabel="Upgrade Plan"
-              actionHref="/dashboard/settings/subscription"
-            />
-          )}
           {showLowMinutesAlert && (
             <AlertBanner
               type="warning"
@@ -92,6 +100,7 @@ export default async function LinesPage() {
               accountId={account.id}
               lines={lines}
               planLinesLimit={getPlanLinesLimit(account.plan_id)}
+              disabled={isTrialExpired}
             />
           </Suspense>
         </div>

@@ -1,161 +1,239 @@
 // Ultaura Billing Service
-// Handles Stripe subscription syncing and usage-based billing
+// Handles Stripe subscription syncing for Ultaura accounts
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Stripe } from 'stripe';
-import { PLANS, BILLING } from './constants';
+
+import { PLANS } from './constants';
 import type { PlanId } from './types';
 
+type UltauraSubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled';
+
+function getPlanIdFromPriceId(priceId: string): PlanId | null {
+  if (
+    priceId === process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID ||
+    priceId === process.env.STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID
+  ) {
+    return 'care';
+  }
+
+  if (
+    priceId === process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID ||
+    priceId === process.env.STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID
+  ) {
+    return 'comfort';
+  }
+
+  if (
+    priceId === process.env.STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID ||
+    priceId === process.env.STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID
+  ) {
+    return 'family';
+  }
+
+  if (priceId === process.env.STRIPE_ULTAURA_PAYG_PRICE_ID) {
+    return 'payg';
+  }
+
+  return null;
+}
+
+export function isUltauraPriceId(priceId: string): boolean {
+  const overagePriceId = process.env.STRIPE_ULTAURA_OVERAGE_PRICE_ID;
+  if (overagePriceId && priceId === overagePriceId) {
+    return true;
+  }
+
+  return getPlanIdFromPriceId(priceId) !== null;
+}
+
+function getUltauraPlanFromSubscription(subscription: Stripe.Subscription): {
+  planId: PlanId;
+  billingInterval: 'month' | 'year' | null;
+} | null {
+  for (const item of subscription.items.data) {
+    const priceId = item.price?.id;
+    if (!priceId) continue;
+
+    const planId = getPlanIdFromPriceId(priceId);
+    if (!planId) continue;
+
+    const interval = item.price.recurring?.interval;
+    const billingInterval = interval === 'month' || interval === 'year' ? interval : null;
+    return { planId, billingInterval };
+  }
+
+  return null;
+}
+
+function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): UltauraSubscriptionStatus {
+  switch (status) {
+    case 'active':
+      return 'active';
+    case 'trialing':
+      return 'trialing';
+    case 'past_due':
+    case 'unpaid':
+      return 'past_due';
+    case 'canceled':
+      return 'canceled';
+    case 'incomplete':
+    case 'incomplete_expired':
+    case 'paused':
+      return 'past_due';
+    default:
+      return 'past_due';
+  }
+}
+
+function isAccountTrialActive(account: { status: string; trial_ends_at: string | null; cycle_end: string | null }) {
+  if (account.status !== 'trial') {
+    return false;
+  }
+
+  const trialEndsAt = account.trial_ends_at ?? account.cycle_end;
+  if (!trialEndsAt) {
+    return false;
+  }
+
+  return new Date(trialEndsAt).getTime() > Date.now();
+}
+
 /**
- * Sync Ultaura subscription when a Stripe subscription is created/updated
+ * Sync Ultaura subscription when a Stripe subscription is created/updated.
+ *
+ * Notes:
+ * - We only flip `ultaura_accounts.status` to `active` once Stripe is `active` (or `trialing`).
+ * - If a user is still within an active Ultaura trial, we avoid downgrading their account
+ *   for incomplete/past_due Stripe states.
  */
 export async function syncUltauraSubscription(
   client: SupabaseClient,
   subscription: Stripe.Subscription,
   organizationUid: string,
 ): Promise<void> {
-  // Get the price ID from the subscription
-  const priceId = subscription.items.data[0]?.price?.id;
-  if (!priceId) {
-    console.error('[Ultaura] No price ID found in subscription');
+  const match = getUltauraPlanFromSubscription(subscription);
+  if (!match) {
     return;
   }
 
-  // Check if this is an Ultaura plan by looking up the price ID
-  const planId = getPlanIdFromPriceId(priceId);
-  if (!planId) {
-    // Not an Ultaura subscription, skip
+  const stripeStatus = mapStripeSubscriptionStatus(subscription.status);
+
+  const { data: organization, error: organizationError } = await client
+    .from('organizations')
+    .select('id')
+    .eq('uuid', organizationUid)
+    .single();
+
+  if (organizationError || !organization) {
+    console.error('[Ultaura] Organization lookup failed', organizationError);
     return;
   }
 
-  const plan = PLANS[planId];
-
-  // Get or create Ultaura account
   const { data: account, error: accountError } = await client
     .from('ultaura_accounts')
-    .select('id')
-    .eq('organization_id', organizationUid)
+    .select('id, status, trial_ends_at, cycle_end')
+    .eq('organization_id', organization.id)
     .maybeSingle();
 
   if (accountError) {
-    console.error('[Ultaura] Error fetching account:', accountError);
-    throw accountError;
+    console.error('[Ultaura] Account lookup failed', accountError);
+    return;
   }
 
   if (!account) {
-    // Create account if it doesn't exist
-    const { data: newAccount, error: createError } = await client
-      .from('ultaura_accounts')
-      .insert({
-        organization_id: organizationUid,
-        plan_id: planId,
-        billing_status: 'active',
-      })
-      .select('id')
-      .single();
-
-    if (createError) {
-      console.error('[Ultaura] Error creating account:', createError);
-      throw createError;
-    }
-
-    await createUltauraSubscription(client, newAccount.id, subscription, planId, plan);
-  } else {
-    // Update or create subscription for existing account
-    await upsertUltauraSubscription(client, account.id, subscription, planId, plan);
+    console.error('[Ultaura] Missing ultaura account for organization', organizationUid);
+    return;
   }
-}
 
-/**
- * Create a new Ultaura subscription record
- */
-async function createUltauraSubscription(
-  client: SupabaseClient,
-  accountId: string,
-  stripeSubscription: Stripe.Subscription,
-  planId: PlanId,
-  plan: (typeof PLANS)[PlanId],
-): Promise<void> {
-  const currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
-  const currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+  const stripeCustomerId =
+    typeof subscription.customer === 'string'
+      ? subscription.customer
+      : subscription.customer?.id ?? null;
 
-  const { error } = await client.from('ultaura_subscriptions').insert({
-    account_id: accountId,
-    stripe_subscription_id: stripeSubscription.id,
-    plan_id: planId,
-    status: mapStripeStatus(stripeSubscription.status),
-    current_period_start: currentPeriodStart.toISOString(),
-    current_period_end: currentPeriodEnd.toISOString(),
-    minutes_included: plan.minutesIncluded,
-    minutes_used: 0,
-    cancel_at_period_end: stripeSubscription.cancel_at_period_end,
-  });
+  const currentPeriodStart =
+    typeof subscription.current_period_start === 'number'
+      ? new Date(subscription.current_period_start * 1000).toISOString()
+      : null;
+  const currentPeriodEnd =
+    typeof subscription.current_period_end === 'number'
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : null;
 
-  if (error) {
-    console.error('[Ultaura] Error creating subscription:', error);
-    throw error;
-  }
-}
-
-/**
- * Upsert Ultaura subscription (create or update)
- */
-async function upsertUltauraSubscription(
-  client: SupabaseClient,
-  accountId: string,
-  stripeSubscription: Stripe.Subscription,
-  planId: PlanId,
-  plan: (typeof PLANS)[PlanId],
-): Promise<void> {
-  const currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
-  const currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
-
-  // Check if subscription exists
-  const { data: existingSub } = await client
+  const { error: subscriptionUpsertError } = await client
     .from('ultaura_subscriptions')
-    .select('id, current_period_start, minutes_used')
-    .eq('stripe_subscription_id', stripeSubscription.id)
-    .maybeSingle();
+    .upsert(
+      {
+        account_id: account.id,
+        stripe_customer_id: stripeCustomerId,
+        stripe_subscription_id: subscription.id,
+        plan_id: match.planId,
+        billing_interval: match.billingInterval,
+        status: stripeStatus,
+        current_period_start: currentPeriodStart,
+        current_period_end: currentPeriodEnd,
+        cancel_at_period_end: subscription.cancel_at_period_end,
+      },
+      { onConflict: 'stripe_subscription_id' },
+    );
 
-  if (existingSub) {
-    // Check if this is a new billing period
-    const existingPeriodStart = new Date(existingSub.current_period_start);
-    const isNewPeriod = currentPeriodStart.getTime() > existingPeriodStart.getTime();
+  if (subscriptionUpsertError) {
+    console.error('[Ultaura] Subscription upsert failed', subscriptionUpsertError);
+    return;
+  }
 
-    const { error } = await client
-      .from('ultaura_subscriptions')
+  const subscriptionAllowsAccess = stripeStatus === 'active' || stripeStatus === 'trialing';
+  const trialActive = isAccountTrialActive(account);
+
+  if (subscriptionAllowsAccess) {
+    const plan = PLANS[match.planId];
+    const { error: accountUpdateError } = await client
+      .from('ultaura_accounts')
       .update({
-        plan_id: planId,
-        status: mapStripeStatus(stripeSubscription.status),
-        current_period_start: currentPeriodStart.toISOString(),
-        current_period_end: currentPeriodEnd.toISOString(),
+        status: 'active',
+        plan_id: match.planId,
         minutes_included: plan.minutesIncluded,
-        // Reset minutes used if new billing period
-        minutes_used: isNewPeriod ? 0 : existingSub.minutes_used,
-        cancel_at_period_end: stripeSubscription.cancel_at_period_end,
+        cycle_start: currentPeriodStart,
+        cycle_end: currentPeriodEnd,
       })
-      .eq('id', existingSub.id);
+      .eq('id', account.id);
 
-    if (error) {
-      console.error('[Ultaura] Error updating subscription:', error);
-      throw error;
+    if (accountUpdateError) {
+      console.error('[Ultaura] Account update failed', accountUpdateError);
     }
 
-    // Update account plan
-    await client.from('ultaura_accounts').update({ plan_id: planId }).eq('id', accountId);
-  } else {
-    // Create new subscription
-    await createUltauraSubscription(client, accountId, stripeSubscription, planId, plan);
+    return;
+  }
+
+  if (trialActive) {
+    return;
+  }
+
+  const nextAccountStatus = stripeStatus === 'canceled' ? 'canceled' : 'past_due';
+  const { error: accountUpdateError } = await client
+    .from('ultaura_accounts')
+    .update({ status: nextAccountStatus })
+    .eq('id', account.id);
+
+  if (accountUpdateError) {
+    console.error('[Ultaura] Account status update failed', accountUpdateError);
   }
 }
 
-/**
- * Handle subscription deletion
- */
 export async function handleUltauraSubscriptionDeleted(
   client: SupabaseClient,
   stripeSubscriptionId: string,
 ): Promise<void> {
+  const { data: subscriptionRow, error: lookupError } = await client
+    .from('ultaura_subscriptions')
+    .select('account_id')
+    .eq('stripe_subscription_id', stripeSubscriptionId)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error('[Ultaura] Error fetching subscription for deletion', lookupError);
+  }
+
   const { error } = await client
     .from('ultaura_subscriptions')
     .update({ status: 'canceled' })
@@ -164,114 +242,16 @@ export async function handleUltauraSubscriptionDeleted(
   if (error) {
     console.error('[Ultaura] Error cancelling subscription:', error);
   }
-}
 
-/**
- * Report usage to Stripe for metered billing (overage minutes)
- */
-export async function reportUsageToStripe(
-  stripe: Stripe,
-  subscriptionId: string,
-  quantity: number,
-): Promise<void> {
-  // Get the subscription to find the metered usage item
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  if (subscriptionRow?.account_id) {
+    const { error: accountError } = await client
+      .from('ultaura_accounts')
+      .update({ status: 'canceled' })
+      .eq('id', subscriptionRow.account_id);
 
-  // Find the metered price item (overage minutes)
-  const meteredItem = subscription.items.data.find((item) => item.price.recurring?.usage_type === 'metered');
-
-  if (!meteredItem) {
-    console.warn('[Ultaura] No metered usage item found for subscription');
-    return;
-  }
-
-  // Report usage
-  await stripe.subscriptionItems.createUsageRecord(meteredItem.id, {
-    quantity,
-    timestamp: Math.floor(Date.now() / 1000),
-    action: 'set',
-  });
-}
-
-/**
- * Get plan ID from Stripe price ID
- * This maps Stripe price IDs to Ultaura plan IDs
- */
-function getPlanIdFromPriceId(priceId: string): PlanId | null {
-  // These would be your actual Stripe price IDs from your Stripe dashboard
-  // In production, store these in environment variables or database
-  const priceToplanMap: Record<string, PlanId> = {
-    // Monthly prices
-    [process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID || 'price_care_monthly']: 'care',
-    [process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID || 'price_comfort_monthly']: 'comfort',
-    [process.env.STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID || 'price_family_monthly']: 'family',
-    // Annual prices
-    [process.env.STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID || 'price_care_annual']: 'care',
-    [process.env.STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID || 'price_comfort_annual']: 'comfort',
-    [process.env.STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID || 'price_family_annual']: 'family',
-    // Pay as you go
-    [process.env.STRIPE_ULTAURA_PAYG_PRICE_ID || 'price_payg']: 'payg',
-  };
-
-  return priceToplanMap[priceId] || null;
-}
-
-/**
- * Check if a price ID is for an Ultaura product
- */
-export function isUltauraPriceId(priceId: string): boolean {
-  return getPlanIdFromPriceId(priceId) !== null;
-}
-
-/**
- * Map Stripe subscription status to Ultaura status
- */
-function mapStripeStatus(
-  stripeStatus: Stripe.Subscription.Status,
-): 'active' | 'canceled' | 'past_due' | 'trialing' {
-  switch (stripeStatus) {
-    case 'active':
-      return 'active';
-    case 'canceled':
-      return 'canceled';
-    case 'past_due':
-    case 'unpaid':
-      return 'past_due';
-    case 'trialing':
-      return 'trialing';
-    default:
-      return 'active';
+    if (accountError) {
+      console.error('[Ultaura] Error cancelling account:', accountError);
+    }
   }
 }
 
-/**
- * Calculate overage for an account and record usage
- */
-export async function calculateAndRecordOverage(
-  client: SupabaseClient,
-  stripe: Stripe,
-  accountId: string,
-): Promise<{ overageMinutes: number; overageCost: number }> {
-  // Get the active subscription
-  const { data: subscription } = await client
-    .from('ultaura_subscriptions')
-    .select('*')
-    .eq('account_id', accountId)
-    .eq('status', 'active')
-    .single();
-
-  if (!subscription) {
-    return { overageMinutes: 0, overageCost: 0 };
-  }
-
-  const overageMinutes = Math.max(0, subscription.minutes_used - subscription.minutes_included);
-
-  if (overageMinutes > 0 && subscription.stripe_subscription_id) {
-    // Report to Stripe for metered billing
-    await reportUsageToStripe(stripe, subscription.stripe_subscription_id, overageMinutes);
-  }
-
-  const overageCost = overageMinutes * (BILLING.OVERAGE_RATE_CENTS / 100);
-
-  return { overageMinutes, overageCost };
-}

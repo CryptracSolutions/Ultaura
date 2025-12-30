@@ -318,6 +318,9 @@ export type Database = {
           overage_cents_cap: number
           plan_id: string | null
           status: Database["public"]["Enums"]["ultaura_account_status"]
+          trial_ends_at: string | null
+          trial_plan_id: string | null
+          trial_starts_at: string | null
         }
         Insert: {
           billing_email: string
@@ -334,6 +337,9 @@ export type Database = {
           overage_cents_cap?: number
           plan_id?: string | null
           status?: Database["public"]["Enums"]["ultaura_account_status"]
+          trial_ends_at?: string | null
+          trial_plan_id?: string | null
+          trial_starts_at?: string | null
         }
         Update: {
           billing_email?: string
@@ -350,6 +356,9 @@ export type Database = {
           overage_cents_cap?: number
           plan_id?: string | null
           status?: Database["public"]["Enums"]["ultaura_account_status"]
+          trial_ends_at?: string | null
+          trial_plan_id?: string | null
+          trial_starts_at?: string | null
         }
         Relationships: [
           {
@@ -2044,4 +2053,3 @@ export type Enums<
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
     ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
-

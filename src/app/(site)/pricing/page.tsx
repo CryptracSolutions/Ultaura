@@ -17,7 +17,7 @@ function PricingPage() {
 
           <SubHeading>
             Choose the plan that fits your family’s needs. All plans include a
-            free trial to get started.
+            3-day free trial to get started.
           </SubHeading>
         </div>
 

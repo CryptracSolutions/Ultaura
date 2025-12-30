@@ -102,7 +102,6 @@ export async function POST(request: Request) {
 
   const stripe = await getStripeInstance();
   const priceId = PLAN_PRICE_IDS[planId];
-  const trialPeriodDays = customerId ? undefined : 7;
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
@@ -111,14 +110,14 @@ export async function POST(request: Request) {
     success_url: `${returnUrl}?success=true&plan=${planId}`,
     cancel_url: `${returnUrl}?canceled=true`,
     subscription_data: {
-      trial_period_days: trialPeriodDays,
       metadata: {
-        organizationUid: organization.uuid,
-        ultauraPlanId: planId,
+        organization_uid: organization.uuid,
+        ultaura_plan_id: planId,
       },
     },
     metadata: {
-      ultauraPlanId: planId,
+      organization_uid: organization.uuid,
+      ultaura_plan_id: planId,
     },
   };
 

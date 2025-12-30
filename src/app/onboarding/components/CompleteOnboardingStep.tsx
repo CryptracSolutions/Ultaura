@@ -15,6 +15,7 @@ import configuration from '~/configuration';
 
 interface CompleteOnboardingStepData {
   organization: string;
+  selectedPlanId: string;
   invites: Array<{
     email: string;
     role: number;

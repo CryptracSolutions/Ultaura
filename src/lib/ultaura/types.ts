@@ -65,6 +65,9 @@ export interface UltauraAccount {
   defaultLocale: string;
   status: AccountStatus;
   planId: PlanId;
+  trialPlanId: PlanId | null;
+  trialStartsAt: string | null;
+  trialEndsAt: string | null;
   minutesIncluded: number;
   minutesUsed: number;
   cycleStart: string | null;
@@ -538,6 +541,9 @@ export interface UltauraAccountRow {
   default_locale: string;
   status: AccountStatus;
   plan_id: string;
+  trial_plan_id: string | null;
+  trial_starts_at: string | null;
+  trial_ends_at: string | null;
   minutes_included: number;
   minutes_used: number;
   cycle_start: string | null;

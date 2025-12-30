@@ -11,12 +11,14 @@ interface LinesPageClientProps {
   accountId: string;
   lines: LineRow[];
   planLinesLimit: number;
+  disabled?: boolean;
 }
 
 export function LinesPageClient({
   accountId,
   lines,
   planLinesLimit,
+  disabled = false,
 }: LinesPageClientProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -24,20 +26,30 @@ export function LinesPageClient({
 
   // Open modal if ?action=add is in the URL
   useEffect(() => {
+    if (disabled) return;
+
     if (searchParams.get('action') === 'add') {
       setIsAddModalOpen(true);
       // Clean up the URL
       router.replace('/dashboard/lines', { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [disabled, searchParams, router]);
 
-  const canAddLine = lines.length < planLinesLimit;
+  const canAddLine = !disabled && lines.length < planLinesLimit;
 
   return (
     <div className="space-y-6 pb-12">
       {/* Add Line Button */}
       <div>
-        {canAddLine ? (
+        {disabled ? (
+          <p className="text-sm text-muted-foreground">
+            Your trial has ended.{' '}
+            <a href="/dashboard/settings/subscription" className="text-primary hover:underline">
+              Subscribe to continue
+            </a>
+            .
+          </p>
+        ) : canAddLine ? (
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -62,7 +74,7 @@ export function LinesPageClient({
       {lines.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {lines.map((line) => (
-            <LineCard key={line.id} line={line} />
+            <LineCard key={line.id} line={line} disabled={disabled} />
           ))}
         </div>
       ) : (
@@ -78,6 +90,7 @@ export function LinesPageClient({
           </p>
           <button
             onClick={() => setIsAddModalOpen(true)}
+            disabled={disabled}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />

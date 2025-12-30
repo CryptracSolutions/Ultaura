@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -71,6 +71,7 @@ function formatRecurrence(reminder: ReminderRow): string {
 interface RemindersClientProps {
   line: LineRow;
   reminders: ReminderRow[];
+  disabled?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -87,7 +88,7 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'Canceled',
 };
 
-export function RemindersClient({ line, reminders }: RemindersClientProps) {
+export function RemindersClient({ line, reminders, disabled = false }: RemindersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -147,6 +148,8 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (disabled) return;
+
     setIsSubmitting(true);
     setError(null);
 
@@ -202,6 +205,8 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   };
 
   const handleSkip = async (reminderId: string) => {
+    if (disabled) return;
+
     setSkippingId(reminderId);
 
     const result = await skipNextOccurrence(reminderId);
@@ -218,6 +223,8 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
 
   const handleConfirmCancel = async () => {
     if (!reminderToCancel) return;
+    if (disabled) return;
+
     setCancelingId(reminderToCancel);
 
     const result = await cancelReminder(reminderToCancel);
@@ -234,6 +241,8 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   };
 
   const handlePause = async (reminderId: string) => {
+    if (disabled) return;
+
     setPausingId(reminderId);
 
     const result = await pauseReminder(reminderId);
@@ -249,6 +258,8 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   };
 
   const handleResume = async (reminderId: string) => {
+    if (disabled) return;
+
     setResumingId(reminderId);
 
     const result = await resumeReminder(reminderId);
@@ -264,6 +275,8 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
   };
 
   const handleSnooze = async (reminderId: string, minutes: number) => {
+    if (disabled) return;
+
     setSnoozingId(reminderId);
     setSnoozeDropdownId(null);
 
@@ -280,7 +293,9 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
     }
   };
 
-  const openEditModal = (reminder: ReminderRow) => {
+  const openEditModal = useCallback((reminder: ReminderRow) => {
+    if (disabled) return;
+
     setEditingReminder(reminder);
     setEditMessage(reminder.message);
     // Parse the due_at to get date and time in local format
@@ -289,10 +304,12 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
     const hours = dueDate.getHours().toString().padStart(2, '0');
     const minutes = dueDate.getMinutes().toString().padStart(2, '0');
     setEditTime(`${hours}:${minutes}`);
-  };
+  }, [disabled]);
 
   // Allow deep-linking into the edit modal (e.g. from the global reminders list)
   useEffect(() => {
+    if (disabled) return;
+
     const editId = searchParams.get('edit');
     if (!editId) {
       handledEditIdRef.current = null;
@@ -312,11 +329,12 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
     next.delete('edit');
     const nextUrl = next.toString() ? `${pathname}?${next}` : pathname;
     router.replace(nextUrl);
-  }, [pathname, reminders, router, searchParams]);
+  }, [disabled, openEditModal, pathname, reminders, router, searchParams]);
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingReminder) return;
+    if (disabled) return;
 
     setIsEditSubmitting(true);
 
@@ -382,7 +400,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
           </div>
         </div>
 
-        {!showForm && (
+        {!showForm && !disabled && (
           <button
             onClick={() => setShowForm(true)}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
@@ -401,7 +419,7 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
       )}
 
       {/* Create Reminder Form */}
-      {showForm && (
+      {showForm && !disabled && (
         <div className="mb-8 p-6 rounded-lg border border-input bg-card">
           <h2 className="font-semibold text-lg mb-4">Create New Reminder</h2>
 
@@ -658,117 +676,119 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0 flex-wrap">
-                  {/* Edit button */}
-                  <button
-                    onClick={() => openEditModal(reminder)}
-                    className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                    title="Edit reminder"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-
-                  {/* Pause/Resume button */}
-                  {reminder.is_paused ? (
+                {!disabled && (
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap">
+                    {/* Edit button */}
                     <button
-                      onClick={() => handleResume(reminder.id)}
-                      disabled={resumingId === reminder.id}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
-                      title="Resume reminder"
+                      onClick={() => openEditModal(reminder)}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="Edit reminder"
                     >
-                      {resumingId === reminder.id ? (
-                        <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      ) : (
-                        <Play className="w-4 h-4" />
-                      )}
+                      <Edit2 className="w-4 h-4" />
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => handlePause(reminder.id)}
-                      disabled={pausingId === reminder.id}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors disabled:opacity-50"
-                      title="Pause reminder"
-                    >
-                      {pausingId === reminder.id ? (
-                        <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      ) : (
-                        <Pause className="w-4 h-4" />
-                      )}
-                    </button>
-                  )}
 
-                  {/* Snooze dropdown - only show if not paused and under snooze limit */}
-                  {!reminder.is_paused && reminder.current_snooze_count < 3 && (
-                    <DropdownMenu
-                      open={snoozeDropdownId === reminder.id}
-                      onOpenChange={(open) =>
-                        setSnoozeDropdownId(open ? reminder.id : null)
-                      }
-                    >
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          disabled={snoozingId === reminder.id}
-                          className="p-2 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
-                          title="Snooze reminder"
-                        >
-                          {snoozingId === reminder.id ? (
-                            <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          ) : (
-                            <AlarmClock className="w-4 h-4" />
-                          )}
-                        </button>
-                      </DropdownMenuTrigger>
-
-                      <DropdownMenuContent
-                        align="end"
-                        sideOffset={8}
-                        className="min-w-[140px]"
+                    {/* Pause/Resume button */}
+                    {reminder.is_paused ? (
+                      <button
+                        onClick={() => handleResume(reminder.id)}
+                        disabled={resumingId === reminder.id}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
+                        title="Resume reminder"
                       >
-                        {SNOOZE_OPTIONS.map((option) => (
-                          <DropdownMenuItem
-                            key={option.value}
-                            className="cursor-pointer"
-                            onSelect={() =>
-                              handleSnooze(reminder.id, option.value)
-                            }
-                          >
-                            {option.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                        {resumingId === reminder.id ? (
+                          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handlePause(reminder.id)}
+                        disabled={pausingId === reminder.id}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors disabled:opacity-50"
+                        title="Pause reminder"
+                      >
+                        {pausingId === reminder.id ? (
+                          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <Pause className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
 
-                  {/* Skip button for recurring reminders */}
-                  {reminder.is_recurring && !reminder.is_paused && (
+                    {/* Snooze dropdown - only show if not paused and under snooze limit */}
+                    {!reminder.is_paused && reminder.current_snooze_count < 3 && (
+                      <DropdownMenu
+                        open={snoozeDropdownId === reminder.id}
+                        onOpenChange={(open) =>
+                          setSnoozeDropdownId(open ? reminder.id : null)
+                        }
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            disabled={snoozingId === reminder.id}
+                            className="p-2 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                            title="Snooze reminder"
+                          >
+                            {snoozingId === reminder.id ? (
+                              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            ) : (
+                              <AlarmClock className="w-4 h-4" />
+                            )}
+                          </button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent
+                          align="end"
+                          sideOffset={8}
+                          className="min-w-[140px]"
+                        >
+                          {SNOOZE_OPTIONS.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              className="cursor-pointer"
+                              onSelect={() =>
+                                handleSnooze(reminder.id, option.value)
+                              }
+                            >
+                              {option.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+
+                    {/* Skip button for recurring reminders */}
+                    {reminder.is_recurring && !reminder.is_paused && (
+                      <button
+                        onClick={() => handleSkip(reminder.id)}
+                        disabled={skippingId === reminder.id}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
+                        title="Skip next occurrence"
+                      >
+                        {skippingId === reminder.id ? (
+                          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <SkipForward className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Cancel button */}
                     <button
-                      onClick={() => handleSkip(reminder.id)}
-                      disabled={skippingId === reminder.id}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
-                      title="Skip next occurrence"
+                      onClick={() => setReminderToCancel(reminder.id)}
+                      disabled={cancelingId === reminder.id}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      title={reminder.is_recurring ? "Cancel entire series" : "Cancel reminder"}
                     >
-                      {skippingId === reminder.id ? (
+                      {cancelingId === reminder.id ? (
                         <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                       ) : (
-                        <SkipForward className="w-4 h-4" />
+                        <X className="w-4 h-4" />
                       )}
                     </button>
-                  )}
-
-                  {/* Cancel button */}
-                  <button
-                    onClick={() => setReminderToCancel(reminder.id)}
-                    disabled={cancelingId === reminder.id}
-                    className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                    title={reminder.is_recurring ? "Cancel entire series" : "Cancel reminder"}
-                  >
-                    {cancelingId === reminder.id ? (
-                      <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    ) : (
-                      <X className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -829,13 +849,15 @@ export function RemindersClient({ line, reminders }: RemindersClientProps) {
             Create reminders for medication, appointments, or any important tasks.
             Each reminder call uses 1 minute.
           </p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Create First Reminder
-          </button>
+          {!disabled && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create First Reminder
+            </button>
+          )}
         </div>
       )}
 

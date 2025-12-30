@@ -60,6 +60,8 @@ interface LineDetailClientProps {
   callSessions: CallSessionRow[];
   activeSchedulesCount: number;
   pendingRemindersCount: number;
+  isReadOnly?: boolean;
+  isTrialActive?: boolean;
 }
 
 export function LineDetailClient({
@@ -68,6 +70,8 @@ export function LineDetailClient({
   callSessions,
   activeSchedulesCount,
   pendingRemindersCount,
+  isReadOnly = false,
+  isTrialActive = false,
 }: LineDetailClientProps) {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -122,6 +126,8 @@ export function LineDetailClient({
   };
 
   const handleDelete = async () => {
+    if (isReadOnly) return;
+
     const result = await deleteLine(line.id);
     if (!result.success) {
       toast.error(result.error || 'Failed to delete line');
@@ -132,7 +138,12 @@ export function LineDetailClient({
   };
 
   const handleTestCall = async () => {
-    if (!usage || (usage.minutesRemaining <= 0 && usage.minutesIncluded > 0)) {
+    if (isReadOnly) {
+      setError('Your trial has ended. Subscribe to continue.');
+      return;
+    }
+
+    if (!isTrialActive && (!usage || (usage.minutesRemaining <= 0 && usage.minutesIncluded > 0))) {
       setError('No minutes remaining. Please upgrade your plan.');
       return;
     }
@@ -152,6 +163,8 @@ export function LineDetailClient({
   };
 
   const startEditingTopics = () => {
+    if (isReadOnly) return;
+
     const interests = line.seed_interests ?? [];
     const avoid = line.seed_avoid_topics ?? [];
 
@@ -173,6 +186,8 @@ export function LineDetailClient({
   };
 
   const toggleTopic = (topic: string) => {
+    if (isReadOnly) return;
+
     setTopicChips((prev) => {
       const exists = prev.includes(topic);
       if (exists) return prev.filter((t) => t !== topic);
@@ -182,6 +197,8 @@ export function LineDetailClient({
   };
 
   const saveTopics = async () => {
+    if (isReadOnly) return;
+
     setIsSavingTopics(true);
     setError(null);
 
@@ -232,15 +249,16 @@ export function LineDetailClient({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
               onClick={handleTestCall}
-              disabled={isTestCalling}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 w-full sm:w-auto"
+              disabled={isReadOnly || isTestCalling}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               <Play className="w-4 h-4" />
               {isTestCalling ? 'Calling...' : 'Test Call'}
             </button>
             <button
               onClick={() => setDeleteDialogOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors w-full sm:w-auto"
+              disabled={isReadOnly}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               <Trash2 className="w-4 h-4" />
               Delete
@@ -267,7 +285,7 @@ export function LineDetailClient({
             href={`/dashboard/lines/${getShortLineId(line.id)}/settings`}
             className="text-sm text-primary hover:underline"
           >
-            Edit
+            {isReadOnly ? 'View' : 'Edit'}
           </Link>
         </div>
 
@@ -313,7 +331,7 @@ export function LineDetailClient({
             <h2 className="font-semibold text-foreground">Conversation topics</h2>
           </div>
 
-          {!isEditingTopics && (
+          {!isEditingTopics && !isReadOnly && (
             <button
               type="button"
               onClick={startEditingTopics}
@@ -342,7 +360,7 @@ export function LineDetailClient({
                 {INTEREST_TOPIC_OPTIONS.map((topic) => {
                   const isSelected = topicChips.includes(topic);
                   const disabled =
-                    !isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS;
+                    isReadOnly || (!isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS);
 
                   return (
                     <button
@@ -372,7 +390,7 @@ export function LineDetailClient({
                   value={topicCustom}
                   onChange={(e) => setTopicCustom(e.target.value)}
                   placeholder="e.g., baseball, baking, church"
-                  disabled={customDisabled}
+                  disabled={customDisabled || isReadOnly}
                   className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 />
                 {customDisabled ? (
@@ -397,7 +415,8 @@ export function LineDetailClient({
                 onChange={(e) => setAvoidTopicsText(e.target.value)}
                 placeholder="e.g., politics, health issues..."
                 rows={2}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring resize-none disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground">
                 Separate topics with commas.
@@ -418,7 +437,7 @@ export function LineDetailClient({
               <button
                 type="button"
                 onClick={saveTopics}
-                disabled={isSavingTopics}
+                disabled={isSavingTopics || isReadOnly}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />

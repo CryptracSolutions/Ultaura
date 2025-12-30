@@ -95,12 +95,18 @@ export function getPlanIdFromStripePrice(priceId: string): PlanId | null {
 export const BILLING = {
   OVERAGE_RATE_CENTS: 15, // $0.15 per minute
   DEFAULT_OVERAGE_CAP_CENTS: 10000, // $100 default cap
-  TRIAL_MINUTES: 20,
-  TRIAL_DURATION_DAYS: 30,
+  TRIAL_DURATION_DAYS: 3,
   LOW_MINUTES_WARNING_THRESHOLD: 15, // Warn when <= 15 minutes remaining
   CRITICAL_MINUTES_THRESHOLD: 5, // Critical warning at <= 5 minutes
   ANNUAL_DISCOUNT: 0.15,
 } as const;
+
+export const TRIAL_ELIGIBLE_PLANS = [
+  'care',
+  'comfort',
+  'family',
+  'payg',
+] as const satisfies readonly PlanId[];
 
 // ============================================
 // TELEPHONY

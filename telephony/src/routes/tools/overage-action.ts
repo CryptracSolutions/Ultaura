@@ -4,6 +4,13 @@ import { getCallSession, recordCallEvent } from '../../services/call-session.js'
 
 export const overageActionRouter = Router();
 
+const VALID_PLAN_IDS = ['care', 'comfort', 'family', 'payg'] as const;
+type ValidPlanId = (typeof VALID_PLAN_IDS)[number];
+
+function isValidPlanId(value: string): value is ValidPlanId {
+  return (VALID_PLAN_IDS as readonly string[]).includes(value);
+}
+
 overageActionRouter.post('/', async (req: Request, res: Response) => {
   try {
     const { callSessionId, action, planId } = req.body as {
@@ -22,14 +29,24 @@ overageActionRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    let validatedPlanId: ValidPlanId | undefined;
     if (action === 'upgrade' && !planId) {
       res.status(400).json({ error: 'Missing planId for upgrade action' });
       return;
     }
 
-    if (action === 'upgrade' && !['care', 'comfort', 'family', 'payg'].includes(planId)) {
-      res.status(400).json({ error: 'Invalid planId' });
-      return;
+    if (action === 'upgrade') {
+      if (!planId) {
+        res.status(400).json({ error: 'Missing planId for upgrade action' });
+        return;
+      }
+
+      if (!isValidPlanId(planId)) {
+        res.status(400).json({ error: 'Invalid planId' });
+        return;
+      }
+
+      validatedPlanId = planId;
     }
 
     const session = await getCallSession(callSessionId);
@@ -41,7 +58,7 @@ overageActionRouter.post('/', async (req: Request, res: Response) => {
     await recordCallEvent(callSessionId, 'state_change', {
       event: 'overage_action',
       action,
-      planId,
+      planId: validatedPlanId,
     });
 
     if (action === 'upgrade') {
@@ -59,13 +76,15 @@ overageActionRouter.post('/', async (req: Request, res: Response) => {
         },
         body: JSON.stringify({
           accountId: session.account_id,
-          planId,
+          planId: validatedPlanId,
         }),
       });
 
-      const data = await response.json();
+      const data = (await response
+        .json()
+        .catch(() => null)) as null | { success?: boolean; error?: string };
 
-      if (!response.ok || !data.success) {
+      if (!response.ok || !data || data.success !== true) {
         logger.error({ callSessionId, data }, 'Failed to send upgrade email');
         res.status(500).json({ error: 'Failed to send upgrade email' });
         return;
