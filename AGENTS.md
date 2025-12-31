@@ -1,10 +1,10 @@
 # Ultaura - AI Voice Companion for Seniors
 
-AI-powered voice companion providing daily check-in calls for elderly individuals. Built on MakerKit SaaS template with Twilio telephony and xAI Grok Voice Agent.
+AI-powered voice companion providing check-in calls for elderly individuals. Built on MakerKit SaaS template with Twilio telephony and xAI Grok Voice Agent.
 
 ## Overview
 
-Ultaura makes automated phone calls to seniors at scheduled times for friendly conversation, medication reminders, activity suggestions, and companionship. Family members (payers) manage lines, schedules, and usage through a web dashboard.
+Ultaura makes automated phone calls to seniors at scheduled times for friendly conversation, reminders, activity suggestions, and companionship. Family members (payers) manage lines, schedules, and usage through a web dashboard.
 
 ### Key Features
 

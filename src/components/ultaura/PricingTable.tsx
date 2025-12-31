@@ -28,7 +28,7 @@ const planFeatures: Record<string, string[]> = {
     'Call summaries',
   ],
   family: [
-    '2,000 minutes per month',
+    '2,200 minutes per month',
     '4 phone lines',
     'Unlimited call scheduling',
     'All Comfort features',
@@ -183,11 +183,11 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
               )}
 
               <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-lg ${isPopular ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                <div className={`p-2 rounded-lg ${isPopular ? 'bg-primary/10 text-primary' : 'bg-muted text-primary'}`}>
                   {planIcons[planId]}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">{plan.displayName}</h3>
+                  <h3 className="text-lg font-semibold text-primary">{plan.displayName}</h3>
                 </div>
               </div>
 

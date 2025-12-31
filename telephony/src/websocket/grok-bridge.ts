@@ -515,7 +515,7 @@ If distress or self-harm mentioned:
 If the user asks about upgrading or wants more minutes, explain these plans:
 - Care: $39/month, 300 minutes, 1 phone line
 - Comfort: $99/month, 900 minutes, 2 phone lines
-- Family: $199/month, 2000 minutes, 4 phone lines
+- Family: $199/month, 2200 minutes, 4 phone lines
 - Pay as you go: $0/month + $0.15 per minute, 4 phone lines
 
 Current plan: ${currentPlanId === 'free_trial' ? 'Trial' : currentPlanId}

@@ -40,7 +40,7 @@ export const PLANS: Record<PlanId, Plan> = {
     displayName: 'Family',
     monthlyPriceCents: 19900, // $199
     annualPriceCents: 199900, // $1,999
-    minutesIncluded: 2000,
+    minutesIncluded: 2200,
     linesIncluded: 4,
     overageRateCentsPerMin: 15,
   },

@@ -1,0 +1,57 @@
+{
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml"
+  },
+  "include": [
+    "src/lib/ultaura/**",
+    "src/lib/stripe/**",
+    "src/lib/sdk.ts",
+    "src/lib/server/loaders/load-app-data.ts",
+    "src/lib/hooks/useTrialStatus.ts",
+    "src/core/supabase/server-component-client.ts",
+    "src/core/logger.ts",
+    "src/core/stripe/**",
+    "src/configuration.ts",
+    "telephony/src/**",
+    "supabase/migrations/20221215192558_schema.sql",
+    "supabase/migrations/*ultaura*.sql",
+    "supabase/migrations/20241220*.sql",
+    "supabase/migrations/2025*.sql",
+    "supabase/seed.sql",
+    "src/app/api/telephony/**",
+    "src/app/api/stripe/webhook/route.ts",
+    "src/app/dashboard/(app)/layout.tsx",
+    "src/app/dashboard/(app)/page.tsx",
+    "src/app/dashboard/(app)/components/**",
+    "src/app/dashboard/(app)/lines/**",
+    "src/app/dashboard/(app)/reminders/**",
+    "src/app/dashboard/(app)/calls/**",
+    "src/app/dashboard/(app)/usage/**",
+    "src/app/dashboard/(app)/settings/subscription/**",
+    "src/app/(site)/page.tsx",
+    "src/app/(site)/pricing/page.tsx",
+    "src/app/(site)/demo/page.tsx",
+    "src/app/onboarding/**",
+    "src/components/ultaura/**",
+    "src/navigation.config.tsx",
+    "src/database.types.ts",
+    ".env.ultaura.example",
+    "CLAUDE.md",
+    "package.json",
+    "telephony/package.json"
+  ],
+  "ignore": {
+    "customPatterns": [
+      "**/*.svg",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.webp",
+      "**/*.ico",
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/node_modules/**",
+      "**/*.tsbuildinfo"
+    ]
+  }
+}

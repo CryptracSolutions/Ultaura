@@ -39,7 +39,7 @@ insert into ultaura_plans (id, display_name, monthly_price_cents, annual_price_c
   ('free_trial', 'Free Trial', 0, 0, 20, 1, 0),
   ('care', 'Care', 4000, 40000, 300, 1, 15),
   ('comfort', 'Comfort', 10000, 100000, 900, 2, 15),
-  ('family', 'Family', 20000, 200000, 2000, 4, 15),
+  ('family', 'Family', 20000, 200000, 2200, 4, 15),
   ('payg', 'Pay As You Go', 0, 0, 0, 4, 15);
 
 -- ============================================

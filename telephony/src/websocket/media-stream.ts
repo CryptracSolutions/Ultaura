@@ -37,7 +37,7 @@ interface TwilioMessage {
 const PLAN_OPTIONS = [
   { id: 'care', name: 'Care', minutes: 300, price: '$39 per month' },
   { id: 'comfort', name: 'Comfort', minutes: 900, price: '$99 per month' },
-  { id: 'family', name: 'Family', minutes: 2000, price: '$199 per month' },
+  { id: 'family', name: 'Family', minutes: 2200, price: '$199 per month' },
   { id: 'payg', name: 'Pay as you go', minutes: null, price: '$0 per month plus $0.15 per minute' },
 ];
 

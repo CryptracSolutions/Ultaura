@@ -90,7 +90,7 @@ INSERT INTO ultaura_accounts (
   'test@example.com',
   'active',
   'family',
-  2000,
+  2200,
   NOW(),
   NOW() + INTERVAL '30 days'
 ) ON CONFLICT (id) DO NOTHING;
