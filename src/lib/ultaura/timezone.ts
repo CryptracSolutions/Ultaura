@@ -103,9 +103,15 @@ function parseLocalDateTime(localDateTimeStr: string): ParsedLocalDateTime {
   return { year, month, day, hour, minute, second };
 }
 
-function isAmbiguousTime(dt: DateTime): boolean {
-  const later = dt.plus({ hours: 1 });
-  return later.isValid && later.hour === dt.hour && later.minute === dt.minute;
+function matchesLocal(dt: DateTime, params: ParsedLocalDateTime): boolean {
+  return (
+    dt.year === params.year &&
+    dt.month === params.month &&
+    dt.day === params.day &&
+    dt.hour === params.hour &&
+    dt.minute === params.minute &&
+    dt.second === params.second
+  );
 }
 
 function buildZonedDateTime(params: BuildDateTimeParams): DateTime {
@@ -169,9 +175,16 @@ function buildZonedDateTime(params: BuildDateTimeParams): DateTime {
     dstNote = `spring-forward-shifted-${shiftHours}h`;
   }
 
-  if (preferLateAmbiguous && isAmbiguousTime(dt)) {
-    dt = dt.plus({ hours: 1 });
-    dstNote = 'ambiguous-fall-back-used-later';
+  const localParams = { year, month, day, hour, minute, second };
+  const earlierCandidate = dt.minus({ hours: 1 });
+  const laterCandidate = dt.plus({ hours: 1 });
+
+  if (matchesLocal(earlierCandidate, localParams) && earlierCandidate.offset !== dt.offset) {
+    dt = preferLateAmbiguous ? dt : earlierCandidate;
+    dstNote = preferLateAmbiguous ? 'ambiguous-fall-back-used-later' : 'ambiguous-fall-back-used-earlier';
+  } else if (matchesLocal(laterCandidate, localParams) && laterCandidate.offset !== dt.offset) {
+    dt = preferLateAmbiguous ? laterCandidate : dt;
+    dstNote = preferLateAmbiguous ? 'ambiguous-fall-back-used-later' : 'ambiguous-fall-back-used-earlier';
   }
 
   if (dstNote) {
@@ -193,7 +206,14 @@ function buildZonedDateTime(params: BuildDateTimeParams): DateTime {
 }
 
 export function isValidTimezone(tz: string): boolean {
-  return IANAZone.isValidZone(tz);
+  const normalized = tz.trim();
+  if (!normalized) {
+    return false;
+  }
+  if (!IANAZone.isValidZone(normalized)) {
+    return false;
+  }
+  return normalized.includes('/') || normalized === 'UTC' || normalized === 'Etc/UTC';
 }
 
 export function validateTimezone(tz: string): void {

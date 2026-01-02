@@ -5,7 +5,6 @@ import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import dotenv from 'dotenv';
-import pino from 'pino';
 import cors from 'cors';
 
 import { twilioInboundRouter } from './routes/twilio-inbound.js';
@@ -20,20 +19,10 @@ import { internalSmsRouter } from './routes/internal/sms.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
 import { validateTimezoneSupport } from './utils/timezone.js';
+import { logger } from './utils/logger.js';
 
 // Load environment variables
 dotenv.config();
-
-// Initialize logger
-export const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-    },
-  },
-});
 
 // Create Express app
 const app = express();
