@@ -9,7 +9,8 @@ import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getLines, getLineActivity, getUltauraAccount, getUsageSummary, getUpcomingScheduledCalls, getUpcomingReminders } from '~/lib/ultaura/actions';
 import { getShortLineId } from '~/lib/ultaura';
-import { BILLING } from '~/lib/ultaura/constants';
+import { BILLING, PLANS } from '~/lib/ultaura/constants';
+import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const RATE_CENTS = BILLING.OVERAGE_RATE_CENTS;
@@ -122,6 +123,11 @@ async function DashboardPage() {
   const pausedCount = lines.filter((l) => l.status === 'paused').length;
   const isPayg = account.plan_id === 'payg';
   const isOnTrial = account.status === 'trial';
+  const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
+  const msRemaining = isOnTrial && trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : 0;
+  const isTrialExpired = isOnTrial && !!trialEndsAt && msRemaining <= 0;
+  const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
+  const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
   const overageMinutes = usage?.overageMinutes ?? 0;
   const usageCostCents = usage
     ? (isOnTrial ? 0 : isPayg ? usage.minutesUsed * RATE_CENTS : overageMinutes * RATE_CENTS)
@@ -159,6 +165,8 @@ async function DashboardPage() {
 
       <PageBody>
         <div className="flex flex-col space-y-6 pb-24">
+          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+
           {/* Alerts */}
           {(unverifiedCount > 0 || (usage && !isPayg && !isOnTrial && usage.minutesRemaining <= 5)) && (
             <div className="grid gap-3">
