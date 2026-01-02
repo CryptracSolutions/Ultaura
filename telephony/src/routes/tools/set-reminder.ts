@@ -1,60 +1,12 @@
 // Set reminder tool handler
 
 import { Router, Request, Response } from 'express';
+import { DateTime } from 'luxon';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
-
-/**
- * Convert a local datetime string to UTC Date, respecting the given timezone.
- *
- * @param localDateTimeStr - ISO-like string without timezone (e.g., "2025-12-27T14:00:00")
- * @param timezone - IANA timezone name (e.g., "America/New_York")
- * @returns Date object in UTC
- */
-function localToUtc(localDateTimeStr: string, timezone: string): Date {
-  // Parse the local datetime components
-  const match = localDateTimeStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (!match) {
-    throw new Error('Invalid datetime format');
-  }
-
-  const [, year, month, day, hour, minute, second = '00'] = match;
-
-  // Create a formatter that will tell us the offset for this timezone at this datetime
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-
-  // Create a rough UTC estimate first
-  const roughUtc = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
-
-  // Get the timezone offset by comparing formatted local time with UTC
-  const parts = formatter.formatToParts(roughUtc);
-  const formatted: Record<string, string> = {};
-  for (const part of parts) {
-    if (part.type !== 'literal') {
-      formatted[part.type] = part.value;
-    }
-  }
-
-  // Calculate offset: what time does the timezone show when it's roughUtc in UTC?
-  const localInTz = new Date(
-    `${formatted.year}-${formatted.month}-${formatted.day}T${formatted.hour}:${formatted.minute}:${formatted.second}Z`
-  );
-  const offsetMs = localInTz.getTime() - roughUtc.getTime();
-
-  // The actual UTC time is: local time minus the offset
-  const targetLocalMs = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`).getTime();
-  return new Date(targetLocalMs - offsetMs);
-}
+import { getLineById } from '../../services/line-lookup.js';
+import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 
 export const setReminderRouter = Router();
 
@@ -62,7 +14,7 @@ interface SetReminderRequest {
   callSessionId: string;
   lineId: string;
   dueAtLocal: string; // ISO datetime in local time
-  timezone: string;
+  timezone?: string;
   message: string;
   privacyScope?: 'line_only' | 'shareable_with_payer';
   // Recurrence fields
@@ -84,7 +36,8 @@ function buildRecurrenceFields(
   interval: number | undefined,
   daysOfWeek: number[] | undefined,
   dayOfMonth: number | undefined,
-  dueAt: Date
+  dueAt: Date,
+  timezone: string
 ): {
   rrule: string;
   intervalDays: number | null;
@@ -104,7 +57,12 @@ function buildRecurrenceFields(
       break;
 
     case 'weekly':
-      daysOfWeekVal = daysOfWeek && daysOfWeek.length > 0 ? daysOfWeek : [dueAt.getDay()];
+      if (daysOfWeek && daysOfWeek.length > 0) {
+        daysOfWeekVal = daysOfWeek;
+      } else {
+        const dueAtLocal = DateTime.fromJSDate(dueAt).setZone(timezone);
+        daysOfWeekVal = [dueAtLocal.weekday % 7];
+      }
       const byDay = daysOfWeekVal.map(d => dayNames[d]).join(',');
       if (interval && interval > 1) {
         rrule = `FREQ=WEEKLY;INTERVAL=${interval};BYDAY=${byDay}`;
@@ -175,10 +133,25 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const lineWithAccount = await getLineById(lineId);
+    if (!lineWithAccount) {
+      res.status(404).json({ error: 'Line not found' });
+      return;
+    }
+
+    const { line } = lineWithAccount;
+    const tz = timezone || line.timezone;
+
+    try {
+      validateTimezone(tz);
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+      return;
+    }
+
     // Parse the due date, converting from user's local time to UTC
     let dueAt: Date;
     try {
-      const tz = timezone || 'America/Los_Angeles';
       dueAt = localToUtc(dueAtLocal, tz);
       logger.info({ dueAtLocal, timezone: tz, dueAtUtc: dueAt.toISOString() }, 'Parsed reminder due date');
     } catch (parseError) {
@@ -202,7 +175,6 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const supabase = getSupabaseClient();
-    const tz = timezone || 'America/Los_Angeles';
 
     // Build recurrence fields if this is a recurring reminder
     let rrule: string | null = null;
@@ -213,7 +185,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     let endsAt: string | null = null;
 
     if (isRecurring && frequency) {
-      const recurrenceFields = buildRecurrenceFields(frequency, interval, daysOfWeek, dayOfMonth, dueAt);
+      const recurrenceFields = buildRecurrenceFields(frequency, interval, daysOfWeek, dayOfMonth, dueAt, tz);
       rrule = recurrenceFields.rrule;
       intervalDays = recurrenceFields.intervalDays;
       daysOfWeekVal = recurrenceFields.daysOfWeekVal;

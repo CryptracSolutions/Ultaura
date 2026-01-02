@@ -4,6 +4,7 @@ import { Router, Request, Response } from 'express';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
+import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 
 export const editReminderRouter = Router();
 
@@ -16,45 +17,7 @@ interface EditReminderRequest {
   timezone?: string;
 }
 
-/**
- * Convert a local datetime string to UTC Date, respecting the given timezone.
- */
-function localToUtc(localDateTimeStr: string, timezone: string): Date {
-  const match = localDateTimeStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (!match) {
-    throw new Error('Invalid datetime format');
-  }
-
-  const [, year, month, day, hour, minute, second = '00'] = match;
-
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-
-  const roughUtc = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
-  const parts = formatter.formatToParts(roughUtc);
-  const formatted: Record<string, string> = {};
-  for (const part of parts) {
-    if (part.type !== 'literal') {
-      formatted[part.type] = part.value;
-    }
-  }
-
-  const localInTz = new Date(
-    `${formatted.year}-${formatted.month}-${formatted.day}T${formatted.hour}:${formatted.minute}:${formatted.second}Z`
-  );
-  const offsetMs = localInTz.getTime() - roughUtc.getTime();
-
-  const targetLocalMs = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`).getTime();
-  return new Date(targetLocalMs - offsetMs);
-}
+const LOCAL_TIME_REGEX = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/;
 
 editReminderRouter.post('/', async (req: Request, res: Response) => {
   try {
@@ -146,6 +109,22 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     if (newTimeLocal) {
       const tz = timezone || line.timezone || reminder.timezone;
       try {
+        validateTimezone(tz);
+      } catch (error) {
+        res.status(400).json({ error: (error as Error).message });
+        return;
+      }
+
+      const timeMatch = newTimeLocal.match(LOCAL_TIME_REGEX);
+      if (!timeMatch) {
+        res.json({
+          success: false,
+          message: "I didn't understand that time. Please use HH:mm format.",
+        });
+        return;
+      }
+
+      try {
         const newDueAt = localToUtc(newTimeLocal, tz);
 
         if (newDueAt <= new Date()) {
@@ -159,10 +138,10 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         oldValues.dueAt = reminder.due_at;
         updates.due_at = newDueAt.toISOString();
 
-        // Update time_of_day for recurring reminders
-        const hours = newDueAt.getUTCHours().toString().padStart(2, '0');
-        const minutes = newDueAt.getUTCMinutes().toString().padStart(2, '0');
-        updates.time_of_day = `${hours}:${minutes}`;
+        if (reminder.is_recurring) {
+          const [, , hourStr, minuteStr] = timeMatch;
+          updates.time_of_day = `${hourStr}:${minuteStr}`;
+        }
 
         changes.push('time');
       } catch (err) {

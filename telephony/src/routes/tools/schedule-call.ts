@@ -5,6 +5,7 @@ import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getLineById } from '../../services/line-lookup.js';
+import { getNextOccurrence, validateTimezone } from '../../utils/timezone.js';
 
 export const scheduleCallRouter = Router();
 
@@ -67,6 +68,12 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
 
     const supabase = getSupabaseClient();
     const tz = timezone || line.timezone;
+    try {
+      validateTimezone(tz);
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+      return;
+    }
 
     if (mode === 'one_off') {
       // One-off scheduled call
@@ -137,29 +144,22 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
         res.status(400).json({ error: 'Invalid time format (use HH:mm)' });
         return;
       }
+      const [hours, minutes] = timeLocal.split(':').map(Number);
+      if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        res.status(400).json({ error: 'Invalid time value (use HH:mm)' });
+        return;
+      }
 
       // Build RRULE
       const dayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
       const rruleDays = validDays.map(d => dayNames[d]).join(',');
       const rrule = `FREQ=WEEKLY;BYDAY=${rruleDays}`;
 
-      // Calculate next run time
-      const now = new Date();
-      const [hours, minutes] = timeLocal.split(':').map(Number);
-
-      // Find the next occurrence
-      let nextRun = new Date();
-      nextRun.setHours(hours, minutes, 0, 0);
-
-      // If today's time has passed, start from tomorrow
-      if (nextRun.getTime() <= now.getTime()) {
-        nextRun.setDate(nextRun.getDate() + 1);
-      }
-
-      // Find the next matching day
-      while (!validDays.includes(nextRun.getDay())) {
-        nextRun.setDate(nextRun.getDate() + 1);
-      }
+      const nextRun = getNextOccurrence({
+        timeOfDay: timeLocal,
+        timezone: tz,
+        daysOfWeek: validDays,
+      });
 
       // Check for existing schedule and update or create
       const { data: existing } = await supabase

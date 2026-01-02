@@ -19,6 +19,7 @@ import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
+import { validateTimezoneSupport } from './utils/timezone.js';
 
 // Load environment variables
 dotenv.config();
@@ -154,6 +155,24 @@ wss.on('error', (error) => {
 
 // Start server
 const PORT = process.env.PORT || 3001;
+
+const REQUIRED_TIMEZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Phoenix',
+  'America/Los_Angeles',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+];
+
+try {
+  validateTimezoneSupport(REQUIRED_TIMEZONES);
+  logger.info('Timezone support validated successfully');
+} catch (error) {
+  logger.fatal({ error }, 'Timezone support validation failed');
+  process.exit(1);
+}
 
 server.listen(PORT, () => {
   logger.info({ port: PORT }, 'Ultaura Telephony Backend started');

@@ -24,6 +24,7 @@ import type {
   CallSessionRow,
 } from './types';
 import { BILLING, PLANS } from './constants';
+import { getNextOccurrence, getNextReminderOccurrence, validateTimezone } from './timezone';
 
 const logger = getLogger();
 
@@ -205,6 +206,14 @@ export async function getLine(lineId: string): Promise<LineRow | null> {
 export async function createLine(input: CreateLineInput): Promise<{ success: boolean; lineId?: string; error?: string }> {
   const client = getSupabaseServerComponentClient();
 
+  try {
+    if (input.timezone) {
+      validateTimezone(input.timezone);
+    }
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+
   // Check line limit
   const account = await getUltauraAccountById(input.accountId);
   if (!account) {
@@ -268,6 +277,14 @@ export async function updateLine(
 ): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseServerComponentClient();
 
+  try {
+    if (input.timezone !== undefined) {
+      validateTimezone(input.timezone);
+    }
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+
   const { data: line, error: lineError } = await client
     .from('ultaura_lines')
     .select('account_id')
@@ -286,6 +303,14 @@ export async function updateLine(
   const trialStatus = getTrialStatus(account);
   if (trialStatus.isExpired) {
     return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
+  }
+
+  try {
+    if (input.timezone !== undefined) {
+      validateTimezone(input.timezone);
+    }
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
   }
 
   const updates: Record<string, unknown> = {};
@@ -615,132 +640,11 @@ export async function getSchedule(scheduleId: string): Promise<ScheduleRow | nul
  * Returns a Date in UTC that represents when the call should be made.
  */
 function getNextRunAt(timeOfDay: string, timezone: string, daysOfWeek: number[]): Date {
-  const [targetHours, targetMinutes] = timeOfDay.split(':').map(Number);
-
-  // Get current time in the target timezone
-  const now = new Date();
-  const tzFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    weekday: 'short',
-    hour12: false,
+  return getNextOccurrence({
+    timeOfDay,
+    timezone,
+    daysOfWeek,
   });
-
-  // Parse current local time in target timezone
-  const parts = tzFormatter.formatToParts(now);
-  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
-  const currentHours = parseInt(getPart('hour'));
-  const currentMinutes = parseInt(getPart('minute'));
-  const currentDay = parseInt(getPart('day'));
-  const currentMonth = parseInt(getPart('month'));
-  const currentYear = parseInt(getPart('year'));
-
-  // Map weekday name to day number (0=Sun, 1=Mon, etc.)
-  const weekdayMap: Record<string, number> = {
-    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-  };
-  const currentDayOfWeek = weekdayMap[getPart('weekday')] ?? 0;
-
-  // Calculate if time has passed today in the target timezone
-  const currentTimeMinutes = currentHours * 60 + currentMinutes;
-  const targetTimeMinutes = targetHours * 60 + targetMinutes;
-
-  // Start from today and find the next valid day
-  let daysToAdd = 0;
-
-  // If time has already passed today, start from tomorrow
-  if (targetTimeMinutes <= currentTimeMinutes) {
-    daysToAdd = 1;
-  }
-
-  // Find the next day that matches the schedule
-  let candidateDayOfWeek = (currentDayOfWeek + daysToAdd) % 7;
-  while (!daysOfWeek.includes(candidateDayOfWeek)) {
-    daysToAdd++;
-    candidateDayOfWeek = (currentDayOfWeek + daysToAdd) % 7;
-    if (daysToAdd > 7) break; // Safety limit
-  }
-
-  // Calculate the target date in the target timezone
-  const targetDate = new Date(Date.UTC(currentYear, currentMonth - 1, currentDay));
-  targetDate.setUTCDate(targetDate.getUTCDate() + daysToAdd);
-
-  // Create the target datetime string in the target timezone
-  const targetDateStr = `${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth() + 1).padStart(2, '0')}-${String(targetDate.getUTCDate()).padStart(2, '0')}`;
-  const targetTimeStr = `${String(targetHours).padStart(2, '0')}:${String(targetMinutes).padStart(2, '0')}:00`;
-
-  // Convert local time in target timezone to UTC
-  // We create a date string and use the formatter to find the UTC offset
-  const localDateTime = new Date(`${targetDateStr}T${targetTimeStr}`);
-
-  // Get the UTC offset for the target timezone at that specific date/time
-  // by comparing the formatted time in UTC vs the target timezone
-  const utcFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  const tzFormatterForOffset = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  // Use a reference point to calculate offset
-  const refTime = new Date(`${targetDateStr}T12:00:00Z`);
-  const utcParts = utcFormatter.formatToParts(refTime);
-  const tzParts = tzFormatterForOffset.formatToParts(refTime);
-
-  const getPartValue = (parts: Intl.DateTimeFormatPart[], type: string) =>
-    parseInt(parts.find(p => p.type === type)?.value || '0');
-
-  const utcHour = getPartValue(utcParts, 'hour');
-  const tzHour = getPartValue(tzParts, 'hour');
-  const utcDay = getPartValue(utcParts, 'day');
-  const tzDay = getPartValue(tzParts, 'day');
-
-  // Calculate offset in hours (timezone hour - UTC hour, adjusted for day boundary)
-  let offsetHours = tzHour - utcHour;
-  if (tzDay > utcDay) offsetHours += 24;
-  if (tzDay < utcDay) offsetHours -= 24;
-
-  // The target time in UTC is the local time minus the offset
-  const utcTargetHours = targetHours - offsetHours;
-
-  // Create the final UTC date
-  const result = new Date(Date.UTC(
-    targetDate.getUTCFullYear(),
-    targetDate.getUTCMonth(),
-    targetDate.getUTCDate(),
-    utcTargetHours,
-    targetMinutes,
-    0,
-    0
-  ));
-
-  // Handle day rollover if UTC hours went negative or over 24
-  if (utcTargetHours < 0) {
-    result.setUTCDate(result.getUTCDate() - 1);
-    result.setUTCHours(24 + utcTargetHours);
-  } else if (utcTargetHours >= 24) {
-    result.setUTCDate(result.getUTCDate() + 1);
-    result.setUTCHours(utcTargetHours - 24);
-  }
-
-  return result;
 }
 
 // Create a schedule
@@ -765,8 +669,13 @@ export async function createSchedule(
   const rruleDays = input.daysOfWeek.map(d => dayNames[d]).join(',');
   const rrule = `FREQ=WEEKLY;BYDAY=${rruleDays}`;
 
-  // Calculate next run using timezone-aware helper
-  const next = getNextRunAt(input.timeOfDay, input.timezone, input.daysOfWeek);
+  let next: Date;
+  try {
+    validateTimezone(input.timezone);
+    next = getNextRunAt(input.timeOfDay, input.timezone, input.daysOfWeek);
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
 
   const { data: schedule, error } = await client
     .from('ultaura_schedules')
@@ -862,9 +771,13 @@ export async function updateSchedule(
     const timeOfDay = input.timeOfDay || current?.time_of_day || '18:00';
     const timezone = input.timezone || current?.timezone || 'America/Los_Angeles';
 
-    // Use timezone-aware helper to calculate next run
-    const next = getNextRunAt(timeOfDay, timezone, daysOfWeek);
-    updates.next_run_at = next.toISOString();
+    try {
+      validateTimezone(timezone);
+      const next = getNextRunAt(timeOfDay, timezone, daysOfWeek);
+      updates.next_run_at = next.toISOString();
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
   }
 
   const { error } = await client
@@ -1455,55 +1368,22 @@ function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
     return null;
   }
 
-  const currentDueAt = new Date(reminder.due_at);
+  try {
+    const next = getNextReminderOccurrence({
+      rrule: reminder.rrule,
+      timezone: reminder.timezone,
+      timeOfDay: reminder.time_of_day,
+      currentDueAt: new Date(reminder.due_at),
+      daysOfWeek: reminder.days_of_week,
+      dayOfMonth: reminder.day_of_month,
+      intervalDays: reminder.interval_days,
+    });
 
-  // Parse RRULE to determine frequency
-  const freqMatch = reminder.rrule.match(/FREQ=(\w+)/);
-  const intervalMatch = reminder.rrule.match(/INTERVAL=(\d+)/);
-
-  const freq = freqMatch?.[1] || 'DAILY';
-  const interval = intervalMatch ? parseInt(intervalMatch[1]) : (reminder.interval_days || 1);
-
-  let nextDate = new Date(currentDueAt);
-
-  switch (freq) {
-    case 'DAILY':
-      nextDate.setDate(nextDate.getDate() + interval);
-      break;
-
-    case 'WEEKLY':
-      if (reminder.days_of_week && reminder.days_of_week.length > 0) {
-        nextDate.setDate(nextDate.getDate() + 1);
-        let attempts = 0;
-        while (!reminder.days_of_week.includes(nextDate.getDay()) && attempts < 14) {
-          nextDate.setDate(nextDate.getDate() + 1);
-          attempts++;
-        }
-        if (interval > 1) {
-          nextDate.setDate(nextDate.getDate() + (interval - 1) * 7);
-        }
-      } else {
-        nextDate.setDate(nextDate.getDate() + 7 * interval);
-      }
-      break;
-
-    case 'MONTHLY':
-      nextDate.setMonth(nextDate.getMonth() + interval);
-      if (reminder.day_of_month) {
-        const maxDays = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
-        nextDate.setDate(Math.min(reminder.day_of_month, maxDays));
-      }
-      break;
-
-    default:
-      return null;
+    return next ? next.toISOString() : null;
+  } catch (error) {
+    logger.error({ error, reminderId: reminder.id }, 'Failed to calculate next reminder occurrence');
+    return null;
   }
-
-  // Set the time from time_of_day
-  const [hours, minutes] = reminder.time_of_day.split(':').map(Number);
-  nextDate.setHours(hours, minutes, 0, 0);
-
-  return nextDate.toISOString();
 }
 
 // Skip the next occurrence of a recurring reminder

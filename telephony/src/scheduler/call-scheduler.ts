@@ -5,54 +5,7 @@ import cron from 'node-cron';
 import { getSupabaseClient, ScheduleRow, ReminderRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
-
-/**
- * Convert a local datetime string to UTC Date, respecting the given timezone.
- * Used for calculating next reminder occurrences in the correct timezone.
- */
-function localToUtc(localDateTimeStr: string, timezone: string): Date {
-  const match = localDateTimeStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (!match) {
-    throw new Error('Invalid datetime format');
-  }
-
-  const [, year, month, day, hour, minute, second = '00'] = match;
-
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-
-  const roughUtc = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
-  const parts = formatter.formatToParts(roughUtc);
-  const formatted: Record<string, string> = {};
-  for (const part of parts) {
-    if (part.type !== 'literal') {
-      formatted[part.type] = part.value;
-    }
-  }
-
-  const localInTz = new Date(
-    `${formatted.year}-${formatted.month}-${formatted.day}T${formatted.hour}:${formatted.minute}:${formatted.second}Z`
-  );
-  const offsetMs = localInTz.getTime() - roughUtc.getTime();
-
-  const targetLocalMs = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`).getTime();
-  return new Date(targetLocalMs - offsetMs);
-}
-
-/**
- * Get the number of days in a given month.
- */
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
+import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
 
 /**
  * Calculate the next occurrence for a recurring reminder.
@@ -65,105 +18,19 @@ function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
     return null;
   }
 
-  // Parse current due_at to get a reference date
-  const currentDueAt = new Date(due_at);
-
-  // Parse RRULE to determine frequency
-  const freqMatch = rrule.match(/FREQ=(\w+)/);
-  const intervalMatch = rrule.match(/INTERVAL=(\d+)/);
-
-  const freq = freqMatch?.[1] || 'DAILY';
-  const interval = intervalMatch ? parseInt(intervalMatch[1]) : (interval_days || 1);
-
-  // Get current date in the reminder's timezone for calculations
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    weekday: 'short',
-  });
-
-  const parts = formatter.formatToParts(currentDueAt);
-  const dateParts: Record<string, string> = {};
-  for (const part of parts) {
-    if (part.type !== 'literal') {
-      dateParts[part.type] = part.value;
-    }
-  }
-
-  let nextYear = parseInt(dateParts.year);
-  let nextMonth = parseInt(dateParts.month) - 1; // 0-indexed
-  let nextDay = parseInt(dateParts.day);
-
-  switch (freq) {
-    case 'DAILY':
-      // Add interval days
-      {
-        const nextDate = new Date(nextYear, nextMonth, nextDay + interval);
-        nextYear = nextDate.getFullYear();
-        nextMonth = nextDate.getMonth();
-        nextDay = nextDate.getDate();
-      }
-      break;
-
-    case 'WEEKLY':
-      if (days_of_week && days_of_week.length > 0) {
-        // Start from tomorrow and find next matching day
-        let tempDate = new Date(nextYear, nextMonth, nextDay + 1);
-        let attempts = 0;
-
-        while (!days_of_week.includes(tempDate.getDay()) && attempts < 14) {
-          tempDate.setDate(tempDate.getDate() + 1);
-          attempts++;
-        }
-
-        // If interval > 1, skip additional weeks
-        if (interval > 1) {
-          tempDate.setDate(tempDate.getDate() + (interval - 1) * 7);
-        }
-
-        nextYear = tempDate.getFullYear();
-        nextMonth = tempDate.getMonth();
-        nextDay = tempDate.getDate();
-      } else {
-        // Simple weekly: add 7 * interval days
-        const nextDate = new Date(nextYear, nextMonth, nextDay + 7 * interval);
-        nextYear = nextDate.getFullYear();
-        nextMonth = nextDate.getMonth();
-        nextDay = nextDate.getDate();
-      }
-      break;
-
-    case 'MONTHLY':
-      {
-        // Move to next month (or N months if interval > 1)
-        nextMonth += interval;
-        while (nextMonth > 11) {
-          nextMonth -= 12;
-          nextYear++;
-        }
-
-        // Use specified day_of_month or current day
-        const targetDay = day_of_month || parseInt(dateParts.day);
-        const maxDays = getDaysInMonth(nextYear, nextMonth);
-        nextDay = Math.min(targetDay, maxDays);
-      }
-      break;
-
-    default:
-      logger.warn({ freq, rrule }, 'Unknown frequency in RRULE');
-      return null;
-  }
-
-  // Build the local datetime string and convert to UTC
-  const localDateTimeStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}T${time_of_day}:00`;
-
   try {
-    const nextUtc = localToUtc(localDateTimeStr, timezone);
-    return nextUtc.toISOString();
+    const nextUtc = getNextReminderOccurrence({
+      rrule,
+      timezone,
+      timeOfDay: time_of_day,
+      currentDueAt: new Date(due_at),
+      daysOfWeek: days_of_week,
+      dayOfMonth: day_of_month,
+      intervalDays: interval_days,
+    });
+    return nextUtc ? nextUtc.toISOString() : null;
   } catch (error) {
-    logger.error({ error, localDateTimeStr, timezone }, 'Failed to calculate next reminder occurrence');
+    logger.error({ error, reminderId: reminder.id, timezone }, 'Failed to calculate next reminder occurrence');
     return null;
   }
 }
@@ -368,35 +235,37 @@ async function updateScheduleResult(
 
 // Calculate next run time based on RRULE
 function calculateNextRun(schedule: ScheduleRow): string | null {
-  const { days_of_week, time_of_day } = schedule;
-
-  // Simple implementation for weekly schedules
-  // In production, use a proper RRULE parser like rrule.js
+  const { days_of_week, time_of_day, timezone } = schedule;
 
   if (!days_of_week || days_of_week.length === 0) {
     return null;
   }
 
-  const [hours, minutes] = time_of_day.split(':').map(Number);
+  try {
+    const nextRun = getNextOccurrence({
+      timeOfDay: time_of_day,
+      timezone,
+      daysOfWeek: days_of_week,
+    });
 
-  // Start from tomorrow
-  const now = new Date();
-  const next = new Date(now);
-  next.setDate(next.getDate() + 1);
-  next.setHours(hours, minutes, 0, 0);
+    logger.debug(
+      {
+        scheduleId: schedule.id,
+        lineId: schedule.line_id,
+        timezone,
+        timeOfDay: time_of_day,
+        daysOfWeek: days_of_week,
+        resultUtc: nextRun.toISOString(),
+        previousNextRunAt: schedule.next_run_at,
+      },
+      'Calculated next_run_at'
+    );
 
-  // Find the next matching day
-  let attempts = 0;
-  while (!days_of_week.includes(next.getDay()) && attempts < 7) {
-    next.setDate(next.getDate() + 1);
-    attempts++;
-  }
-
-  if (attempts >= 7) {
+    return nextRun.toISOString();
+  } catch (error) {
+    logger.error({ error, scheduleId: schedule.id, timezone }, 'Failed to calculate next run');
     return null;
   }
-
-  return next.toISOString();
 }
 
 // Process due reminders
