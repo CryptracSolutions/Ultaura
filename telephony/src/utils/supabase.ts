@@ -117,7 +117,7 @@ export interface MemoryRow {
   line_id: string;
   created_at: string;
   updated_at: string | null;
-  type: 'fact' | 'preference' | 'follow_up';
+  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
   key: string;
   value_ciphertext: Uint8Array;
   value_iv: Uint8Array;

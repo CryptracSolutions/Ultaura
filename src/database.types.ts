@@ -1394,7 +1394,7 @@ export type Database = {
         | "sms_to_payer"
         | "data_retention"
       ultaura_line_status: "active" | "paused" | "disabled"
-      ultaura_memory_type: "fact" | "preference" | "follow_up"
+      ultaura_memory_type: "fact" | "preference" | "follow_up" | "context" | "history" | "wellbeing"
       ultaura_opt_out_channel: "outbound_calls" | "sms" | "all"
       ultaura_privacy_scope: "line_only" | "shareable_with_payer"
       ultaura_reminder_status: "scheduled" | "sent" | "missed" | "canceled"

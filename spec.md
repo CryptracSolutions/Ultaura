@@ -894,5 +894,563 @@ logger.info({
 ### Environment Variables (Existing)
 - `XAI_API_KEY` - For Grok API calls
 - `XAI_GROK_MODEL` - Model to use (default: grok-3-fast)
-- `MEMORY_ENCRYPTION_KEY` - KEK for envelope encryption
+- `MEMORY_ENCRYPTION_KEY` - KEK for envelope encryption (64 hex characters)
 - `TELEPHONY_BACKEND_URL` - For tool endpoint calls
+
+---
+
+## Implementation Clarifications
+
+This section provides detailed answers to implementation questions.
+
+### 1. Turn Summaries - Deriving TurnSummary Fields
+
+**Track BOTH user and assistant turns.**
+
+**User turns:**
+- Source: Grok Realtime API sends `input_audio_buffer.speech_started` and `input_audio_buffer.committed` events
+- For user speech, Grok provides transcription in `conversation.item.input_audio_transcription.completed` message
+- Extract `summary` from the transcription text
+- `intent`: Infer from content (question if ends with ?, request if contains "can you", "please", etc.)
+- `entities`: Simple regex extraction for names, dates, numbers
+
+**Assistant turns:**
+- Source: `response.done` message from Grok contains the complete response
+- `summary`: Extract from `response.output[].content[].transcript` (the text Grok spoke)
+- `intent`: Usually 'response' or 'question' based on content
+- `entities`: Extract any mentioned names, dates, topics
+
+**Example extraction in GrokBridge:**
+
+```typescript
+private extractUserTurn(transcription: string): TurnSummary {
+  return {
+    timestamp: Date.now(),
+    speaker: 'user',
+    summary: transcription.slice(0, 500), // Truncate long utterances
+    intent: this.inferIntent(transcription),
+    entities: this.extractEntities(transcription),
+  };
+}
+
+private extractAssistantTurn(response: GrokResponseDone): TurnSummary {
+  const transcript = response.output
+    ?.find(o => o.type === 'message')
+    ?.content?.find(c => c.type === 'audio')
+    ?.transcript || '';
+
+  return {
+    timestamp: Date.now(),
+    speaker: 'assistant',
+    summary: transcript.slice(0, 500),
+    intent: 'response',
+    entities: this.extractEntities(transcript),
+  };
+}
+
+private inferIntent(text: string): string {
+  if (text.includes('?')) return 'question';
+  if (/\b(can you|please|could you|would you)\b/i.test(text)) return 'request';
+  return 'statement';
+}
+
+private extractEntities(text: string): string[] {
+  const entities: string[] = [];
+  // Names (capitalized words)
+  const names = text.match(/\b[A-Z][a-z]+\b/g);
+  if (names) entities.push(...names.slice(0, 5));
+  // Dates
+  const dates = text.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|next week)\b/gi);
+  if (dates) entities.push(...dates);
+  return [...new Set(entities)];
+}
+```
+
+### 2. Stored Keys Tracking (Preventing Duplicate Extraction)
+
+**Approach: Track stored keys in a Set per call session.**
+
+Add to `EphemeralBuffer` interface:
+
+```typescript
+interface EphemeralBuffer {
+  callSessionId: string;
+  lineId: string;
+  accountId: string;
+  startTime: number;
+  turns: TurnSummary[];
+  storedKeys: Set<string>;  // Keys stored during this call
+}
+```
+
+**When to add to storedKeys:**
+- In `store-memory.ts` handler, after successful storage, call:
+  ```typescript
+  addStoredKey(callSessionId, key);
+  ```
+
+- In `update-memory.ts` handler, after successful update, call:
+  ```typescript
+  addStoredKey(callSessionId, existingKey);
+  ```
+
+**In call-summarization.ts, skip stored keys:**
+
+```typescript
+// Get keys stored during this call
+const storedDuringCall = buffer.storedKeys;
+
+// Skip both existing DB keys AND keys stored during call
+for (const memory of extractedMemories) {
+  const keyLower = memory.key.toLowerCase();
+  if (existingKeys.has(keyLower) || storedDuringCall.has(keyLower)) {
+    logger.debug({ key: memory.key }, 'Skipping already-stored memory key');
+    continue;
+  }
+  // ... store memory ...
+}
+```
+
+### 3. Buffer Pruning Strategy
+
+**Strategy: Drop oldest turns when limits exceeded.**
+
+Implement in `addTurn()`:
+
+```typescript
+export function addTurn(callSessionId: string, turn: TurnSummary): void {
+  const buffer = buffers.get(callSessionId);
+  if (!buffer) return;
+
+  buffer.turns.push(turn);
+
+  // Prune by count
+  while (buffer.turns.length > MAX_TURNS) {
+    buffer.turns.shift(); // Remove oldest
+  }
+
+  // Prune by time (30 min window)
+  const cutoff = Date.now() - MAX_BUFFER_DURATION_MS;
+  while (buffer.turns.length > 0 && buffer.turns[0].timestamp < cutoff) {
+    buffer.turns.shift();
+  }
+}
+```
+
+Pruning is **automatic inside addTurn** - no separate prune call needed.
+
+### 4. When to Run End-of-Call Summarization
+
+**Conditions:**
+1. Call was successfully connected (reached `in_progress` status)
+2. Call lasted at least 30 seconds
+3. NOT a reminder call (`isReminderCall === false`)
+
+**In media-stream.ts close handler:**
+
+```typescript
+ws.on('close', async (code, reason) => {
+  // ... existing cleanup ...
+
+  // Only summarize if:
+  // 1. Call was connected (isConnected flag)
+  // 2. Duration >= 30 seconds
+  // 3. Not a reminder call
+  const duration = session?.connectedAt
+    ? Date.now() - new Date(session.connectedAt).getTime()
+    : 0;
+
+  const shouldSummarize =
+    isConnected &&
+    duration >= 30000 &&
+    !session?.isReminderCall;
+
+  if (shouldSummarize) {
+    summarizeAndExtractMemories(callSessionId).catch(err => {
+      logger.error({ error: err, callSessionId }, 'Background summarization failed');
+    });
+  } else {
+    // Just clear the buffer without extraction
+    clearBuffer(callSessionId);
+    logger.debug({ callSessionId, duration, isReminderCall: session?.isReminderCall },
+      'Skipping summarization');
+  }
+
+  // ... rest of close handling ...
+});
+```
+
+### 5. Duplication Rules for End-of-Call Extraction
+
+**Skip by key against active memories only (case-insensitive).**
+
+```typescript
+// In call-summarization.ts
+const existingMemories = await getMemoriesForLine(buffer.accountId, buffer.lineId, { limit: 100 });
+// Create case-insensitive Set
+const existingKeys = new Set(existingMemories.map(m => m.key.toLowerCase()));
+const storedDuringCall = new Set([...buffer.storedKeys].map(k => k.toLowerCase()));
+
+for (const memory of extractedMemories) {
+  const keyLower = memory.key.toLowerCase();
+
+  // Skip if key exists (active memories or stored during call)
+  if (existingKeys.has(keyLower) || storedDuringCall.has(keyLower)) {
+    continue;
+  }
+
+  // Store as new - never update existing during extraction
+  await storeMemory(...);
+}
+```
+
+**Never update existing memories during extraction** - only skip or create new. Updates should only happen via the real-time `update_memory` tool.
+
+### 6. Tool Response Payloads
+
+**store_memory response:**
+
+```typescript
+interface StoreMemoryResponse {
+  success: boolean;
+  memoryId?: string;           // UUID of stored memory
+  error?: string;              // Error message if failed
+  // Optional message for edge cases (suggest_reminder)
+  message?: string;            // e.g., "Would you like me to set a reminder?"
+  suggestReminder?: boolean;   // True if follow_up with suggest_reminder=true
+}
+
+// Example success (normal - silent storage):
+{ success: true, memoryId: "uuid-here" }
+
+// Example with reminder suggestion:
+{
+  success: true,
+  memoryId: "uuid-here",
+  suggestReminder: true,
+  message: "Would you like me to set a reminder about this?"
+}
+
+// Example error:
+{ success: false, error: "Missing required fields" }
+```
+
+**update_memory response:**
+
+```typescript
+interface UpdateMemoryResponse {
+  success: boolean;
+  memoryId?: string;           // UUID of memory (new or updated)
+  action?: 'updated' | 'created';  // What happened
+  error?: string;
+}
+
+// Example update:
+{ success: true, memoryId: "uuid-here", action: "updated" }
+
+// Example create (key not found):
+{ success: true, memoryId: "uuid-here", action: "created" }
+```
+
+### 7. Update Tool Type Fallback
+
+**Add optional `memory_type` parameter to update_memory tool.**
+
+Updated tool definition:
+
+```typescript
+{
+  type: 'function',
+  name: 'update_memory',
+  description: `Update an existing memory...`,
+  parameters: {
+    type: 'object',
+    properties: {
+      existing_key: {
+        type: 'string',
+        description: 'The key of the existing memory to update'
+      },
+      new_value: {
+        type: 'string',
+        description: 'The updated memory content'
+      },
+      memory_type: {
+        type: 'string',
+        enum: ['fact', 'preference', 'follow_up', 'context', 'history', 'wellbeing'],
+        description: 'Type to use if creating new memory (when key not found). Defaults to fact.'
+      },
+      confidence: {
+        type: 'number',
+        minimum: 0,
+        maximum: 1,
+      }
+    },
+    required: ['existing_key', 'new_value']
+  }
+}
+```
+
+**Key matching is CASE-INSENSITIVE:**
+
+```typescript
+// In update-memory.ts handler
+const existingMemory = memories.find(
+  m => m.key.toLowerCase() === existingKey.toLowerCase()
+);
+
+if (!existingMemory) {
+  // Use provided type or default to 'fact'
+  const memoryType = req.body.memoryType || 'fact';
+  const memoryId = await storeMemory(accountId, lineId, memoryType, existingKey, newValue, ...);
+  return res.json({ success: true, memoryId, action: 'created' });
+}
+```
+
+### 8. Memory Refresh Scope
+
+**Refresh ONLY after real-time store/update tool calls, NOT after end-of-call extraction.**
+
+End-of-call extraction happens after the WebSocket is closed - there's no live Grok session to refresh. The new memories will be available on the next call.
+
+```typescript
+// In GrokBridge.handleToolCall():
+if (name === 'store_memory' || name === 'update_memory') {
+  // Refresh context for current call
+  this.refreshMemoryContext().catch(err => {
+    logger.warn({ error: err }, 'Memory refresh failed');
+  });
+}
+
+// In call-summarization.ts:
+// NO refresh - call is already ended, memories available next call
+```
+
+### 9. Migration File Naming
+
+**Use current date: `20260102000001_add_memory_types.sql`**
+
+Following the existing pattern with today's date.
+
+### 10. TypeScript Types Sync
+
+**Recommended: Run Supabase type generation after migration.**
+
+```bash
+# After running the migration
+npx supabase gen types typescript --local > src/lib/database.types.ts
+```
+
+Then manually update the union type in `src/lib/ultaura/types.ts`:
+
+```typescript
+// Before
+type MemoryType = 'fact' | 'preference' | 'follow_up';
+
+// After
+type MemoryType = 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
+```
+
+### 11. System Prompt Location
+
+**Both locations:**
+- Constants in `src/lib/ultaura/prompts.ts` for consistency
+- Assembled dynamically in `telephony/src/websocket/grok-bridge.ts`
+
+Add to `prompts.ts`:
+
+```typescript
+export const MEMORY_MANAGEMENT_PROMPT = `## Memory Management
+
+You have the ability to remember things about the user for future calls...
+[full prompt content]`;
+```
+
+In `grok-bridge.ts`:
+
+```typescript
+import { MEMORY_MANAGEMENT_PROMPT } from '../../../src/lib/ultaura/prompts.js';
+
+// In buildSystemPrompt:
+${MEMORY_MANAGEMENT_PROMPT}
+```
+
+### 12. Encryption Environment Variable
+
+**Use existing: `MEMORY_ENCRYPTION_KEY`** (64 hex characters)
+
+This is what `encryption.ts` already expects. The `ULTAURA_KEK_BASE64` in `.env.ultaura.example` appears to be a documentation inconsistency - update the example file to match the code:
+
+```bash
+# .env.ultaura.example - update comment:
+# Memory Encryption Key (64 hex characters = 256 bits)
+MEMORY_ENCRYPTION_KEY=
+```
+
+### 13. Grok Extraction API Call
+
+**30-second timeout, no retry. Skip silently if API key missing.**
+
+```typescript
+async function extractMemoriesWithGrok(turnText: string): Promise<ExtractedMemory[]> {
+  // Skip silently if no API key
+  if (!process.env.XAI_API_KEY) {
+    return [];
+  }
+
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: process.env.XAI_GROK_MODEL || 'grok-3-fast',
+        messages: [
+          { role: 'system', content: EXTRACTION_PROMPT },
+          { role: 'user', content: turnText },
+        ],
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      logger.warn({ status: response.status }, 'Grok extraction API error');
+      return [];
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content || '[]';
+
+    return JSON.parse(content);
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      logger.warn('Grok extraction timed out after 30s');
+    } else {
+      logger.warn({ error }, 'Grok extraction failed');
+    }
+    return [];
+  }
+}
+```
+
+### 14. Call Event Logging
+
+**Use existing `recordCallEvent` with `tool_call` type - no new event types needed.**
+
+The existing logging is sufficient:
+
+```typescript
+// Already in store-memory.ts:
+await recordCallEvent(callSessionId, 'tool_call', {
+  tool: 'store_memory',
+  memoryId,
+  key,
+  type: memoryType,
+});
+
+// Already in update-memory.ts:
+await recordCallEvent(callSessionId, 'tool_call', {
+  tool: 'update_memory',
+  key: existingKey,
+  previousValue: existingMemory.value,
+  newValue,
+});
+```
+
+For end-of-call summarization, just use logger (not call events, since session is closed):
+
+```typescript
+logger.info({
+  callSessionId,
+  turnsProcessed: buffer.turns.length,
+  memoriesExtracted: extractedMemories.length,
+  memoriesStored: storedCount,
+}, 'End-of-call summarization complete');
+```
+
+---
+
+## Complete EphemeralBuffer Interface
+
+Updated interface incorporating all clarifications:
+
+```typescript
+// telephony/src/services/ephemeral-buffer.ts
+
+interface TurnSummary {
+  timestamp: number;
+  speaker: 'user' | 'assistant';
+  summary: string;
+  intent?: string;
+  entities?: string[];
+}
+
+interface EphemeralBuffer {
+  callSessionId: string;
+  lineId: string;
+  accountId: string;
+  startTime: number;
+  turns: TurnSummary[];
+  storedKeys: Set<string>;  // Track keys stored during this call
+}
+
+const buffers = new Map<string, EphemeralBuffer>();
+
+const MAX_BUFFER_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+const MAX_TURNS = 200;
+
+export function createBuffer(callSessionId: string, lineId: string, accountId: string): void {
+  buffers.set(callSessionId, {
+    callSessionId,
+    lineId,
+    accountId,
+    startTime: Date.now(),
+    turns: [],
+    storedKeys: new Set(),
+  });
+}
+
+export function addTurn(callSessionId: string, turn: TurnSummary): void {
+  const buffer = buffers.get(callSessionId);
+  if (!buffer) return;
+
+  buffer.turns.push(turn);
+
+  // Auto-prune by count
+  while (buffer.turns.length > MAX_TURNS) {
+    buffer.turns.shift();
+  }
+
+  // Auto-prune by time
+  const cutoff = Date.now() - MAX_BUFFER_DURATION_MS;
+  while (buffer.turns.length > 0 && buffer.turns[0].timestamp < cutoff) {
+    buffer.turns.shift();
+  }
+}
+
+export function addStoredKey(callSessionId: string, key: string): void {
+  const buffer = buffers.get(callSessionId);
+  if (buffer) {
+    buffer.storedKeys.add(key.toLowerCase());
+  }
+}
+
+export function getBuffer(callSessionId: string): EphemeralBuffer | null {
+  return buffers.get(callSessionId) || null;
+}
+
+export function clearBuffer(callSessionId: string): EphemeralBuffer | null {
+  const buffer = buffers.get(callSessionId);
+  buffers.delete(callSessionId);
+  return buffer || null;
+}
+```

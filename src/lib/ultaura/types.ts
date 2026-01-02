@@ -26,7 +26,7 @@ export type ReminderEventType =
   | 'failed';
 export type ReminderEventTrigger = 'dashboard' | 'voice' | 'system';
 export type PrivacyScope = 'line_only' | 'shareable_with_payer';
-export type MemoryType = 'fact' | 'preference' | 'follow_up';
+export type MemoryType = 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
 export type SafetyTier = 'low' | 'medium' | 'high';
 export type ConsentType = 'outbound_calls' | 'trusted_contact_notify' | 'sms_to_payer' | 'data_retention';
 export type OptOutChannel = 'outbound_calls' | 'sms' | 'all';

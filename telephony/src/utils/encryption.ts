@@ -183,7 +183,7 @@ export async function storeEncryptedMemory(
   supabase: import('@supabase/supabase-js').SupabaseClient,
   accountId: string,
   lineId: string,
-  type: 'fact' | 'preference' | 'follow_up',
+  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing',
   key: string,
   value: unknown,
   options?: {

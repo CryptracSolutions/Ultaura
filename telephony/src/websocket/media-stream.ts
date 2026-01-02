@@ -6,6 +6,8 @@ import { logger } from '../server.js';
 import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent } from '../services/call-session.js';
 import { getLineById, recordOptOut } from '../services/line-lookup.js';
 import { getMemoriesForLine, formatMemoriesForPrompt } from '../services/memory.js';
+import { createBuffer, clearBuffer } from '../services/ephemeral-buffer.js';
+import { summarizeAndExtractMemories } from '../services/call-summarization.js';
 import { getUsageSummary } from '../services/metering.js';
 import { GrokBridge } from './grok-bridge.js';
 
@@ -48,6 +50,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let streamSid: string | null = null;
   let grokBridge: GrokBridge | null = null;
   let isConnected = false;
+  let connectedAt: string | null = null;
   let pendingOptOut = false;
   let trialExpiryTimeout: NodeJS.Timeout | null = null;
   let overagePromptTimeout: NodeJS.Timeout | null = null;
@@ -156,6 +159,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
           // Initialize Grok bridge
           try {
+            createBuffer(callSessionId, line.id, account.id);
+
             // Fetch memories for the line
             const memories = await getMemoriesForLine(account.id, line.id, { limit: 50 });
             const memoryText = formatMemoriesForPrompt(memories);
@@ -229,6 +234,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
             await grokBridge.connect();
             isConnected = true;
+            connectedAt = new Date().toISOString();
 
             if (shouldPromptOverage) {
               sendOveragePrompt();
@@ -253,7 +259,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             }
 
             // Update session status
-            await updateCallStatus(callSessionId, 'in_progress');
+            await updateCallStatus(callSessionId, 'in_progress', {
+              connectedAt,
+            });
 
             logger.info({ callSessionId }, 'Grok bridge connected, call in progress');
 
@@ -323,6 +331,25 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     }
 
     clearOveragePrompt();
+
+    const duration = connectedAt
+      ? Date.now() - new Date(connectedAt).getTime()
+      : 0;
+
+    const shouldSummarize =
+      isConnected &&
+      duration >= 30000 &&
+      !session?.is_reminder_call;
+
+    if (shouldSummarize) {
+      summarizeAndExtractMemories(callSessionId).catch(err => {
+        logger.error({ error: err, callSessionId }, 'Background summarization failed');
+      });
+    } else {
+      clearBuffer(callSessionId);
+      logger.debug({ callSessionId, duration, isReminderCall: session?.is_reminder_call },
+        'Skipping summarization');
+    }
 
     // Close Grok bridge
     if (grokBridge) {

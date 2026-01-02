@@ -11,7 +11,7 @@ import { logger } from '../server.js';
 
 export interface Memory {
   id: string;
-  type: 'fact' | 'preference' | 'follow_up';
+  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
   key: string;
   value: unknown;
   confidence: number | null;
@@ -37,7 +37,7 @@ export async function getMemoriesForLine(
 
     return memories.map(m => ({
       id: m.id,
-      type: m.type as 'fact' | 'preference' | 'follow_up',
+      type: m.type as Memory['type'],
       key: m.key,
       value: m.value,
       confidence: m.confidence,
@@ -65,6 +65,9 @@ export function formatMemoriesForPrompt(memories: Memory[]): string {
   const facts = memories.filter(m => m.type === 'fact');
   const preferences = memories.filter(m => m.type === 'preference');
   const followUps = memories.filter(m => m.type === 'follow_up');
+  const contexts = memories.filter(m => m.type === 'context');
+  const histories = memories.filter(m => m.type === 'history');
+  const wellbeings = memories.filter(m => m.type === 'wellbeing');
 
   const sections: string[] = [];
 
@@ -89,6 +92,27 @@ export function formatMemoriesForPrompt(memories: Memory[]): string {
     });
   }
 
+  if (contexts.length > 0) {
+    sections.push('\n**Context (environment & routines):**');
+    contexts.forEach(m => {
+      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
+    });
+  }
+
+  if (histories.length > 0) {
+    sections.push('\n**Their stories and history:**');
+    histories.forEach(m => {
+      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
+    });
+  }
+
+  if (wellbeings.length > 0) {
+    sections.push('\n**Wellbeing notes (non-medical):**');
+    wellbeings.forEach(m => {
+      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
+    });
+  }
+
   return sections.join('\n');
 }
 
@@ -109,7 +133,7 @@ function formatValue(value: unknown): string {
 export async function storeMemory(
   accountId: string,
   lineId: string,
-  type: 'fact' | 'preference' | 'follow_up',
+  type: Memory['type'],
   key: string,
   value: unknown,
   options?: {
@@ -169,7 +193,7 @@ export async function updateMemory(
       supabase,
       accountId,
       lineId,
-      existing.type as 'fact' | 'preference' | 'follow_up',
+      existing.type as Memory['type'],
       existing.key,
       value,
       {

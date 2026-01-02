@@ -3,6 +3,8 @@
 
 import { WebSocket } from 'ws';
 import { logger } from '../server.js';
+import { addTurn, TurnSummary } from '../services/ephemeral-buffer.js';
+import { getMemoriesForLine, formatMemoriesForPrompt } from '../services/memory.js';
 
 const GROK_REALTIME_URL = 'wss://api.x.ai/v1/realtime';
 
@@ -63,6 +65,55 @@ interface GrokMessage {
     call_id: string;
     output: string;
   };
+  output?: Array<{
+    type: string;
+    content?: Array<{
+      type: string;
+      transcript?: string;
+      text?: string;
+    }>;
+  }>;
+  content?: Array<{
+    type: string;
+    transcript?: string;
+    text?: string;
+  }>;
+  text?: string;
+}
+
+const MEMORY_MANAGEMENT_PROMPT = `## Memory Management
+
+You have the ability to remember things about the user for future calls. Use these tools:
+
+### store_memory
+Call this PROACTIVELY when the user shares personal information. Do NOT confirm storage verbally.
+
+**When to use:**
+- Personal facts: "My name is...", "I have 3 grandchildren", "I live in Portland"
+- Preferences: "I love gardening", "I prefer mornings", "I don't like talking about politics"
+- Follow-ups: "I have a doctor appointment Tuesday", "My daughter is visiting next week"
+- Context: "I live alone", "I use a walker now"
+- History: "I was a teacher for 30 years", "I met my wife in Paris"
+- Wellbeing: "I've been feeling tired lately", "Sleeping much better now"
+
+**Do NOT store:**
+- Temporary small talk
+- Obvious context (you're on a phone call)
+- Anything already in your memory
+
+### update_memory
+Call this when the user corrects or updates previous information.
+- "Actually, I have FOUR grandchildren" → update existing memory
+- "I moved to a new apartment" → update location
+
+### Follow-up + Reminder Integration
+For follow_up type memories with a specific time (appointments, visits, events):
+- Store the memory
+- Ask if they'd like a reminder set
+
+Example: "I have a doctor appointment next Tuesday"
+1. Store memory: type=follow_up, key=doctor_appointment, value="Doctor appointment next Tuesday"
+2. Say: "I'll remember that. Would you like me to give you a reminder call before your appointment?"`;
 }
 
 export class GrokBridge {
@@ -286,6 +337,91 @@ For recurring reminders, parse natural language like:
           },
           {
             type: 'function',
+            name: 'store_memory',
+            description: `Store something important about the user to remember in future calls.
+Call this PROACTIVELY when the user shares personal information. Examples:
+- "My name is..." or "Call me..."
+- "I have three grandchildren"
+- "I love gardening" or "I enjoy..."
+- "I used to be a teacher"
+- "My daughter visits on Sundays"
+- "I have a doctor appointment next week"
+
+Do NOT confirm storage verbally - just store silently and continue conversation naturally.`,
+            parameters: {
+              type: 'object',
+              properties: {
+                memory_type: {
+                  type: 'string',
+                  enum: ['fact', 'preference', 'follow_up', 'context', 'history', 'wellbeing'],
+                  description: `Type of memory:
+- fact: Personal info (name, family, pets, location)
+- preference: Likes/dislikes, interests
+- follow_up: Things to ask about later
+- context: Living situation, environment
+- history: Past experiences, life stories
+- wellbeing: Wellness observations (energy, mood)`
+                },
+                key: {
+                  type: 'string',
+                  description: 'Semantic key for the memory (e.g., "preferred_name", "favorite_hobby", "upcoming_surgery")'
+                },
+                value: {
+                  type: 'string',
+                  description: 'The memory content to store'
+                },
+                confidence: {
+                  type: 'number',
+                  minimum: 0,
+                  maximum: 1,
+                  description: 'Confidence level (0-1). Use lower values for inferred information.'
+                },
+                suggest_reminder: {
+                  type: 'boolean',
+                  description: 'For follow_up type: should we suggest creating a reminder for this?'
+                }
+              },
+              required: ['memory_type', 'key', 'value']
+            }
+          },
+          {
+            type: 'function',
+            name: 'update_memory',
+            description: `Update an existing memory when the user provides new or corrected information.
+Use this when:
+- User corrects previous info: "Actually, I have FOUR grandchildren, not three"
+- Information has changed: "I moved to a new apartment"
+- Adding to existing memory: "I also like jazz, not just classical"
+
+Do NOT confirm the update verbally - just update silently and continue.`,
+            parameters: {
+              type: 'object',
+              properties: {
+                existing_key: {
+                  type: 'string',
+                  description: 'The key of the existing memory to update'
+                },
+                new_value: {
+                  type: 'string',
+                  description: 'The updated memory content'
+                },
+                memory_type: {
+                  type: 'string',
+                  enum: ['fact', 'preference', 'follow_up', 'context', 'history', 'wellbeing'],
+                  description: 'Type to use if creating new memory (when key not found). Defaults to fact.'
+                },
+                confidence: {
+                  type: 'number',
+                  minimum: 0,
+                  maximum: 1,
+                  description: 'Confidence in the update (0-1)'
+                }
+              },
+              required: ['existing_key', 'new_value']
+            }
+          },
+          {
+            type: 'function',
             name: 'mark_private',
             description: 'User wants to keep something private from their family. Call when user says "don\'t tell my family", "keep this between us", "this is private", etc.',
             parameters: {
@@ -452,8 +588,19 @@ For recurring reminders, parse natural language like:
   }
 
   // Build the system prompt
-  private buildSystemPrompt(): string {
-    const { userName, language, isFirstCall, memories, seedInterests, seedAvoidTopics, lowMinutesWarning, minutesRemaining, isReminderCall, reminderMessage } = this.options;
+  private buildSystemPrompt(overrides?: { memories?: string }): string {
+    const {
+      userName,
+      language,
+      isFirstCall,
+      seedInterests,
+      seedAvoidTopics,
+      lowMinutesWarning,
+      minutesRemaining,
+      isReminderCall,
+      reminderMessage,
+    } = this.options;
+    const memories = overrides?.memories ?? this.options.memories;
 
     // Use dedicated short prompt for reminder calls
     if (isReminderCall && reminderMessage) {
@@ -498,6 +645,8 @@ If distress or self-harm mentioned:
 - choose_overage_action: Record a user decision to continue, upgrade, or stop after an overage or trial prompt
 - request_upgrade: Help user upgrade their plan - explain options and send checkout link
 - web_search: Look up current events (keep summaries neutral)
+
+${MEMORY_MANAGEMENT_PROMPT}
 
 `;
 
@@ -608,6 +757,34 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
     return prompt;
   }
 
+  private async refreshMemoryContext(): Promise<void> {
+    try {
+      const memories = await getMemoriesForLine(
+        this.options.accountId,
+        this.options.lineId,
+        { limit: 50 }
+      );
+      const memoryText = formatMemoriesForPrompt(memories);
+
+      this.sendMessage({
+        type: 'session.update',
+        session: {
+          instructions: this.buildSystemPrompt({ memories: memoryText }),
+        },
+      });
+
+      logger.debug({ lineId: this.options.lineId }, 'Memory context refreshed');
+    } catch (error) {
+      logger.warn({ error }, 'Failed to refresh memory context, continuing without refresh');
+    }
+  }
+
+  private sendMessage(message: unknown): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    }
+  }
+
   // Handle messages from Grok
   private handleGrokMessage(data: Buffer): void {
     try {
@@ -629,6 +806,22 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
         case 'response.audio.done':
           // Audio response complete
           break;
+
+        case 'conversation.item.input_audio_transcription.completed': {
+          const transcript = message.text || message.transcript || message.item?.output || '';
+          if (transcript) {
+            addTurn(this.options.callSessionId, this.extractUserTurn(transcript));
+          }
+          break;
+        }
+
+        case 'response.done': {
+          const turn = this.extractAssistantTurn(message);
+          if (turn.summary) {
+            addTurn(this.options.callSessionId, turn);
+          }
+          break;
+        }
 
         case 'input_audio_buffer.speech_started':
           // User started speaking - clear any pending audio (barge-in)
@@ -731,6 +924,38 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
           });
           break;
 
+        case 'store_memory':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/store_memory`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            accountId: this.options.accountId,
+            memoryType: args.memory_type,
+            key: args.key,
+            value: args.value,
+            confidence: args.confidence || 1.0,
+            suggestReminder: args.suggest_reminder || false,
+          });
+          // Refresh context after storing
+          this.refreshMemoryContext().catch(err => {
+            logger.warn({ error: err }, 'Memory refresh failed');
+          });
+          break;
+
+        case 'update_memory':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/update_memory`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            accountId: this.options.accountId,
+            existingKey: args.existing_key,
+            newValue: args.new_value,
+            memoryType: args.memory_type,
+            confidence: args.confidence || 1.0,
+          });
+          this.refreshMemoryContext().catch(err => {
+            logger.warn({ error: err }, 'Memory refresh failed');
+          });
+          break;
+
         case 'mark_private':
           result = await this.callToolEndpoint(`${baseUrl}/tools/mark_private`, {
             lineId: this.options.lineId,
@@ -823,6 +1048,50 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
       logger.error({ error, name, callSessionId: this.options.callSessionId }, 'Tool call error');
       this.sendToolResult(callId, JSON.stringify({ error: 'Tool execution failed' }));
     }
+  }
+
+  private extractUserTurn(transcription: string): TurnSummary {
+    return {
+      timestamp: Date.now(),
+      speaker: 'user',
+      summary: transcription.slice(0, 500),
+      intent: this.inferIntent(transcription),
+      entities: this.extractEntities(transcription),
+    };
+  }
+
+  private extractAssistantTurn(message: GrokMessage): TurnSummary {
+    const transcript =
+      message.output
+        ?.find(o => o.type === 'message')
+        ?.content?.find(c => c.transcript || c.text)?.transcript ||
+      message.output
+        ?.find(o => o.type === 'message')
+        ?.content?.find(c => c.transcript || c.text)?.text ||
+      '';
+
+    return {
+      timestamp: Date.now(),
+      speaker: 'assistant',
+      summary: transcript.slice(0, 500),
+      intent: 'response',
+      entities: this.extractEntities(transcript),
+    };
+  }
+
+  private inferIntent(text: string): string {
+    if (text.includes('?')) return 'question';
+    if (/\b(can you|please|could you|would you)\b/i.test(text)) return 'request';
+    return 'statement';
+  }
+
+  private extractEntities(text: string): string[] {
+    const entities: string[] = [];
+    const names = text.match(/\b[A-Z][a-z]+\b/g);
+    if (names) entities.push(...names.slice(0, 5));
+    const dates = text.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|next week)\b/gi);
+    if (dates) entities.push(...dates);
+    return [...new Set(entities)];
   }
 
   // Call a tool endpoint
