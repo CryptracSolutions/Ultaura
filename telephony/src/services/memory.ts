@@ -270,13 +270,16 @@ export const MEMORY_KEYS = {
   LAST_CONVERSATION_TOPIC: 'last_conversation_topic',
 } as const;
 
+// Memory type union matching database enum
+type MemoryType = 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
+
 // Extract memories from conversation (simple heuristics)
 export function extractMemoriesFromText(text: string): Array<{
-  type: 'fact' | 'preference' | 'follow_up';
+  type: MemoryType;
   key: string;
   value: string;
 }> {
-  const memories: Array<{ type: 'fact' | 'preference' | 'follow_up'; key: string; value: string }> = [];
+  const memories: Array<{ type: MemoryType; key: string; value: string }> = [];
 
   // Simple pattern matching for common memory types
   // In production, this would use NLP or the LLM itself

@@ -398,7 +398,11 @@ export function getNextReminderOccurrence(params: {
     case 'MONTHLY': {
       nextDate = currentDt.plus({ months: interval });
       const targetDay = dayOfMonth || currentDt.day;
-      const actualDay = Math.min(targetDay, nextDate.daysInMonth);
+      const daysInMonth = nextDate.daysInMonth;
+      if (!daysInMonth) {
+        throw new Error(`Invalid month when calculating recurrence for timezone "${timezone}".`);
+      }
+      const actualDay = Math.min(targetDay, daysInMonth);
       nextDate = nextDate.set({ day: actualDay });
       break;
     }
