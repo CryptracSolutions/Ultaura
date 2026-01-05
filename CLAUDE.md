@@ -16,6 +16,7 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Trusted Contacts**: Emergency contacts notified during safety events
 - **Multi-Line Support**: Up to 4 lines on Family plan
 - **Usage-Based Billing**: Minutes pooled at account level with overage at $0.15/min
+- **Answering Machine Detection**: Configurable voicemail behavior when calls reach machines
 
 ## Architecture
 
@@ -48,7 +49,7 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
    - 16 Grok tool handlers for reminders, safety, opt-out
 
 3. **Database** (`/supabase/migrations/`)
-   - 24 migration files with RLS policies
+   - 25 migration files with RLS policies
    - Core tables: accounts, lines, schedules, reminders
    - Billing: subscriptions, minute_ledger
    - Safety: trusted_contacts, safety_events, opt_outs
@@ -89,6 +90,7 @@ TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_PHONE_NUMBER=        # E.164 format
 TWILIO_VERIFY_SERVICE_SID=
+TWILIO_AMD_ENABLED=true     # Answering machine detection (default: true)
 
 # xAI Grok
 XAI_API_KEY=
@@ -152,24 +154,28 @@ Update `TELEPHONY_PUBLIC_URL` with ngrok URL.
 
 ## Call Flow
 
-1. Scheduler triggers outbound call via Twilio
-2. Twilio connects, opens Media Stream WebSocket at `/twilio/media`
-3. Telephony bridges audio to Grok Realtime API
-4. Grok converses using 16 available tools (reminders, safety, etc.)
-5. Call ends, usage recorded in minute ledger
-6. Memory summaries encrypted and stored
-7. Overage reported to Stripe if applicable
+1. Scheduler triggers outbound call via Twilio (with AMD enabled)
+2. Twilio performs Answering Machine Detection:
+   - **Human/Unknown**: Proceeds to conversation
+   - **Machine**: Applies line's `voicemail_behavior` setting (none/brief/detailed)
+   - **Fax**: Hangs up immediately
+3. If human, Twilio opens Media Stream WebSocket at `/twilio/media`
+4. Telephony bridges audio to Grok Realtime API
+5. Grok converses using 16 available tools (reminders, safety, etc.)
+6. Call ends, usage recorded in minute ledger
+7. Memory summaries encrypted and stored
+8. Overage reported to Stripe if applicable
 
 ## Database Tables
 
 **Core:**
 - `ultaura_accounts` - Account records tied to organizations
-- `ultaura_lines` - Phone number profiles with preferences
+- `ultaura_lines` - Phone number profiles with preferences (includes `voicemail_behavior`)
 - `ultaura_subscriptions` - Stripe subscription records
 
 **Calling:**
 - `ultaura_schedules` - Recurring call schedules (RRULE support)
-- `ultaura_call_sessions` - Individual call records
+- `ultaura_call_sessions` - Individual call records (includes `answered_by` for AMD tracking)
 - `ultaura_call_events` - Call event log (DTMF, tools, errors)
 
 **Reminders:**
@@ -251,6 +257,45 @@ All tables have Row Level Security:
 - Users access only their organization's data
 - Service role required for telephony operations
 
+## Answering Machine Detection (AMD)
+
+Ultaura uses Twilio's AMD to detect when outbound calls reach voicemail or fax machines.
+
+### Configuration
+
+**Environment Variable:**
+- `TWILIO_AMD_ENABLED` - Enable/disable AMD (default: `true`)
+- Set to `false`, `0`, or `no` to disable
+
+**Per-Line Setting:**
+- `voicemail_behavior` column in `ultaura_lines` table
+- Configurable in Dashboard: Lines → [Line] → Settings → Voicemail Settings
+- Options:
+  - `none` - Hang up silently
+  - `brief` - Leave short message: "Hi [name], this is Ultaura. I'll call back soon. Take care!"
+  - `detailed` - Include call reason: "...I was calling for your check-in/reminder..."
+
+### AMD Results
+
+Stored in `ultaura_call_sessions.answered_by`:
+- `human` - Human answered
+- `machine_start` - Machine detected at start
+- `machine_end_beep` - Machine detected after beep
+- `machine_end_silence` - Machine detected after silence
+- `machine_end_other` - Machine detected (other)
+- `fax` - Fax machine detected
+- `unknown` - Could not determine (treated as human)
+- `NULL` - AMD disabled or not attempted
+
+### Behavior
+
+| AMD Result | Action | end_reason |
+|------------|--------|------------|
+| human | Proceed to Grok conversation | - |
+| unknown | Proceed to Grok conversation | - |
+| machine_* | Apply `voicemail_behavior` | `no_answer` |
+| fax | Hang up immediately | `no_answer` |
+
 ## File Structure
 
 ```
@@ -302,7 +347,7 @@ All tables have Row Level Security:
 │   │       └── call-scheduler.ts     # 30-sec cron
 │   ├── Dockerfile
 │   └── package.json
-├── supabase/migrations/              # 24 migration files
+├── supabase/migrations/              # 25 migration files
 └── .env.ultaura.example
 ```
 
@@ -328,6 +373,12 @@ All tables have Row Level Security:
 1. Check Twilio Verify logs
 2. Phone format must be E.164
 3. Verify TWILIO_VERIFY_SERVICE_SID
+
+### AMD Not Working
+1. Check `TWILIO_AMD_ENABLED` is not set to `false`/`0`/`no`
+2. Verify Twilio account supports AMD (may require upgrade)
+3. Check `answered_by` column in `ultaura_call_sessions` - NULL means AMD not attempted
+4. Review telephony logs for AMD-related entries
 
 ## Support
 
