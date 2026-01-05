@@ -11,7 +11,6 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
     const {
       callSessionId,
       lineId,
-      accountId,
       existingKey,
       newValue,
       memoryType = 'fact',
@@ -19,14 +18,13 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
     } = req.body as {
       callSessionId?: string;
       lineId?: string;
-      accountId?: string;
       existingKey?: string;
       newValue?: string;
       memoryType?: string;
       confidence?: number;
     };
 
-    if (!callSessionId || !lineId || !accountId || !existingKey || !newValue) {
+    if (!callSessionId || !lineId || !existingKey || !newValue) {
       res.status(400).json({ success: false, error: 'Missing required fields' });
       return;
     }
@@ -36,6 +34,8 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
       res.status(404).json({ success: false, error: 'Call session not found' });
       return;
     }
+
+    const accountId = session.account_id;
 
     const memories = await getMemoriesForLine(accountId, lineId, { limit: 100 });
     const existingMemory = memories.find(

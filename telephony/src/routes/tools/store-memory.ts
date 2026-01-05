@@ -11,7 +11,6 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     const {
       callSessionId,
       lineId,
-      accountId,
       memoryType,
       key,
       value,
@@ -20,7 +19,6 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     } = req.body as {
       callSessionId?: string;
       lineId?: string;
-      accountId?: string;
       memoryType?: string;
       key?: string;
       value?: string;
@@ -28,7 +26,7 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
       suggestReminder?: boolean;
     };
 
-    if (!callSessionId || !lineId || !accountId || !memoryType || !key || !value) {
+    if (!callSessionId || !lineId || !memoryType || !key || !value) {
       res.status(400).json({ success: false, error: 'Missing required fields' });
       return;
     }
@@ -38,6 +36,8 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
       res.status(404).json({ success: false, error: 'Call session not found' });
       return;
     }
+
+    const accountId = session.account_id;
 
     const memoryId = await storeMemory(accountId, lineId, memoryType as any, key, value, {
       confidence,

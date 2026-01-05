@@ -341,7 +341,6 @@ export class GrokBridge {
         await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
           callSessionId: this.options.callSessionId,
           lineId: this.options.lineId,
-          accountId: this.options.accountId,
           tier,
           signals: 'keyword_backstop_detected',
           actionTaken: 'none',
@@ -542,7 +541,6 @@ export class GrokBridge {
           result = await this.callToolEndpoint(`${baseUrl}/tools/forget_memory`, {
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
-            accountId: this.options.accountId,
             whatToForget: args.what_to_forget,
           });
           break;
@@ -551,7 +549,6 @@ export class GrokBridge {
           result = await this.callToolEndpoint(`${baseUrl}/tools/store_memory`, {
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
-            accountId: this.options.accountId,
             memoryType: args.memory_type,
             key: args.key,
             value: args.value,
@@ -568,7 +565,6 @@ export class GrokBridge {
           result = await this.callToolEndpoint(`${baseUrl}/tools/update_memory`, {
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
-            accountId: this.options.accountId,
             existingKey: args.existing_key,
             newValue: args.new_value,
             memoryType: args.memory_type,
@@ -581,8 +577,8 @@ export class GrokBridge {
 
         case 'mark_private':
           result = await this.callToolEndpoint(`${baseUrl}/tools/mark_private`, {
+            callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
-            accountId: this.options.accountId,
             whatToKeepPrivate: args.what_to_keep_private,
           });
           break;
@@ -592,7 +588,6 @@ export class GrokBridge {
           result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
-            accountId: this.options.accountId,
             tier: args.tier,
             signals: args.signals,
             actionTaken: args.action_taken,
@@ -656,7 +651,6 @@ export class GrokBridge {
           result = await this.callToolEndpoint(`${baseUrl}/tools/request_upgrade`, {
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
-            accountId: this.options.accountId,
             planId: args.plan_id,
             sendLink: args.send_link,
           });

@@ -18,8 +18,11 @@ import { pauseReminderRouter } from './pause-reminder.js';
 import { resumeReminderRouter } from './resume-reminder.js';
 import { snoozeReminderRouter } from './snooze-reminder.js';
 import { cancelReminderRouter } from './cancel-reminder.js';
+import { requireInternalSecret } from '../../middleware/auth.js';
 
 export const toolsRouter = Router();
+
+toolsRouter.use(requireInternalSecret);
 
 toolsRouter.use('/set_reminder', setReminderRouter);
 toolsRouter.use('/schedule_call', scheduleCallRouter);

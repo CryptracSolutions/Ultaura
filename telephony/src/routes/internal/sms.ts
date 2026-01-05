@@ -4,29 +4,15 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { sendSms } from '../../utils/twilio.js';
-import { getInternalApiSecret } from '../../utils/env.js';
 import { redactPhone } from '../../utils/redact.js';
+import { requireInternalSecret } from '../../middleware/auth.js';
 
 export const internalSmsRouter = Router();
 
+internalSmsRouter.use(requireInternalSecret);
+
 internalSmsRouter.post('/sms', async (req: Request, res: Response) => {
   try {
-    // Validate webhook secret
-    let expectedSecret: string;
-    try {
-      expectedSecret = getInternalApiSecret();
-    } catch (error) {
-      logger.error({ error }, 'Internal API secret missing');
-      res.status(500).json({ error: 'Server misconfigured' });
-      return;
-    }
-    const providedSecret = req.headers['x-webhook-secret'];
-
-    if (expectedSecret && providedSecret !== expectedSecret) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
     const { to, body } = req.body as {
       to?: string;
       body?: string;

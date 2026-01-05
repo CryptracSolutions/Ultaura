@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
-import { recordSafetyEvent } from '../../services/call-session.js';
+import { getCallSession, recordSafetyEvent } from '../../services/call-session.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { sendSms } from '../../utils/twilio.js';
@@ -93,12 +93,24 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
     const {
       callSessionId,
       lineId,
-      accountId,
       tier,
       signals,
       actionTaken,
       source = 'model',
     } = req.body;
+
+    if (!callSessionId || !lineId) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
+
+    const session = await getCallSession(callSessionId);
+    if (!session) {
+      res.status(404).json({ error: 'Call session not found' });
+      return;
+    }
+
+    const accountId = session.account_id;
 
     const sourceValue = source === 'keyword_backstop' ? 'keyword_backstop' : 'model';
     const backstopWasTriggered =

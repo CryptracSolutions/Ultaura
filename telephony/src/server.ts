@@ -30,6 +30,8 @@ validateEnvVariables();
 // Create Express app
 const app = express();
 
+app.set('trust proxy', 1);
+
 const corsOptions = {
   origin: process.env.ALLOWED_ORIGINS?.split(',') || [
     'http://localhost:3000',

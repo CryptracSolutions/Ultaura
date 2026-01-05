@@ -5,33 +5,12 @@ import { logger } from '../server.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
 import { createCallSession, failCallSession, getCallSessionByIdempotencyKey } from '../services/call-session.js';
 import { initiateOutboundCall } from '../utils/twilio.js';
-import { getInternalApiSecret, getPublicUrl } from '../utils/env.js';
+import { getPublicUrl } from '../utils/env.js';
+import { requireInternalSecret } from '../middleware/auth.js';
 
 export const callsRouter = Router();
 
-// Verify internal API access
-function verifyInternalAccess(req: Request, res: Response, next: () => void) {
-  const secret = req.headers['x-webhook-secret'];
-  let expectedSecret: string;
-
-  try {
-    expectedSecret = getInternalApiSecret();
-  } catch (error) {
-    logger.error({ error }, 'Internal API secret missing');
-    res.status(500).json({ error: 'Server misconfigured' });
-    return;
-  }
-
-  if (secret !== expectedSecret) {
-    logger.warn('Invalid internal API secret');
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  next();
-}
-
-callsRouter.use(verifyInternalAccess);
+callsRouter.use(requireInternalSecret);
 
 // Initiate an outbound call
 callsRouter.post('/outbound', async (req: Request, res: Response) => {
