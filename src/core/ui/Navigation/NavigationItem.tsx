@@ -52,7 +52,7 @@ const NavigationMenuItem: React.FCC<{
     <li className={className}>
       <Link
         className={
-          'transition-transform duration-500 justify-center lg:justify-start'
+          'transition-transform duration-500 justify-center lg:justify-start w-full h-full flex items-center'
         }
         aria-disabled={disabled}
         href={disabled ? '' : link.path}
