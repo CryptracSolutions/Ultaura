@@ -6,6 +6,7 @@ import type { CallAnsweredBy } from '../services/call-session.js';
 import { getCallSession, updateCallSession, updateCallStatus } from '../services/call-session.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
 import { generateStreamTwiML, generateMessageTwiML, generateHangupTwiML, validateTwilioSignature } from '../utils/twilio.js';
+import { getWebsocketUrl } from '../utils/env.js';
 
 export const twilioOutboundRouter = Router();
 
@@ -165,7 +166,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     }
 
     // Generate TwiML to connect to WebSocket stream
-    const websocketUrl = process.env.TELEPHONY_WEBSOCKET_URL || `wss://${req.headers.host}/twilio/media`;
+    const websocketUrl = getWebsocketUrl();
     const twiml = generateStreamTwiML(session.id, websocketUrl);
 
     logger.info({ sessionId: session.id, lineId: line.id }, 'Connecting outbound call to media stream');

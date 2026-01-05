@@ -11,6 +11,7 @@ import { summarizeAndExtractMemories } from '../services/call-summarization.js';
 import { getUsageSummary } from '../services/metering.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId, PreferredLanguage, SpanishFormality } from '@ultaura/types';
+import { redactSensitive } from '../utils/redact.js';
 
 interface TwilioMessage {
   event: 'connected' | 'start' | 'media' | 'dtmf' | 'stop' | 'mark';
@@ -149,6 +150,10 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     try {
       const message: TwilioMessage = JSON.parse(data.toString());
 
+      if (message.event !== 'media') {
+        logger.debug({ callSessionId, event: message.event }, 'Twilio stream event');
+      }
+
       switch (message.event) {
         case 'connected':
           logger.info({ callSessionId }, 'Twilio stream connected');
@@ -216,7 +221,11 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 logger.error({ error, callSessionId }, 'Grok bridge error');
               },
               onToolCall: async (toolName: string, args: Record<string, unknown>) => {
-                logger.info({ callSessionId, toolName, args }, 'Tool call from Grok');
+                logger.debug({
+                  callSessionId,
+                  toolName,
+                  args: redactSensitive(args),
+                }, 'Tool call from Grok');
                 await recordCallEvent(callSessionId, 'tool_call', { tool: toolName, args });
 
                 if (toolName === 'choose_overage_action' && typeof args.action === 'string') {

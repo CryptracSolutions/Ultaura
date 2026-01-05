@@ -5,6 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getSupabaseClient, ScheduleRow, ReminderRow } from '../utils/supabase.js';
 import { logger } from '../utils/logger.js';
+import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
 
@@ -290,13 +291,13 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
 
   // Initiate the call
   try {
-    const baseUrl = process.env.TELEPHONY_BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+    const baseUrl = getBackendUrl();
 
     const response = await fetch(`${baseUrl}/calls/outbound`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
         lineId: schedule.line_id,
@@ -496,13 +497,13 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 
   // Initiate reminder call
   try {
-    const baseUrl = process.env.TELEPHONY_BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+    const baseUrl = getBackendUrl();
 
     const response = await fetch(`${baseUrl}/calls/outbound`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
         lineId: reminder.line_id,

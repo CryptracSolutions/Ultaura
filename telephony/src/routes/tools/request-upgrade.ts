@@ -4,6 +4,8 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, recordCallEvent } from '../../services/call-session.js';
 import { getLineById } from '../../services/line-lookup.js';
+import { getInternalApiSecret } from '../../utils/env.js';
+import { redactPhone } from '../../utils/redact.js';
 
 // Plan information for Grok to explain
 const PLAN_INFO: Record<string, { name: string; price: string; minutes: number | null; lines: number }> = {
@@ -107,14 +109,14 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
       callSessionId,
       accountId: accountId || session.account_id,
       planId,
-      phoneNumber,
+      phoneNumber: redactPhone(phoneNumber),
     }, 'Sending upgrade link');
 
     const upgradeResponse = await fetch(upgradeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
         accountId: accountId || session.account_id,

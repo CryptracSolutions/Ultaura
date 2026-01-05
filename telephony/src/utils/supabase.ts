@@ -84,6 +84,7 @@ export interface CallSessionRow {
   twilio_call_sid: string | null;
   twilio_from: string | null;
   twilio_to: string | null;
+  recording_sid: string | null;
   end_reason: 'hangup' | 'no_answer' | 'busy' | 'trial_cap' | 'minutes_cap' | 'error' | null;
   answered_by: 'human' | 'machine_start' | 'machine_end_beep' | 'machine_end_silence' | 'machine_end_other' | 'fax' | 'unknown' | null;
   language_detected: string | null;

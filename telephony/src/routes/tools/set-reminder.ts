@@ -140,7 +140,8 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const { line } = lineWithAccount;
-    const tz = timezone || line.timezone;
+    const defaultTimezone = process.env.ULTAURA_DEFAULT_TIMEZONE || 'America/Los_Angeles';
+    const tz = timezone || line.timezone || defaultTimezone;
 
     try {
       validateTimezone(tz);
@@ -249,7 +250,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
           account_id: session.account_id,
           line_id: lineId,
           due_at: dueAt.toISOString(),
-          timezone: timezone || 'America/Los_Angeles',
+          timezone: tz,
           message: message.slice(0, 50) + '...', // Truncate for logging
           created_by_call_session_id: callSessionId,
         },

@@ -62,13 +62,13 @@ export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
 // ============================================
 
 export const STRIPE_PRICES = {
-  care_monthly: process.env.STRIPE_PRICE_CARE_MONTHLY || '',
-  care_annual: process.env.STRIPE_PRICE_CARE_ANNUAL || '',
-  comfort_monthly: process.env.STRIPE_PRICE_COMFORT_MONTHLY || '',
-  comfort_annual: process.env.STRIPE_PRICE_COMFORT_ANNUAL || '',
-  family_monthly: process.env.STRIPE_PRICE_FAMILY_MONTHLY || '',
-  family_annual: process.env.STRIPE_PRICE_FAMILY_ANNUAL || '',
-  payg_metered: process.env.STRIPE_PRICE_PAYG_METERED || '',
+  care_monthly: process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID || '',
+  care_annual: process.env.STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID || '',
+  comfort_monthly: process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID || '',
+  comfort_annual: process.env.STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID || '',
+  family_monthly: process.env.STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID || '',
+  family_annual: process.env.STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID || '',
+  payg: process.env.STRIPE_ULTAURA_PAYG_PRICE_ID || '',
 } as const;
 
 // Map Stripe price IDs to plan IDs
@@ -82,7 +82,7 @@ export function getPlanIdFromStripePrice(priceId: string): PlanId | null {
   if (priceId === STRIPE_PRICES.family_monthly || priceId === STRIPE_PRICES.family_annual) {
     return 'family';
   }
-  if (priceId === STRIPE_PRICES.payg_metered) {
+  if (priceId === STRIPE_PRICES.payg) {
     return 'payg';
   }
   return null;
@@ -121,10 +121,9 @@ export const TELEPHONY = {
   DEFAULT_QUIET_HOURS_END: '09:00',
 
   // Default timezone
-  DEFAULT_TIMEZONE: 'America/Los_Angeles',
+  DEFAULT_TIMEZONE: process.env.ULTAURA_DEFAULT_TIMEZONE || 'America/Los_Angeles',
 
   // Call limits
-  MAX_CALL_DURATION_SECONDS: 3600, // 1 hour max
   MIN_BILLABLE_CALL_SECONDS: 30, // Minimum for "successful" call
 
   // Retry policy
@@ -305,7 +304,9 @@ export const FEATURES = {
 // ============================================
 
 export const API = {
-  TELEPHONY_BACKEND_URL: process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001',
+  TELEPHONY_BACKEND_URL:
+    process.env.ULTAURA_BACKEND_URL ||
+    (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001'),
 
   // Telephony backend routes
   ROUTES: {

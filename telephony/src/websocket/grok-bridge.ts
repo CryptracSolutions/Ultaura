@@ -18,8 +18,9 @@ import { addTurn, TurnSummary } from '../services/ephemeral-buffer.js';
 import { getMemoriesForLine } from '../services/memory.js';
 import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
+import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 
-const GROK_REALTIME_URL = 'wss://api.x.ai/v1/realtime';
+const GROK_REALTIME_URL = process.env.XAI_REALTIME_URL || 'wss://api.x.ai/v1/realtime';
 
 interface GrokBridgeOptions {
   callSessionId: string;
@@ -328,7 +329,7 @@ export class GrokBridge {
   private async handleSafetyBackstop(matches: SafetyMatch[]): Promise<void> {
     if (matches.length === 0) return;
 
-    const baseUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+    const baseUrl = getBackendUrl();
 
     for (const match of matches) {
       const { tier } = match;
@@ -480,7 +481,7 @@ export class GrokBridge {
       this.options.onToolCall(name, args);
 
       // Make the tool call to our backend
-      const baseUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+      const baseUrl = getBackendUrl();
       let result: string;
 
       switch (name) {
@@ -721,14 +722,24 @@ export class GrokBridge {
 
   // Call a tool endpoint
   private async callToolEndpoint(url: string, body: Record<string, unknown>): Promise<string> {
+    const start = Date.now();
+    const toolName = url.split('/').pop();
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify(body),
     });
+
+    logger.debug({
+      method: 'POST',
+      url,
+      toolName,
+      statusCode: response.status,
+      durationMs: Date.now() - start,
+    }, 'Tool endpoint response');
 
     const data = await response.json();
     return JSON.stringify(data);

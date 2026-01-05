@@ -209,6 +209,7 @@ export interface CallSession {
   twilioCallSid: string | null;
   twilioFrom: string | null;
   twilioTo: string | null;
+  recordingSid: string | null;
   endReason: CallEndReason | null;
   answeredBy: CallAnsweredBy | null;
   languageDetected: string | null;
@@ -599,6 +600,7 @@ export interface CallSessionRow {
   twilio_call_sid: string | null;
   twilio_from: string | null;
   twilio_to: string | null;
+  recording_sid: string | null;
   end_reason: CallEndReason | null;
   answered_by: CallAnsweredBy | null;
   language_detected: string | null;

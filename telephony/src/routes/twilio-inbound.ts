@@ -5,6 +5,8 @@ import { logger } from '../server.js';
 import { findLineByPhone, checkLineAccess } from '../services/line-lookup.js';
 import { createCallSession } from '../services/call-session.js';
 import { generateStreamTwiML, generateMessageTwiML, formatToE164, validateTwilioSignature } from '../utils/twilio.js';
+import { getWebsocketUrl } from '../utils/env.js';
+import { redactPhone } from '../utils/redact.js';
 
 export const twilioInboundRouter = Router();
 
@@ -59,7 +61,12 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
   try {
     const { From, To, CallSid, CallStatus } = req.body;
 
-    logger.info({ from: From, to: To, callSid: CallSid, status: CallStatus }, 'Inbound call received');
+    logger.info({
+      from: redactPhone(From),
+      to: redactPhone(To),
+      callSid: CallSid,
+      status: CallStatus,
+    }, 'Inbound call received');
 
     // Format phone number to E.164
     const fromE164 = formatToE164(From);
@@ -68,7 +75,7 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
     const lineWithAccount = await findLineByPhone(fromE164);
 
     if (!lineWithAccount) {
-      logger.info({ phone: fromE164 }, 'Unrecognized caller');
+      logger.info({ phone: redactPhone(fromE164) }, 'Unrecognized caller');
       res.type('text/xml').send(generateMessageTwiML(MESSAGES.UNRECOGNIZED));
       return;
     }
@@ -126,7 +133,7 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
     }
 
     // Generate TwiML to connect to WebSocket stream
-    const websocketUrl = process.env.TELEPHONY_WEBSOCKET_URL || `wss://${req.headers.host}/twilio/media`;
+    const websocketUrl = getWebsocketUrl();
     const twiml = generateStreamTwiML(session.id, websocketUrl);
 
     logger.info({ sessionId: session.id, lineId: line.id }, 'Connecting to media stream');

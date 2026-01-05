@@ -2,6 +2,7 @@
 
 import Twilio from 'twilio';
 import { logger } from '../server.js';
+import { redactPhone } from './redact.js';
 
 let twilioClient: Twilio.Twilio | null = null;
 
@@ -124,12 +125,14 @@ export async function initiateOutboundCall(options: {
   callbackUrl: string;
   statusCallbackUrl: string;
   callSessionId: string;
+  publicUrl: string;
   amdEnabled?: boolean;
 }): Promise<string> {
   const client = getTwilioClient();
   const amdEnabled = options.amdEnabled ?? isAmdEnabled(process.env.TWILIO_AMD_ENABLED);
+  const enableRecording = process.env.ULTAURA_ENABLE_RECORDING === 'true';
 
-  const call = await client.calls.create({
+  const callOptions: Twilio.CallInstanceCreateOptions = {
     to: options.to,
     from: options.from,
     url: `${options.callbackUrl}?callSessionId=${options.callSessionId}`,
@@ -140,9 +143,18 @@ export async function initiateOutboundCall(options: {
       machineDetection: 'Enable',
       machineDetectionTimeout: 30,
     }),
-  });
+  };
 
-  logger.info({ callSid: call.sid, to: options.to }, 'Outbound call initiated');
+  if (enableRecording) {
+    const baseUrl = options.publicUrl.replace(/\/$/, '');
+    callOptions.record = true;
+    callOptions.recordingStatusCallback = `${baseUrl}/twilio/recording-status`;
+    callOptions.recordingStatusCallbackEvent = ['completed'];
+  }
+
+  const call = await client.calls.create(callOptions);
+
+  logger.info({ callSid: call.sid, to: redactPhone(options.to) }, 'Outbound call initiated');
 
   return call.sid;
 }
@@ -176,7 +188,7 @@ export async function sendVerificationCode(
       channel,
     });
 
-  logger.info({ phone: phoneNumber, channel, sid: verification.sid }, 'Verification sent');
+  logger.info({ phone: redactPhone(phoneNumber), channel, sid: verification.sid }, 'Verification sent');
 
   return verification.sid;
 }
@@ -202,11 +214,11 @@ export async function checkVerificationCode(
       });
 
     const approved = verificationCheck.status === 'approved';
-    logger.info({ phone: phoneNumber, approved }, 'Verification check completed');
+    logger.info({ phone: redactPhone(phoneNumber), approved }, 'Verification check completed');
 
     return approved;
   } catch (error) {
-    logger.error({ error, phone: phoneNumber }, 'Verification check failed');
+    logger.error({ error, phone: redactPhone(phoneNumber) }, 'Verification check failed');
     return false;
   }
 }
@@ -230,10 +242,10 @@ export async function sendSms(options: {
       body: options.body,
     });
 
-    logger.info({ messageSid: message.sid, to: options.to }, 'SMS sent');
+  logger.info({ messageSid: message.sid, to: redactPhone(options.to) }, 'SMS sent');
     return message.sid;
   } catch (error) {
-    logger.error({ error, to: options.to }, 'Failed to send SMS');
+    logger.error({ error, to: redactPhone(options.to) }, 'Failed to send SMS');
     throw error;
   }
 }

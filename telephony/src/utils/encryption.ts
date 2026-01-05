@@ -11,14 +11,14 @@ const KEY_LENGTH = 32; // 256 bits
 
 // Get the Key Encryption Key (KEK) from environment
 function getKEK(): Buffer {
-  const kekHex = process.env.MEMORY_ENCRYPTION_KEY;
+  const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
 
   if (!kekHex) {
-    throw new Error('Missing MEMORY_ENCRYPTION_KEY environment variable');
+    throw new Error('Missing ULTAURA_ENCRYPTION_KEY environment variable');
   }
 
   if (kekHex.length !== 64) {
-    throw new Error('MEMORY_ENCRYPTION_KEY must be 64 hex characters (256 bits)');
+    throw new Error('ULTAURA_ENCRYPTION_KEY must be 64 hex characters (256 bits)');
   }
 
   return Buffer.from(kekHex, 'hex');

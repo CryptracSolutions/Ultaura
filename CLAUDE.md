@@ -85,27 +85,23 @@ cp .env.ultaura.example .env.local
 **Required Environment Variables:**
 
 ```bash
+# Ultaura Core
+ULTAURA_ENCRYPTION_KEY=        # 64 hex chars (openssl rand -hex 32)
+ULTAURA_INTERNAL_API_SECRET=   # API auth secret
+ULTAURA_BACKEND_URL=           # http://localhost:3001
+ULTAURA_PUBLIC_URL=            # Public URL for Twilio webhooks
+ULTAURA_WEBSOCKET_URL=         # WSS URL for Twilio Media Streams
+
 # Twilio
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=        # E.164 format
+TWILIO_PHONE_NUMBER=           # E.164 format
 TWILIO_VERIFY_SERVICE_SID=
-TWILIO_AMD_ENABLED=true     # Answering machine detection (default: true)
+TWILIO_AMD_ENABLED=true        # Answering machine detection
 
 # xAI Grok
 XAI_API_KEY=
-XAI_REALTIME_URL=wss://api.x.ai/v1/realtime
 XAI_GROK_MODEL=grok-3-fast
-
-# Telephony Backend
-TELEPHONY_PORT=3001
-TELEPHONY_PUBLIC_URL=       # Public URL for Twilio webhooks
-TELEPHONY_BACKEND_URL=http://localhost:3001
-TELEPHONY_WEBHOOK_SECRET=
-TELEPHONY_WEBSOCKET_URL=    # WebSocket URL for Twilio
-
-# Encryption
-ULTAURA_KEK_BASE64=         # Key Encryption Key
 
 # Stripe (8 price IDs)
 STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID=
@@ -150,7 +146,7 @@ docker run -p 3001:3001 --env-file .env.local ultaura-telephony
 ```bash
 ngrok http 3001
 ```
-Update `TELEPHONY_PUBLIC_URL` with ngrok URL.
+Update `ULTAURA_PUBLIC_URL` with ngrok URL.
 
 ## Call Flow
 

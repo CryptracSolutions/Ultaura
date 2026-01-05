@@ -5,22 +5,25 @@ import { logger } from '../server.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
 import { createCallSession, failCallSession, getCallSessionByIdempotencyKey } from '../services/call-session.js';
 import { initiateOutboundCall } from '../utils/twilio.js';
+import { getInternalApiSecret, getPublicUrl } from '../utils/env.js';
 
 export const callsRouter = Router();
 
 // Verify internal API access
 function verifyInternalAccess(req: Request, res: Response, next: () => void) {
   const secret = req.headers['x-webhook-secret'];
-  const expectedSecret = process.env.TELEPHONY_WEBHOOK_SECRET;
+  let expectedSecret: string;
 
-  if (!expectedSecret) {
-    logger.warn('TELEPHONY_WEBHOOK_SECRET not set, skipping auth');
-    next();
+  try {
+    expectedSecret = getInternalApiSecret();
+  } catch (error) {
+    logger.error({ error }, 'Internal API secret missing');
+    res.status(500).json({ error: 'Server misconfigured' });
     return;
   }
 
   if (secret !== expectedSecret) {
-    logger.warn('Invalid webhook secret');
+    logger.warn('Invalid internal API secret');
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
@@ -106,16 +109,17 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
     }
 
     // Get base URL for callbacks
-    const baseUrl = process.env.TELEPHONY_BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+    const publicUrl = getPublicUrl().replace(/\/$/, '');
 
     try {
       // Initiate the call via Twilio
       const callSid = await initiateOutboundCall({
         to: line.phone_e164,
         from: process.env.TWILIO_PHONE_NUMBER!,
-        callbackUrl: `${baseUrl}/twilio/voice/outbound`,
-        statusCallbackUrl: `${baseUrl}/twilio/status`,
+        callbackUrl: `${publicUrl}/twilio/voice/outbound`,
+        statusCallbackUrl: `${publicUrl}/twilio/status`,
         callSessionId: session.id,
+        publicUrl,
       });
 
       logger.info({ sessionId: session.id, callSid, lineId, isReminderCall }, 'Outbound call initiated');
@@ -182,15 +186,16 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
     return;
   }
 
-  const baseUrl = process.env.TELEPHONY_BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+  const publicUrl = getPublicUrl().replace(/\/$/, '');
 
   try {
     const callSid = await initiateOutboundCall({
       to: line.phone_e164,
       from: process.env.TWILIO_PHONE_NUMBER!,
-      callbackUrl: `${baseUrl}/twilio/voice/outbound`,
-      statusCallbackUrl: `${baseUrl}/twilio/status`,
+      callbackUrl: `${publicUrl}/twilio/voice/outbound`,
+      statusCallbackUrl: `${publicUrl}/twilio/status`,
       callSessionId: session.id,
+      publicUrl,
     });
 
     logger.info({ sessionId: session.id, callSid, lineId, reason: 'test' }, 'Test call initiated');

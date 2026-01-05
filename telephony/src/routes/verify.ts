@@ -4,6 +4,7 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../server.js';
 import { sendVerificationCode, checkVerificationCode } from '../utils/twilio.js';
+import { redactPhone } from '../utils/redact.js';
 
 export const verifyRouter = Router();
 
@@ -46,14 +47,14 @@ verifyRouter.post('/send', async (req: Request, res: Response) => {
     }
 
     if (!rateLimitVerification(phoneNumber)) {
-      logger.warn({ phoneNumber }, 'Rate limit exceeded for verification');
+      logger.warn({ phoneNumber: redactPhone(phoneNumber) }, 'Rate limit exceeded for verification');
       res.status(429).json({ error: 'Too many verification attempts. Try again later.' });
       return;
     }
 
     const sid = await sendVerificationCode(phoneNumber, channel);
 
-    logger.info({ phoneNumber, channel, sid, lineId }, 'Verification code sent');
+    logger.info({ phoneNumber: redactPhone(phoneNumber), channel, sid, lineId }, 'Verification code sent');
 
     res.json({ success: true, sid });
   } catch (error) {

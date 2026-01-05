@@ -4,6 +4,7 @@
 import { getSupabaseClient, LineRow, UltauraAccountRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
 import { getUsageSummary } from './metering.js';
+import { redactPhone } from '../utils/redact.js';
 
 const OVERAGE_RATE_CENTS = 15;
 
@@ -24,7 +25,7 @@ export async function findLineByPhone(phoneE164: string): Promise<LineWithAccoun
     .single();
 
   if (lineError || !line) {
-    logger.info({ phone: phoneE164 }, 'Line not found for phone number');
+    logger.info({ phone: redactPhone(phoneE164) }, 'Line not found for phone number');
     return null;
   }
 

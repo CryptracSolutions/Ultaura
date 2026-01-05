@@ -4,13 +4,22 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { sendSms } from '../../utils/twilio.js';
+import { getInternalApiSecret } from '../../utils/env.js';
+import { redactPhone } from '../../utils/redact.js';
 
 export const internalSmsRouter = Router();
 
 internalSmsRouter.post('/sms', async (req: Request, res: Response) => {
   try {
     // Validate webhook secret
-    const expectedSecret = process.env.TELEPHONY_WEBHOOK_SECRET;
+    let expectedSecret: string;
+    try {
+      expectedSecret = getInternalApiSecret();
+    } catch (error) {
+      logger.error({ error }, 'Internal API secret missing');
+      res.status(500).json({ error: 'Server misconfigured' });
+      return;
+    }
     const providedSecret = req.headers['x-webhook-secret'];
 
     if (expectedSecret && providedSecret !== expectedSecret) {
@@ -36,7 +45,7 @@ internalSmsRouter.post('/sms', async (req: Request, res: Response) => {
 
     const messageSid = await sendSms({ to, body });
 
-    logger.info({ to, messageSid }, 'SMS sent via internal endpoint');
+    logger.info({ to: redactPhone(to), messageSid }, 'SMS sent via internal endpoint');
 
     res.json({
       success: true,

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, recordCallEvent } from '../../services/call-session.js';
+import { getInternalApiSecret } from '../../utils/env.js';
 
 export const overageActionRouter = Router();
 
@@ -72,7 +73,7 @@ overageActionRouter.post('/', async (req: Request, res: Response) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+          'X-Webhook-Secret': getInternalApiSecret(),
         },
         body: JSON.stringify({
           accountId: session.account_id,

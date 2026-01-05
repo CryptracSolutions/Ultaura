@@ -23,11 +23,33 @@ import type {
   ScheduleRow,
   CallSessionRow,
 } from './types';
-import { BILLING, PLANS } from './constants';
+import { BILLING, PLANS, TELEPHONY } from './constants';
 import { getNextOccurrence, getNextReminderOccurrence, validateTimezone } from './timezone';
 
 const logger = getLogger();
 const VALID_VOICEMAIL_BEHAVIORS = ['none', 'brief', 'detailed'] as const;
+const DEV_TELEPHONY_BACKEND_URL = 'http://localhost:3001';
+
+function getTelephonyBackendUrl(): string {
+  const backendUrl = process.env.ULTAURA_BACKEND_URL ||
+    (process.env.NODE_ENV === 'production' ? '' : DEV_TELEPHONY_BACKEND_URL);
+
+  if (!backendUrl) {
+    throw new Error('ULTAURA_BACKEND_URL is required in production');
+  }
+
+  return backendUrl;
+}
+
+function getInternalApiSecret(): string {
+  const secret = process.env.ULTAURA_INTERNAL_API_SECRET;
+
+  if (!secret) {
+    throw new Error('Missing ULTAURA_INTERNAL_API_SECRET');
+  }
+
+  return secret;
+}
 
 // ============================================
 // ACCOUNT ACTIONS
@@ -253,7 +275,7 @@ export async function createLine(input: CreateLineInput): Promise<{ success: boo
       phone_e164: input.phoneE164,
       preferred_language: input.preferredLanguage || 'auto',
       spanish_formality: input.spanishFormality || 'usted',
-      timezone: input.timezone || 'America/Los_Angeles',
+      timezone: input.timezone || TELEPHONY.DEFAULT_TIMEZONE,
       status: 'paused', // Paused until verified
       seed_interests: input.seedInterests || null,
       seed_avoid_topics: input.seedAvoidTopics || null,
@@ -492,14 +514,14 @@ export async function startPhoneVerification(
   }
 
   // Call the telephony backend to send verification
-  const telephonyUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+  const telephonyUrl = getTelephonyBackendUrl();
 
   try {
     const response = await fetch(`${telephonyUrl}/verify/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
         lineId,
@@ -552,14 +574,14 @@ export async function checkPhoneVerification(
   }
 
   // Call the telephony backend to check verification
-  const telephonyUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+  const telephonyUrl = getTelephonyBackendUrl();
 
   try {
     const response = await fetch(`${telephonyUrl}/verify/check`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
         phoneNumber: line.phone_e164,
@@ -777,7 +799,7 @@ export async function updateSchedule(
 
     const daysOfWeek = input.daysOfWeek || current?.days_of_week || [];
     const timeOfDay = input.timeOfDay || current?.time_of_day || '18:00';
-    const timezone = input.timezone || current?.timezone || 'America/Los_Angeles';
+    const timezone = input.timezone || current?.timezone || TELEPHONY.DEFAULT_TIMEZONE;
 
     try {
       validateTimezone(timezone);
@@ -1063,7 +1085,7 @@ export async function getAllSchedules(accountId: string): Promise<{
 
 // Initiate a test call
 export async function initiateTestCall(lineId: string): Promise<{ success: boolean; error?: string }> {
-  const telephonyUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+  const telephonyUrl = getTelephonyBackendUrl();
 
   const line = await getLine(lineId);
   if (!line) {
@@ -1085,7 +1107,7 @@ export async function initiateTestCall(lineId: string): Promise<{ success: boole
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+        'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
         lineId,

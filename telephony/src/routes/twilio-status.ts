@@ -7,6 +7,7 @@ import {
   updateCallStatus,
   completeCallSession,
   failCallSession,
+  updateCallSessionRecording,
 } from '../services/call-session.js';
 import { validateTwilioSignature } from '../utils/twilio.js';
 
@@ -169,6 +170,37 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
     res.sendStatus(200);
   } catch (error) {
     logger.error({ error }, 'Error handling status callback');
+    res.sendStatus(500);
+  }
+});
+
+// Handle Twilio recording status callbacks
+twilioStatusRouter.post('/recording-status', async (req: Request, res: Response) => {
+  try {
+    const { RecordingSid, RecordingStatus, CallSid } = req.body;
+
+    logger.info({
+      callSid: CallSid,
+      recordingSid: RecordingSid,
+      status: RecordingStatus,
+    }, 'Twilio recording status callback');
+
+    if (!CallSid || !RecordingSid) {
+      res.sendStatus(200);
+      return;
+    }
+
+    const session = await getCallSessionByTwilioSid(CallSid);
+    if (!session) {
+      logger.info({ callSid: CallSid }, 'No session found for recording callback');
+      res.sendStatus(200);
+      return;
+    }
+
+    await updateCallSessionRecording(session.id, RecordingSid);
+    res.sendStatus(200);
+  } catch (error) {
+    logger.error({ error }, 'Error handling recording status callback');
     res.sendStatus(500);
   }
 });

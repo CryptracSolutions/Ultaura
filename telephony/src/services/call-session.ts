@@ -227,6 +227,23 @@ export async function updateCallSession(
   }
 }
 
+// Update call session recording metadata
+export async function updateCallSessionRecording(
+  sessionId: string,
+  recordingSid: string
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from('ultaura_call_sessions')
+    .update({ recording_sid: recordingSid })
+    .eq('id', sessionId);
+
+  if (error) {
+    logger.error({ error, sessionId }, 'Failed to update recording SID');
+  }
+}
+
 // Complete a call session and record usage
 export async function completeCallSession(
   sessionId: string,

@@ -6,6 +6,8 @@ import getStripeInstance from '~/core/stripe/get-stripe';
 import sendEmail from '~/core/email/send-email';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 
+const DEV_TELEPHONY_BACKEND_URL = 'http://localhost:3001';
+
 const PLAN_PRICE_IDS: Record<string, string | undefined> = {
   care: process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID,
   comfort: process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID,
@@ -35,9 +37,24 @@ function getPlanDisplay(planId: string) {
   };
 }
 
+function getTelephonyBackendUrl(): string {
+  const backendUrl = process.env.ULTAURA_BACKEND_URL ||
+    (process.env.NODE_ENV === 'production' ? '' : DEV_TELEPHONY_BACKEND_URL);
+
+  if (!backendUrl) {
+    throw new Error('ULTAURA_BACKEND_URL is required in production');
+  }
+
+  return backendUrl;
+}
+
 export async function POST(request: Request) {
-  const expectedSecret = process.env.TELEPHONY_WEBHOOK_SECRET;
+  const expectedSecret = process.env.ULTAURA_INTERNAL_API_SECRET;
   const providedSecret = request.headers.get('x-webhook-secret');
+
+  if (!expectedSecret) {
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
 
   if (expectedSecret && providedSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -160,7 +177,7 @@ export async function POST(request: Request) {
 
   // Send SMS if phone number provided
   if (phoneNumber && session.url) {
-    const telephonyBaseUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+    const telephonyBaseUrl = getTelephonyBackendUrl();
     const smsBody = `Ultaura: Complete your ${planDisplay.name} upgrade: ${session.url}`;
 
     try {
@@ -168,7 +185,7 @@ export async function POST(request: Request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Webhook-Secret': process.env.TELEPHONY_WEBHOOK_SECRET || '',
+          'X-Webhook-Secret': expectedSecret,
         },
         body: JSON.stringify({
           to: phoneNumber,

@@ -4,7 +4,6 @@
 import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
-import dotenv from 'dotenv';
 import cors from 'cors';
 
 import { twilioInboundRouter } from './routes/twilio-inbound.js';
@@ -20,12 +19,13 @@ import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
 import { validateTimezoneSupport } from './utils/timezone.js';
 import { logger } from './utils/logger.js';
+import { validateEnvVariables } from './utils/env-validator.js';
 
 // Re-export logger for use by other modules
 export { logger };
 
-// Load environment variables
-dotenv.config();
+// Validate environment before starting server
+validateEnvVariables();
 
 // Create Express app
 const app = express();
@@ -46,8 +46,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Request logging
-app.use((req, _res, next) => {
+app.use((req, res, next) => {
+  const start = Date.now();
   logger.info({ method: req.method, path: req.path }, 'Incoming request');
+
+  res.on('finish', () => {
+    logger.debug({
+      method: req.method,
+      url: req.originalUrl,
+      statusCode: res.statusCode,
+      durationMs: Date.now() - start,
+    }, 'Request completed');
+  });
+
   next();
 });
 
