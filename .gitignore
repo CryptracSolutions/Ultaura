@@ -44,3 +44,6 @@ cypress/screenshots
 
 public/robots.txt
 public/sitemap.xml
+
+# telephony build output
+telephony/dist

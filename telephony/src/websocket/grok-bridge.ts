@@ -79,6 +79,7 @@ interface GrokMessage {
     text?: string;
   }>;
   text?: string;
+  transcript?: string;
 }
 
 const MEMORY_MANAGEMENT_PROMPT = `## Memory Management
@@ -114,7 +115,6 @@ For follow_up type memories with a specific time (appointments, visits, events):
 Example: "I have a doctor appointment next Tuesday"
 1. Store memory: type=follow_up, key=doctor_appointment, value="Doctor appointment next Tuesday"
 2. Say: "I'll remember that. Would you like me to give you a reminder call before your appointment?"`;
-}
 
 export class GrokBridge {
   private ws: WebSocket | null = null;
@@ -1061,13 +1061,14 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
   }
 
   private extractAssistantTurn(message: GrokMessage): TurnSummary {
+    const output = (message as any).output as Array<any> | undefined;
     const transcript =
-      message.output
+      output
         ?.find(o => o.type === 'message')
-        ?.content?.find(c => c.transcript || c.text)?.transcript ||
-      message.output
+        ?.content?.find((c: any) => c.transcript || c.text)?.transcript ||
+      output
         ?.find(o => o.type === 'message')
-        ?.content?.find(c => c.transcript || c.text)?.text ||
+        ?.content?.find((c: any) => c.transcript || c.text)?.text ||
       '';
 
     return {

@@ -3,7 +3,7 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../server.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
-import { createCallSession, failCallSession } from '../services/call-session.js';
+import { createCallSession, failCallSession, getCallSessionByIdempotencyKey } from '../services/call-session.js';
 import { initiateOutboundCall } from '../utils/twilio.js';
 
 export const callsRouter = Router();
@@ -33,7 +33,7 @@ callsRouter.use(verifyInternalAccess);
 // Initiate an outbound call
 callsRouter.post('/outbound', async (req: Request, res: Response) => {
   try {
-    const { lineId, reason, reminderId, reminderMessage } = req.body;
+    const { lineId, reason, reminderId, reminderMessage, schedulerIdempotencyKey } = req.body;
 
     if (!lineId) {
       res.status(400).json({ error: 'Missing lineId' });
@@ -42,7 +42,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
 
     const isReminderCall = reason === 'reminder' && !!reminderMessage;
 
-    logger.info({ lineId, reason, isReminderCall }, 'Outbound call request');
+    logger.info({ lineId, reason, isReminderCall, schedulerIdempotencyKey }, 'Outbound call request');
 
     // Get line info
     const lineWithAccount = await getLineById(lineId);
@@ -85,9 +85,22 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       isReminderCall,
       reminderId: isReminderCall ? reminderId : undefined,
       reminderMessage: isReminderCall ? reminderMessage : undefined,
+      schedulerIdempotencyKey,
     });
 
     if (!session) {
+      // Check if this was an idempotency conflict (already processed)
+      if (schedulerIdempotencyKey) {
+        const existing = await getCallSessionByIdempotencyKey(schedulerIdempotencyKey);
+        if (existing) {
+          res.status(409).json({
+            error: 'Duplicate scheduled call',
+            code: 'DUPLICATE_SCHEDULED_CALL',
+            existingSessionId: existing.id,
+          });
+          return;
+        }
+      }
       res.status(500).json({ error: 'Failed to create call session' });
       return;
     }

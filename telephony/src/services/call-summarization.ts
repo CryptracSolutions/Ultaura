@@ -128,8 +128,8 @@ async function extractMemoriesWithGrok(turnText: string): Promise<ExtractedMemor
       return [];
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '[]';
+    const data = await response.json() as any;
+    const content = data?.choices?.[0]?.message?.content || '[]';
 
     try {
       return JSON.parse(content);

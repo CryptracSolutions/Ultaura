@@ -13,13 +13,16 @@ import { twilioStatusRouter } from './routes/twilio-status.js';
 import { callsRouter } from './routes/calls.js';
 import { toolsRouter } from './routes/tools/index.js';
 import { handleMediaStreamConnection } from './websocket/media-stream.js';
-import { startScheduler } from './scheduler/call-scheduler.js';
+import { startScheduler, stopScheduler } from './scheduler/call-scheduler.js';
 import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
 import { validateTimezoneSupport } from './utils/timezone.js';
 import { logger } from './utils/logger.js';
+
+// Re-export logger for use by other modules
+export { logger };
 
 // Load environment variables
 dotenv.config();
@@ -173,6 +176,7 @@ server.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  stopScheduler();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
@@ -181,6 +185,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
+  stopScheduler();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);

@@ -1,11 +1,28 @@
-// Call scheduler
+// Distributed call scheduler
 // Polls database for due scheduled calls and initiates them
+// Supports horizontal scaling with lease-based coordination
 
-import cron from 'node-cron';
+import { v4 as uuidv4 } from 'uuid';
 import { getSupabaseClient, ScheduleRow, ReminderRow } from '../utils/supabase.js';
-import { logger } from '../server.js';
+import { logger } from '../utils/logger.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
+
+// Configuration
+const POLL_INTERVAL_MS = 30_000; // 30 seconds
+const LEASE_DURATION_SECONDS = 60;
+const HEARTBEAT_INTERVAL_MS = 20_000; // 20 seconds
+const CLAIM_TTL_SECONDS = 120;
+const BATCH_SIZE = 10;
+
+// Worker identity (unique per instance)
+const WORKER_ID = `${process.env.HOSTNAME || 'local'}-${uuidv4().slice(0, 8)}`;
+
+// Scheduler state
+let isRunning = false;
+let heartbeatIntervals: ReturnType<typeof setInterval>[] = [];
+let pollInterval: ReturnType<typeof setInterval> | null = null;
+let shuttingDown = false;
 
 /**
  * Calculate the next occurrence for a recurring reminder.
@@ -35,82 +52,215 @@ function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
   }
 }
 
-const POLL_INTERVAL_SECONDS = 30;
-const BATCH_SIZE = 10;
-
-let isRunning = false;
-
-// Start the scheduler
+/**
+ * Start the distributed scheduler.
+ * Uses lease-based coordination to ensure only one instance processes at a time.
+ */
 export function startScheduler(): void {
-  logger.info('Starting call scheduler');
+  // Check if scheduler is disabled
+  if (process.env.SCHEDULER_DISABLED === 'true') {
+    logger.info('Scheduler disabled via SCHEDULER_DISABLED env var');
+    return;
+  }
 
-  // Run every 30 seconds
-  cron.schedule(`*/${POLL_INTERVAL_SECONDS} * * * * *`, async () => {
-    if (isRunning) {
-      logger.debug('Scheduler already running, skipping');
-      return;
-    }
+  logger.info({ workerId: WORKER_ID }, 'Starting distributed call scheduler');
 
-    isRunning = true;
-    try {
-      await processScheduledCalls();
-      await processReminders();
-    } catch (error) {
-      logger.error({ error }, 'Scheduler error');
-    } finally {
-      isRunning = false;
-    }
-  });
+  // Start the poll loop
+  pollInterval = setInterval(runSchedulerCycle, POLL_INTERVAL_MS);
 
-  logger.info({ interval: POLL_INTERVAL_SECONDS }, 'Call scheduler started');
+  // Run immediately on start
+  runSchedulerCycle();
+
+  logger.info({
+    workerId: WORKER_ID,
+    pollIntervalMs: POLL_INTERVAL_MS,
+    leaseSeconds: LEASE_DURATION_SECONDS,
+  }, 'Distributed scheduler started');
 }
 
-// Process due scheduled calls
+/**
+ * Stop the scheduler gracefully.
+ * Releases all leases and cancels timers.
+ */
+export function stopScheduler(): void {
+  shuttingDown = true;
+
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+
+  heartbeatIntervals.forEach(interval => clearInterval(interval));
+  heartbeatIntervals = [];
+
+  // Release any held leases
+  releaseAllLeases().catch(err =>
+    logger.error({ err }, 'Error releasing leases during shutdown')
+  );
+
+  logger.info({ workerId: WORKER_ID }, 'Scheduler stopped');
+}
+
+/**
+ * Run a single scheduler cycle.
+ * Processes schedules and reminders in parallel with separate leases.
+ */
+async function runSchedulerCycle(): Promise<void> {
+  if (isRunning || shuttingDown) {
+    logger.debug('Scheduler cycle skipped (already running or shutting down)');
+    return;
+  }
+
+  isRunning = true;
+
+  try {
+    // Process schedules and reminders in parallel with separate leases
+    await Promise.all([
+      processWithLease('schedules', processScheduledCalls),
+      processWithLease('reminders', processReminders),
+    ]);
+  } catch (error) {
+    logger.error({ error, workerId: WORKER_ID }, 'Scheduler cycle error');
+  } finally {
+    isRunning = false;
+  }
+}
+
+/**
+ * Execute a processor function while holding a lease.
+ * Handles lease acquisition, heartbeat, and release.
+ */
+async function processWithLease(
+  leaseId: 'schedules' | 'reminders',
+  processor: () => Promise<void>
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  // Try to acquire the lease
+  const { data: acquired, error: leaseError } = await supabase.rpc(
+    'try_acquire_scheduler_lease',
+    {
+      p_lease_id: leaseId,
+      p_worker_id: WORKER_ID,
+      p_lease_duration_seconds: LEASE_DURATION_SECONDS,
+    }
+  );
+
+  if (leaseError) {
+    logger.error({ error: leaseError, leaseId }, 'Failed to acquire lease');
+    return;
+  }
+
+  if (!acquired) {
+    logger.debug({ leaseId, workerId: WORKER_ID }, 'Lease held by another worker');
+    return;
+  }
+
+  logger.debug({ leaseId, workerId: WORKER_ID }, 'Acquired scheduler lease');
+
+  // Start heartbeat for this lease
+  const heartbeat = setInterval(async () => {
+    if (shuttingDown) return;
+
+    const { error } = await supabase.rpc('heartbeat_scheduler_lease', {
+      p_lease_id: leaseId,
+      p_worker_id: WORKER_ID,
+      p_extend_seconds: LEASE_DURATION_SECONDS,
+    });
+
+    if (error) {
+      logger.warn({ error, leaseId }, 'Heartbeat failed');
+    }
+  }, HEARTBEAT_INTERVAL_MS);
+
+  heartbeatIntervals.push(heartbeat);
+
+  try {
+    await processor();
+  } finally {
+    // Stop heartbeat
+    clearInterval(heartbeat);
+    heartbeatIntervals = heartbeatIntervals.filter(h => h !== heartbeat);
+
+    // Release lease
+    const { error: releaseError } = await supabase.rpc('release_scheduler_lease', {
+      p_lease_id: leaseId,
+      p_worker_id: WORKER_ID,
+    });
+
+    if (releaseError) {
+      logger.warn({ error: releaseError, leaseId }, 'Failed to release lease');
+    } else {
+      logger.debug({ leaseId, workerId: WORKER_ID }, 'Released scheduler lease');
+    }
+  }
+}
+
+/**
+ * Release all held leases during shutdown.
+ */
+async function releaseAllLeases(): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  await Promise.all([
+    supabase.rpc('release_scheduler_lease', { p_lease_id: 'schedules', p_worker_id: WORKER_ID }),
+    supabase.rpc('release_scheduler_lease', { p_lease_id: 'reminders', p_worker_id: WORKER_ID }),
+  ]);
+}
+
+/**
+ * Process due scheduled calls using atomic claim.
+ */
 async function processScheduledCalls(): Promise<void> {
   const supabase = getSupabaseClient();
 
-  // Get due schedules with FOR UPDATE SKIP LOCKED pattern
-  // Note: Supabase doesn't directly support FOR UPDATE SKIP LOCKED,
-  // so we use a transaction-like approach with status updates
-
-  const now = new Date().toISOString();
-
-  // Find due schedules
-  const { data: dueSchedules, error } = await supabase
-    .from('ultaura_schedules')
-    .select('*')
-    .eq('enabled', true)
-    .lte('next_run_at', now)
-    .order('next_run_at', { ascending: true })
-    .limit(BATCH_SIZE);
+  // Claim a batch of due schedules atomically
+  const { data: claimedSchedules, error } = await supabase.rpc('claim_due_schedules', {
+    p_worker_id: WORKER_ID,
+    p_batch_size: BATCH_SIZE,
+    p_claim_ttl_seconds: CLAIM_TTL_SECONDS,
+  });
 
   if (error) {
-    logger.error({ error }, 'Failed to fetch due schedules');
+    logger.error({ error }, 'Failed to claim schedules');
     return;
   }
 
-  if (!dueSchedules || dueSchedules.length === 0) {
+  if (!claimedSchedules || claimedSchedules.length === 0) {
     return;
   }
 
-  logger.info({ count: dueSchedules.length }, 'Processing due schedules');
+  logger.info({
+    count: claimedSchedules.length,
+    workerId: WORKER_ID,
+  }, 'Processing claimed schedules');
 
-  for (const schedule of dueSchedules) {
-    await processSchedule(schedule);
+  for (const schedule of claimedSchedules) {
+    await processSchedule(schedule as ScheduleRow);
   }
 }
 
-// Process a single schedule
+/**
+ * Process a single schedule with idempotency.
+ */
 async function processSchedule(schedule: ScheduleRow): Promise<void> {
   const supabase = getSupabaseClient();
 
-  logger.info({ scheduleId: schedule.id, lineId: schedule.line_id }, 'Processing schedule');
+  // Generate idempotency key for this specific scheduled occurrence
+  const idempotencyKey = `schedule:${schedule.id}:${schedule.next_run_at}`;
+
+  logger.info({
+    scheduleId: schedule.id,
+    lineId: schedule.line_id,
+    idempotencyKey,
+    workerId: WORKER_ID,
+  }, 'Processing schedule');
 
   // Get line info
   const lineWithAccount = await getLineById(schedule.line_id);
   if (!lineWithAccount) {
     logger.error({ scheduleId: schedule.id, lineId: schedule.line_id }, 'Line not found');
-    await updateScheduleResult(schedule.id, 'failed', null);
+    await completeScheduleWithResult(schedule, 'failed', null, false);
     return;
   }
 
@@ -119,14 +269,14 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
   // Check if line is opted out
   if (line.do_not_call) {
     logger.info({ scheduleId: schedule.id }, 'Line opted out, skipping');
-    await updateScheduleResult(schedule.id, 'suppressed_quiet_hours', calculateNextRun(schedule));
+    await completeScheduleWithResult(schedule, 'suppressed_quiet_hours', calculateNextRun(schedule), false);
     return;
   }
 
   // Check quiet hours
   if (isInQuietHours(line)) {
     logger.info({ scheduleId: schedule.id }, 'In quiet hours, skipping');
-    await updateScheduleResult(schedule.id, 'suppressed_quiet_hours', calculateNextRun(schedule));
+    await completeScheduleWithResult(schedule, 'suppressed_quiet_hours', calculateNextRun(schedule), false);
     return;
   }
 
@@ -134,7 +284,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
   const accessCheck = await checkLineAccess(line, account, 'outbound');
   if (!accessCheck.allowed) {
     logger.info({ scheduleId: schedule.id, reason: accessCheck.reason }, 'Access denied, skipping');
-    await updateScheduleResult(schedule.id, 'failed', calculateNextRun(schedule));
+    await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule), false);
     return;
   }
 
@@ -151,19 +301,28 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
       body: JSON.stringify({
         lineId: schedule.line_id,
         reason: 'scheduled',
+        schedulerIdempotencyKey: idempotencyKey,
       }),
     });
 
     if (!response.ok) {
-      const errorData: any = await response.json();
-      throw new Error(errorData.error || 'Failed to initiate call');
+      const errorData = (await response.json()) as Record<string, unknown>;
+
+      // Check for idempotency conflict (already processed)
+      if (errorData.code === 'DUPLICATE_SCHEDULED_CALL') {
+        logger.warn({ scheduleId: schedule.id, idempotencyKey }, 'Duplicate scheduled call, already processed');
+        await completeScheduleWithResult(schedule, 'success', calculateNextRun(schedule), true);
+        return;
+      }
+
+      throw new Error((errorData.error as string) || 'Failed to initiate call');
     }
 
-    const result: any = await response.json();
+    const result = (await response.json()) as Record<string, unknown>;
     logger.info({ scheduleId: schedule.id, sessionId: result.sessionId }, 'Scheduled call initiated');
 
     // Update schedule
-    await updateScheduleResult(schedule.id, 'success', calculateNextRun(schedule));
+    await completeScheduleWithResult(schedule, 'success', calculateNextRun(schedule), true);
 
     // Update line's next scheduled call
     const nextRun = calculateNextRun(schedule);
@@ -176,64 +335,60 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
 
   } catch (error) {
     logger.error({ error, scheduleId: schedule.id }, 'Failed to initiate scheduled call');
-    const retryPolicy = schedule.retry_policy || { max_retries: 2, retry_window_minutes: 30 };
 
-    // Check if we should retry
+    const retryPolicy = schedule.retry_policy || { max_retries: 2, retry_window_minutes: 30 };
     const currentRetries = schedule.retry_count || 0;
 
     if (currentRetries < retryPolicy.max_retries) {
       // Schedule a retry
       const retryAt = new Date(Date.now() + (15 * 60 * 1000)); // 15 minutes
 
-      await supabase
-        .from('ultaura_schedules')
-        .update({
-          last_run_at: new Date().toISOString(),
-          last_result: 'failed',
-          next_run_at: retryAt.toISOString(),
-          retry_count: currentRetries + 1,
-        })
-        .eq('id', schedule.id);
+      const { error: retryError } = await supabase.rpc('increment_schedule_retry', {
+        p_schedule_id: schedule.id,
+        p_worker_id: WORKER_ID,
+        p_next_run_at: retryAt.toISOString(),
+      });
 
-      logger.info({ scheduleId: schedule.id, retryAt, attempt: currentRetries + 1 }, 'Scheduled retry');
+      if (retryError) {
+        logger.error({ error: retryError, scheduleId: schedule.id }, 'Failed to schedule retry');
+      } else {
+        logger.info({ scheduleId: schedule.id, retryAt, attempt: currentRetries + 1 }, 'Scheduled retry');
+      }
     } else {
       // Max retries exceeded, move to next scheduled time
-      await updateScheduleResult(schedule.id, 'failed', calculateNextRun(schedule));
-
-      // Reset retry count
-      await supabase
-        .from('ultaura_schedules')
-        .update({ retry_count: 0 })
-        .eq('id', schedule.id);
-
+      await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule), true);
       logger.warn({ scheduleId: schedule.id }, 'Max retries exceeded for scheduled call');
     }
   }
 }
 
-// Update schedule after processing
-async function updateScheduleResult(
-  scheduleId: string,
+/**
+ * Complete schedule processing via RPC.
+ */
+async function completeScheduleWithResult(
+  schedule: ScheduleRow,
   result: 'success' | 'missed' | 'suppressed_quiet_hours' | 'failed',
-  nextRunAt: string | null
+  nextRunAt: string | null,
+  resetRetryCount: boolean
 ): Promise<void> {
   const supabase = getSupabaseClient();
 
-  const { error } = await supabase
-    .from('ultaura_schedules')
-    .update({
-      last_run_at: new Date().toISOString(),
-      last_result: result,
-      next_run_at: nextRunAt,
-    })
-    .eq('id', scheduleId);
+  const { error } = await supabase.rpc('complete_schedule_processing', {
+    p_schedule_id: schedule.id,
+    p_worker_id: WORKER_ID,
+    p_result: result,
+    p_next_run_at: nextRunAt,
+    p_reset_retry_count: resetRetryCount,
+  });
 
   if (error) {
-    logger.error({ error, scheduleId }, 'Failed to update schedule result');
+    logger.error({ error, scheduleId: schedule.id }, 'Failed to complete schedule processing');
   }
 }
 
-// Calculate next run time based on RRULE
+/**
+ * Calculate next run time based on schedule settings.
+ */
 function calculateNextRun(schedule: ScheduleRow): string | null {
   const { days_of_week, time_of_day, timezone } = schedule;
 
@@ -248,18 +403,15 @@ function calculateNextRun(schedule: ScheduleRow): string | null {
       daysOfWeek: days_of_week,
     });
 
-    logger.debug(
-      {
-        scheduleId: schedule.id,
-        lineId: schedule.line_id,
-        timezone,
-        timeOfDay: time_of_day,
-        daysOfWeek: days_of_week,
-        resultUtc: nextRun.toISOString(),
-        previousNextRunAt: schedule.next_run_at,
-      },
-      'Calculated next_run_at'
-    );
+    logger.debug({
+      scheduleId: schedule.id,
+      lineId: schedule.line_id,
+      timezone,
+      timeOfDay: time_of_day,
+      daysOfWeek: days_of_week,
+      resultUtc: nextRun.toISOString(),
+      previousNextRunAt: schedule.next_run_at,
+    }, 'Calculated next_run_at');
 
     return nextRun.toISOString();
   } catch (error) {
@@ -268,46 +420,53 @@ function calculateNextRun(schedule: ScheduleRow): string | null {
   }
 }
 
-// Process due reminders
+/**
+ * Process due reminders using atomic claim.
+ */
 async function processReminders(): Promise<void> {
   const supabase = getSupabaseClient();
 
-  const now = new Date().toISOString();
-
-  // Find due reminders (not paused, not snoozed)
-  const { data: dueReminders, error } = await supabase
-    .from('ultaura_reminders')
-    .select('*')
-    .eq('status', 'scheduled')
-    .eq('is_paused', false)
-    .lte('due_at', now)
-    .or(`snoozed_until.is.null,snoozed_until.lte.${now}`)
-    .limit(BATCH_SIZE);
+  // Claim a batch of due reminders atomically
+  const { data: claimedReminders, error } = await supabase.rpc('claim_due_reminders', {
+    p_worker_id: WORKER_ID,
+    p_batch_size: BATCH_SIZE,
+    p_claim_ttl_seconds: CLAIM_TTL_SECONDS,
+  });
 
   if (error) {
-    logger.error({ error }, 'Failed to fetch due reminders');
+    logger.error({ error }, 'Failed to claim reminders');
     return;
   }
 
-  if (!dueReminders || dueReminders.length === 0) {
+  if (!claimedReminders || claimedReminders.length === 0) {
     return;
   }
 
-  logger.info({ count: dueReminders.length }, 'Processing due reminders');
+  logger.info({
+    count: claimedReminders.length,
+    workerId: WORKER_ID,
+  }, 'Processing claimed reminders');
 
-  for (const reminder of dueReminders) {
-    await processReminder(reminder);
+  for (const reminder of claimedReminders) {
+    await processReminder(reminder as ReminderRow);
   }
 }
 
-// Process a single reminder
+/**
+ * Process a single reminder with idempotency.
+ */
 async function processReminder(reminder: ReminderRow): Promise<void> {
   const supabase = getSupabaseClient();
+
+  // Generate idempotency key for this specific reminder occurrence
+  const idempotencyKey = `reminder:${reminder.id}:${reminder.due_at}`;
 
   logger.info({
     reminderId: reminder.id,
     lineId: reminder.line_id,
     isRecurring: reminder.is_recurring,
+    idempotencyKey,
+    workerId: WORKER_ID,
   }, 'Processing reminder');
 
   // Get line info
@@ -350,10 +509,29 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
         reason: 'reminder',
         reminderId: reminder.id,
         reminderMessage: reminder.message,
+        schedulerIdempotencyKey: idempotencyKey,
       }),
     });
 
     if (!response.ok) {
+      const errorData = (await response.json()) as Record<string, unknown>;
+
+      // Check for idempotency conflict
+      if (errorData.code === 'DUPLICATE_SCHEDULED_CALL') {
+        logger.warn({ reminderId: reminder.id, idempotencyKey }, 'Duplicate reminder call, already processed');
+        // Still need to handle recurring logic
+        if (reminder.is_recurring) {
+          await handleRecurringReminderSuccess(supabase, reminder);
+        } else {
+          await supabase
+            .from('ultaura_reminders')
+            .update({ status: 'sent', last_delivery_status: 'completed' })
+            .eq('id', reminder.id);
+        }
+        await releaseReminderClaim(reminder.id);
+        return;
+      }
+
       throw new Error('Failed to initiate reminder call');
     }
 
@@ -385,9 +563,28 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       });
     }
 
+    // Release the claim
+    await releaseReminderClaim(reminder.id);
+
   } catch (error) {
     logger.error({ error, reminderId: reminder.id }, 'Failed to initiate reminder call');
     await handleReminderFailure(supabase, reminder, 'missed');
+  }
+}
+
+/**
+ * Release a reminder processing claim.
+ */
+async function releaseReminderClaim(reminderId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase.rpc('complete_reminder_processing', {
+    p_reminder_id: reminderId,
+    p_worker_id: WORKER_ID,
+  });
+
+  if (error) {
+    logger.error({ error, reminderId }, 'Failed to release reminder claim');
   }
 }
 
@@ -496,7 +693,6 @@ async function handleReminderFailure(
 
   if (reminder.is_recurring) {
     // For recurring reminders that fail, still advance to next occurrence
-    // so we don't keep trying the same failed occurrence
     const nextDueAt = calculateNextReminderOccurrence(reminder);
 
     if (nextDueAt && (!reminder.ends_at || new Date(nextDueAt) <= new Date(reminder.ends_at))) {
@@ -506,8 +702,6 @@ async function handleReminderFailure(
           due_at: nextDueAt,
           status: 'scheduled',
           last_delivery_status: 'no_answer',
-          // Don't increment occurrence_count since this one was missed
-          // Reset snooze count for next occurrence
           current_snooze_count: 0,
           snoozed_until: null,
           original_due_at: null,
@@ -523,6 +717,9 @@ async function handleReminderFailure(
         triggered_by: 'system',
         metadata: { nextDueAt },
       });
+
+      // Release the claim
+      await releaseReminderClaim(reminder.id);
 
       logger.info({ reminderId: reminder.id, nextDueAt }, 'Recurring reminder missed, rescheduled for next occurrence');
       return;
@@ -546,4 +743,7 @@ async function handleReminderFailure(
     event_type: eventType,
     triggered_by: 'system',
   });
+
+  // Release the claim
+  await releaseReminderClaim(reminder.id);
 }

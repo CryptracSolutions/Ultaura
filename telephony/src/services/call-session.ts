@@ -23,6 +23,8 @@ export async function createCallSession(options: {
   isReminderCall?: boolean;
   reminderId?: string;
   reminderMessage?: string;
+  // Scheduler idempotency key for preventing duplicate scheduled calls
+  schedulerIdempotencyKey?: string;
 }): Promise<CallSessionRow | null> {
   const supabase = getSupabaseClient();
 
@@ -42,11 +44,20 @@ export async function createCallSession(options: {
       is_reminder_call: options.isReminderCall || false,
       reminder_id: options.reminderId || null,
       reminder_message: options.reminderMessage || null,
+      scheduler_idempotency_key: options.schedulerIdempotencyKey || null,
     })
     .select()
     .single();
 
   if (error) {
+    // Handle unique constraint violation on idempotency key (duplicate scheduled call)
+    if (error.code === '23505' && options.schedulerIdempotencyKey) {
+      logger.warn(
+        { idempotencyKey: options.schedulerIdempotencyKey },
+        'Duplicate call session prevented by idempotency key'
+      );
+      return null;
+    }
     logger.error({ error, options }, 'Failed to create call session');
     return null;
   }
@@ -87,6 +98,28 @@ export async function getCallSessionByTwilioSid(twilioCallSid: string): Promise<
   if (error) {
     if (error.code !== 'PGRST116') { // Not found is expected
       logger.error({ error, twilioCallSid }, 'Failed to get call session by Twilio SID');
+    }
+    return null;
+  }
+
+  return data;
+}
+
+// Get call session by scheduler idempotency key
+export async function getCallSessionByIdempotencyKey(
+  idempotencyKey: string
+): Promise<CallSessionRow | null> {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('ultaura_call_sessions')
+    .select('*')
+    .eq('scheduler_idempotency_key', idempotencyKey)
+    .single();
+
+  if (error) {
+    if (error.code !== 'PGRST116') { // Not found is expected
+      logger.error({ error, idempotencyKey }, 'Failed to get call session by idempotency key');
     }
     return null;
   }
