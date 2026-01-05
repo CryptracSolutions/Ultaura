@@ -47,3 +47,6 @@ public/sitemap.xml
 
 # telephony build output
 telephony/dist
+
+# workspace package build output
+packages/*/dist

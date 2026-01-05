@@ -1,4 +1,6 @@
-export const SAFETY_KEYWORDS = {
+import type { SafetyTier } from '@ultaura/types';
+
+export const SAFETY_KEYWORDS: Record<SafetyTier, readonly string[]> = {
   high: [
     // English
     'suicide',
@@ -57,41 +59,3 @@ export const SAFETY_KEYWORDS = {
     'nadie me quiere',
   ],
 } as const;
-
-export const SAFETY_EXCLUSION_PATTERNS = [
-  // Common false positives (match as phrases)
-  'killing time',
-  'kill for a',
-  'killing it',
-  'drop dead gorgeous',
-  'to die for',
-  'dying to',
-  'dead tired',
-  'dead serious',
-  'bored to death',
-  'scared to death',
-  'hurt feelings',
-  'hurt my back',
-  'hurt my knee',
-  'hurt my leg',
-  'hurt my arm',
-  // Context exclusions (talking about others/media)
-  'movie about',
-  'book about',
-  'article about',
-  'news about',
-  'show about',
-  'heard about someone',
-  'my friend',
-  'my neighbor',
-  'their friend',
-  'his friend',
-  'her friend',
-] as const;
-
-export type SafetyTier = 'low' | 'medium' | 'high';
-
-export interface SafetyMatch {
-  tier: SafetyTier;
-  matchedKeyword: string;
-}

@@ -246,36 +246,6 @@ export function formatTime(time: string): string {
 }
 
 // ============================================
-// SAFETY
-// ============================================
-
-export const SAFETY = {
-  // Keywords that may indicate distress (simplified for MVP)
-  DISTRESS_KEYWORDS: [
-    'suicide',
-    'kill myself',
-    'end it all',
-    'want to die',
-    'hurt myself',
-    'self-harm',
-    'hopeless',
-    'give up',
-    'not worth living',
-  ],
-
-  // Crisis resources
-  CRISIS_HOTLINE: '988',
-  EMERGENCY_NUMBER: '911',
-
-  // Escalation tiers
-  TIERS: {
-    LOW: 'low',
-    MEDIUM: 'medium',
-    HIGH: 'high',
-  } as const,
-} as const;
-
-// ============================================
 // UI CONSTANTS
 // ============================================
 

@@ -1,11 +1,32 @@
 // Ultaura Types
 // Shared TypeScript types for the Ultaura AI Voice Companion Service
 
+import type {
+  AccountStatus,
+  GrokTool,
+  MemoryType,
+  PlanId,
+  PreferredLanguage,
+  PrivacyScope,
+  SafetyTier,
+  SpanishFormality,
+} from '@ultaura/types';
+export type {
+  AccountStatus,
+  GrokTool,
+  Memory,
+  MemoryType,
+  PlanId,
+  PreferredLanguage,
+  PrivacyScope,
+  SafetyActionTaken,
+  SafetyTier,
+  SpanishFormality,
+} from '@ultaura/types';
+
 // ============================================
 // ENUMS
 // ============================================
-
-export type AccountStatus = 'trial' | 'active' | 'past_due' | 'canceled';
 export type LineStatus = 'active' | 'paused' | 'disabled';
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
 export type CallDirection = 'inbound' | 'outbound';
@@ -25,14 +46,9 @@ export type ReminderEventType =
   | 'no_answer'
   | 'failed';
 export type ReminderEventTrigger = 'dashboard' | 'voice' | 'system';
-export type PrivacyScope = 'line_only' | 'shareable_with_payer';
-export type MemoryType = 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
-export type SafetyTier = 'low' | 'medium' | 'high';
 export type ConsentType = 'outbound_calls' | 'trusted_contact_notify' | 'sms_to_payer' | 'data_retention';
 export type OptOutChannel = 'outbound_calls' | 'sms' | 'all';
 export type CallEndReason = 'hangup' | 'no_answer' | 'busy' | 'trial_cap' | 'minutes_cap' | 'error';
-export type PreferredLanguage = 'auto' | 'en' | 'es';
-export type SpanishFormality = 'usted' | 'tu';
 export type VerificationChannel = 'sms' | 'call';
 export type VerificationStatus = 'pending' | 'approved' | 'canceled' | 'expired';
 
@@ -49,8 +65,6 @@ export interface Plan {
   linesIncluded: number;
   overageRateCentsPerMin: number;
 }
-
-export type PlanId = 'free_trial' | 'care' | 'comfort' | 'family' | 'payg';
 
 // ============================================
 // ACCOUNTS
@@ -300,27 +314,6 @@ export interface ReminderEvent {
   metadata: Record<string, unknown> | null;
 }
 
-// ============================================
-// MEMORIES (Decrypted form)
-// ============================================
-
-export interface Memory {
-  id: string;
-  accountId: string;
-  lineId: string;
-  createdAt: string;
-  updatedAt: string | null;
-  type: MemoryType;
-  key: string;
-  value: unknown; // Decrypted JSON value
-  confidence: number | null;
-  source: 'onboarding' | 'conversation' | 'caregiver_seed' | null;
-  version: number;
-  active: boolean;
-  privacyScope: PrivacyScope;
-  redactionLevel: 'none' | 'low' | 'high';
-}
-
 export interface EncryptedMemory {
   id: string;
   accountId: string;
@@ -500,17 +493,6 @@ export interface GrokSessionConfig {
     silence_duration_ms: number;
   };
   tools: GrokTool[];
-}
-
-export interface GrokTool {
-  type: 'web_search' | 'function';
-  name?: string;
-  description?: string;
-  parameters?: {
-    type: string;
-    properties: Record<string, unknown>;
-    required?: string[];
-  };
 }
 
 export interface GrokMessage {

@@ -243,11 +243,19 @@ export async function fetchDecryptedMemories(
   }
 ): Promise<Array<{
   id: string;
+  accountId: string;
+  lineId: string;
+  createdAt: string;
+  updatedAt: string | null;
   type: string;
   key: string;
   value: unknown;
   confidence: number | null;
+  source: string | null;
+  version: number;
+  active: boolean;
   privacyScope: string;
+  redactionLevel: string;
 }>> {
   const dek = await getOrCreateAccountDEK(supabase, accountId);
 
@@ -301,11 +309,19 @@ export async function fetchDecryptedMemories(
 
       decrypted.push({
         id: memory.id,
+        accountId: memory.account_id,
+        lineId: memory.line_id,
+        createdAt: memory.created_at,
+        updatedAt: memory.updated_at,
         type: memory.type,
         key: memory.key,
         value,
         confidence: memory.confidence,
+        source: memory.source,
+        version: memory.version,
+        active: memory.active,
         privacyScope: memory.privacy_scope,
+        redactionLevel: memory.redaction_level,
       });
     } catch (err) {
       logger.error({ error: err, memoryId: memory.id }, 'Failed to decrypt memory');

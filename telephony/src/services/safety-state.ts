@@ -1,4 +1,4 @@
-import type { SafetyTier } from '../utils/safety-keywords.js';
+import type { SafetyTier } from '@ultaura/types';
 
 type SafetySource = 'keyword_backstop' | 'model';
 

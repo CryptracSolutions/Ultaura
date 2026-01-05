@@ -8,15 +8,7 @@ import {
   deactivateMemory,
 } from '../utils/encryption.js';
 import { logger } from '../server.js';
-
-export interface Memory {
-  id: string;
-  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
-  key: string;
-  value: unknown;
-  confidence: number | null;
-  privacyScope: 'line_only' | 'shareable_with_payer';
-}
+import type { Memory, MemoryType, PrivacyScope } from '@ultaura/types';
 
 // Fetch memories for a line (for prompt assembly)
 export async function getMemoriesForLine(
@@ -37,11 +29,19 @@ export async function getMemoriesForLine(
 
     return memories.map(m => ({
       id: m.id,
-      type: m.type as Memory['type'],
+      accountId: m.accountId,
+      lineId: m.lineId,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+      type: m.type as MemoryType,
       key: m.key,
       value: m.value,
       confidence: m.confidence,
-      privacyScope: m.privacyScope as 'line_only' | 'shareable_with_payer',
+      source: m.source as Memory['source'],
+      version: m.version,
+      active: m.active,
+      privacyScope: m.privacyScope as PrivacyScope,
+      redactionLevel: m.redactionLevel as Memory['redactionLevel'],
     }));
   } catch (error) {
     logger.error({
@@ -55,91 +55,17 @@ export async function getMemoriesForLine(
   }
 }
 
-// Format memories for system prompt
-export function formatMemoriesForPrompt(memories: Memory[]): string {
-  if (memories.length === 0) {
-    return 'No previous memories recorded yet.';
-  }
-
-  // Group by type
-  const facts = memories.filter(m => m.type === 'fact');
-  const preferences = memories.filter(m => m.type === 'preference');
-  const followUps = memories.filter(m => m.type === 'follow_up');
-  const contexts = memories.filter(m => m.type === 'context');
-  const histories = memories.filter(m => m.type === 'history');
-  const wellbeings = memories.filter(m => m.type === 'wellbeing');
-
-  const sections: string[] = [];
-
-  if (facts.length > 0) {
-    sections.push('**Facts about them:**');
-    facts.forEach(m => {
-      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
-    });
-  }
-
-  if (preferences.length > 0) {
-    sections.push('\n**Their preferences:**');
-    preferences.forEach(m => {
-      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
-    });
-  }
-
-  if (followUps.length > 0) {
-    sections.push('\n**Things to follow up on:**');
-    followUps.forEach(m => {
-      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
-    });
-  }
-
-  if (contexts.length > 0) {
-    sections.push('\n**Context (environment & routines):**');
-    contexts.forEach(m => {
-      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
-    });
-  }
-
-  if (histories.length > 0) {
-    sections.push('\n**Their stories and history:**');
-    histories.forEach(m => {
-      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
-    });
-  }
-
-  if (wellbeings.length > 0) {
-    sections.push('\n**Wellbeing notes (non-medical):**');
-    wellbeings.forEach(m => {
-      sections.push(`- ${m.key}: ${formatValue(m.value)}`);
-    });
-  }
-
-  return sections.join('\n');
-}
-
-function formatValue(value: unknown): string {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.join(', ');
-  }
-  if (typeof value === 'object' && value !== null) {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-
 // Store a new memory
 export async function storeMemory(
   accountId: string,
   lineId: string,
-  type: Memory['type'],
+  type: MemoryType,
   key: string,
   value: unknown,
   options?: {
     confidence?: number;
     source?: 'onboarding' | 'conversation' | 'caregiver_seed';
-    privacyScope?: 'line_only' | 'shareable_with_payer';
+    privacyScope?: PrivacyScope;
   }
 ): Promise<string | null> {
   const supabase = getSupabaseClient();
@@ -193,12 +119,12 @@ export async function updateMemory(
       supabase,
       accountId,
       lineId,
-      existing.type as Memory['type'],
+      existing.type as MemoryType,
       existing.key,
       value,
       {
         confidence: existing.confidence || 1.0,
-        privacyScope: existing.privacyScope as 'line_only' | 'shareable_with_payer',
+        privacyScope: existing.privacyScope as PrivacyScope,
       }
     );
 
@@ -269,9 +195,6 @@ export const MEMORY_KEYS = {
   UPCOMING_EVENTS: 'upcoming_events',
   LAST_CONVERSATION_TOPIC: 'last_conversation_topic',
 } as const;
-
-// Memory type union matching database enum
-type MemoryType = 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
 
 // Extract memories from conversation (simple heuristics)
 export function extractMemoriesFromText(text: string): Array<{

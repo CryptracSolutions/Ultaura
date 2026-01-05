@@ -5,11 +5,12 @@ import { WebSocket } from 'ws';
 import { logger } from '../server.js';
 import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent } from '../services/call-session.js';
 import { getLineById, recordOptOut } from '../services/line-lookup.js';
-import { getMemoriesForLine, formatMemoriesForPrompt } from '../services/memory.js';
+import { getMemoriesForLine } from '../services/memory.js';
 import { createBuffer, clearBuffer } from '../services/ephemeral-buffer.js';
 import { summarizeAndExtractMemories } from '../services/call-summarization.js';
 import { getUsageSummary } from '../services/metering.js';
 import { GrokBridge } from './grok-bridge.js';
+import type { AccountStatus, PlanId, PreferredLanguage, SpanishFormality } from '@ultaura/types';
 
 interface TwilioMessage {
   event: 'connected' | 'start' | 'media' | 'dtmf' | 'stop' | 'mark';
@@ -163,7 +164,6 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
             // Fetch memories for the line
             const memories = await getMemoriesForLine(account.id, line.id, { limit: 50 });
-            const memoryText = formatMemoriesForPrompt(memories);
 
             // Check if this is the first call
             const isFirstCall = !line.last_successful_call_at;
@@ -181,17 +181,18 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               accountId: account.id,
               userName: line.display_name,
               timezone: line.timezone,
-              language: line.preferred_language,
+              language: line.preferred_language as PreferredLanguage,
               isFirstCall,
-              memories: memoryText,
+              memories,
               seedInterests: line.seed_interests,
               seedAvoidTopics: line.seed_avoid_topics,
               lowMinutesWarning: minutesStatus.warn,
               minutesRemaining,
               isReminderCall: session.is_reminder_call,
               reminderMessage: session.reminder_message,
-              currentPlanId: account.plan_id,
-              accountStatus: account.status,
+              currentPlanId: account.plan_id as PlanId,
+              accountStatus: account.status as AccountStatus,
+              spanishFormality: line.spanish_formality as SpanishFormality,
               onAudioReceived: (audioBase64: string) => {
                 // Send audio back to Twilio
                 if (ws.readyState === WebSocket.OPEN && streamSid) {
