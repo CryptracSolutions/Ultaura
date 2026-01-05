@@ -11,6 +11,14 @@ import { clearSafetyState, getSafetySummary, markSafetySummaryLogged } from './s
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
 export type CallDirection = 'inbound' | 'outbound';
 export type CallEndReason = 'hangup' | 'no_answer' | 'busy' | 'trial_cap' | 'minutes_cap' | 'error';
+export type CallAnsweredBy =
+  | 'human'
+  | 'machine_start'
+  | 'machine_end_beep'
+  | 'machine_end_silence'
+  | 'machine_end_other'
+  | 'fax'
+  | 'unknown';
 
 // Create a new call session
 export async function createCallSession(options: {
@@ -138,6 +146,7 @@ export async function updateCallStatus(
     endedAt?: string;
     endReason?: CallEndReason;
     languageDetected?: string;
+    answeredBy?: CallAnsweredBy;
   }
 ): Promise<void> {
   const supabase = getSupabaseClient();
@@ -166,6 +175,10 @@ export async function updateCallStatus(
     updates.language_detected = options.languageDetected;
   }
 
+  if (options?.answeredBy) {
+    updates.answered_by = options.answeredBy;
+  }
+
   const { error } = await supabase
     .from('ultaura_call_sessions')
     .update(updates)
@@ -177,6 +190,41 @@ export async function updateCallStatus(
   }
 
   logger.info({ sessionId, status, endReason: options?.endReason }, 'Call status updated');
+}
+
+// Update call session metadata without changing status
+export async function updateCallSession(
+  sessionId: string,
+  options: {
+    answeredBy?: CallAnsweredBy;
+    endReason?: CallEndReason;
+  }
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const updates: Record<string, unknown> = {};
+
+  if (options.answeredBy !== undefined) {
+    updates.answered_by = options.answeredBy;
+  }
+
+  if (options.endReason !== undefined) {
+    updates.end_reason = options.endReason;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from('ultaura_call_sessions')
+    .update(updates)
+    .eq('id', sessionId);
+
+  if (error) {
+    logger.error({ error, sessionId }, 'Failed to update call session');
+    return;
+  }
 }
 
 // Complete a call session and record usage
@@ -197,6 +245,7 @@ export async function completeCallSession(
   }
 
   const endedAt = options.endedAt || new Date().toISOString();
+  const endReason = session.end_reason ?? options.endReason;
 
   // Calculate seconds connected
   let secondsConnected = 0;
@@ -212,7 +261,7 @@ export async function completeCallSession(
     .update({
       status: 'completed',
       ended_at: endedAt,
-      end_reason: options.endReason,
+      end_reason: endReason,
       seconds_connected: secondsConnected,
     })
     .eq('id', sessionId);
@@ -222,7 +271,7 @@ export async function completeCallSession(
     return;
   }
 
-  logger.info({ sessionId, secondsConnected, endReason: options.endReason, isReminderCall: session.is_reminder_call }, 'Call session completed');
+  logger.info({ sessionId, secondsConnected, endReason, isReminderCall: session.is_reminder_call }, 'Call session completed');
 
   // Record usage if call was long enough (or if it's a reminder call - always bill at least 1 min)
   const shouldRecordUsage = secondsConnected >= 30 || session.is_reminder_call;

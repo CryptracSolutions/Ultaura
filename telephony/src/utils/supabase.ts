@@ -67,6 +67,7 @@ export interface LineRow {
   next_scheduled_call_at: string | null;
   seed_interests: string[] | null;
   seed_avoid_topics: string[] | null;
+  voicemail_behavior: 'none' | 'brief' | 'detailed';
 }
 
 export interface CallSessionRow {
@@ -84,6 +85,7 @@ export interface CallSessionRow {
   twilio_from: string | null;
   twilio_to: string | null;
   end_reason: 'hangup' | 'no_answer' | 'busy' | 'trial_cap' | 'minutes_cap' | 'error' | null;
+  answered_by: 'human' | 'machine_start' | 'machine_end_beep' | 'machine_end_silence' | 'machine_end_other' | 'fax' | 'unknown' | null;
   language_detected: string | null;
   tool_invocations: number;
   cost_estimate_cents_twilio: number | null;

@@ -136,7 +136,7 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
         break;
 
       case 'completed': {
-        const endReason = getEndReason(CallStatus) || 'hangup';
+        const endReason = session.end_reason || getEndReason(CallStatus) || 'hangup';
         await completeCallSession(session.id, {
           endReason,
           endedAt: Timestamp || new Date().toISOString(),

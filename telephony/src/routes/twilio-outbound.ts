@@ -2,9 +2,10 @@
 
 import { Router, Request, Response } from 'express';
 import { logger } from '../server.js';
-import { getCallSession, updateCallStatus } from '../services/call-session.js';
+import type { CallAnsweredBy } from '../services/call-session.js';
+import { getCallSession, updateCallSession, updateCallStatus } from '../services/call-session.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
-import { generateStreamTwiML, generateMessageTwiML, validateTwilioSignature } from '../utils/twilio.js';
+import { generateStreamTwiML, generateMessageTwiML, generateHangupTwiML, validateTwilioSignature } from '../utils/twilio.js';
 
 export const twilioOutboundRouter = Router();
 
@@ -122,12 +123,44 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
       connectedAt: new Date().toISOString(),
     });
 
-    // Handle answering machine detection if enabled
-    if (AnsweredBy === 'machine_start' || AnsweredBy === 'machine_end_beep') {
-      logger.info({ callSessionId, answeredBy: AnsweredBy }, 'Answering machine detected');
-      res.type('text/xml').send(generateMessageTwiML(
-        `Hello ${line.display_name}, this is Ultaura calling. I'm sorry I missed you. I'll try again later. Take care.`
-      ));
+    const answeredBy = typeof AnsweredBy === 'string' ? AnsweredBy : null;
+    const machineAnswers = new Set([
+      'machine_start',
+      'machine_end_beep',
+      'machine_end_silence',
+      'machine_end_other',
+    ]);
+    const isMachine = answeredBy ? machineAnswers.has(answeredBy) : false;
+    const isFax = answeredBy === 'fax';
+
+    if (answeredBy) {
+      await updateCallSession(session.id, {
+        answeredBy: answeredBy as CallAnsweredBy,
+        endReason: isMachine || isFax ? 'no_answer' : undefined,
+      });
+    }
+
+    if (isFax) {
+      logger.info({ callSessionId, answeredBy }, 'Fax detected, ending call');
+      res.type('text/xml').send(generateHangupTwiML());
+      return;
+    }
+
+    if (isMachine) {
+      logger.info({ callSessionId, answeredBy }, 'Answering machine detected');
+      const voicemailBehavior = line.voicemail_behavior || 'brief';
+      const briefMessage = `Hi ${line.display_name}, this is Ultaura. I'll call back soon. Take care!`;
+      const detailedMessage = session.is_reminder_call && session.reminder_message
+        ? `Hi ${line.display_name}, this is Ultaura. I was calling to remind you about ${session.reminder_message}. I'll try again later. Take care!`
+        : `Hi ${line.display_name}, this is Ultaura. I was calling for your check-in. I'll try again later. Take care!`;
+
+      if (voicemailBehavior === 'none') {
+        res.type('text/xml').send(generateHangupTwiML());
+        return;
+      }
+
+      const message = voicemailBehavior === 'detailed' ? detailedMessage : briefMessage;
+      res.type('text/xml').send(generateMessageTwiML(message));
       return;
     }
 

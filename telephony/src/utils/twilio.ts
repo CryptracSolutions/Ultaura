@@ -90,6 +90,14 @@ export function generateMessageTwiML(message: string): string {
 </Response>`;
 }
 
+// Generate TwiML to hang up without a message
+export function generateHangupTwiML(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Hangup />
+</Response>`;
+}
+
 // Generate TwiML for hold message
 export function generateHoldTwiML(message: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -116,8 +124,10 @@ export async function initiateOutboundCall(options: {
   callbackUrl: string;
   statusCallbackUrl: string;
   callSessionId: string;
+  amdEnabled?: boolean;
 }): Promise<string> {
   const client = getTwilioClient();
+  const amdEnabled = options.amdEnabled ?? isAmdEnabled(process.env.TWILIO_AMD_ENABLED);
 
   const call = await client.calls.create({
     to: options.to,
@@ -126,11 +136,25 @@ export async function initiateOutboundCall(options: {
     statusCallback: options.statusCallbackUrl,
     statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
     statusCallbackMethod: 'POST',
+    ...(amdEnabled && {
+      machineDetection: 'Enable',
+      machineDetectionTimeout: 30,
+    }),
   });
 
   logger.info({ callSid: call.sid, to: options.to }, 'Outbound call initiated');
 
   return call.sid;
+}
+
+const AMD_DISABLED_VALUES = new Set(['false', '0', 'no']);
+
+function isAmdEnabled(value?: string): boolean {
+  if (!value) {
+    return true;
+  }
+
+  return !AMD_DISABLED_VALUES.has(value.toLowerCase());
 }
 
 // Send verification code via Twilio Verify

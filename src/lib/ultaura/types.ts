@@ -49,6 +49,15 @@ export type ReminderEventTrigger = 'dashboard' | 'voice' | 'system';
 export type ConsentType = 'outbound_calls' | 'trusted_contact_notify' | 'sms_to_payer' | 'data_retention';
 export type OptOutChannel = 'outbound_calls' | 'sms' | 'all';
 export type CallEndReason = 'hangup' | 'no_answer' | 'busy' | 'trial_cap' | 'minutes_cap' | 'error';
+export type CallAnsweredBy =
+  | 'human'
+  | 'machine_start'
+  | 'machine_end_beep'
+  | 'machine_end_silence'
+  | 'machine_end_other'
+  | 'fax'
+  | 'unknown';
+export type VoicemailBehavior = 'none' | 'brief' | 'detailed';
 export type VerificationChannel = 'sms' | 'call';
 export type VerificationStatus = 'pending' | 'approved' | 'canceled' | 'expired';
 
@@ -114,6 +123,7 @@ export interface Line {
   seedInterests: string[] | null;
   seedAvoidTopics: string[] | null;
   allowVoiceReminderControl: boolean;
+  voicemailBehavior: VoicemailBehavior;
 }
 
 export interface CreateLineInput {
@@ -139,6 +149,7 @@ export interface UpdateLineInput {
   seedInterests?: string[];
   seedAvoidTopics?: string[];
   allowVoiceReminderControl?: boolean;
+  voicemailBehavior?: VoicemailBehavior;
 }
 
 // ============================================
@@ -199,6 +210,7 @@ export interface CallSession {
   twilioFrom: string | null;
   twilioTo: string | null;
   endReason: CallEndReason | null;
+  answeredBy: CallAnsweredBy | null;
   languageDetected: string | null;
   toolInvocations: number;
   costEstimateCentsTwilio: number | null;
@@ -554,6 +566,7 @@ export interface LineRow {
   seed_interests: string[] | null;
   seed_avoid_topics: string[] | null;
   allow_voice_reminder_control: boolean;
+  voicemail_behavior: VoicemailBehavior;
 }
 
 export interface ScheduleRow {
@@ -587,6 +600,7 @@ export interface CallSessionRow {
   twilio_from: string | null;
   twilio_to: string | null;
   end_reason: CallEndReason | null;
+  answered_by: CallAnsweredBy | null;
   language_detected: string | null;
   tool_invocations: number;
   cost_estimate_cents_twilio: number | null;

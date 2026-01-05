@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Bell } from 'lucide-react';
+import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Bell, Voicemail } from 'lucide-react';
+import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
-import type { LineRow } from '~/lib/ultaura/types';
+import type { LineRow, VoicemailBehavior } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/actions';
 import {
   US_TIMEZONES,
@@ -36,6 +37,9 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
     line.allow_voice_reminder_control ?? true
   );
+  const [voicemailBehavior, setVoicemailBehavior] = useState<VoicemailBehavior>(
+    line.voicemail_behavior || 'brief'
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +56,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
         quietHoursStart,
         quietHoursEnd,
         allowVoiceReminderControl,
+        voicemailBehavior,
       });
 
       if (result.success) {
@@ -74,7 +79,8 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
     spanishFormality !== line.spanish_formality ||
     quietHoursStart !== line.quiet_hours_start ||
     quietHoursEnd !== line.quiet_hours_end ||
-    allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true);
+    allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
+    voicemailBehavior !== (line.voicemail_behavior || 'brief');
 
   return (
     <div className="w-full p-6 pb-12">
@@ -220,6 +226,45 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
                 </Select>
               </div>
             </div>
+          </div>
+
+          {/* Voicemail Settings */}
+          <div className="pt-6 border-t border-border">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
+              <Voicemail className="w-4 h-4 text-muted-foreground" />
+              Voicemail Settings
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              When I don't answer a call:
+            </p>
+            <RadioGroup
+              value={voicemailBehavior}
+              onValueChange={(value) => setVoicemailBehavior(value as VoicemailBehavior)}
+              className="gap-3"
+              disabled={disabled}
+            >
+              <RadioGroupItemLabel>
+                <RadioGroupItem value="none" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Don't leave a message</p>
+                  <p className="text-xs text-muted-foreground">Hang up quietly</p>
+                </div>
+              </RadioGroupItemLabel>
+              <RadioGroupItemLabel>
+                <RadioGroupItem value="brief" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Leave a brief message</p>
+                  <p className="text-xs text-muted-foreground">Leave a short message</p>
+                </div>
+              </RadioGroupItemLabel>
+              <RadioGroupItemLabel>
+                <RadioGroupItem value="detailed" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Leave a detailed message</p>
+                  <p className="text-xs text-muted-foreground">Include why I was calling</p>
+                </div>
+              </RadioGroupItemLabel>
+            </RadioGroup>
           </div>
 
           {/* Voice Reminder Control */}

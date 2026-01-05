@@ -27,6 +27,7 @@ import { BILLING, PLANS } from './constants';
 import { getNextOccurrence, getNextReminderOccurrence, validateTimezone } from './timezone';
 
 const logger = getLogger();
+const VALID_VOICEMAIL_BEHAVIORS = ['none', 'brief', 'detailed'] as const;
 
 // ============================================
 // ACCOUNT ACTIONS
@@ -281,6 +282,12 @@ export async function updateLine(
     if (input.timezone !== undefined) {
       validateTimezone(input.timezone);
     }
+    if (
+      input.voicemailBehavior !== undefined &&
+      !VALID_VOICEMAIL_BEHAVIORS.includes(input.voicemailBehavior)
+    ) {
+      return { success: false, error: 'Invalid voicemail behavior' };
+    }
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
@@ -326,6 +333,7 @@ export async function updateLine(
   if (input.seedInterests !== undefined) updates.seed_interests = input.seedInterests;
   if (input.seedAvoidTopics !== undefined) updates.seed_avoid_topics = input.seedAvoidTopics;
   if (input.allowVoiceReminderControl !== undefined) updates.allow_voice_reminder_control = input.allowVoiceReminderControl;
+  if (input.voicemailBehavior !== undefined) updates.voicemail_behavior = input.voicemailBehavior;
 
   const { error } = await client
     .from('ultaura_lines')
