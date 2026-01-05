@@ -120,11 +120,6 @@ private scanForSafetyKeywords(transcript: string): SafetyMatch[] {
   // Normalize text
   const text = transcript.toLowerCase().trim();
 
-  // Check exclusion patterns first (false positives)
-  if (this.matchesExclusionPattern(text)) {
-    return [];
-  }
-
   const matches: SafetyMatch[] = [];
 
   // Check ALL tiers for matches
@@ -136,9 +131,13 @@ private scanForSafetyKeywords(transcript: string): SafetyMatch[] {
 
     const keywords = SAFETY_KEYWORDS[tier];
     for (const keyword of keywords) {
-      if (this.matchesKeyword(text, keyword)) {
-        matches.push({ tier, matchedKeyword: keyword });
-        break; // Only need one match per tier
+      const keywordMatch = this.findKeywordMatch(text, keyword);
+      if (keywordMatch) {
+        // GRANULAR exclusion: only suppress if exclusion overlaps with this keyword's location
+        if (!this.isExcludedAtPosition(text, keywordMatch.start, keywordMatch.end)) {
+          matches.push({ tier, matchedKeyword: keyword });
+          break; // Only need one match per tier
+        }
       }
     }
   }
@@ -146,24 +145,36 @@ private scanForSafetyKeywords(transcript: string): SafetyMatch[] {
   return matches;
 }
 
-private matchesKeyword(text: string, keyword: string): boolean {
-  // Use word boundary matching to avoid partial matches
+// Find keyword match with position info
+private findKeywordMatch(text: string, keyword: string): { start: number; end: number } | null {
   const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-  return regex.test(text);
+  const match = regex.exec(text);
+  if (match) {
+    return { start: match.index, end: match.index + match[0].length };
+  }
+  return null;
 }
 
-private matchesExclusionPattern(text: string): boolean {
-  // Use word-boundary matching for exclusion patterns
+// Check if any exclusion pattern overlaps with the keyword position
+private isExcludedAtPosition(text: string, keywordStart: number, keywordEnd: number): boolean {
   for (const pattern of SAFETY_EXCLUSION_PATTERNS) {
     const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-    if (regex.test(text)) {
-      return true;
+    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const exclStart = match.index;
+      const exclEnd = match.index + match[0].length;
+      // Check for overlap
+      if (keywordStart < exclEnd && keywordEnd > exclStart) {
+        return true; // Exclusion overlaps with keyword
+      }
     }
   }
   return false;
 }
+
+// Note: matchesKeyword is replaced by findKeywordMatch above for position tracking
 
 // Handle multiple matches - log each tier, inject hint for highest only
 private async handleSafetyBackstop(matches: SafetyMatch[]): Promise<void> {
@@ -739,6 +750,34 @@ Set up alerts for:
 ## Implementation Clarifications
 
 Answers to specific implementation questions:
+
+### Summary & State Plumbing
+
+1. **End-of-call summary data source:** Pass safety state from GrokBridge to `completeCallSession()` via in-memory state. This requires plumbing the `safetyState.triggeredTiers` data through to the completion function.
+
+2. **Duplicate completion guard:** Add idempotency check to avoid duplicate `safety_call_summary` logs since `completeCallSession()` can run from both media-stream close and Twilio status callback.
+
+3. **Summary log fields:** Include `lineId` and `accountId` in the `safety_call_summary` structured log for better traceability.
+
+### Detection Behavior
+
+4. **Exclusion scope:** Use GRANULAR exclusion - only suppress detection if the exclusion pattern overlaps with the keyword match location. A benign phrase in one part of the transcript should NOT suppress detection of real distress keywords in another part.
+
+5. **Log location:** Log `safety_backstop_triggered` in BOTH `handleSafetyBackstop()` AND the `/tools/safety_event` handler (redundancy is fine for safety-critical logging).
+
+6. **Failed model call debouncing:** Mark tier as triggered even if POST to `/tools/safety_event` fails. This prevents retry spam if the endpoint is temporarily down.
+
+### Prompt & Copy
+
+7. **Prompt wording:** Implementation agent should author the condensed ~100-word "Safety Detection Protocol" based on the longer example in this spec.
+
+8. **Reminder prompt:** Fully REMOVE the Safety section from `buildReminderPrompt()`. No safety guidance at all - rely solely on keyword backstop for reminder calls.
+
+### Data Format
+
+9. **Keyword lists:** Use the provided English/Spanish keywords and exclusion patterns verbatim from this spec. No additional variants needed.
+
+10. **Signals format:** Request body uses `signals` as a string. Store as `{ description: signals, source }` in JSONB. For backstop events, the description string should be exactly `'keyword_backstop_detected'`.
 
 ### Prompt/Tool Updates
 

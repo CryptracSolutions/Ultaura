@@ -5,6 +5,13 @@ import { WebSocket } from 'ws';
 import { logger } from '../server.js';
 import { addTurn, TurnSummary } from '../services/ephemeral-buffer.js';
 import { getMemoriesForLine, formatMemoriesForPrompt } from '../services/memory.js';
+import {
+  SAFETY_EXCLUSION_PATTERNS,
+  SAFETY_KEYWORDS,
+} from '../utils/safety-keywords.js';
+import type { SafetyMatch, SafetyTier } from '../utils/safety-keywords.js';
+import { getOrCreateSafetyState } from '../services/safety-state.js';
+import type { SafetyState } from '../services/safety-state.js';
 
 const GROK_REALTIME_URL = 'wss://api.x.ai/v1/realtime';
 
@@ -120,9 +127,11 @@ export class GrokBridge {
   private ws: WebSocket | null = null;
   private options: GrokBridgeOptions;
   private isConnected = false;
+  private safetyState: SafetyState;
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
+    this.safetyState = getOrCreateSafetyState(options.callSessionId);
   }
 
   // Connect to Grok Realtime API
@@ -438,23 +447,32 @@ Do NOT confirm the update verbally - just update silently and continue.`,
           {
             type: 'function',
             name: 'log_safety_concern',
-            description: 'INTERNAL: Log when you detect signs of distress, depression, self-harm ideation, or crisis. Do NOT call this for normal sad feelings. Only for genuine safety concerns.',
+            description: `Log when you detect genuine safety concerns during the conversation.
+
+WHEN TO CALL:
+- tier: 'high' -> User mentions suicide, self-harm, or wanting to die. Action: suggested_988 or suggested_911
+- tier: 'medium' -> User expresses hopelessness, despair, or "giving up". Action: none or suggested_988
+- tier: 'low' -> User seems persistently sad, lonely, or isolated. Action: none
+
+IMPORTANT: Call this tool AFTER providing an empathetic response, not before.
+
+DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
             parameters: {
               type: 'object',
               properties: {
                 tier: {
                   type: 'string',
                   enum: ['low', 'medium', 'high'],
-                  description: 'low=sad/lonely, medium=distress/hopelessness, high=self-harm/crisis',
+                  description: 'Severity: low=persistent sadness, medium=hopelessness/despair, high=self-harm ideation',
                 },
                 signals: {
                   type: 'string',
-                  description: 'Brief description of concerning statements',
+                  description: 'Brief summary of what concerned you (e.g., "expressed feeling hopeless about the future")',
                 },
                 action_taken: {
                   type: 'string',
                   enum: ['none', 'suggested_988', 'suggested_911'],
-                  description: 'What action you recommended',
+                  description: 'What action you recommended to the user',
                 },
               },
               required: ['tier', 'signals', 'action_taken'],
@@ -629,13 +647,19 @@ ${memories}
 - If they say "forget that" - acknowledge and stop referencing it
 - If they say "don't tell my family" - mark it private and reassure them
 
-## Safety
-If distress or self-harm mentioned:
-1. Stay calm and empathetic
-2. Listen without judgment
-3. Encourage reaching out to trusted person or 988 (crisis line)
-4. For immediate danger, encourage 911
-5. Never leave them feeling abandoned
+## Safety Detection Protocol
+Use log_safety_concern to record genuine safety concerns.
+
+Tiers:
+- low: persistent sadness or loneliness ("I've been really lonely")
+- medium: hopelessness or giving up ("What's the point anymore?")
+- high: self-harm, suicide, or crisis ("I want to end it all")
+
+When: suicide/self-harm -> high + suggested_988 (or 911 if immediate danger). Hopelessness -> medium (none or suggested_988). Persistent isolation -> low (none).
+
+Do NOT call for everyday sadness, grief alone, or short-term frustration. Do NOT minimize, promise secrecy, diagnose, give medical advice, abandon the call, or lecture.
+
+After detecting: respond with empathy first, then call log_safety_concern, suggest 988 for high, encourage a trusted person for medium/low, and continue naturally.
 
 ## Tools Available
 - set_reminder: Set one-time or recurring reminders delivered via phone call
@@ -743,8 +767,6 @@ Deliver this reminder: "${reminderMessage}"
 ## Example Flow
 "Hello ${userName}, this is Ultaura calling with a quick reminder. ${reminderMessage}. Is there anything you'd like me to help with regarding this? ...Alright, take care and have a wonderful day!"
 
-## Safety
-If they mention distress or need help beyond the reminder, stay calm and empathetic. Suggest calling 988 if it seems serious.
 `;
 
     // Language instruction
@@ -785,6 +807,149 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
     }
   }
 
+  private scanForSafetyKeywords(transcript: string): SafetyMatch[] {
+    const text = transcript.toLowerCase().trim();
+    const matches: SafetyMatch[] = [];
+
+    for (const tier of ['high', 'medium', 'low'] as const) {
+      if (this.safetyState.triggeredTiers.has(tier)) {
+        continue;
+      }
+
+      const keywords = SAFETY_KEYWORDS[tier];
+      let matchedTier = false;
+
+      for (const keyword of keywords) {
+        let keywordMatch = this.findKeywordMatch(text, keyword);
+
+        while (keywordMatch) {
+          if (!this.isExcludedAtPosition(text, keywordMatch.start, keywordMatch.end)) {
+            matches.push({ tier, matchedKeyword: keyword });
+            matchedTier = true;
+            break;
+          }
+
+          keywordMatch = this.findKeywordMatch(text, keyword, keywordMatch.end);
+        }
+
+        if (matchedTier) {
+          break;
+        }
+      }
+    }
+
+    return matches;
+  }
+
+  private findKeywordMatch(
+    text: string,
+    keyword: string,
+    fromIndex = 0
+  ): { start: number; end: number } | null {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+    regex.lastIndex = fromIndex;
+    const match = regex.exec(text);
+    if (!match) {
+      return null;
+    }
+
+    return { start: match.index, end: match.index + match[0].length };
+  }
+
+  private isExcludedAtPosition(text: string, keywordStart: number, keywordEnd: number): boolean {
+    for (const pattern of SAFETY_EXCLUSION_PATTERNS) {
+      const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(text)) !== null) {
+        const exclStart = match.index;
+        const exclEnd = match.index + match[0].length;
+        if (keywordStart < exclEnd && keywordEnd > exclStart) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private async handleSafetyBackstop(matches: SafetyMatch[]): Promise<void> {
+    if (matches.length === 0) return;
+
+    const baseUrl = process.env.TELEPHONY_BACKEND_URL || 'http://localhost:3001';
+
+    for (const match of matches) {
+      const { tier } = match;
+
+      this.safetyState.triggeredTiers.add(tier);
+      this.safetyState.backstopTiersTriggered.add(tier);
+
+      try {
+        await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
+          callSessionId: this.options.callSessionId,
+          lineId: this.options.lineId,
+          accountId: this.options.accountId,
+          tier,
+          signals: 'keyword_backstop_detected',
+          actionTaken: 'none',
+          source: 'keyword_backstop',
+        });
+
+        logger.info({
+          event: 'safety_backstop_triggered',
+          callSessionId: this.options.callSessionId,
+          lineId: this.options.lineId,
+          tier,
+          timestamp: Date.now(),
+        }, 'Safety backstop triggered');
+      } catch (error) {
+        logger.error({ error, tier, callSessionId: this.options.callSessionId }, 'Failed to log safety backstop event');
+      }
+    }
+
+    this.safetyState.lastDetectionTime = Date.now();
+
+    const highestTier =
+      matches.find((match) => match.tier === 'high')?.tier ||
+      matches.find((match) => match.tier === 'medium')?.tier ||
+      matches[0].tier;
+
+    this.injectSafetyHint(highestTier);
+  }
+
+  public markTierTriggeredByModel(tier: SafetyTier): void {
+    this.safetyState.triggeredTiers.add(tier);
+    this.safetyState.modelTiersLogged.add(tier);
+    this.safetyState.lastDetectionTime = Date.now();
+    logger.debug({ tier }, 'Tier marked as triggered by model');
+  }
+
+  private injectSafetyHint(tier: SafetyTier): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    const hintText = tier === 'high'
+      ? '[SYSTEM: Safety keywords detected (high severity). Assess user wellbeing immediately and call log_safety_concern. Consider suggesting 988 crisis line.]'
+      : tier === 'medium'
+        ? '[SYSTEM: Safety keywords detected (medium severity). Assess user wellbeing and call log_safety_concern if warranted.]'
+        : '[SYSTEM: Potential distress keywords detected. Please respond with empathy and assess if follow-up is needed.]';
+
+    const itemMessage = {
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'system',
+        content: [{ type: 'input_text', text: hintText }],
+      },
+    };
+
+    this.ws.send(JSON.stringify(itemMessage));
+    this.ws.send(JSON.stringify({ type: 'response.create' }));
+
+    logger.debug({ tier }, 'Injected safety hint to model');
+  }
+
   // Handle messages from Grok
   private handleGrokMessage(data: Buffer): void {
     try {
@@ -811,6 +976,13 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
           const transcript = message.text || message.transcript || message.item?.output || '';
           if (transcript) {
             addTurn(this.options.callSessionId, this.extractUserTurn(transcript));
+
+            const safetyMatches = this.scanForSafetyKeywords(transcript);
+            if (safetyMatches.length > 0) {
+              this.handleSafetyBackstop(safetyMatches).catch((err) => {
+                logger.error({ error: err }, 'Safety backstop handling failed');
+              });
+            }
           }
           break;
         }
@@ -965,6 +1137,7 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
           break;
 
         case 'log_safety_concern':
+          this.markTierTriggeredByModel(args.tier);
           result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
@@ -972,6 +1145,7 @@ If they mention distress or need help beyond the reminder, stay calm and empathe
             tier: args.tier,
             signals: args.signals,
             actionTaken: args.action_taken,
+            source: 'model',
           });
           break;
 

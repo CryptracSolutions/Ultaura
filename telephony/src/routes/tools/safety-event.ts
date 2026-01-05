@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { recordSafetyEvent } from '../../services/call-session.js';
+import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { sendSms } from '../../utils/twilio.js';
 
@@ -89,19 +90,46 @@ async function notifyTrustedContacts(
 
 safetyEventRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const { callSessionId, lineId, accountId, tier, signals, actionTaken } = req.body;
+    const {
+      callSessionId,
+      lineId,
+      accountId,
+      tier,
+      signals,
+      actionTaken,
+      source = 'model',
+    } = req.body;
+
+    const sourceValue = source === 'keyword_backstop' ? 'keyword_backstop' : 'model';
+    const backstopWasTriggered =
+      sourceValue === 'model' ? wasBackstopTriggered(callSessionId, tier) : false;
+
+    logger.info({
+      event: sourceValue === 'keyword_backstop' ? 'safety_backstop_triggered' : 'safety_model_confirmed',
+      callSessionId,
+      lineId,
+      tier,
+      source: sourceValue,
+      backstopWasTriggered: sourceValue === 'model' ? backstopWasTriggered : undefined,
+      timestamp: Date.now(),
+    }, `Safety event logged via ${sourceValue}`);
+
+    markSafetyTier(callSessionId, tier, sourceValue);
 
     await recordSafetyEvent({
       accountId,
       lineId,
       callSessionId,
       tier,
-      signals: { description: signals },
+      signals: {
+        description: signals,
+        source: sourceValue,
+      },
       actionTaken,
     });
 
     // For high-tier events, notify trusted contacts
-    if (tier === 'high') {
+    if (tier === 'high' && sourceValue === 'model') {
       logger.warn({ callSessionId, lineId, tier, actionTaken }, 'HIGH SAFETY TIER EVENT');
       // Run notification in background to not block the response
       notifyTrustedContacts(lineId, tier, actionTaken).catch((error) => {

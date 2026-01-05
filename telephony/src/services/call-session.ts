@@ -6,6 +6,7 @@ import { getSupabaseClient, CallSessionRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
 import { recordUsage } from './metering.js';
 import { updateLineLastCall } from './line-lookup.js';
+import { clearSafetyState, getSafetySummary, markSafetySummaryLogged } from './safety-state.js';
 
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
 export type CallDirection = 'inbound' | 'outbound';
@@ -238,6 +239,21 @@ export async function completeCallSession(
     // Update line's last successful call
     await updateLineLastCall(session.line_id);
   }
+
+  if (markSafetySummaryLogged(sessionId)) {
+    const safetySummary = getSafetySummary(sessionId);
+    logger.info({
+      event: 'safety_call_summary',
+      callSessionId: sessionId,
+      lineId: session.line_id,
+      accountId: session.account_id,
+      backstopTiersTriggered: safetySummary.backstopTiersTriggered,
+      modelTiersLogged: safetySummary.modelTiersLogged,
+      potentialFalsePositives: safetySummary.potentialFalsePositives,
+    }, 'Safety detection summary for call');
+  }
+
+  clearSafetyState(sessionId);
 }
 
 // Fail a call session
