@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Phone, Globe, Clock } from 'lucide-react';
+import { X, Phone, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/actions';
-import { US_TIMEZONES, LANGUAGE_LABELS, getShortLineId } from '~/lib/ultaura';
+import { US_TIMEZONES, getShortLineId } from '~/lib/ultaura';
 import {
   Select,
   SelectTrigger,
@@ -60,7 +60,6 @@ export function AddLineModal({
   // Form state
   const [displayName, setDisplayName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [language, setLanguage] = useState<'auto' | 'en' | 'es'>('auto');
   const [timezone, setTimezone] = useState('America/Los_Angeles');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [customTopics, setCustomTopics] = useState('');
@@ -117,7 +116,6 @@ export function AddLineModal({
         accountId,
         displayName,
         phoneE164,
-        preferredLanguage: language,
         timezone,
         seedInterests: combinedTopics.length ? combinedTopics : undefined,
         seedAvoidTopics: avoidTopics ? avoidTopics.split(',').map(s => s.trim()) : undefined,
@@ -206,24 +204,6 @@ export function AddLineModal({
                     <p className="text-xs text-muted-foreground">
                       US phone numbers only. We&apos;ll verify this number in the next step.
                     </p>
-                  </div>
-
-                  {/* Language */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">
-                      <Globe className="inline w-4 h-4 mr-1" />
-                      Language Preference
-                    </label>
-                    <Select value={language} onValueChange={(value) => setLanguage(value as 'auto' | 'en' | 'es')}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Auto-detect</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   {/* Timezone */}

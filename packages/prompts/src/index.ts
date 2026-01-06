@@ -26,6 +26,12 @@ export { SAFETY_KEYWORDS } from './safety/keywords.js';
 export { SAFETY_EXCLUSION_PATTERNS } from './safety/exclusions.js';
 
 export {
+  getLanguageName,
+  normalizeLanguageCode,
+  LANGUAGE_NAMES,
+} from './utils/language.js';
+
+export {
   DTMF_PROMPTS,
   CALL_MESSAGES,
   SAFETY_PROMPTS,

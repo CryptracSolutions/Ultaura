@@ -9,6 +9,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import type { CallSessionRow } from '~/lib/ultaura/types';
+import { getLanguageDisplayName } from '~/lib/ultaura/language';
 
 interface CallActivityListProps {
   sessions: CallSessionRow[];
@@ -106,6 +107,10 @@ function CallActivityItem({ session }: { session: CallSessionRow }) {
     return session.status;
   };
 
+  const languageLabel = session.language_detected
+    ? getLanguageDisplayName(session.language_detected)
+    : null;
+
   return (
     <div className="flex items-center gap-4 py-3">
       <div
@@ -119,6 +124,12 @@ function CallActivityItem({ session }: { session: CallSessionRow }) {
         </p>
         <p className="text-sm text-muted-foreground truncate">
           {getStatusLabel()} &middot; {formatDate(session.created_at)}
+          {languageLabel && (
+            <>
+              {' '}
+              &middot; {languageLabel}
+            </>
+          )}
         </p>
       </div>
       {isCompleted && <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />}

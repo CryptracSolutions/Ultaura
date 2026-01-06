@@ -1,6 +1,7 @@
 // Twilio utility functions
 
 import Twilio from 'twilio';
+import { normalizeLanguageCode } from '@ultaura/prompts';
 import { logger } from '../server.js';
 import { redactPhone } from './redact.js';
 
@@ -83,10 +84,34 @@ export function generateStreamTwiML(callSessionId: string, websocketUrl: string)
 }
 
 // Generate TwiML for a simple message and hangup
-export function generateMessageTwiML(message: string): string {
+const TWILIO_VOICE_MAP: Record<string, { voice: string; language: string }> = {
+  en: { voice: 'Polly.Joanna', language: 'en-US' },
+  es: { voice: 'Polly.Lupe', language: 'es-US' },
+  fr: { voice: 'Polly.Lea', language: 'fr-FR' },
+  de: { voice: 'Polly.Vicki', language: 'de-DE' },
+  it: { voice: 'Polly.Bianca', language: 'it-IT' },
+  pt: { voice: 'Polly.Camila', language: 'pt-BR' },
+  ja: { voice: 'Polly.Mizuki', language: 'ja-JP' },
+  ko: { voice: 'Polly.Seoyeon', language: 'ko-KR' },
+  zh: { voice: 'Polly.Zhiyu', language: 'cmn-CN' },
+  default: { voice: 'Polly.Joanna', language: 'en-US' },
+};
+
+function getTwilioVoiceConfig(languageCode?: string): { voice: string; language: string } {
+  if (!languageCode) {
+    return TWILIO_VOICE_MAP.default;
+  }
+
+  const normalized = normalizeLanguageCode(languageCode);
+  return TWILIO_VOICE_MAP[normalized] ?? TWILIO_VOICE_MAP.default;
+}
+
+export function generateMessageTwiML(message: string, languageCode?: string): string {
+  const { voice, language } = getTwilioVoiceConfig(languageCode);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${escapeXml(message)}</Say>
+  <Say voice="${voice}" language="${language}">${escapeXml(message)}</Say>
   <Hangup />
 </Response>`;
 }

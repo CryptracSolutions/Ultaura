@@ -25,6 +25,7 @@ const TOOL_ALLOWLISTS: Record<string, string[]> = {
   request_upgrade: ['planId', 'sendLink'],
   request_opt_out: ['confirmed'],
   log_safety_concern: ['tier', 'actionTaken'],
+  report_conversation_language: ['languageCode'],
 };
 
 const STATE_CHANGE_ALLOWLIST = ['event', 'action', 'planId', 'source', 'sendLink'];

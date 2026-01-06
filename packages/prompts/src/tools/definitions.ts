@@ -269,6 +269,21 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
       required: ['tier', 'signals', 'action_taken'],
     },
   },
+  {
+    type: 'function',
+    name: 'report_conversation_language',
+    description: 'Report the primary language being spoken in this conversation. Call this once you have detected the language the user is speaking.',
+    parameters: {
+      type: 'object',
+      properties: {
+        language_code: {
+          type: 'string',
+          description: 'ISO 639-1 language code (e.g., en, es, fr, de, zh, ja, ko, pt, it, ru, ar, hi)',
+        },
+      },
+      required: ['language_code'],
+    },
+  },
   // Reminder management tools
   {
     type: 'function',

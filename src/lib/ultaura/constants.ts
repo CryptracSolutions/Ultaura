@@ -175,27 +175,6 @@ export const GROK = {
 export type GrokVoice = typeof GROK.VOICES[number];
 
 // ============================================
-// LANGUAGES
-// ============================================
-
-export const LANGUAGES = {
-  AUTO: 'auto',
-  ENGLISH: 'en',
-  SPANISH: 'es',
-} as const;
-
-export const LANGUAGE_LABELS: Record<string, string> = {
-  auto: 'Auto-detect',
-  en: 'English',
-  es: 'Spanish',
-};
-
-export const SPANISH_FORMALITY_LABELS: Record<string, string> = {
-  usted: 'Formal (usted)',
-  tu: 'Informal (tú)',
-};
-
-// ============================================
 // TIMEZONES (US-focused)
 // ============================================
 

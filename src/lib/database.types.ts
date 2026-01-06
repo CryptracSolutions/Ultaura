@@ -661,12 +661,10 @@ export type Database = {
           next_scheduled_call_at: string | null
           phone_e164: string
           phone_verified_at: string | null
-          preferred_language: string
           quiet_hours_end: string
           quiet_hours_start: string
           seed_avoid_topics: string[] | null
           seed_interests: string[] | null
-          spanish_formality: string
           status: Database["public"]["Enums"]["ultaura_line_status"]
           timezone: string
           voicemail_behavior: string
@@ -683,12 +681,10 @@ export type Database = {
           next_scheduled_call_at?: string | null
           phone_e164: string
           phone_verified_at?: string | null
-          preferred_language?: string
           quiet_hours_end?: string
           quiet_hours_start?: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
-          spanish_formality?: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
           voicemail_behavior?: string
@@ -705,12 +701,10 @@ export type Database = {
           next_scheduled_call_at?: string | null
           phone_e164?: string
           phone_verified_at?: string | null
-          preferred_language?: string
           quiet_hours_end?: string
           quiet_hours_start?: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
-          spanish_formality?: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
           voicemail_behavior?: string

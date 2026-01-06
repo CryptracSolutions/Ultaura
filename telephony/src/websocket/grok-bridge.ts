@@ -8,10 +8,8 @@ import type {
   AccountStatus,
   Memory,
   PlanId,
-  PreferredLanguage,
   SafetyMatch,
   SafetyTier,
-  SpanishFormality,
 } from '@ultaura/types';
 import { logger } from '../server.js';
 import { addTurn, TurnSummary } from '../services/ephemeral-buffer.js';
@@ -28,8 +26,7 @@ interface GrokBridgeOptions {
   accountId: string;
   userName: string;
   timezone: string;
-  language: PreferredLanguage;
-  spanishFormality?: SpanishFormality;
+  startingLanguage?: string;
   isFirstCall: boolean;
   memories: Memory[];
   seedInterests: string[] | null;
@@ -102,6 +99,7 @@ export class GrokBridge {
   private options: GrokBridgeOptions;
   private isConnected = false;
   private safetyState: SafetyState;
+  private detectedLanguage: string | null = null;
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
@@ -191,8 +189,7 @@ export class GrokBridge {
   private buildSystemPrompt(overrides?: { memories?: Memory[] }): string {
     const {
       userName,
-      language,
-      spanishFormality,
+      startingLanguage,
       isFirstCall,
       seedInterests,
       seedAvoidTopics,
@@ -211,14 +208,13 @@ export class GrokBridge {
       return buildReminderPrompt({
         userName,
         reminderMessage,
-        language,
+        startingLanguage,
       });
     }
 
     return compilePrompt('voice_realtime', {
       userName,
-      language,
-      spanishFormality,
+      startingLanguage,
       memories,
       isFirstCall,
       timezone,
@@ -594,6 +590,13 @@ export class GrokBridge {
           });
           break;
 
+        case 'report_conversation_language':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/report_conversation_language`, {
+            callSessionId: this.options.callSessionId,
+            languageCode: args.language_code,
+          });
+          break;
+
         // Reminder management tools
         case 'list_reminders':
           result = await this.callToolEndpoint(`${baseUrl}/tools/list_reminders`, {
@@ -862,6 +865,14 @@ export class GrokBridge {
 
     // Trigger a response
     this.ws.send(JSON.stringify({ type: 'response.create' }));
+  }
+
+  public setDetectedLanguage(code: string): void {
+    this.detectedLanguage = code;
+  }
+
+  public getDetectedLanguage(): string | null {
+    return this.detectedLanguage;
   }
 
   // Close the connection

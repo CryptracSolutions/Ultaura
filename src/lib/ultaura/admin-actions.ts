@@ -1,6 +1,6 @@
 'use server';
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 
 import GlobalRole from '~/core/session/types/global-role';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
@@ -19,7 +19,9 @@ type Filters = {
   offset?: number;
 };
 
-function isUserAdmin(user: { email?: string | null; app_metadata?: { role?: string } }) {
+type AdminUser = Pick<User, 'email' | 'app_metadata'>;
+
+function isUserAdmin(user: AdminUser) {
   const email = user.email ?? '';
   const isUltauraAdmin = email.endsWith('@ultaura.com');
   const isSuperAdmin = user.app_metadata?.role === GlobalRole.SuperAdmin;

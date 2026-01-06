@@ -1,13 +1,14 @@
-import type { PreferredLanguage } from '@ultaura/types';
+import { getLanguageName } from '../utils/language.js';
 
 export interface ReminderPromptParams {
   userName: string;
   reminderMessage: string;
-  language: PreferredLanguage;
+  startingLanguage?: string;
 }
 
 export function buildReminderPrompt(params: ReminderPromptParams): string {
-  const { userName, reminderMessage, language } = params;
+  const { userName, reminderMessage, startingLanguage = 'en' } = params;
+  const languageName = getLanguageName(startingLanguage);
 
   let prompt = `You are Ultaura calling with a quick reminder for ${userName}.
 
@@ -24,13 +25,9 @@ Deliver this reminder: "${reminderMessage}"
 
 ## Example Flow
 "Hello ${userName}, this is Ultaura calling with a quick reminder. ${reminderMessage}. Is there anything you'd like me to help with regarding this? ...Alright, take care and have a wonderful day!"
-`;
 
-  if (language === 'es') {
-    prompt += '\n## Language\nSpeak in Spanish. Use formal "usted" unless they indicate otherwise.';
-  } else if (language === 'auto') {
-    prompt += '\n## Language\nStart in English. If they speak another language, switch smoothly.';
-  }
+## Language
+Start in ${languageName}. If they speak another language, switch naturally. When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
 
   return prompt;
 }

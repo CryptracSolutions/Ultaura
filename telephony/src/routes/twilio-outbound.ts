@@ -5,8 +5,10 @@ import { logger } from '../server.js';
 import type { CallAnsweredBy } from '../services/call-session.js';
 import { getCallSession, updateCallSession, updateCallStatus } from '../services/call-session.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
+import { getLastDetectedLanguageForLine } from '../services/language.js';
 import { generateStreamTwiML, generateMessageTwiML, generateHangupTwiML, validateTwilioSignature } from '../utils/twilio.js';
 import { getWebsocketUrl } from '../utils/env.js';
+import { getVoicemailMessage } from '../utils/voicemail-messages.js';
 
 export const twilioOutboundRouter = Router();
 
@@ -150,18 +152,22 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     if (isMachine) {
       logger.info({ callSessionId, answeredBy }, 'Answering machine detected');
       const voicemailBehavior = line.voicemail_behavior || 'brief';
-      const briefMessage = `Hi ${line.display_name}, this is Ultaura. I'll call back soon. Take care!`;
-      const detailedMessage = session.is_reminder_call && session.reminder_message
-        ? `Hi ${line.display_name}, this is Ultaura. I was calling to remind you about ${session.reminder_message}. I'll try again later. Take care!`
-        : `Hi ${line.display_name}, this is Ultaura. I was calling for your check-in. I'll try again later. Take care!`;
 
       if (voicemailBehavior === 'none') {
         res.type('text/xml').send(generateHangupTwiML());
         return;
       }
 
-      const message = voicemailBehavior === 'detailed' ? detailedMessage : briefMessage;
-      res.type('text/xml').send(generateMessageTwiML(message));
+      const startingLanguage = await getLastDetectedLanguageForLine(line.id);
+      const message = getVoicemailMessage({
+        name: line.display_name,
+        language: startingLanguage,
+        behavior: voicemailBehavior,
+        isReminderCall: session.is_reminder_call,
+        reminderMessage: session.reminder_message,
+      });
+
+      res.type('text/xml').send(generateMessageTwiML(message, startingLanguage));
       return;
     }
 

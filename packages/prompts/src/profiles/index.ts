@@ -1,10 +1,9 @@
 import type {
-  PreferredLanguage,
-  SpanishFormality,
   Memory,
   AccountStatus,
   PlanId,
 } from '@ultaura/types';
+import { getLanguageName } from '../utils/language.js';
 import { IDENTITY_SECTION } from '../golden/sections/identity.js';
 import { CONVERSATION_STYLE_SECTION } from '../golden/sections/conversation-style.js';
 import { SAFETY_POLICY_SECTION } from '../golden/sections/safety-policy.js';
@@ -19,8 +18,7 @@ export type PromptProfile = 'voice_realtime' | 'admin_preview';
 
 export interface CompanionPromptParams {
   userName: string;
-  language: PreferredLanguage;
-  spanishFormality?: SpanishFormality;
+  startingLanguage?: string;
   memories: Memory[];
   isFirstCall: boolean;
   timezone?: string;
@@ -114,7 +112,7 @@ export function compilePrompt(
     );
   }
 
-  sections.push(formatLanguageSection(params.language, params.spanishFormality, isRealtime));
+  sections.push(formatLanguageSection(params.startingLanguage ?? 'en', isRealtime));
   sections.push(formatTimezoneSection(params.timezone));
 
   if (!isRealtime) {
@@ -163,27 +161,19 @@ function formatPlanLabels(planId: PlanId, status: AccountStatus): {
   return { planLabel, statusLabel };
 }
 
-function formatLanguageSection(
-  language: PreferredLanguage,
-  spanishFormality: SpanishFormality | undefined,
-  isRealtime: boolean
-): string {
-  if (language === 'es') {
-    const formality = spanishFormality === 'tu' ? 'tú' : 'usted';
-    return isRealtime
-      ? `## Language\nSpeak Spanish. Use ${formality}.`
-      : `## Language\nSpeak in Spanish by default. Use ${formality} unless they indicate otherwise.\nIf they switch to English, follow their lead smoothly.`;
+function formatLanguageSection(startingLanguage: string, isRealtime: boolean): string {
+  const languageName = getLanguageName(startingLanguage);
+  const baseInstruction = startingLanguage === 'en'
+    ? 'Start in English.'
+    : `Start in ${languageName}.`;
+
+  if (isRealtime) {
+    return `## Language
+${baseInstruction} Respond in whatever language the user speaks. Switch naturally mid-conversation if they change languages. When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
   }
 
-  if (language === 'auto') {
-    return isRealtime
-      ? '## Language\nStart in English. Switch smoothly if needed.'
-      : '## Language\nStart in English. If they speak another language or ask to switch, transition smoothly.';
-  }
-
-  return isRealtime
-    ? '## Language\nSpeak English.'
-    : '## Language\nSpeak in English. If they speak another language, try to accommodate and switch gracefully.';
+  return `## Language
+${baseInstruction} If the user speaks another language, switch to match them naturally. When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
 }
 
 function formatTimezoneSection(timezone?: string): string {

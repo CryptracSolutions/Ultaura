@@ -71,6 +71,10 @@ export interface LogSafetyConcernArgs {
   action_taken: 'none' | 'suggested_988' | 'suggested_911';
 }
 
+export interface ReportConversationLanguageArgs {
+  language_code: string;
+}
+
 export interface ListRemindersArgs {}
 
 export interface EditReminderArgs {
@@ -111,6 +115,7 @@ export type ToolCallArgs =
   | { name: 'update_memory'; args: UpdateMemoryArgs }
   | { name: 'mark_private'; args: MarkPrivateArgs }
   | { name: 'log_safety_concern'; args: LogSafetyConcernArgs }
+  | { name: 'report_conversation_language'; args: ReportConversationLanguageArgs }
   | { name: 'list_reminders'; args: ListRemindersArgs }
   | { name: 'edit_reminder'; args: EditReminderArgs }
   | { name: 'pause_reminder'; args: PauseReminderArgs }

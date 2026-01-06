@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Settings, Globe, Clock, MessageSquare, Bell, Voicemail } from 'lucide-react';
+import { ArrowLeft, Settings, Globe, Clock, Bell, Voicemail } from 'lucide-react';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
@@ -12,8 +12,6 @@ import type { LineRow, VoicemailBehavior } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/actions';
 import {
   US_TIMEZONES,
-  LANGUAGE_LABELS,
-  SPANISH_FORMALITY_LABELS,
   TIME_OPTIONS,
   getShortLineId,
 } from '~/lib/ultaura';
@@ -30,8 +28,6 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
 
   // Form state
   const [timezone, setTimezone] = useState(line.timezone);
-  const [language, setLanguage] = useState(line.preferred_language);
-  const [spanishFormality, setSpanishFormality] = useState(line.spanish_formality);
   const [quietHoursStart, setQuietHoursStart] = useState(line.quiet_hours_start);
   const [quietHoursEnd, setQuietHoursEnd] = useState(line.quiet_hours_end);
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
@@ -51,8 +47,6 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
     try {
       const result = await updateLine(line.id, {
         timezone,
-        preferredLanguage: language,
-        spanishFormality,
         quietHoursStart,
         quietHoursEnd,
         allowVoiceReminderControl,
@@ -75,8 +69,6 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
 
   const hasChanges =
     timezone !== line.timezone ||
-    language !== line.preferred_language ||
-    spanishFormality !== line.spanish_formality ||
     quietHoursStart !== line.quiet_hours_start ||
     quietHoursEnd !== line.quiet_hours_end ||
     allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
@@ -135,55 +127,6 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
               All call times and quiet hours are based on this timezone.
             </p>
           </div>
-
-          {/* Language */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-              <MessageSquare className="w-4 h-4 text-muted-foreground" />
-              Preferred Language
-            </label>
-            <Select value={language} onValueChange={(val) => setLanguage(val as 'auto' | 'en' | 'es')}>
-              <SelectTrigger className="w-full py-3" disabled={disabled}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Spanish Formality (only show if Spanish selected) */}
-          {language === 'es' && (
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Spanish Formality
-              </label>
-              <div className="flex gap-3">
-                {Object.entries(SPANISH_FORMALITY_LABELS).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setSpanishFormality(value as 'usted' | 'tu')}
-                    disabled={disabled}
-                    className={`flex-1 px-4 py-3 rounded-lg border transition-colors ${
-                      spanishFormality === value
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-input bg-background text-foreground hover:border-primary/50'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Choose how Ultaura addresses your loved one in Spanish.
-              </p>
-            </div>
-          )}
 
           {/* Quiet Hours */}
           <div>

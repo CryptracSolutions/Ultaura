@@ -11,6 +11,7 @@ import { updateMemoryRouter } from './update-memory.js';
 import { safetyEventRouter } from './safety-event.js';
 import { overageActionRouter } from './overage-action.js';
 import { requestUpgradeRouter } from './request-upgrade.js';
+import { reportConversationLanguageRouter } from './report-conversation-language.js';
 // Reminder management tools
 import { listRemindersRouter } from './list-reminders.js';
 import { editReminderRouter } from './edit-reminder.js';
@@ -34,6 +35,7 @@ toolsRouter.use('/update_memory', updateMemoryRouter);
 toolsRouter.use('/safety_event', safetyEventRouter);
 toolsRouter.use('/overage_action', overageActionRouter);
 toolsRouter.use('/request_upgrade', requestUpgradeRouter);
+toolsRouter.use('/report_conversation_language', reportConversationLanguageRouter);
 // Reminder management routes
 toolsRouter.use('/list_reminders', listRemindersRouter);
 toolsRouter.use('/edit_reminder', editReminderRouter);

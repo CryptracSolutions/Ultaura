@@ -6,10 +6,8 @@ import type {
   GrokTool,
   MemoryType,
   PlanId,
-  PreferredLanguage,
   PrivacyScope,
   SafetyTier,
-  SpanishFormality,
 } from '@ultaura/types';
 export type {
   AccountStatus,
@@ -17,11 +15,9 @@ export type {
   Memory,
   MemoryType,
   PlanId,
-  PreferredLanguage,
   PrivacyScope,
   SafetyActionTaken,
   SafetyTier,
-  SpanishFormality,
 } from '@ultaura/types';
 
 // ============================================
@@ -111,8 +107,6 @@ export interface Line {
   phoneE164: string;
   phoneVerifiedAt: string | null;
   status: LineStatus;
-  preferredLanguage: PreferredLanguage;
-  spanishFormality: SpanishFormality;
   timezone: string;
   quietHoursStart: string;
   quietHoursEnd: string;
@@ -130,8 +124,6 @@ export interface CreateLineInput {
   accountId: string;
   displayName: string;
   phoneE164: string;
-  preferredLanguage?: PreferredLanguage;
-  spanishFormality?: SpanishFormality;
   timezone?: string;
   seedInterests?: string[];
   seedAvoidTopics?: string[];
@@ -139,8 +131,6 @@ export interface CreateLineInput {
 
 export interface UpdateLineInput {
   displayName?: string;
-  preferredLanguage?: PreferredLanguage;
-  spanishFormality?: SpanishFormality;
   timezone?: string;
   quietHoursStart?: string;
   quietHoursEnd?: string;
@@ -554,8 +544,6 @@ export interface LineRow {
   phone_e164: string;
   phone_verified_at: string | null;
   status: LineStatus;
-  preferred_language: PreferredLanguage;
-  spanish_formality: SpanishFormality;
   timezone: string;
   quiet_hours_start: string;
   quiet_hours_end: string;

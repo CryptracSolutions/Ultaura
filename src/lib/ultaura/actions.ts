@@ -273,8 +273,6 @@ export async function createLine(input: CreateLineInput): Promise<{ success: boo
       account_id: input.accountId,
       display_name: input.displayName,
       phone_e164: input.phoneE164,
-      preferred_language: input.preferredLanguage || 'auto',
-      spanish_formality: input.spanishFormality || 'usted',
       timezone: input.timezone || TELEPHONY.DEFAULT_TIMEZONE,
       status: 'paused', // Paused until verified
       seed_interests: input.seedInterests || null,
@@ -345,8 +343,6 @@ export async function updateLine(
   const updates: Record<string, unknown> = {};
 
   if (input.displayName !== undefined) updates.display_name = input.displayName;
-  if (input.preferredLanguage !== undefined) updates.preferred_language = input.preferredLanguage;
-  if (input.spanishFormality !== undefined) updates.spanish_formality = input.spanishFormality;
   if (input.timezone !== undefined) updates.timezone = input.timezone;
   if (input.quietHoursStart !== undefined) updates.quiet_hours_start = input.quietHoursStart;
   if (input.quietHoursEnd !== undefined) updates.quiet_hours_end = input.quietHoursEnd;

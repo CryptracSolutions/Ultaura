@@ -295,10 +295,6 @@ export function LineDetailClient({
             <dd className="text-foreground">{line.timezone}</dd>
           </div>
           <div>
-            <dt className="text-sm text-muted-foreground">Language</dt>
-            <dd className="text-foreground capitalize">{line.preferred_language}</dd>
-          </div>
-          <div>
             <dt className="text-sm text-muted-foreground">Quiet Hours</dt>
             <dd className="text-foreground">
               {formatTime(line.quiet_hours_start)} - {formatTime(line.quiet_hours_end)}

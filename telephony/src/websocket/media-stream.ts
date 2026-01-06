@@ -9,9 +9,11 @@ import { getMemoriesForLine } from '../services/memory.js';
 import { createBuffer, clearBuffer } from '../services/ephemeral-buffer.js';
 import { summarizeAndExtractMemories } from '../services/call-summarization.js';
 import { getUsageSummary } from '../services/metering.js';
+import { getLastDetectedLanguageForLine } from '../services/language.js';
 import { GrokBridge } from './grok-bridge.js';
-import type { AccountStatus, PlanId, PreferredLanguage, SpanishFormality } from '@ultaura/types';
+import type { AccountStatus, PlanId } from '@ultaura/types';
 import { redactSensitive } from '../utils/redact.js';
+import { registerGrokBridge, unregisterGrokBridge } from './grok-bridge-registry.js';
 
 interface TwilioMessage {
   event: 'connected' | 'start' | 'media' | 'dtmf' | 'stop' | 'mark';
@@ -172,6 +174,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
             // Check if this is the first call
             const isFirstCall = !line.last_successful_call_at;
+            const startingLanguage = await getLastDetectedLanguageForLine(line.id);
 
             // Check minutes status
             const minutesStatus = await getMinutesStatus();
@@ -186,7 +189,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               accountId: account.id,
               userName: line.display_name,
               timezone: line.timezone,
-              language: line.preferred_language as PreferredLanguage,
+              startingLanguage,
               isFirstCall,
               memories,
               seedInterests: line.seed_interests,
@@ -197,7 +200,6 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               reminderMessage: session.reminder_message,
               currentPlanId: account.plan_id as PlanId,
               accountStatus: account.status as AccountStatus,
-              spanishFormality: line.spanish_formality as SpanishFormality,
               onAudioReceived: (audioBase64: string) => {
                 // Send audio back to Twilio
                 if (ws.readyState === WebSocket.OPEN && streamSid) {
@@ -255,6 +257,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               },
             });
 
+            registerGrokBridge(callSessionId, grokBridge);
             await grokBridge.connect();
             isConnected = true;
             connectedAt = new Date().toISOString();
@@ -290,6 +293,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
           } catch (error) {
             logger.error({ error, callSessionId }, 'Failed to initialize Grok bridge');
+            unregisterGrokBridge(callSessionId);
 
             // Send fallback message via Twilio TTS
             // We can't easily send TTS through the WebSocket, so we need to close and let Twilio handle it
@@ -349,6 +353,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   // Handle WebSocket close
   ws.on('close', async (code, reason) => {
     logger.info({ callSessionId, code, reason: reason.toString() }, 'Media stream WebSocket closed');
+    unregisterGrokBridge(callSessionId);
 
     if (trialExpiryTimeout) {
       clearTimeout(trialExpiryTimeout);
@@ -385,6 +390,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     if (session && isConnected) {
       await completeCallSession(callSessionId, {
         endReason: 'hangup',
+        languageDetected: grokBridge?.getDetectedLanguage() ?? undefined,
       });
     }
   });
@@ -396,6 +402,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     if (grokBridge) {
       grokBridge.close();
     }
+    unregisterGrokBridge(callSessionId);
   });
 }
 

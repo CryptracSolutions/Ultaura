@@ -251,6 +251,7 @@ export async function completeCallSession(
   options: {
     endReason: CallEndReason;
     endedAt?: string;
+    languageDetected?: string;
   }
 ): Promise<void> {
   const supabase = getSupabaseClient();
@@ -273,15 +274,21 @@ export async function completeCallSession(
     secondsConnected = Math.floor((endedTime - connectedTime) / 1000);
   }
 
+  const updates: Record<string, unknown> = {
+    status: 'completed',
+    ended_at: endedAt,
+    end_reason: endReason,
+    seconds_connected: secondsConnected,
+  };
+
+  if (options.languageDetected) {
+    updates.language_detected = options.languageDetected;
+  }
+
   // Update the session
   const { error } = await supabase
     .from('ultaura_call_sessions')
-    .update({
-      status: 'completed',
-      ended_at: endedAt,
-      end_reason: endReason,
-      seconds_connected: secondsConnected,
-    })
+    .update(updates)
     .eq('id', sessionId);
 
   if (error) {
