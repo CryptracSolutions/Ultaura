@@ -7,6 +7,7 @@ import { logger } from '../server.js';
 import { recordUsage } from './metering.js';
 import { updateLineLastCall } from './line-lookup.js';
 import { clearSafetyState, getSafetySummary, markSafetySummaryLogged } from './safety-state.js';
+import { sanitizePayload, getStrippedFieldsInfo, CallEventType } from '../utils/event-sanitizer.js';
 
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
 export type CallDirection = 'inbound' | 'outbound';
@@ -369,19 +370,92 @@ export async function cancelCallSession(sessionId: string): Promise<void> {
 // Record a call event
 export async function recordCallEvent(
   sessionId: string,
-  type: 'dtmf' | 'tool_call' | 'state_change' | 'error' | 'safety_tier',
-  payload?: Record<string, unknown>
+  type: CallEventType,
+  payload?: Record<string, unknown>,
+  options?: { skipDebugLog?: boolean }
 ): Promise<void> {
   const supabase = getSupabaseClient();
+
+  if (!payload) {
+    const { error } = await supabase.from('ultaura_call_events').insert({
+      call_session_id: sessionId,
+      type,
+      payload: null,
+    });
+
+    if (error) {
+      logger.error({ error, sessionId, type }, 'Failed to record call event');
+    }
+    return;
+  }
+
+  const { sanitized, stripped } = sanitizePayload(type, payload);
+  const { hasStripped, fieldNames } = getStrippedFieldsInfo(stripped);
+
+  if (hasStripped) {
+    logger.warn({
+      sessionId,
+      type,
+      strippedFields: fieldNames,
+      metric: 'call_event_fields_stripped',
+      metricValue: fieldNames.length,
+    }, 'Fields stripped from call event payload');
+  }
 
   const { error } = await supabase.from('ultaura_call_events').insert({
     call_session_id: sessionId,
     type,
-    payload: payload || null,
+    payload: Object.keys(sanitized).length > 0 ? sanitized : null,
   });
 
   if (error) {
     logger.error({ error, sessionId, type }, 'Failed to record call event');
+  }
+
+  if (!options?.skipDebugLog) {
+    await recordDebugEvent(sessionId, type, payload);
+  }
+}
+
+export async function recordDebugEvent(
+  sessionId: string,
+  eventType: string,
+  payload: Record<string, unknown>,
+  metadata?: Record<string, unknown>,
+  options?: { accountId?: string | null; toolName?: string | null }
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  let accountId = options?.accountId ?? null;
+  const toolName =
+    options?.toolName ??
+    (typeof payload.tool === 'string' ? payload.tool : null);
+
+  if (!accountId) {
+    try {
+      const { data: session } = await supabase
+        .from('ultaura_call_sessions')
+        .select('account_id')
+        .eq('id', sessionId)
+        .single();
+
+      accountId = session?.account_id ?? null;
+    } catch {
+      accountId = null;
+    }
+  }
+
+  const { error } = await supabase.from('ultaura_debug_logs').insert({
+    call_session_id: sessionId,
+    account_id: accountId,
+    event_type: eventType,
+    tool_name: toolName,
+    payload,
+    metadata: metadata || null,
+  });
+
+  if (error) {
+    logger.error({ error, sessionId, eventType }, 'Failed to record debug event');
   }
 }
 
@@ -434,7 +508,7 @@ export async function recordSafetyEvent(options: {
   await recordCallEvent(options.callSessionId, 'safety_tier', {
     tier: options.tier,
     actionTaken: options.actionTaken,
-  });
+  }, { skipDebugLog: true });
 
   logger.warn({ ...options }, 'Safety event recorded');
 }

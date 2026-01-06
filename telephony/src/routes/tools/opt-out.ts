@@ -27,7 +27,7 @@ optOutRouter.post('/', async (req: Request, res: Response) => {
     await recordCallEvent(callSessionId, 'state_change', {
       event: 'opt_out',
       source,
-    });
+    }, { skipDebugLog: true });
 
     logger.info({ callSessionId, lineId, source }, 'Voice opt-out recorded');
 

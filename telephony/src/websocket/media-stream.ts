@@ -3,7 +3,7 @@
 
 import { WebSocket } from 'ws';
 import { logger } from '../server.js';
-import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent } from '../services/call-session.js';
+import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent, recordDebugEvent } from '../services/call-session.js';
 import { getLineById, recordOptOut } from '../services/line-lookup.js';
 import { getMemoriesForLine } from '../services/memory.js';
 import { createBuffer, clearBuffer } from '../services/ephemeral-buffer.js';
@@ -226,7 +226,20 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                   toolName,
                   args: redactSensitive(args),
                 }, 'Tool call from Grok');
-                await recordCallEvent(callSessionId, 'tool_call', { tool: toolName, args });
+                const phoneLast4 = line.phone_e164 ? line.phone_e164.slice(-4) : null;
+                await recordDebugEvent(
+                  callSessionId,
+                  'tool_call',
+                  { tool: toolName, args },
+                  {
+                    line_id: line.id,
+                    phone_number_last4: phoneLast4,
+                  },
+                  {
+                    accountId: account.id,
+                    toolName,
+                  }
+                );
 
                 if (toolName === 'choose_overage_action' && typeof args.action === 'string') {
                   clearOveragePrompt();
@@ -286,10 +299,12 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             });
 
             await recordCallEvent(callSessionId, 'error', {
-              type: 'grok_connection_failed',
-              error: error instanceof Error ? error.message : 'Unknown error',
-              fallbackMessage: "I'm sorry, I'm having some technical difficulties right now. Please try calling back in a few minutes, or press 0 for help.",
-            });
+              errorType: 'grok_connection_failed',
+              errorCode:
+                typeof error === 'object' && error && 'code' in error
+                  ? String((error as { code?: unknown }).code)
+                  : undefined,
+            }, { skipDebugLog: true });
 
             ws.close(1011, 'AI service unavailable');
           }
@@ -403,7 +418,7 @@ async function handleDTMF(
   logger.info({ callSessionId, digit }, 'DTMF received');
 
   // Record the DTMF event
-  await recordCallEvent(callSessionId, 'dtmf', { digit });
+  await recordCallEvent(callSessionId, 'dtmf', { digit }, { skipDebugLog: true });
 
   switch (digit) {
     case '1':

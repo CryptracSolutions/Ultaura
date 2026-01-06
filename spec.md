@@ -1,526 +1,996 @@
-# Security Specification: /tools Endpoint Authentication
+# Specification: Sensitive Data Removal from ultaura_call_events
 
-## Overview
-
-**Issue**: The `/tools` endpoints in the telephony server are effectively unauthenticated, creating a critical security vulnerability.
-
-**Impact**: Catastrophic - enables data tampering, memory deletion, schedule creation, safety SMS spam, and cost abuse.
-
-**Likelihood**: High - the telephony server is public (Twilio must reach it), and scanners will discover `/tools/*` endpoints.
-
-**Symptoms**: Unexpected schedules/reminders, unexplained SMS sends, memory changes, or DB writes not tied to legitimate call sessions.
+**Status**: Ready for Implementation
+**Priority**: CRITICAL - ASAP
+**Type**: Security/Privacy Fix
 
 ---
 
-## Current State Analysis
+## 1. Executive Summary
 
-### The Problem
+### Problem Statement
+The `ultaura_call_events` table currently stores sensitive user content (memory values, reminder messages, safety signals, raw tool arguments) in plaintext JSONB payloads. This violates the "insights without transcripts" privacy model and HIPAA-adjacent posture.
 
-1. **No router-level authentication**: `telephony/src/server.ts` mounts the tools router without middleware:
-   ```typescript
-   app.use('/tools', toolsRouter);  // Line 121 - NO AUTH!
-   ```
+### Impact
+- **High Severity**: Breaks privacy expectations
+- **High Likelihood**: Currently happening in production
 
-2. **Tools router has no auth check**: `telephony/src/routes/tools/index.ts` mounts 16 tool routes without any central authentication.
+### Symptoms
+- Call event payloads contain:
+  - Memory values (personal information, health details)
+  - Reminder message content
+  - Safety signals with distress keywords/user language
+  - Raw tool arguments from Grok
 
-3. **Grok bridge sends headers correctly**: `telephony/src/websocket/grok-bridge.ts` (line 731) already sends `X-Webhook-Secret` header when calling tools - but tools don't validate it!
+### Solution Overview
+1. Define strict allowlist schemas per event type/tool - store **metadata only**
+2. Create admin-only debug table with 7-day retention for full unredacted data
+3. Delete all historical call_events (after encrypted backup)
+4. Add admin dashboard page for viewing debug logs
 
-4. **Two critical endpoints have no session validation**:
-   - `forget-memory.ts` - Only requires `lineId` and `accountId` (no `callSessionId`)
-   - `mark-private.ts` - Only requires `lineId` and `accountId` (no `callSessionId`)
+---
 
-### Affected Tool Endpoints (16 total)
+## 2. Technical Requirements
 
-| Endpoint | Current Auth | Risk Level |
-|----------|-------------|-----------|
-| `/tools/set_reminder` | callSessionId only | High |
-| `/tools/list_reminders` | callSessionId only | High |
-| `/tools/edit_reminder` | callSessionId only | Critical |
-| `/tools/pause_reminder` | callSessionId only | Critical |
-| `/tools/resume_reminder` | callSessionId only | Critical |
-| `/tools/snooze_reminder` | callSessionId only | Critical |
-| `/tools/cancel_reminder` | callSessionId only | Critical |
-| `/tools/schedule_call` | callSessionId only | Critical |
-| `/tools/opt_out` | callSessionId only | Critical |
-| `/tools/safety_event` | implicit only | Critical |
-| `/tools/store_memory` | callSessionId only | High |
-| `/tools/update_memory` | callSessionId only | High |
-| `/tools/forget_memory` | **NONE** (lineId/accountId only) | **CRITICAL** |
-| `/tools/mark_private` | **NONE** (lineId/accountId only) | **CRITICAL** |
-| `/tools/overage_action` | callSessionId only | High |
-| `/tools/request_upgrade` | callSessionId only | High |
+### 2.1 Current State Analysis
 
-### Existing Pattern to Follow
+#### Affected Files
 
-The `/calls` router correctly implements authentication in `telephony/src/routes/calls.ts`:
+**Primary - Event Recording:**
+- `/telephony/src/websocket/media-stream.ts` (line 229) - Records tool calls with unredacted args
+- `/telephony/src/services/call-session.ts` (lines 370-386) - `recordCallEvent()` function
 
-```typescript
-function verifyInternalAccess(req: Request, res: Response, next: () => void) {
-  const secret = req.headers['x-webhook-secret'];
-  let expectedSecret: string;
+**Tool Handlers Storing Sensitive Data:**
+- `/telephony/src/routes/tools/update-memory.ts` - Stores `previousValue`, `newValue` in plaintext
+- `/telephony/src/routes/tools/store-memory.ts` - Stores memory key and type
+- `/telephony/src/routes/tools/safety-event.ts` - Records safety tier
+- `/telephony/src/routes/tools/set-reminder.ts` - Records reminder metadata
+- `/telephony/src/routes/tools/edit-reminder.ts` - Records reminder changes
 
-  try {
-    expectedSecret = getInternalApiSecret();
-  } catch (error) {
-    logger.error({ error }, 'Internal API secret missing');
-    res.status(500).json({ error: 'Server misconfigured' });
-    return;
-  }
+**Database:**
+- `/supabase/migrations/20241220000001_ultaura_schema.sql` - Table definition (lines 177-185)
 
-  if (secret !== expectedSecret) {
-    logger.warn('Invalid internal API secret');
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
+#### Current Table Schema
+```sql
+create table ultaura_call_events (
+  id uuid primary key default gen_random_uuid(),
+  call_session_id uuid not null references ultaura_call_sessions(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  type text not null check (type in ('dtmf', 'tool_call', 'state_change', 'error', 'safety_tier')),
+  payload jsonb
+);
+```
 
-  next();
-}
+#### Current RLS Policy
+```sql
+create policy "Users can view call events for their accounts"
+  on ultaura_call_events for select
+  using (
+    call_session_id in (
+      select id from ultaura_call_sessions where can_access_ultaura_account(account_id)
+    )
+  );
+```
 
-// Applied to entire router:
-callsRouter.use(verifyInternalAccess);
+### 2.2 Target State
+
+#### New Architecture
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      TELEPHONY SERVER                            │
+│                                                                  │
+│  Tool Call → sanitizePayload() → recordCallEvent() (metadata)   │
+│      │                                                           │
+│      └────────────────→ recordDebugEvent() (full data)          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        DATABASE                                  │
+│                                                                  │
+│  ultaura_call_events          │  ultaura_debug_logs             │
+│  ├─ Metadata only             │  ├─ Full unredacted data        │
+│  ├─ User-accessible (RLS)     │  ├─ Admin-only (@ultaura.com)   │
+│  └─ No retention policy       │  └─ 7-day auto-deletion         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Requirements
+## 3. Implementation Details
 
-### Functional Requirements
+### 3.1 New Database Table: `ultaura_debug_logs`
 
-1. **Add X-Webhook-Secret validation to /tools router**
-   - Validate `X-Webhook-Secret` header against `ULTAURA_INTERNAL_API_SECRET` environment variable
-   - Apply at router level (single enforcement point)
-   - Return 401 for invalid/missing secret
-   - Return 500 if server is misconfigured (missing env var)
+**Migration file:** `supabase/migrations/YYYYMMDDHHMMSS_create_debug_logs.sql`
 
-2. **Use constant-time comparison**
-   - Use `crypto.timingSafeEqual()` to prevent timing attacks
-   - Convert strings to Buffers for comparison
+```sql
+-- Create debug logs table for admin-only access
+create table ultaura_debug_logs (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  call_session_id uuid references ultaura_call_sessions(id) on delete cascade,
+  account_id uuid references ultaura_accounts(id) on delete cascade,
+  event_type text not null,
+  tool_name text,
+  payload jsonb not null,
+  metadata jsonb -- For additional context (line_id, etc.)
+);
 
-3. **Fix forget-memory and mark-private endpoints**
-   - Add `callSessionId` as required parameter
-   - Validate session exists before performing operations
+-- Index for efficient querying
+create index idx_debug_logs_created on ultaura_debug_logs(created_at desc);
+create index idx_debug_logs_session on ultaura_debug_logs(call_session_id);
+create index idx_debug_logs_account on ultaura_debug_logs(account_id);
+create index idx_debug_logs_type on ultaura_debug_logs(event_type);
+create index idx_debug_logs_tool on ultaura_debug_logs(tool_name);
 
-4. **Add rate limiting**
-   - Limit: 100 requests per minute per IP address
-   - Return 429 Too Many Requests with `Retry-After` header when exceeded
-   - Use in-memory storage (consistent with existing codebase)
-   - Add TODO comment for Redis upgrade
+-- Enable RLS
+alter table ultaura_debug_logs enable row level security;
 
-5. **Create shared middleware file**
-   - New file: `telephony/src/middleware/auth.ts`
-   - Export reusable middleware functions
-   - Both `/calls` and `/tools` routers should use shared middleware
+-- Admin-only access: users with @ultaura.com email
+create policy "Admins can view debug logs"
+  on ultaura_debug_logs for select
+  using (
+    (select email from auth.users where id = auth.uid()) like '%@ultaura.com'
+  );
 
-### Non-Functional Requirements
+-- Service role can insert
+create policy "Service role can insert debug logs"
+  on ultaura_debug_logs for insert
+  with check (true);
 
-1. **Security**
-   - Minimal error responses: `{ error: 'Unauthorized' }` - no details about what failed
-   - Log warnings for authentication failures (include IP, path)
-   - No grace period - enforce immediately
+-- 7-day retention via pg_cron
+-- Note: Requires pg_cron extension enabled in Supabase
+select cron.schedule(
+  'cleanup-debug-logs',
+  '0 3 * * *', -- Run daily at 3 AM UTC
+  $$delete from ultaura_debug_logs where created_at < now() - interval '7 days'$$
+);
+```
 
-2. **Logging**
-   - Warn level for invalid secret attempts
-   - Include request IP and path in log message
-   - Do not log the actual secret value (either provided or expected)
+### 3.2 Allowlist Schema Definitions
 
-3. **Backward Compatibility**
-   - None required - Grok bridge already sends the header correctly
-   - All legitimate tool calls will continue to work
-
----
-
-## Implementation Approach
-
-### File Changes Summary
-
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `telephony/src/middleware/auth.ts` | **CREATE** | New shared authentication middleware |
-| `telephony/src/routes/tools/index.ts` | MODIFY | Add middleware at router level |
-| `telephony/src/routes/tools/forget-memory.ts` | MODIFY | Add callSessionId validation |
-| `telephony/src/routes/tools/mark-private.ts` | MODIFY | Add callSessionId validation |
-| `telephony/src/routes/calls.ts` | MODIFY | Import shared middleware instead of local function |
-
-### Step 1: Create Shared Middleware File
-
-**File**: `telephony/src/middleware/auth.ts`
+**New file:** `/telephony/src/utils/event-sanitizer.ts`
 
 ```typescript
-import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
-import { getInternalApiSecret } from '../utils/env';
-import { logger } from '../utils/logger';
-
 /**
- * Validates X-Webhook-Secret header using constant-time comparison.
- * Returns 401 if invalid, 500 if server misconfigured.
+ * Allowlist schemas for call event payloads.
+ * ONLY these fields will be stored in ultaura_call_events.
+ * Everything else goes to ultaura_debug_logs.
  */
-export function requireInternalSecret(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  const providedSecret = req.headers['x-webhook-secret'];
 
-  // Get expected secret
-  let expectedSecret: string;
-  try {
-    expectedSecret = getInternalApiSecret();
-  } catch (error) {
-    logger.error({ error }, 'Internal API secret missing');
-    res.status(500).json({ error: 'Server misconfigured' });
-    return;
-  }
-
-  // Validate secret exists
-  if (!providedSecret || typeof providedSecret !== 'string') {
-    logger.warn(
-      { ip: req.ip, path: req.path },
-      'Missing X-Webhook-Secret header'
-    );
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  // Constant-time comparison to prevent timing attacks
-  const providedBuffer = Buffer.from(providedSecret, 'utf8');
-  const expectedBuffer = Buffer.from(expectedSecret, 'utf8');
-
-  if (
-    providedBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(providedBuffer, expectedBuffer)
-  ) {
-    logger.warn(
-      { ip: req.ip, path: req.path },
-      'Invalid X-Webhook-Secret header'
-    );
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  next();
+// Type definitions for allowed payload shapes
+export interface AllowedDtmfPayload {
+  digit: string;
 }
 
-/**
- * In-memory rate limiter.
- * MVP implementation - replace with Redis for horizontal scaling.
- */
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 100; // requests per window
-const RATE_WINDOW_MS = 60 * 1000; // 1 minute
+export interface AllowedToolCallPayload {
+  tool: string;
+  success: boolean;
+  // Tool-specific allowed fields (IDs only, no content)
+  reminderId?: string;
+  scheduleId?: string;
+  memoryKey?: string; // Key name only, NOT value
+  action?: string; // For overage, opt-out actions
+  planId?: string;
+}
 
-// Cleanup stale entries every 5 minutes to prevent memory leaks
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of rateLimitMap.entries()) {
-    if (value.resetAt < now) {
-      rateLimitMap.delete(key);
+export interface AllowedStateChangePayload {
+  state: string;
+  reason?: string;
+}
+
+export interface AllowedErrorPayload {
+  errorType: string;
+  errorCode?: string;
+  // NO error messages - those go to debug logs
+}
+
+export interface AllowedSafetyTierPayload {
+  tier: 'low' | 'medium' | 'high';
+  actionTaken: string;
+  // NO signals or keywords - those stay in safety_events table
+}
+
+// Tool-specific allowlists
+const TOOL_ALLOWLISTS: Record<string, string[]> = {
+  // Reminder tools - only IDs
+  'set_reminder': ['tool', 'success', 'reminderId'],
+  'edit_reminder': ['tool', 'success', 'reminderId'],
+  'pause_reminder': ['tool', 'success', 'reminderId'],
+  'resume_reminder': ['tool', 'success', 'reminderId'],
+  'snooze_reminder': ['tool', 'success', 'reminderId', 'snoozeMinutes'],
+  'cancel_reminder': ['tool', 'success', 'reminderId'],
+  'list_reminders': ['tool', 'success', 'reminderCount'],
+
+  // Memory tools - key name only, NO values
+  'store_memory': ['tool', 'success', 'memoryKey', 'memoryType'],
+  'update_memory': ['tool', 'success', 'memoryKey', 'action'],
+  'forget_memory': ['tool', 'success'],
+  'mark_private': ['tool', 'success'],
+
+  // Schedule tools
+  'schedule_call': ['tool', 'success', 'scheduleId', 'mode'],
+
+  // Billing tools
+  'choose_overage_action': ['tool', 'success', 'action'],
+  'request_upgrade': ['tool', 'success', 'planId'],
+
+  // Privacy tools
+  'opt_out': ['tool', 'success', 'source'],
+
+  // Safety tools
+  'log_safety_concern': ['tool', 'success', 'tier', 'actionTaken'],
+};
+
+// Default allowlist for unknown tools
+const DEFAULT_TOOL_ALLOWLIST = ['tool', 'success'];
+
+/**
+ * Sanitizes a payload to only include allowed fields.
+ * Returns both the sanitized payload and stripped fields for logging.
+ */
+export function sanitizePayload(
+  eventType: 'dtmf' | 'tool_call' | 'state_change' | 'error' | 'safety_tier',
+  payload: Record<string, unknown>
+): { sanitized: Record<string, unknown>; stripped: Record<string, unknown> } {
+  const sanitized: Record<string, unknown> = {};
+  const stripped: Record<string, unknown> = {};
+
+  let allowlist: string[];
+
+  switch (eventType) {
+    case 'dtmf':
+      allowlist = ['digit'];
+      break;
+
+    case 'tool_call':
+      const toolName = payload.tool as string;
+      allowlist = TOOL_ALLOWLISTS[toolName] || DEFAULT_TOOL_ALLOWLIST;
+      break;
+
+    case 'state_change':
+      allowlist = ['state', 'reason'];
+      break;
+
+    case 'error':
+      allowlist = ['errorType', 'errorCode'];
+      break;
+
+    case 'safety_tier':
+      allowlist = ['tier', 'actionTaken'];
+      break;
+
+    default:
+      allowlist = [];
+  }
+
+  for (const [key, value] of Object.entries(payload)) {
+    if (allowlist.includes(key)) {
+      sanitized[key] = value;
+    } else {
+      stripped[key] = value;
     }
   }
-}, 5 * 60 * 1000);
+
+  return { sanitized, stripped };
+}
 
 /**
- * Rate limiting middleware.
- * Limits requests per IP to prevent abuse.
- * Returns 429 with Retry-After header when exceeded.
+ * Checks if any fields were stripped and returns info for logging/metrics.
  */
-export function rateLimit(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  // TODO: Replace with Redis for production horizontal scaling
-  const ip = req.ip || req.socket.remoteAddress || 'unknown';
-  const now = Date.now();
+export function getStrippedFieldsInfo(
+  stripped: Record<string, unknown>
+): { hasStripped: boolean; fieldNames: string[] } {
+  const fieldNames = Object.keys(stripped);
+  return {
+    hasStripped: fieldNames.length > 0,
+    fieldNames,
+  };
+}
+```
 
-  let entry = rateLimitMap.get(ip);
+### 3.3 Updated recordCallEvent Function
 
-  // Reset if window expired
-  if (!entry || entry.resetAt < now) {
-    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
-    rateLimitMap.set(ip, entry);
-  }
+**Modify:** `/telephony/src/services/call-session.ts`
 
-  entry.count++;
+```typescript
+import { sanitizePayload, getStrippedFieldsInfo } from '../utils/event-sanitizer';
 
-  if (entry.count > RATE_LIMIT) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-    logger.warn(
-      { ip, path: req.path, count: entry.count },
-      'Rate limit exceeded for /tools endpoint'
-    );
-    res.setHeader('Retry-After', retryAfter.toString());
-    res.status(429).json({ error: 'Unauthorized' });
+/**
+ * Records a sanitized call event (metadata only) and optionally
+ * a debug event with full data for admin investigation.
+ */
+export async function recordCallEvent(
+  sessionId: string,
+  type: 'dtmf' | 'tool_call' | 'state_change' | 'error' | 'safety_tier',
+  payload?: Record<string, unknown>,
+  options?: { skipDebugLog?: boolean }
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  if (!payload) {
+    // No payload, just record the event type
+    const { error } = await supabase.from('ultaura_call_events').insert({
+      call_session_id: sessionId,
+      type,
+      payload: null,
+    });
+    if (error) {
+      logger.error({ error, sessionId, type }, 'Failed to record call event');
+    }
     return;
   }
 
-  next();
+  // Sanitize the payload
+  const { sanitized, stripped } = sanitizePayload(type, payload);
+  const { hasStripped, fieldNames } = getStrippedFieldsInfo(stripped);
+
+  // Log warning if fields were stripped (for monitoring)
+  if (hasStripped) {
+    logger.warn({
+      sessionId,
+      type,
+      strippedFields: fieldNames,
+      // Prepare for future metrics emission
+      metric: 'call_event_fields_stripped',
+      metricValue: fieldNames.length,
+    }, 'Fields stripped from call event payload');
+  }
+
+  // Insert sanitized event to user-accessible table
+  const { error: eventError } = await supabase.from('ultaura_call_events').insert({
+    call_session_id: sessionId,
+    type,
+    payload: Object.keys(sanitized).length > 0 ? sanitized : null,
+  });
+
+  if (eventError) {
+    logger.error({ error: eventError, sessionId, type }, 'Failed to record call event');
+  }
+
+  // Insert full payload to admin debug table
+  if (!options?.skipDebugLog) {
+    await recordDebugEvent(sessionId, type, payload);
+  }
+}
+
+/**
+ * Records full unredacted event data to admin-only debug table.
+ */
+export async function recordDebugEvent(
+  sessionId: string,
+  eventType: string,
+  payload: Record<string, unknown>,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  // Get account_id and tool_name for filtering
+  let accountId: string | null = null;
+  let toolName: string | null = null;
+
+  try {
+    const { data: session } = await supabase
+      .from('ultaura_call_sessions')
+      .select('account_id')
+      .eq('id', sessionId)
+      .single();
+
+    accountId = session?.account_id || null;
+  } catch {
+    // Session lookup failed, continue without account_id
+  }
+
+  if (payload.tool) {
+    toolName = payload.tool as string;
+  }
+
+  const { error } = await supabase.from('ultaura_debug_logs').insert({
+    call_session_id: sessionId,
+    account_id: accountId,
+    event_type: eventType,
+    tool_name: toolName,
+    payload,
+    metadata: metadata || null,
+  });
+
+  if (error) {
+    logger.error({ error, sessionId, eventType }, 'Failed to record debug event');
+  }
 }
 ```
 
-### Step 2: Update Tools Router
+### 3.4 Update Tool Handlers
 
-**File**: `telephony/src/routes/tools/index.ts`
+Each tool handler needs to be updated to:
+1. Pass a `success: boolean` field
+2. Remove sensitive content from the recorded payload
+3. Use appropriate field names matching the allowlist
 
-Add at the top of the router, before individual tool routes are mounted:
+**Example - update-memory.ts:**
 
 ```typescript
-import { Router } from 'express';
-import { requireInternalSecret, rateLimit } from '../../middleware/auth';
+// BEFORE (lines 59-64):
+await recordCallEvent(callSessionId, 'tool_call', {
+  tool: 'update_memory',
+  key: existingKey,
+  action: 'created',
+  newValue,  // SENSITIVE - should not be here
+});
 
-// ... existing imports for tool routes ...
-
-export const toolsRouter = Router();
-
-// Authentication and rate limiting for ALL tool endpoints
-toolsRouter.use(rateLimit);
-toolsRouter.use(requireInternalSecret);
-
-// ... existing route mounts remain unchanged ...
-toolsRouter.use('/set_reminder', setReminderRouter);
-// etc.
+// AFTER:
+await recordCallEvent(callSessionId, 'tool_call', {
+  tool: 'update_memory',
+  success: true,
+  memoryKey: existingKey,
+  action: 'created',
+  // newValue is automatically stripped and sent to debug logs
+});
 ```
 
-### Step 3: Fix forget-memory.ts
+**Files to update:**
+- `/telephony/src/routes/tools/update-memory.ts` - Remove `previousValue`, `newValue`
+- `/telephony/src/routes/tools/store-memory.ts` - Remove value, keep only key and type
+- `/telephony/src/routes/tools/set-reminder.ts` - Remove `dueAt` details, keep only ID
+- `/telephony/src/routes/tools/edit-reminder.ts` - Remove change details
+- `/telephony/src/routes/tools/safety-event.ts` - Keep tier only
+- `/telephony/src/routes/tools/schedule-call.ts` - Remove time details
+- `/telephony/src/routes/tools/snooze-reminder.ts` - Keep ID and snooze minutes
+- All other tool handlers - Add `success: true/false` field
 
-**File**: `telephony/src/routes/tools/forget-memory.ts`
+### 3.5 Update media-stream.ts
 
-Current (vulnerable):
+**Modify:** `/telephony/src/websocket/media-stream.ts` (around line 229)
+
 ```typescript
-const { lineId, accountId } = req.body;
-// Directly performs delete without session validation
+// BEFORE:
+await recordCallEvent(callSessionId, 'tool_call', { tool: toolName, args });
+
+// AFTER:
+await recordCallEvent(callSessionId, 'tool_call', {
+  tool: toolName,
+  success: true, // or false if tool failed
+  ...extractAllowedArgs(toolName, args),
+});
+
+// The full args are automatically logged to debug table by recordCallEvent
 ```
 
-Fixed:
-```typescript
-const { callSessionId, lineId, accountId } = req.body;
+### 3.6 Migration Script: Export and Delete Historical Data
 
-// Validate required fields
-if (!callSessionId || !lineId) {
-  res.status(400).json({ error: 'Missing required fields: callSessionId, lineId' });
-  return;
+**New file:** `/supabase/migrations/YYYYMMDDHHMMSS_cleanup_call_events.sql`
+
+```sql
+-- This migration:
+-- 1. Creates a temporary export table
+-- 2. Copies all data to it
+-- 3. Truncates the original table
+-- 4. The export will be extracted and encrypted via a separate script
+
+-- Step 1: Create export table
+create table ultaura_call_events_export_backup (
+  like ultaura_call_events including all
+);
+
+-- Step 2: Copy all existing data
+insert into ultaura_call_events_export_backup
+select * from ultaura_call_events;
+
+-- Step 3: Record backup metadata
+create table if not exists ultaura_migration_log (
+  id uuid primary key default gen_random_uuid(),
+  migration_name text not null,
+  executed_at timestamptz not null default now(),
+  record_count bigint,
+  notes text
+);
+
+insert into ultaura_migration_log (migration_name, record_count, notes)
+select
+  'call_events_privacy_cleanup',
+  count(*),
+  'Pre-deletion backup created in ultaura_call_events_export_backup'
+from ultaura_call_events;
+
+-- Step 4: Truncate original table
+truncate table ultaura_call_events;
+```
+
+**Export Script:** `/scripts/export-call-events-backup.ts`
+
+```typescript
+/**
+ * Export call_events backup to encrypted JSON in Supabase Storage.
+ * Run this AFTER the migration but BEFORE dropping the backup table.
+ */
+import { createClient } from '@supabase/supabase-js';
+import * as crypto from 'crypto';
+
+async function exportAndEncryptBackup() {
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  // Fetch all backup data
+  const { data, error } = await supabase
+    .from('ultaura_call_events_export_backup')
+    .select('*');
+
+  if (error) throw error;
+
+  // Encrypt with AES-256-GCM
+  const key = crypto.randomBytes(32);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+  const jsonData = JSON.stringify(data);
+  let encrypted = cipher.update(jsonData, 'utf8', 'base64');
+  encrypted += cipher.final('base64');
+  const authTag = cipher.getAuthTag().toString('base64');
+
+  // Create encrypted package
+  const package = JSON.stringify({
+    encrypted,
+    iv: iv.toString('base64'),
+    authTag,
+    recordCount: data.length,
+    exportedAt: new Date().toISOString(),
+  });
+
+  // Upload to Supabase Storage
+  const filename = `call-events-backup-${Date.now()}.enc.json`;
+  const { error: uploadError } = await supabase.storage
+    .from('backups')
+    .upload(filename, package, {
+      contentType: 'application/json',
+    });
+
+  if (uploadError) throw uploadError;
+
+  // Save encryption key separately (print to console for secure storage)
+  console.log('=== ENCRYPTION KEY (STORE SECURELY) ===');
+  console.log(key.toString('base64'));
+  console.log('=== END KEY ===');
+  console.log(`Backup uploaded to: backups/${filename}`);
+  console.log(`Record count: ${data.length}`);
 }
 
-// Validate session exists
-const session = await getCallSession(callSessionId);
-if (!session) {
-  res.status(404).json({ error: 'Call session not found' });
-  return;
-}
-
-// Use account_id from session (not from request body for security)
-const validatedAccountId = session.account_id;
-
-// Proceed with memory deletion using validated identifiers
+exportAndEncryptBackup().catch(console.error);
 ```
 
-### Step 4: Fix mark-private.ts
+### 3.7 Safety Events Review
 
-**File**: `telephony/src/routes/tools/mark-private.ts`
+The `ultaura_safety_events` table stores `signals` JSONB with distress keywords. Per requirements, these should **stay in place** for legitimate safety oversight, but with proper access controls.
 
-Apply the same fix as forget-memory.ts:
-- Add `callSessionId` as required parameter
-- Validate session exists via `getCallSession()`
-- Use `session.account_id` instead of request body `accountId`
+**Verify existing RLS policy in migration:**
 
-### Step 5: Update calls.ts to Use Shared Middleware
+```sql
+-- Verify safety_events RLS is properly configured
+-- Users should only see safety events for their accounts
+-- This query checks the existing policy
 
-**File**: `telephony/src/routes/calls.ts`
+-- If needed, tighten the policy:
+drop policy if exists "Users can view safety events for their accounts" on ultaura_safety_events;
 
-Replace the local `verifyInternalAccess` function:
+create policy "Users can view safety events for their accounts"
+  on ultaura_safety_events for select
+  using (
+    account_id in (
+      select account_id from ultaura_accounts
+      where can_access_ultaura_account(account_id)
+    )
+  );
+```
+
+---
+
+## 4. Admin Dashboard Page
+
+### 4.1 New Route Structure
+
+**New files:**
+- `/src/app/dashboard/(app)/admin/debug-logs/page.tsx`
+- `/src/app/dashboard/(app)/admin/debug-logs/components/DebugLogTable.tsx`
+- `/src/app/dashboard/(app)/admin/debug-logs/components/DebugLogFilters.tsx`
+
+### 4.2 Server Actions
+
+**New file:** `/src/lib/ultaura/admin-actions.ts`
 
 ```typescript
-// Before:
-function verifyInternalAccess(req: Request, res: Response, next: () => void) {
-  // ... local implementation ...
+'use server';
+
+import { getSupabaseServerClient } from '~/lib/supabase/server';
+import { redirect } from 'next/navigation';
+
+/**
+ * Check if current user is an admin (has @ultaura.com email)
+ */
+export async function isUltauraAdmin(): Promise<boolean> {
+  const client = await getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+
+  if (!user?.email) return false;
+  return user.email.endsWith('@ultaura.com');
 }
 
-callsRouter.use(verifyInternalAccess);
+/**
+ * Require admin access or redirect
+ */
+export async function requireAdmin(): Promise<void> {
+  const isAdmin = await isUltauraAdmin();
+  if (!isAdmin) {
+    redirect('/dashboard');
+  }
+}
 
-// After:
-import { requireInternalSecret } from '../middleware/auth';
+/**
+ * Fetch debug logs with filters
+ */
+export async function getDebugLogs(filters: {
+  startDate?: string;
+  endDate?: string;
+  callSessionId?: string;
+  eventType?: string;
+  toolName?: string;
+  accountId?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: DebugLog[]; count: number }> {
+  await requireAdmin();
 
-callsRouter.use(requireInternalSecret);
+  const client = await getSupabaseServerClient();
+
+  let query = client
+    .from('ultaura_debug_logs')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
+
+  if (filters.startDate) {
+    query = query.gte('created_at', filters.startDate);
+  }
+  if (filters.endDate) {
+    query = query.lte('created_at', filters.endDate);
+  }
+  if (filters.callSessionId) {
+    query = query.eq('call_session_id', filters.callSessionId);
+  }
+  if (filters.eventType) {
+    query = query.eq('event_type', filters.eventType);
+  }
+  if (filters.toolName) {
+    query = query.eq('tool_name', filters.toolName);
+  }
+  if (filters.accountId) {
+    query = query.eq('account_id', filters.accountId);
+  }
+
+  query = query
+    .range(filters.offset || 0, (filters.offset || 0) + (filters.limit || 50) - 1);
+
+  const { data, error, count } = await query;
+
+  if (error) throw error;
+
+  return { data: data || [], count: count || 0 };
+}
+
+export interface DebugLog {
+  id: string;
+  created_at: string;
+  call_session_id: string | null;
+  account_id: string | null;
+  event_type: string;
+  tool_name: string | null;
+  payload: Record<string, unknown>;
+  metadata: Record<string, unknown> | null;
+}
+```
+
+### 4.3 Page Component
+
+**File:** `/src/app/dashboard/(app)/admin/debug-logs/page.tsx`
+
+```tsx
+import { requireAdmin, getDebugLogs } from '~/lib/ultaura/admin-actions';
+import { DebugLogTable } from './components/DebugLogTable';
+import { DebugLogFilters } from './components/DebugLogFilters';
+
+export const metadata = {
+  title: 'Debug Logs | Admin',
+};
+
+export default async function DebugLogsPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string>;
+}) {
+  await requireAdmin();
+
+  const filters = {
+    startDate: searchParams.startDate,
+    endDate: searchParams.endDate,
+    callSessionId: searchParams.sessionId,
+    eventType: searchParams.eventType,
+    toolName: searchParams.toolName,
+    accountId: searchParams.accountId,
+    limit: 50,
+    offset: parseInt(searchParams.offset || '0'),
+  };
+
+  const { data, count } = await getDebugLogs(filters);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Debug Logs</h1>
+        <p className="text-muted-foreground">
+          Admin-only view of full call event data. Auto-deleted after 7 days.
+        </p>
+      </div>
+
+      <DebugLogFilters currentFilters={searchParams} />
+
+      <DebugLogTable logs={data} totalCount={count} />
+    </div>
+  );
+}
+```
+
+### 4.4 Filter Options
+
+Standard filters to implement:
+- **Date range**: Start date, End date (date pickers)
+- **Call Session ID**: Text input (UUID)
+- **Event Type**: Dropdown (dtmf, tool_call, state_change, error, safety_tier)
+- **Tool Name**: Dropdown (dynamically populated from distinct values)
+- **Account ID**: Text input (UUID)
+
+---
+
+## 5. Testing Requirements
+
+### 5.1 Unit Tests
+
+**File:** `/telephony/src/utils/__tests__/event-sanitizer.test.ts`
+
+```typescript
+describe('sanitizePayload', () => {
+  describe('tool_call events', () => {
+    it('should strip memory values from update_memory', () => {
+      const payload = {
+        tool: 'update_memory',
+        memoryKey: 'favorite_food',
+        previousValue: 'pizza',
+        newValue: 'pasta',
+        success: true,
+      };
+
+      const { sanitized, stripped } = sanitizePayload('tool_call', payload);
+
+      expect(sanitized).toEqual({
+        tool: 'update_memory',
+        memoryKey: 'favorite_food',
+        success: true,
+      });
+      expect(stripped).toEqual({
+        previousValue: 'pizza',
+        newValue: 'pasta',
+      });
+    });
+
+    it('should strip reminder message from set_reminder', () => {
+      const payload = {
+        tool: 'set_reminder',
+        reminderId: 'uuid-123',
+        message: 'Take medication at 9am',
+        dueAt: '2024-01-15T09:00:00Z',
+        success: true,
+      };
+
+      const { sanitized, stripped } = sanitizePayload('tool_call', payload);
+
+      expect(sanitized.message).toBeUndefined();
+      expect(stripped.message).toBe('Take medication at 9am');
+    });
+
+    it('should handle unknown tools with default allowlist', () => {
+      const payload = {
+        tool: 'unknown_future_tool',
+        sensitiveData: 'should be stripped',
+        success: true,
+      };
+
+      const { sanitized, stripped } = sanitizePayload('tool_call', payload);
+
+      expect(sanitized).toEqual({
+        tool: 'unknown_future_tool',
+        success: true,
+      });
+      expect(stripped.sensitiveData).toBe('should be stripped');
+    });
+  });
+
+  describe('safety_tier events', () => {
+    it('should keep only tier and actionTaken', () => {
+      const payload = {
+        tier: 'high',
+        actionTaken: 'suggested_911',
+        signals: 'User mentioned self-harm',
+      };
+
+      const { sanitized, stripped } = sanitizePayload('safety_tier', payload);
+
+      expect(sanitized.signals).toBeUndefined();
+      expect(stripped.signals).toBe('User mentioned self-harm');
+    });
+  });
+
+  describe('error events', () => {
+    it('should keep only error type and code, strip message', () => {
+      const payload = {
+        errorType: 'grok_connection_failed',
+        errorCode: 'WS_CLOSE_1006',
+        errorMessage: 'Connection closed unexpectedly with user data...',
+        stack: 'Error: at line 123...',
+      };
+
+      const { sanitized, stripped } = sanitizePayload('error', payload);
+
+      expect(sanitized).toEqual({
+        errorType: 'grok_connection_failed',
+        errorCode: 'WS_CLOSE_1006',
+      });
+      expect(stripped.errorMessage).toBeDefined();
+      expect(stripped.stack).toBeDefined();
+    });
+  });
+});
+```
+
+### 5.2 Integration Tests
+
+```typescript
+describe('recordCallEvent integration', () => {
+  it('should write sanitized data to call_events and full data to debug_logs', async () => {
+    const sessionId = 'test-session-id';
+    const payload = {
+      tool: 'update_memory',
+      memoryKey: 'health_condition',
+      newValue: 'diabetes', // Should be stripped
+      success: true,
+    };
+
+    await recordCallEvent(sessionId, 'tool_call', payload);
+
+    // Check call_events has sanitized data
+    const { data: callEvent } = await supabase
+      .from('ultaura_call_events')
+      .select('*')
+      .eq('call_session_id', sessionId)
+      .single();
+
+    expect(callEvent.payload.newValue).toBeUndefined();
+    expect(callEvent.payload.memoryKey).toBe('health_condition');
+
+    // Check debug_logs has full data
+    const { data: debugLog } = await supabase
+      .from('ultaura_debug_logs')
+      .select('*')
+      .eq('call_session_id', sessionId)
+      .single();
+
+    expect(debugLog.payload.newValue).toBe('diabetes');
+  });
+});
+```
+
+### 5.3 Manual Testing Checklist
+
+- [ ] Make a test call with memory updates - verify call_events shows metadata only
+- [ ] Verify debug_logs contains full payload
+- [ ] Test admin dashboard access with @ultaura.com email
+- [ ] Test admin dashboard denial with non-admin email
+- [ ] Verify 7-day retention by checking pg_cron job status
+- [ ] Test all 16 tool handlers produce correctly sanitized events
+- [ ] Verify safety events show tier only in call_events
+- [ ] Test backup export script runs successfully
+- [ ] Verify backup file is encrypted and uploadable
+
+---
+
+## 6. Deployment Plan
+
+### Phase 1: Preparation (Day 1)
+1. Create and test the event-sanitizer utility
+2. Create and test the recordDebugEvent function
+3. Update all tool handlers to use new payload format
+4. Create admin dashboard page
+
+### Phase 2: Database Migration (Day 1-2)
+1. Deploy migration to create `ultaura_debug_logs` table
+2. Deploy migration to create `ultaura_call_events_export_backup` table
+3. Run export script to encrypt and upload backup
+4. Deploy truncate migration
+
+### Phase 3: Code Deployment (Day 2)
+1. Deploy updated telephony server with sanitization
+2. Deploy admin dashboard
+3. Monitor for any stripped field warnings
+
+### Phase 4: Cleanup (Day 3+)
+1. Verify backup is accessible and decryptable
+2. Drop `ultaura_call_events_export_backup` table
+3. Monitor pg_cron job execution
+
+---
+
+## 7. Rollback Plan
+
+If issues are discovered:
+
+1. **Sanitization too aggressive**: Expand allowlist in event-sanitizer.ts
+2. **Admin access broken**: Check email domain matching in RLS policy
+3. **Debug logs not writing**: Check service role permissions
+4. **Performance issues**: Add database indexes, optimize queries
+
+The backup can be restored if needed:
+```typescript
+// Decrypt and restore backup
+const decrypted = decrypt(encryptedPackage, key);
+await supabase.from('ultaura_call_events').insert(decrypted);
 ```
 
 ---
 
-## Testing Plan
+## 8. Success Criteria
 
-### Manual Verification Steps
-
-1. **Test authentication enforcement**:
-   ```bash
-   # Should return 401 (no header)
-   curl -X POST http://localhost:3001/tools/list_reminders \
-     -H "Content-Type: application/json" \
-     -d '{"callSessionId": "test", "lineId": "test"}'
-
-   # Should return 401 (wrong secret)
-   curl -X POST http://localhost:3001/tools/list_reminders \
-     -H "Content-Type: application/json" \
-     -H "X-Webhook-Secret: wrong-secret" \
-     -d '{"callSessionId": "test", "lineId": "test"}'
-
-   # Should return 400/404 (correct secret, but invalid session)
-   curl -X POST http://localhost:3001/tools/list_reminders \
-     -H "Content-Type: application/json" \
-     -H "X-Webhook-Secret: YOUR_ACTUAL_SECRET" \
-     -d '{"callSessionId": "invalid-uuid", "lineId": "test"}'
-   ```
-
-2. **Test rate limiting**:
-   ```bash
-   # Run 101+ requests in quick succession
-   for i in {1..105}; do
-     curl -s -o /dev/null -w "%{http_code}\n" \
-       -X POST http://localhost:3001/tools/list_reminders \
-       -H "Content-Type: application/json" \
-       -d '{"callSessionId": "test"}'
-   done
-   # First 100 should return 401, remaining should return 429
-   ```
-
-3. **Test forget-memory now requires callSessionId**:
-   ```bash
-   # Should return 400 (missing callSessionId)
-   curl -X POST http://localhost:3001/tools/forget_memory \
-     -H "Content-Type: application/json" \
-     -H "X-Webhook-Secret: YOUR_ACTUAL_SECRET" \
-     -d '{"lineId": "test", "accountId": "test"}'
-   ```
-
-4. **Verify existing calls still work**:
-   - Initiate a real test call via the dashboard
-   - Verify Grok tools are invoked successfully during the call
-   - Check telephony logs for any auth failures
-
-### Verification Checklist
-
-- [ ] All 16 tool endpoints return 401 without X-Webhook-Secret header
-- [ ] All 16 tool endpoints return 401 with incorrect X-Webhook-Secret header
-- [ ] All 16 tool endpoints work correctly with valid X-Webhook-Secret header
-- [ ] Rate limiter returns 429 after 100 requests/minute from same IP
-- [ ] Rate limiter includes Retry-After header in 429 response
-- [ ] forget-memory returns 400 without callSessionId
-- [ ] mark-private returns 400 without callSessionId
-- [ ] Real calls via Grok bridge continue to work (end-to-end test)
-- [ ] /calls/outbound still works with shared middleware
-- [ ] Logs show warnings for authentication failures
+- [ ] No sensitive content (memory values, messages, signals) in `ultaura_call_events.payload`
+- [ ] Full debug data available in `ultaura_debug_logs` for admin investigation
+- [ ] Historical data successfully backed up and deleted
+- [ ] Admin dashboard functional with @ultaura.com access control
+- [ ] pg_cron job successfully deletes logs older than 7 days
+- [ ] All existing functionality continues to work (calls, reminders, safety detection)
+- [ ] Warning logs emitted when fields are stripped (for monitoring)
 
 ---
 
-## Edge Cases and Error Handling
+## 9. Open Questions / Future Considerations
 
-### Edge Cases
-
-1. **Array header value**: Express can receive array headers. Middleware should handle `typeof providedSecret !== 'string'`.
-
-2. **Empty string secret**: Should be rejected (falsy check handles this).
-
-3. **Unicode in secret**: Buffer comparison handles UTF-8 correctly.
-
-4. **Missing environment variable**: Returns 500 (server misconfigured) not 401.
-
-5. **Rate limit map memory growth**: Cleanup interval prevents unbounded growth.
-
-6. **IP address behind proxy**: Uses `req.ip` which respects `trust proxy` setting.
-
-### Error Responses
-
-| Scenario | Status | Response |
-|----------|--------|----------|
-| Missing X-Webhook-Secret header | 401 | `{ error: 'Unauthorized' }` |
-| Invalid X-Webhook-Secret header | 401 | `{ error: 'Unauthorized' }` |
-| Rate limit exceeded | 429 | `{ error: 'Unauthorized' }` + `Retry-After` header |
-| Missing ULTAURA_INTERNAL_API_SECRET env | 500 | `{ error: 'Server misconfigured' }` |
-| Missing callSessionId (forget-memory, mark-private) | 400 | `{ error: 'Missing required fields: callSessionId, lineId' }` |
-| Invalid callSessionId | 404 | `{ error: 'Call session not found' }` |
+1. **Metrics infrastructure**: When a metrics system is added, emit `call_event_fields_stripped` metric
+2. **Audit logging**: Consider adding read access logging for the debug table
+3. **Data retention policies**: Should call_events also have a retention policy?
+4. **Encryption at rest**: Consider enabling Supabase column encryption for debug_logs
+5. **GDPR/data export**: How do debug logs factor into data subject access requests?
 
 ---
 
-## Dependencies
+## Appendix A: Complete File Change List
 
-### Existing (no new dependencies)
+### New Files
+- `/telephony/src/utils/event-sanitizer.ts`
+- `/supabase/migrations/YYYYMMDDHHMMSS_create_debug_logs.sql`
+- `/supabase/migrations/YYYYMMDDHHMMSS_cleanup_call_events.sql`
+- `/scripts/export-call-events-backup.ts`
+- `/src/lib/ultaura/admin-actions.ts`
+- `/src/app/dashboard/(app)/admin/debug-logs/page.tsx`
+- `/src/app/dashboard/(app)/admin/debug-logs/components/DebugLogTable.tsx`
+- `/src/app/dashboard/(app)/admin/debug-logs/components/DebugLogFilters.tsx`
+- `/telephony/src/utils/__tests__/event-sanitizer.test.ts`
 
-- `express` - Already used for routing
-- `crypto` - Node.js built-in module (for `timingSafeEqual`)
-- `../utils/env` - Existing utility for `getInternalApiSecret()`
-- `../utils/logger` - Existing pino logger
-- `../services/call-session` - Existing for `getCallSession()`
+### Modified Files
+- `/telephony/src/services/call-session.ts` - Update recordCallEvent, add recordDebugEvent
+- `/telephony/src/websocket/media-stream.ts` - Update tool call recording
+- `/telephony/src/routes/tools/update-memory.ts` - Remove sensitive fields
+- `/telephony/src/routes/tools/store-memory.ts` - Remove sensitive fields
+- `/telephony/src/routes/tools/set-reminder.ts` - Add success field
+- `/telephony/src/routes/tools/edit-reminder.ts` - Remove sensitive fields
+- `/telephony/src/routes/tools/safety-event.ts` - Ensure tier-only recording
+- All other tool handlers in `/telephony/src/routes/tools/` - Add success field
 
-### Environment Variables
-
-- `ULTAURA_INTERNAL_API_SECRET` - Already required, minimum 32 characters
-
----
-
-## Security Considerations
-
-1. **Timing Attack Prevention**: Using `crypto.timingSafeEqual()` prevents attackers from inferring secret characters based on comparison timing.
-
-2. **Minimal Information Disclosure**: All auth failures return identical `{ error: 'Unauthorized' }` response.
-
-3. **Rate Limiting**: Prevents brute force attacks and abuse even if an attacker somehow obtains the secret.
-
-4. **Session Validation**: Fixing forget-memory and mark-private ensures these sensitive operations can only occur during legitimate calls.
-
-5. **Logging**: Warnings capture IP and path for security monitoring without exposing secrets.
-
----
-
-## Assumptions
-
-1. The Grok bridge (`grok-bridge.ts`) correctly sends the `X-Webhook-Secret` header on all tool calls (verified in investigation).
-
-2. The `ULTAURA_INTERNAL_API_SECRET` environment variable is properly configured in all deployment environments.
-
-3. Single-server deployment (in-memory rate limiting is acceptable).
-
-4. Express `trust proxy` is configured correctly if behind a reverse proxy.
-
----
-
-## Out of Scope
-
-The following items are explicitly NOT part of this implementation:
-
-1. Redis-based rate limiting (future enhancement)
-2. Active session status validation (`status === 'in_progress'`)
-3. Session age validation
-4. Per-callSessionId rate limiting
-5. Request signing/HMAC
-6. JWT or OAuth authentication
-7. Unit tests (manual verification only)
-
----
-
-## Rollback Plan
-
-If issues are discovered after deployment:
-
-1. **Quick rollback**: Remove the middleware lines from `tools/index.ts`:
-   ```typescript
-   // Comment out these lines:
-   // toolsRouter.use(rateLimit);
-   // toolsRouter.use(requireInternalSecret);
-   ```
-
-2. **Redeploy** the previous version of the telephony server.
-
-3. **Monitor** logs for the root cause.
-
-Note: This will re-expose the vulnerability, so use only as a temporary measure while fixing the underlying issue.
-
----
-
-## Implementation Sequence
-
-1. Create `telephony/src/middleware/auth.ts` with both middleware functions
-2. Update `telephony/src/routes/tools/index.ts` to use the middleware
-3. Update `telephony/src/routes/tools/forget-memory.ts` to require callSessionId
-4. Update `telephony/src/routes/tools/mark-private.ts` to require callSessionId
-5. Update `telephony/src/routes/calls.ts` to use shared middleware
-6. Test manually per the testing plan
-7. Deploy to staging and verify with real calls
-8. Deploy to production
+### Database Changes
+- New table: `ultaura_debug_logs`
+- New pg_cron job: `cleanup-debug-logs`
+- Truncated table: `ultaura_call_events` (after backup)
+- New Supabase Storage bucket: `backups` (if not exists)

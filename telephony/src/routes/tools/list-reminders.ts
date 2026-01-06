@@ -27,6 +27,14 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'list_reminders',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
@@ -38,6 +46,7 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
 
     if (lineError || !line) {
       logger.error({ error: lineError }, 'Failed to get line');
+      await recordFailure(lineError?.code);
       res.status(500).json({ error: 'Failed to get line info' });
       return;
     }
@@ -53,6 +62,7 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
 
     if (error) {
       logger.error({ error }, 'Failed to list reminders');
+      await recordFailure(error.code);
       res.status(500).json({ error: 'Failed to list reminders' });
       return;
     }
@@ -60,8 +70,9 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'list_reminders',
+      success: true,
       reminderCount: reminders?.length || 0,
-    });
+    }, { skipDebugLog: true });
 
     if (!reminders || reminders.length === 0) {
       res.json({

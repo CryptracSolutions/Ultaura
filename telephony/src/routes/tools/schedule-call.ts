@@ -48,9 +48,18 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'schedule_call',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     // Get line info
     const lineWithAccount = await getLineById(lineId);
     if (!lineWithAccount) {
+      await recordFailure();
       res.status(404).json({ error: 'Line not found' });
       return;
     }
@@ -59,6 +68,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
 
     // Check if line is opted out
     if (line.do_not_call) {
+      await recordFailure();
       res.status(400).json({
         error: 'Line has opted out of calls',
         message: 'I understand you\'ve opted out of calls. If you\'d like to receive calls again, please let your family member know.',
@@ -71,6 +81,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
     try {
       validateTimezone(tz);
     } catch (error) {
+      await recordFailure();
       res.status(400).json({ error: (error as Error).message });
       return;
     }
@@ -78,12 +89,14 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
     if (mode === 'one_off') {
       // One-off scheduled call
       if (!when) {
+        await recordFailure();
         res.status(400).json({ error: 'Missing "when" for one-off schedule' });
         return;
       }
 
       const callTime = new Date(when);
       if (callTime.getTime() < Date.now()) {
+        await recordFailure();
         res.status(400).json({ error: 'Scheduled time is in the past' });
         return;
       }
@@ -106,6 +119,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
 
       if (error) {
         logger.error({ error }, 'Failed to create one-off schedule');
+        await recordFailure(error.code);
         res.status(500).json({ error: 'Failed to schedule call' });
         return;
       }
@@ -114,10 +128,10 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
       await incrementToolInvocations(callSessionId);
       await recordCallEvent(callSessionId, 'tool_call', {
         tool: 'schedule_call',
+        success: true,
         mode: 'one_off',
         scheduleId: schedule.id,
-        nextRunAt: schedule.next_run_at,
-      });
+      }, { skipDebugLog: true });
 
       res.json({
         success: true,
@@ -128,6 +142,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
     } else if (mode === 'update_recurring') {
       // Update recurring schedule
       if (!daysOfWeek || daysOfWeek.length === 0 || !timeLocal) {
+        await recordFailure();
         res.status(400).json({ error: 'Missing daysOfWeek or timeLocal for recurring schedule' });
         return;
       }
@@ -135,17 +150,20 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
       // Validate days of week
       const validDays = daysOfWeek.filter(d => d >= 0 && d <= 6);
       if (validDays.length === 0) {
+        await recordFailure();
         res.status(400).json({ error: 'Invalid days of week' });
         return;
       }
 
       // Validate time format
       if (!/^\d{2}:\d{2}$/.test(timeLocal)) {
+        await recordFailure();
         res.status(400).json({ error: 'Invalid time format (use HH:mm)' });
         return;
       }
       const [hours, minutes] = timeLocal.split(':').map(Number);
       if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        await recordFailure();
         res.status(400).json({ error: 'Invalid time value (use HH:mm)' });
         return;
       }
@@ -190,6 +208,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
 
         if (error) {
           logger.error({ error }, 'Failed to update schedule');
+          await recordFailure(error.code);
           res.status(500).json({ error: 'Failed to update schedule' });
           return;
         }
@@ -214,6 +233,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
 
         if (error) {
           logger.error({ error }, 'Failed to create schedule');
+          await recordFailure(error.code);
           res.status(500).json({ error: 'Failed to create schedule' });
           return;
         }
@@ -231,11 +251,10 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
       await incrementToolInvocations(callSessionId);
       await recordCallEvent(callSessionId, 'tool_call', {
         tool: 'schedule_call',
+        success: true,
         mode: 'update_recurring',
         scheduleId: schedule.id,
-        daysOfWeek: validDays,
-        timeLocal,
-      });
+      }, { skipDebugLog: true });
 
       // Format days for message
       const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -248,6 +267,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
       });
 
     } else {
+      await recordFailure();
       res.status(400).json({ error: 'Invalid mode' });
     }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatBubbleLeftRightIcon, HomeIcon, UserGroupIcon, UserIcon } from '@heroicons/react/24/outline';
+import { BugAntIcon, ChatBubbleLeftRightIcon, HomeIcon, UserGroupIcon, UserIcon } from '@heroicons/react/24/outline';
 import Sidebar, { SidebarContent, SidebarItem } from '~/core/ui/Sidebar';
 import Logo from '~/core/ui/Logo';
 
@@ -39,6 +39,13 @@ function AdminSidebar() {
           Icon={() => <ChatBubbleLeftRightIcon className={'h-6'} />}
         >
           Feedback
+        </SidebarItem>
+
+        <SidebarItem
+          path={'/ultaura-admin/debug-logs'}
+          Icon={() => <BugAntIcon className={'h-6'} />}
+        >
+          Ultaura Debug
         </SidebarItem>
       </SidebarContent>
     </Sidebar>

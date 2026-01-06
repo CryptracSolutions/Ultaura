@@ -28,6 +28,14 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'resume_reminder',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
@@ -38,11 +46,13 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (lineError || !line) {
+      await recordFailure(lineError?.code);
       res.status(500).json({ error: 'Failed to get line info' });
       return;
     }
 
     if (!line.allow_voice_reminder_control) {
+      await recordFailure();
       res.json({
         success: false,
         message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
@@ -59,6 +69,7 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (reminderError || !reminder) {
+      await recordFailure(reminderError?.code);
       res.json({
         success: false,
         message: "I couldn't find that reminder. Would you like me to list your reminders?",
@@ -67,6 +78,7 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (!reminder.is_paused) {
+      await recordFailure();
       res.json({
         success: false,
         message: "This reminder isn't paused. It's already active.",
@@ -86,6 +98,7 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to resume reminder');
+      await recordFailure(updateError.code);
       res.status(500).json({ error: 'Failed to resume reminder' });
       return;
     }
@@ -103,8 +116,9 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'resume_reminder',
+      success: true,
       reminderId,
-    });
+    }, { skipDebugLog: true });
 
     const dueDate = new Date(reminder.due_at);
     const dateStr = dueDate.toLocaleDateString('en-US', {

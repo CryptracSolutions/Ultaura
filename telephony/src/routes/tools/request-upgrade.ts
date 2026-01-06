@@ -38,15 +38,17 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Record the upgrade request event
-    await recordCallEvent(callSessionId, 'state_change', {
-      event: 'upgrade_request',
-      planId: planId || null,
-      sendLink: sendLink || false,
-    });
+    const recordStateChange = async () => {
+      await recordCallEvent(callSessionId, 'state_change', {
+        event: 'upgrade_request',
+        planId: planId || null,
+        sendLink: sendLink || false,
+      }, { skipDebugLog: true });
+    };
 
     // If no plan specified, return plan options for Grok to explain
     if (!planId) {
+      await recordStateChange();
       const planList = Object.entries(PLAN_INFO)
         .map(([_id, info]) => {
           if (info.minutes) {
@@ -70,6 +72,7 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const plan = PLAN_INFO[planId];
+    await recordStateChange();
 
     // If sendLink is not true, just confirm the plan choice
     if (!sendLink) {

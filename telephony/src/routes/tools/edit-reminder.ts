@@ -42,6 +42,14 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'edit_reminder',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
@@ -52,11 +60,13 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (lineError || !line) {
+      await recordFailure(lineError?.code);
       res.status(500).json({ error: 'Failed to get line info' });
       return;
     }
 
     if (!line.allow_voice_reminder_control) {
+      await recordFailure();
       res.json({
         success: false,
         message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
@@ -73,6 +83,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (reminderError || !reminder) {
+      await recordFailure(reminderError?.code);
       res.json({
         success: false,
         message: "I couldn't find that reminder. Would you like me to list your reminders?",
@@ -81,6 +92,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (reminder.status !== 'scheduled') {
+      await recordFailure();
       res.json({
         success: false,
         message: 'This reminder is no longer active and cannot be edited.',
@@ -95,6 +107,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
 
     if (newMessage && newMessage.trim() !== reminder.message) {
       if (newMessage.length > 500) {
+        await recordFailure();
         res.json({
           success: false,
           message: 'That message is too long. Please keep it under 500 characters.',
@@ -111,12 +124,14 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       try {
         validateTimezone(tz);
       } catch (error) {
+        await recordFailure();
         res.status(400).json({ error: (error as Error).message });
         return;
       }
 
       const timeMatch = newTimeLocal.match(LOCAL_TIME_REGEX);
       if (!timeMatch) {
+        await recordFailure();
         res.json({
           success: false,
           message: "I didn't understand that time. Please use HH:mm format.",
@@ -128,6 +143,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         const newDueAt = localToUtc(newTimeLocal, tz);
 
         if (newDueAt <= new Date()) {
+          await recordFailure();
           res.json({
             success: false,
             message: 'That time is in the past. Please choose a future time.',
@@ -146,6 +162,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         changes.push('time');
       } catch (err) {
         logger.error({ err }, 'Failed to parse time');
+        await recordFailure();
         res.json({
           success: false,
           message: "I didn't understand that time. Could you say it differently?",
@@ -155,6 +172,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (Object.keys(updates).length === 0) {
+      await recordFailure();
       res.json({
         success: false,
         message: "Nothing seems to have changed. What would you like to update?",
@@ -170,6 +188,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to edit reminder');
+      await recordFailure(updateError.code);
       res.status(500).json({ error: 'Failed to edit reminder' });
       return;
     }
@@ -189,8 +208,8 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'edit_reminder',
       reminderId,
-      changes,
-    });
+      success: true,
+    }, { skipDebugLog: true });
 
     // Build response message
     const changesStr = changes.join(' and ');

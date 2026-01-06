@@ -20,7 +20,16 @@ forgetMemoryRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'forget_memory',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     if (lineId !== session.line_id) {
+      await recordFailure();
       res.status(403).json({ error: 'Unauthorized' });
       return;
     }
@@ -47,10 +56,9 @@ forgetMemoryRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'forget_memory',
-      lineId,
-      memoryId: toForget?.id,
+      success: true,
       result: toForget ? 'forgotten' : 'not_found',
-    });
+    }, { skipDebugLog: true });
 
     res.json({
       success: true,

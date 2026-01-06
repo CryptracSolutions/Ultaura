@@ -20,7 +20,16 @@ markPrivateRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'mark_private',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     if (lineId !== session.line_id) {
+      await recordFailure();
       res.status(403).json({ error: 'Unauthorized' });
       return;
     }
@@ -47,10 +56,8 @@ markPrivateRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'mark_private',
-      lineId,
-      memoryId: toMark?.id,
-      result: toMark ? 'marked' : 'not_found',
-    });
+      success: true,
+    }, { skipDebugLog: true });
 
     res.json({
       success: true,

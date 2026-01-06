@@ -36,6 +36,13 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const accountId = session.account_id;
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'update_memory',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
 
     const memories = await getMemoriesForLine(accountId, lineId, { limit: 100 });
     const existingMemory = memories.find(
@@ -51,6 +58,7 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
       });
 
       if (!memoryId) {
+        await recordFailure();
         res.status(500).json({ success: false, error: 'Failed to store memory' });
         return;
       }
@@ -58,10 +66,10 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
       await incrementToolInvocations(callSessionId);
       await recordCallEvent(callSessionId, 'tool_call', {
         tool: 'update_memory',
+        success: true,
         key: existingKey,
         action: 'created',
-        newValue,
-      });
+      }, { skipDebugLog: true });
 
       addStoredKey(callSessionId, existingKey);
 
@@ -76,6 +84,7 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
     const updatedId = await updateMemory(accountId, lineId, existingMemory.id, newValue);
 
     if (!updatedId) {
+      await recordFailure();
       res.status(500).json({ success: false, error: 'Failed to update memory' });
       return;
     }
@@ -83,10 +92,10 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'update_memory',
+      success: true,
       key: existingKey,
-      previousValue: existingMemory.value,
-      newValue,
-    });
+      action: 'updated',
+    }, { skipDebugLog: true });
 
     addStoredKey(callSessionId, existingKey);
 

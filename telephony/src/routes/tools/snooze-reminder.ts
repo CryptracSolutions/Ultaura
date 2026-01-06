@@ -40,6 +40,14 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'snooze_reminder',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
@@ -50,11 +58,13 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (lineError || !line) {
+      await recordFailure(lineError?.code);
       res.status(500).json({ error: 'Failed to get line info' });
       return;
     }
 
     if (!line.allow_voice_reminder_control) {
+      await recordFailure();
       res.json({
         success: false,
         message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
@@ -71,6 +81,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (!targetReminderId) {
+      await recordFailure();
       res.json({
         success: false,
         message: "I'm not sure which reminder you want to snooze. Could you tell me which one?",
@@ -87,6 +98,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (reminderError || !reminder) {
+      await recordFailure(reminderError?.code);
       res.json({
         success: false,
         message: "I couldn't find that reminder. Would you like me to list your reminders?",
@@ -95,6 +107,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (reminder.status !== 'scheduled') {
+      await recordFailure();
       res.json({
         success: false,
         message: 'This reminder is no longer active.',
@@ -103,6 +116,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (reminder.is_paused) {
+      await recordFailure();
       res.json({
         success: false,
         message: "This reminder is paused. You'll need to resume it first.",
@@ -112,6 +126,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
 
     // Check snooze limit
     if (reminder.current_snooze_count >= MAX_SNOOZE_COUNT) {
+      await recordFailure();
       res.json({
         success: false,
         message: `You've already snoozed this reminder ${MAX_SNOOZE_COUNT} times. I can't snooze it again.`,
@@ -137,6 +152,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to snooze reminder');
+      await recordFailure(updateError.code);
       res.status(500).json({ error: 'Failed to snooze reminder' });
       return;
     }
@@ -160,9 +176,10 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'snooze_reminder',
+      success: true,
       reminderId: targetReminderId,
       snoozeMinutes,
-    });
+    }, { skipDebugLog: true });
 
     // Build response message
     let snoozeDuration: string;

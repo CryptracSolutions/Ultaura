@@ -17,10 +17,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
-          extensions?: Json
         }
         Returns: Json
       }
@@ -416,9 +416,34 @@ export type Database = {
           },
         ]
       }
+      ultaura_call_events_export_backup: {
+        Row: {
+          call_session_id: string
+          created_at: string
+          id: string
+          payload: Json | null
+          type: string
+        }
+        Insert: {
+          call_session_id: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          type: string
+        }
+        Update: {
+          call_session_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          type?: string
+        }
+        Relationships: []
+      }
       ultaura_call_sessions: {
         Row: {
           account_id: string
+          answered_by: string | null
           connected_at: string | null
           cost_estimate_cents_model: number | null
           cost_estimate_cents_twilio: number | null
@@ -429,8 +454,13 @@ export type Database = {
             | null
           ended_at: string | null
           id: string
+          is_reminder_call: boolean
           language_detected: string | null
           line_id: string
+          recording_sid: string | null
+          reminder_id: string | null
+          reminder_message: string | null
+          scheduler_idempotency_key: string | null
           seconds_connected: number | null
           started_at: string | null
           status: Database["public"]["Enums"]["ultaura_call_status"]
@@ -441,6 +471,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          answered_by?: string | null
           connected_at?: string | null
           cost_estimate_cents_model?: number | null
           cost_estimate_cents_twilio?: number | null
@@ -451,8 +482,13 @@ export type Database = {
             | null
           ended_at?: string | null
           id?: string
+          is_reminder_call?: boolean
           language_detected?: string | null
           line_id: string
+          recording_sid?: string | null
+          reminder_id?: string | null
+          reminder_message?: string | null
+          scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ultaura_call_status"]
@@ -463,6 +499,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          answered_by?: string | null
           connected_at?: string | null
           cost_estimate_cents_model?: number | null
           cost_estimate_cents_twilio?: number | null
@@ -473,8 +510,13 @@ export type Database = {
             | null
           ended_at?: string | null
           id?: string
+          is_reminder_call?: boolean
           language_detected?: string | null
           line_id?: string
+          recording_sid?: string | null
+          reminder_id?: string | null
+          reminder_message?: string | null
+          scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ultaura_call_status"]
@@ -496,6 +538,13 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_call_sessions_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_reminders"
             referencedColumns: ["id"]
           },
         ]
@@ -551,9 +600,58 @@ export type Database = {
           },
         ]
       }
+      ultaura_debug_logs: {
+        Row: {
+          account_id: string | null
+          call_session_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          payload: Json
+          tool_name: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          payload: Json
+          tool_name?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          payload?: Json
+          tool_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_debug_logs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_debug_logs_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_lines: {
         Row: {
           account_id: string
+          allow_voice_reminder_control: boolean
           created_at: string
           display_name: string
           do_not_call: boolean
@@ -571,9 +669,11 @@ export type Database = {
           spanish_formality: string
           status: Database["public"]["Enums"]["ultaura_line_status"]
           timezone: string
+          voicemail_behavior: string
         }
         Insert: {
           account_id: string
+          allow_voice_reminder_control?: boolean
           created_at?: string
           display_name: string
           do_not_call?: boolean
@@ -591,9 +691,11 @@ export type Database = {
           spanish_formality?: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          voicemail_behavior?: string
         }
         Update: {
           account_id?: string
+          allow_voice_reminder_control?: boolean
           created_at?: string
           display_name?: string
           do_not_call?: boolean
@@ -611,6 +713,7 @@ export type Database = {
           spanish_formality?: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          voicemail_behavior?: string
         }
         Relationships: [
           {
@@ -699,6 +802,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ultaura_migration_log: {
+        Row: {
+          executed_at: string
+          id: string
+          migration_name: string
+          notes: string | null
+          record_count: number | null
+        }
+        Insert: {
+          executed_at?: string
+          id?: string
+          migration_name: string
+          notes?: string | null
+          record_count?: number | null
+        }
+        Update: {
+          executed_at?: string
+          id?: string
+          migration_name?: string
+          notes?: string | null
+          record_count?: number | null
+        }
+        Relationships: []
       }
       ultaura_minute_ledger: {
         Row: {
@@ -892,44 +1019,157 @@ export type Database = {
         }
         Relationships: []
       }
+      ultaura_reminder_events: {
+        Row: {
+          account_id: string
+          call_session_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          line_id: string
+          metadata: Json | null
+          reminder_id: string
+          triggered_by: string
+        }
+        Insert: {
+          account_id: string
+          call_session_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          line_id: string
+          metadata?: Json | null
+          reminder_id: string
+          triggered_by: string
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          line_id?: string
+          metadata?: Json | null
+          reminder_id?: string
+          triggered_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_reminder_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_reminder_events_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_reminder_events_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_reminder_events_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_reminders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_reminders: {
         Row: {
           account_id: string
           created_at: string
           created_by_call_session_id: string | null
+          current_snooze_count: number
+          day_of_month: number | null
+          days_of_week: number[] | null
           delivery_method: string
           due_at: string
+          ends_at: string | null
           id: string
+          interval_days: number | null
+          is_paused: boolean
+          is_recurring: boolean
+          last_delivery_status: string | null
           line_id: string
           message: string
+          occurrence_count: number
+          original_due_at: string | null
+          paused_at: string | null
           privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
+          rrule: string | null
+          snoozed_until: string | null
           status: Database["public"]["Enums"]["ultaura_reminder_status"]
+          time_of_day: string | null
           timezone: string
         }
         Insert: {
           account_id: string
           created_at?: string
           created_by_call_session_id?: string | null
+          current_snooze_count?: number
+          day_of_month?: number | null
+          days_of_week?: number[] | null
           delivery_method?: string
           due_at: string
+          ends_at?: string | null
           id?: string
+          interval_days?: number | null
+          is_paused?: boolean
+          is_recurring?: boolean
+          last_delivery_status?: string | null
           line_id: string
           message: string
+          occurrence_count?: number
+          original_due_at?: string | null
+          paused_at?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
+          rrule?: string | null
+          snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
+          time_of_day?: string | null
           timezone: string
         }
         Update: {
           account_id?: string
           created_at?: string
           created_by_call_session_id?: string | null
+          current_snooze_count?: number
+          day_of_month?: number | null
+          days_of_week?: number[] | null
           delivery_method?: string
           due_at?: string
+          ends_at?: string | null
           id?: string
+          interval_days?: number | null
+          is_paused?: boolean
+          is_recurring?: boolean
+          last_delivery_status?: string | null
           line_id?: string
           message?: string
+          occurrence_count?: number
+          original_due_at?: string | null
+          paused_at?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
+          rrule?: string | null
+          snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
+          time_of_day?: string | null
           timezone?: string
         }
         Relationships: [
@@ -1011,6 +1251,33 @@ export type Database = {
           },
         ]
       }
+      ultaura_scheduler_leases: {
+        Row: {
+          acquired_at: string | null
+          created_at: string
+          expires_at: string | null
+          heartbeat_at: string | null
+          held_by: string | null
+          id: string
+        }
+        Insert: {
+          acquired_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          heartbeat_at?: string | null
+          held_by?: string | null
+          id: string
+        }
+        Update: {
+          acquired_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          heartbeat_at?: string | null
+          held_by?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       ultaura_schedules: {
         Row: {
           account_id: string
@@ -1024,6 +1291,8 @@ export type Database = {
           last_run_at: string | null
           line_id: string
           next_run_at: string | null
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
           retry_count: number
           retry_policy: Json
           rrule: string
@@ -1042,6 +1311,8 @@ export type Database = {
           last_run_at?: string | null
           line_id: string
           next_run_at?: string | null
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
           retry_count?: number
           retry_policy?: Json
           rrule: string
@@ -1060,6 +1331,8 @@ export type Database = {
           last_run_at?: string | null
           line_id?: string
           next_run_at?: string | null
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
           retry_count?: number
           retry_policy?: Json
           rrule?: string
@@ -1213,15 +1486,7 @@ export type Database = {
           onboarded?: boolean
           photo_url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "users_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
@@ -1229,134 +1494,211 @@ export type Database = {
     }
     Functions: {
       accept_invite_to_organization: {
-        Args: {
-          invite_code: string
-          invite_user_id: string
-        }
+        Args: { invite_code: string; invite_user_id: string }
         Returns: Json
       }
-      assert_service_role: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      assert_service_role: { Args: never; Returns: undefined }
       can_access_ultaura_account: {
-        Args: {
-          account_id: string
-        }
+        Args: { account_id: string }
         Returns: boolean
       }
       can_update_user_role:
+        | { Args: { membership_id: number }; Returns: boolean }
         | {
-            Args: {
-              membership_id: number
-            }
+            Args: { membership_id: number; organization_id: number }
             Returns: boolean
           }
-        | {
-            Args: {
-              organization_id: number
-              membership_id: number
-            }
-            Returns: boolean
-          }
-      create_new_organization: {
+      claim_due_reminders: {
         Args: {
-          org_name: string
-          create_user?: boolean
+          p_batch_size?: number
+          p_claim_ttl_seconds?: number
+          p_worker_id: string
         }
+        Returns: {
+          account_id: string
+          created_at: string
+          created_by_call_session_id: string | null
+          current_snooze_count: number
+          day_of_month: number | null
+          days_of_week: number[] | null
+          delivery_method: string
+          due_at: string
+          ends_at: string | null
+          id: string
+          interval_days: number | null
+          is_paused: boolean
+          is_recurring: boolean
+          last_delivery_status: string | null
+          line_id: string
+          message: string
+          occurrence_count: number
+          original_due_at: string | null
+          paused_at: string | null
+          privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
+          rrule: string | null
+          snoozed_until: string | null
+          status: Database["public"]["Enums"]["ultaura_reminder_status"]
+          time_of_day: string | null
+          timezone: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ultaura_reminders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_due_schedules: {
+        Args: {
+          p_batch_size?: number
+          p_claim_ttl_seconds?: number
+          p_worker_id: string
+        }
+        Returns: {
+          account_id: string
+          created_at: string
+          days_of_week: number[]
+          enabled: boolean
+          id: string
+          last_result:
+            | Database["public"]["Enums"]["ultaura_schedule_result"]
+            | null
+          last_run_at: string | null
+          line_id: string
+          next_run_at: string | null
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
+          retry_count: number
+          retry_policy: Json
+          rrule: string
+          time_of_day: string
+          timezone: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ultaura_schedules"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      complete_reminder_processing: {
+        Args: { p_reminder_id: string; p_worker_id: string }
+        Returns: boolean
+      }
+      complete_schedule_processing: {
+        Args: {
+          p_next_run_at: string
+          p_reset_retry_count?: boolean
+          p_result: string
+          p_schedule_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      create_new_organization: {
+        Args: { create_user?: boolean; org_name: string }
         Returns: string
       }
       create_ultaura_account: {
         Args: {
-          p_organization_id: number
-          p_name: string
           p_billing_email: string
+          p_name: string
+          p_organization_id: number
           p_user_id: string
         }
         Returns: string
       }
       current_user_is_member_of_organization: {
-        Args: {
-          organization_id: number
-        }
+        Args: { organization_id: number }
         Returns: boolean
       }
       get_organizations_for_authenticated_user: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: number[]
       }
       get_role_for_authenticated_user: {
-        Args: {
-          org_id: number
-        }
+        Args: { org_id: number }
         Returns: number
       }
-      get_role_for_user: {
-        Args: {
-          membership_id: number
-        }
-        Returns: number
-      }
-      get_ultaura_accounts_for_user: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
+      get_role_for_user: { Args: { membership_id: number }; Returns: number }
+      get_ultaura_accounts_for_user: { Args: never; Returns: string[] }
       get_ultaura_minutes_remaining: {
-        Args: {
-          p_account_id: string
-        }
+        Args: { p_account_id: string }
         Returns: number
       }
       get_ultaura_usage_summary: {
-        Args: {
-          p_account_id: string
-        }
+        Args: { p_account_id: string }
         Returns: {
-          minutes_included: number
-          minutes_used: number
-          minutes_remaining: number
-          overage_minutes: number
-          cycle_start: string
           cycle_end: string
+          cycle_start: string
+          minutes_included: number
+          minutes_remaining: number
+          minutes_used: number
+          overage_minutes: number
         }[]
       }
-      match_documents: {
+      heartbeat_scheduler_lease: {
         Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
+          p_extend_seconds?: number
+          p_lease_id: string
+          p_worker_id: string
         }
+        Returns: boolean
+      }
+      increment_schedule_retry: {
+        Args: {
+          p_next_run_at: string
+          p_schedule_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      is_ultaura_trial_active: {
+        Args: { p_account_id: string }
+        Returns: boolean
+      }
+      match_documents: {
+        Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
-          id: number
           content: string
-          metadata: Json
           embedding: Json
+          id: number
+          metadata: Json
           similarity: number
         }[]
       }
       match_feedback_submissions: {
         Args: {
-          query_embedding: string
-          match_threshold: number
           match_count: number
+          match_threshold: number
+          query_embedding: string
         }
         Returns: {
-          id: number
           content: string
+          id: number
           similarity: number
         }[]
       }
+      release_scheduler_lease: {
+        Args: { p_lease_id: string; p_worker_id: string }
+        Returns: boolean
+      }
       transfer_organization: {
-        Args: {
-          org_id: number
-          target_user_membership_id: number
-        }
+        Args: { org_id: number; target_user_membership_id: number }
         Returns: undefined
       }
-      update_ultaura_account_usage: {
+      try_acquire_scheduler_lease: {
         Args: {
-          p_account_id: string
+          p_lease_duration_seconds?: number
+          p_lease_id: string
+          p_worker_id: string
         }
+        Returns: boolean
+      }
+      update_ultaura_account_usage: {
+        Args: { p_account_id: string }
         Returns: undefined
       }
     }
@@ -1394,7 +1736,13 @@ export type Database = {
         | "sms_to_payer"
         | "data_retention"
       ultaura_line_status: "active" | "paused" | "disabled"
-      ultaura_memory_type: "fact" | "preference" | "follow_up" | "context" | "history" | "wellbeing"
+      ultaura_memory_type:
+        | "fact"
+        | "preference"
+        | "follow_up"
+        | "context"
+        | "history"
+        | "wellbeing"
       ultaura_opt_out_channel: "outbound_calls" | "sms" | "all"
       ultaura_privacy_scope: "line_only" | "shareable_with_payer"
       ultaura_reminder_status: "scheduled" | "sent" | "missed" | "canceled"
@@ -1456,21 +1804,48 @@ export type Database = {
       buckets_analytics: {
         Row: {
           created_at: string
+          deleted_at: string | null
           format: string
+          id: string
+          name: string
+          type: Database["storage"]["Enums"]["buckettype"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          format?: string
+          id?: string
+          name: string
+          type?: Database["storage"]["Enums"]["buckettype"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          format?: string
+          id?: string
+          name?: string
+          type?: Database["storage"]["Enums"]["buckettype"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      buckets_vectors: {
+        Row: {
+          created_at: string
           id: string
           type: Database["storage"]["Enums"]["buckettype"]
           updated_at: string
         }
         Insert: {
           created_at?: string
-          format?: string
           id: string
           type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string
         }
         Update: {
           created_at?: string
-          format?: string
           id?: string
           type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string
@@ -1479,30 +1854,36 @@ export type Database = {
       }
       iceberg_namespaces: {
         Row: {
-          bucket_id: string
+          bucket_name: string
+          catalog_id: string
           created_at: string
           id: string
+          metadata: Json
           name: string
           updated_at: string
         }
         Insert: {
-          bucket_id: string
+          bucket_name: string
+          catalog_id: string
           created_at?: string
           id?: string
+          metadata?: Json
           name: string
           updated_at?: string
         }
         Update: {
-          bucket_id?: string
+          bucket_name?: string
+          catalog_id?: string
           created_at?: string
           id?: string
+          metadata?: Json
           name?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "iceberg_namespaces_bucket_id_fkey"
-            columns: ["bucket_id"]
+            foreignKeyName: "iceberg_namespaces_catalog_id_fkey"
+            columns: ["catalog_id"]
             isOneToOne: false
             referencedRelation: "buckets_analytics"
             referencedColumns: ["id"]
@@ -1511,36 +1892,48 @@ export type Database = {
       }
       iceberg_tables: {
         Row: {
-          bucket_id: string
+          bucket_name: string
+          catalog_id: string
           created_at: string
           id: string
           location: string
           name: string
           namespace_id: string
+          remote_table_id: string | null
+          shard_id: string | null
+          shard_key: string | null
           updated_at: string
         }
         Insert: {
-          bucket_id: string
+          bucket_name: string
+          catalog_id: string
           created_at?: string
           id?: string
           location: string
           name: string
           namespace_id: string
+          remote_table_id?: string | null
+          shard_id?: string | null
+          shard_key?: string | null
           updated_at?: string
         }
         Update: {
-          bucket_id?: string
+          bucket_name?: string
+          catalog_id?: string
           created_at?: string
           id?: string
           location?: string
           name?: string
           namespace_id?: string
+          remote_table_id?: string | null
+          shard_id?: string | null
+          shard_key?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "iceberg_tables_bucket_id_fkey"
-            columns: ["bucket_id"]
+            foreignKeyName: "iceberg_tables_catalog_id_fkey"
+            columns: ["catalog_id"]
             isOneToOne: false
             referencedRelation: "buckets_analytics"
             referencedColumns: ["id"]
@@ -1761,210 +2154,204 @@ export type Database = {
           },
         ]
       }
+      vector_indexes: {
+        Row: {
+          bucket_id: string
+          created_at: string
+          data_type: string
+          dimension: number
+          distance_metric: string
+          id: string
+          metadata_configuration: Json | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          bucket_id: string
+          created_at?: string
+          data_type: string
+          dimension: number
+          distance_metric: string
+          id?: string
+          metadata_configuration?: Json | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string
+          data_type?: string
+          dimension?: number
+          distance_metric?: string
+          id?: string
+          metadata_configuration?: Json | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vector_indexes_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: false
+            referencedRelation: "buckets_vectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       add_prefixes: {
-        Args: {
-          _bucket_id: string
-          _name: string
-        }
+        Args: { _bucket_id: string; _name: string }
         Returns: undefined
       }
       can_insert_object: {
-        Args: {
-          bucketid: string
-          name: string
-          owner: string
-          metadata: Json
-        }
+        Args: { bucketid: string; metadata: Json; name: string; owner: string }
         Returns: undefined
       }
       delete_leaf_prefixes: {
-        Args: {
-          bucket_ids: string[]
-          names: string[]
-        }
+        Args: { bucket_ids: string[]; names: string[] }
         Returns: undefined
       }
       delete_prefix: {
-        Args: {
-          _bucket_id: string
-          _name: string
-        }
+        Args: { _bucket_id: string; _name: string }
         Returns: boolean
       }
-      extension: {
-        Args: {
-          name: string
-        }
-        Returns: string
-      }
-      filename: {
-        Args: {
-          name: string
-        }
-        Returns: string
-      }
-      foldername: {
-        Args: {
-          name: string
-        }
-        Returns: string[]
-      }
-      get_level: {
-        Args: {
-          name: string
-        }
-        Returns: number
-      }
-      get_prefix: {
-        Args: {
-          name: string
-        }
-        Returns: string
-      }
-      get_prefixes: {
-        Args: {
-          name: string
-        }
-        Returns: string[]
-      }
+      extension: { Args: { name: string }; Returns: string }
+      filename: { Args: { name: string }; Returns: string }
+      foldername: { Args: { name: string }; Returns: string[] }
+      get_level: { Args: { name: string }; Returns: number }
+      get_prefix: { Args: { name: string }; Returns: string }
+      get_prefixes: { Args: { name: string }; Returns: string[] }
       get_size_by_bucket: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          size: number
           bucket_id: string
+          size: number
         }[]
       }
       list_multipart_uploads_with_delimiter: {
         Args: {
           bucket_id: string
-          prefix_param: string
           delimiter_param: string
           max_keys?: number
           next_key_token?: string
           next_upload_token?: string
+          prefix_param: string
         }
         Returns: {
-          key: string
-          id: string
           created_at: string
+          id: string
+          key: string
         }[]
       }
       list_objects_with_delimiter: {
         Args: {
           bucket_id: string
-          prefix_param: string
           delimiter_param: string
           max_keys?: number
-          start_after?: string
           next_token?: string
+          prefix_param: string
+          start_after?: string
         }
         Returns: {
-          name: string
           id: string
           metadata: Json
+          name: string
           updated_at: string
         }[]
       }
       lock_top_prefixes: {
-        Args: {
-          bucket_ids: string[]
-          names: string[]
-        }
+        Args: { bucket_ids: string[]; names: string[] }
         Returns: undefined
       }
-      operation: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      operation: { Args: never; Returns: string }
       search: {
         Args: {
-          prefix: string
           bucketname: string
-          limits?: number
           levels?: number
+          limits?: number
           offsets?: number
+          prefix: string
           search?: string
           sortcolumn?: string
           sortorder?: string
         }
         Returns: {
-          name: string
-          id: string
-          updated_at: string
           created_at: string
+          id: string
           last_accessed_at: string
           metadata: Json
+          name: string
+          updated_at: string
         }[]
       }
       search_legacy_v1: {
         Args: {
-          prefix: string
           bucketname: string
-          limits?: number
           levels?: number
+          limits?: number
           offsets?: number
+          prefix: string
           search?: string
           sortcolumn?: string
           sortorder?: string
         }
         Returns: {
-          name: string
-          id: string
-          updated_at: string
           created_at: string
+          id: string
           last_accessed_at: string
           metadata: Json
+          name: string
+          updated_at: string
         }[]
       }
       search_v1_optimised: {
         Args: {
-          prefix: string
           bucketname: string
-          limits?: number
           levels?: number
+          limits?: number
           offsets?: number
+          prefix: string
           search?: string
           sortcolumn?: string
           sortorder?: string
         }
         Returns: {
-          name: string
-          id: string
-          updated_at: string
           created_at: string
+          id: string
           last_accessed_at: string
           metadata: Json
+          name: string
+          updated_at: string
         }[]
       }
       search_v2: {
         Args: {
-          prefix: string
           bucket_name: string
-          limits?: number
           levels?: number
-          start_after?: string
-          sort_order?: string
+          limits?: number
+          prefix: string
           sort_column?: string
           sort_column_after?: string
+          sort_order?: string
+          start_after?: string
         }
         Returns: {
-          key: string
-          name: string
-          id: string
-          updated_at: string
           created_at: string
+          id: string
+          key: string
           last_accessed_at: string
           metadata: Json
+          name: string
+          updated_at: string
         }[]
       }
     }
     Enums: {
-      buckettype: "STANDARD" | "ANALYTICS"
+      buckettype: "STANDARD" | "ANALYTICS" | "VECTOR"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1972,27 +2359,33 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-        PublicSchema["Views"])
-    ? (PublicSchema["Tables"] &
-        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -2000,20 +2393,24 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -2021,20 +2418,24 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -2042,14 +2443,106 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
-    | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      feedback_type: ["question", "bug", "feedback"],
+      subscription_status: [
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "unpaid",
+        "incomplete",
+        "incomplete_expired",
+        "paused",
+      ],
+      ultaura_account_status: ["trial", "active", "past_due", "canceled"],
+      ultaura_billable_type: ["trial", "included", "overage", "payg"],
+      ultaura_call_direction: ["inbound", "outbound"],
+      ultaura_call_end_reason: [
+        "hangup",
+        "no_answer",
+        "busy",
+        "trial_cap",
+        "minutes_cap",
+        "error",
+      ],
+      ultaura_call_status: [
+        "created",
+        "ringing",
+        "in_progress",
+        "completed",
+        "failed",
+        "canceled",
+      ],
+      ultaura_consent_type: [
+        "outbound_calls",
+        "trusted_contact_notify",
+        "sms_to_payer",
+        "data_retention",
+      ],
+      ultaura_line_status: ["active", "paused", "disabled"],
+      ultaura_memory_type: [
+        "fact",
+        "preference",
+        "follow_up",
+        "context",
+        "history",
+        "wellbeing",
+      ],
+      ultaura_opt_out_channel: ["outbound_calls", "sms", "all"],
+      ultaura_privacy_scope: ["line_only", "shareable_with_payer"],
+      ultaura_reminder_status: ["scheduled", "sent", "missed", "canceled"],
+      ultaura_safety_tier: ["low", "medium", "high"],
+      ultaura_schedule_result: [
+        "success",
+        "missed",
+        "suppressed_quiet_hours",
+        "failed",
+      ],
+    },
+  },
+  storage: {
+    Enums: {
+      buckettype: ["STANDARD", "ANALYTICS", "VECTOR"],
+    },
+  },
+} as const
+

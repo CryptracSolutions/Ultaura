@@ -60,7 +60,7 @@ overageActionRouter.post('/', async (req: Request, res: Response) => {
       event: 'overage_action',
       action,
       planId: validatedPlanId,
-    });
+    }, { skipDebugLog: true });
 
     if (action === 'upgrade') {
       const appBaseUrl =

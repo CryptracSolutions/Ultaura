@@ -15,6 +15,8 @@ const LEASE_DURATION_SECONDS = 60;
 const HEARTBEAT_INTERVAL_MS = 20_000; // 20 seconds
 const CLAIM_TTL_SECONDS = 120;
 const BATCH_SIZE = 10;
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const DEBUG_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Worker identity (unique per instance)
 const WORKER_ID = `${process.env.HOSTNAME || 'local'}-${uuidv4().slice(0, 8)}`;
@@ -24,6 +26,7 @@ let isRunning = false;
 let heartbeatIntervals: ReturnType<typeof setInterval>[] = [];
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let shuttingDown = false;
+let lastCleanupTimestamp = 0;
 
 /**
  * Calculate the next occurrence for a recurring reminder.
@@ -115,6 +118,7 @@ async function runSchedulerCycle(): Promise<void> {
   isRunning = true;
 
   try {
+    await maybeCleanupDebugLogs();
     // Process schedules and reminders in parallel with separate leases
     await Promise.all([
       processWithLease('schedules', processScheduledCalls),
@@ -125,6 +129,30 @@ async function runSchedulerCycle(): Promise<void> {
   } finally {
     isRunning = false;
   }
+}
+
+async function maybeCleanupDebugLogs(): Promise<void> {
+  const now = Date.now();
+  if (now - lastCleanupTimestamp < CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastCleanupTimestamp = now;
+
+  const supabase = getSupabaseClient();
+  const cutoff = new Date(now - DEBUG_LOG_RETENTION_MS).toISOString();
+
+  const { error, count } = await supabase
+    .from('ultaura_debug_logs')
+    .delete({ count: 'exact' })
+    .lt('created_at', cutoff);
+
+  if (error) {
+    logger.error({ error }, 'Failed to cleanup debug logs');
+    return;
+  }
+
+  logger.info({ deletedCount: count ?? 0 }, 'Cleaned up old debug logs');
 }
 
 /**

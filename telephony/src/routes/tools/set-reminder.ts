@@ -133,8 +133,17 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'set_reminder',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     const lineWithAccount = await getLineById(lineId);
     if (!lineWithAccount) {
+      await recordFailure();
       res.status(404).json({ error: 'Line not found' });
       return;
     }
@@ -146,6 +155,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     try {
       validateTimezone(tz);
     } catch (error) {
+      await recordFailure();
       res.status(400).json({ error: (error as Error).message });
       return;
     }
@@ -157,6 +167,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       logger.info({ dueAtLocal, timezone: tz, dueAtUtc: dueAt.toISOString() }, 'Parsed reminder due date');
     } catch (parseError) {
       logger.error({ parseError, dueAtLocal, timezone }, 'Failed to parse reminder due date');
+      await recordFailure();
       res.status(400).json({ error: 'Invalid date format' });
       return;
     }
@@ -171,6 +182,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
         timezone,
         callSessionId,
       }, 'Reminder rejected: due date is in the past');
+      await recordFailure();
       res.status(400).json({ error: 'Due date is in the past' });
       return;
     }
@@ -255,6 +267,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
           created_by_call_session_id: callSessionId,
         },
       }, 'Failed to create reminder');
+      await recordFailure(error.code);
       res.status(500).json({ error: 'Failed to create reminder', details: error.message });
       return;
     }
@@ -263,9 +276,9 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'set_reminder',
+      success: true,
       reminderId: reminder.id,
-      dueAt: reminder.due_at,
-    });
+    }, { skipDebugLog: true });
 
     logger.info({ reminderId: reminder.id, dueAt: reminder.due_at }, 'Reminder created');
 

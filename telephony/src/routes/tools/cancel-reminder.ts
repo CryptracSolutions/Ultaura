@@ -28,6 +28,14 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'cancel_reminder',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
+
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
@@ -38,11 +46,13 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (lineError || !line) {
+      await recordFailure(lineError?.code);
       res.status(500).json({ error: 'Failed to get line info' });
       return;
     }
 
     if (!line.allow_voice_reminder_control) {
+      await recordFailure();
       res.json({
         success: false,
         message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
@@ -59,6 +69,7 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (reminderError || !reminder) {
+      await recordFailure(reminderError?.code);
       res.json({
         success: false,
         message: "I couldn't find that reminder. Would you like me to list your reminders?",
@@ -67,6 +78,7 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (reminder.status !== 'scheduled') {
+      await recordFailure();
       res.json({
         success: false,
         message: 'This reminder is no longer active.',
@@ -82,6 +94,7 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to cancel reminder');
+      await recordFailure(updateError.code);
       res.status(500).json({ error: 'Failed to cancel reminder' });
       return;
     }
@@ -99,8 +112,9 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'cancel_reminder',
+      success: true,
       reminderId,
-    });
+    }, { skipDebugLog: true });
 
     const seriesNote = reminder.is_recurring
       ? ' The entire recurring series has been canceled.'

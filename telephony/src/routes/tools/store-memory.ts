@@ -38,6 +38,13 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const accountId = session.account_id;
+    const recordFailure = async (errorCode?: string) => {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'store_memory',
+        success: false,
+        errorCode,
+      }, { skipDebugLog: true });
+    };
 
     const memoryId = await storeMemory(accountId, lineId, memoryType as any, key, value, {
       confidence,
@@ -46,6 +53,7 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     });
 
     if (!memoryId) {
+      await recordFailure();
       res.status(500).json({ success: false, error: 'Failed to store memory' });
       return;
     }
@@ -53,10 +61,9 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'store_memory',
-      memoryId,
+      success: true,
       key,
-      type: memoryType,
-    });
+    }, { skipDebugLog: true });
 
     addStoredKey(callSessionId, key);
 
