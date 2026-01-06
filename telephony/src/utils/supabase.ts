@@ -104,7 +104,6 @@ export interface ScheduleRow {
   created_at: string;
   enabled: boolean;
   timezone: string;
-  rrule: string;
   days_of_week: number[];
   time_of_day: string;
   next_run_at: string | null;

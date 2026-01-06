@@ -1295,7 +1295,6 @@ export type Database = {
           processing_claimed_by: string | null
           retry_count: number
           retry_policy: Json
-          rrule: string
           time_of_day: string
           timezone: string
         }
@@ -1315,7 +1314,6 @@ export type Database = {
           processing_claimed_by?: string | null
           retry_count?: number
           retry_policy?: Json
-          rrule: string
           time_of_day?: string
           timezone: string
         }
@@ -1335,7 +1333,6 @@ export type Database = {
           processing_claimed_by?: string | null
           retry_count?: number
           retry_policy?: Json
-          rrule?: string
           time_of_day?: string
           timezone?: string
         }
@@ -1572,7 +1569,6 @@ export type Database = {
           processing_claimed_by: string | null
           retry_count: number
           retry_policy: Json
-          rrule: string
           time_of_day: string
           timezone: string
         }[]

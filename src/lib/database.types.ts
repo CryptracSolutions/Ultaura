@@ -416,9 +416,34 @@ export type Database = {
           },
         ]
       }
+      ultaura_call_events_export_backup: {
+        Row: {
+          call_session_id: string
+          created_at: string
+          id: string
+          payload: Json | null
+          type: string
+        }
+        Insert: {
+          call_session_id: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          type: string
+        }
+        Update: {
+          call_session_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          type?: string
+        }
+        Relationships: []
+      }
       ultaura_call_sessions: {
         Row: {
           account_id: string
+          answered_by: string | null
           connected_at: string | null
           cost_estimate_cents_model: number | null
           cost_estimate_cents_twilio: number | null
@@ -432,8 +457,10 @@ export type Database = {
           is_reminder_call: boolean
           language_detected: string | null
           line_id: string
+          recording_sid: string | null
           reminder_id: string | null
           reminder_message: string | null
+          scheduler_idempotency_key: string | null
           seconds_connected: number | null
           started_at: string | null
           status: Database["public"]["Enums"]["ultaura_call_status"]
@@ -444,6 +471,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          answered_by?: string | null
           connected_at?: string | null
           cost_estimate_cents_model?: number | null
           cost_estimate_cents_twilio?: number | null
@@ -457,8 +485,10 @@ export type Database = {
           is_reminder_call?: boolean
           language_detected?: string | null
           line_id: string
+          recording_sid?: string | null
           reminder_id?: string | null
           reminder_message?: string | null
+          scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ultaura_call_status"]
@@ -469,6 +499,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          answered_by?: string | null
           connected_at?: string | null
           cost_estimate_cents_model?: number | null
           cost_estimate_cents_twilio?: number | null
@@ -482,8 +513,10 @@ export type Database = {
           is_reminder_call?: boolean
           language_detected?: string | null
           line_id?: string
+          recording_sid?: string | null
           reminder_id?: string | null
           reminder_message?: string | null
+          scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ultaura_call_status"]
@@ -567,6 +600,54 @@ export type Database = {
           },
         ]
       }
+      ultaura_debug_logs: {
+        Row: {
+          account_id: string | null
+          call_session_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          payload: Json
+          tool_name: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          payload: Json
+          tool_name?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          payload?: Json
+          tool_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_debug_logs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_debug_logs_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_lines: {
         Row: {
           account_id: string
@@ -588,6 +669,7 @@ export type Database = {
           spanish_formality: string
           status: Database["public"]["Enums"]["ultaura_line_status"]
           timezone: string
+          voicemail_behavior: string
         }
         Insert: {
           account_id: string
@@ -609,6 +691,7 @@ export type Database = {
           spanish_formality?: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          voicemail_behavior?: string
         }
         Update: {
           account_id?: string
@@ -630,6 +713,7 @@ export type Database = {
           spanish_formality?: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          voicemail_behavior?: string
         }
         Relationships: [
           {
@@ -718,6 +802,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ultaura_migration_log: {
+        Row: {
+          executed_at: string
+          id: string
+          migration_name: string
+          notes: string | null
+          record_count: number | null
+        }
+        Insert: {
+          executed_at?: string
+          id?: string
+          migration_name: string
+          notes?: string | null
+          record_count?: number | null
+        }
+        Update: {
+          executed_at?: string
+          id?: string
+          migration_name?: string
+          notes?: string | null
+          record_count?: number | null
+        }
+        Relationships: []
       }
       ultaura_minute_ledger: {
         Row: {
@@ -998,6 +1106,8 @@ export type Database = {
           original_due_at: string | null
           paused_at: string | null
           privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
           rrule: string | null
           snoozed_until: string | null
           status: Database["public"]["Enums"]["ultaura_reminder_status"]
@@ -1025,6 +1135,8 @@ export type Database = {
           original_due_at?: string | null
           paused_at?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
           rrule?: string | null
           snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
@@ -1052,6 +1164,8 @@ export type Database = {
           original_due_at?: string | null
           paused_at?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
           rrule?: string | null
           snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
@@ -1137,6 +1251,33 @@ export type Database = {
           },
         ]
       }
+      ultaura_scheduler_leases: {
+        Row: {
+          acquired_at: string | null
+          created_at: string
+          expires_at: string | null
+          heartbeat_at: string | null
+          held_by: string | null
+          id: string
+        }
+        Insert: {
+          acquired_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          heartbeat_at?: string | null
+          held_by?: string | null
+          id: string
+        }
+        Update: {
+          acquired_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          heartbeat_at?: string | null
+          held_by?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       ultaura_schedules: {
         Row: {
           account_id: string
@@ -1150,9 +1291,10 @@ export type Database = {
           last_run_at: string | null
           line_id: string
           next_run_at: string | null
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
           retry_count: number
           retry_policy: Json
-          rrule: string
           time_of_day: string
           timezone: string
         }
@@ -1168,9 +1310,10 @@ export type Database = {
           last_run_at?: string | null
           line_id: string
           next_run_at?: string | null
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
           retry_count?: number
           retry_policy?: Json
-          rrule: string
           time_of_day?: string
           timezone: string
         }
@@ -1186,9 +1329,10 @@ export type Database = {
           last_run_at?: string | null
           line_id?: string
           next_run_at?: string | null
+          processing_claimed_at?: string | null
+          processing_claimed_by?: string | null
           retry_count?: number
           retry_policy?: Json
-          rrule?: string
           time_of_day?: string
           timezone?: string
         }
@@ -1361,6 +1505,94 @@ export type Database = {
             Args: { membership_id: number; organization_id: number }
             Returns: boolean
           }
+      claim_due_reminders: {
+        Args: {
+          p_batch_size?: number
+          p_claim_ttl_seconds?: number
+          p_worker_id: string
+        }
+        Returns: {
+          account_id: string
+          created_at: string
+          created_by_call_session_id: string | null
+          current_snooze_count: number
+          day_of_month: number | null
+          days_of_week: number[] | null
+          delivery_method: string
+          due_at: string
+          ends_at: string | null
+          id: string
+          interval_days: number | null
+          is_paused: boolean
+          is_recurring: boolean
+          last_delivery_status: string | null
+          line_id: string
+          message: string
+          occurrence_count: number
+          original_due_at: string | null
+          paused_at: string | null
+          privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
+          rrule: string | null
+          snoozed_until: string | null
+          status: Database["public"]["Enums"]["ultaura_reminder_status"]
+          time_of_day: string | null
+          timezone: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ultaura_reminders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_due_schedules: {
+        Args: {
+          p_batch_size?: number
+          p_claim_ttl_seconds?: number
+          p_worker_id: string
+        }
+        Returns: {
+          account_id: string
+          created_at: string
+          days_of_week: number[]
+          enabled: boolean
+          id: string
+          last_result:
+            | Database["public"]["Enums"]["ultaura_schedule_result"]
+            | null
+          last_run_at: string | null
+          line_id: string
+          next_run_at: string | null
+          processing_claimed_at: string | null
+          processing_claimed_by: string | null
+          retry_count: number
+          retry_policy: Json
+          time_of_day: string
+          timezone: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ultaura_schedules"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      complete_reminder_processing: {
+        Args: { p_reminder_id: string; p_worker_id: string }
+        Returns: boolean
+      }
+      complete_schedule_processing: {
+        Args: {
+          p_next_run_at: string
+          p_reset_retry_count?: boolean
+          p_result: string
+          p_schedule_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
       create_new_organization: {
         Args: { create_user?: boolean; org_name: string }
         Returns: string
@@ -1403,6 +1635,22 @@ export type Database = {
           overage_minutes: number
         }[]
       }
+      heartbeat_scheduler_lease: {
+        Args: {
+          p_extend_seconds?: number
+          p_lease_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      increment_schedule_retry: {
+        Args: {
+          p_next_run_at: string
+          p_schedule_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }
         Returns: boolean
@@ -1429,9 +1677,21 @@ export type Database = {
           similarity: number
         }[]
       }
+      release_scheduler_lease: {
+        Args: { p_lease_id: string; p_worker_id: string }
+        Returns: boolean
+      }
       transfer_organization: {
         Args: { org_id: number; target_user_membership_id: number }
         Returns: undefined
+      }
+      try_acquire_scheduler_lease: {
+        Args: {
+          p_lease_duration_seconds?: number
+          p_lease_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
       }
       update_ultaura_account_usage: {
         Args: { p_account_id: string }

@@ -28,10 +28,9 @@ export interface SetReminderArgs {
 }
 
 export interface ScheduleCallArgs {
-  mode: 'one_off' | 'update_recurring';
-  when?: string;
-  days_of_week?: number[];
-  time_local?: string;
+  mode: 'update_recurring';
+  days_of_week: number[];
+  time_local: string;
 }
 
 export interface ChooseOverageActionArgs {

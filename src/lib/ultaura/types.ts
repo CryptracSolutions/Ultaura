@@ -237,7 +237,6 @@ export interface Schedule {
   createdAt: string;
   enabled: boolean;
   timezone: string;
-  rrule: string;
   daysOfWeek: number[];
   timeOfDay: string;
   nextRunAt: string | null;
@@ -577,7 +576,6 @@ export interface ScheduleRow {
   created_at: string;
   enabled: boolean;
   timezone: string;
-  rrule: string;
   days_of_week: number[];
   time_of_day: string;
   next_run_at: string | null;

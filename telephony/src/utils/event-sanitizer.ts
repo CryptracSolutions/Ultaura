@@ -9,7 +9,7 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
 const TOOL_BASE_FIELDS = ['tool', 'success', 'errorCode'] as const;
 
 const TOOL_ALLOWLISTS: Record<string, string[]> = {
-  set_reminder: ['reminderId'],
+  set_reminder: ['reminderId', 'messageDefaulted'],
   edit_reminder: ['reminderId'],
   pause_reminder: ['reminderId'],
   resume_reminder: ['reminderId'],

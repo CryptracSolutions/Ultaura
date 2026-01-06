@@ -15,7 +15,7 @@ interface SetReminderRequest {
   lineId: string;
   dueAtLocal: string; // ISO datetime in local time
   timezone?: string;
-  message: string;
+  message?: string;
   privacyScope?: 'line_only' | 'shareable_with_payer';
   // Recurrence fields
   isRecurring?: boolean;
@@ -121,7 +121,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }, 'Set reminder request');
 
     // Validate required fields
-    if (!callSessionId || !lineId || !dueAtLocal || !message) {
+    if (!callSessionId || !lineId || !dueAtLocal) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
@@ -151,6 +151,14 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     const { line } = lineWithAccount;
     const defaultTimezone = process.env.ULTAURA_DEFAULT_TIMEZONE || 'America/Los_Angeles';
     const tz = timezone || line.timezone || defaultTimezone;
+
+    let finalMessage = message?.trim() || '';
+    let messageDefaulted = false;
+    if (!finalMessage) {
+      finalMessage = 'Check-in call';
+      messageDefaulted = true;
+      logger.info({ callSessionId, lineId }, 'Reminder message defaulted to "Check-in call"');
+    }
 
     try {
       validateTimezone(tz);
@@ -184,6 +192,17 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       }, 'Reminder rejected: due date is in the past');
       await recordFailure();
       res.status(400).json({ error: 'Due date is in the past' });
+      return;
+    }
+
+    const minBufferMs = 5 * 60 * 1000;
+    const bufferThreshold = Date.now() + minBufferMs;
+    if (dueAt.getTime() < bufferThreshold) {
+      await recordFailure();
+      res.status(400).json({
+        error: 'Reminders must be scheduled at least 5 minutes in the future',
+        earliestAllowed: new Date(bufferThreshold).toISOString(),
+      });
       return;
     }
 
@@ -235,7 +254,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
         line_id: lineId,
         due_at: dueAt.toISOString(),
         timezone: tz,
-        message: message.slice(0, 500), // Limit message length
+        message: finalMessage.slice(0, 500), // Limit message length
         delivery_method: 'outbound_call',
         status: 'scheduled',
         privacy_scope: privacyScope,
@@ -263,7 +282,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
           line_id: lineId,
           due_at: dueAt.toISOString(),
           timezone: tz,
-          message: message.slice(0, 50) + '...', // Truncate for logging
+          message: finalMessage.slice(0, 50) + '...', // Truncate for logging
           created_by_call_session_id: callSessionId,
         },
       }, 'Failed to create reminder');
@@ -278,6 +297,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       tool: 'set_reminder',
       success: true,
       reminderId: reminder.id,
+      messageDefaulted,
     }, { skipDebugLog: true });
 
     logger.info({ reminderId: reminder.id, dueAt: reminder.due_at }, 'Reminder created');

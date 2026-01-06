@@ -62,30 +62,26 @@ For recurring reminders, parse natural language like:
   {
     type: 'function',
     name: 'schedule_call',
-    description: 'Update the call schedule for the user',
+    description: 'Update the recurring weekly call schedule. For one-time calls, use set_reminder instead.',
     parameters: {
       type: 'object',
       properties: {
         mode: {
           type: 'string',
-          enum: ['one_off', 'update_recurring'],
-          description: 'Whether to schedule a one-time call or update recurring schedule',
-        },
-        when: {
-          type: 'string',
-          description: 'For one_off: ISO 8601 timestamp of when to call',
+          enum: ['update_recurring'],
+          description: 'Use update_recurring for weekly schedules',
         },
         days_of_week: {
           type: 'array',
           items: { type: 'integer', minimum: 0, maximum: 6 },
-          description: 'For update_recurring: Days of week (0=Sunday, 6=Saturday)',
+          description: 'Days of week (0=Sunday, 6=Saturday)',
         },
         time_local: {
           type: 'string',
-          description: 'For update_recurring: Time in HH:mm format',
+          description: 'Time in HH:mm format',
         },
       },
-      required: ['mode'],
+      required: ['mode', 'days_of_week', 'time_local'],
     },
   },
   {

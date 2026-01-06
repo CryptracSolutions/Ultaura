@@ -694,11 +694,6 @@ export async function createSchedule(
     return { success: false, error: 'Your trial has ended. Subscribe to continue.' };
   }
 
-  // Build RRULE
-  const dayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-  const rruleDays = input.daysOfWeek.map(d => dayNames[d]).join(',');
-  const rrule = `FREQ=WEEKLY;BYDAY=${rruleDays}`;
-
   let next: Date;
   try {
     validateTimezone(input.timezone);
@@ -714,7 +709,6 @@ export async function createSchedule(
       line_id: input.lineId,
       enabled: true,
       timezone: input.timezone,
-      rrule,
       days_of_week: input.daysOfWeek,
       time_of_day: input.timeOfDay,
       next_run_at: next.toISOString(),
@@ -783,8 +777,6 @@ export async function updateSchedule(
   if (input.timezone !== undefined) updates.timezone = input.timezone;
   if (input.daysOfWeek !== undefined) {
     updates.days_of_week = input.daysOfWeek;
-    const dayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-    updates.rrule = `FREQ=WEEKLY;BYDAY=${input.daysOfWeek.map(d => dayNames[d]).join(',')}`;
   }
   if (input.timeOfDay !== undefined) updates.time_of_day = input.timeOfDay;
   if (input.retryPolicy !== undefined) updates.retry_policy = input.retryPolicy;
