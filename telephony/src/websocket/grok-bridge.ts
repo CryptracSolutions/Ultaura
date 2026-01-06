@@ -506,7 +506,6 @@ export class GrokBridge {
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
             mode: args.mode,
-            when: args.when,
             daysOfWeek: args.days_of_week,
             timeLocal: args.time_local,
           });
