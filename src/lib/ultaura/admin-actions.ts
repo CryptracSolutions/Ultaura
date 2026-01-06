@@ -53,7 +53,8 @@ export async function getDebugLogs(
     throw new Error('Unauthorized');
   }
 
-  const adminClient = client as SupabaseClient<Database> as SupabaseClient<any>;
+  // Use admin client to bypass RLS since we've already verified the user is an admin
+  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient<any>;
 
   let query = adminClient
     .from('ultaura_debug_logs')

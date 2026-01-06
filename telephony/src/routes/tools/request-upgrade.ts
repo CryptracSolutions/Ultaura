@@ -45,6 +45,18 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
         sendLink: sendLink || false,
       }, { skipDebugLog: true });
     };
+    const recordFailure = async (errorCode: string) => {
+      await recordCallEvent(
+        callSessionId,
+        'tool_call',
+        {
+          tool: 'request_upgrade',
+          success: false,
+          errorCode,
+        },
+        { skipDebugLog: true }
+      );
+    };
 
     // If no plan specified, return plan options for Grok to explain
     if (!planId) {
@@ -67,6 +79,7 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
 
     // Validate plan
     if (!PLAN_INFO[planId]) {
+      await recordFailure('invalid_plan');
       res.status(400).json({ error: 'Invalid plan' });
       return;
     }
@@ -89,12 +102,14 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
 
     // Get line info for phone number
     if (!lineId) {
+      await recordFailure('missing_line_id');
       res.status(400).json({ error: 'Missing lineId for sending upgrade link' });
       return;
     }
 
     const lineWithAccount = await getLineById(lineId);
     if (!lineWithAccount) {
+      await recordFailure('line_not_found');
       res.status(404).json({ error: 'Line not found' });
       return;
     }
@@ -132,6 +147,7 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
 
     if (!upgradeResponse.ok || !upgradeData.success) {
       logger.error({ callSessionId, upgradeData }, 'Failed to send upgrade link');
+      await recordFailure('upgrade_failed');
       res.status(500).json({ error: 'Failed to send upgrade link' });
       return;
     }

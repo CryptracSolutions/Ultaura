@@ -90,6 +90,26 @@ describe('sanitizePayload', () => {
     });
   });
 
+  describe('state_change events', () => {
+    it('should keep only allowed state_change fields', () => {
+      const payload = {
+        event: 'opt_out',
+        source: 'voice',
+        sensitiveData: 'should be stripped',
+      };
+
+      const { sanitized, stripped } = sanitizePayload('state_change', payload);
+
+      expect(sanitized).toEqual({
+        event: 'opt_out',
+        source: 'voice',
+      });
+      expect(stripped).toEqual({
+        sensitiveData: 'should be stripped',
+      });
+    });
+  });
+
   describe('safety_tier events', () => {
     it('should keep only tier and actionTaken', () => {
       const payload = {

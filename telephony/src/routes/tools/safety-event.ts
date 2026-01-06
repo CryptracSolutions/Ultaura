@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
-import { getCallSession, recordSafetyEvent } from '../../services/call-session.js';
+import { getCallSession, recordCallEvent, recordSafetyEvent } from '../../services/call-session.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { sendSms } from '../../utils/twilio.js';
@@ -139,6 +139,17 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
       },
       actionTaken,
     });
+    await recordCallEvent(
+      callSessionId,
+      'tool_call',
+      {
+        tool: 'log_safety_concern',
+        success: true,
+        tier,
+        actionTaken,
+      },
+      { skipDebugLog: true }
+    );
 
     // For high-tier events, notify trusted contacts
     if (tier === 'high' && sourceValue === 'model') {
