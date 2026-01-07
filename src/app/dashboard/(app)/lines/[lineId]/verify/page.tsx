@@ -1,8 +1,9 @@
 import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
 import { VerifyPhoneClient } from './VerifyPhoneClient';
+import { isUUID } from '~/lib/ultaura/short-id';
 import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
@@ -22,12 +23,16 @@ export default async function VerifyPhonePage({ params }: PageProps) {
   const line = await getLine(params.lineId);
 
   if (!line) {
-    redirect('/dashboard/lines');
+    notFound();
+  }
+
+  if (isUUID(params.lineId)) {
+    redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
   // Already verified
   if (line.phone_verified_at) {
-    redirect(`/dashboard/lines/${params.lineId}`);
+    redirect(`/dashboard/lines/${line.short_id}`);
   }
 
   // Format phone for display
@@ -51,7 +56,12 @@ export default async function VerifyPhonePage({ params }: PageProps) {
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="w-full space-y-6">
             {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-            <VerifyPhoneClient lineId={line.id} phoneNumber={formattedPhone} disabled={isTrialExpired} />
+            <VerifyPhoneClient
+              lineId={line.id}
+              lineShortId={line.short_id}
+              phoneNumber={formattedPhone}
+              disabled={isTrialExpired}
+            />
           </div>
         </div>
       </PageBody>

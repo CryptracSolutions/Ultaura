@@ -11,7 +11,6 @@ import { Switch } from '~/core/ui/Switch';
 import type { LineRow, VoicemailBehavior } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/lines';
 import { US_TIMEZONES, TIME_OPTIONS } from '~/lib/ultaura/constants';
-import { getShortLineId } from '~/lib/ultaura/short-id';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -52,7 +51,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
 
       if (result.success) {
         toast.success('Settings saved');
-        router.push(`/dashboard/lines/${getShortLineId(line.id)}`);
+        router.push(`/dashboard/lines/${line.short_id}`);
         router.refresh();
       } else {
         setError(result.error.message || 'Failed to update settings');
@@ -76,7 +75,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
       {/* Header */}
       <div className="mb-8">
         <Link
-          href={`/dashboard/lines/${getShortLineId(line.id)}`}
+          href={`/dashboard/lines/${line.short_id}`}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -233,7 +232,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
         {/* Actions */}
         <div className="mt-6 flex gap-3 pt-2">
           <Link
-            href={`/dashboard/lines/${getShortLineId(line.id)}`}
+            href={`/dashboard/lines/${line.short_id}`}
             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors"
           >
             Cancel

@@ -1,8 +1,9 @@
 import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
 import { SettingsClient } from './SettingsClient';
+import { isUUID } from '~/lib/ultaura/short-id';
 import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
@@ -22,12 +23,16 @@ export default async function LineSettingsPage({ params }: PageProps) {
   const line = await getLine(params.lineId);
 
   if (!line) {
-    redirect('/dashboard/lines');
+    notFound();
+  }
+
+  if (isUUID(params.lineId)) {
+    redirect(`/dashboard/lines/${line.short_id}/settings`);
   }
 
   // If not verified, redirect to verification
   if (!line.phone_verified_at) {
-    redirect(`/dashboard/lines/${params.lineId}/verify`);
+    redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
   const trialInfo = await getTrialInfo(line.account_id);

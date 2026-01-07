@@ -18,7 +18,6 @@ import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/types';
 import { createReminder, cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/reminders';
-import { getShortLineId } from '~/lib/ultaura/short-id';
 import { ReminderActivity } from './ReminderActivity';
 
 const SNOOZE_OPTIONS = [
@@ -209,7 +208,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
     setSkippingId(reminderId);
 
-    const result = await skipNextOccurrence(reminderId);
+    const result = await skipNextOccurrence(reminderId, line.short_id);
 
     setSkippingId(null);
 
@@ -227,7 +226,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
     setCancelingId(reminderToCancel);
 
-    const result = await cancelReminder(reminderToCancel);
+    const result = await cancelReminder(reminderToCancel, line.short_id);
 
     setCancelingId(null);
 
@@ -245,7 +244,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
     setPausingId(reminderId);
 
-    const result = await pauseReminder(reminderId);
+    const result = await pauseReminder(reminderId, line.short_id);
 
     setPausingId(null);
 
@@ -262,7 +261,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
     setResumingId(reminderId);
 
-    const result = await resumeReminder(reminderId);
+    const result = await resumeReminder(reminderId, line.short_id);
 
     setResumingId(null);
 
@@ -280,7 +279,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     setSnoozingId(reminderId);
     setSnoozeDropdownId(null);
 
-    const result = await snoozeReminder(reminderId, minutes);
+    const result = await snoozeReminder(reminderId, minutes, line.short_id);
 
     setSnoozingId(null);
 
@@ -356,7 +355,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       return;
     }
 
-    const result = await editReminder(editingReminder.id, updates);
+    const result = await editReminder(editingReminder.id, updates, line.short_id);
 
     setIsEditSubmitting(false);
 
@@ -379,7 +378,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   return (
     <div className="w-full p-6 pb-12">
       <Link
-        href={`/dashboard/lines/${getShortLineId(line.id)}`}
+        href={`/dashboard/lines/${line.short_id}`}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

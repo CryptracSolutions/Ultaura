@@ -12,7 +12,6 @@ import { getLines } from '~/lib/ultaura/lines';
 import { getUpcomingScheduledCalls } from '~/lib/ultaura/schedules';
 import { getUpcomingReminders } from '~/lib/ultaura/reminders';
 import { getLineActivity, getUsageSummary } from '~/lib/ultaura/usage';
-import { getShortLineId } from '~/lib/ultaura';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 
@@ -375,7 +374,7 @@ async function DashboardPage() {
                       </div>
                     </div>
                     <Link
-                      href={`/dashboard/lines/${getShortLineId(item.lineId)}`}
+                      href={`/dashboard/lines/${item.lineShortId}`}
                       className="text-sm text-primary hover:underline"
                     >
                       View details
@@ -427,7 +426,7 @@ async function DashboardPage() {
                           </div>
                           <div className="mt-2">
                             <Link
-                              href={`/dashboard/lines/${getShortLineId(item.lineId)}/schedule`}
+                              href={`/dashboard/lines/${item.lineShortId}/schedule`}
                               className="text-sm text-primary hover:underline"
                             >
                               Edit schedule
@@ -487,7 +486,7 @@ async function DashboardPage() {
                               </span>
                             )}
                             <Link
-                              href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders`}
+                              href={`/dashboard/lines/${reminder.lineShortId}/reminders`}
                               className="text-sm text-primary hover:underline sm:ml-auto"
                             >
                               View reminders

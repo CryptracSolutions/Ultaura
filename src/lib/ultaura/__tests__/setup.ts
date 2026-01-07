@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'node:crypto';
 import { beforeEach, vi } from 'vitest';
 import type { LineRow, UltauraAccountRow } from '../types';
 
@@ -138,9 +139,14 @@ export async function createTestLine(
   accountId: string,
   overrides: Partial<LineRow> = {}
 ) {
+  const lineId = overrides.id ?? randomUUID();
+  const shortId = overrides.short_id ?? lineId.substring(0, 8).toLowerCase();
+
   const { data: line, error } = await testServiceRoleClient
     .from('ultaura_lines')
     .insert({
+      id: lineId,
+      short_id: shortId,
       account_id: accountId,
       display_name: overrides.display_name ?? 'Test Line',
       phone_e164: overrides.phone_e164 ?? nextPhoneNumber(),

@@ -16,12 +16,12 @@ import {
 import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
-import { getShortLineId } from '~/lib/ultaura/short-id';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface Schedule {
   scheduleId: string;
   lineId: string;
+  lineShortId: string;
   displayName: string;
   enabled: boolean;
   nextRunAt: string | null;
@@ -101,7 +101,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
             {lines.map((line) => (
               <Link
                 key={line.id}
-                href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
+                href={`/dashboard/lines/${line.short_id}/schedule`}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -154,7 +154,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                       </p>
                     </div>
                     <Link
-                      href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
+                      href={`/dashboard/lines/${line.short_id}/schedule`}
                       className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       {disabled ? 'View' : 'Manage'}
@@ -169,7 +169,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                       <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No schedules set up yet</p>
                       <Link
-                        href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
+                        href={`/dashboard/lines/${line.short_id}/schedule`}
                         className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
                       >
                         <Plus className="w-4 h-4" />
@@ -288,7 +288,7 @@ function ScheduleRow({
       {!disabled && (
         <div className="flex items-center gap-2 shrink-0">
           <Link
-            href={`/dashboard/lines/${getShortLineId(schedule.lineId)}/schedule?edit=${schedule.scheduleId}`}
+            href={`/dashboard/lines/${schedule.lineShortId}/schedule?edit=${schedule.scheduleId}`}
             className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
             title="Edit schedule"
           >

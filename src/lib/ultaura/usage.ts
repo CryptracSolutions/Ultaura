@@ -125,7 +125,7 @@ export async function getLineActivity(accountId: string): Promise<LineActivity[]
 
   const { data: lines } = await client
     .from('ultaura_lines')
-    .select('id, display_name, last_successful_call_at, next_scheduled_call_at')
+    .select('id, short_id, display_name, last_successful_call_at, next_scheduled_call_at')
     .eq('account_id', accountId);
 
   if (!lines) return [];
@@ -149,6 +149,7 @@ export async function getLineActivity(accountId: string): Promise<LineActivity[]
 
     activities.push({
       lineId: line.id,
+      lineShortId: line.short_id,
       displayName: line.display_name,
       lastCallAt: line.last_successful_call_at,
       lastCallDuration,

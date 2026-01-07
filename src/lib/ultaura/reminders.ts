@@ -21,7 +21,6 @@ import { logReminderEvent } from './reminder-events';
 import type { ReminderRow, UltauraAccountRow } from './types';
 
 const logger = getLogger();
-const getShortLineId = (lineId: string) => lineId.substring(0, 8);
 
 const OFFSET_REGEX = /[zZ]|[+-]\d{2}:\d{2}$/;
 
@@ -99,6 +98,7 @@ const createReminderWithTrial = withTrialCheck(async (
     };
   }
 
+  const lineShortId = line.short_id;
   const timezone = parsed.data.timezone || line.timezone;
 
   let dueAtUtc: Date;
@@ -217,8 +217,8 @@ const createReminderWithTrial = withTrialCheck(async (
     };
   }
 
-  revalidatePath(`/dashboard/lines/${getShortLineId(parsed.data.lineId)}/reminders`, 'page');
-  revalidatePath(`/dashboard/lines/${getShortLineId(parsed.data.lineId)}`, 'page');
+  revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+  revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
   return { success: true, data: reminder };
 });
@@ -254,7 +254,7 @@ export async function createReminder(input: unknown): Promise<ActionResult<Remin
   return createReminderWithTrial(account, parsed.data);
 }
 
-export async function cancelReminder(reminderId: string): Promise<ActionResult<void>> {
+export async function cancelReminder(reminderId: string, lineShortId: string): Promise<ActionResult<void>> {
   const client = getSupabaseServerComponentClient();
 
   const reminder = await getReminder(reminderId);
@@ -305,8 +305,8 @@ export async function cancelReminder(reminderId: string): Promise<ActionResult<v
       triggeredBy: 'dashboard',
     });
 
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}/reminders`, 'page');
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
   });
@@ -337,7 +337,7 @@ function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
   }
 }
 
-export async function skipNextOccurrence(reminderId: string): Promise<ActionResult<void>> {
+export async function skipNextOccurrence(reminderId: string, lineShortId: string): Promise<ActionResult<void>> {
   const client = getSupabaseServerComponentClient();
 
   const reminder = await getReminder(reminderId);
@@ -384,7 +384,7 @@ export async function skipNextOccurrence(reminderId: string): Promise<ActionResu
     }
 
     if (input.reminder.ends_at && new Date(nextDueAt) > new Date(input.reminder.ends_at)) {
-      return cancelReminder(reminderId);
+      return cancelReminder(reminderId, lineShortId);
     }
 
     const { error } = await client
@@ -402,8 +402,8 @@ export async function skipNextOccurrence(reminderId: string): Promise<ActionResu
       };
     }
 
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}/reminders`, 'page');
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     await logReminderEvent({
       accountId: input.reminder.account_id,
@@ -420,7 +420,7 @@ export async function skipNextOccurrence(reminderId: string): Promise<ActionResu
   return skipWithTrial(account, { reminder });
 }
 
-export async function pauseReminder(reminderId: string): Promise<ActionResult<void>> {
+export async function pauseReminder(reminderId: string, lineShortId: string): Promise<ActionResult<void>> {
   const client = getSupabaseServerComponentClient();
 
   const reminder = await getReminder(reminderId);
@@ -481,8 +481,8 @@ export async function pauseReminder(reminderId: string): Promise<ActionResult<vo
       triggeredBy: 'dashboard',
     });
 
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}/reminders`, 'page');
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
   });
@@ -490,7 +490,7 @@ export async function pauseReminder(reminderId: string): Promise<ActionResult<vo
   return pauseWithTrial(account, { reminder });
 }
 
-export async function resumeReminder(reminderId: string): Promise<ActionResult<void>> {
+export async function resumeReminder(reminderId: string, lineShortId: string): Promise<ActionResult<void>> {
   const client = getSupabaseServerComponentClient();
 
   const reminder = await getReminder(reminderId);
@@ -545,8 +545,8 @@ export async function resumeReminder(reminderId: string): Promise<ActionResult<v
       triggeredBy: 'dashboard',
     });
 
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}/reminders`, 'page');
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
   });
@@ -556,7 +556,8 @@ export async function resumeReminder(reminderId: string): Promise<ActionResult<v
 
 export async function snoozeReminder(
   reminderId: string,
-  minutes: number
+  minutes: number,
+  lineShortId: string
 ): Promise<ActionResult<{ newDueAt: string }>> {
   const parsed = SnoozeInputSchema.safeParse({ reminderId, minutes });
   if (!parsed.success) {
@@ -655,8 +656,8 @@ export async function snoozeReminder(
       },
     });
 
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}/reminders`, 'page');
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.reminder.line_id)}`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: { newDueAt: newDueAt.toISOString() } };
   });
@@ -666,7 +667,8 @@ export async function snoozeReminder(
 
 export async function editReminder(
   reminderId: string,
-  input: unknown
+  input: unknown,
+  lineShortId: string
 ): Promise<ActionResult<void>> {
   const parsed = EditReminderInputSchemaZod.safeParse(input);
   if (!parsed.success) {
@@ -846,8 +848,8 @@ export async function editReminder(
       metadata: { oldValues, newValues: updates },
     });
 
-    revalidatePath(`/dashboard/lines/${getShortLineId(inputData.reminder.line_id)}/reminders`, 'page');
-    revalidatePath(`/dashboard/lines/${getShortLineId(inputData.reminder.line_id)}`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
   });
@@ -898,6 +900,7 @@ export async function getNextReminder(lineId: string): Promise<ReminderRow | nul
 export async function getUpcomingReminders(accountId: string): Promise<{
   reminderId: string;
   lineId: string;
+  lineShortId: string;
   displayName: string;
   message: string;
   dueAt: string;
@@ -924,7 +927,8 @@ export async function getUpcomingReminders(accountId: string): Promise<{
       days_of_week,
       day_of_month,
       ultaura_lines!inner (
-        display_name
+        display_name,
+        short_id
       )
     `)
     .eq('account_id', accountId)
@@ -941,6 +945,7 @@ export async function getUpcomingReminders(accountId: string): Promise<{
   return (reminders || []).map((reminder) => ({
     reminderId: reminder.id,
     lineId: reminder.line_id,
+    lineShortId: (reminder.ultaura_lines as { short_id: string }).short_id,
     displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
     message: reminder.message,
     dueAt: reminder.due_at,
@@ -956,6 +961,7 @@ export async function getUpcomingReminders(accountId: string): Promise<{
 export async function getAllReminders(accountId: string): Promise<{
   reminderId: string;
   lineId: string;
+  lineShortId: string;
   displayName: string;
   message: string;
   dueAt: string;
@@ -984,7 +990,8 @@ export async function getAllReminders(accountId: string): Promise<{
       days_of_week,
       day_of_month,
       ultaura_lines!inner (
-        display_name
+        display_name,
+        short_id
       )
     `)
     .eq('account_id', accountId)
@@ -998,6 +1005,7 @@ export async function getAllReminders(accountId: string): Promise<{
   return (reminders || []).map((reminder) => ({
     reminderId: reminder.id,
     lineId: reminder.line_id,
+    lineShortId: (reminder.ultaura_lines as { short_id: string }).short_id,
     displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
     message: reminder.message,
     dueAt: reminder.due_at,

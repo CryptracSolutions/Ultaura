@@ -17,12 +17,12 @@ import {
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/reminders';
-import { getShortLineId } from '~/lib/ultaura/short-id';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface Reminder {
   reminderId: string;
   lineId: string;
+  lineShortId: string;
   displayName: string;
   message: string;
   dueAt: string;
@@ -102,7 +102,10 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType; la
 
 export function RemindersPageClient({ lines, reminders, disabled = false }: RemindersPageClientProps) {
   const router = useRouter();
-  const [reminderToCancel, setReminderToCancel] = useState<string | null>(null);
+  const [reminderToCancel, setReminderToCancel] = useState<{
+    reminderId: string;
+    lineShortId: string;
+  } | null>(null);
 
   // Group reminders by line
   const remindersByLine = reminders.reduce((acc, reminder) => {
@@ -117,7 +120,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
     if (!reminderToCancel) return;
     if (disabled) return;
 
-    const result = await cancelReminder(reminderToCancel);
+    const result = await cancelReminder(reminderToCancel.reminderId, reminderToCancel.lineShortId);
     if (!result.success) {
       toast.error(result.error.message || 'Failed to cancel reminder');
       throw new Error('Cancel failed');
@@ -173,7 +176,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
             {lines.map((line) => (
               <Link
                 key={line.id}
-                href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
+                href={`/dashboard/lines/${line.short_id}/reminders`}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -226,7 +229,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                       </p>
                     </div>
                     <Link
-                      href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
+                      href={`/dashboard/lines/${line.short_id}/reminders`}
                       className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       {disabled ? 'View' : 'Manage'}
@@ -241,7 +244,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                       <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No reminders set up yet</p>
                       <Link
-                        href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
+                        href={`/dashboard/lines/${line.short_id}/reminders`}
                         className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
                       >
                         <Plus className="w-4 h-4" />
@@ -255,7 +258,10 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                         <ReminderRow
                           key={reminder.reminderId}
                           reminder={reminder}
-                          onCancel={() => setReminderToCancel(reminder.reminderId)}
+                          onCancel={() => setReminderToCancel({
+                            reminderId: reminder.reminderId,
+                            lineShortId: reminder.lineShortId,
+                          })}
                           formatDateTime={formatDateTime}
                           formatRelativeTime={formatRelativeTime}
                           disabled={disabled}
@@ -284,7 +290,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                       {pastReminders.length > 5 && (
                         <div className="px-6 py-3 text-center">
                           <Link
-                            href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
+                            href={`/dashboard/lines/${line.short_id}/reminders`}
                             className="text-sm text-primary hover:underline"
                           >
                             View all {pastReminders.length} past reminders
@@ -380,7 +386,7 @@ function ReminderRow({
       {reminder.status === 'scheduled' && !disabled && (
         <div className="flex items-center gap-1 shrink-0">
           <Link
-            href={`/dashboard/lines/${getShortLineId(reminder.lineId)}/reminders?edit=${reminder.reminderId}`}
+            href={`/dashboard/lines/${reminder.lineShortId}/reminders?edit=${reminder.reminderId}`}
             className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
             title="Edit reminder"
           >

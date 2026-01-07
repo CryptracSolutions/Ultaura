@@ -11,6 +11,7 @@ describe('contacts', () => {
   let organizationId: number;
   let userId: string;
   let lineId: string;
+  let lineShortId: string;
 
   beforeAll(async () => {
     const context = await createTestAccount();
@@ -20,6 +21,7 @@ describe('contacts', () => {
 
     const line = await createTestLine(accountId);
     lineId = line.id;
+    lineShortId = line.short_id;
   });
 
   afterAll(async () => {
@@ -39,7 +41,7 @@ describe('contacts', () => {
     const contacts = await getTrustedContacts(lineId);
     expect(contacts.length).toBe(1);
 
-    const removeResult = await removeTrustedContact(contacts[0].id);
+    const removeResult = await removeTrustedContact(contacts[0].id, lineShortId);
     expect(removeResult.success).toBe(true);
 
     const after = await getTrustedContacts(lineId);

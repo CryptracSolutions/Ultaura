@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
-import { getShortLineId } from '~/lib/ultaura/short-id';
 import { formatDistanceToNow } from 'date-fns';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
@@ -106,7 +105,7 @@ export function LineCard({ line, disabled = false }: LineCardProps) {
   };
 
   // Determine link destination based on verification status
-  const shortId = getShortLineId(line.id);
+  const shortId = line.short_id;
   const linkHref = isVerified
     ? `/dashboard/lines/${shortId}`
     : `/dashboard/lines/${shortId}/verify`;

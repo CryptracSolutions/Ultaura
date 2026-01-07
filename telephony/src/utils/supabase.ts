@@ -50,6 +50,7 @@ export interface UltauraAccountRow {
 
 export interface LineRow {
   id: string;
+  short_id: string;
   account_id: string;
   created_at: string;
   display_name: string;

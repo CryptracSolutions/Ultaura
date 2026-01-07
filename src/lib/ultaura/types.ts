@@ -103,6 +103,7 @@ export interface UltauraAccount {
 
 export interface Line {
   id: string;
+  shortId: string;
   accountId: string;
   createdAt: string;
   displayName: string;
@@ -436,6 +437,7 @@ export interface UsageSummary {
 
 export interface LineActivity {
   lineId: string;
+  lineShortId: string;
   displayName: string;
   lastCallAt: string | null;
   lastCallDuration: number | null;

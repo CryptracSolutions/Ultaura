@@ -8,12 +8,14 @@ import { startPhoneVerification, checkPhoneVerification } from '~/lib/ultaura/ve
 
 interface VerifyPhoneClientProps {
   lineId: string;
+  lineShortId: string;
   phoneNumber: string;
   disabled?: boolean;
 }
 
 export function VerifyPhoneClient({
   lineId,
+  lineShortId,
   phoneNumber,
   disabled = false,
 }: VerifyPhoneClientProps) {
@@ -117,7 +119,7 @@ export function VerifyPhoneClient({
         setStep('success');
         // Redirect after a short delay
         setTimeout(() => {
-          router.push(`/dashboard/lines/${lineId}/schedule`);
+          router.push(`/dashboard/lines/${lineShortId}/schedule`);
         }, 2000);
       } else {
         setError(result.error.message || 'Invalid verification code');

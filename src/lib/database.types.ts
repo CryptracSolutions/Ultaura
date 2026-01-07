@@ -663,6 +663,7 @@ export type Database = {
           phone_verified_at: string | null
           quiet_hours_end: string
           quiet_hours_start: string
+          short_id: string
           seed_avoid_topics: string[] | null
           seed_interests: string[] | null
           status: Database["public"]["Enums"]["ultaura_line_status"]
@@ -683,6 +684,7 @@ export type Database = {
           phone_verified_at?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
+          short_id: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
           status?: Database["public"]["Enums"]["ultaura_line_status"]
@@ -703,6 +705,7 @@ export type Database = {
           phone_verified_at?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
+          short_id?: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
           status?: Database["public"]["Enums"]["ultaura_line_status"]
@@ -1012,6 +1015,69 @@ export type Database = {
           overage_rate_cents_per_min?: number
         }
         Relationships: []
+      }
+      ultaura_rate_limit_events: {
+        Row: {
+          account_id: string | null
+          action: string
+          call_session_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          limit_type: string | null
+          metadata: Json | null
+          phone_number: string | null
+          redis_available: boolean | null
+          remaining: number | null
+          was_allowed: boolean
+        }
+        Insert: {
+          account_id?: string | null
+          action: string
+          call_session_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          limit_type?: string | null
+          metadata?: Json | null
+          phone_number?: string | null
+          redis_available?: boolean | null
+          remaining?: number | null
+          was_allowed: boolean
+        }
+        Update: {
+          account_id?: string | null
+          action?: string
+          call_session_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          limit_type?: string | null
+          metadata?: Json | null
+          phone_number?: string | null
+          redis_available?: boolean | null
+          remaining?: number | null
+          was_allowed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_rate_limit_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_rate_limit_events_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ultaura_reminder_events: {
         Row: {
@@ -1404,6 +1470,30 @@ export type Database = {
           },
         ]
       }
+      ultaura_system_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       ultaura_trusted_contacts: {
         Row: {
           account_id: string
@@ -1573,6 +1663,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cleanup_old_rate_limit_events: { Args: never; Returns: undefined }
       complete_reminder_processing: {
         Args: { p_reminder_id: string; p_worker_id: string }
         Returns: boolean
@@ -2535,4 +2626,3 @@ export const Constants = {
     },
   },
 } as const
-

@@ -12,6 +12,7 @@ import {
 } from '@ultaura/schemas';
 import { getPlan, getUltauraAccountById, withTrialCheck } from './helpers';
 import type { LineRow, UltauraAccountRow } from './types';
+import { generateShortId, isShortId, isUUID } from './short-id';
 
 const logger = getLogger();
 
@@ -34,45 +35,37 @@ export async function getLines(accountId: string): Promise<LineRow[]> {
 
 export async function getLine(lineId: string): Promise<LineRow | null> {
   const client = getSupabaseServerComponentClient();
+  const normalizedId = lineId.trim();
 
-  let data: LineRow | null = null;
-  let error: { message: string } | null = null;
+  let query = client.from('ultaura_lines').select('*');
 
-  if (lineId.length === 8) {
-    const result = await client
-      .from('ultaura_lines')
-      .select('*');
-
-    if (result.error) {
-      error = result.error;
-    } else if (result.data) {
-      const match = result.data.find(line =>
-        line.id.toLowerCase().startsWith(lineId.toLowerCase())
-      );
-      data = match || null;
-    }
+  if (isUUID(normalizedId)) {
+    query = query.eq('id', normalizedId);
+  } else if (isShortId(normalizedId)) {
+    query = query.eq('short_id', normalizedId.toLowerCase());
   } else {
-    const result = await client
-      .from('ultaura_lines')
-      .select('*')
-      .eq('id', lineId)
-      .single();
-    data = result.data;
-    error = result.error as { message: string } | null;
-  }
-
-  if (error) {
-    logger.error({ error }, 'Failed to get line');
+    logger.warn({ lineId }, 'Invalid line ID format');
     return null;
   }
 
-  return data;
+  const { data, error } = await query.single();
+
+  if (error) {
+    if ((error as { code?: string } | null)?.code === 'PGRST116') {
+      return null;
+    }
+
+    logger.error({ error, lineId }, 'Failed to get line');
+    return null;
+  }
+
+  return data ?? null;
 }
 
 const createLineWithTrial = withTrialCheck(async (
   account: UltauraAccountRow,
   input: unknown
-): Promise<ActionResult<{ lineId: string }>> => {
+): Promise<ActionResult<{ lineId: string; shortId: string }>> => {
   const parsed = CreateLineInputSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -120,9 +113,29 @@ const createLineWithTrial = withTrialCheck(async (
     };
   }
 
+  const lineId = crypto.randomUUID();
+  let shortId = generateShortId(lineId);
+
+  const { data: existingShortIds } = await client
+    .from('ultaura_lines')
+    .select('short_id')
+    .eq('account_id', account.id)
+    .like('short_id', `${shortId}%`);
+
+  if (existingShortIds && existingShortIds.length > 0) {
+    const usedSuffixes = existingShortIds.map((existing) => {
+      const match = existing.short_id.match(/_(\d+)$/);
+      return match ? Number.parseInt(match[1], 10) : 1;
+    });
+    const nextSuffix = Math.max(...usedSuffixes) + 1;
+    shortId = `${shortId}_${nextSuffix}`;
+  }
+
   const { data: line, error } = await client
     .from('ultaura_lines')
     .insert({
+      id: lineId,
+      short_id: shortId,
       account_id: account.id,
       display_name: displayName,
       phone_e164: phoneE164,
@@ -132,7 +145,7 @@ const createLineWithTrial = withTrialCheck(async (
       seed_avoid_topics: seedAvoidTopics || null,
       voicemail_behavior: voicemailBehavior,
     })
-    .select('id')
+    .select('id, short_id')
     .single();
 
   if (error) {
@@ -145,10 +158,10 @@ const createLineWithTrial = withTrialCheck(async (
 
   revalidatePath('/dashboard/lines', 'page');
 
-  return { success: true, data: { lineId: line.id } };
+  return { success: true, data: { lineId: line.id, shortId: line.short_id } };
 });
 
-export async function createLine(input: unknown): Promise<ActionResult<{ lineId: string }>> {
+export async function createLine(input: unknown): Promise<ActionResult<{ lineId: string; shortId: string }>> {
   const parsed = CreateLineInputSchema.safeParse(input);
   if (!parsed.success) {
     return {

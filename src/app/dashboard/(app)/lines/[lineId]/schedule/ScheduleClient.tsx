@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
 import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
-import { getShortLineId } from '~/lib/ultaura/short-id';
 
 interface ScheduleClientProps {
   line: LineRow;
@@ -294,7 +293,7 @@ export function ScheduleClient({ line, schedules, disabled = false }: ScheduleCl
   return (
     <div className="w-full p-6 pb-12">
       <Link
-        href={`/dashboard/lines/${getShortLineId(line.id)}`}
+        href={`/dashboard/lines/${line.short_id}`}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -537,7 +536,7 @@ export function ScheduleClient({ line, schedules, disabled = false }: ScheduleCl
                       {!disabled && (
                         <>
                           <Link
-                            href={`/dashboard/lines/${getShortLineId(line.id)}/schedule?edit=${schedule.id}`}
+                            href={`/dashboard/lines/${line.short_id}/schedule?edit=${schedule.id}`}
                             className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                             title="Edit schedule"
                           >

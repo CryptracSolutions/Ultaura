@@ -293,6 +293,7 @@ export async function deleteSchedule(scheduleId: string): Promise<ActionResult<v
 export async function getUpcomingScheduledCalls(accountId: string): Promise<{
   scheduleId: string;
   lineId: string;
+  lineShortId: string;
   displayName: string;
   nextRunAt: string;
   timeOfDay: string;
@@ -310,7 +311,8 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
       days_of_week,
       enabled,
       ultaura_lines!inner (
-        display_name
+        display_name,
+        short_id
       )
     `)
     .eq('account_id', accountId)
@@ -326,6 +328,7 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
   return (schedules || []).map((schedule) => ({
     scheduleId: schedule.id,
     lineId: schedule.line_id,
+    lineShortId: (schedule.ultaura_lines as { short_id: string }).short_id,
     displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
     nextRunAt: schedule.next_run_at!,
     timeOfDay: schedule.time_of_day,
@@ -336,6 +339,7 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
 export async function getAllSchedules(accountId: string): Promise<{
   scheduleId: string;
   lineId: string;
+  lineShortId: string;
   displayName: string;
   enabled: boolean;
   nextRunAt: string | null;
@@ -354,7 +358,8 @@ export async function getAllSchedules(accountId: string): Promise<{
       time_of_day,
       days_of_week,
       ultaura_lines!inner (
-        display_name
+        display_name,
+        short_id
       )
     `)
     .eq('account_id', accountId)
@@ -368,6 +373,7 @@ export async function getAllSchedules(accountId: string): Promise<{
   return (schedules || []).map((schedule) => ({
     scheduleId: schedule.id,
     lineId: schedule.line_id,
+    lineShortId: (schedule.ultaura_lines as { short_id: string }).short_id,
     displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
     enabled: schedule.enabled,
     nextRunAt: schedule.next_run_at,

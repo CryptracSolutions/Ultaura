@@ -24,7 +24,6 @@ import type { LineRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types'
 import { updateLine, deleteLine } from '~/lib/ultaura/lines';
 import { initiateTestCall } from '~/lib/ultaura/usage';
 import { formatTime } from '~/lib/ultaura/constants';
-import { getShortLineId } from '~/lib/ultaura/short-id';
 import { CallActivityList } from './components/CallActivityList';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
@@ -284,7 +283,7 @@ export function LineDetailClient({
             <h2 className="font-semibold text-foreground">Line Settings</h2>
           </div>
           <Link
-            href={`/dashboard/lines/${getShortLineId(line.id)}/settings`}
+            href={`/dashboard/lines/${line.short_id}/settings`}
             className="text-sm text-primary hover:underline"
           >
             {isReadOnly ? 'View' : 'Edit'}
@@ -479,7 +478,7 @@ export function LineDetailClient({
       <div className="bg-card rounded-xl border border-border p-6">
         <div className="space-y-3">
           <Link
-            href={`/dashboard/lines/${getShortLineId(line.id)}/schedule`}
+            href={`/dashboard/lines/${line.short_id}/schedule`}
             className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
           >
             <div className="flex items-center gap-3">
@@ -499,7 +498,7 @@ export function LineDetailClient({
           </Link>
 
           <Link
-            href={`/dashboard/lines/${getShortLineId(line.id)}/reminders`}
+            href={`/dashboard/lines/${line.short_id}/reminders`}
             className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
           >
             <div className="flex items-center gap-3">

@@ -14,7 +14,6 @@ import { getUltauraAccountById, withTrialCheck } from './helpers';
 import type { UltauraAccountRow } from './types';
 
 const logger = getLogger();
-const getShortLineId = (lineId: string) => lineId.substring(0, 8);
 
 export async function getTrustedContacts(lineId: string) {
   const client = getSupabaseServerComponentClient();
@@ -28,7 +27,7 @@ export async function getTrustedContacts(lineId: string) {
 
 const addTrustedContactWithTrial = withTrialCheck(async (
   account: UltauraAccountRow,
-  input: { lineId: string; contact: unknown }
+  input: { lineId: string; lineShortId: string; contact: unknown }
 ): Promise<ActionResult<void>> => {
   const parsed = CreateTrustedContactInputSchema.safeParse(input.contact);
   if (!parsed.success) {
@@ -61,7 +60,7 @@ const addTrustedContactWithTrial = withTrialCheck(async (
     };
   }
 
-  revalidatePath(`/dashboard/lines/${getShortLineId(input.lineId)}/contacts`);
+  revalidatePath(`/dashboard/lines/${input.lineShortId}/contacts`);
   return { success: true, data: undefined };
 });
 
@@ -85,28 +84,33 @@ export async function addTrustedContact(
     };
   }
 
-  return addTrustedContactWithTrial(account, { lineId, contact: input });
+  return addTrustedContactWithTrial(account, {
+    lineId,
+    lineShortId: line.short_id,
+    contact: input,
+  });
 }
 
 const removeTrustedContactWithTrial = withTrialCheck(async (
   _account: UltauraAccountRow,
-  input: { contactId: string; lineId?: string }
+  input: { contactId: string; lineShortId: string }
 ): Promise<ActionResult<void>> => {
   const client = getSupabaseServerComponentClient();
   await client.from('ultaura_trusted_contacts').delete().eq('id', input.contactId);
 
-  if (input.lineId) {
-    revalidatePath(`/dashboard/lines/${getShortLineId(input.lineId)}/contacts`);
-  }
+  revalidatePath(`/dashboard/lines/${input.lineShortId}/contacts`);
 
   return { success: true, data: undefined };
 });
 
-export async function removeTrustedContact(contactId: string): Promise<ActionResult<void>> {
+export async function removeTrustedContact(
+  contactId: string,
+  lineShortId: string
+): Promise<ActionResult<void>> {
   const client = getSupabaseServerComponentClient();
   const { data } = await client
     .from('ultaura_trusted_contacts')
-    .select('line_id, account_id')
+    .select('account_id')
     .eq('id', contactId)
     .single();
 
@@ -125,8 +129,5 @@ export async function removeTrustedContact(contactId: string): Promise<ActionRes
     };
   }
 
-  return removeTrustedContactWithTrial(account, {
-    contactId,
-    lineId: data.line_id || undefined,
-  });
+  return removeTrustedContactWithTrial(account, { contactId, lineShortId });
 }

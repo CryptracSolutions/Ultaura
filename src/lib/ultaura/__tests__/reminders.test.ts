@@ -14,6 +14,7 @@ describe('reminders', () => {
   let organizationId: number;
   let userId: string;
   let lineId: string;
+  let lineShortId: string;
 
   beforeAll(async () => {
     const context = await createTestAccount();
@@ -25,6 +26,7 @@ describe('reminders', () => {
       timezone: 'America/Los_Angeles',
     });
     lineId = line.id;
+    lineShortId = line.short_id;
   });
 
   afterAll(async () => {
@@ -72,11 +74,11 @@ describe('reminders', () => {
 
     const reminderId = created.data.id;
 
-    await snoozeReminder(reminderId, 15);
-    await snoozeReminder(reminderId, 15);
-    await snoozeReminder(reminderId, 15);
+    await snoozeReminder(reminderId, 15, lineShortId);
+    await snoozeReminder(reminderId, 15, lineShortId);
+    await snoozeReminder(reminderId, 15, lineShortId);
 
-    const fourth = await snoozeReminder(reminderId, 15);
+    const fourth = await snoozeReminder(reminderId, 15, lineShortId);
     expect(fourth.success).toBe(false);
     if (!fourth.success) {
       expect(fourth.error.code).toBe(ErrorCodes.SNOOZE_LIMIT_REACHED);
@@ -101,10 +103,10 @@ describe('reminders', () => {
 
     const reminderId = created.data.id;
 
-    const firstPause = await pauseReminder(reminderId);
+    const firstPause = await pauseReminder(reminderId, lineShortId);
     expect(firstPause.success).toBe(true);
 
-    const secondPause = await pauseReminder(reminderId);
+    const secondPause = await pauseReminder(reminderId, lineShortId);
     expect(secondPause.success).toBe(false);
     if (!secondPause.success) {
       expect(secondPause.error.code).toBe(ErrorCodes.REMINDER_NOT_PAUSABLE);

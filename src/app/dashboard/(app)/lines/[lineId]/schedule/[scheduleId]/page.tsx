@@ -1,9 +1,10 @@
 import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
 import { getSchedule } from '~/lib/ultaura/schedules';
 import { EditScheduleClient } from './EditScheduleClient';
+import { isUUID } from '~/lib/ultaura/short-id';
 import AppHeader from '../../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
@@ -26,12 +27,16 @@ export default async function EditSchedulePage({ params }: PageProps) {
   ]);
 
   if (!line || !schedule) {
-    redirect('/dashboard/lines');
+    notFound();
+  }
+
+  if (isUUID(params.lineId)) {
+    redirect(`/dashboard/lines/${line.short_id}/schedule/${params.scheduleId}`);
   }
 
   // Verify the schedule belongs to this line
   if (schedule.line_id !== line.id) {
-    redirect(`/dashboard/lines/${params.lineId}`);
+    notFound();
   }
 
   const trialInfo = await getTrialInfo(line.account_id);

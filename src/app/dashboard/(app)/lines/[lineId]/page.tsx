@@ -1,10 +1,11 @@
 import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
 import { getSchedules } from '~/lib/ultaura/schedules';
 import { getUsageSummary, getCallSessions } from '~/lib/ultaura/usage';
 import { getReminders } from '~/lib/ultaura/reminders';
+import { isUUID } from '~/lib/ultaura/short-id';
 import { LineDetailClient } from './LineDetailClient';
 import AppHeader from '../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
@@ -38,12 +39,16 @@ export default async function LineDetailPage({ params }: PageProps) {
   const line = await getLine(params.lineId);
 
   if (!line) {
-    redirect('/dashboard/lines');
+    notFound();
+  }
+
+  if (isUUID(params.lineId)) {
+    redirect(`/dashboard/lines/${line.short_id}`);
   }
 
   // If not verified, redirect to verification
   if (!line.phone_verified_at) {
-    redirect(`/dashboard/lines/${params.lineId}/verify`);
+    redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
   const [usage, callSessions, counts] = await Promise.all([

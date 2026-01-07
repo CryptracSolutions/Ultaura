@@ -22,11 +22,14 @@ interface TrustedContact {
 }
 
 interface ContactsClientProps {
-  lineId: string;
+  line: {
+    id: string;
+    shortId: string;
+  };
   disabled?: boolean;
 }
 
-export function ContactsClient({ lineId, disabled = false }: ContactsClientProps) {
+export function ContactsClient({ line, disabled = false }: ContactsClientProps) {
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newContact, setNewContact] = useState({
@@ -36,9 +39,9 @@ export function ContactsClient({ lineId, disabled = false }: ContactsClientProps
   });
 
   const loadContacts = useCallback(async () => {
-    const data = await getTrustedContacts(lineId);
+    const data = await getTrustedContacts(line.id);
     setContacts((data || []) as unknown as TrustedContact[]);
-  }, [lineId]);
+  }, [line.id]);
 
   useEffect(() => {
     loadContacts();
@@ -49,7 +52,7 @@ export function ContactsClient({ lineId, disabled = false }: ContactsClientProps
     if (disabled) return;
 
     try {
-      const result = await addTrustedContact(lineId, {
+      const result = await addTrustedContact(line.id, {
         name: newContact.name,
         phoneE164: newContact.phone,
         relationship: newContact.relationship || undefined,
@@ -74,7 +77,7 @@ export function ContactsClient({ lineId, disabled = false }: ContactsClientProps
     if (disabled) return;
 
     try {
-      const result = await removeTrustedContact(contactId);
+      const result = await removeTrustedContact(contactId, line.shortId);
       if (!result.success) {
         toast.error(result.error.message || 'Failed to remove contact');
         return;
