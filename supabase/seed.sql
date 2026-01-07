@@ -103,7 +103,8 @@ INSERT INTO ultaura_lines (
   phone_e164,
   phone_verified_at,
   status,
-  timezone
+  timezone,
+  short_id
 ) VALUES (
   '00000000-0000-0000-0000-000000000002',
   '00000000-0000-0000-0000-000000000001',
@@ -111,5 +112,6 @@ INSERT INTO ultaura_lines (
   '+15555550100',
   NOW(),
   'active',
-  'America/Los_Angeles'
+  'America/Los_Angeles',
+  'TEST01'
 ) ON CONFLICT (id) DO NOTHING;
