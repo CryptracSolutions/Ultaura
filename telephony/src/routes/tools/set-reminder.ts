@@ -6,6 +6,7 @@ import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getLineById } from '../../services/line-lookup.js';
+import { RATE_LIMITS } from '../../services/rate-limit-config.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 
 export const setReminderRouter = Router();
@@ -207,6 +208,29 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const supabase = getSupabaseClient();
+
+    const reminderLimit = RATE_LIMITS.remindersPerSession;
+    const { count, error: countError } = await supabase
+      .from('ultaura_reminders')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by_call_session_id', callSessionId);
+
+    if (countError) {
+      logger.error({ error: countError, callSessionId }, 'Failed to check reminder count for session');
+      await recordFailure('reminder_count_failed');
+      res.status(500).json({ error: 'Failed to validate reminder limit' });
+      return;
+    }
+
+    if ((count ?? 0) >= reminderLimit) {
+      await recordFailure('reminder_limit_exceeded');
+      res.status(429).json({
+        error: 'Maximum reminders per call reached',
+        limit: reminderLimit,
+        suggestion: 'You can set more reminders in your next call',
+      });
+      return;
+    }
 
     // Build recurrence fields if this is a recurring reminder
     let rrule: string | null = null;

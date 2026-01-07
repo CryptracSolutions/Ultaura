@@ -3,7 +3,7 @@ import { IANAZone } from 'luxon';
 interface EnvVariable {
   name: string;
   required: boolean;
-  format?: 'hex64' | 'url' | 'wss' | 'boolean' | 'number' | 'timezone' | 'min32';
+  format?: 'hex64' | 'url' | 'wss' | 'boolean' | 'number' | 'timezone' | 'min32' | 'decimal';
   default?: string;
 }
 
@@ -31,6 +31,23 @@ const ULTAURA_ENV_VARS: EnvVariable[] = [
   { name: 'ULTAURA_ENABLE_RECORDING', required: false, format: 'boolean', default: 'false' },
   { name: 'XAI_REALTIME_URL', required: false, format: 'wss', default: 'wss://api.x.ai/v1/realtime' },
   { name: 'TWILIO_AMD_ENABLED', required: false, format: 'boolean', default: 'true' },
+
+  // Optional - Redis (rate limiting)
+  { name: 'UPSTASH_REDIS_REST_URL', required: false, format: 'url' },
+  { name: 'UPSTASH_REDIS_REST_TOKEN', required: false },
+
+  // Optional - Rate limit overrides
+  { name: 'RATE_LIMIT_VERIFY_SEND_PER_PHONE', required: false, format: 'number', default: '5' },
+  { name: 'RATE_LIMIT_VERIFY_CHECK_PER_PHONE', required: false, format: 'number', default: '10' },
+  { name: 'RATE_LIMIT_PER_IP', required: false, format: 'number', default: '20' },
+  { name: 'RATE_LIMIT_PER_ACCOUNT', required: false, format: 'number', default: '10' },
+  { name: 'RATE_LIMIT_SMS_PER_ACCOUNT', required: false, format: 'number', default: '15' },
+  { name: 'RATE_LIMIT_REMINDERS_PER_SESSION', required: false, format: 'number', default: '5' },
+
+  // Optional - Anomaly thresholds
+  { name: 'ANOMALY_COST_THRESHOLD', required: false, format: 'decimal', default: '10.00' },
+  { name: 'ANOMALY_REPEATED_HITS_THRESHOLD', required: false, format: 'number', default: '3' },
+  { name: 'ANOMALY_ENUMERATION_THRESHOLD', required: false, format: 'number', default: '10' },
 ];
 
 function isProduction(): boolean {
@@ -122,6 +139,11 @@ function validateFormat(name: string, value: string, format: EnvVariable['format
     case 'number':
       if (!/^\d+$/.test(value)) {
         return `${name} must be a number. Got: ${value}`;
+      }
+      break;
+    case 'decimal':
+      if (!/^\d+(\.\d+)?$/.test(value)) {
+        return `${name} must be a decimal number. Got: ${value}`;
       }
       break;
     case 'timezone':

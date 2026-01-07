@@ -4,6 +4,7 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, recordCallEvent } from '../../services/call-session.js';
 import { getLineById } from '../../services/line-lookup.js';
+import { enforceRateLimit } from '../../services/rate-limiter.js';
 import { getInternalApiSecret } from '../../utils/env.js';
 import { redactPhone } from '../../utils/redact.js';
 
@@ -115,6 +116,7 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const phoneNumber = lineWithAccount.line.phone_e164;
+    const effectiveAccountId = accountId || session.account_id;
 
     // Call upgrade API to create checkout session and send email + SMS
     const appBaseUrl =
@@ -125,10 +127,24 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
 
     logger.info({
       callSessionId,
-      accountId: accountId || session.account_id,
+      accountId: effectiveAccountId,
       planId,
       phoneNumber: redactPhone(phoneNumber),
     }, 'Sending upgrade link');
+
+    const smsRateLimitResult = await enforceRateLimit({
+      action: 'sms',
+      accountId: effectiveAccountId,
+      callSessionId,
+      phoneNumber,
+    });
+
+    if (!smsRateLimitResult.allowed) {
+      logger.warn(
+        { accountId: effectiveAccountId, callSessionId },
+        'SMS rate limit exceeded, sending email only'
+      );
+    }
 
     const upgradeResponse = await fetch(upgradeUrl, {
       method: 'POST',
@@ -137,9 +153,9 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
         'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
-        accountId: accountId || session.account_id,
+        accountId: effectiveAccountId,
         planId,
-        phoneNumber, // Include phone for SMS delivery
+        ...(smsRateLimitResult.allowed ? { phoneNumber } : {}),
       }),
     });
 
@@ -154,7 +170,12 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: `Great! I've sent the upgrade link for the ${plan.name} plan to their phone via text message and also to the billing email on file. Tell them to check their phone for a text with a link to complete the upgrade.`,
+      emailSent: true,
+      smsSent: smsRateLimitResult.allowed,
+      smsSkipped: smsRateLimitResult.allowed ? null : 'daily_limit_reached',
+      message: smsRateLimitResult.allowed
+        ? `Great! I've sent the upgrade link for the ${plan.name} plan to their phone via text message and also to the billing email on file. Tell them to check their phone for a text with a link to complete the upgrade.`
+        : `I've sent the upgrade link for the ${plan.name} plan to the billing email on file. Ask them to check their email for the link.`,
     });
   } catch (error) {
     logger.error({ error }, 'Error processing upgrade request');

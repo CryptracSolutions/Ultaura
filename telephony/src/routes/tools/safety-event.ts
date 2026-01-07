@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, recordCallEvent, recordSafetyEvent } from '../../services/call-session.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
+import { enforceRateLimit } from '../../services/rate-limiter.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { sendSms } from '../../utils/twilio.js';
 
@@ -9,6 +10,8 @@ export const safetyEventRouter = Router();
 
 // Notify trusted contacts for high-tier safety events
 async function notifyTrustedContacts(
+  accountId: string,
+  callSessionId: string,
   lineId: string,
   tier: string,
   actionTaken: string
@@ -63,8 +66,26 @@ async function notifyTrustedContacts(
     const lovedOneName = line?.display_name || 'Your loved one';
 
     // Send SMS to each contact
+    let skippedCount = 0;
+
     for (const contact of contactsToNotify) {
       try {
+        const rateLimitResult = await enforceRateLimit({
+          action: 'sms',
+          accountId,
+          callSessionId,
+          phoneNumber: contact.phone_e164,
+        });
+
+        if (!rateLimitResult.allowed) {
+          skippedCount++;
+          logger.warn(
+            { accountId, contactId: contact.id, limit: rateLimitResult.limitType },
+            'SMS rate limit exceeded, skipping trusted contact notification'
+          );
+          continue;
+        }
+
         const message = `Ultaura safety alert: ${lovedOneName} may need support. Action taken: ${actionTaken === 'suggested_988' ? 'Suggested calling 988 crisis line' : actionTaken === 'suggested_911' ? 'Suggested calling 911' : 'Provided support'}. Please check in with them.`;
 
         await sendSms({
@@ -82,6 +103,13 @@ async function notifyTrustedContacts(
           'Failed to send SMS to trusted contact'
         );
       }
+    }
+
+    if (skippedCount > 0) {
+      logger.warn(
+        { accountId, lineId, skippedCount },
+        'Trusted contact notifications skipped due to SMS rate limits'
+      );
     }
   } catch (error) {
     logger.error({ error, lineId }, 'Error notifying trusted contacts');
@@ -155,7 +183,7 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
     if (tier === 'high' && sourceValue === 'model') {
       logger.warn({ callSessionId, lineId, tier, actionTaken }, 'HIGH SAFETY TIER EVENT');
       // Run notification in background to not block the response
-      notifyTrustedContacts(lineId, tier, actionTaken).catch((error) => {
+      notifyTrustedContacts(accountId, callSessionId, lineId, tier, actionTaken).catch((error) => {
         logger.error({ error, lineId }, 'Background trusted contact notification failed');
       });
     }

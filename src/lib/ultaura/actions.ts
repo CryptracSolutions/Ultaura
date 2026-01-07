@@ -523,6 +523,7 @@ export async function startPhoneVerification(
         lineId,
         phoneNumber: line.phone_e164,
         channel,
+        accountId: account.id,
       }),
     });
 
@@ -582,6 +583,7 @@ export async function checkPhoneVerification(
       body: JSON.stringify({
         phoneNumber: line.phone_e164,
         code,
+        accountId: account.id,
       }),
     });
 
