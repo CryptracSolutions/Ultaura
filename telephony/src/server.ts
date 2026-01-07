@@ -15,6 +15,7 @@ import { handleMediaStreamConnection } from './websocket/media-stream.js';
 import { startScheduler, stopScheduler } from './scheduler/call-scheduler.js';
 import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
+import testRoutes from './routes/test.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
 import { validateTimezoneSupport } from './utils/timezone.js';
@@ -123,6 +124,9 @@ app.use('/calls', callsRouter);
 app.use('/tools', toolsRouter);
 app.use('/verify', verifyRouter);
 app.use('/internal', internalSmsRouter);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/test', testRoutes);
+}
 
 // Error handling
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

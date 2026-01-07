@@ -13,7 +13,15 @@ import { getLastDetectedLanguageForLine } from '../services/language.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
 import { redactSensitive } from '../utils/redact.js';
-import { registerGrokBridge, unregisterGrokBridge } from './grok-bridge-registry.js';
+import { registerGrokBridge, unregisterGrokBridge, getGrokBridge } from './grok-bridge-registry.js';
+import { getFallbackMessage } from '../utils/fallback-messages.js';
+import {
+  FALLBACK_TTS_WAIT_MS,
+  GROK_RECONNECT_MAX_ATTEMPTS,
+  GROK_RECONNECT_TIMEOUT_MS,
+} from '../utils/constants.js';
+import { getTwilioClient, getVoiceConfigForLanguage, getVoiceForLanguage, generateStreamTwiML } from '../utils/twilio.js';
+import { getWebsocketUrl } from '../utils/env.js';
 
 interface TwilioMessage {
   event: 'connected' | 'start' | 'media' | 'dtmf' | 'stop' | 'mark';
@@ -52,6 +60,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   logger.info({ callSessionId }, 'Media stream connection started');
 
   let streamSid: string | null = null;
+  let callSid: string | null = null;
   let grokBridge: GrokBridge | null = null;
   let isConnected = false;
   let connectedAt: string | null = null;
@@ -59,6 +68,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let trialExpiryTimeout: NodeJS.Timeout | null = null;
   let overagePromptTimeout: NodeJS.Timeout | null = null;
   let overagePromptActive = false;
+  let isReconnecting = false;
+  let reconnectAttempts = 0;
+  let keepBridgeAlive = false;
 
   // Get session info
   const session = await getCallSession(callSessionId);
@@ -163,6 +175,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
         case 'start':
           streamSid = message.start?.streamSid || null;
+          callSid = message.start?.callSid || null;
           logger.info({ callSessionId, streamSid }, 'Twilio stream started');
 
           // Initialize Grok bridge
@@ -182,84 +195,191 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             const shouldPromptOverage =
               account.status !== 'trial' && !isPayg && minutesRemaining <= 0 && !session.is_reminder_call;
 
-            // Create Grok bridge
-            grokBridge = new GrokBridge({
-              callSessionId,
-              lineId: line.id,
-              accountId: account.id,
-              userName: line.display_name,
-              timezone: line.timezone,
-              startingLanguage,
-              isFirstCall,
-              memories,
-              seedInterests: line.seed_interests,
-              seedAvoidTopics: line.seed_avoid_topics,
-              lowMinutesWarning: minutesStatus.warn,
-              minutesRemaining,
-              isReminderCall: session.is_reminder_call,
-              reminderMessage: session.reminder_message,
-              currentPlanId: account.plan_id as PlanId,
-              accountStatus: account.status as AccountStatus,
-              onAudioReceived: (audioBase64: string) => {
-                // Send audio back to Twilio
-                if (ws.readyState === WebSocket.OPEN && streamSid) {
-                  ws.send(JSON.stringify({
-                    event: 'media',
-                    streamSid,
-                    media: { payload: audioBase64 },
-                  }));
-                }
-              },
-              onClearBuffer: () => {
-                // Clear Twilio's buffer (for barge-in)
-                if (ws.readyState === WebSocket.OPEN && streamSid) {
-                  ws.send(JSON.stringify({
-                    event: 'clear',
-                    streamSid,
-                  }));
-                }
-              },
-              onError: (error: Error) => {
-                logger.error({ error, callSessionId }, 'Grok bridge error');
-              },
-              onToolCall: async (toolName: string, args: Record<string, unknown>) => {
-                logger.debug({
-                  callSessionId,
+            const onAudioReceived = (audioBase64: string) => {
+              // Send audio back to Twilio
+              if (ws.readyState === WebSocket.OPEN && streamSid) {
+                ws.send(JSON.stringify({
+                  event: 'media',
+                  streamSid,
+                  media: { payload: audioBase64 },
+                }));
+              }
+            };
+
+            const onClearBuffer = () => {
+              // Clear Twilio's buffer (for barge-in)
+              if (ws.readyState === WebSocket.OPEN && streamSid) {
+                ws.send(JSON.stringify({
+                  event: 'clear',
+                  streamSid,
+                }));
+              }
+            };
+
+            const onError = (error: Error) => {
+              logger.error({ error, callSessionId }, 'Grok bridge error');
+            };
+
+            const onToolCall = async (toolName: string, args: Record<string, unknown>) => {
+              logger.debug({
+                callSessionId,
+                toolName,
+                args: redactSensitive(args),
+              }, 'Tool call from Grok');
+              const phoneLast4 = line.phone_e164 ? line.phone_e164.slice(-4) : null;
+              await recordDebugEvent(
+                callSessionId,
+                'tool_call',
+                { tool: toolName, args },
+                {
+                  line_id: line.id,
+                  phone_number_last4: phoneLast4,
+                },
+                {
+                  accountId: account.id,
                   toolName,
-                  args: redactSensitive(args),
-                }, 'Tool call from Grok');
-                const phoneLast4 = line.phone_e164 ? line.phone_e164.slice(-4) : null;
-                await recordDebugEvent(
-                  callSessionId,
-                  'tool_call',
-                  { tool: toolName, args },
-                  {
-                    line_id: line.id,
-                    phone_number_last4: phoneLast4,
-                  },
-                  {
-                    accountId: account.id,
-                    toolName,
-                  }
-                );
-
-                if (toolName === 'choose_overage_action' && typeof args.action === 'string') {
-                  clearOveragePrompt();
-
-                  if (args.action === 'stop' && ws.readyState === WebSocket.OPEN) {
-                    setTimeout(() => {
-                      if (ws.readyState === WebSocket.OPEN) {
-                        ws.close(1000, 'User requested to stop');
-                      }
-                    }, 15000);
-                  }
                 }
-              },
-            });
+              );
 
-            registerGrokBridge(callSessionId, grokBridge);
-            await grokBridge.connect();
-            isConnected = true;
+              if (toolName === 'choose_overage_action' && typeof args.action === 'string') {
+                clearOveragePrompt();
+
+                if (args.action === 'stop' && ws.readyState === WebSocket.OPEN) {
+                  setTimeout(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                      ws.close(1000, 'User requested to stop');
+                    }
+                  }, 15000);
+                }
+              }
+            };
+
+            const onBargeIn = () => {
+              recordCallEvent(callSessionId, 'state_change', {
+                event: 'barge_in',
+              }, { skipDebugLog: true }).catch(err => {
+                logger.error({ error: err, callSessionId }, 'Failed to record barge-in event');
+              });
+            };
+
+            const onDisconnect = async (type: 'error' | 'close', detail: string) => {
+              if (isReconnecting) {
+                return;
+              }
+
+              if (reconnectAttempts >= GROK_RECONNECT_MAX_ATTEMPTS) {
+                logger.warn({ callSessionId, type, detail }, 'Grok disconnect ignored after max retries');
+                return;
+              }
+
+              isReconnecting = true;
+              reconnectAttempts += 1;
+              keepBridgeAlive = true;
+
+              logger.warn({ callSessionId, type, detail }, 'Grok disconnected mid-call, attempting recovery');
+
+              await recordCallEvent(callSessionId, 'error', {
+                errorType: 'grok_disconnect_mid_call',
+                code: type,
+                reason: detail,
+              });
+
+              const detectedLanguage = grokBridge?.getDetectedLanguage() ?? 'en';
+              const waitMessage = getFallbackMessage(detectedLanguage, 'retry_wait');
+              await playFallbackTTS(callSid, waitMessage, detectedLanguage, {
+                pauseSeconds: Math.ceil(GROK_RECONNECT_TIMEOUT_MS / 1000),
+              });
+
+              if (ws.readyState !== WebSocket.OPEN) {
+                logger.warn({ callSessionId }, 'Twilio WS closed during fallback TTS, aborting recovery');
+                isReconnecting = false;
+                return;
+              }
+
+              const reconnected = grokBridge ? await grokBridge.reconnect() : false;
+
+              if (reconnected) {
+                logger.info({ callSessionId }, 'Grok reconnection successful');
+                reconnectAttempts = 0;
+                isReconnecting = false;
+
+                if (ws.readyState === WebSocket.OPEN) {
+                  keepBridgeAlive = false;
+                  return;
+                }
+
+                await reconnectMediaStream(callSid, callSessionId);
+                return;
+              }
+
+              logger.error({ callSessionId }, 'Grok reconnection failed, ending call');
+
+              const failedMessage = getFallbackMessage(detectedLanguage, 'retry_failed');
+              await playFallbackTTS(callSid, failedMessage, detectedLanguage, { hangup: true });
+              await sleep(FALLBACK_TTS_WAIT_MS);
+
+              await completeCallSession(callSessionId, {
+                endReason: 'error',
+                languageDetected: detectedLanguage,
+              });
+              clearBuffer(callSessionId);
+
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.close(1000, 'AI service unavailable after retry');
+              }
+
+              keepBridgeAlive = false;
+              isReconnecting = false;
+              grokBridge?.close();
+              unregisterGrokBridge(callSessionId);
+            };
+
+            const existingBridge = getGrokBridge(callSessionId);
+
+            if (existingBridge) {
+              grokBridge = existingBridge;
+              grokBridge.updateCallbacks({
+                onAudioReceived,
+                onClearBuffer,
+                onError,
+                onToolCall,
+                onBargeIn,
+                onDisconnect,
+              });
+            } else {
+              grokBridge = new GrokBridge({
+                callSessionId,
+                lineId: line.id,
+                accountId: account.id,
+                userName: line.display_name,
+                timezone: line.timezone,
+                startingLanguage,
+                isFirstCall,
+                memories,
+                seedInterests: line.seed_interests,
+                seedAvoidTopics: line.seed_avoid_topics,
+                lowMinutesWarning: minutesStatus.warn,
+                minutesRemaining,
+                isReminderCall: session.is_reminder_call,
+                reminderMessage: session.reminder_message,
+                currentPlanId: account.plan_id as PlanId,
+                accountStatus: account.status as AccountStatus,
+                onAudioReceived,
+                onClearBuffer,
+                onError,
+                onToolCall,
+                onBargeIn,
+                onDisconnect,
+              });
+
+              registerGrokBridge(callSessionId, grokBridge);
+            }
+
+            if (!grokBridge.isConnectedToGrok()) {
+              await grokBridge.connect();
+            }
+
+            isConnected = grokBridge.isConnectedToGrok();
             connectedAt = new Date().toISOString();
 
             if (shouldPromptOverage) {
@@ -316,6 +436,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
         case 'media':
           // Forward audio to Grok
+          if (isReconnecting) {
+            break;
+          }
           if (grokBridge && isConnected && message.media?.payload) {
             grokBridge.sendAudio(message.media.payload);
           }
@@ -353,7 +476,6 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   // Handle WebSocket close
   ws.on('close', async (code, reason) => {
     logger.info({ callSessionId, code, reason: reason.toString() }, 'Media stream WebSocket closed');
-    unregisterGrokBridge(callSessionId);
 
     if (trialExpiryTimeout) {
       clearTimeout(trialExpiryTimeout);
@@ -361,6 +483,13 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     }
 
     clearOveragePrompt();
+
+    if (keepBridgeAlive) {
+      logger.info({ callSessionId }, 'Skipping cleanup to allow recovery');
+      return;
+    }
+
+    unregisterGrokBridge(callSessionId);
 
     const duration = connectedAt
       ? Date.now() - new Date(connectedAt).getTime()
@@ -387,7 +516,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     }
 
     // Complete the call session if it was in progress
-    if (session && isConnected) {
+    if (session && isConnected && session.status === 'in_progress') {
       await completeCallSession(callSessionId, {
         endReason: 'hangup',
         languageDetected: grokBridge?.getDetectedLanguage() ?? undefined,
@@ -398,6 +527,10 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   // Handle WebSocket error
   ws.on('error', async (error) => {
     logger.error({ error, callSessionId }, 'Media stream WebSocket error');
+
+    if (keepBridgeAlive) {
+      return;
+    }
 
     if (grokBridge) {
       grokBridge.close();
@@ -466,4 +599,71 @@ async function handleDTMF(
       // Ignore other digits
       break;
   }
+}
+
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildSayTwiML(options: {
+  message: string;
+  languageCode: string;
+  pauseSeconds?: number;
+  hangup?: boolean;
+}): string {
+  const voice = getVoiceForLanguage(options.languageCode);
+  const { language } = getVoiceConfigForLanguage(options.languageCode);
+  const pause = options.pauseSeconds ? `  <Pause length="${options.pauseSeconds}" />\n` : '';
+  const hangup = options.hangup ? '  <Hangup />\n' : '';
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Say voice="${voice}" language="${language}">${escapeXml(options.message)}</Say>\n${pause}${hangup}</Response>`;
+}
+
+async function playFallbackTTS(
+  callSid: string | null,
+  message: string,
+  languageCode: string,
+  options: { pauseSeconds?: number; hangup?: boolean } = {}
+): Promise<void> {
+  if (!callSid) {
+    return;
+  }
+
+  try {
+    const client = getTwilioClient();
+    const twiml = buildSayTwiML({
+      message,
+      languageCode,
+      pauseSeconds: options.pauseSeconds,
+      hangup: options.hangup,
+    });
+
+    await client.calls(callSid).update({ twiml });
+  } catch (error) {
+    logger.error({ error, callSid }, 'Failed to play fallback TTS');
+  }
+}
+
+async function reconnectMediaStream(callSid: string | null, callSessionId: string): Promise<void> {
+  if (!callSid) {
+    return;
+  }
+
+  try {
+    const websocketUrl = getWebsocketUrl();
+    const twiml = generateStreamTwiML(callSessionId, websocketUrl);
+    const client = getTwilioClient();
+    await client.calls(callSid).update({ twiml });
+  } catch (error) {
+    logger.error({ error, callSid, callSessionId }, 'Failed to reconnect media stream');
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

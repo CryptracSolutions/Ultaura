@@ -1,1019 +1,837 @@
-# Multilingual Support Specification
+# Voice Reliability Edge Cases: Barge-In & Mid-Call Model Failure
 
-## Objective
+## Specification Document
 
-Remove structural blockers preventing Ultaura from leveraging Grok Voice Agent's full 100+ language capability. Currently, the database schema, TypeScript types, and UI hardcode support for only English and Spanish, directly conflicting with our stated product differentiator.
-
-## Scope
-
-**In Scope:**
-- Remove `preferred_language` column and CHECK constraint from database
-- Remove `spanish_formality` column from database
-- Remove language selection UI from dashboard
-- Update system prompts for pure auto-detection
-- Implement "last detected language" lookup for voicemails and reminders
-- Display detected language in call history
-- Add marketing copy about 100+ languages
-
-**Out of Scope:**
-- i18n/localization of the dashboard itself (remains English-only)
-- Language analytics dashboards
-- Per-account language defaults
+**Author:** Claude (Planning Agent)
+**Date:** January 6, 2026
+**Status:** Ready for Implementation
+**Impact:** High
+**Likelihood:** Medium
 
 ---
 
-## Current State Analysis
+## 1. Executive Summary
 
-### Database Schema (`supabase/migrations/20241220000001_ultaura_schema.sql`)
+This specification addresses two critical voice reliability issues in the Ultaura telephony system:
 
-```sql
--- ultaura_lines table (lines 82-83)
-preferred_language text not null default 'auto' check (preferred_language in ('auto', 'en', 'es')),
-spanish_formality text not null default 'usted' check (spanish_formality in ('usted', 'tu')),
-```
+1. **Barge-In Handling**: When a user speaks while the assistant is talking, the assistant audio stops but Grok continues generating tokens wastefully
+2. **Mid-Call Model Failure**: When the Grok WebSocket disconnects mid-conversation, users hear silence until they hang up
 
-### TypeScript Types (`packages/types/src/language.ts`)
+### Symptoms
+- User speaks while assistant talks → assistant doesn't stop properly (talk-over)
+- Grok WebSocket closes → user hears silence until hangup ("robot is broken" moments)
 
-```typescript
-export type PreferredLanguage = 'auto' | 'en' | 'es';
-export type SpanishFormality = 'usted' | 'tu';
-```
+### Root Causes
+- **Barge-in**: `response.cancel` message not sent to Grok when speech detected
+- **Error handling**: `onError` callback only logs; doesn't close Twilio stream or notify user
 
-### Constants (`src/lib/ultaura/constants.ts`, lines 178-196)
+---
 
-```typescript
-export const LANGUAGES = {
-  AUTO: 'auto',
-  ENGLISH: 'en',
-  SPANISH: 'es',
-} as const;
+## 2. Objectives
 
-export const LANGUAGE_LABELS: Record<string, string> = {
-  auto: 'Auto-detect',
-  en: 'English',
-  es: 'Spanish',
-};
+### Primary Goals
+1. Implement proper barge-in handling that cancels Grok's in-progress response
+2. Gracefully handle mid-call Grok failures with retry and user notification
+3. Maintain call session integrity and billing accuracy during failures
 
-export const SPANISH_FORMALITY_LABELS: Record<string, string> = {
-  usted: 'Formal (usted)',
-  tu: 'Informal (tú)',
-};
-```
+### Success Criteria
+- Zero "talk-over" incidents where assistant continues after user interruption
+- All mid-call failures result in graceful user notification (not silence)
+- Call sessions properly completed with accurate billing for time used
+- Barge-in events tracked for analytics
 
-### UI Components
+---
 
-1. **AddLineModal.tsx** (lines 211-227): Language dropdown with 3 options
-2. **SettingsClient.tsx** (lines 139-186): Language select + conditional Spanish formality buttons
-3. **LineDetailClient.tsx** (lines 298-300): Displays current language preference
+## 3. Technical Requirements
 
-### Prompt System (`packages/prompts/src/profiles/index.ts`)
+### 3.1 Barge-In Handling
+
+#### Current State (Problem)
+**File:** `telephony/src/websocket/grok-bridge.ts` (lines 444-447)
 
 ```typescript
-function formatLanguageSection(
-  language: PreferredLanguage,
-  spanishFormality: SpanishFormality | undefined,
-  isRealtime: boolean
-): string {
-  // Only handles 'en', 'es', 'auto' cases
+case 'input_audio_buffer.speech_started':
+  // User started speaking - clear any pending audio (barge-in)
+  this.options.onClearBuffer();
+  break;
+```
+
+**What happens:**
+1. Grok detects user speech via VAD ✓
+2. `onClearBuffer()` called → Twilio's outgoing audio buffer cleared ✓
+3. **Problem:** Grok continues generating response tokens ✗
+4. Already-generated audio discarded, but Grok wastes resources
+
+#### Required Changes
+
+**A. Send `response.cancel` to Grok**
+
+When `input_audio_buffer.speech_started` is received:
+1. Call `onClearBuffer()` (existing - keep)
+2. **NEW:** Send `response.cancel` message to Grok WebSocket
+3. **NEW:** Log barge-in event to call_events table
+
+**B. Wait for User to Finish**
+
+Use existing VAD settings (500ms silence detection threshold). Do NOT modify VAD configuration - current settings work well for elderly users.
+
+**C. No Rapid Barge-In Throttling**
+
+If user interrupts multiple times rapidly, let natural conversation flow handle it. No special throttling logic needed.
+
+#### Implementation Details
+
+**Modified `grok-bridge.ts` handler:**
+
+```typescript
+case 'input_audio_buffer.speech_started':
+  // User started speaking - cancel current response (barge-in)
+  this.options.onClearBuffer();
+
+  // Cancel any in-progress Grok response
+  this.cancelCurrentResponse();
+
+  // Log barge-in event for analytics
+  this.options.onBargeIn?.();
+  break;
+```
+
+**New method in GrokBridge class:**
+
+```typescript
+private cancelCurrentResponse(): void {
+  if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+  // Send response.cancel to stop Grok from generating
+  this.ws.send(JSON.stringify({
+    type: 'response.cancel',
+  }));
+
+  logger.debug({ callSessionId: this.options.callSessionId }, 'Canceled Grok response due to barge-in');
 }
 ```
 
-### Telephony Integration
+**New callback in GrokBridgeOptions interface:**
 
-- **media-stream.ts** (lines 189-200): Passes `preferred_language` and `spanish_formality` to GrokBridge
-- **grok-bridge.ts**: Includes language in system prompt via `compilePrompt()`
-
----
-
-## Target State
-
-### Behavior Model
-
-1. **All Calls (Check-ins AND Reminders)**:
-   - Look up `language_detected` from the line's most recent completed call
-   - Start the conversation in that language
-   - Fall back to English if no previous call history exists
-   - Seamlessly switch mid-conversation if the senior changes languages
-
-2. **Voicemail Messages**:
-   - Same logic: use last detected language, default to English
-   - For reminder voicemails (detailed mode): include the actual reminder message, translated
-
-3. **New Lines (No History)**:
-   - All calls start in English until first conversation establishes language
-
----
-
-## Implementation Clarifications
-
-### Q1: Regular check-in calls starting language
-**Answer**: ALL calls (check-ins AND reminders) should use the last detected language. This provides a consistent, personalized experience where grandma always hears her preferred language from the first greeting.
-
-### Q2: Last-detected language lookup query
-**Answer**: Use this query logic:
 ```typescript
-const { data } = await supabase
-  .from('ultaura_call_sessions')
-  .select('language_detected')
-  .eq('line_id', lineId)
-  .eq('status', 'completed')           // Only completed calls
-  .not('language_detected', 'is', null)
-  .order('ended_at', { ascending: false })  // Use ended_at (more accurate)
-  .limit(1)
-  .single();
+interface GrokBridgeOptions {
+  // ... existing options ...
+  onBargeIn?: () => void;  // Called when user interrupts assistant
+}
 ```
-- **Filter**: `status = 'completed'` only (excludes failed, canceled, in-progress)
-- **Order by**: `ended_at DESC` (more accurate than `created_at`)
-- **Include all call types**: Yes, both regular check-ins and reminder calls count. Inbound calls also count if we support them.
 
-### Q3: language_detected population
-**Answer**: YES, implement detection. The column exists but is never populated. Implementation approach:
+**Updated media-stream.ts to log barge-in:**
 
-1. **Add a Grok tool** called `report_language` that Grok calls at end of conversation
-2. **Or use session metadata**: When Grok session ends, extract detected language from session state
-3. **Store in updateCallStatus**: The infrastructure exists - `updateCallStatus()` already accepts `languageDetected` parameter, just no caller passes it
-
-Recommended implementation in `grok-bridge.ts`:
 ```typescript
-// When call ends, report detected language
-private async handleSessionEnd(): Promise<void> {
-  // Grok should report which language was primarily spoken
-  // This could come from:
-  // 1. A final tool call from Grok
-  // 2. Analysis of the conversation transcript
-  // 3. Grok's session.ended event metadata
-
-  await updateCallStatus(this.callSessionId, 'completed', {
-    languageDetected: this.detectedLanguage ?? 'en',
+onBargeIn: () => {
+  recordCallEvent(callSessionId, 'barge_in', {
+    timestamp: new Date().toISOString(),
+  }).catch(err => {
+    logger.error({ error: err, callSessionId }, 'Failed to record barge-in event');
   });
+},
+```
+
+---
+
+### 3.2 Mid-Call Model Failure Handling
+
+#### Current State (Problem)
+**File:** `telephony/src/websocket/media-stream.ts` (lines 222-224)
+
+```typescript
+onError: (error: Error) => {
+  logger.error({ error, callSessionId }, 'Grok bridge error');
 }
 ```
 
-**Alternatively**: Add a Grok tool that Grok calls proactively:
+**What happens:**
+1. Grok WebSocket closes/errors
+2. Error is logged (only action taken) ✗
+3. Twilio WebSocket stays open, waiting for audio
+4. User hears silence until they hang up
+
+**File:** `telephony/src/websocket/grok-bridge.ts` (lines 141-148)
+
 ```typescript
-{
-  name: 'report_conversation_language',
-  description: 'Report the primary language spoken in this conversation. Call this near the end of the call.',
-  parameters: {
-    language_code: { type: 'string', description: 'ISO 639-1 code (e.g., en, es, fr, de, zh, ja)' }
+this.ws.on('close', (code, reason) => {
+  logger.info({ ... }, 'Grok WebSocket closed');
+  this.isConnected = false;
+  // No propagation to media-stream!
+});
+```
+
+#### Required Changes
+
+**A. Detect Grok Failure**
+
+Add new callback `onDisconnect` in GrokBridgeOptions that fires when Grok WebSocket unexpectedly closes.
+
+**B. Attempt Reconnection**
+
+- **Retry count:** 1 attempt
+- **Retry timeout:** 3 seconds
+- If reconnection succeeds: continue conversation seamlessly (no acknowledgment)
+
+**C. Play Fallback TTS on Failure**
+
+If retry fails:
+1. Play TTS apology message via Polly (multi-language support)
+2. End call gracefully
+3. Complete session with `end_reason: 'error'`
+
+**D. Session Handling**
+
+- Mark session as `'completed'` (not `'failed'`) with `end_reason: 'error'`
+- This ensures billing for time actually used
+- Record error details in call_events
+
+#### Failure Recovery Flow
+
+```
+Grok WebSocket closes unexpectedly
+         │
+         ▼
+   Log error event
+         │
+         ▼
+   Play TTS: "I'm sorry, I'm having a little trouble
+              right now. Let me try again..."
+         │
+         ▼
+   Attempt reconnection (3 second timeout)
+         │
+    ┌────┴────┐
+    │         │
+ Success    Failure
+    │         │
+    ▼         ▼
+ Continue   Play TTS: "I apologize, I'll need to
+ seamlessly  call you back. Take care!"
+              │
+              ▼
+         End call gracefully
+              │
+              ▼
+         Complete session with
+         end_reason: 'error'
+```
+
+#### Implementation Details
+
+**A. New Callback in GrokBridgeOptions:**
+
+```typescript
+interface GrokBridgeOptions {
+  // ... existing options ...
+  onDisconnect?: (code: number, reason: string) => void;  // Grok disconnected unexpectedly
+}
+```
+
+**B. Updated grok-bridge.ts close handler:**
+
+```typescript
+this.ws.on('close', (code, reason) => {
+  const reasonStr = reason.toString();
+  logger.info({ callSessionId: this.options.callSessionId, code, reason: reasonStr }, 'Grok WebSocket closed');
+
+  const wasConnected = this.isConnected;
+  this.isConnected = false;
+
+  // Notify media-stream of unexpected disconnect (if was previously connected)
+  if (wasConnected && this.options.onDisconnect) {
+    this.options.onDisconnect(code, reasonStr);
+  }
+});
+```
+
+**C. New Reconnection Method in GrokBridge:**
+
+```typescript
+async reconnect(): Promise<boolean> {
+  try {
+    // Close existing connection if any
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      this.ws.close();
+    }
+
+    // Attempt new connection with 3 second timeout
+    await this.connect();
+    return true;
+  } catch (error) {
+    logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok reconnection failed');
+    return false;
   }
 }
 ```
 
-### Q4: Voicemail for reminder calls
-**Answer**: Keep current behavior - detailed voicemails SHOULD include the actual `reminder_message`. This is more helpful for seniors. The voicemail generator should be:
+**D. Updated media-stream.ts with failure handling:**
+
 ```typescript
-function getVoicemailMessage(
-  name: string,
-  language: string,
-  behavior: 'brief' | 'detailed',
-  isReminderCall: boolean,
-  reminderMessage?: string
-): string {
-  if (behavior === 'detailed' && isReminderCall && reminderMessage) {
-    // Include the reminder in the appropriate language
-    return getLocalizedReminderVoicemail(name, language, reminderMessage);
+// State tracking
+let isReconnecting = false;
+
+// In GrokBridge options:
+onDisconnect: async (code: number, reason: string) => {
+  if (isReconnecting) return; // Prevent concurrent reconnection attempts
+  isReconnecting = true;
+
+  logger.warn({ callSessionId, code, reason }, 'Grok disconnected mid-call, attempting recovery');
+
+  // Record error event
+  await recordCallEvent(callSessionId, 'error', {
+    errorType: 'grok_disconnect_mid_call',
+    code,
+    reason,
+  });
+
+  // Play "please wait" message
+  const detectedLanguage = grokBridge?.getDetectedLanguage() ?? 'en';
+  await playFallbackTTS(ws, streamSid, 'retry_wait', detectedLanguage);
+
+  // Attempt reconnection (3 second timeout built into connect())
+  const reconnected = await grokBridge.reconnect();
+
+  if (reconnected) {
+    logger.info({ callSessionId }, 'Grok reconnection successful');
+    isReconnecting = false;
+    // Continue seamlessly - no acknowledgment to user
+    return;
   }
-  // ... regular voicemail logic
-}
+
+  // Reconnection failed - play goodbye message and end call
+  logger.error({ callSessionId }, 'Grok reconnection failed, ending call');
+  await playFallbackTTS(ws, streamSid, 'retry_failed', detectedLanguage);
+
+  // Wait for TTS to finish (approximately 3 seconds)
+  await sleep(3000);
+
+  // Complete session with error reason
+  await completeCallSession(callSessionId, {
+    endReason: 'error',
+    languageDetected: detectedLanguage,
+  });
+
+  // Close Twilio WebSocket
+  ws.close(1000, 'AI service unavailable after retry');
+  isReconnecting = false;
+},
 ```
 
-### Q5: Twilio TTS language and voice mapping
-**Answer**: YES, set the `language` attribute on `<Say>`. Use Amazon Polly voices for quality. Mapping:
+**E. Fallback TTS Messages (New File):**
+
+**File:** `telephony/src/utils/fallback-messages.ts`
 
 ```typescript
-const TWILIO_VOICE_MAP: Record<string, { voice: string; language: string }> = {
-  en: { voice: 'Polly.Joanna', language: 'en-US' },
-  es: { voice: 'Polly.Lupe', language: 'es-US' },
-  fr: { voice: 'Polly.Lea', language: 'fr-FR' },
-  de: { voice: 'Polly.Vicki', language: 'de-DE' },
-  it: { voice: 'Polly.Bianca', language: 'it-IT' },
-  pt: { voice: 'Polly.Camila', language: 'pt-BR' },
-  ja: { voice: 'Polly.Mizuki', language: 'ja-JP' },
-  ko: { voice: 'Polly.Seoyeon', language: 'ko-KR' },
-  zh: { voice: 'Polly.Zhiyu', language: 'cmn-CN' },
-  // Fallback for unsupported languages
-  default: { voice: 'Polly.Joanna', language: 'en-US' },
+import { getLanguageVoice } from './voicemail-messages';
+
+type FallbackMessageType = 'retry_wait' | 'retry_failed';
+
+const FALLBACK_MESSAGES: Record<string, Record<FallbackMessageType, string>> = {
+  en: {
+    retry_wait: "I'm sorry, I'm having a little trouble right now. Let me try again.",
+    retry_failed: "I apologize, I'll need to call you back. Take care!",
+  },
+  es: {
+    retry_wait: "Lo siento, estoy teniendo un pequeño problema. Déjame intentar de nuevo.",
+    retry_failed: "Me disculpo, tendré que llamarte de nuevo. ¡Cuídate!",
+  },
+  fr: {
+    retry_wait: "Je suis désolé, j'ai un petit problème. Laissez-moi réessayer.",
+    retry_failed: "Je m'excuse, je devrai vous rappeler. Prenez soin de vous!",
+  },
+  de: {
+    retry_wait: "Es tut mir leid, ich habe gerade ein kleines Problem. Lass mich es noch einmal versuchen.",
+    retry_failed: "Ich entschuldige mich, ich muss Sie zurückrufen. Pass auf dich auf!",
+  },
+  it: {
+    retry_wait: "Mi dispiace, sto avendo un piccolo problema. Fammi riprovare.",
+    retry_failed: "Mi scuso, dovrò richiamarti. Abbi cura di te!",
+  },
+  pt: {
+    retry_wait: "Desculpe, estou tendo um pequeno problema. Deixe-me tentar novamente.",
+    retry_failed: "Peço desculpas, precisarei ligar de volta. Cuide-se!",
+  },
+  ja: {
+    retry_wait: "申し訳ありません、少し問題が発生しています。もう一度試してみます。",
+    retry_failed: "申し訳ありませんが、後ほどお電話いたします。お体に気をつけてください！",
+  },
+  ko: {
+    retry_wait: "죄송합니다, 약간의 문제가 있습니다. 다시 시도해 볼게요.",
+    retry_failed: "죄송합니다, 다시 전화드려야 할 것 같습니다. 건강하세요!",
+  },
+  zh: {
+    retry_wait: "抱歉，我现在遇到了一点问题。让我再试一次。",
+    retry_failed: "抱歉，我需要稍后再给您打电话。保重！",
+  },
 };
 
-function generateMessageTwiML(message: string, languageCode: string): string {
-  const { voice, language } = TWILIO_VOICE_MAP[languageCode] ?? TWILIO_VOICE_MAP.default;
+export function getFallbackMessage(language: string, type: FallbackMessageType): string {
+  const lang = language.substring(0, 2).toLowerCase();
+  return FALLBACK_MESSAGES[lang]?.[type] ?? FALLBACK_MESSAGES['en'][type];
+}
+
+export function generateFallbackTwiML(language: string, type: FallbackMessageType): string {
+  const message = getFallbackMessage(language, type);
+  const voice = getLanguageVoice(language);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="${voice}" language="${language}">${escapeXml(message)}</Say>
-  <Hangup />
+  <Say voice="${voice}">${message}</Say>
 </Response>`;
 }
 ```
 
-**Languages to support now**: en, es, fr, de, it, pt, ja, ko, zh (covers ~95% of use cases). Add more as needed.
+**F. Play TTS Function:**
 
-### Q6: Language display/name mapping - shared helper
-**Answer**: Create a **shared helper** in `packages/prompts/src/utils/language.ts`:
+Add to `media-stream.ts`:
 
 ```typescript
-// packages/prompts/src/utils/language.ts
-export const LANGUAGE_NAMES: Record<string, string> = {
-  en: 'English',
-  es: 'Spanish',
-  fr: 'French',
-  de: 'German',
-  it: 'Italian',
-  pt: 'Portuguese',
-  nl: 'Dutch',
-  ru: 'Russian',
-  zh: 'Chinese',
-  ja: 'Japanese',
-  ko: 'Korean',
-  ar: 'Arabic',
-  hi: 'Hindi',
-  tr: 'Turkish',
-  pl: 'Polish',
-  sv: 'Swedish',
-  da: 'Danish',
-  no: 'Norwegian',
-  fi: 'Finnish',
-  cs: 'Czech',
-  th: 'Thai',
-  vi: 'Vietnamese',
-  id: 'Indonesian',
-  ms: 'Malay',
-  tl: 'Filipino',
-  uk: 'Ukrainian',
-  el: 'Greek',
-  he: 'Hebrew',
-  ro: 'Romanian',
-  hu: 'Hungarian',
-};
+import { getFallbackMessage, getLanguageVoice } from '../utils/fallback-messages';
 
-export function getLanguageName(code: string): string {
-  // Normalize: strip region (pt-BR -> pt)
-  const baseCode = code.split('-')[0].toLowerCase();
-  return LANGUAGE_NAMES[baseCode] ?? code.toUpperCase();
-}
+async function playFallbackTTS(
+  ws: WebSocket,
+  streamSid: string | null,
+  type: 'retry_wait' | 'retry_failed',
+  language: string
+): Promise<void> {
+  if (ws.readyState !== WebSocket.OPEN || !streamSid) {
+    return;
+  }
 
-export function normalizeLanguageCode(code: string): string {
-  // pt-BR -> pt, en-US -> en, zh-CN -> zh
-  return code.split('-')[0].toLowerCase();
+  const message = getFallbackMessage(language, type);
+  const voice = getLanguageVoice(language);
+
+  // Generate TTS audio using Twilio's streaming TTS
+  // Send as media event to Twilio
+  // Implementation depends on how Twilio streaming TTS is accessed
+
+  // Option 1: Use Twilio's <Say> via inline TwiML (if supported mid-stream)
+  // Option 2: Pre-generate audio files and send as media
+  // Option 3: Use Polly directly and stream audio chunks
+
+  // For now, inject a system message that tells Grok to say the message
+  // This is a workaround until direct TTS injection is implemented
+
+  logger.info({ callSessionId: streamSid, type, language }, 'Playing fallback TTS message');
 }
 ```
 
-**Region code normalization**: YES, normalize `pt-BR` to `pt` before display and storage. Store only base ISO 639-1 codes.
+**G. Utility sleep function:**
 
-### Q7: getLastDetectedLanguage Supabase client
-**Answer**: Use the correct client for each context:
-
-**In `src/lib/ultaura/actions.ts` (dashboard)**:
 ```typescript
-import getSupabaseServerActionClient from '~/core/supabase/action-client';
-
-export async function getLastDetectedLanguage(lineId: string): Promise<string> {
-  const client = getSupabaseServerActionClient({ admin: true });
-  // ... query
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 ```
-
-**In `telephony/src/` (Express backend)**:
-```typescript
-import { getSupabaseClient } from '../utils/supabase.js';
-
-async function getLastDetectedLanguageForLine(lineId: string): Promise<string> {
-  const supabase = getSupabaseClient();  // Already uses service role
-  // ... query
-}
-```
-
-**Note**: The dashboard action may not be needed if we only look up language in the telephony layer. Keep it simple - implement only in telephony unless dashboard needs it.
-
-### Q8: Migration filename
-**Answer**: Use the newer convention: `20260210000001_remove_language_columns.sql`
-
-Pattern: `YYYYMMDD` + `000001` (6-digit sequence) + `_description.sql`
-
-### Q9: Marketing copy placement
-**Answer**: The copy already exists on the demo page. For the dashboard:
-- **Skip adding to dashboard** for now - it's already on marketing pages
-- If desired later, add to the **Lines list page header** as subtle text: "Ultaura speaks 100+ languages automatically"
-
-### Q10: Call history UI - show "Unknown" or hide?
-**Answer**: **Hide when null** (only show when `language_detected` is non-null). Cleaner UI, avoids confusion.
-
-```tsx
-{session.language_detected && (
-  <span className="text-sm text-muted-foreground">
-    {getLanguageName(session.language_detected)}
-  </span>
-)}
-```
-
-### Q11: Supabase generated types
-**Answer**: After running the migration, regenerate types:
-```bash
-npm run typegen
-```
-
-This runs `supabase gen types typescript --local > src/database.types.ts`.
-
-**Both files need updating**:
-1. `src/database.types.ts` - auto-generated
-2. `src/lib/database.types.ts` - manually copy or keep in sync
-
-The `preferred_language` and `spanish_formality` columns will be automatically removed from the generated types.
 
 ---
 
-## Technical Requirements
+### 3.3 Test Endpoint for QA
 
-### 1. Database Migration
+**New Endpoint:** `POST /test/simulate-failure`
 
-Create new migration: `YYYYMMDD000001_remove_language_columns.sql`
-
-```sql
--- Step 1: Drop CHECK constraints
-ALTER TABLE ultaura_lines
-  DROP CONSTRAINT IF EXISTS ultaura_lines_preferred_language_check,
-  DROP CONSTRAINT IF EXISTS ultaura_lines_spanish_formality_check;
-
--- Step 2: Remove columns
-ALTER TABLE ultaura_lines
-  DROP COLUMN IF EXISTS preferred_language,
-  DROP COLUMN IF EXISTS spanish_formality;
-```
-
-**Note**: No data migration needed since we're removing the columns entirely.
-
-### 2. TypeScript Types
-
-**Remove from `packages/types/src/language.ts`:**
-```typescript
-// DELETE ENTIRE FILE or remove these exports:
-export type PreferredLanguage = 'auto' | 'en' | 'es';
-export type SpanishFormality = 'usted' | 'tu';
-```
-
-**Update `packages/types/src/index.ts`:**
-- Remove exports of `PreferredLanguage` and `SpanishFormality`
-
-**Update `src/lib/ultaura/types.ts`:**
-
-Remove from `Line` interface:
-```typescript
-// DELETE these lines:
-preferredLanguage: PreferredLanguage;
-spanishFormality: SpanishFormality;
-```
-
-Remove from `CreateLineInput` interface:
-```typescript
-// DELETE these lines:
-preferredLanguage?: PreferredLanguage;
-spanishFormality?: SpanishFormality;
-```
-
-Remove from `UpdateLineInput` interface:
-```typescript
-// DELETE these lines:
-preferredLanguage?: PreferredLanguage;
-spanishFormality?: SpanishFormality;
-```
-
-Remove from `LineRow` interface:
-```typescript
-// DELETE these lines:
-preferred_language: PreferredLanguage;
-spanish_formality: SpanishFormality;
-```
-
-### 3. Constants Updates
-
-**Update `src/lib/ultaura/constants.ts`:**
-
-Remove entirely:
-```typescript
-// DELETE these constants:
-export const LANGUAGES = { ... };
-export const LANGUAGE_LABELS = { ... };
-export const SPANISH_FORMALITY_LABELS = { ... };
-```
-
-### 4. Server Actions Updates
-
-**Update `src/lib/ultaura/actions.ts`:**
-
-**createLine function** (around line 276):
-```typescript
-// REMOVE these lines from the insert object:
-preferred_language: input.preferredLanguage || 'auto',
-spanish_formality: input.spanishFormality || 'usted',
-```
-
-**updateLine function** (around line 348):
-```typescript
-// REMOVE these lines:
-if (input.preferredLanguage !== undefined) updates.preferred_language = input.preferredLanguage;
-if (input.spanishFormality !== undefined) updates.spanish_formality = input.spanishFormality;
-```
-
-**Add new helper function** to get last detected language (if needed in dashboard):
-```typescript
-/**
- * Get the last detected language for a line from its most recent completed call.
- * Falls back to 'en' if no previous calls exist.
- */
-export async function getLastDetectedLanguage(lineId: string): Promise<string> {
-  const client = getSupabaseServerActionClient({ admin: true });
-
-  const { data } = await client
-    .from('ultaura_call_sessions')
-    .select('language_detected')
-    .eq('line_id', lineId)
-    .eq('status', 'completed')
-    .not('language_detected', 'is', null)
-    .order('ended_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  return data?.language_detected ?? 'en';
-}
-```
-
-### 5. UI Component Updates
-
-**Update `src/app/dashboard/(app)/lines/components/AddLineModal.tsx`:**
-
-Remove the entire language selection block (lines 211-227):
-```tsx
-// DELETE this entire block:
-{/* Language */}
-<div className="space-y-2">
-  <label className="block text-sm font-medium text-foreground">
-    <Globe className="inline w-4 h-4 mr-1" />
-    Language Preference
-  </label>
-  <Select value={language} onValueChange={...}>
-    ...
-  </Select>
-</div>
-```
-
-Remove state and imports:
-```typescript
-// DELETE:
-const [language, setLanguage] = useState<'auto' | 'en' | 'es'>('auto');
-
-// REMOVE from createLine call:
-preferredLanguage: language,
-```
-
-**Update `src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx`:**
-
-Remove language selection section (lines 139-186):
-```tsx
-// DELETE the entire {/* Language */} block
-// DELETE the entire {/* Spanish Formality */} block
-```
-
-Remove state:
-```typescript
-// DELETE:
-const [language, setLanguage] = useState(line.preferred_language);
-const [spanishFormality, setSpanishFormality] = useState(line.spanish_formality);
-```
-
-Remove from save payload:
-```typescript
-// REMOVE from updateLine call:
-preferredLanguage: language,
-spanishFormality,
-```
-
-**Update `src/app/dashboard/(app)/lines/[lineId]/LineDetailClient.tsx`:**
-
-Remove language display (lines 298-300):
-```tsx
-// DELETE:
-<div>
-  <dt className="text-sm text-muted-foreground">Language</dt>
-  <dd className="text-foreground capitalize">{line.preferred_language}</dd>
-</div>
-```
-
-### 6. Prompt System Updates
-
-**Update `packages/prompts/src/profiles/index.ts`:**
-
-Replace `formatLanguageSection` function:
-```typescript
-/**
- * Format language section for Grok prompts.
- * With pure auto-detect, we provide minimal guidance and let Grok's
- * native 100+ language support handle detection and switching.
- */
-function formatLanguageSection(
-  startingLanguage: string = 'en',
-  isRealtime: boolean
-): string {
-  if (startingLanguage === 'en') {
-    return isRealtime
-      ? '## Language\nStart in English. Respond in whatever language the user speaks. Switch naturally mid-conversation if they change languages.'
-      : '## Language\nStart in English. If the user speaks another language, switch to match them naturally.';
-  }
-
-  // For non-English starting language (e.g., from last detected language)
-  const languageName = getLanguageName(startingLanguage);
-  return isRealtime
-    ? `## Language\nStart in ${languageName}. Respond in whatever language the user speaks. Switch naturally mid-conversation if they change languages.`
-    : `## Language\nStart in ${languageName}. If the user speaks another language, switch to match them naturally.`;
-}
-
-/**
- * Convert ISO language code to human-readable name.
- * Covers common languages; falls back to the code itself for rare languages.
- */
-function getLanguageName(code: string): string {
-  const names: Record<string, string> = {
-    en: 'English',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-    it: 'Italian',
-    pt: 'Portuguese',
-    nl: 'Dutch',
-    ru: 'Russian',
-    zh: 'Chinese',
-    ja: 'Japanese',
-    ko: 'Korean',
-    ar: 'Arabic',
-    hi: 'Hindi',
-    tr: 'Turkish',
-    pl: 'Polish',
-    sv: 'Swedish',
-    da: 'Danish',
-    no: 'Norwegian',
-    fi: 'Finnish',
-    cs: 'Czech',
-    // Add more as needed
-  };
-  return names[code] ?? code;
-}
-```
-
-Update `CompanionPromptParams` interface:
-```typescript
-export interface CompanionPromptParams {
-  userName: string;
-  startingLanguage?: string;  // CHANGED: was 'language: PreferredLanguage'
-  // REMOVED: spanishFormality?: SpanishFormality;
-  memories: Memory[];
-  isFirstCall: boolean;
-  timezone?: string;
-  // ... rest unchanged
-}
-```
-
-Update `compilePrompt` to use new signature:
-```typescript
-// In the sections.push call:
-sections.push(formatLanguageSection(params.startingLanguage ?? 'en', isRealtime));
-```
-
-**Update `packages/prompts/src/builders/reminder.ts`:**
+**File:** `telephony/src/routes/test.ts` (new file)
 
 ```typescript
-export interface ReminderPromptParams {
-  userName: string;
-  reminderMessage: string;
-  startingLanguage?: string;  // CHANGED: was 'language: PreferredLanguage'
-}
+import { Router } from 'express';
+import { getGrokBridge } from '../websocket/grok-bridge-registry';
+import { logger } from '../utils/logger';
 
-export function buildReminderPrompt(params: ReminderPromptParams): string {
-  const { userName, reminderMessage, startingLanguage = 'en' } = params;
-  const languageName = getLanguageName(startingLanguage);
+const router = Router();
 
-  return `You are Ultaura calling with a quick reminder for ${userName}.
+// Only available in development/staging
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/simulate-failure', async (req, res) => {
+    const { callSessionId } = req.body;
 
-## Your Task
-Deliver this reminder: "${reminderMessage}"
-
-## Style
-- Keep it brief and friendly (aim for under 30 seconds)
-- Greet them warmly by name
-- Deliver the reminder clearly
-- Ask if they have any quick questions about the reminder
-- Say goodbye warmly
-
-## Language
-Start in ${languageName}. If they speak another language, switch naturally.`;
-}
-```
-
-### 7. Telephony Updates
-
-**Update `telephony/src/websocket/grok-bridge.ts`:**
-
-Update `GrokBridgeOptions` interface:
-```typescript
-interface GrokBridgeOptions {
-  callSessionId: string;
-  lineId: string;
-  accountId: string;
-  userName: string;
-  timezone: string;
-  startingLanguage?: string;  // CHANGED: was 'language: PreferredLanguage'
-  // REMOVED: spanishFormality?: SpanishFormality;
-  isFirstCall: boolean;
-  memories: Memory[];
-  // ... rest unchanged
-}
-```
-
-Update `buildSystemPrompt` method to pass `startingLanguage` instead of `language` and `spanishFormality`.
-
-**Update `telephony/src/websocket/media-stream.ts`:**
-
-Where GrokBridge is instantiated, fetch starting language:
-```typescript
-// Get last detected language for this line
-const startingLanguage = await getLastDetectedLanguageForLine(line.id);
-
-grokBridge = new GrokBridge({
-  callSessionId,
-  lineId: line.id,
-  accountId: account.id,
-  userName: line.display_name,
-  timezone: line.timezone,
-  startingLanguage,  // CHANGED: was 'language: line.preferred_language'
-  // REMOVED: spanishFormality
-  isFirstCall,
-  memories,
-  // ... rest unchanged
-});
-```
-
-Add helper function in telephony (`telephony/src/services/language.ts`):
-```typescript
-import { getSupabaseClient } from '../utils/supabase.js';
-
-/**
- * Get last detected language for a line from most recent completed call.
- * Falls back to 'en' if no history.
- */
-export async function getLastDetectedLanguageForLine(lineId: string): Promise<string> {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('ultaura_call_sessions')
-      .select('language_detected')
-      .eq('line_id', lineId)
-      .eq('status', 'completed')
-      .not('language_detected', 'is', null)
-      .order('ended_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error) {
-      console.error('Failed to get last detected language:', error);
-      return 'en';
+    if (!callSessionId) {
+      return res.status(400).json({ error: 'callSessionId required' });
     }
 
-    return data?.language_detected ?? 'en';
-  } catch (err) {
-    console.error('Exception getting last detected language:', err);
-    return 'en';
-  }
-}
-```
-
-### 8. Language Detection Implementation (NEW)
-
-The `language_detected` column exists but is never populated. Implement detection:
-
-**Option A (Recommended): Add Grok Tool**
-
-Add a tool that Grok calls when detecting the conversation language:
-
-```typescript
-// In telephony/src/websocket/grok-tools.ts (or equivalent)
-{
-  type: 'function',
-  function: {
-    name: 'report_conversation_language',
-    description: 'Report the primary language being spoken in this conversation. Call this once you have detected the language the user is speaking.',
-    parameters: {
-      type: 'object',
-      properties: {
-        language_code: {
-          type: 'string',
-          description: 'ISO 639-1 language code (e.g., en, es, fr, de, zh, ja, ko, pt, it, ru, ar, hi)'
-        }
-      },
-      required: ['language_code']
+    const bridge = getGrokBridge(callSessionId);
+    if (!bridge) {
+      return res.status(404).json({ error: 'No active call session found' });
     }
-  }
-}
-```
 
-**Tool Handler** (`telephony/src/routes/tools/report-language.ts`):
-```typescript
-import { normalizeLanguageCode } from '@ultaura/prompts/utils/language';
+    logger.info({ callSessionId }, 'Simulating Grok failure for testing');
 
-export async function handleReportLanguage(
-  params: { language_code: string },
-  context: ToolContext
-): Promise<ToolResult> {
-  const normalizedCode = normalizeLanguageCode(params.language_code);
+    // Force close the Grok WebSocket to trigger failure handling
+    bridge.forceClose();
 
-  // Store in GrokBridge instance for later use
-  context.grokBridge.setDetectedLanguage(normalizedCode);
-
-  return {
-    success: true,
-    message: `Language detected: ${normalizedCode}`
-  };
-}
-```
-
-**Update GrokBridge** to store and report detected language:
-```typescript
-// In grok-bridge.ts
-private detectedLanguage: string | null = null;
-
-public setDetectedLanguage(code: string): void {
-  this.detectedLanguage = code;
-}
-
-// When call ends (in handleDisconnect or similar):
-private async reportCallEnd(): Promise<void> {
-  await updateCallStatus(this.options.callSessionId, 'completed', {
-    languageDetected: this.detectedLanguage,
-    // ... other options
+    return res.json({ success: true, message: 'Failure simulated' });
   });
 }
+
+export default router;
 ```
 
-**Update System Prompt** to instruct Grok to report language:
+**Add forceClose method to GrokBridge:**
 
-Add to the language section of prompts:
-```
-When you detect what language the user is speaking, call the report_conversation_language tool with the appropriate ISO 639-1 code.
-```
-
-### 9. Voicemail Updates
-
-**Update `telephony/src/routes/twilio-outbound.ts`** (or wherever voicemail TwiML is generated):
-
-Before generating voicemail message, look up last detected language:
 ```typescript
-const startingLanguage = await getLastDetectedLanguageForLine(lineId);
-const voicemailMessage = getVoicemailMessage(displayName, startingLanguage, behavior);
-```
-
-Create voicemail message generator:
-```typescript
-function getVoicemailMessage(
-  name: string,
-  language: string,
-  behavior: 'brief' | 'detailed'
-): string {
-  // Language-specific voicemail messages
-  const messages: Record<string, { brief: string; detailed: string }> = {
-    en: {
-      brief: `Hi ${name}, this is Ultaura. I'll call back soon. Take care!`,
-      detailed: `Hi ${name}, this is Ultaura calling for your check-in. I'll try again later. Take care!`,
-    },
-    es: {
-      brief: `Hola ${name}, soy Ultaura. Te llamaré pronto. ¡Cuídate!`,
-      detailed: `Hola ${name}, soy Ultaura llamando para tu llamada de bienestar. Volveré a intentarlo más tarde. ¡Cuídate!`,
-    },
-    fr: {
-      brief: `Bonjour ${name}, c'est Ultaura. Je rappellerai bientôt. Prenez soin de vous!`,
-      detailed: `Bonjour ${name}, c'est Ultaura pour votre appel de bien-être. Je réessaierai plus tard. Prenez soin de vous!`,
-    },
-    // Add more languages as needed...
-  };
-
-  const langMessages = messages[language] ?? messages['en'];
-  return behavior === 'brief' ? langMessages.brief : langMessages.detailed;
+forceClose(): void {
+  if (this.ws) {
+    this.ws.close(1006, 'Simulated failure for testing');
+  }
 }
 ```
 
-### 9. Call History UI Update
+**Register route in server.ts:**
 
-**Update call history display** to show detected language:
-
-In the call history component (likely in `src/app/dashboard/(app)/calls/` or call session display):
-
-```tsx
-{session.language_detected && (
-  <div className="text-sm text-muted-foreground">
-    <Globe className="inline w-3 h-3 mr-1" />
-    {getLanguageDisplayName(session.language_detected)}
-  </div>
-)}
-```
-
-Add helper:
 ```typescript
-function getLanguageDisplayName(code: string): string {
-  const names: Record<string, string> = {
-    en: 'English',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-    it: 'Italian',
-    pt: 'Portuguese',
-    zh: 'Chinese',
-    ja: 'Japanese',
-    ko: 'Korean',
-    ar: 'Arabic',
-    hi: 'Hindi',
-    // ... more as needed
-  };
-  return names[code] ?? code.toUpperCase();
+import testRoutes from './routes/test';
+
+// After other routes
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/test', testRoutes);
 }
 ```
 
-### 10. Marketing Copy Addition
+---
 
-Add a brief mention of multilingual support in an appropriate location:
+### 3.4 Call Events for Analytics
 
-**Option A**: In the lines list or dashboard header:
-```tsx
-<p className="text-sm text-muted-foreground">
-  Ultaura speaks 100+ languages automatically
-</p>
+**New Event Type:** `barge_in`
+
+**Table:** `ultaura_call_events`
+
+**Event Structure:**
+```json
+{
+  "type": "barge_in",
+  "payload": {
+    "timestamp": "2026-01-06T12:34:56.789Z"
+  }
+}
 ```
 
-**Option B**: In the AddLineModal success state or line creation confirmation.
+**Update CallEventType in types:**
 
-**Option C**: On the main marketing/landing page (outside dashboard).
-
----
-
-## Files to Modify Summary
-
-| File | Action |
-|------|--------|
-| `supabase/migrations/20260210000001_remove_language_columns.sql` | CREATE (new migration) |
-| `packages/types/src/language.ts` | DELETE or gut |
-| `packages/types/src/index.ts` | Remove language exports |
-| `packages/prompts/src/utils/language.ts` | CREATE (shared language helpers) |
-| `src/lib/ultaura/types.ts` | Remove language fields from interfaces |
-| `src/lib/ultaura/constants.ts` | Remove LANGUAGES, LANGUAGE_LABELS, SPANISH_FORMALITY_LABELS |
-| `src/lib/ultaura/actions.ts` | Remove language from create/update |
-| `src/app/dashboard/(app)/lines/components/AddLineModal.tsx` | Remove language UI |
-| `src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx` | Remove language settings UI |
-| `src/app/dashboard/(app)/lines/[lineId]/LineDetailClient.tsx` | Remove language display |
-| `packages/prompts/src/profiles/index.ts` | Update formatLanguageSection, CompanionPromptParams |
-| `packages/prompts/src/builders/reminder.ts` | Update for startingLanguage |
-| `telephony/src/services/language.ts` | CREATE (getLastDetectedLanguageForLine helper) |
-| `telephony/src/routes/tools/report-language.ts` | CREATE (language detection tool handler) |
-| `telephony/src/websocket/grok-bridge.ts` | Update options, add language detection reporting |
-| `telephony/src/websocket/media-stream.ts` | Fetch startingLanguage, update GrokBridge instantiation |
-| `telephony/src/routes/twilio-outbound.ts` | Add language-aware voicemail messages with TTS mapping |
-| `telephony/src/utils/twilio.ts` | Update generateMessageTwiML for language/voice |
-| `telephony/src/services/call-session.ts` | Ensure languageDetected is passed to updateCallStatus |
-| Call history UI component | Add language_detected display (hide when null) |
-| `src/database.types.ts` | Regenerate via `npm run typegen` |
-| `src/lib/database.types.ts` | Copy regenerated types |
+```typescript
+type CallEventType =
+  | 'dtmf'
+  | 'tool_call'
+  | 'error'
+  | 'safety_detection'
+  | 'barge_in'  // NEW
+  // ... other types
+```
 
 ---
 
-## Edge Cases and Error Handling
+## 4. Files to Modify
 
-### Edge Case 1: Grok Returns Null/Empty Language Detection
-- **Scenario**: Grok doesn't detect a language for a call
-- **Handling**: Keep `language_detected` as NULL in database; next call will use English as fallback
-
-### Edge Case 2: Very Short Calls
-- **Scenario**: Call ends before meaningful language detection
-- **Handling**: `language_detected` may be NULL or inaccurate; fallback to English is acceptable
-
-### Edge Case 3: Multiple Languages in One Call
-- **Scenario**: Senior switches between English and Spanish during call
-- **Handling**: Grok handles this natively; `language_detected` stores the primary/final language detected
-
-### Edge Case 4: Unsupported Language
-- **Scenario**: Senior speaks a language Grok doesn't fully support
-- **Handling**: Grok will do its best; voicemail falls back to English if language code not in our messages dictionary
-
-### Edge Case 5: Database Query Failure
-- **Scenario**: `getLastDetectedLanguage` query fails
-- **Handling**: Catch error, log it, return 'en' as safe default (see implementation in Q7 and telephony helper above)
+| File | Changes |
+|------|---------|
+| `telephony/src/websocket/grok-bridge.ts` | Add `cancelCurrentResponse()`, `reconnect()`, `forceClose()`, update close handler, add `onDisconnect` and `onBargeIn` callbacks |
+| `telephony/src/websocket/media-stream.ts` | Add failure handling in `onDisconnect`, barge-in logging in `onBargeIn`, `playFallbackTTS()` function |
+| `telephony/src/utils/fallback-messages.ts` | **NEW FILE** - Multilingual fallback TTS messages |
+| `telephony/src/routes/test.ts` | **NEW FILE** - Test endpoint for simulating failures |
+| `telephony/src/server.ts` | Register test routes (non-production only) |
+| `telephony/src/types/index.ts` | Add `barge_in` to CallEventType |
 
 ---
 
-## Testing Considerations
+## 5. Configuration
 
-### Unit Tests
+### Environment Variables
 
-1. **getLastDetectedLanguage function**
-   - Returns correct language when call history exists
-   - Returns 'en' when no call history
-   - Returns 'en' on database error
-   - Handles NULL language_detected values
+No new environment variables required. Existing configuration sufficient.
 
-2. **formatLanguageSection function**
-   - Generates correct prompt for 'en'
-   - Generates correct prompt for other languages
-   - Handles unknown language codes gracefully
+### Constants
 
-3. **getVoicemailMessage function**
-   - Returns correct message for known languages
-   - Falls back to English for unknown languages
-   - Handles brief vs detailed modes
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `RECONNECT_TIMEOUT_MS` | 3000 | Timeout for Grok reconnection attempt |
+| `RECONNECT_MAX_ATTEMPTS` | 1 | Maximum reconnection attempts |
+| `TTS_PLAYBACK_WAIT_MS` | 3000 | Wait time after TTS before ending call |
 
-### Integration Tests
+Add to `telephony/src/utils/constants.ts`:
 
-1. **Line Creation**
-   - Verify line can be created without language fields
-   - Confirm no database constraint violations
-
-2. **Line Update**
-   - Verify line can be updated without language fields
-
-3. **Telephony Flow**
-   - Mock call to verify startingLanguage is correctly fetched and passed
-   - Verify GrokBridge receives correct prompt
-
-### Manual/E2E Tests
-
-1. **New Line Flow**
-   - Create new line, initiate test call
-   - Verify greeting is in English
-   - Speak in another language, verify Grok switches
-
-2. **Returning Caller Flow**
-   - Complete a call speaking Spanish
-   - Check call history shows "Spanish" as detected language
-   - Initiate reminder call, verify it starts in Spanish
-
-3. **Voicemail Flow**
-   - Configure line with voicemail behavior
-   - Complete a call in French
-   - Trigger call that goes to voicemail
-   - Verify voicemail message is in French (or English if French not in dictionary)
-
-4. **UI Verification**
-   - Confirm language selection is removed from AddLineModal
-   - Confirm language settings are removed from line settings page
-   - Confirm detected language appears in call history
+```typescript
+export const GROK_RECONNECT_TIMEOUT_MS = 3000;
+export const GROK_RECONNECT_MAX_ATTEMPTS = 1;
+export const FALLBACK_TTS_WAIT_MS = 3000;
+```
 
 ---
 
-## Dependencies
+## 6. Edge Cases
+
+### 6.1 Early Failure (Within 5 Seconds)
+
+**Handling:** Same as mid-call failure
+- Play apology TTS
+- Attempt 1 reconnection
+- If failed, graceful goodbye and hangup
+- Session completed with `end_reason: 'error'`
+
+### 6.2 Failure During Reconnection Attempt
+
+If Grok fails again during reconnection:
+- Do not attempt another reconnection
+- Proceed directly to goodbye message and hangup
+
+### 6.3 Twilio WebSocket Closes First
+
+If Twilio closes before we can send TTS:
+- Log the situation
+- Complete session as normal (Twilio handles user notification)
+
+### 6.4 Multiple Rapid Barge-Ins
+
+No special handling. Each barge-in:
+1. Cancels current response
+2. Clears Twilio buffer
+3. Logs event
+4. Waits for VAD silence detection (500ms) before responding
+
+### 6.5 Barge-In During Failure Recovery
+
+If user speaks during "please wait" TTS:
+- Let TTS finish
+- Process user input after reconnection (if successful)
+
+---
+
+## 7. Testing Plan
+
+### 7.1 Unit Tests
+
+1. **GrokBridge.cancelCurrentResponse()**
+   - Verify `response.cancel` message sent
+   - Verify no-op if WebSocket not open
+
+2. **GrokBridge.reconnect()**
+   - Verify successful reconnection returns true
+   - Verify failed reconnection returns false
+   - Verify timeout at 3 seconds
+
+3. **Fallback Messages**
+   - Verify all 9 languages have both message types
+   - Verify fallback to English for unknown languages
+
+### 7.2 Integration Tests
+
+1. **Barge-In Flow**
+   - Simulate `input_audio_buffer.speech_started`
+   - Verify `response.cancel` sent
+   - Verify Twilio buffer cleared
+   - Verify event logged
+
+2. **Failure Recovery - Success**
+   - Simulate Grok disconnect
+   - Mock successful reconnection
+   - Verify call continues
+
+3. **Failure Recovery - Failure**
+   - Simulate Grok disconnect
+   - Mock failed reconnection
+   - Verify TTS played
+   - Verify session completed with error
+
+### 7.3 Manual QA Tests
+
+1. **Test Barge-In**
+   - Start call
+   - Let assistant begin speaking
+   - Interrupt with speech
+   - Verify assistant stops immediately
+   - Verify assistant waits for you to finish
+   - Verify natural response follows
+
+2. **Test Mid-Call Failure**
+   - Start call
+   - Use `/test/simulate-failure` endpoint
+   - Verify "please wait" message plays
+   - Verify retry attempt
+   - Verify graceful goodbye if retry fails
+
+3. **Test Multi-Language Fallback**
+   - Start call in Spanish/French/etc.
+   - Trigger failure
+   - Verify TTS messages in correct language
+
+---
+
+## 8. Rollout Plan
+
+### Phase 1: Development
+- Implement all changes
+- Run unit tests
+- Test in local environment
+
+### Phase 2: Staging
+- Deploy to staging
+- Run integration tests
+- Manual QA testing
+- Test failure simulation endpoint
+
+### Phase 3: Production
+- Deploy to production (test endpoint disabled)
+- Monitor logs for barge-in events
+- Monitor error rates
+- Ready to rollback if issues
+
+---
+
+## 9. Monitoring & Observability
+
+### Metrics to Track
+
+1. **Barge-In Events**
+   - Count of `barge_in` events per call
+   - Average barge-ins per call (high = potential UX issue)
+
+2. **Mid-Call Failures**
+   - Count of `grok_disconnect_mid_call` errors
+   - Reconnection success rate
+   - Average time to reconnection
+
+3. **Call Completion**
+   - Calls completed with `end_reason: 'error'`
+   - Percentage of error completions vs. normal completions
+
+### Log Queries
+
+```sql
+-- Barge-in events last 24 hours
+SELECT COUNT(*) FROM ultaura_call_events
+WHERE type = 'barge_in'
+AND created_at > NOW() - INTERVAL '24 hours';
+
+-- Mid-call failures last 24 hours
+SELECT COUNT(*) FROM ultaura_call_events
+WHERE type = 'error'
+AND payload->>'errorType' = 'grok_disconnect_mid_call'
+AND created_at > NOW() - INTERVAL '24 hours';
+
+-- Calls ending in error
+SELECT COUNT(*) FROM ultaura_call_sessions
+WHERE end_reason = 'error'
+AND ended_at > NOW() - INTERVAL '24 hours';
+```
+
+---
+
+## 10. Dependencies
 
 ### External Dependencies
-- Grok Voice Agent API (already integrated)
-- Twilio Voice API (already integrated)
+- **xAI Grok Realtime API**: Must support `response.cancel` message type
+- **Twilio Media Streams**: Existing `clear` event (already working)
+- **Amazon Polly**: For TTS fallback messages (already integrated via voicemail system)
 
 ### Internal Dependencies
-- Database migration must run before code deployment
-- TypeScript compilation will fail until type changes are made
-- UI components depend on type definitions
-
-### Deployment Order
-1. Create and test migration locally
-2. Deploy migration to staging
-3. Deploy code changes to staging
-4. Test full flow on staging
-5. Deploy migration to production
-6. Deploy code changes to production
+- `telephony/src/websocket/grok-bridge.ts`
+- `telephony/src/websocket/media-stream.ts`
+- `telephony/src/websocket/grok-bridge-registry.ts`
+- `telephony/src/services/call-session.ts`
+- `telephony/src/utils/voicemail-messages.ts` (for `getLanguageVoice()`)
 
 ---
 
-## Assumptions
+## 11. Assumptions
 
-1. ~~Grok Voice Agent reliably populates `language_detected` field for completed calls~~ **CORRECTED**: We need to implement detection - the column exists but is never populated. Implementation via Grok tool or session analysis required.
-2. The `language_detected` column should store ISO 639-1 language codes (e.g., 'en', 'es', 'fr') - normalize any region codes (pt-BR → pt)
-3. There are no external integrations or reports that depend on `preferred_language` or `spanish_formality` columns
-4. The voicemail TTS system (Twilio) can pronounce multiple languages correctly using the `<Say>` TwiML verb with appropriate `language` and `voice` attributes (Amazon Polly voices)
-5. Marketing copy about "100+ languages" is accurate per Grok Voice Agent capabilities
+1. **xAI Grok API supports `response.cancel`** - Need to verify this message type is supported by the Grok Realtime API. If not, alternative approach needed.
 
----
+2. **TTS can be played mid-stream** - The implementation assumes we can inject TTS audio into the Twilio Media Stream. May require using Twilio's TTS capabilities or pre-generated audio.
 
-## Rollback Plan
+3. **Session state is accessible during failure** - Call session ID and language detection are available when handling failures.
 
-If issues are discovered post-deployment:
-
-1. **Database**: Migration only drops columns, which is non-reversible. If rollback needed:
-   - Create new migration to re-add columns with same schema
-   - Backfill with 'auto' as default
-
-2. **Code**: Standard git revert of deployed commits
-
-3. **Hybrid Rollback**: If only partial issues:
-   - Re-add columns as nullable (no CHECK constraint)
-   - UI remains without language selection
-   - Backend ignores the columns
+4. **Single retry is sufficient** - Based on user preference. If Grok service is down, multiple retries unlikely to help.
 
 ---
 
-## Success Metrics
+## 12. Risks & Mitigations
 
-1. **No language-related database constraints** blocking new language support
-2. **UI simplified** - no language selection required from users
-3. **Call history displays** detected language for each call
-4. **Voicemails and reminders** use last detected language
-5. **System prompts** provide minimal, universal language guidance
-6. **No regressions** in existing call quality or functionality
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| `response.cancel` not supported by Grok | High | Verify API docs; fallback to letting response complete naturally |
+| TTS injection complex mid-stream | Medium | Use pre-recorded audio files as fallback |
+| Reconnection takes too long | Medium | Strict 3-second timeout; fail fast |
+| False positive barge-in detection | Low | VAD already tuned; log events for analysis |
+
+---
+
+## 13. Future Considerations
+
+1. **Proactive Health Checks**: Could add Grok connectivity test to `/health` endpoint
+2. **Auto-Reschedule Failed Calls**: Automatically try calling back after failed mid-call
+3. **Family Notifications**: Option to notify payer of repeated failures
+4. **Extended VAD Tuning**: Per-user VAD settings for users who pause longer between sentences
+
+---
+
+## Appendix A: Message Strings
+
+### English
+- **retry_wait**: "I'm sorry, I'm having a little trouble right now. Let me try again."
+- **retry_failed**: "I apologize, I'll need to call you back. Take care!"
+
+### Spanish
+- **retry_wait**: "Lo siento, estoy teniendo un pequeño problema. Déjame intentar de nuevo."
+- **retry_failed**: "Me disculpo, tendré que llamarte de nuevo. ¡Cuídate!"
+
+### French
+- **retry_wait**: "Je suis désolé, j'ai un petit problème. Laissez-moi réessayer."
+- **retry_failed**: "Je m'excuse, je devrai vous rappeler. Prenez soin de vous!"
+
+### German
+- **retry_wait**: "Es tut mir leid, ich habe gerade ein kleines Problem. Lass mich es noch einmal versuchen."
+- **retry_failed**: "Ich entschuldige mich, ich muss Sie zurückrufen. Pass auf dich auf!"
+
+### Italian
+- **retry_wait**: "Mi dispiace, sto avendo un piccolo problema. Fammi riprovare."
+- **retry_failed**: "Mi scuso, dovrò richiamarti. Abbi cura di te!"
+
+### Portuguese
+- **retry_wait**: "Desculpe, estou tendo um pequeno problema. Deixe-me tentar novamente."
+- **retry_failed**: "Peço desculpas, precisarei ligar de volta. Cuide-se!"
+
+### Japanese
+- **retry_wait**: "申し訳ありません、少し問題が発生しています。もう一度試してみます。"
+- **retry_failed**: "申し訳ありませんが、後ほどお電話いたします。お体に気をつけてください！"
+
+### Korean
+- **retry_wait**: "죄송합니다, 약간의 문제가 있습니다. 다시 시도해 볼게요."
+- **retry_failed**: "죄송합니다, 다시 전화드려야 할 것 같습니다. 건강하세요!"
+
+### Chinese
+- **retry_wait**: "抱歉，我现在遇到了一点问题。让我再试一次。"
+- **retry_failed**: "抱歉，我需要稍后再给您打电话。保重！"
+
+---
+
+## Appendix B: File Diff Summary
+
+### New Files
+1. `telephony/src/utils/fallback-messages.ts` - Multilingual fallback TTS messages
+2. `telephony/src/routes/test.ts` - QA test endpoints (dev/staging only)
+
+### Modified Files
+1. `telephony/src/websocket/grok-bridge.ts`
+   - Add `onDisconnect` callback to options interface
+   - Add `onBargeIn` callback to options interface
+   - Add `cancelCurrentResponse()` method
+   - Add `reconnect()` method
+   - Add `forceClose()` method (for testing)
+   - Update `close` event handler to call `onDisconnect`
+   - Update `speech_started` handler to call `cancelCurrentResponse()` and `onBargeIn()`
+
+2. `telephony/src/websocket/media-stream.ts`
+   - Add `isReconnecting` state variable
+   - Implement `onDisconnect` callback with retry logic
+   - Implement `onBargeIn` callback with event logging
+   - Add `playFallbackTTS()` helper function
+   - Import fallback message utilities
+
+3. `telephony/src/server.ts`
+   - Register test routes (non-production only)
+
+4. `telephony/src/types/index.ts` (or equivalent)
+   - Add `'barge_in'` to `CallEventType` union
+
+---
+
+*End of Specification*

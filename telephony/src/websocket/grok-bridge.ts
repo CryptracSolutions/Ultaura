@@ -17,6 +17,12 @@ import { getMemoriesForLine } from '../services/memory.js';
 import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
 import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
+import {
+  GROK_INITIAL_CONNECT_TIMEOUT_MS,
+  GROK_RECONNECT_TIMEOUT_MS,
+  VAD_SILENCE_DURATION_MS,
+  VAD_THRESHOLD,
+} from '../utils/constants.js';
 
 const GROK_REALTIME_URL = process.env.XAI_REALTIME_URL || 'wss://api.x.ai/v1/realtime';
 
@@ -43,6 +49,8 @@ interface GrokBridgeOptions {
   onClearBuffer: () => void;
   onError: (error: Error) => void;
   onToolCall: (toolName: string, args: Record<string, unknown>) => void;
+  onBargeIn?: () => void;
+  onDisconnect?: (type: 'error' | 'close', detail: string) => void;
 }
 
 interface GrokMessage {
@@ -98,6 +106,9 @@ export class GrokBridge {
   private ws: WebSocket | null = null;
   private options: GrokBridgeOptions;
   private isConnected = false;
+  private isGeneratingAudio = false;
+  private hasEverConnected = false;
+  private suppressDisconnect = false;
   private safetyState: SafetyState;
   private detectedLanguage: string | null = null;
 
@@ -107,7 +118,7 @@ export class GrokBridge {
   }
 
   // Connect to Grok Realtime API
-  async connect(): Promise<void> {
+  async connect(timeoutMs: number = GROK_INITIAL_CONNECT_TIMEOUT_MS): Promise<void> {
     const apiKey = process.env.XAI_API_KEY;
 
     if (!apiKey) {
@@ -115,6 +126,13 @@ export class GrokBridge {
     }
 
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        reject(new Error('Grok connection timeout'));
+      }, timeoutMs);
+
       this.ws = new WebSocket(GROK_REALTIME_URL, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -124,8 +142,13 @@ export class GrokBridge {
       this.ws.on('open', () => {
         logger.info({ callSessionId: this.options.callSessionId }, 'Connected to Grok Realtime');
         this.isConnected = true;
+        this.hasEverConnected = true;
         this.sendSessionConfig();
-        resolve();
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          resolve();
+        }
       });
 
       this.ws.on('message', (data: Buffer) => {
@@ -135,24 +158,30 @@ export class GrokBridge {
       this.ws.on('error', (error) => {
         logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok WebSocket error');
         this.options.onError(error);
-        reject(error);
+        if (this.hasEverConnected && !this.suppressDisconnect) {
+          this.triggerRecovery('error', error.message);
+        }
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          reject(error);
+        }
       });
 
       this.ws.on('close', (code, reason) => {
+        const reasonStr = reason.toString();
         logger.info({
           callSessionId: this.options.callSessionId,
           code,
-          reason: reason.toString(),
+          reason: reasonStr,
         }, 'Grok WebSocket closed');
+        const wasConnected = this.isConnected;
         this.isConnected = false;
-      });
-
-      // Timeout for connection
-      setTimeout(() => {
-        if (!this.isConnected) {
-          reject(new Error('Grok connection timeout'));
+        if (wasConnected && !this.suppressDisconnect) {
+          this.triggerRecovery('close', `${code}: ${reasonStr}`);
         }
-      }, 10000);
+        this.suppressDisconnect = false;
+      });
     });
   }
 
@@ -173,9 +202,9 @@ export class GrokBridge {
         },
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.5,
+          threshold: VAD_THRESHOLD,
           prefix_padding_ms: 300,
-          silence_duration_ms: 500,
+          silence_duration_ms: VAD_SILENCE_DURATION_MS,
         },
         tools: GROK_TOOLS,
       },
@@ -251,6 +280,12 @@ export class GrokBridge {
   private sendMessage(message: unknown): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+    }
+  }
+
+  private triggerRecovery(type: 'error' | 'close', detail: string): void {
+    if (this.options.onDisconnect) {
+      this.options.onDisconnect(type, detail);
     }
   }
 
@@ -410,12 +445,14 @@ export class GrokBridge {
         case 'response.audio.delta':
           // Audio chunk from Grok
           if (message.delta) {
+            this.isGeneratingAudio = true;
             this.options.onAudioReceived(message.delta);
           }
           break;
 
         case 'response.audio.done':
           // Audio response complete
+          this.isGeneratingAudio = false;
           break;
 
         case 'conversation.item.input_audio_transcription.completed': {
@@ -434,6 +471,7 @@ export class GrokBridge {
         }
 
         case 'response.done': {
+          this.isGeneratingAudio = false;
           const turn = this.extractAssistantTurn(message);
           if (turn.summary) {
             addTurn(this.options.callSessionId, turn);
@@ -444,6 +482,11 @@ export class GrokBridge {
         case 'input_audio_buffer.speech_started':
           // User started speaking - clear any pending audio (barge-in)
           this.options.onClearBuffer();
+          this.cancelCurrentResponse();
+          if (this.isGeneratingAudio) {
+            this.isGeneratingAudio = false;
+            this.options.onBargeIn?.();
+          }
           break;
 
         case 'response.function_call_arguments.done':
@@ -867,6 +910,49 @@ export class GrokBridge {
     this.ws.send(JSON.stringify({ type: 'response.create' }));
   }
 
+  public updateCallbacks(
+    callbacks: Partial<Pick<GrokBridgeOptions, 'onAudioReceived' | 'onClearBuffer' | 'onError' | 'onToolCall' | 'onBargeIn' | 'onDisconnect'>>
+  ): void {
+    this.options = { ...this.options, ...callbacks };
+  }
+
+  public isConnectedToGrok(): boolean {
+    return this.isConnected;
+  }
+
+  private cancelCurrentResponse(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    this.ws.send(JSON.stringify({ type: 'response.cancel' }));
+    this.isGeneratingAudio = false;
+    logger.debug({ callSessionId: this.options.callSessionId }, 'Canceled Grok response due to barge-in');
+  }
+
+  public async reconnect(): Promise<boolean> {
+    try {
+      if (this.ws) {
+        this.suppressDisconnect = true;
+        this.ws.removeAllListeners();
+        this.ws.close();
+        this.ws = null;
+      }
+
+      this.isConnected = false;
+      this.suppressDisconnect = false;
+      await this.connect(GROK_RECONNECT_TIMEOUT_MS);
+      return true;
+    } catch (error) {
+      logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok reconnection failed');
+      return false;
+    }
+  }
+
+  public forceClose(): void {
+    if (this.ws) {
+      this.ws.close(1011, 'Simulated failure for testing');
+    }
+  }
+
   public setDetectedLanguage(code: string): void {
     this.detectedLanguage = code;
   }
@@ -878,6 +964,7 @@ export class GrokBridge {
   // Close the connection
   close(): void {
     if (this.ws) {
+      this.suppressDisconnect = true;
       this.ws.close();
       this.ws = null;
     }

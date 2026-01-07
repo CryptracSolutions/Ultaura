@@ -106,6 +106,14 @@ function getTwilioVoiceConfig(languageCode?: string): { voice: string; language:
   return TWILIO_VOICE_MAP[normalized] ?? TWILIO_VOICE_MAP.default;
 }
 
+export function getVoiceConfigForLanguage(languageCode?: string): { voice: string; language: string } {
+  return getTwilioVoiceConfig(languageCode);
+}
+
+export function getVoiceForLanguage(languageCode?: string): string {
+  return getTwilioVoiceConfig(languageCode).voice;
+}
+
 export function generateMessageTwiML(message: string, languageCode?: string): string {
   const { voice, language } = getTwilioVoiceConfig(languageCode);
 

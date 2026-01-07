@@ -263,6 +263,11 @@ export async function completeCallSession(
     return;
   }
 
+  if (session.status === 'completed' || session.status === 'failed') {
+    logger.info({ sessionId, status: session.status }, 'Session already finalized, skipping completion');
+    return;
+  }
+
   const endedAt = options.endedAt || new Date().toISOString();
   const endReason = session.end_reason ?? options.endReason;
 

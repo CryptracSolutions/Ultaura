@@ -64,10 +64,11 @@ export function sanitizePayload(
 
     case 'state_change':
       allowlist = STATE_CHANGE_ALLOWLIST;
+      // event can include values like 'barge_in'
       break;
 
     case 'error':
-      allowlist = ['errorType', 'errorCode'];
+      allowlist = ['errorType', 'errorCode', 'code', 'reason'];
       break;
 
     case 'safety_tier':
