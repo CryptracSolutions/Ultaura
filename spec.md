@@ -1,837 +1,753 @@
-# Voice Reliability Edge Cases: Barge-In & Mid-Call Model Failure
+# Specification: Rate Limiting & Abuse Prevention for Verification and Tool Endpoints
 
-## Specification Document
+## Overview
 
-**Author:** Claude (Planning Agent)
-**Date:** January 6, 2026
-**Status:** Ready for Implementation
-**Impact:** High
-**Likelihood:** Medium
+This specification addresses cost-abuse vulnerabilities in the Ultaura telephony backend, specifically targeting verification endpoints and tool endpoints that incur external costs (Twilio Verify SMS, notification SMS).
 
----
+### Problem Statement
 
-## 1. Executive Summary
+**Impact**: Medium/High (Twilio Verify costs, SMS costs, abuse potential)
+**Likelihood**: Medium/High
+**Symptoms**: Spikes in verify sends, SMS, reminder creations
 
-This specification addresses two critical voice reliability issues in the Ultaura telephony system:
-
-1. **Barge-In Handling**: When a user speaks while the assistant is talking, the assistant audio stops but Grok continues generating tokens wastefully
-2. **Mid-Call Model Failure**: When the Grok WebSocket disconnects mid-conversation, users hear silence until they hang up
-
-### Symptoms
-- User speaks while assistant talks → assistant doesn't stop properly (talk-over)
-- Grok WebSocket closes → user hears silence until hangup ("robot is broken" moments)
-
-### Root Causes
-- **Barge-in**: `response.cancel` message not sent to Grok when speech detected
-- **Error handling**: `onError` callback only logs; doesn't close Twilio stream or notify user
+**Current Vulnerabilities Identified**:
+1. `/verify/send` and `/verify/check` endpoints are **completely unauthenticated** (no `requireInternalSecret` middleware)
+2. In-memory rate limiting only on `/verify/send` (not distributed, lost on restart)
+3. No rate limiting on `/verify/check` (brute force vulnerability)
+4. No IP-based rate limiting
+5. No account-level throttling
+6. Tool endpoints that send SMS have no rate limiting
+7. `set_reminder` tool allows unbounded reminder creation
+8. No anomaly detection or alerting
+9. Memory leak in current rate limiter (expired entries never cleaned)
 
 ---
 
-## 2. Objectives
+## Objectives
 
-### Primary Goals
-1. Implement proper barge-in handling that cancels Grok's in-progress response
-2. Gracefully handle mid-call Grok failures with retry and user notification
-3. Maintain call session integrity and billing accuracy during failures
-
-### Success Criteria
-- Zero "talk-over" incidents where assistant continues after user interruption
-- All mid-call failures result in graceful user notification (not silence)
-- Call sessions properly completed with accurate billing for time used
-- Barge-in events tracked for analytics
-
----
-
-## 3. Technical Requirements
-
-### 3.1 Barge-In Handling
-
-#### Current State (Problem)
-**File:** `telephony/src/websocket/grok-bridge.ts` (lines 444-447)
-
-```typescript
-case 'input_audio_buffer.speech_started':
-  // User started speaking - clear any pending audio (barge-in)
-  this.options.onClearBuffer();
-  break;
-```
-
-**What happens:**
-1. Grok detects user speech via VAD ✓
-2. `onClearBuffer()` called → Twilio's outgoing audio buffer cleared ✓
-3. **Problem:** Grok continues generating response tokens ✗
-4. Already-generated audio discarded, but Grok wastes resources
-
-#### Required Changes
-
-**A. Send `response.cancel` to Grok**
-
-When `input_audio_buffer.speech_started` is received:
-1. Call `onClearBuffer()` (existing - keep)
-2. **NEW:** Send `response.cancel` message to Grok WebSocket
-3. **NEW:** Log barge-in event to call_events table
-
-**B. Wait for User to Finish**
-
-Use existing VAD settings (500ms silence detection threshold). Do NOT modify VAD configuration - current settings work well for elderly users.
-
-**C. No Rapid Barge-In Throttling**
-
-If user interrupts multiple times rapidly, let natural conversation flow handle it. No special throttling logic needed.
-
-#### Implementation Details
-
-**Modified `grok-bridge.ts` handler:**
-
-```typescript
-case 'input_audio_buffer.speech_started':
-  // User started speaking - cancel current response (barge-in)
-  this.options.onClearBuffer();
-
-  // Cancel any in-progress Grok response
-  this.cancelCurrentResponse();
-
-  // Log barge-in event for analytics
-  this.options.onBargeIn?.();
-  break;
-```
-
-**New method in GrokBridge class:**
-
-```typescript
-private cancelCurrentResponse(): void {
-  if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
-  // Send response.cancel to stop Grok from generating
-  this.ws.send(JSON.stringify({
-    type: 'response.cancel',
-  }));
-
-  logger.debug({ callSessionId: this.options.callSessionId }, 'Canceled Grok response due to barge-in');
-}
-```
-
-**New callback in GrokBridgeOptions interface:**
-
-```typescript
-interface GrokBridgeOptions {
-  // ... existing options ...
-  onBargeIn?: () => void;  // Called when user interrupts assistant
-}
-```
-
-**Updated media-stream.ts to log barge-in:**
-
-```typescript
-onBargeIn: () => {
-  recordCallEvent(callSessionId, 'barge_in', {
-    timestamp: new Date().toISOString(),
-  }).catch(err => {
-    logger.error({ error: err, callSessionId }, 'Failed to record barge-in event');
-  });
-},
-```
+1. **Secure verification endpoints** with internal API secret authentication
+2. **Implement distributed rate limiting** using Redis (Upstash) across multiple dimensions:
+   - Per phone number
+   - Per IP address
+   - Per account
+3. **Add rate limiting to tool endpoints** that incur costs
+4. **Implement anomaly detection** with email alerts
+5. **Create audit logging** for all rate limit events
+6. **Add emergency kill switch** for verification endpoints
+7. **Ensure graceful degradation** if Redis is unavailable
 
 ---
 
-### 3.2 Mid-Call Model Failure Handling
+## Technical Requirements
 
-#### Current State (Problem)
-**File:** `telephony/src/websocket/media-stream.ts` (lines 222-224)
+### 1. Authentication for Verification Endpoints
 
+**Requirement**: Apply `requireInternalSecret` middleware to all `/verify/*` routes.
+
+**Location**: `telephony/src/routes/verify.ts`
+
+**Implementation**:
 ```typescript
-onError: (error: Error) => {
-  logger.error({ error, callSessionId }, 'Grok bridge error');
-}
+// Add at top of router (similar to calls.ts line 13)
+verifyRouter.use(requireInternalSecret);
 ```
 
-**What happens:**
-1. Grok WebSocket closes/errors
-2. Error is logged (only action taken) ✗
-3. Twilio WebSocket stays open, waiting for audio
-4. User hears silence until they hang up
-
-**File:** `telephony/src/websocket/grok-bridge.ts` (lines 141-148)
-
-```typescript
-this.ws.on('close', (code, reason) => {
-  logger.info({ ... }, 'Grok WebSocket closed');
-  this.isConnected = false;
-  // No propagation to media-stream!
-});
-```
-
-#### Required Changes
-
-**A. Detect Grok Failure**
-
-Add new callback `onDisconnect` in GrokBridgeOptions that fires when Grok WebSocket unexpectedly closes.
-
-**B. Attempt Reconnection**
-
-- **Retry count:** 1 attempt
-- **Retry timeout:** 3 seconds
-- If reconnection succeeds: continue conversation seamlessly (no acknowledgment)
-
-**C. Play Fallback TTS on Failure**
-
-If retry fails:
-1. Play TTS apology message via Polly (multi-language support)
-2. End call gracefully
-3. Complete session with `end_reason: 'error'`
-
-**D. Session Handling**
-
-- Mark session as `'completed'` (not `'failed'`) with `end_reason: 'error'`
-- This ensures billing for time actually used
-- Record error details in call_events
-
-#### Failure Recovery Flow
-
-```
-Grok WebSocket closes unexpectedly
-         │
-         ▼
-   Log error event
-         │
-         ▼
-   Play TTS: "I'm sorry, I'm having a little trouble
-              right now. Let me try again..."
-         │
-         ▼
-   Attempt reconnection (3 second timeout)
-         │
-    ┌────┴────┐
-    │         │
- Success    Failure
-    │         │
-    ▼         ▼
- Continue   Play TTS: "I apologize, I'll need to
- seamlessly  call you back. Take care!"
-              │
-              ▼
-         End call gracefully
-              │
-              ▼
-         Complete session with
-         end_reason: 'error'
-```
-
-#### Implementation Details
-
-**A. New Callback in GrokBridgeOptions:**
-
-```typescript
-interface GrokBridgeOptions {
-  // ... existing options ...
-  onDisconnect?: (code: number, reason: string) => void;  // Grok disconnected unexpectedly
-}
-```
-
-**B. Updated grok-bridge.ts close handler:**
-
-```typescript
-this.ws.on('close', (code, reason) => {
-  const reasonStr = reason.toString();
-  logger.info({ callSessionId: this.options.callSessionId, code, reason: reasonStr }, 'Grok WebSocket closed');
-
-  const wasConnected = this.isConnected;
-  this.isConnected = false;
-
-  // Notify media-stream of unexpected disconnect (if was previously connected)
-  if (wasConnected && this.options.onDisconnect) {
-    this.options.onDisconnect(code, reasonStr);
-  }
-});
-```
-
-**C. New Reconnection Method in GrokBridge:**
-
-```typescript
-async reconnect(): Promise<boolean> {
-  try {
-    // Close existing connection if any
-    if (this.ws) {
-      this.ws.removeAllListeners();
-      this.ws.close();
-    }
-
-    // Attempt new connection with 3 second timeout
-    await this.connect();
-    return true;
-  } catch (error) {
-    logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok reconnection failed');
-    return false;
-  }
-}
-```
-
-**D. Updated media-stream.ts with failure handling:**
-
-```typescript
-// State tracking
-let isReconnecting = false;
-
-// In GrokBridge options:
-onDisconnect: async (code: number, reason: string) => {
-  if (isReconnecting) return; // Prevent concurrent reconnection attempts
-  isReconnecting = true;
-
-  logger.warn({ callSessionId, code, reason }, 'Grok disconnected mid-call, attempting recovery');
-
-  // Record error event
-  await recordCallEvent(callSessionId, 'error', {
-    errorType: 'grok_disconnect_mid_call',
-    code,
-    reason,
-  });
-
-  // Play "please wait" message
-  const detectedLanguage = grokBridge?.getDetectedLanguage() ?? 'en';
-  await playFallbackTTS(ws, streamSid, 'retry_wait', detectedLanguage);
-
-  // Attempt reconnection (3 second timeout built into connect())
-  const reconnected = await grokBridge.reconnect();
-
-  if (reconnected) {
-    logger.info({ callSessionId }, 'Grok reconnection successful');
-    isReconnecting = false;
-    // Continue seamlessly - no acknowledgment to user
-    return;
-  }
-
-  // Reconnection failed - play goodbye message and end call
-  logger.error({ callSessionId }, 'Grok reconnection failed, ending call');
-  await playFallbackTTS(ws, streamSid, 'retry_failed', detectedLanguage);
-
-  // Wait for TTS to finish (approximately 3 seconds)
-  await sleep(3000);
-
-  // Complete session with error reason
-  await completeCallSession(callSessionId, {
-    endReason: 'error',
-    languageDetected: detectedLanguage,
-  });
-
-  // Close Twilio WebSocket
-  ws.close(1000, 'AI service unavailable after retry');
-  isReconnecting = false;
-},
-```
-
-**E. Fallback TTS Messages (New File):**
-
-**File:** `telephony/src/utils/fallback-messages.ts`
-
-```typescript
-import { getLanguageVoice } from './voicemail-messages';
-
-type FallbackMessageType = 'retry_wait' | 'retry_failed';
-
-const FALLBACK_MESSAGES: Record<string, Record<FallbackMessageType, string>> = {
-  en: {
-    retry_wait: "I'm sorry, I'm having a little trouble right now. Let me try again.",
-    retry_failed: "I apologize, I'll need to call you back. Take care!",
-  },
-  es: {
-    retry_wait: "Lo siento, estoy teniendo un pequeño problema. Déjame intentar de nuevo.",
-    retry_failed: "Me disculpo, tendré que llamarte de nuevo. ¡Cuídate!",
-  },
-  fr: {
-    retry_wait: "Je suis désolé, j'ai un petit problème. Laissez-moi réessayer.",
-    retry_failed: "Je m'excuse, je devrai vous rappeler. Prenez soin de vous!",
-  },
-  de: {
-    retry_wait: "Es tut mir leid, ich habe gerade ein kleines Problem. Lass mich es noch einmal versuchen.",
-    retry_failed: "Ich entschuldige mich, ich muss Sie zurückrufen. Pass auf dich auf!",
-  },
-  it: {
-    retry_wait: "Mi dispiace, sto avendo un piccolo problema. Fammi riprovare.",
-    retry_failed: "Mi scuso, dovrò richiamarti. Abbi cura di te!",
-  },
-  pt: {
-    retry_wait: "Desculpe, estou tendo um pequeno problema. Deixe-me tentar novamente.",
-    retry_failed: "Peço desculpas, precisarei ligar de volta. Cuide-se!",
-  },
-  ja: {
-    retry_wait: "申し訳ありません、少し問題が発生しています。もう一度試してみます。",
-    retry_failed: "申し訳ありませんが、後ほどお電話いたします。お体に気をつけてください！",
-  },
-  ko: {
-    retry_wait: "죄송합니다, 약간의 문제가 있습니다. 다시 시도해 볼게요.",
-    retry_failed: "죄송합니다, 다시 전화드려야 할 것 같습니다. 건강하세요!",
-  },
-  zh: {
-    retry_wait: "抱歉，我现在遇到了一点问题。让我再试一次。",
-    retry_failed: "抱歉，我需要稍后再给您打电话。保重！",
-  },
-};
-
-export function getFallbackMessage(language: string, type: FallbackMessageType): string {
-  const lang = language.substring(0, 2).toLowerCase();
-  return FALLBACK_MESSAGES[lang]?.[type] ?? FALLBACK_MESSAGES['en'][type];
-}
-
-export function generateFallbackTwiML(language: string, type: FallbackMessageType): string {
-  const message = getFallbackMessage(language, type);
-  const voice = getLanguageVoice(language);
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="${voice}">${message}</Say>
-</Response>`;
-}
-```
-
-**F. Play TTS Function:**
-
-Add to `media-stream.ts`:
-
-```typescript
-import { getFallbackMessage, getLanguageVoice } from '../utils/fallback-messages';
-
-async function playFallbackTTS(
-  ws: WebSocket,
-  streamSid: string | null,
-  type: 'retry_wait' | 'retry_failed',
-  language: string
-): Promise<void> {
-  if (ws.readyState !== WebSocket.OPEN || !streamSid) {
-    return;
-  }
-
-  const message = getFallbackMessage(language, type);
-  const voice = getLanguageVoice(language);
-
-  // Generate TTS audio using Twilio's streaming TTS
-  // Send as media event to Twilio
-  // Implementation depends on how Twilio streaming TTS is accessed
-
-  // Option 1: Use Twilio's <Say> via inline TwiML (if supported mid-stream)
-  // Option 2: Pre-generate audio files and send as media
-  // Option 3: Use Polly directly and stream audio chunks
-
-  // For now, inject a system message that tells Grok to say the message
-  // This is a workaround until direct TTS injection is implemented
-
-  logger.info({ callSessionId: streamSid, type, language }, 'Playing fallback TTS message');
-}
-```
-
-**G. Utility sleep function:**
-
-```typescript
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-```
+**Rationale**: Currently, anyone with network access can call these endpoints. By requiring the internal secret, only the Next.js app server can initiate verification requests.
 
 ---
 
-### 3.3 Test Endpoint for QA
+### 2. Redis Infrastructure (Upstash)
 
-**New Endpoint:** `POST /test/simulate-failure`
+**Provider**: Upstash (serverless Redis)
 
-**File:** `telephony/src/routes/test.ts` (new file)
-
-```typescript
-import { Router } from 'express';
-import { getGrokBridge } from '../websocket/grok-bridge-registry';
-import { logger } from '../utils/logger';
-
-const router = Router();
-
-// Only available in development/staging
-if (process.env.NODE_ENV !== 'production') {
-  router.post('/simulate-failure', async (req, res) => {
-    const { callSessionId } = req.body;
-
-    if (!callSessionId) {
-      return res.status(400).json({ error: 'callSessionId required' });
-    }
-
-    const bridge = getGrokBridge(callSessionId);
-    if (!bridge) {
-      return res.status(404).json({ error: 'No active call session found' });
-    }
-
-    logger.info({ callSessionId }, 'Simulating Grok failure for testing');
-
-    // Force close the Grok WebSocket to trigger failure handling
-    bridge.forceClose();
-
-    return res.json({ success: true, message: 'Failure simulated' });
-  });
-}
-
-export default router;
-```
-
-**Add forceClose method to GrokBridge:**
-
-```typescript
-forceClose(): void {
-  if (this.ws) {
-    this.ws.close(1006, 'Simulated failure for testing');
-  }
-}
-```
-
-**Register route in server.ts:**
-
-```typescript
-import testRoutes from './routes/test';
-
-// After other routes
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/test', testRoutes);
-}
-```
-
----
-
-### 3.4 Call Events for Analytics
-
-**New Event Type:** `barge_in`
-
-**Table:** `ultaura_call_events`
-
-**Event Structure:**
+**New Dependencies** (add to `telephony/package.json`):
 ```json
 {
-  "type": "barge_in",
-  "payload": {
-    "timestamp": "2026-01-06T12:34:56.789Z"
-  }
+  "@upstash/redis": "^1.28.0",
+  "@upstash/ratelimit": "^1.0.0"
 }
 ```
 
-**Update CallEventType in types:**
+**Environment Variables** (add to `.env.local` and `.env.ultaura.example`):
+```bash
+# Upstash Redis Configuration
+UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token-here
+```
 
+**Redis Client Setup** (new file: `telephony/src/services/redis.ts`):
 ```typescript
-type CallEventType =
-  | 'dtmf'
-  | 'tool_call'
-  | 'error'
-  | 'safety_detection'
-  | 'barge_in'  // NEW
-  // ... other types
+import { Redis } from '@upstash/redis';
+
+let redisClient: Redis | null = null;
+
+export function getRedisClient(): Redis | null {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return null;
+  }
+
+  if (!redisClient) {
+    redisClient = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+
+  return redisClient;
+}
+
+export function isRedisAvailable(): boolean {
+  return redisClient !== null;
+}
 ```
 
 ---
 
-## 4. Files to Modify
+### 3. Rate Limiting Configuration
 
-| File | Changes |
-|------|---------|
-| `telephony/src/websocket/grok-bridge.ts` | Add `cancelCurrentResponse()`, `reconnect()`, `forceClose()`, update close handler, add `onDisconnect` and `onBargeIn` callbacks |
-| `telephony/src/websocket/media-stream.ts` | Add failure handling in `onDisconnect`, barge-in logging in `onBargeIn`, `playFallbackTTS()` function |
-| `telephony/src/utils/fallback-messages.ts` | **NEW FILE** - Multilingual fallback TTS messages |
-| `telephony/src/routes/test.ts` | **NEW FILE** - Test endpoint for simulating failures |
-| `telephony/src/server.ts` | Register test routes (non-production only) |
-| `telephony/src/types/index.ts` | Add `barge_in` to CallEventType |
+#### 3.1 Verification Endpoints
 
----
+| Dimension | Limit | Window | Applies To |
+|-----------|-------|--------|------------|
+| Phone Number | 5 sends | 1 hour | `/verify/send` |
+| Phone Number | 10 checks | 1 hour | `/verify/check` |
+| IP Address | 20 requests | 1 hour | Both endpoints |
+| Account | 10 requests | 1 hour | Both endpoints |
 
-## 5. Configuration
+**Key Format in Redis**:
+```
+ratelimit:verify:phone:{e164_number}:send
+ratelimit:verify:phone:{e164_number}:check
+ratelimit:verify:ip:{ip_address}
+ratelimit:verify:account:{account_id}
+```
 
-### Environment Variables
+#### 3.2 Tool Endpoints
 
-No new environment variables required. Existing configuration sufficient.
+| Tool | Limit | Window | Dimension |
+|------|-------|--------|-----------|
+| `safety_event` (SMS) | 15 SMS | 24 hours | Per account |
+| `request_upgrade` (SMS) | 15 SMS | 24 hours | Per account (shared with safety_event) |
+| `set_reminder` | 5 reminders | Per call session | Per call session |
 
-### Constants
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `RECONNECT_TIMEOUT_MS` | 3000 | Timeout for Grok reconnection attempt |
-| `RECONNECT_MAX_ATTEMPTS` | 1 | Maximum reconnection attempts |
-| `TTS_PLAYBACK_WAIT_MS` | 3000 | Wait time after TTS before ending call |
-
-Add to `telephony/src/utils/constants.ts`:
-
-```typescript
-export const GROK_RECONNECT_TIMEOUT_MS = 3000;
-export const GROK_RECONNECT_MAX_ATTEMPTS = 1;
-export const FALLBACK_TTS_WAIT_MS = 3000;
+**Key Format in Redis**:
+```
+ratelimit:sms:account:{account_id}
+ratelimit:reminders:session:{call_session_id}
 ```
 
 ---
 
-## 6. Edge Cases
+### 4. Rate Limiter Service
 
-### 6.1 Early Failure (Within 5 Seconds)
+**New File**: `telephony/src/services/rate-limiter.ts`
 
-**Handling:** Same as mid-call failure
-- Play apology TTS
-- Attempt 1 reconnection
-- If failed, graceful goodbye and hangup
-- Session completed with `end_reason: 'error'`
+**Interface**:
+```typescript
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetAt: number;  // Unix timestamp
+  retryAfter: number;  // Seconds until reset
+  limitType: 'phone' | 'ip' | 'account' | 'session';
+}
 
-### 6.2 Failure During Reconnection Attempt
+interface RateLimitCheck {
+  phoneNumber?: string;
+  ipAddress?: string;
+  accountId?: string;
+  callSessionId?: string;
+  action: 'verify_send' | 'verify_check' | 'sms' | 'set_reminder';
+}
 
-If Grok fails again during reconnection:
-- Do not attempt another reconnection
-- Proceed directly to goodbye message and hangup
+async function checkRateLimit(check: RateLimitCheck): Promise<RateLimitResult>;
+async function incrementCounter(check: RateLimitCheck): Promise<void>;
+```
 
-### 6.3 Twilio WebSocket Closes First
+**Graceful Degradation**:
+- If Redis is unavailable, allow the request but log the event
+- Log format: `{ event: 'rate_limit_bypass', reason: 'redis_unavailable', ...check }`
 
-If Twilio closes before we can send TTS:
-- Log the situation
-- Complete session as normal (Twilio handles user notification)
-
-### 6.4 Multiple Rapid Barge-Ins
-
-No special handling. Each barge-in:
-1. Cancels current response
-2. Clears Twilio buffer
-3. Logs event
-4. Waits for VAD silence detection (500ms) before responding
-
-### 6.5 Barge-In During Failure Recovery
-
-If user speaks during "please wait" TTS:
-- Let TTS finish
-- Process user input after reconnection (if successful)
+**Localhost Bypass**:
+- Skip rate limiting for requests from `127.0.0.1` or `::1`
+- Only in non-production (`NODE_ENV !== 'production'`)
 
 ---
 
-## 7. Testing Plan
+### 5. Rate Limiter Middleware
 
-### 7.1 Unit Tests
+**New File**: `telephony/src/middleware/rate-limiter.ts`
 
-1. **GrokBridge.cancelCurrentResponse()**
-   - Verify `response.cancel` message sent
-   - Verify no-op if WebSocket not open
+**For Verification Routes**:
+```typescript
+export function verifyRateLimiter(action: 'send' | 'check') {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const phoneNumber = req.body.phoneNumber;
+    const accountId = req.body.accountId; // Must be added to verify request body
 
-2. **GrokBridge.reconnect()**
-   - Verify successful reconnection returns true
-   - Verify failed reconnection returns false
-   - Verify timeout at 3 seconds
+    // Check kill switch first
+    if (await isVerificationDisabled()) {
+      return res.status(503).json({
+        error: 'Verification temporarily disabled',
+        code: 'VERIFICATION_DISABLED'
+      });
+    }
 
-3. **Fallback Messages**
-   - Verify all 9 languages have both message types
-   - Verify fallback to English for unknown languages
+    const result = await checkRateLimit({
+      phoneNumber,
+      ipAddress: ip,
+      accountId,
+      action: action === 'send' ? 'verify_send' : 'verify_check'
+    });
 
-### 7.2 Integration Tests
+    if (!result.allowed) {
+      await logRateLimitEvent({...}); // Audit logging
+      await checkAnomalyThresholds({...}); // Anomaly detection
 
-1. **Barge-In Flow**
-   - Simulate `input_audio_buffer.speech_started`
-   - Verify `response.cancel` sent
-   - Verify Twilio buffer cleared
-   - Verify event logged
+      return res.status(429).json({
+        error: 'Too many requests',
+        retryAfter: result.retryAfter,
+        limitType: result.limitType
+      }).set('Retry-After', String(result.retryAfter));
+    }
 
-2. **Failure Recovery - Success**
-   - Simulate Grok disconnect
-   - Mock successful reconnection
-   - Verify call continues
+    next();
+  };
+}
+```
 
-3. **Failure Recovery - Failure**
-   - Simulate Grok disconnect
-   - Mock failed reconnection
-   - Verify TTS played
-   - Verify session completed with error
+**For Tool Routes**:
+```typescript
+export function toolRateLimiter(toolName: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const { callSessionId, accountId } = req.body;
 
-### 7.3 Manual QA Tests
+    if (toolName === 'set_reminder') {
+      const result = await checkRateLimit({
+        callSessionId,
+        action: 'set_reminder'
+      });
+      // ... handle result
+    }
 
-1. **Test Barge-In**
-   - Start call
-   - Let assistant begin speaking
-   - Interrupt with speech
-   - Verify assistant stops immediately
-   - Verify assistant waits for you to finish
-   - Verify natural response follows
+    if (toolName === 'safety_event' || toolName === 'request_upgrade') {
+      const result = await checkRateLimit({
+        accountId,
+        action: 'sms'
+      });
+      // ... handle result
+    }
 
-2. **Test Mid-Call Failure**
-   - Start call
-   - Use `/test/simulate-failure` endpoint
-   - Verify "please wait" message plays
-   - Verify retry attempt
-   - Verify graceful goodbye if retry fails
-
-3. **Test Multi-Language Fallback**
-   - Start call in Spanish/French/etc.
-   - Trigger failure
-   - Verify TTS messages in correct language
-
----
-
-## 8. Rollout Plan
-
-### Phase 1: Development
-- Implement all changes
-- Run unit tests
-- Test in local environment
-
-### Phase 2: Staging
-- Deploy to staging
-- Run integration tests
-- Manual QA testing
-- Test failure simulation endpoint
-
-### Phase 3: Production
-- Deploy to production (test endpoint disabled)
-- Monitor logs for barge-in events
-- Monitor error rates
-- Ready to rollback if issues
+    next();
+  };
+}
+```
 
 ---
 
-## 9. Monitoring & Observability
+### 6. Emergency Kill Switch
+
+**Database Table**: Add column to `ultaura_system_settings` (new table if doesn't exist)
+
+**Migration**: `supabase/migrations/YYYYMMDD_add_system_settings.sql`
+```sql
+CREATE TABLE IF NOT EXISTS ultaura_system_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_by UUID REFERENCES auth.users(id)
+);
+
+INSERT INTO ultaura_system_settings (key, value)
+VALUES ('verification_disabled', '{"enabled": false, "reason": null, "disabled_at": null}');
+```
+
+**Check Function** (in rate-limiter.ts):
+```typescript
+async function isVerificationDisabled(): Promise<boolean> {
+  const { data } = await supabase
+    .from('ultaura_system_settings')
+    .select('value')
+    .eq('key', 'verification_disabled')
+    .single();
+
+  return data?.value?.enabled === true;
+}
+```
+
+---
+
+### 7. Anomaly Detection & Alerts
+
+**Alert Triggers**:
+1. **Repeated hits**: 3+ rate limit violations in 5 minutes from same source (IP or phone)
+2. **Cost threshold**: Daily Twilio Verify spend estimate exceeds $10 (calculated as: send_count × $0.05)
+3. **IP blocked**: Any single IP hits its rate limit
+4. **Enumeration attack**: 10+ unique phone numbers attempted from same IP in 1 hour
+
+**Tracking in Redis**:
+```
+anomaly:hits:{ip_or_phone}:{5min_bucket}  -- increment on each violation
+anomaly:daily_spend:{date}  -- increment by 0.05 on each send
+anomaly:ip_phones:{ip}:{hour_bucket}  -- SADD phone numbers
+```
+
+**Alert Service** (new file: `telephony/src/services/anomaly-alerts.ts`):
+```typescript
+interface AnomalyEvent {
+  type: 'repeated_hits' | 'cost_threshold' | 'ip_blocked' | 'enumeration';
+  source: string;  // IP or phone
+  details: Record<string, unknown>;
+  timestamp: Date;
+}
+
+async function checkAnomalyThresholds(event: RateLimitEvent): Promise<void>;
+async function sendAnomalyAlert(anomaly: AnomalyEvent): Promise<void>;
+```
+
+**Email Configuration**:
+- Use existing billing email from account's Stripe customer
+- Email sent via existing nodemailer configuration
+- Subject: `[Ultaura Security Alert] ${anomaly.type}`
+- Include: timestamp, source, details, recommended actions
+
+---
+
+### 8. Audit Logging
+
+**New Database Table**: `ultaura_rate_limit_events`
+
+**Migration**: `supabase/migrations/YYYYMMDD_add_rate_limit_events.sql`
+```sql
+CREATE TABLE ultaura_rate_limit_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  event_type TEXT NOT NULL,  -- 'allowed', 'blocked', 'anomaly'
+  action TEXT NOT NULL,  -- 'verify_send', 'verify_check', 'sms', 'set_reminder'
+  ip_address TEXT,
+  phone_number TEXT,  -- E.164 format, for audit only
+  account_id UUID,
+  call_session_id UUID,
+  limit_type TEXT,  -- 'phone', 'ip', 'account', 'session'
+  remaining INTEGER,
+  was_allowed BOOLEAN NOT NULL,
+  redis_available BOOLEAN DEFAULT TRUE,
+  metadata JSONB
+);
+
+-- Index for querying recent events
+CREATE INDEX idx_rate_limit_events_created ON ultaura_rate_limit_events(created_at DESC);
+CREATE INDEX idx_rate_limit_events_ip ON ultaura_rate_limit_events(ip_address, created_at DESC);
+CREATE INDEX idx_rate_limit_events_account ON ultaura_rate_limit_events(account_id, created_at DESC);
+
+-- Auto-cleanup after 30 days
+CREATE OR REPLACE FUNCTION cleanup_old_rate_limit_events()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM ultaura_rate_limit_events
+  WHERE created_at < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+```
+
+**Logging Function**:
+```typescript
+async function logRateLimitEvent(event: {
+  eventType: 'allowed' | 'blocked' | 'anomaly';
+  action: string;
+  ipAddress?: string;
+  phoneNumber?: string;
+  accountId?: string;
+  callSessionId?: string;
+  limitType?: string;
+  remaining?: number;
+  wasAllowed: boolean;
+  redisAvailable: boolean;
+  metadata?: Record<string, unknown>;
+}): Promise<void>;
+```
+
+---
+
+### 9. Verification Endpoint Updates
+
+**File**: `telephony/src/routes/verify.ts`
+
+**Changes Required**:
+
+1. Add `requireInternalSecret` middleware at router level
+2. Add `accountId` to request body validation (for account-level throttling)
+3. Apply `verifyRateLimiter('send')` to `/verify/send`
+4. Apply `verifyRateLimiter('check')` to `/verify/check`
+5. Remove old in-memory `verificationAttempts` Map and related code
+6. Add kill switch check before processing
+
+**Updated Request Body for `/verify/send`**:
+```typescript
+interface VerifySendRequest {
+  lineId: string;
+  phoneNumber: string;  // E.164 format
+  channel: 'sms' | 'call';
+  accountId: string;  // NEW: Required for account-level throttling
+}
+```
+
+**Updated Request Body for `/verify/check`**:
+```typescript
+interface VerifyCheckRequest {
+  phoneNumber: string;
+  code: string;
+  accountId: string;  // NEW: Required for account-level throttling
+}
+```
+
+---
+
+### 10. Tool Endpoint Updates
+
+#### 10.1 `set_reminder` Rate Limiting
+
+**File**: `telephony/src/routes/tools/set-reminder.ts`
+
+**Changes**:
+- Add check for reminder count per session before creating
+- Query existing reminders created in current session
+- Return error if limit (5) exceeded
+
+```typescript
+// At start of handler, after validation
+const { count } = await supabase
+  .from('ultaura_reminders')
+  .select('id', { count: 'exact', head: true })
+  .eq('created_in_session', callSessionId);
+
+if (count >= 5) {
+  return res.status(429).json({
+    error: 'Maximum reminders per call reached',
+    limit: 5,
+    suggestion: 'You can set more reminders in your next call'
+  });
+}
+```
+
+**Database Change**: Add `created_in_session` column to `ultaura_reminders` table.
+
+#### 10.2 SMS-Sending Tools Rate Limiting
+
+**Files**:
+- `telephony/src/routes/tools/safety-event.ts`
+- `telephony/src/routes/tools/request-upgrade.ts`
+
+**Changes**:
+- Add rate limit check before sending SMS
+- Share counter between both tools (both count toward 15/day limit)
+- If limit exceeded, log event and skip SMS (but don't fail the tool call entirely for safety events)
+
+```typescript
+// For safety_event: still log the event, just skip SMS
+if (smsLimitExceeded) {
+  logger.warn({ accountId, limit: 15 }, 'SMS rate limit exceeded, skipping notification');
+  // Continue with safety event logging, just don't send SMS
+}
+
+// For request_upgrade: return error since SMS is the main purpose
+if (smsLimitExceeded) {
+  return res.status(429).json({
+    error: 'Daily notification limit reached',
+    retryAfter: secondsUntilMidnight
+  });
+}
+```
+
+---
+
+### 11. Frontend Changes
+
+**File**: `src/lib/ultaura/actions.ts`
+
+**Update `startPhoneVerification`**:
+- Include `accountId` in request body
+
+```typescript
+// In startPhoneVerification function
+const response = await fetch(`${telephonyUrl}/verify/send`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Webhook-Secret': getInternalApiSecret(),
+  },
+  body: JSON.stringify({
+    lineId,
+    phoneNumber: line.phone_e164,
+    channel,
+    accountId: account.id,  // NEW: Add account ID
+  }),
+});
+```
+
+**Update `checkPhoneVerification`**:
+- Include `accountId` in request body
+
+---
+
+## File Structure
+
+New and modified files:
+
+```
+telephony/
+├── src/
+│   ├── services/
+│   │   ├── redis.ts                    # NEW: Redis client setup
+│   │   ├── rate-limiter.ts             # NEW: Rate limiting logic
+│   │   └── anomaly-alerts.ts           # NEW: Anomaly detection & alerts
+│   ├── middleware/
+│   │   ├── auth.ts                     # EXISTING (no changes)
+│   │   └── rate-limiter.ts             # NEW: Rate limiter middleware
+│   └── routes/
+│       ├── verify.ts                   # MODIFY: Add auth + rate limiting
+│       └── tools/
+│           ├── set-reminder.ts         # MODIFY: Add session limit
+│           ├── safety-event.ts         # MODIFY: Add SMS rate limiting
+│           └── request-upgrade.ts      # MODIFY: Add SMS rate limiting
+├── package.json                        # MODIFY: Add @upstash/redis
+
+supabase/migrations/
+├── YYYYMMDD_add_system_settings.sql    # NEW: Kill switch table
+├── YYYYMMDD_add_rate_limit_events.sql  # NEW: Audit logging table
+└── YYYYMMDD_add_reminder_session.sql   # NEW: created_in_session column
+
+src/lib/ultaura/
+└── actions.ts                          # MODIFY: Add accountId to verify calls
+
+.env.ultaura.example                    # MODIFY: Add Redis config vars
+```
+
+---
+
+## Implementation Sequence
+
+### Phase 1: Infrastructure Setup
+1. Set up Upstash Redis account and get credentials
+2. Add environment variables to `.env.local`
+3. Create Redis client service (`telephony/src/services/redis.ts`)
+4. Add `@upstash/redis` and `@upstash/ratelimit` dependencies
+
+### Phase 2: Database Migrations
+1. Create `ultaura_system_settings` table (kill switch)
+2. Create `ultaura_rate_limit_events` table (audit logging)
+3. Add `created_in_session` column to `ultaura_reminders`
+4. Run migrations: `npx supabase migration up`
+
+### Phase 3: Rate Limiting Core
+1. Implement rate limiter service (`telephony/src/services/rate-limiter.ts`)
+2. Implement rate limiter middleware (`telephony/src/middleware/rate-limiter.ts`)
+3. Add localhost bypass logic
+4. Add graceful degradation for Redis failures
+
+### Phase 4: Verification Endpoints
+1. Add `requireInternalSecret` to verify router
+2. Update request body interfaces to include `accountId`
+3. Apply rate limiter middleware to both endpoints
+4. Remove old in-memory rate limiting code
+5. Add kill switch check
+6. Update frontend actions to include `accountId`
+
+### Phase 5: Tool Endpoints
+1. Add session-based limiting to `set_reminder`
+2. Add SMS rate limiting to `safety_event`
+3. Add SMS rate limiting to `request_upgrade`
+
+### Phase 6: Anomaly Detection & Alerts
+1. Implement anomaly detection service
+2. Configure email alerts
+3. Add anomaly checks to rate limiter
+
+### Phase 7: Testing & Validation
+1. Test rate limiting with various scenarios
+2. Test Redis failure graceful degradation
+3. Test kill switch functionality
+4. Test anomaly alerts
+5. Verify audit logging
+
+---
+
+## Testing Considerations
+
+### Unit Tests
+- Rate limiter service functions
+- Anomaly threshold calculations
+- Key generation for Redis
+
+### Integration Tests
+- Rate limiting across multiple requests
+- Redis connection handling
+- Kill switch behavior
+- Audit log insertion
+
+### Manual Testing Checklist
+- [ ] Verify `/verify/send` requires secret header
+- [ ] Verify `/verify/check` requires secret header
+- [ ] Confirm rate limit after 5 sends to same phone
+- [ ] Confirm rate limit after 10 checks to same phone
+- [ ] Confirm rate limit after 20 requests from same IP
+- [ ] Confirm rate limit after 10 requests from same account
+- [ ] Test 5-reminder limit per call session
+- [ ] Test 15-SMS limit per account per day
+- [ ] Verify Redis fallback behavior (stop Redis, make request)
+- [ ] Verify kill switch stops all verification
+- [ ] Verify email alert is sent on anomaly detection
+- [ ] Check audit logs are created correctly
+- [ ] Verify localhost bypass works in development
+
+### Load Testing
+- Simulate 100 concurrent verification requests
+- Verify Redis handles load appropriately
+- Check for race conditions in counter increments
+
+---
+
+## Rollback Plan
+
+If issues arise after deployment:
+
+1. **Immediate**: Set kill switch in database to disable verification
+2. **Remove rate limiting**: Comment out middleware, redeploy
+3. **Fall back to in-memory**: Restore old in-memory logic temporarily
+4. **Redis issues**: System automatically degrades to allow-with-logging mode
+
+---
+
+## Monitoring & Alerting Post-Deployment
 
 ### Metrics to Track
+- Rate limit hit rate (blocked / total requests)
+- Redis latency
+- Anomaly alert frequency
+- Verification success rate
 
-1. **Barge-In Events**
-   - Count of `barge_in` events per call
-   - Average barge-ins per call (high = potential UX issue)
-
-2. **Mid-Call Failures**
-   - Count of `grok_disconnect_mid_call` errors
-   - Reconnection success rate
-   - Average time to reconnection
-
-3. **Call Completion**
-   - Calls completed with `end_reason: 'error'`
-   - Percentage of error completions vs. normal completions
-
-### Log Queries
-
+### Dashboard Queries
 ```sql
--- Barge-in events last 24 hours
-SELECT COUNT(*) FROM ultaura_call_events
-WHERE type = 'barge_in'
-AND created_at > NOW() - INTERVAL '24 hours';
+-- Rate limit events in last 24 hours
+SELECT event_type, action, COUNT(*)
+FROM ultaura_rate_limit_events
+WHERE created_at > NOW() - INTERVAL '24 hours'
+GROUP BY event_type, action;
 
--- Mid-call failures last 24 hours
-SELECT COUNT(*) FROM ultaura_call_events
-WHERE type = 'error'
-AND payload->>'errorType' = 'grok_disconnect_mid_call'
-AND created_at > NOW() - INTERVAL '24 hours';
-
--- Calls ending in error
-SELECT COUNT(*) FROM ultaura_call_sessions
-WHERE end_reason = 'error'
-AND ended_at > NOW() - INTERVAL '24 hours';
+-- Top blocked IPs
+SELECT ip_address, COUNT(*) as blocks
+FROM ultaura_rate_limit_events
+WHERE was_allowed = false AND created_at > NOW() - INTERVAL '24 hours'
+GROUP BY ip_address
+ORDER BY blocks DESC
+LIMIT 10;
 ```
 
 ---
 
-## 10. Dependencies
+## Security Considerations
 
-### External Dependencies
-- **xAI Grok Realtime API**: Must support `response.cancel` message type
-- **Twilio Media Streams**: Existing `clear` event (already working)
-- **Amazon Polly**: For TTS fallback messages (already integrated via voicemail system)
-
-### Internal Dependencies
-- `telephony/src/websocket/grok-bridge.ts`
-- `telephony/src/websocket/media-stream.ts`
-- `telephony/src/websocket/grok-bridge-registry.ts`
-- `telephony/src/services/call-session.ts`
-- `telephony/src/utils/voicemail-messages.ts` (for `getLanguageVoice()`)
+1. **Secret in headers**: Already using `X-Webhook-Secret` with timing-safe comparison
+2. **Phone number logging**: E.164 format logged for audit, no PII exposure
+3. **Redis security**: Upstash REST API uses token authentication, encrypted in transit
+4. **Kill switch access**: Only accessible via database (requires DB credentials)
+5. **Alert emails**: Sent to billing email, not exposed externally
 
 ---
 
-## 11. Assumptions
+## Cost Estimates
 
-1. **xAI Grok API supports `response.cancel`** - Need to verify this message type is supported by the Grok Realtime API. If not, alternative approach needed.
+### Upstash Redis
+- Free tier: 10,000 requests/day
+- Pay-as-you-go: $0.2 per 100,000 requests
+- Expected usage: ~1,000-5,000 requests/day initially
+- **Estimated cost**: Free tier sufficient, or ~$1-5/month at scale
 
-2. **TTS can be played mid-stream** - The implementation assumes we can inject TTS audio into the Twilio Media Stream. May require using Twilio's TTS capabilities or pre-generated audio.
-
-3. **Session state is accessible during failure** - Call session ID and language detection are available when handling failures.
-
-4. **Single retry is sufficient** - Based on user preference. If Grok service is down, multiple retries unlikely to help.
-
----
-
-## 12. Risks & Mitigations
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| `response.cancel` not supported by Grok | High | Verify API docs; fallback to letting response complete naturally |
-| TTS injection complex mid-stream | Medium | Use pre-recorded audio files as fallback |
-| Reconnection takes too long | Medium | Strict 3-second timeout; fail fast |
-| False positive barge-in detection | Low | VAD already tuned; log events for analysis |
+### Reduced Abuse Costs
+- Current exposure: Unlimited verification sends
+- With rate limiting: Max 5 per phone/hour, 10 per account/hour
+- **Estimated savings**: Prevention of potential abuse costing $100s-$1000s
 
 ---
 
-## 13. Future Considerations
+## Environment Variables Summary
 
-1. **Proactive Health Checks**: Could add Grok connectivity test to `/health` endpoint
-2. **Auto-Reschedule Failed Calls**: Automatically try calling back after failed mid-call
-3. **Family Notifications**: Option to notify payer of repeated failures
-4. **Extended VAD Tuning**: Per-user VAD settings for users who pause longer between sentences
+**New variables to add**:
+```bash
+# Upstash Redis (required for rate limiting)
+UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token-here
 
----
-
-## Appendix A: Message Strings
-
-### English
-- **retry_wait**: "I'm sorry, I'm having a little trouble right now. Let me try again."
-- **retry_failed**: "I apologize, I'll need to call you back. Take care!"
-
-### Spanish
-- **retry_wait**: "Lo siento, estoy teniendo un pequeño problema. Déjame intentar de nuevo."
-- **retry_failed**: "Me disculpo, tendré que llamarte de nuevo. ¡Cuídate!"
-
-### French
-- **retry_wait**: "Je suis désolé, j'ai un petit problème. Laissez-moi réessayer."
-- **retry_failed**: "Je m'excuse, je devrai vous rappeler. Prenez soin de vous!"
-
-### German
-- **retry_wait**: "Es tut mir leid, ich habe gerade ein kleines Problem. Lass mich es noch einmal versuchen."
-- **retry_failed**: "Ich entschuldige mich, ich muss Sie zurückrufen. Pass auf dich auf!"
-
-### Italian
-- **retry_wait**: "Mi dispiace, sto avendo un piccolo problema. Fammi riprovare."
-- **retry_failed**: "Mi scuso, dovrò richiamarti. Abbi cura di te!"
-
-### Portuguese
-- **retry_wait**: "Desculpe, estou tendo um pequeno problema. Deixe-me tentar novamente."
-- **retry_failed**: "Peço desculpas, precisarei ligar de volta. Cuide-se!"
-
-### Japanese
-- **retry_wait**: "申し訳ありません、少し問題が発生しています。もう一度試してみます。"
-- **retry_failed**: "申し訳ありませんが、後ほどお電話いたします。お体に気をつけてください！"
-
-### Korean
-- **retry_wait**: "죄송합니다, 약간의 문제가 있습니다. 다시 시도해 볼게요."
-- **retry_failed**: "죄송합니다, 다시 전화드려야 할 것 같습니다. 건강하세요!"
-
-### Chinese
-- **retry_wait**: "抱歉，我现在遇到了一点问题。让我再试一次。"
-- **retry_failed**: "抱歉，我需要稍后再给您打电话。保重！"
+# Optional: Override defaults
+RATE_LIMIT_VERIFY_SEND_PER_PHONE=5
+RATE_LIMIT_VERIFY_CHECK_PER_PHONE=10
+RATE_LIMIT_PER_IP=20
+RATE_LIMIT_PER_ACCOUNT=10
+RATE_LIMIT_SMS_PER_ACCOUNT=15
+RATE_LIMIT_REMINDERS_PER_SESSION=5
+ANOMALY_COST_THRESHOLD=10.00
+ANOMALY_REPEATED_HITS_THRESHOLD=3
+ANOMALY_ENUMERATION_THRESHOLD=10
+```
 
 ---
 
-## Appendix B: File Diff Summary
+## Assumptions
 
-### New Files
-1. `telephony/src/utils/fallback-messages.ts` - Multilingual fallback TTS messages
-2. `telephony/src/routes/test.ts` - QA test endpoints (dev/staging only)
-
-### Modified Files
-1. `telephony/src/websocket/grok-bridge.ts`
-   - Add `onDisconnect` callback to options interface
-   - Add `onBargeIn` callback to options interface
-   - Add `cancelCurrentResponse()` method
-   - Add `reconnect()` method
-   - Add `forceClose()` method (for testing)
-   - Update `close` event handler to call `onDisconnect`
-   - Update `speech_started` handler to call `cancelCurrentResponse()` and `onBargeIn()`
-
-2. `telephony/src/websocket/media-stream.ts`
-   - Add `isReconnecting` state variable
-   - Implement `onDisconnect` callback with retry logic
-   - Implement `onBargeIn` callback with event logging
-   - Add `playFallbackTTS()` helper function
-   - Import fallback message utilities
-
-3. `telephony/src/server.ts`
-   - Register test routes (non-production only)
-
-4. `telephony/src/types/index.ts` (or equivalent)
-   - Add `'barge_in'` to `CallEventType` union
+1. Upstash free tier will be sufficient for initial traffic
+2. Billing email exists for all accounts (used for alerts)
+3. All verification requests now route through Next.js app (not direct)
+4. Call session IDs are consistently available in tool requests
+5. Nodemailer is already configured for email sending
+6. Account ID is available in the verification flow context
 
 ---
 
-*End of Specification*
+## Open Questions (Resolved)
+
+| Question | Decision |
+|----------|----------|
+| Redis provider | Upstash (serverless) |
+| Require auth on verify endpoints | Yes |
+| Rate limits for verification | 5 send / 10 check per phone/hour |
+| IP rate limiting | Yes, 20/hour |
+| Account-level limits | Yes, 10/hour |
+| SMS tool limits | 15/account/day (shared) |
+| Reminder limits | 5/call session |
+| Alert mechanism | Email to billing address |
+| Redis fallback | Allow with logging |
+| Kill switch | Database toggle |
+| Cost tracking | Estimate (send count × $0.05) |
+| Audit logging | Full logging to database |
+| Dev bypass | Localhost bypass |
+
+---
+
+## Appendix: Current Code References
+
+### Files to Modify
+
+1. **`telephony/src/routes/verify.ts`** (lines 1-100)
+   - Add `requireInternalSecret` at line 8
+   - Replace in-memory Map (lines 11-14) with Redis calls
+   - Update request validation to require `accountId`
+
+2. **`telephony/src/routes/tools/set-reminder.ts`** (lines 1-200)
+   - Add session reminder count check after line 50
+
+3. **`telephony/src/routes/tools/safety-event.ts`** (lines 60-80)
+   - Add SMS rate limit check before `sendSms()` call at line 70
+
+4. **`telephony/src/routes/tools/request-upgrade.ts`** (lines 130-145)
+   - Add SMS rate limit check before POST to upgrade endpoint
+
+5. **`src/lib/ultaura/actions.ts`** (lines 516-540)
+   - Add `accountId` to verify send request body
+   - Add `accountId` to verify check request body
+
+### Existing Auth Middleware Location
+- `telephony/src/middleware/auth.ts` (lines 6-44)
+- Uses `crypto.timingSafeEqual` for timing-safe comparison
+- Header: `X-Webhook-Secret`
