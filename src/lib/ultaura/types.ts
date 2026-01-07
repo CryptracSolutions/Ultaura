@@ -9,6 +9,7 @@ import type {
   PrivacyScope,
   SafetyTier,
 } from '@ultaura/types';
+import type { Database } from '~/database.types';
 export type {
   AccountStatus,
   GrokTool,
@@ -30,6 +31,7 @@ export type BillableType = 'trial' | 'included' | 'overage' | 'payg';
 export type ScheduleResult = 'success' | 'missed' | 'suppressed_quiet_hours' | 'failed';
 export type ReminderStatus = 'scheduled' | 'sent' | 'missed' | 'canceled';
 export type ReminderDeliveryStatus = 'completed' | 'no_answer' | 'failed';
+export type ReminderDeliveryMethod = 'outbound_call';
 export type ReminderEventType =
   | 'created'
   | 'edited'
@@ -206,6 +208,9 @@ export interface CallSession {
   toolInvocations: number;
   costEstimateCentsTwilio: number | null;
   costEstimateCentsModel: number | null;
+  isReminderCall: boolean;
+  reminderId: string | null;
+  reminderMessage: string | null;
 }
 
 export interface CallEvent {
@@ -282,7 +287,7 @@ export interface Reminder {
   dueAt: string;
   timezone: string;
   message: string;
-  deliveryMethod: string;
+  deliveryMethod: ReminderDeliveryMethod;
   status: ReminderStatus;
   privacyScope: PrivacyScope;
   createdByCallSessionId: string | null;
@@ -328,6 +333,9 @@ export interface EncryptedMemory {
   valueAlg: string;
   valueKid: string;
   confidence: number | null;
+  source: 'onboarding' | 'conversation' | 'caregiver_seed' | null;
+  version: number;
+  active: boolean;
   privacyScope: PrivacyScope;
   redactionLevel: 'none' | 'low' | 'high';
 }
@@ -516,81 +524,23 @@ export interface GrokMessage {
 // DATABASE ROW TYPES (snake_case for direct DB mapping)
 // ============================================
 
-export interface UltauraAccountRow {
-  id: string;
-  organization_id: number;
-  created_at: string;
-  name: string;
-  billing_email: string;
-  default_locale: string;
-  status: AccountStatus;
-  plan_id: string;
-  trial_plan_id: string | null;
-  trial_starts_at: string | null;
-  trial_ends_at: string | null;
-  minutes_included: number;
-  minutes_used: number;
-  cycle_start: string | null;
-  cycle_end: string | null;
-  overage_cents_cap: number;
-  created_by_user_id: string;
-}
+export type UltauraAccountRow = Database['public']['Tables']['ultaura_accounts']['Row'];
+export type LineRow = Database['public']['Tables']['ultaura_lines']['Row'];
+export type ScheduleRow = Database['public']['Tables']['ultaura_schedules']['Row'];
+export type CallSessionRow = Database['public']['Tables']['ultaura_call_sessions']['Row'];
+export type ReminderRow = Database['public']['Tables']['ultaura_reminders']['Row'];
+export type ReminderEventRow = Database['public']['Tables']['ultaura_reminder_events']['Row'] & {
+  reminder_message?: string;
+};
 
-export interface LineRow {
-  id: string;
-  account_id: string;
-  created_at: string;
-  display_name: string;
-  phone_e164: string;
-  phone_verified_at: string | null;
-  status: LineStatus;
-  timezone: string;
-  quiet_hours_start: string;
-  quiet_hours_end: string;
-  do_not_call: boolean;
-  inbound_allowed: boolean;
-  last_successful_call_at: string | null;
-  next_scheduled_call_at: string | null;
-  seed_interests: string[] | null;
-  seed_avoid_topics: string[] | null;
-  allow_voice_reminder_control: boolean;
-  voicemail_behavior: VoicemailBehavior;
-}
-
-export interface ScheduleRow {
-  id: string;
-  account_id: string;
-  line_id: string;
-  created_at: string;
-  enabled: boolean;
-  timezone: string;
-  days_of_week: number[];
-  time_of_day: string;
-  next_run_at: string | null;
-  retry_policy: { max_retries: number; retry_window_minutes: number };
-  last_run_at: string | null;
-  last_result: ScheduleResult | null;
-}
-
-export interface CallSessionRow {
-  id: string;
-  account_id: string;
-  line_id: string;
-  created_at: string;
-  direction: CallDirection;
-  status: CallStatus;
-  started_at: string | null;
-  connected_at: string | null;
-  ended_at: string | null;
-  seconds_connected: number | null;
-  twilio_call_sid: string | null;
-  twilio_from: string | null;
-  twilio_to: string | null;
-  recording_sid: string | null;
-  end_reason: CallEndReason | null;
-  answered_by: CallAnsweredBy | null;
-  language_detected: string | null;
-  tool_invocations: number;
-  cost_estimate_cents_twilio: number | null;
-  cost_estimate_cents_model: number | null;
+export interface EditReminderInput {
+  message?: string;
+  dueAt?: string;
+  recurrence?: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'custom' | 'once';
+    interval?: number;
+    daysOfWeek?: number[];
+    dayOfMonth?: number;
+    endsAt?: string | null;
+  };
 }

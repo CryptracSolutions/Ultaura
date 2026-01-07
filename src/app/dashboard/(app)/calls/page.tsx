@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getUltauraAccount, getLines, getAllSchedules } from '~/lib/ultaura/actions';
+import { getUltauraAccount } from '~/lib/ultaura/accounts';
+import { getLines } from '~/lib/ultaura/lines';
+import { getAllSchedules } from '~/lib/ultaura/schedules';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { CallsPageClient } from './CallsPageClient';
 import AppHeader from '../components/AppHeader';

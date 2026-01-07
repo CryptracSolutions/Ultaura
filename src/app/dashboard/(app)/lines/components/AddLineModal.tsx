@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Phone, Clock } from 'lucide-react';
-import { createLine } from '~/lib/ultaura/actions';
+import { createLine } from '~/lib/ultaura/lines';
 import { US_TIMEZONES, getShortLineId } from '~/lib/ultaura';
 import {
   Select,
@@ -121,11 +121,16 @@ export function AddLineModal({
         seedAvoidTopics: avoidTopics ? avoidTopics.split(',').map(s => s.trim()) : undefined,
       });
 
-      if (result.success && result.lineId) {
+      if (!result.success) {
+        setError(result.error.message || 'Failed to create line');
+        return;
+      }
+
+      if (result.data?.lineId) {
         onClose();
-        router.push(`/dashboard/lines/${getShortLineId(result.lineId)}/verify`);
+        router.push(`/dashboard/lines/${getShortLineId(result.data.lineId)}/verify`);
       } else {
-        setError(result.error || 'Failed to create line');
+        setError('Failed to create line');
       }
     } catch (err) {
       setError('An unexpected error occurred');

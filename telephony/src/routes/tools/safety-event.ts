@@ -1,4 +1,8 @@
 import { Router, Request, Response } from 'express';
+import {
+  SafetyEventInputSchema,
+  type SafetyEventInput,
+} from '@ultaura/schemas/telephony';
 import { logger } from '../../server.js';
 import { getCallSession, recordCallEvent, recordSafetyEvent } from '../../services/call-session.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
@@ -118,6 +122,22 @@ async function notifyTrustedContacts(
 
 safetyEventRouter.post('/', async (req: Request, res: Response) => {
   try {
+    const rawBody = req.body as Partial<SafetyEventInput>;
+    const parsed = SafetyEventInputSchema.safeParse(rawBody);
+
+    if (!parsed.success) {
+      const missingRequired = parsed.error.issues.some((issue) =>
+        issue.code === 'invalid_type' && issue.received === 'undefined'
+      );
+      if (missingRequired) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+      }
+
+      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid input' });
+      return;
+    }
+
     const {
       callSessionId,
       lineId,
@@ -125,12 +145,7 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
       signals,
       actionTaken,
       source = 'model',
-    } = req.body;
-
-    if (!callSessionId || !lineId) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
+    } = parsed.data;
 
     const session = await getCallSession(callSessionId);
     if (!session) {

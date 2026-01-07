@@ -16,7 +16,7 @@ import {
   Repeat,
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
-import { cancelReminder } from '~/lib/ultaura/actions';
+import { cancelReminder } from '~/lib/ultaura/reminders';
 import { getShortLineId } from '~/lib/ultaura';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
@@ -119,7 +119,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
 
     const result = await cancelReminder(reminderToCancel);
     if (!result.success) {
-      toast.error(result.error || 'Failed to cancel reminder');
+      toast.error(result.error.message || 'Failed to cancel reminder');
       throw new Error('Cancel failed');
     }
     toast.success('Reminder canceled');

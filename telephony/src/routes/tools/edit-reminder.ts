@@ -1,6 +1,11 @@
 // Edit reminder tool handler
 
 import { Router, Request, Response } from 'express';
+import { ErrorCodes } from '@ultaura/schemas';
+import {
+  EditReminderInputSchema,
+  type EditReminderInput,
+} from '@ultaura/schemas/telephony';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
@@ -8,33 +13,68 @@ import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 
 export const editReminderRouter = Router();
 
-interface EditReminderRequest {
-  callSessionId: string;
-  lineId: string;
-  reminderId: string;
-  newMessage?: string;
-  newTimeLocal?: string; // ISO datetime in local time
-  timezone?: string;
-}
-
 const LOCAL_TIME_REGEX = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/;
 
 editReminderRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const { callSessionId, lineId, reminderId, newMessage, newTimeLocal, timezone } = req.body as EditReminderRequest;
+    const rawBody = req.body as Partial<EditReminderInput>;
+    const parsed = EditReminderInputSchema.safeParse(rawBody);
 
-    if (!callSessionId || !lineId || !reminderId) {
-      res.status(400).json({ error: 'Missing required fields' });
+    if (!parsed.success) {
+      const issues = parsed.error.issues;
+      const missingRequired = issues.some((issue) =>
+        issue.code === 'invalid_type' && issue.received === 'undefined'
+      );
+      if (missingRequired) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+      }
+
+      const missingUpdate = issues.some((issue) => issue.message === 'Provide a message or time update');
+      if (missingUpdate) {
+        res.json({
+          success: false,
+          code: ErrorCodes.INVALID_INPUT,
+          message: 'What would you like to change? I can update the message or the time.',
+        });
+        return;
+      }
+
+      const messageTooLong = issues.find((issue) => issue.path[0] === 'newMessage' && issue.code === 'too_big');
+      if (messageTooLong) {
+        res.json({
+          success: false,
+          code: ErrorCodes.INVALID_INPUT,
+          message: 'That message is too long. Please keep it under 500 characters.',
+        });
+        return;
+      }
+
+      const timeIssue = issues.find((issue) => issue.path[0] === 'newTimeLocal');
+      if (timeIssue) {
+        res.json({
+          success: false,
+          code: ErrorCodes.INVALID_INPUT,
+          message: "I didn't understand that time. Please use HH:mm format.",
+        });
+        return;
+      }
+
+      const timezoneIssue = issues.find((issue) => issue.path[0] === 'timezone');
+      if (timezoneIssue && typeof rawBody.timezone === 'string') {
+        try {
+          validateTimezone(rawBody.timezone);
+        } catch (error) {
+          res.status(400).json({ error: (error as Error).message });
+          return;
+        }
+      }
+
+      res.status(400).json({ error: issues[0]?.message || 'Invalid input' });
       return;
     }
 
-    if (!newMessage && !newTimeLocal) {
-      res.json({
-        success: false,
-        message: 'What would you like to change? I can update the message or the time.',
-      });
-      return;
-    }
+    const { callSessionId, lineId, reminderId, newMessage, newTimeLocal, timezone } = parsed.data;
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -69,6 +109,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.UNAUTHORIZED,
         message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
       });
       return;
@@ -86,6 +127,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure(reminderError?.code);
       res.json({
         success: false,
+        code: ErrorCodes.NOT_FOUND,
         message: "I couldn't find that reminder. Would you like me to list your reminders?",
       });
       return;
@@ -95,6 +137,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.INVALID_INPUT,
         message: 'This reminder is no longer active and cannot be edited.',
       });
       return;
@@ -110,6 +153,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         await recordFailure();
         res.json({
           success: false,
+          code: ErrorCodes.INVALID_INPUT,
           message: 'That message is too long. Please keep it under 500 characters.',
         });
         return;
@@ -134,6 +178,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         await recordFailure();
         res.json({
           success: false,
+          code: ErrorCodes.INVALID_INPUT,
           message: "I didn't understand that time. Please use HH:mm format.",
         });
         return;
@@ -146,6 +191,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
           await recordFailure();
           res.json({
             success: false,
+            code: ErrorCodes.INVALID_INPUT,
             message: 'That time is in the past. Please choose a future time.',
           });
           return;
@@ -165,6 +211,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         await recordFailure();
         res.json({
           success: false,
+          code: ErrorCodes.INVALID_INPUT,
           message: "I didn't understand that time. Could you say it differently?",
         });
         return;
@@ -175,6 +222,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.INVALID_INPUT,
         message: "Nothing seems to have changed. What would you like to update?",
       });
       return;

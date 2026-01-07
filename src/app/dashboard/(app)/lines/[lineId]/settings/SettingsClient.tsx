@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/Radio
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
 import type { LineRow, VoicemailBehavior } from '~/lib/ultaura/types';
-import { updateLine } from '~/lib/ultaura/actions';
+import { updateLine } from '~/lib/ultaura/lines';
 import {
   US_TIMEZONES,
   TIME_OPTIONS,
@@ -34,7 +34,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
     line.allow_voice_reminder_control ?? true
   );
   const [voicemailBehavior, setVoicemailBehavior] = useState<VoicemailBehavior>(
-    line.voicemail_behavior || 'brief'
+    (line.voicemail_behavior || 'brief') as VoicemailBehavior
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,7 +58,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
         router.push(`/dashboard/lines/${getShortLineId(line.id)}`);
         router.refresh();
       } else {
-        setError(result.error || 'Failed to update settings');
+        setError(result.error.message || 'Failed to update settings');
       }
     } catch {
       setError('An unexpected error occurred');

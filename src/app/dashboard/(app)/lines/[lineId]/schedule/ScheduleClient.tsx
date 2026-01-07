@@ -9,7 +9,7 @@ import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
-import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/actions';
+import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime, getShortLineId } from '~/lib/ultaura';
 
 interface ScheduleClientProps {
@@ -183,7 +183,7 @@ export function ScheduleClient({ line, schedules, disabled = false }: ScheduleCl
         setShowCreate(false);
         router.refresh();
       } else {
-        setError(result.error || 'Failed to create schedule');
+        setError(result.error.message || 'Failed to create schedule');
       }
     } catch {
       setError('An unexpected error occurred');
@@ -214,7 +214,7 @@ export function ScheduleClient({ line, schedules, disabled = false }: ScheduleCl
         toast.success(schedule.enabled ? 'Schedule paused' : 'Schedule resumed');
         router.refresh();
       } else {
-        const message = result.error || 'Failed to update schedule';
+        const message = result.error.message || 'Failed to update schedule';
         setError(message);
         toast.error(message);
       }
@@ -240,7 +240,7 @@ export function ScheduleClient({ line, schedules, disabled = false }: ScheduleCl
         toast.success('Schedule deleted');
         router.refresh();
       } else {
-        const message = result.error || 'Failed to delete schedule';
+        const message = result.error.message || 'Failed to delete schedule';
         setError(message);
         toast.error(message);
       }
@@ -278,7 +278,7 @@ export function ScheduleClient({ line, schedules, disabled = false }: ScheduleCl
         setEditingSchedule(null);
         router.refresh();
       } else {
-        const message = result.error || 'Failed to update schedule';
+        const message = result.error.message || 'Failed to update schedule';
         setError(message);
         toast.error(message);
       }

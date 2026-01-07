@@ -2,6 +2,7 @@
 // Plans, pricing, limits, and configuration
 
 import type { Plan, PlanId } from './types';
+import { MAX_SNOOZE_COUNT, VALID_SNOOZE_MINUTES } from '@ultaura/schemas';
 
 // ============================================
 // PLANS
@@ -143,6 +144,8 @@ export const TELEPHONY = {
   AUDIO_FORMAT_GROK: 'audio/pcmu',
   AUDIO_SAMPLE_RATE: 8000,
 } as const;
+
+export { MAX_SNOOZE_COUNT, VALID_SNOOZE_MINUTES };
 
 // ============================================
 // GROK VOICE AGENT

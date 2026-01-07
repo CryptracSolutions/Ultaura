@@ -1,38 +1,47 @@
 // Snooze reminder tool handler
 
 import { Router, Request, Response } from 'express';
+import { ErrorCodes, MAX_SNOOZE_COUNT } from '@ultaura/schemas';
+import {
+  SnoozeReminderInputSchema,
+  type SnoozeReminderInput,
+} from '@ultaura/schemas/telephony';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 
 export const snoozeReminderRouter = Router();
 
-const MAX_SNOOZE_COUNT = 3;
-const VALID_SNOOZE_MINUTES = [15, 30, 60, 120, 1440]; // 15m, 30m, 1h, 2h, tomorrow
-
-interface SnoozeReminderRequest {
-  callSessionId: string;
-  lineId: string;
-  reminderId?: string; // Optional - can be inferred from reminder call
-  snoozeMinutes: number;
-}
-
 snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const { callSessionId, lineId, reminderId, snoozeMinutes } = req.body as SnoozeReminderRequest;
+    const rawBody = req.body as Partial<SnoozeReminderInput>;
+    const parsed = SnoozeReminderInputSchema.safeParse(rawBody);
 
-    if (!callSessionId || !lineId || !snoozeMinutes) {
-      res.status(400).json({ error: 'Missing required fields' });
+    if (!parsed.success) {
+      const issues = parsed.error.issues;
+      const missingRequired = issues.some((issue) =>
+        issue.code === 'invalid_type' && issue.received === 'undefined'
+      );
+      if (missingRequired) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+      }
+
+      const snoozeIssue = issues.find((issue) => issue.path[0] === 'snoozeMinutes');
+      if (snoozeIssue) {
+        res.json({
+          success: false,
+          code: ErrorCodes.INVALID_INPUT,
+          message: 'Please choose 15 minutes, 30 minutes, 1 hour, 2 hours, or tomorrow.',
+        });
+        return;
+      }
+
+      res.status(400).json({ error: issues[0]?.message || 'Invalid input' });
       return;
     }
 
-    if (!VALID_SNOOZE_MINUTES.includes(snoozeMinutes)) {
-      res.json({
-        success: false,
-        message: 'Please choose 15 minutes, 30 minutes, 1 hour, 2 hours, or tomorrow.',
-      });
-      return;
-    }
+    const { callSessionId, lineId, reminderId, snoozeMinutes } = parsed.data;
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -67,6 +76,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.UNAUTHORIZED,
         message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
       });
       return;
@@ -84,6 +94,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.NOT_FOUND,
         message: "I'm not sure which reminder you want to snooze. Could you tell me which one?",
       });
       return;
@@ -101,6 +112,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure(reminderError?.code);
       res.json({
         success: false,
+        code: ErrorCodes.NOT_FOUND,
         message: "I couldn't find that reminder. Would you like me to list your reminders?",
       });
       return;
@@ -110,6 +122,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.INVALID_INPUT,
         message: 'This reminder is no longer active.',
       });
       return;
@@ -119,6 +132,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.INVALID_INPUT,
         message: "This reminder is paused. You'll need to resume it first.",
       });
       return;
@@ -129,6 +143,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       await recordFailure();
       res.json({
         success: false,
+        code: ErrorCodes.SNOOZE_LIMIT_REACHED,
         message: `You've already snoozed this reminder ${MAX_SNOOZE_COUNT} times. I can't snooze it again.`,
       });
       return;

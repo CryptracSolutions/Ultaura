@@ -16,8 +16,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import type { ReminderEventRow } from '~/lib/ultaura/actions';
-import { getLineReminderEvents } from '~/lib/ultaura/actions';
+import type { ReminderEventRow } from '~/lib/ultaura/types';
+import { getLineReminderEvents } from '~/lib/ultaura/reminder-events';
 
 const EVENT_CONFIG: Record<string, { icon: typeof Clock; color: string; label: string }> = {
   created: { icon: Plus, color: 'text-green-600', label: 'Created' },

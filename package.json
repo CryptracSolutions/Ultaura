@@ -26,6 +26,7 @@
     "stripe:mock-server": "docker run --rm -it -p 12111-12112:12111-12112 stripe/stripe-mock:latest",
     "typegen": "supabase gen types typescript --local > src/database.types.ts",
     "typecheck": "tsc -b && tsc -b cypress",
+    "test:unit": "vitest",
     "test:e2e": "sh ./scripts/test.sh",
     "test:db": "supabase test db",
     "test:reset:db": "supabase db reset && supabase test db --debug"
@@ -56,6 +57,7 @@
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "2.45.1",
     "@ultaura/prompts": "workspace:*",
+    "@ultaura/schemas": "workspace:*",
     "@ultaura/types": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/react-table": "^8.17.3",
@@ -114,7 +116,8 @@
     "prettier": "3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.12",
     "supabase": "^1.190.0",
-    "typescript": "5.4.3"
+    "typescript": "5.4.3",
+    "vitest": "^1.6.0"
   },
   "engines": {
     "node": ">=18.17.0"

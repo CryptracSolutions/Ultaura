@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, MessageSquare, Phone, ArrowLeft, CheckCircle } from 'lucide-react';
-import { startPhoneVerification, checkPhoneVerification } from '~/lib/ultaura/actions';
+import { startPhoneVerification, checkPhoneVerification } from '~/lib/ultaura/verification';
 
 interface VerifyPhoneClientProps {
   lineId: string;
@@ -63,7 +63,7 @@ export function VerifyPhoneClient({
       if (result.success) {
         setStep('enter');
       } else {
-        setError(result.error || 'Failed to send verification code');
+        setError(result.error.message || 'Failed to send verification code');
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -120,7 +120,7 @@ export function VerifyPhoneClient({
           router.push(`/dashboard/lines/${lineId}/schedule`);
         }, 2000);
       } else {
-        setError(result.error || 'Invalid verification code');
+        setError(result.error.message || 'Invalid verification code');
         setCode(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       }

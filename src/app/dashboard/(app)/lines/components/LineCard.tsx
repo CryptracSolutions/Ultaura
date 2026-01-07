@@ -16,7 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
-import { deleteLine } from '~/lib/ultaura/actions';
+import { deleteLine } from '~/lib/ultaura/lines';
 import { getShortLineId } from '~/lib/ultaura';
 import { formatDistanceToNow } from 'date-fns';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -34,7 +34,7 @@ export function LineCard({ line, disabled = false }: LineCardProps) {
   const handleDelete = async () => {
     const result = await deleteLine(line.id);
     if (!result.success) {
-      toast.error(result.error || 'Failed to delete line');
+      toast.error(result.error.message || 'Failed to delete line');
       throw new Error('Delete failed');
     }
     toast.success('Line deleted');

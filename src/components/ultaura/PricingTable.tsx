@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Clock, Users, Zap, Shield, Heart, Loader2 } from 'lucide-react';
 import { PLANS, BILLING } from '~/lib/ultaura/constants';
-import { createUltauraCheckout } from '~/lib/ultaura/actions';
+import { createUltauraCheckout } from '~/lib/ultaura/checkout';
 
 type BillingPeriod = 'monthly' | 'annual';
 

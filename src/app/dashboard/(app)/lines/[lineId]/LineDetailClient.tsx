@@ -21,7 +21,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { LineRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
-import { updateLine, deleteLine, initiateTestCall } from '~/lib/ultaura/actions';
+import { updateLine, deleteLine } from '~/lib/ultaura/lines';
+import { initiateTestCall } from '~/lib/ultaura/usage';
 import { formatTime, getShortLineId } from '~/lib/ultaura';
 import { CallActivityList } from './components/CallActivityList';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -130,7 +131,7 @@ export function LineDetailClient({
 
     const result = await deleteLine(line.id);
     if (!result.success) {
-      toast.error(result.error || 'Failed to delete line');
+      toast.error(result.error.message || 'Failed to delete line');
       throw new Error('Delete failed');
     }
     toast.success('Line deleted');
@@ -153,7 +154,7 @@ export function LineDetailClient({
     try {
       const result = await initiateTestCall(line.id);
       if (!result.success) {
-        setError(result.error || 'Failed to initiate test call');
+        setError(result.error.message || 'Failed to initiate test call');
       }
     } catch {
       setError('Failed to initiate test call');
@@ -212,7 +213,7 @@ export function LineDetailClient({
       });
 
       if (!result.success) {
-        setError(result.error || 'Failed to update topics');
+        setError(result.error.message || 'Failed to update topics');
         return;
       }
 

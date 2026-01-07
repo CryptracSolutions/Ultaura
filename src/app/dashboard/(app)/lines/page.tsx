@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { Suspense } from 'react';
-import { getUltauraAccount, getLines, getUsageSummary } from '~/lib/ultaura/actions';
+import { getUltauraAccount } from '~/lib/ultaura/accounts';
+import { getLines } from '~/lib/ultaura/lines';
+import { getUsageSummary } from '~/lib/ultaura/usage';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { LinesPageClient } from './components/LinesPageClient';
 import { AlertBanner } from './components/AlertBanner';
@@ -99,7 +101,7 @@ export default async function LinesPage() {
             <LinesPageClient
               accountId={account.id}
               lines={lines}
-              planLinesLimit={getPlanLinesLimit(account.plan_id)}
+              planLinesLimit={getPlanLinesLimit(account.plan_id ?? 'free_trial')}
               disabled={isTrialExpired}
             />
           </Suspense>

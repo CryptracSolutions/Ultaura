@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { AlertTriangle } from 'lucide-react';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
-import { updateOverageCap } from '~/lib/ultaura/actions';
+import { updateOverageCap } from '~/lib/ultaura/usage';
 
 const CAP_OPTIONS = [
   { value: 0, label: 'No limit' },
@@ -41,7 +41,7 @@ export default function UsageCapControl({ accountId, capCents, disabled = false 
       try {
         const result = await updateOverageCap(accountId, Number(nextValue));
         if (!result?.success) {
-          throw new Error(result?.error || 'Update failed');
+          throw new Error(result?.error.message || 'Update failed');
         }
         toast.success('Spending cap updated');
       } catch (err) {

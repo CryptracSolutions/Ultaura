@@ -16,8 +16,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
-import type { ReminderRow } from '~/lib/ultaura/actions';
-import { createReminder, cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/actions';
+import type { ReminderRow } from '~/lib/ultaura/types';
+import { createReminder, cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/reminders';
 import { getShortLineId } from '~/lib/ultaura';
 import { ReminderActivity } from './ReminderActivity';
 
@@ -200,7 +200,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       setEndDate('');
       router.refresh();
     } else {
-      setError(result.error || 'Failed to create reminder');
+      setError(result.error.message || 'Failed to create reminder');
     }
   };
 
@@ -217,7 +217,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       toast.success('Next occurrence skipped');
       router.refresh();
     } else {
-      toast.error(result.error || 'Failed to skip reminder');
+      toast.error(result.error.message || 'Failed to skip reminder');
     }
   };
 
@@ -235,7 +235,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       toast.success('Reminder canceled');
       router.refresh();
     } else {
-      toast.error(result.error || 'Failed to cancel reminder');
+      toast.error(result.error.message || 'Failed to cancel reminder');
       throw new Error('Cancel failed');
     }
   };
@@ -253,7 +253,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       toast.success('Reminder paused');
       router.refresh();
     } else {
-      toast.error(result.error || 'Failed to pause reminder');
+      toast.error(result.error.message || 'Failed to pause reminder');
     }
   };
 
@@ -270,7 +270,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       toast.success('Reminder resumed');
       router.refresh();
     } else {
-      toast.error(result.error || 'Failed to resume reminder');
+      toast.error(result.error.message || 'Failed to resume reminder');
     }
   };
 
@@ -289,7 +289,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       toast.success(`Snoozed for ${option?.label || minutes + ' minutes'}`);
       router.refresh();
     } else {
-      toast.error(result.error || 'Failed to snooze reminder');
+      toast.error(result.error.message || 'Failed to snooze reminder');
     }
   };
 
@@ -365,7 +365,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       setEditingReminder(null);
       router.refresh();
     } else {
-      toast.error(result.error || 'Failed to update reminder');
+      toast.error(result.error.message || 'Failed to update reminder');
     }
   };
 

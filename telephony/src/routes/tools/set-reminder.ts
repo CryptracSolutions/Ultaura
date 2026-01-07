@@ -2,6 +2,10 @@
 
 import { Router, Request, Response } from 'express';
 import { DateTime } from 'luxon';
+import {
+  SetReminderInputSchema,
+  type SetReminderInput,
+} from '@ultaura/schemas/telephony';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
@@ -10,22 +14,6 @@ import { RATE_LIMITS } from '../../services/rate-limit-config.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 
 export const setReminderRouter = Router();
-
-interface SetReminderRequest {
-  callSessionId: string;
-  lineId: string;
-  dueAtLocal: string; // ISO datetime in local time
-  timezone?: string;
-  message?: string;
-  privacyScope?: 'line_only' | 'shareable_with_payer';
-  // Recurrence fields
-  isRecurring?: boolean;
-  frequency?: 'daily' | 'weekly' | 'monthly' | 'custom';
-  interval?: number;
-  daysOfWeek?: number[];
-  dayOfMonth?: number;
-  endsAtLocal?: string;
-}
 
 type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
 
@@ -96,6 +84,45 @@ function buildRecurrenceFields(
 
 setReminderRouter.post('/', async (req: Request, res: Response) => {
   try {
+    const rawBody = req.body as Partial<SetReminderInput>;
+    const sanitizedBody = {
+      ...rawBody,
+      message: typeof rawBody.message === 'string'
+        ? rawBody.message.slice(0, 500)
+        : rawBody.message,
+    };
+    const parsed = SetReminderInputSchema.safeParse(sanitizedBody);
+
+    if (!parsed.success) {
+      const issues = parsed.error.issues;
+      const missingRequired = issues.some((issue) =>
+        issue.code === 'invalid_type' && issue.received === 'undefined'
+      );
+      if (missingRequired) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+      }
+
+      const dueAtIssue = issues.find((issue) => issue.path[0] === 'dueAtLocal');
+      if (dueAtIssue) {
+        res.status(400).json({ error: 'Invalid date format' });
+        return;
+      }
+
+      const timezoneIssue = issues.find((issue) => issue.path[0] === 'timezone');
+      if (timezoneIssue && typeof rawBody.timezone === 'string') {
+        try {
+          validateTimezone(rawBody.timezone);
+        } catch (error) {
+          res.status(400).json({ error: (error as Error).message });
+          return;
+        }
+      }
+
+      res.status(400).json({ error: issues[0]?.message || 'Invalid input' });
+      return;
+    }
+
     const {
       callSessionId,
       lineId,
@@ -110,7 +137,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       daysOfWeek,
       dayOfMonth,
       endsAtLocal,
-    } = req.body as SetReminderRequest;
+    } = parsed.data;
 
     logger.info({
       callSessionId,
@@ -120,12 +147,6 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       isRecurring,
       frequency,
     }, 'Set reminder request');
-
-    // Validate required fields
-    if (!callSessionId || !lineId || !dueAtLocal) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
 
     // Get call session to verify and get account ID
     const session = await getCallSession(callSessionId);

@@ -1,12 +1,15 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getLine, getSchedules, getTrialInfo } from '~/lib/ultaura/actions';
+import { getTrialInfo } from '~/lib/ultaura/accounts';
+import { getLine } from '~/lib/ultaura/lines';
+import { getSchedules } from '~/lib/ultaura/schedules';
 import { ScheduleClient } from './ScheduleClient';
 import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
+import type { PlanId } from '~/lib/ultaura/types';
 
 export const metadata: Metadata = {
   title: 'Schedule Calls - Ultaura',
@@ -36,7 +39,8 @@ export default async function SchedulePage({ params }: PageProps) {
   const isTrialExpired = trialInfo?.isExpired ?? false;
   const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
   const trialPlanId = trialInfo?.trialPlanId ?? null;
-  const trialPlanName = trialPlanId ? (PLANS[trialPlanId]?.displayName ?? 'Trial') : 'Trial';
+  const trialPlanKey = (trialPlanId ?? 'free_trial') as PlanId;
+  const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
 
   return (
     <>

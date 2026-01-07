@@ -1,5 +1,7 @@
 import { Metadata } from 'next';
-import { getUltauraAccount, getLines, getAllReminders } from '~/lib/ultaura/actions';
+import { getUltauraAccount } from '~/lib/ultaura/accounts';
+import { getLines } from '~/lib/ultaura/lines';
+import { getAllReminders } from '~/lib/ultaura/reminders';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { RemindersPageClient } from './RemindersPageClient';
 import AppHeader from '../components/AppHeader';

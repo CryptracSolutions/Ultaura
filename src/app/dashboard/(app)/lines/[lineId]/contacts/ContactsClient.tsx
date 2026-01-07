@@ -9,7 +9,7 @@ import {
   getTrustedContacts,
   addTrustedContact,
   removeTrustedContact,
-} from '~/lib/ultaura/actions';
+} from '~/lib/ultaura/contacts';
 import { toast } from 'sonner';
 
 interface TrustedContact {
@@ -56,7 +56,7 @@ export function ContactsClient({ lineId, disabled = false }: ContactsClientProps
       });
 
       if (!result.success) {
-        toast.error(result.error || 'Failed to add contact');
+        toast.error(result.error.message || 'Failed to add contact');
         return;
       }
 
@@ -76,7 +76,7 @@ export function ContactsClient({ lineId, disabled = false }: ContactsClientProps
     try {
       const result = await removeTrustedContact(contactId);
       if (!result.success) {
-        toast.error(result.error || 'Failed to remove contact');
+        toast.error(result.error.message || 'Failed to remove contact');
         return;
       }
       toast.success('Trusted contact removed');

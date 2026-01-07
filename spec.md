@@ -1,753 +1,1116 @@
-# Specification: Rate Limiting & Abuse Prevention for Verification and Tool Endpoints
+# Spec: Refactor `actions.ts` into Type-Safe Modules
 
-## Overview
+## Objective
 
-This specification addresses cost-abuse vulnerabilities in the Ultaura telephony backend, specifically targeting verification endpoints and tool endpoints that incur external costs (Twilio Verify SMS, notification SMS).
+Split `src/lib/ultaura/actions.ts` (2,280 lines, 61KB, `@ts-nocheck`) into domain-specific modules with:
+- Zod input validation schemas
+- TypeScript strict mode (remove `@ts-nocheck`)
+- Comprehensive tests for DST, timezone, and recurrence edge cases
+- Shared `@ultaura/schemas` package for cross-app validation
 
-### Problem Statement
-
-**Impact**: Medium/High (Twilio Verify costs, SMS costs, abuse potential)
-**Likelihood**: Medium/High
-**Symptoms**: Spikes in verify sends, SMS, reminder creations
-
-**Current Vulnerabilities Identified**:
-1. `/verify/send` and `/verify/check` endpoints are **completely unauthenticated** (no `requireInternalSecret` middleware)
-2. In-memory rate limiting only on `/verify/send` (not distributed, lost on restart)
-3. No rate limiting on `/verify/check` (brute force vulnerability)
-4. No IP-based rate limiting
-5. No account-level throttling
-6. Tool endpoints that send SMS have no rate limiting
-7. `set_reminder` tool allows unbounded reminder creation
-8. No anomaly detection or alerting
-9. Memory leak in current rate limiter (expired entries never cleaned)
+**Impact**: Medium | **Likelihood**: High | **Current Pain**: Silent type regressions, runtime errors in edge cases, inconsistent validation.
 
 ---
 
-## Objectives
+## Current State Analysis
 
-1. **Secure verification endpoints** with internal API secret authentication
-2. **Implement distributed rate limiting** using Redis (Upstash) across multiple dimensions:
-   - Per phone number
-   - Per IP address
-   - Per account
-3. **Add rate limiting to tool endpoints** that incur costs
-4. **Implement anomaly detection** with email alerts
-5. **Create audit logging** for all rate limit events
-6. **Add emergency kill switch** for verification endpoints
-7. **Ensure graceful degradation** if Redis is unavailable
+### File Statistics
+- **Lines**: 2,280
+- **Size**: 61KB
+- **Exported functions**: 43
+- **Importing files**: 27 (mix of server and client components)
+- **Type safety**: Disabled via `@ts-nocheck`
+- **Input validation**: Manual checks only (no Zod)
+- **Test coverage**: None (only covered by Cypress E2E)
+
+### Logical Domains in Current File
+
+| Domain | Functions | Lines | Complexity |
+|--------|-----------|-------|------------|
+| Accounts & Trials | 4 | ~110 | Low |
+| Lines & Contacts | 8 | ~320 | Medium |
+| Phone Verification | 2 | ~140 | Low |
+| Schedules | 6 | ~230 | High (RRULE) |
+| Usage & Billing | 5 | ~170 | Medium |
+| Test Calls | 1 | ~50 | Low |
+| Reminders | 19 | ~970 | High (recurrence, DST) |
+| Checkout | 2 | ~130 | Medium |
+
+### Known Type Inconsistencies to Fix
+
+> **Note**: Items 1, 2, and 7 from the original spec are now OUTDATED. Migrations `20260209000001_remove_schedule_rrule.sql` and `20260210000001_remove_language_columns.sql` intentionally removed these columns. Do NOT reintroduce them.
+
+1. ~~**Schedule type missing `rrule` field**~~ - REMOVED: `rrule` moved to reminders system
+2. ~~**Line type missing `preferred_language` and `spanish_formality`**~~ - REMOVED: Language columns dropped
+3. **EncryptedMemory missing `source`, `version`, `active` fields** - DB has them, add to type
+4. **ReminderEvent type not exported** - defined but inaccessible, export it
+5. **TrustedContact.notifyOn** - Keep as `SafetyTier[]` (semantic constraint), Zod validates
+6. **Reminder deliveryMethod** - Add enum with `'outbound_call'` only (add `'sms'` when needed)
+7. ~~**Schedule daysOfWeek/timeOfDay vs rrule**~~ - REMOVED: No longer relevant
+
+**Additional fields to add** (runtime-relevant, not internal scheduler fields):
+- `CallSession`: Add `is_reminder_call`, `reminder_id`, `reminder_message` (useful for UI call history)
+- Skip internal fields: `scheduler_idempotency_key`, `processing_claimed_at`, `processing_claimed_by`, `retry_count`
 
 ---
 
-## Technical Requirements
+## Target Architecture
 
-### 1. Authentication for Verification Endpoints
+### Directory Structure
 
-**Requirement**: Apply `requireInternalSecret` middleware to all `/verify/*` routes.
+```
+src/lib/ultaura/
+├── index.ts                    # Re-exports for external consumers
+├── types.ts                    # Updated with missing fields (uses snake_case Row types)
+├── constants.ts                # Unchanged
+├── prompts.ts                  # Unchanged
+├── helpers.ts                  # NEW: Shared utilities (uses Row types, withTrialCheck)
+├── accounts.ts                 # NEW: Account & trial actions
+├── lines.ts                    # NEW: Line management actions
+├── contacts.ts                 # NEW: Trusted contacts actions
+├── verification.ts             # NEW: Phone verification actions
+├── schedules.ts                # NEW: Schedule CRUD actions
+├── reminders.ts                # NEW: Reminder CRUD + lifecycle (~500 lines)
+├── reminder-events.ts          # NEW: Reminder event logging + queries (~150 lines)
+├── usage.ts                    # NEW: Billing & analytics actions
+├── checkout.ts                 # NEW: Stripe checkout actions
+├── __tests__/
+│   ├── setup.ts                # Test database setup (service-role client)
+│   ├── accounts.test.ts
+│   ├── lines.test.ts
+│   ├── contacts.test.ts
+│   ├── verification.test.ts
+│   ├── schedules.test.ts       # DST/timezone tests
+│   ├── reminders.test.ts       # Recurrence/snooze tests
+│   ├── reminder-events.test.ts
+│   ├── usage.test.ts
+│   ├── checkout.test.ts
+│   └── rls.test.ts             # RLS policy tests (authenticated client)
+├── billing.ts                  # Existing - unchanged
+├── timezone.ts                 # Existing - export getNextScheduleOccurrence, getNextReminderOccurrence
+└── admin-actions.ts            # Existing - unchanged
 
-**Location**: `telephony/src/routes/verify.ts`
-
-**Implementation**:
-```typescript
-// Add at top of router (similar to calls.ts line 13)
-verifyRouter.use(requireInternalSecret);
+packages/schemas/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.ts                # All exports
+│   ├── types.ts                # Shared TypeScript types (snake_case Row types)
+│   ├── errors.ts               # Error codes + factory functions
+│   ├── constants.ts            # Shared constants (US_TIMEZONES, VALID_SNOOZE_MINUTES, etc.)
+│   ├── line.ts                 # Line schemas + validators
+│   ├── schedule.ts             # Schedule schemas + validators
+│   ├── reminder.ts             # Reminder schemas + validators
+│   ├── contact.ts              # Contact schemas + validators
+│   ├── account.ts              # Account schemas + validators
+│   └── telephony/              # Telephony tool input schemas
+│       ├── index.ts            # Re-exports
+│       ├── set-reminder.ts     # SetReminderInput schema
+│       ├── edit-reminder.ts    # EditReminderInput schema
+│       ├── snooze-reminder.ts  # SnoozeReminderInput schema
+│       ├── opt-out.ts          # OptOutInput schema
+│       └── safety-event.ts     # SafetyEventInput schema
 ```
 
-**Rationale**: Currently, anyone with network access can call these endpoints. By requiring the internal secret, only the Next.js app server can initiate verification requests.
+### Module Boundaries
+
+Each action module will:
+1. Import schemas from `@ultaura/schemas`
+2. Export async server action functions
+3. Use snake_case Row types (matching current UI consumption pattern)
+4. Include colocated Zod schemas at the bottom (for any module-specific schemas)
+
+**Return type conventions:**
+- **Getter functions** (getLines, getLine, getSchedules, etc.): Return data directly (`LineRow[]`, `LineRow | null`)
+- **Mutating functions** (create*, update*, delete*, pause*, resume*, snooze*, etc.): Return `ActionResult<T>` with error codes
+
+**Trial check conventions:**
+- `withTrialCheck` wrapper applies **only to mutating actions**
+- Getters work even on expired trials (read-only access allowed)
+- Apply to: create*, update*, delete*, startPhoneVerification, checkPhoneVerification, initiateTestCall, snooze*, pause*, resume*, skip*, cancel*, edit*
+- Skip for: get*, list*, getAllSchedules, getUsageSummary, getCallSessions, etc.
 
 ---
 
-### 2. Redis Infrastructure (Upstash)
+## Implementation Details
 
-**Provider**: Upstash (serverless Redis)
+### 1. Error Handling Pattern
 
-**New Dependencies** (add to `telephony/package.json`):
-```json
-{
-  "@upstash/redis": "^1.28.0",
-  "@upstash/ratelimit": "^1.0.0"
+**New error response structure:**
+
+```typescript
+// packages/schemas/src/errors.ts
+export const ErrorCodes = {
+  // Auth/Trial errors
+  TRIAL_EXPIRED: 'TRIAL_EXPIRED',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+
+  // Validation errors
+  INVALID_INPUT: 'INVALID_INPUT',
+  INVALID_TIMEZONE: 'INVALID_TIMEZONE',
+  INVALID_PHONE: 'INVALID_PHONE',
+
+  // Business logic errors
+  LINE_LIMIT_REACHED: 'LINE_LIMIT_REACHED',
+  PHONE_NOT_VERIFIED: 'PHONE_NOT_VERIFIED',
+  REMINDER_NOT_PAUSABLE: 'REMINDER_NOT_PAUSABLE',
+  SNOOZE_LIMIT_REACHED: 'SNOOZE_LIMIT_REACHED',
+  SCHEDULE_CONFLICT: 'SCHEDULE_CONFLICT',
+
+  // Resource errors
+  NOT_FOUND: 'NOT_FOUND',
+  ALREADY_EXISTS: 'ALREADY_EXISTS',
+
+  // System errors
+  DATABASE_ERROR: 'DATABASE_ERROR',
+  EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
+} as const;
+
+export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
+
+export interface ActionError {
+  code: ErrorCode;
+  message: string;  // User-friendly message for UI display
+  details?: Record<string, unknown>;  // Optional structured data
+}
+
+export type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: ActionError };
+
+export function createError(code: ErrorCode, message: string, details?: Record<string, unknown>): ActionError {
+  return { code, message, details };
 }
 ```
 
-**Environment Variables** (add to `.env.local` and `.env.ultaura.example`):
-```bash
-# Upstash Redis Configuration
-UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
-UPSTASH_REDIS_REST_TOKEN=your-token-here
+### 2. Trial Check Wrapper
+
+**Higher-order function for trial validation (mutating actions only):**
+
+```typescript
+// src/lib/ultaura/helpers.ts
+import { getTrialStatus, type UltauraAccountRow } from './types';
+import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
+
+type ActionFn<TInput, TOutput> = (
+  account: UltauraAccountRow,
+  input: TInput
+) => Promise<ActionResult<TOutput>>;
+
+export function withTrialCheck<TInput, TOutput>(
+  fn: ActionFn<TInput, TOutput>
+): (account: UltauraAccountRow, input: TInput) => Promise<ActionResult<TOutput>> {
+  return async (account, input) => {
+    const trialStatus = getTrialStatus(account);
+    if (trialStatus.isExpired) {
+      return {
+        success: false,
+        error: createError(
+          ErrorCodes.TRIAL_EXPIRED,
+          'Your trial has ended. Subscribe to continue.'
+        ),
+      };
+    }
+    return fn(account, input);
+  };
+}
 ```
 
-**Redis Client Setup** (new file: `telephony/src/services/redis.ts`):
+> **Note**: `withTrialCheck` is only used for mutating actions. Getter functions do not use this wrapper - users on expired trials can still view their data.
+
+### 3. Zod Schema Examples
+
+**Line creation schema:**
+
 ```typescript
-import { Redis } from '@upstash/redis';
+// packages/schemas/src/line.ts
+import { z } from 'zod';
+import { IANAZone } from 'luxon';
 
-let redisClient: Redis | null = null;
+export const LineStatusSchema = z.enum(['active', 'paused', 'disabled']);
+export const VoicemailBehaviorSchema = z.enum(['none', 'brief', 'detailed']);
 
-export function getRedisClient(): Redis | null {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+// Phone validation uses TELEPHONY.PHONE_REGEX pattern (rejects invalid area codes starting with 0 or 1)
+const PHONE_E164_REGEX = /^\+1[2-9]\d{9}$/;
+
+// Timezone validation accepts any valid IANA timezone (not restricted to US_TIMEZONES)
+const isValidIANATimezone = (tz: string) => {
+  const normalized = tz.trim();
+  if (!normalized || !IANAZone.isValidZone(normalized)) return false;
+  return normalized.includes('/') || normalized === 'UTC' || normalized === 'Etc/UTC';
+};
+
+export const CreateLineInputSchema = z.object({
+  accountId: z.string().uuid(),
+  displayName: z.string().min(1).max(100),
+  phoneE164: z.string().regex(PHONE_E164_REGEX, 'Must be a valid US phone number'),
+  timezone: z.string().refine(isValidIANATimezone, 'Must be a valid IANA timezone'),
+  voicemailBehavior: VoicemailBehaviorSchema.optional().default('brief'),
+  seedInterests: z.array(z.string()).optional(),
+  seedAvoidTopics: z.array(z.string()).optional(),
+});
+
+export type CreateLineInput = z.infer<typeof CreateLineInputSchema>;
+
+export const UpdateLineInputSchema = z.object({
+  displayName: z.string().min(1).max(100).optional(),
+  timezone: z.string().refine(isValidIANATimezone, 'Must be a valid IANA timezone').optional(),
+  voicemailBehavior: VoicemailBehaviorSchema.optional(),
+  status: LineStatusSchema.optional(),
+  // ... other optional fields
+}).partial();
+
+export type UpdateLineInput = z.infer<typeof UpdateLineInputSchema>;
+```
+
+**Reminder schema with recurrence:**
+
+```typescript
+// packages/schemas/src/reminder.ts
+import { z } from 'zod';
+
+export const RecurrenceFrequencySchema = z.enum(['daily', 'weekly', 'monthly', 'custom']);
+// Note: 'once' is also valid for editReminder (converts recurring to one-time)
+export const EditRecurrenceFrequencySchema = z.enum(['daily', 'weekly', 'monthly', 'custom', 'once']);
+
+// Uses `interval` (not `intervalDays`) to match current codebase convention
+// This maps to `interval_days` in the database
+export const RecurrenceSchema = z.object({
+  frequency: RecurrenceFrequencySchema,
+  interval: z.number().int().min(1).max(365).optional(),  // Maps to interval_days in DB
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).optional(),
+  dayOfMonth: z.number().int().min(1).max(31).optional(),
+  endsAt: z.string().datetime().optional(),
+  occurrenceCount: z.number().int().min(1).optional(),
+});
+
+export const CreateReminderInputSchema = z.object({
+  lineId: z.string().uuid(),
+  dueAt: z.string().datetime(),
+  message: z.string().min(1).max(500),
+  timezone: z.string(),
+  recurrence: RecurrenceSchema.optional(),
+});
+
+export type CreateReminderInput = z.infer<typeof CreateReminderInputSchema>;
+
+// Snooze validation
+export const VALID_SNOOZE_MINUTES = [15, 30, 60, 120, 1440] as const;
+export const MAX_SNOOZE_COUNT = 3;
+
+export const SnoozeInputSchema = z.object({
+  reminderId: z.string().uuid(),
+  minutes: z.number().refine(
+    (m) => VALID_SNOOZE_MINUTES.includes(m as any),
+    `Minutes must be one of: ${VALID_SNOOZE_MINUTES.join(', ')}`
+  ),
+});
+
+// Delivery method enum (only 'outbound_call' for now, add 'sms' when implemented)
+export const ReminderDeliveryMethodSchema = z.enum(['outbound_call']);
+```
+
+### 4. Module Structure Template
+
+**Example: lines.ts**
+
+> **Key patterns**: Getters return `LineRow` directly (snake_case, no mapping). Mutating actions use `withTrialCheck` and return `ActionResult<T>`. Plan lookup uses DB `ultaura_plans` table.
+
+```typescript
+// src/lib/ultaura/lines.ts
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { getSupabaseServerComponentClient } from '~/core/supabase/server-component-client';
+import { getLogger } from '~/core/logger';
+import {
+  CreateLineInputSchema,
+  UpdateLineInputSchema,
+  createError,
+  ErrorCodes,
+  type ActionResult
+} from '@ultaura/schemas';
+import { withTrialCheck, getPlan } from './helpers';
+import type { LineRow, UltauraAccountRow } from './types';
+
+const logger = getLogger();
+
+/**
+ * Get all lines for an account (returns snake_case Row type directly)
+ */
+export async function getLines(accountId: string): Promise<LineRow[]> {
+  const client = await getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_lines')
+    .select('*')
+    .eq('account_id', accountId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error({ error }, 'Failed to fetch lines');
+    return [];
+  }
+
+  return data;  // Return snake_case rows directly - no mapping needed
+}
+
+/**
+ * Get a single line by ID (supports both full UUID and 8-char short ID)
+ */
+export async function getLine(lineId: string): Promise<LineRow | null> {
+  const client = await getSupabaseServerComponentClient();
+
+  // Support both full UUID and truncated 8-char ID
+  const isShortId = lineId.length === 8;
+
+  let query = client.from('ultaura_lines').select('*');
+
+  if (isShortId) {
+    query = query.ilike('id', `${lineId}%`);
+  } else {
+    query = query.eq('id', lineId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error || !data) {
     return null;
   }
 
-  if (!redisClient) {
-    redisClient = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
+  return data;  // Return snake_case row directly
+}
+
+/**
+ * Create a new line with phone verification pending (mutating - uses withTrialCheck)
+ */
+export const createLine = withTrialCheck(async (
+  account: UltauraAccountRow,
+  input: unknown
+): Promise<ActionResult<{ lineId: string }>> => {
+  // Validate input with Zod
+  const parsed = CreateLineInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.INVALID_INPUT,
+        parsed.error.issues[0]?.message || 'Invalid input'
+      ),
+    };
   }
 
-  return redisClient;
-}
+  const { displayName, phoneE164, timezone, voicemailBehavior, seedInterests, seedAvoidTopics } = parsed.data;
 
-export function isRedisAvailable(): boolean {
-  return redisClient !== null;
-}
-```
+  // Check line limit (uses DB ultaura_plans table)
+  const existingLines = await getLines(account.id);
+  const plan = await getPlan(account.plan_id);  // DB lookup, not PLANS constant
 
----
+  if (!plan || existingLines.length >= plan.lines_included) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.LINE_LIMIT_REACHED,
+        `Your ${plan?.display_name || 'current'} plan supports up to ${plan?.lines_included || 1} lines. Upgrade to add more.`
+      ),
+    };
+  }
 
-### 3. Rate Limiting Configuration
+  // Insert line
+  const client = await getSupabaseServerComponentClient();
 
-#### 3.1 Verification Endpoints
-
-| Dimension | Limit | Window | Applies To |
-|-----------|-------|--------|------------|
-| Phone Number | 5 sends | 1 hour | `/verify/send` |
-| Phone Number | 10 checks | 1 hour | `/verify/check` |
-| IP Address | 20 requests | 1 hour | Both endpoints |
-| Account | 10 requests | 1 hour | Both endpoints |
-
-**Key Format in Redis**:
-```
-ratelimit:verify:phone:{e164_number}:send
-ratelimit:verify:phone:{e164_number}:check
-ratelimit:verify:ip:{ip_address}
-ratelimit:verify:account:{account_id}
-```
-
-#### 3.2 Tool Endpoints
-
-| Tool | Limit | Window | Dimension |
-|------|-------|--------|-----------|
-| `safety_event` (SMS) | 15 SMS | 24 hours | Per account |
-| `request_upgrade` (SMS) | 15 SMS | 24 hours | Per account (shared with safety_event) |
-| `set_reminder` | 5 reminders | Per call session | Per call session |
-
-**Key Format in Redis**:
-```
-ratelimit:sms:account:{account_id}
-ratelimit:reminders:session:{call_session_id}
-```
-
----
-
-### 4. Rate Limiter Service
-
-**New File**: `telephony/src/services/rate-limiter.ts`
-
-**Interface**:
-```typescript
-interface RateLimitResult {
-  allowed: boolean;
-  remaining: number;
-  resetAt: number;  // Unix timestamp
-  retryAfter: number;  // Seconds until reset
-  limitType: 'phone' | 'ip' | 'account' | 'session';
-}
-
-interface RateLimitCheck {
-  phoneNumber?: string;
-  ipAddress?: string;
-  accountId?: string;
-  callSessionId?: string;
-  action: 'verify_send' | 'verify_check' | 'sms' | 'set_reminder';
-}
-
-async function checkRateLimit(check: RateLimitCheck): Promise<RateLimitResult>;
-async function incrementCounter(check: RateLimitCheck): Promise<void>;
-```
-
-**Graceful Degradation**:
-- If Redis is unavailable, allow the request but log the event
-- Log format: `{ event: 'rate_limit_bypass', reason: 'redis_unavailable', ...check }`
-
-**Localhost Bypass**:
-- Skip rate limiting for requests from `127.0.0.1` or `::1`
-- Only in non-production (`NODE_ENV !== 'production'`)
-
----
-
-### 5. Rate Limiter Middleware
-
-**New File**: `telephony/src/middleware/rate-limiter.ts`
-
-**For Verification Routes**:
-```typescript
-export function verifyRateLimiter(action: 'send' | 'check') {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const phoneNumber = req.body.phoneNumber;
-    const accountId = req.body.accountId; // Must be added to verify request body
-
-    // Check kill switch first
-    if (await isVerificationDisabled()) {
-      return res.status(503).json({
-        error: 'Verification temporarily disabled',
-        code: 'VERIFICATION_DISABLED'
-      });
-    }
-
-    const result = await checkRateLimit({
-      phoneNumber,
-      ipAddress: ip,
-      accountId,
-      action: action === 'send' ? 'verify_send' : 'verify_check'
-    });
-
-    if (!result.allowed) {
-      await logRateLimitEvent({...}); // Audit logging
-      await checkAnomalyThresholds({...}); // Anomaly detection
-
-      return res.status(429).json({
-        error: 'Too many requests',
-        retryAfter: result.retryAfter,
-        limitType: result.limitType
-      }).set('Retry-After', String(result.retryAfter));
-    }
-
-    next();
-  };
-}
-```
-
-**For Tool Routes**:
-```typescript
-export function toolRateLimiter(toolName: string) {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const { callSessionId, accountId } = req.body;
-
-    if (toolName === 'set_reminder') {
-      const result = await checkRateLimit({
-        callSessionId,
-        action: 'set_reminder'
-      });
-      // ... handle result
-    }
-
-    if (toolName === 'safety_event' || toolName === 'request_upgrade') {
-      const result = await checkRateLimit({
-        accountId,
-        action: 'sms'
-      });
-      // ... handle result
-    }
-
-    next();
-  };
-}
-```
-
----
-
-### 6. Emergency Kill Switch
-
-**Database Table**: Add column to `ultaura_system_settings` (new table if doesn't exist)
-
-**Migration**: `supabase/migrations/YYYYMMDD_add_system_settings.sql`
-```sql
-CREATE TABLE IF NOT EXISTS ultaura_system_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT UNIQUE NOT NULL,
-  value JSONB NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_by UUID REFERENCES auth.users(id)
-);
-
-INSERT INTO ultaura_system_settings (key, value)
-VALUES ('verification_disabled', '{"enabled": false, "reason": null, "disabled_at": null}');
-```
-
-**Check Function** (in rate-limiter.ts):
-```typescript
-async function isVerificationDisabled(): Promise<boolean> {
-  const { data } = await supabase
-    .from('ultaura_system_settings')
-    .select('value')
-    .eq('key', 'verification_disabled')
+  const { data, error } = await client
+    .from('ultaura_lines')
+    .insert({
+      account_id: account.id,
+      display_name: displayName,
+      phone_e164: phoneE164,
+      timezone,
+      voicemail_behavior: voicemailBehavior,
+      seed_interests: seedInterests,
+      seed_avoid_topics: seedAvoidTopics,
+      status: 'active',
+      verified_at: null,
+    })
+    .select('id')
     .single();
 
-  return data?.value?.enabled === true;
-}
+  if (error) {
+    logger.error({ error }, 'Failed to create line');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to create line'),
+    };
+  }
+
+  revalidatePath('/dashboard/lines', 'page');
+
+  return { success: true, data: { lineId: data.id } };
+});
+
+// ... other line actions (updateLine, deleteLine) - all mutating actions use withTrialCheck
+```
+
+### 5. Index.ts Re-exports
+
+**After refactor, maintain the same public API:**
+
+```typescript
+// src/lib/ultaura/index.ts
+
+// Re-export all actions from domain modules
+export * from './accounts';
+export * from './lines';
+export * from './contacts';
+export * from './verification';
+export * from './schedules';
+export * from './reminders';
+export * from './reminder-events';  // Split from reminders for module size
+export * from './usage';
+export * from './checkout';
+
+// Re-export types
+export * from './types';
+
+// Re-export constants
+export * from './constants';
+
+// Re-export helpers that consumers might need
+export { getTrialStatus, getPlan, getTrialInfo } from './helpers';
+
+// Re-export timezone utilities for testing
+export { getNextScheduleOccurrence, getNextReminderOccurrence } from './timezone';
 ```
 
 ---
 
-### 7. Anomaly Detection & Alerts
+## Testing Strategy
 
-**Alert Triggers**:
-1. **Repeated hits**: 3+ rate limit violations in 5 minutes from same source (IP or phone)
-2. **Cost threshold**: Daily Twilio Verify spend estimate exceeds $10 (calculated as: send_count × $0.05)
-3. **IP blocked**: Any single IP hits its rate limit
-4. **Enumeration attack**: 10+ unique phone numbers attempted from same IP in 1 hour
+### Test Database Setup
 
-**Tracking in Redis**:
-```
-anomaly:hits:{ip_or_phone}:{5min_bucket}  -- increment on each violation
-anomaly:daily_spend:{date}  -- increment by 0.05 on each send
-anomaly:ip_phones:{ip}:{hour_bucket}  -- SADD phone numbers
-```
-
-**Alert Service** (new file: `telephony/src/services/anomaly-alerts.ts`):
 ```typescript
-interface AnomalyEvent {
-  type: 'repeated_hits' | 'cost_threshold' | 'ip_blocked' | 'enumeration';
-  source: string;  // IP or phone
-  details: Record<string, unknown>;
-  timestamp: Date;
+// src/lib/ultaura/__tests__/setup.ts
+import { createClient } from '@supabase/supabase-js';
+
+// Use local Supabase Docker for tests
+const supabaseUrl = process.env.SUPABASE_URL || 'http://localhost:54321';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+export const testClient = createClient(supabaseUrl, supabaseServiceKey);
+
+export async function createTestAccount() {
+  // Create test organization and account
+  const { data: org } = await testClient
+    .from('organizations')
+    .insert({ name: 'Test Org' })
+    .select()
+    .single();
+
+  const { data: account } = await testClient
+    .from('ultaura_accounts')
+    .insert({
+      organization_id: org.id,
+      name: 'Test Account',
+      billing_email: 'test@example.com',
+      plan_id: 'care',
+      status: 'active',
+    })
+    .select()
+    .single();
+
+  return { org, account };
 }
 
-async function checkAnomalyThresholds(event: RateLimitEvent): Promise<void>;
-async function sendAnomalyAlert(anomaly: AnomalyEvent): Promise<void>;
-```
-
-**Email Configuration**:
-- Use existing billing email from account's Stripe customer
-- Email sent via existing nodemailer configuration
-- Subject: `[Ultaura Security Alert] ${anomaly.type}`
-- Include: timestamp, source, details, recommended actions
-
----
-
-### 8. Audit Logging
-
-**New Database Table**: `ultaura_rate_limit_events`
-
-**Migration**: `supabase/migrations/YYYYMMDD_add_rate_limit_events.sql`
-```sql
-CREATE TABLE ultaura_rate_limit_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  event_type TEXT NOT NULL,  -- 'allowed', 'blocked', 'anomaly'
-  action TEXT NOT NULL,  -- 'verify_send', 'verify_check', 'sms', 'set_reminder'
-  ip_address TEXT,
-  phone_number TEXT,  -- E.164 format, for audit only
-  account_id UUID,
-  call_session_id UUID,
-  limit_type TEXT,  -- 'phone', 'ip', 'account', 'session'
-  remaining INTEGER,
-  was_allowed BOOLEAN NOT NULL,
-  redis_available BOOLEAN DEFAULT TRUE,
-  metadata JSONB
-);
-
--- Index for querying recent events
-CREATE INDEX idx_rate_limit_events_created ON ultaura_rate_limit_events(created_at DESC);
-CREATE INDEX idx_rate_limit_events_ip ON ultaura_rate_limit_events(ip_address, created_at DESC);
-CREATE INDEX idx_rate_limit_events_account ON ultaura_rate_limit_events(account_id, created_at DESC);
-
--- Auto-cleanup after 30 days
-CREATE OR REPLACE FUNCTION cleanup_old_rate_limit_events()
-RETURNS void AS $$
-BEGIN
-  DELETE FROM ultaura_rate_limit_events
-  WHERE created_at < NOW() - INTERVAL '30 days';
-END;
-$$ LANGUAGE plpgsql;
-```
-
-**Logging Function**:
-```typescript
-async function logRateLimitEvent(event: {
-  eventType: 'allowed' | 'blocked' | 'anomaly';
-  action: string;
-  ipAddress?: string;
-  phoneNumber?: string;
-  accountId?: string;
-  callSessionId?: string;
-  limitType?: string;
-  remaining?: number;
-  wasAllowed: boolean;
-  redisAvailable: boolean;
-  metadata?: Record<string, unknown>;
-}): Promise<void>;
-```
-
----
-
-### 9. Verification Endpoint Updates
-
-**File**: `telephony/src/routes/verify.ts`
-
-**Changes Required**:
-
-1. Add `requireInternalSecret` middleware at router level
-2. Add `accountId` to request body validation (for account-level throttling)
-3. Apply `verifyRateLimiter('send')` to `/verify/send`
-4. Apply `verifyRateLimiter('check')` to `/verify/check`
-5. Remove old in-memory `verificationAttempts` Map and related code
-6. Add kill switch check before processing
-
-**Updated Request Body for `/verify/send`**:
-```typescript
-interface VerifySendRequest {
-  lineId: string;
-  phoneNumber: string;  // E.164 format
-  channel: 'sms' | 'call';
-  accountId: string;  // NEW: Required for account-level throttling
+export async function cleanupTestData(accountId: string) {
+  // Clean up in reverse dependency order
+  await testClient.from('ultaura_reminder_events').delete().eq('account_id', accountId);
+  await testClient.from('ultaura_reminders').delete().eq('account_id', accountId);
+  await testClient.from('ultaura_schedules').delete().match({ account_id: accountId });
+  await testClient.from('ultaura_lines').delete().eq('account_id', accountId);
+  await testClient.from('ultaura_accounts').delete().eq('id', accountId);
 }
 ```
 
-**Updated Request Body for `/verify/check`**:
-```typescript
-interface VerifyCheckRequest {
-  phoneNumber: string;
-  code: string;
-  accountId: string;  // NEW: Required for account-level throttling
-}
-```
-
----
-
-### 10. Tool Endpoint Updates
-
-#### 10.1 `set_reminder` Rate Limiting
-
-**File**: `telephony/src/routes/tools/set-reminder.ts`
-
-**Changes**:
-- Add check for reminder count per session before creating
-- Query existing reminders created in current session
-- Return error if limit (5) exceeded
+### DST Transition Tests
 
 ```typescript
-// At start of handler, after validation
-const { count } = await supabase
-  .from('ultaura_reminders')
-  .select('id', { count: 'exact', head: true })
-  .eq('created_in_session', callSessionId);
+// src/lib/ultaura/__tests__/schedules.test.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { DateTime } from 'luxon';
+import { createSchedule, getNextRunAt } from '../schedules';
+import { createTestAccount, cleanupTestData } from './setup';
 
-if (count >= 5) {
-  return res.status(429).json({
-    error: 'Maximum reminders per call reached',
-    limit: 5,
-    suggestion: 'You can set more reminders in your next call'
+describe('Schedule DST Handling', () => {
+  let testAccount: any;
+  let testLine: any;
+
+  beforeAll(async () => {
+    const result = await createTestAccount();
+    testAccount = result.account;
+    // Create test line...
   });
-}
-```
 
-**Database Change**: Add `created_in_session` column to `ultaura_reminders` table.
-
-#### 10.2 SMS-Sending Tools Rate Limiting
-
-**Files**:
-- `telephony/src/routes/tools/safety-event.ts`
-- `telephony/src/routes/tools/request-upgrade.ts`
-
-**Changes**:
-- Add rate limit check before sending SMS
-- Share counter between both tools (both count toward 15/day limit)
-- If limit exceeded, log event and skip SMS (but don't fail the tool call entirely for safety events)
-
-```typescript
-// For safety_event: still log the event, just skip SMS
-if (smsLimitExceeded) {
-  logger.warn({ accountId, limit: 15 }, 'SMS rate limit exceeded, skipping notification');
-  // Continue with safety event logging, just don't send SMS
-}
-
-// For request_upgrade: return error since SMS is the main purpose
-if (smsLimitExceeded) {
-  return res.status(429).json({
-    error: 'Daily notification limit reached',
-    retryAfter: secondsUntilMidnight
+  afterAll(async () => {
+    await cleanupTestData(testAccount.id);
   });
-}
-```
 
----
+  describe('Spring Forward (2:00 AM -> 3:00 AM)', () => {
+    it('should skip 2:30 AM schedule on DST transition day', async () => {
+      // March 10, 2024 2:00 AM EST becomes 3:00 AM EDT
+      const schedule = await createSchedule(testAccount.id, {
+        lineId: testLine.id,
+        daysOfWeek: [0], // Sunday
+        timeOfDay: '02:30',
+        timezone: 'America/New_York',
+      });
 
-### 11. Frontend Changes
+      // On March 10, 2024, 2:30 AM doesn't exist
+      const marchTenth = DateTime.fromISO('2024-03-10T01:59:00', { zone: 'America/New_York' });
+      const nextRun = getNextRunAt(schedule, marchTenth);
 
-**File**: `src/lib/ultaura/actions.ts`
+      // Should skip to next valid occurrence (March 17)
+      expect(nextRun.hour).toBe(2);
+      expect(nextRun.day).toBe(17);
+    });
 
-**Update `startPhoneVerification`**:
-- Include `accountId` in request body
+    it('should handle 2:00 AM schedule gracefully', async () => {
+      const schedule = await createSchedule(testAccount.id, {
+        lineId: testLine.id,
+        daysOfWeek: [0],
+        timeOfDay: '02:00',
+        timezone: 'America/New_York',
+      });
 
-```typescript
-// In startPhoneVerification function
-const response = await fetch(`${telephonyUrl}/verify/send`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Webhook-Secret': getInternalApiSecret(),
-  },
-  body: JSON.stringify({
-    lineId,
-    phoneNumber: line.phone_e164,
-    channel,
-    accountId: account.id,  // NEW: Add account ID
-  }),
+      const marchTenth = DateTime.fromISO('2024-03-10T01:59:00', { zone: 'America/New_York' });
+      const nextRun = getNextRunAt(schedule, marchTenth);
+
+      // 2:00 AM becomes 3:00 AM on DST day
+      expect(nextRun.hour).toBe(3);
+      expect(nextRun.day).toBe(10);
+    });
+  });
+
+  describe('Fall Back (2:00 AM -> 1:00 AM)', () => {
+    it('should not double-fire 1:30 AM schedule', async () => {
+      // November 3, 2024 2:00 AM EDT becomes 1:00 AM EST
+      const schedule = await createSchedule(testAccount.id, {
+        lineId: testLine.id,
+        daysOfWeek: [0], // Sunday
+        timeOfDay: '01:30',
+        timezone: 'America/New_York',
+      });
+
+      // Should only fire once despite 1:30 occurring twice
+      const novThird = DateTime.fromISO('2024-11-03T00:00:00', { zone: 'America/New_York' });
+      const nextRun = getNextRunAt(schedule, novThird);
+
+      // Should use the first occurrence (EDT)
+      expect(nextRun.toISO()).toContain('T01:30:00');
+    });
+  });
+
+  describe('Arizona (No DST)', () => {
+    it('should maintain consistent schedule in Arizona timezone', async () => {
+      const schedule = await createSchedule(testAccount.id, {
+        lineId: testLine.id,
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        timeOfDay: '09:00',
+        timezone: 'America/Phoenix', // No DST
+      });
+
+      // Schedule should always be 9:00 AM local
+      const summerDate = DateTime.fromISO('2024-07-15T08:00:00', { zone: 'America/Phoenix' });
+      const winterDate = DateTime.fromISO('2024-12-15T08:00:00', { zone: 'America/Phoenix' });
+
+      const summerNext = getNextRunAt(schedule, summerDate);
+      const winterNext = getNextRunAt(schedule, winterDate);
+
+      expect(summerNext.hour).toBe(9);
+      expect(winterNext.hour).toBe(9);
+    });
+  });
 });
 ```
 
-**Update `checkPhoneVerification`**:
-- Include `accountId` in request body
+### Timezone Boundary Tests
 
----
+```typescript
+// src/lib/ultaura/__tests__/reminders.test.ts
+import { describe, it, expect } from 'vitest';
+import { DateTime } from 'luxon';
+import { createReminder, getNextReminderOccurrence } from '../reminders';
 
-## File Structure
+describe('Reminder Timezone Handling', () => {
+  describe('Cross-timezone scheduling', () => {
+    it('should store in UTC and display in user timezone', async () => {
+      const reminder = await createReminder({
+        lineId: testLine.id,
+        dueAt: '2024-06-15T14:00:00', // 2 PM user local
+        message: 'Take medication',
+        timezone: 'America/Los_Angeles', // PDT (UTC-7)
+      });
 
-New and modified files:
+      // Stored as UTC
+      const storedUtc = DateTime.fromISO(reminder.dueAt, { zone: 'UTC' });
+      expect(storedUtc.hour).toBe(21); // 2 PM PDT = 9 PM UTC
 
-```
-telephony/
-├── src/
-│   ├── services/
-│   │   ├── redis.ts                    # NEW: Redis client setup
-│   │   ├── rate-limiter.ts             # NEW: Rate limiting logic
-│   │   └── anomaly-alerts.ts           # NEW: Anomaly detection & alerts
-│   ├── middleware/
-│   │   ├── auth.ts                     # EXISTING (no changes)
-│   │   └── rate-limiter.ts             # NEW: Rate limiter middleware
-│   └── routes/
-│       ├── verify.ts                   # MODIFY: Add auth + rate limiting
-│       └── tools/
-│           ├── set-reminder.ts         # MODIFY: Add session limit
-│           ├── safety-event.ts         # MODIFY: Add SMS rate limiting
-│           └── request-upgrade.ts      # MODIFY: Add SMS rate limiting
-├── package.json                        # MODIFY: Add @upstash/redis
+      // Displayed in user timezone
+      const displayLocal = storedUtc.setZone('America/Los_Angeles');
+      expect(displayLocal.hour).toBe(14);
+    });
 
-supabase/migrations/
-├── YYYYMMDD_add_system_settings.sql    # NEW: Kill switch table
-├── YYYYMMDD_add_rate_limit_events.sql  # NEW: Audit logging table
-└── YYYYMMDD_add_reminder_session.sql   # NEW: created_in_session column
+    it('should handle midnight crossing correctly', async () => {
+      // 11 PM Pacific = 6 AM UTC next day
+      const reminder = await createReminder({
+        lineId: testLine.id,
+        dueAt: '2024-06-15T23:00:00',
+        message: 'Evening reminder',
+        timezone: 'America/Los_Angeles',
+      });
 
-src/lib/ultaura/
-└── actions.ts                          # MODIFY: Add accountId to verify calls
+      const storedUtc = DateTime.fromISO(reminder.dueAt, { zone: 'UTC' });
+      expect(storedUtc.day).toBe(16); // Next day in UTC
+      expect(storedUtc.hour).toBe(6);
+    });
+  });
 
-.env.ultaura.example                    # MODIFY: Add Redis config vars
-```
+  describe('Hawaii timezone edge cases', () => {
+    it('should handle Hawaii-Aleutian time (no DST)', async () => {
+      const reminder = await createReminder({
+        lineId: testLine.id,
+        dueAt: '2024-06-15T10:00:00',
+        message: 'Aloha reminder',
+        timezone: 'Pacific/Honolulu', // HST (UTC-10, no DST)
+      });
 
----
-
-## Implementation Sequence
-
-### Phase 1: Infrastructure Setup
-1. Set up Upstash Redis account and get credentials
-2. Add environment variables to `.env.local`
-3. Create Redis client service (`telephony/src/services/redis.ts`)
-4. Add `@upstash/redis` and `@upstash/ratelimit` dependencies
-
-### Phase 2: Database Migrations
-1. Create `ultaura_system_settings` table (kill switch)
-2. Create `ultaura_rate_limit_events` table (audit logging)
-3. Add `created_in_session` column to `ultaura_reminders`
-4. Run migrations: `npx supabase migration up`
-
-### Phase 3: Rate Limiting Core
-1. Implement rate limiter service (`telephony/src/services/rate-limiter.ts`)
-2. Implement rate limiter middleware (`telephony/src/middleware/rate-limiter.ts`)
-3. Add localhost bypass logic
-4. Add graceful degradation for Redis failures
-
-### Phase 4: Verification Endpoints
-1. Add `requireInternalSecret` to verify router
-2. Update request body interfaces to include `accountId`
-3. Apply rate limiter middleware to both endpoints
-4. Remove old in-memory rate limiting code
-5. Add kill switch check
-6. Update frontend actions to include `accountId`
-
-### Phase 5: Tool Endpoints
-1. Add session-based limiting to `set_reminder`
-2. Add SMS rate limiting to `safety_event`
-3. Add SMS rate limiting to `request_upgrade`
-
-### Phase 6: Anomaly Detection & Alerts
-1. Implement anomaly detection service
-2. Configure email alerts
-3. Add anomaly checks to rate limiter
-
-### Phase 7: Testing & Validation
-1. Test rate limiting with various scenarios
-2. Test Redis failure graceful degradation
-3. Test kill switch functionality
-4. Test anomaly alerts
-5. Verify audit logging
-
----
-
-## Testing Considerations
-
-### Unit Tests
-- Rate limiter service functions
-- Anomaly threshold calculations
-- Key generation for Redis
-
-### Integration Tests
-- Rate limiting across multiple requests
-- Redis connection handling
-- Kill switch behavior
-- Audit log insertion
-
-### Manual Testing Checklist
-- [ ] Verify `/verify/send` requires secret header
-- [ ] Verify `/verify/check` requires secret header
-- [ ] Confirm rate limit after 5 sends to same phone
-- [ ] Confirm rate limit after 10 checks to same phone
-- [ ] Confirm rate limit after 20 requests from same IP
-- [ ] Confirm rate limit after 10 requests from same account
-- [ ] Test 5-reminder limit per call session
-- [ ] Test 15-SMS limit per account per day
-- [ ] Verify Redis fallback behavior (stop Redis, make request)
-- [ ] Verify kill switch stops all verification
-- [ ] Verify email alert is sent on anomaly detection
-- [ ] Check audit logs are created correctly
-- [ ] Verify localhost bypass works in development
-
-### Load Testing
-- Simulate 100 concurrent verification requests
-- Verify Redis handles load appropriately
-- Check for race conditions in counter increments
-
----
-
-## Rollback Plan
-
-If issues arise after deployment:
-
-1. **Immediate**: Set kill switch in database to disable verification
-2. **Remove rate limiting**: Comment out middleware, redeploy
-3. **Fall back to in-memory**: Restore old in-memory logic temporarily
-4. **Redis issues**: System automatically degrades to allow-with-logging mode
-
----
-
-## Monitoring & Alerting Post-Deployment
-
-### Metrics to Track
-- Rate limit hit rate (blocked / total requests)
-- Redis latency
-- Anomaly alert frequency
-- Verification success rate
-
-### Dashboard Queries
-```sql
--- Rate limit events in last 24 hours
-SELECT event_type, action, COUNT(*)
-FROM ultaura_rate_limit_events
-WHERE created_at > NOW() - INTERVAL '24 hours'
-GROUP BY event_type, action;
-
--- Top blocked IPs
-SELECT ip_address, COUNT(*) as blocks
-FROM ultaura_rate_limit_events
-WHERE was_allowed = false AND created_at > NOW() - INTERVAL '24 hours'
-GROUP BY ip_address
-ORDER BY blocks DESC
-LIMIT 10;
+      const storedUtc = DateTime.fromISO(reminder.dueAt, { zone: 'UTC' });
+      expect(storedUtc.hour).toBe(20); // 10 AM HST = 8 PM UTC
+    });
+  });
+});
 ```
 
----
+### RRULE Recurrence Tests
 
-## Security Considerations
+```typescript
+// src/lib/ultaura/__tests__/reminders.test.ts (continued)
 
-1. **Secret in headers**: Already using `X-Webhook-Secret` with timing-safe comparison
-2. **Phone number logging**: E.164 format logged for audit, no PII exposure
-3. **Redis security**: Upstash REST API uses token authentication, encrypted in transit
-4. **Kill switch access**: Only accessible via database (requires DB credentials)
-5. **Alert emails**: Sent to billing email, not exposed externally
+describe('RRULE Recurrence Edge Cases', () => {
+  describe('Monthly on 31st', () => {
+    it('should skip months without 31st day', async () => {
+      const reminder = await createReminder({
+        lineId: testLine.id,
+        dueAt: '2024-01-31T09:00:00',
+        message: 'Monthly on 31st',
+        timezone: 'America/New_York',
+        recurrence: {
+          frequency: 'monthly',
+          dayOfMonth: 31,
+        },
+      });
 
----
+      // Jan 31 -> Mar 31 (skip Feb)
+      const afterJan = await getNextReminderOccurrence(reminder, '2024-02-01');
+      expect(afterJan.month).toBe(3);
+      expect(afterJan.day).toBe(31);
 
-## Cost Estimates
+      // Mar 31 -> May 31 (skip Apr with 30 days)
+      const afterMar = await getNextReminderOccurrence(reminder, '2024-04-01');
+      expect(afterMar.month).toBe(5);
+      expect(afterMar.day).toBe(31);
+    });
+  });
 
-### Upstash Redis
-- Free tier: 10,000 requests/day
-- Pay-as-you-go: $0.2 per 100,000 requests
-- Expected usage: ~1,000-5,000 requests/day initially
-- **Estimated cost**: Free tier sufficient, or ~$1-5/month at scale
+  describe('Yearly on Feb 29', () => {
+    it('should only fire on leap years', async () => {
+      const reminder = await createReminder({
+        lineId: testLine.id,
+        dueAt: '2024-02-29T09:00:00', // 2024 is leap year
+        message: 'Leap year reminder',
+        timezone: 'America/New_York',
+        recurrence: {
+          frequency: 'custom',
+          intervalDays: 365, // Yearly approximation
+        },
+      });
 
-### Reduced Abuse Costs
-- Current exposure: Unlimited verification sends
-- With rate limiting: Max 5 per phone/hour, 10 per account/hour
-- **Estimated savings**: Prevention of potential abuse costing $100s-$1000s
+      // 2025 is not a leap year - Feb 29 doesn't exist
+      const next2025 = await getNextReminderOccurrence(reminder, '2025-02-01');
+      // Should either skip to 2028 or adjust to Feb 28
+      expect([28, 29]).toContain(next2025.day);
+    });
+  });
 
----
+  describe('Weekly crossing year boundary', () => {
+    it('should continue weekly pattern across year end', async () => {
+      const reminder = await createReminder({
+        lineId: testLine.id,
+        dueAt: '2024-12-30T10:00:00', // Monday
+        message: 'Weekly Monday',
+        timezone: 'America/New_York',
+        recurrence: {
+          frequency: 'weekly',
+          daysOfWeek: [1], // Monday
+        },
+      });
 
-## Environment Variables Summary
+      const nextAfterYearEnd = await getNextReminderOccurrence(reminder, '2025-01-01');
+      expect(nextAfterYearEnd.year).toBe(2025);
+      expect(nextAfterYearEnd.weekday).toBe(1); // Monday
+      expect(nextAfterYearEnd.day).toBe(6); // First Monday of 2025
+    });
+  });
 
-**New variables to add**:
-```bash
-# Upstash Redis (required for rate limiting)
-UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
-UPSTASH_REDIS_REST_TOKEN=your-token-here
+  describe('Snooze with recurrence', () => {
+    it('should preserve original due time after snooze expires', async () => {
+      const reminder = await createReminder({
+        lineId: testLine.id,
+        dueAt: '2024-06-15T09:00:00',
+        message: 'Daily 9 AM',
+        timezone: 'America/New_York',
+        recurrence: { frequency: 'daily' },
+      });
 
-# Optional: Override defaults
-RATE_LIMIT_VERIFY_SEND_PER_PHONE=5
-RATE_LIMIT_VERIFY_CHECK_PER_PHONE=10
-RATE_LIMIT_PER_IP=20
-RATE_LIMIT_PER_ACCOUNT=10
-RATE_LIMIT_SMS_PER_ACCOUNT=15
-RATE_LIMIT_REMINDERS_PER_SESSION=5
-ANOMALY_COST_THRESHOLD=10.00
-ANOMALY_REPEATED_HITS_THRESHOLD=3
-ANOMALY_ENUMERATION_THRESHOLD=10
+      // Snooze for 1 hour
+      await snoozeReminder(reminder.id, 60);
+
+      // Snoozed until 10 AM
+      const snoozed = await getReminder(reminder.id);
+      expect(snoozed.snoozedUntil).toContain('10:00');
+      expect(snoozed.originalDueAt).toContain('09:00');
+
+      // After snooze expires, next occurrence should be 9 AM tomorrow
+      const nextOccurrence = await getNextReminderOccurrence(snoozed, '2024-06-15T11:00:00');
+      expect(nextOccurrence.hour).toBe(9);
+      expect(nextOccurrence.day).toBe(16);
+    });
+  });
+});
+```
+
+### Permission Tests
+
+```typescript
+// src/lib/ultaura/__tests__/reminders.test.ts (continued)
+
+describe('Reminder State Machine', () => {
+  it('should only allow pausing scheduled reminders', async () => {
+    const reminder = await createReminder({
+      lineId: testLine.id,
+      dueAt: '2024-06-15T09:00:00',
+      message: 'Test',
+      timezone: 'America/New_York',
+    });
+
+    // Can pause scheduled reminder
+    const pauseResult = await pauseReminder(reminder.id);
+    expect(pauseResult.success).toBe(true);
+
+    // Cannot pause already paused reminder
+    const doublePause = await pauseReminder(reminder.id);
+    expect(doublePause.success).toBe(false);
+    expect(doublePause.error.code).toBe('REMINDER_NOT_PAUSABLE');
+  });
+
+  it('should enforce snooze limit', async () => {
+    const reminder = await createReminder({
+      lineId: testLine.id,
+      dueAt: '2024-06-15T09:00:00',
+      message: 'Test',
+      timezone: 'America/New_York',
+    });
+
+    // First 3 snoozes should succeed
+    await snoozeReminder(reminder.id, 15);
+    await snoozeReminder(reminder.id, 15);
+    await snoozeReminder(reminder.id, 15);
+
+    // 4th snooze should fail
+    const fourthSnooze = await snoozeReminder(reminder.id, 15);
+    expect(fourthSnooze.success).toBe(false);
+    expect(fourthSnooze.error.code).toBe('SNOOZE_LIMIT_REACHED');
+  });
+
+  it('should validate snooze duration', async () => {
+    const reminder = await createReminder({...});
+
+    // Invalid duration
+    const result = await snoozeReminder(reminder.id, 45); // Not in allowed list
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe('INVALID_INPUT');
+  });
+});
 ```
 
 ---
 
-## Assumptions
+## Migration Plan
 
-1. Upstash free tier will be sufficient for initial traffic
-2. Billing email exists for all accounts (used for alerts)
-3. All verification requests now route through Next.js app (not direct)
-4. Call session IDs are consistently available in tool requests
-5. Nodemailer is already configured for email sending
-6. Account ID is available in the verification flow context
+### Step 1: Create @ultaura/schemas Package
+
+1. Create `packages/schemas/` directory structure
+2. Move and enhance type definitions
+3. Create Zod schemas for all input types
+4. Add error codes and factory functions
+5. Configure package.json and tsconfig.json
+6. Update pnpm-workspace.yaml
+
+### Step 2: Fix Type Inconsistencies
+
+Update `src/lib/ultaura/types.ts`:
+1. ~~Add `rrule` field to Schedule type~~ - SKIP (column removed from DB)
+2. ~~Add `preferredLanguage` and `spanishFormality` to Line type~~ - SKIP (columns removed from DB)
+3. Add `source`, `version`, `active` to EncryptedMemory type
+4. Export ReminderEvent type
+5. Keep TrustedContact.notifyOn as `SafetyTier[]` (Zod validates at runtime)
+6. Add `ReminderDeliveryMethod` enum with `'outbound_call'`
+7. Add `is_reminder_call`, `reminder_id`, `reminder_message` to CallSessionRow
+
+### Step 3: Create Helper Module
+
+Create `src/lib/ultaura/helpers.ts`:
+1. Move `getTrialStatus()`, `getPlan()`, `getUltauraAccountById()` from actions.ts
+2. Add `withTrialCheck()` HOF wrapper (for mutating actions only)
+3. Use `UltauraAccountRow` (snake_case) - no camelCase mapping needed
+4. `getPlan()` queries DB `ultaura_plans` table (not PLANS constant)
+
+### Step 4: Split Action Modules
+
+For each domain, create a new file:
+
+| File | Functions to Move | Est. Lines |
+|------|-------------------|------------|
+| accounts.ts | getOrCreateUltauraAccount, getUltauraAccount, isTrialExpired, getTrialInfo | ~150 |
+| lines.ts | getLines, getLine, createLine, updateLine, deleteLine | ~280 |
+| contacts.ts | getTrustedContacts, addTrustedContact, removeTrustedContact | ~120 |
+| verification.ts | startPhoneVerification, checkPhoneVerification | ~150 |
+| schedules.ts | getSchedules, getSchedule, createSchedule, updateSchedule, deleteSchedule, getUpcomingScheduledCalls, getAllSchedules | ~300 |
+| reminders.ts | getReminders, getReminder, createReminder, editReminder, pauseReminder, resumeReminder, snoozeReminder, cancelReminder, skipNextOccurrence, getPendingReminderCount, getNextReminder, getUpcomingReminders, getAllReminders | ~500 |
+| reminder-events.ts | logReminderEvent, getReminderEvents, getLineReminderEvents | ~150 |
+| usage.ts | getUsageSummary, updateOverageCap, getCallSessions, getLineActivity, initiateTestCall | ~200 |
+| checkout.ts | createUltauraCheckout, getUltauraPriceId | ~150 |
+
+### Step 5: Update All Imports
+
+Update all 27 consuming files:
+
+```typescript
+// Before
+import { getLines, createLine, getSchedules } from '~/lib/ultaura/actions';
+
+// After
+import { getLines, createLine } from '~/lib/ultaura/lines';
+import { getSchedules } from '~/lib/ultaura/schedules';
+```
+
+Files to update:
+- `/src/app/dashboard/(app)/lines/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/LineDetailClient.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/settings/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/verify/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/verify/VerifyPhoneClient.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/contacts/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/contacts/ContactsClient.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/reminders/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/reminders/RemindersClient.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/reminders/ReminderActivity.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/schedule/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/schedule/ScheduleClient.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/schedule/[scheduleId]/page.tsx`
+- `/src/app/dashboard/(app)/lines/[lineId]/schedule/[scheduleId]/EditScheduleClient.tsx`
+- `/src/app/dashboard/(app)/lines/components/AddLineModal.tsx`
+- `/src/app/dashboard/(app)/lines/components/LineCard.tsx`
+- `/src/app/dashboard/(app)/calls/page.tsx`
+- `/src/app/dashboard/(app)/calls/CallsPageClient.tsx`
+- `/src/app/dashboard/(app)/reminders/page.tsx`
+- `/src/app/dashboard/(app)/reminders/RemindersPageClient.tsx`
+- `/src/app/dashboard/(app)/usage/page.tsx`
+- `/src/app/dashboard/(app)/usage/components/UsageCapControl.tsx`
+- `/src/app/dashboard/(app)/settings/subscription/page.tsx`
+- `/src/components/ultaura/PricingTable.tsx`
+- `/src/app/dashboard/(app)/page.tsx`
+
+### Step 6: Update index.ts
+
+Create barrel exports in `src/lib/ultaura/index.ts` to maintain backwards compatibility for any external consumers.
+
+### Step 7: Remove @ts-nocheck
+
+1. Remove `// @ts-nocheck` from all new module files
+2. Run `pnpm typecheck` to identify remaining type errors
+3. Fix all type errors
+4. Ensure strict mode works across all modules
+
+### Step 8: Write Tests
+
+Create test files in `src/lib/ultaura/__tests__/`:
+1. Setup test database utilities
+2. Write unit tests for each module
+3. Focus on DST, timezone, and recurrence edge cases
+4. Add permission/state machine tests
+
+### Step 9: Update Telephony to Use Shared Schemas
+
+Update `telephony/src/routes/tools/` to import from `@ultaura/schemas`:
+1. Replace manual validation with Zod schemas from `@ultaura/schemas/telephony`
+2. Add error codes to responses (preserve existing message strings for voice):
+   ```typescript
+   // Before
+   res.json({ success: false, message: "You've already snoozed this 3 times." });
+
+   // After
+   res.json({
+     success: false,
+     code: 'SNOOZE_LIMIT_REACHED',  // NEW - enables programmatic handling
+     message: "You've already snoozed this 3 times."  // KEEP - for voice output
+   });
+   ```
+3. Ensure consistency between frontend and backend validation
 
 ---
 
-## Open Questions (Resolved)
+## Files to Create/Modify
 
-| Question | Decision |
-|----------|----------|
-| Redis provider | Upstash (serverless) |
-| Require auth on verify endpoints | Yes |
-| Rate limits for verification | 5 send / 10 check per phone/hour |
-| IP rate limiting | Yes, 20/hour |
-| Account-level limits | Yes, 10/hour |
-| SMS tool limits | 15/account/day (shared) |
-| Reminder limits | 5/call session |
-| Alert mechanism | Email to billing address |
-| Redis fallback | Allow with logging |
-| Kill switch | Database toggle |
-| Cost tracking | Estimate (send count × $0.05) |
-| Audit logging | Full logging to database |
-| Dev bypass | Localhost bypass |
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `packages/schemas/package.json` | Package configuration |
+| `packages/schemas/tsconfig.json` | TypeScript config |
+| `packages/schemas/src/index.ts` | Exports |
+| `packages/schemas/src/types.ts` | Shared types (snake_case Row types) |
+| `packages/schemas/src/errors.ts` | Error codes + factory |
+| `packages/schemas/src/constants.ts` | Shared constants (US_TIMEZONES, VALID_SNOOZE_MINUTES, etc.) |
+| `packages/schemas/src/line.ts` | Line schemas |
+| `packages/schemas/src/schedule.ts` | Schedule schemas |
+| `packages/schemas/src/reminder.ts` | Reminder schemas |
+| `packages/schemas/src/contact.ts` | Contact schemas |
+| `packages/schemas/src/account.ts` | Account schemas |
+| `packages/schemas/src/telephony/index.ts` | Telephony tool exports |
+| `packages/schemas/src/telephony/set-reminder.ts` | SetReminderInput schema |
+| `packages/schemas/src/telephony/edit-reminder.ts` | EditReminderInput schema |
+| `packages/schemas/src/telephony/snooze-reminder.ts` | SnoozeReminderInput schema |
+| `packages/schemas/src/telephony/opt-out.ts` | OptOutInput schema |
+| `packages/schemas/src/telephony/safety-event.ts` | SafetyEventInput schema |
+| `src/lib/ultaura/helpers.ts` | Shared utilities (uses Row types) |
+| `src/lib/ultaura/accounts.ts` | Account actions |
+| `src/lib/ultaura/lines.ts` | Line actions |
+| `src/lib/ultaura/contacts.ts` | Contact actions |
+| `src/lib/ultaura/verification.ts` | Verification actions |
+| `src/lib/ultaura/schedules.ts` | Schedule actions |
+| `src/lib/ultaura/reminders.ts` | Reminder CRUD + lifecycle (~500 lines) |
+| `src/lib/ultaura/reminder-events.ts` | Reminder event logging (~150 lines) |
+| `src/lib/ultaura/usage.ts` | Usage actions |
+| `src/lib/ultaura/checkout.ts` | Checkout actions |
+| `src/lib/ultaura/__tests__/setup.ts` | Test utilities (service-role client) |
+| `src/lib/ultaura/__tests__/rls.test.ts` | RLS policy tests (authenticated client) |
+| `src/lib/ultaura/__tests__/*.test.ts` | Test files (9 total) |
+
+### Modified Files
+
+| File | Changes |
+|------|---------|
+| `src/lib/ultaura/types.ts` | Add EncryptedMemory fields, export ReminderEvent, add CallSession reminder fields |
+| `src/lib/ultaura/index.ts` | Update re-exports to include new modules |
+| `src/lib/ultaura/timezone.ts` | Export getNextScheduleOccurrence, getNextReminderOccurrence for testing |
+| `pnpm-workspace.yaml` | No change needed (packages/* glob already includes packages/schemas) |
+| 27 dashboard files | Update imports to use new module paths |
+
+### Deleted Files
+
+| File | Reason |
+|------|--------|
+| `src/lib/ultaura/actions.ts` | Split into domain modules |
 
 ---
 
-## Appendix: Current Code References
+## Acceptance Criteria
 
-### Files to Modify
+### Functional
+- [ ] All 43 exported functions work identically to before
+- [ ] All 27 consuming files compile without errors
+- [ ] No runtime behavior changes for end users
+- [ ] Error messages remain user-friendly
 
-1. **`telephony/src/routes/verify.ts`** (lines 1-100)
-   - Add `requireInternalSecret` at line 8
-   - Replace in-memory Map (lines 11-14) with Redis calls
-   - Update request validation to require `accountId`
+### Type Safety
+- [ ] `@ts-nocheck` removed from all modules
+- [ ] `pnpm typecheck` passes with no errors
+- [ ] All inputs validated via Zod schemas
+- [ ] Type inconsistencies fixed (EncryptedMemory, ReminderEvent export, CallSession reminder fields)
+- [ ] Uses snake_case Row types throughout (matching current UI consumption)
 
-2. **`telephony/src/routes/tools/set-reminder.ts`** (lines 1-200)
-   - Add session reminder count check after line 50
+### Testing
+- [ ] Unit tests for each module
+- [ ] DST transition tests (spring forward, fall back)
+- [ ] Timezone boundary tests (midnight crossing, Hawaii)
+- [ ] RRULE edge case tests (31st, Feb 29, year boundary)
+- [ ] Permission/state machine tests
+- [ ] Tests run with real database (RLS verified)
 
-3. **`telephony/src/routes/tools/safety-event.ts`** (lines 60-80)
-   - Add SMS rate limit check before `sendSms()` call at line 70
+### Code Quality
+- [ ] Each module under 500 lines (reminders.ts ~500, others smaller)
+- [ ] Reminders split into reminders.ts + reminder-events.ts
+- [ ] Minimal JSDoc on all exported functions
+- [ ] Consistent error code usage
+- [ ] `withTrialCheck` wrapper used on mutating actions only
+- [ ] Getters return Row types directly (no ActionResult wrapping)
 
-4. **`telephony/src/routes/tools/request-upgrade.ts`** (lines 130-145)
-   - Add SMS rate limit check before POST to upgrade endpoint
+### Cross-Package
+- [ ] `@ultaura/schemas` package created with dashboard + telephony schemas
+- [ ] Schemas importable from both Next.js and telephony
+- [ ] Telephony validation updated to use shared schemas
+- [ ] Telephony responses include error codes (preserving message strings for voice)
 
-5. **`src/lib/ultaura/actions.ts`** (lines 516-540)
-   - Add `accountId` to verify send request body
-   - Add `accountId` to verify check request body
+---
 
-### Existing Auth Middleware Location
-- `telephony/src/middleware/auth.ts` (lines 6-44)
-- Uses `crypto.timingSafeEqual` for timing-safe comparison
-- Header: `X-Webhook-Secret`
+## Risks and Mitigations
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Breaking existing imports | Medium | High | Update all 27 files atomically; run full E2E suite |
+| Type errors after removing @ts-nocheck | High | Medium | Fix incrementally; start with simpler modules |
+| DST edge cases not fully covered | Medium | Medium | Use real timezone library (Luxon) in tests |
+| Test database setup complexity | Medium | Low | Reuse existing Cypress/Supabase setup patterns |
+| Telephony schema divergence | Low | Medium | Enforce shared package usage in CI |
+
+---
+
+## Dependencies
+
+- `zod` (already installed)
+- `luxon` (already used in telephony)
+- `vitest` (already installed)
+- `@supabase/supabase-js` (already installed)
+
+No new dependencies required.
+
+---
+
+## Key Implementation Decisions (Q&A Summary)
+
+This section summarizes decisions made during spec review to resolve ambiguities:
+
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| **rrule/language columns** | Do NOT reintroduce | Removed by migrations 20260209/20260210 - intentional |
+| **Extra DB columns** | Add runtime-relevant only | Skip internal scheduler fields (processing_claimed_*, retry_count) |
+| **ActionResult scope** | Mutating actions only | Getters return data directly to avoid breaking 27 consuming files |
+| **Entity shape** | Keep snake_case Row types | UI already consumes snake_case; camelCase types are unused |
+| **Helper types** | Use UltauraAccountRow | Matches actual usage pattern |
+| **Plan lookup** | Keep DB ultaura_plans | Current behavior, allows plan changes without deployment |
+| **@ultaura/schemas scope** | Dashboard + telephony | Include telephony tool inputs for consistency |
+| **constants.ts in package** | Create new file | Re-export or move shared constants |
+| **Timezone validation** | Any IANA timezone | Current behavior; US_TIMEZONES is UI dropdown only |
+| **Phone validation** | TELEPHONY.PHONE_REGEX | Stricter regex rejects invalid area codes |
+| **Recurrence naming** | Keep `interval` | Current convention; maps to interval_days in DB |
+| **Delivery method enum** | `'outbound_call'` only | Add `'sms'` when feature is implemented |
+| **TrustedContact.notifyOn** | Keep SafetyTier[] | Zod validates at runtime; semantic constraint |
+| **Test harness** | Root vitest + service-role | Add rls.test.ts with authenticated client |
+| **Test APIs** | Export from timezone.ts | getNextScheduleOccurrence, getNextReminderOccurrence |
+| **Module size** | Split reminders | reminders.ts (~500) + reminder-events.ts (~150) |
+| **actions.ts removal** | Delete outright | No shim; update all 27 imports atomically |
+| **Telephony error codes** | Add codes, keep messages | Enables programmatic handling + voice output |
+| **withTrialCheck scope** | Mutating actions only | Getters work on expired trials (read-only access) |
+| **pnpm-workspace.yaml** | No change needed | packages/* glob already includes packages/schemas |

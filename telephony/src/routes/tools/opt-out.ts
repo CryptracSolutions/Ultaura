@@ -1,4 +1,8 @@
 import { Router, Request, Response } from 'express';
+import {
+  OptOutInputSchema,
+  type OptOutInput,
+} from '@ultaura/schemas/telephony';
 import { logger } from '../../server.js';
 import { recordOptOut } from '../../services/line-lookup.js';
 import { getCallSession, recordCallEvent } from '../../services/call-session.js';
@@ -7,12 +11,23 @@ export const optOutRouter = Router();
 
 optOutRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const { callSessionId, lineId, source = 'voice' } = req.body;
+    const rawBody = req.body as Partial<OptOutInput>;
+    const parsed = OptOutInputSchema.safeParse(rawBody);
 
-    if (!callSessionId || !lineId) {
-      res.status(400).json({ error: 'Missing required fields' });
+    if (!parsed.success) {
+      const missingRequired = parsed.error.issues.some((issue) =>
+        issue.code === 'invalid_type' && issue.received === 'undefined'
+      );
+      if (missingRequired) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+      }
+
+      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid input' });
       return;
     }
+
+    const { callSessionId, lineId, source = 'voice' } = parsed.data;
 
     const session = await getCallSession(callSessionId);
     if (!session) {

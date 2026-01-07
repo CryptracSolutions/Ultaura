@@ -5,7 +5,7 @@ import PlansStatusAlertContainer from './components/PlanStatusAlertContainer';
 import { withI18n } from '~/i18n/with-i18n';
 import Heading from '~/core/ui/Heading';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
-import { getUltauraAccount } from '~/lib/ultaura/actions';
+import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { PLANS } from '~/lib/ultaura/constants';
 import { TrialStatusCard } from './components/TrialStatusCard';
 

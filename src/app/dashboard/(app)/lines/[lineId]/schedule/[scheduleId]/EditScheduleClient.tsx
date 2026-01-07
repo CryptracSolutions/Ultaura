@@ -8,7 +8,7 @@ import { ArrowLeft, Clock, Check, ToggleLeft, ToggleRight, AlertCircle } from 'l
 import { Card, CardContent, CardHeader, CardTitle } from '~/core/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
-import { updateSchedule } from '~/lib/ultaura/actions';
+import { updateSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime, getShortLineId } from '~/lib/ultaura';
 
 interface EditScheduleClientProps {
@@ -73,7 +73,7 @@ export function EditScheduleClient({
         toast.success('Schedule updated');
         router.refresh();
       } else {
-        setError(result.error || 'Failed to update schedule');
+        setError(result.error.message || 'Failed to update schedule');
       }
     } catch {
       setError('An unexpected error occurred');

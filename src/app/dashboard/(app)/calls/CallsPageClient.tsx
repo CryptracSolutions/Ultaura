@@ -14,7 +14,7 @@ import {
   PauseCircle,
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
-import { deleteSchedule } from '~/lib/ultaura/actions';
+import { deleteSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, formatTime, getShortLineId } from '~/lib/ultaura';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
@@ -52,7 +52,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
 
     const result = await deleteSchedule(scheduleToDelete);
     if (!result.success) {
-      toast.error(result.error || 'Failed to delete schedule');
+      toast.error(result.error.message || 'Failed to delete schedule');
       throw new Error('Delete failed');
     }
     toast.success('Schedule deleted');
