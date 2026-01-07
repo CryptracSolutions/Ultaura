@@ -178,7 +178,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
               Voicemail Settings
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              When I don't answer a call:
+              When I don&apos;t answer a call:
             </p>
             <RadioGroup
               value={voicemailBehavior}
@@ -189,7 +189,7 @@ export function SettingsClient({ line, disabled = false }: SettingsClientProps) 
               <RadioGroupItemLabel>
                 <RadioGroupItem value="none" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Don't leave a message</p>
+                  <p className="text-sm font-medium text-foreground">Don&apos;t leave a message</p>
                   <p className="text-xs text-muted-foreground">Hang up quietly</p>
                 </div>
               </RadioGroupItemLabel>

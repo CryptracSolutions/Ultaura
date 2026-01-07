@@ -1,6 +1,6 @@
 import { logger } from '../server.js';
 import { getInternalApiSecret } from '../utils/env.js';
-import { getRedisClient } from './redis.js';
+import { getRawRedisClient } from './redis.js';
 import { ANOMALY_THRESHOLDS } from './rate-limit-config.js';
 import { logRateLimitEvent } from './rate-limit-events.js';
 
@@ -104,7 +104,7 @@ async function recordAnomalyEvent(
 }
 
 export async function checkAnomalyThresholds(context: RateLimitAnomalyContext): Promise<void> {
-  const redis = getRedisClient();
+  const redis = getRawRedisClient();
   if (!redis) {
     logger.warn({ event: 'anomaly_bypass', reason: 'redis_unavailable', context }, 'Anomaly checks skipped');
     return;
@@ -205,7 +205,7 @@ export async function recordVerificationSpend(options: {
   ipAddress?: string;
   phoneNumber?: string;
 }): Promise<void> {
-  const redis = getRedisClient();
+  const redis = getRawRedisClient();
   if (!redis) {
     logger.warn({ event: 'anomaly_bypass', reason: 'redis_unavailable', options }, 'Spend tracking skipped');
     return;

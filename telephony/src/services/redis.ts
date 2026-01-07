@@ -17,7 +17,26 @@ export function getRedisClient(): RatelimitRedis | null {
     redisClient = new Redis({ url, token });
   }
 
-  return redisClient as RatelimitRedis;
+  return redisClient as unknown as RatelimitRedis;
+}
+
+/**
+ * Returns the full Redis client with all available methods.
+ * Use this for operations beyond rate limiting (e.g., anomaly detection).
+ */
+export function getRawRedisClient(): Redis | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    return null;
+  }
+
+  if (!redisClient) {
+    redisClient = new Redis({ url, token });
+  }
+
+  return redisClient;
 }
 
 export function isRedisAvailable(): boolean {

@@ -165,7 +165,7 @@ export async function initiateOutboundCall(options: {
   const amdEnabled = options.amdEnabled ?? isAmdEnabled(process.env.TWILIO_AMD_ENABLED);
   const enableRecording = process.env.ULTAURA_ENABLE_RECORDING === 'true';
 
-  const callOptions: Twilio.CallInstanceCreateOptions = {
+  const callOptions: Parameters<typeof client.calls.create>[0] = {
     to: options.to,
     from: options.from,
     url: `${options.callbackUrl}?callSessionId=${options.callSessionId}`,
