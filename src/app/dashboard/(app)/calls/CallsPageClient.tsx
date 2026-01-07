@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule } from '~/lib/ultaura/schedules';
-import { DAYS_OF_WEEK, formatTime, getShortLineId } from '~/lib/ultaura';
+import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface Schedule {

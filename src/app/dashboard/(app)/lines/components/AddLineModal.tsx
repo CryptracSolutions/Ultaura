@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Phone, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
-import { US_TIMEZONES, getShortLineId } from '~/lib/ultaura';
+import { US_TIMEZONES } from '~/lib/ultaura/constants';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 import {
   Select,
   SelectTrigger,

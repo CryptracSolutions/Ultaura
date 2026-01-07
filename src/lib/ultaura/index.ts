@@ -16,11 +16,4 @@ export * from './prompts';
 
 export { getTrialStatus, getPlan } from './helpers';
 export { getNextOccurrence, getNextReminderOccurrence } from './timezone';
-
-/**
- * Get short line ID (first 8 chars of UUID) for cleaner URLs
- * Example: "a1b2c3d4-..." -> "a1b2c3d4"
- */
-export function getShortLineId(lineId: string): string {
-  return lineId.substring(0, 8);
-}
+export { getShortLineId } from './short-id';

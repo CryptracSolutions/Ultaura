@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/reminders';
-import { getShortLineId } from '~/lib/ultaura';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface Reminder {

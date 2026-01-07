@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
-import { getShortLineId } from '~/lib/ultaura';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 import { formatDistanceToNow } from 'date-fns';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 

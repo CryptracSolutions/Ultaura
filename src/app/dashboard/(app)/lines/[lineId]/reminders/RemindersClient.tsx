@@ -18,7 +18,7 @@ import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/types';
 import { createReminder, cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/reminders';
-import { getShortLineId } from '~/lib/ultaura';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 import { ReminderActivity } from './ReminderActivity';
 
 const SNOOZE_OPTIONS = [

@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
 import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/schedules';
-import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime, getShortLineId } from '~/lib/ultaura';
+import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 
 interface ScheduleClientProps {
   line: LineRow;

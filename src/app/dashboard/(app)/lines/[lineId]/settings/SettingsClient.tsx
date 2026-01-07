@@ -10,11 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~
 import { Switch } from '~/core/ui/Switch';
 import type { LineRow, VoicemailBehavior } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/lines';
-import {
-  US_TIMEZONES,
-  TIME_OPTIONS,
-  getShortLineId,
-} from '~/lib/ultaura';
+import { US_TIMEZONES, TIME_OPTIONS } from '~/lib/ultaura/constants';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 
 interface SettingsClientProps {
   line: LineRow;

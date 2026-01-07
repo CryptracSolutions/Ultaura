@@ -23,7 +23,8 @@ import {
 import type { LineRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
 import { updateLine, deleteLine } from '~/lib/ultaura/lines';
 import { initiateTestCall } from '~/lib/ultaura/usage';
-import { formatTime, getShortLineId } from '~/lib/ultaura';
+import { formatTime } from '~/lib/ultaura/constants';
+import { getShortLineId } from '~/lib/ultaura/short-id';
 import { CallActivityList } from './components/CallActivityList';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
