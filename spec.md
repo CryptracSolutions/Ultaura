@@ -111,7 +111,11 @@
 
 **Output**:
 - `needs_follow_up`: boolean
-- `follow_up_reasons`: array of concern codes
+- `follow_up_reasons`: array of reason codes (strict enum - see below)
+
+**Allowed reason codes**:
+- All concern codes: `loneliness`, `sadness`, `anxiety`, `sleep`, `pain`, `fatigue`, `appetite`
+- Additional codes: `wants_more_contact`, `missed_routine`
 
 **Purpose**: Single caregiver-friendly output answering "Should I follow up?"
 
@@ -327,9 +331,11 @@ WHERE line_id = $1
 
 ### Delivery
 
-**Default format**: Email (user can change to SMS or both in settings)
+**Default format**: Email only (SMS hidden in MVP - see Implementation Clarifications)
 **Default timing**: Sunday evening (user's timezone)
 **Content**: Self-contained (no login required for basic info)
+
+**Note**: While the database schema supports `weekly_summary_format` values of `'email'`, `'sms'`, or `'both'`, the MVP implementation only shows email option in the UI. SMS can be enabled post-MVP by unhiding the toggle.
 
 ### Email Template Structure
 
@@ -467,13 +473,14 @@ CREATE TABLE ultaura_call_insights (
   insights_iv BYTEA NOT NULL,
   insights_tag BYTEA NOT NULL,
   insights_alg TEXT NOT NULL DEFAULT 'aes-256-gcm',
-  insights_kid UUID NOT NULL REFERENCES ultaura_account_crypto_keys(id),
+  insights_kid TEXT NOT NULL DEFAULT 'kek_v1',  -- KEK version string (matches memories pattern)
 
   -- Non-encrypted metadata for queries
   extraction_method TEXT NOT NULL CHECK (extraction_method IN ('tool_call', 'post_call_fallback')),
   duration_seconds INTEGER,
   has_concerns BOOLEAN NOT NULL DEFAULT false,
   needs_follow_up BOOLEAN NOT NULL DEFAULT false,
+  has_baseline BOOLEAN NOT NULL DEFAULT false,  -- false if baseline unavailable when insight was created
 
   UNIQUE(call_session_id)
 );
@@ -487,32 +494,37 @@ CREATE INDEX idx_insights_followup ON ultaura_call_insights(line_id, needs_follo
 ### Decrypted Insights JSON Schema
 
 ```typescript
+// Strict type definitions matching Zod schema
+type TopicCode = 'family' | 'friends' | 'activities' | 'interests' | 'memories' | 'plans' | 'daily_life' | 'entertainment' | 'feelings' | 'requests';
+type ConcernCode = 'loneliness' | 'sadness' | 'anxiety' | 'sleep' | 'pain' | 'fatigue' | 'appetite';
+type FollowUpReasonCode = ConcernCode | 'wants_more_contact' | 'missed_routine';
+
 interface CallInsights {
   // Core metrics
   mood_bucket: 'positive' | 'neutral' | 'low';
   mood_intensity: number; // 0-3
-  engagement_score: number; // 0-10
+  engagement_score: number; // 0-10 (blended: objective + model)
   social_need_level: number; // 0-3
 
-  // Topics
+  // Topics (strict enum codes)
   topics: Array<{
-    code: string;
+    code: TopicCode;
     weight: number; // 0-1
   }>;
 
-  // Private topics (stored but not shown to family)
-  private_topics: string[];
+  // Private topics (stored but not shown to ANY viewer)
+  private_topics: TopicCode[];
 
-  // Concerns
+  // Concerns (strict enum codes)
   concerns: Array<{
-    code: string;
-    severity: number; // 1-3
+    code: ConcernCode;
+    severity: number; // 1-3 (1=mild, 2=moderate, 3=significant)
     confidence: number; // 0-1
   }>;
 
-  // Follow-up
+  // Follow-up (strict enum codes)
   needs_follow_up: boolean;
-  follow_up_reasons: string[];
+  follow_up_reasons: FollowUpReasonCode[];
 
   // Meta
   confidence_overall: number; // 0-1
@@ -559,7 +571,7 @@ CREATE TABLE ultaura_weekly_summaries (
   summary_iv BYTEA NOT NULL,
   summary_tag BYTEA NOT NULL,
   summary_alg TEXT NOT NULL DEFAULT 'aes-256-gcm',
-  summary_kid UUID NOT NULL REFERENCES ultaura_account_crypto_keys(id),
+  summary_kid TEXT NOT NULL DEFAULT 'kek_v1',  -- KEK version string (matches memories pattern)
 
   -- Delivery tracking
   email_sent_at TIMESTAMPTZ,
@@ -593,6 +605,30 @@ CREATE TABLE ultaura_notification_preferences (
 
   UNIQUE(account_id, line_id)
 );
+
+-- Enforce single account default row (line_id NULL)
+CREATE UNIQUE INDEX idx_notification_prefs_account_default
+ON ultaura_notification_preferences (account_id)
+WHERE line_id IS NULL;
+
+-- RLS: Account-based policies
+ALTER TABLE ultaura_notification_preferences ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view notification preferences for their accounts"
+  ON ultaura_notification_preferences FOR SELECT
+  USING (can_access_ultaura_account(account_id));
+
+CREATE POLICY "Users can insert notification preferences for their accounts"
+  ON ultaura_notification_preferences FOR INSERT
+  WITH CHECK (can_access_ultaura_account(account_id));
+
+CREATE POLICY "Users can update notification preferences for their accounts"
+  ON ultaura_notification_preferences FOR UPDATE
+  USING (can_access_ultaura_account(account_id));
+
+CREATE POLICY "Users can delete notification preferences for their accounts"
+  ON ultaura_notification_preferences FOR DELETE
+  USING (can_access_ultaura_account(account_id));
 ```
 
 ### New Table: `ultaura_insight_privacy`
@@ -604,6 +640,9 @@ CREATE TABLE ultaura_insight_privacy (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
+  -- Master toggle for insights
+  insights_enabled BOOLEAN NOT NULL DEFAULT true,
+
   -- Topics marked as private in settings
   private_topic_codes TEXT[] NOT NULL DEFAULT '{}',
 
@@ -614,6 +653,51 @@ CREATE TABLE ultaura_insight_privacy (
 );
 
 CREATE UNIQUE INDEX idx_insight_privacy_line ON ultaura_insight_privacy(line_id);
+
+-- RLS: Standard account-based policies (like ultaura_lines)
+ALTER TABLE ultaura_insight_privacy ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view insight privacy for their lines"
+  ON ultaura_insight_privacy FOR SELECT
+  USING (line_id IN (
+    SELECT id FROM ultaura_lines WHERE can_access_ultaura_account(account_id)
+  ));
+
+CREATE POLICY "Users can update insight privacy for their lines"
+  ON ultaura_insight_privacy FOR UPDATE
+  USING (line_id IN (
+    SELECT id FROM ultaura_lines WHERE can_access_ultaura_account(account_id)
+  ));
+
+CREATE POLICY "Users can insert insight privacy for their lines"
+  ON ultaura_insight_privacy FOR INSERT
+  WITH CHECK (line_id IN (
+    SELECT id FROM ultaura_lines WHERE can_access_ultaura_account(account_id)
+  ));
+
+CREATE POLICY "Users can delete insight privacy for their lines"
+  ON ultaura_insight_privacy FOR DELETE
+  USING (line_id IN (
+    SELECT id FROM ultaura_lines WHERE can_access_ultaura_account(account_id)
+  ));
+
+-- Auto-create row for new lines (SECURITY DEFINER to bypass RLS)
+CREATE OR REPLACE FUNCTION create_insight_privacy_for_line()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO ultaura_insight_privacy (line_id) VALUES (NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_create_insight_privacy
+AFTER INSERT ON ultaura_lines
+FOR EACH ROW EXECUTE FUNCTION create_insight_privacy_for_line();
+
+-- Backfill existing lines
+INSERT INTO ultaura_insight_privacy (line_id)
+SELECT id FROM ultaura_lines
+ON CONFLICT (line_id) DO NOTHING;
 ```
 
 ### Extend `ultaura_lines` Table
@@ -621,6 +705,15 @@ CREATE UNIQUE INDEX idx_insight_privacy_line ON ultaura_insight_privacy(line_id)
 ```sql
 ALTER TABLE ultaura_lines ADD COLUMN consecutive_missed_calls INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE ultaura_lines ADD COLUMN last_answered_call_at TIMESTAMPTZ;
+```
+
+### Extend `ultaura_call_sessions` Table
+
+```sql
+-- Add test call flag for reliable detection in insights pipeline
+ALTER TABLE ultaura_call_sessions ADD COLUMN is_test_call BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX idx_call_sessions_test ON ultaura_call_sessions(is_test_call) WHERE is_test_call = true;
 ```
 
 ---
@@ -651,20 +744,119 @@ const LogCallInsightsSchema = z.object({
     confidence: z.number().min(0).max(1)
   })).optional().default([]),
   needs_follow_up: z.boolean(),
-  follow_up_reasons: z.array(z.string()).optional().default([]),
+  follow_up_reasons: z.array(z.enum([
+    // Concern codes
+    'loneliness', 'sadness', 'anxiety', 'sleep', 'pain', 'fatigue', 'appetite',
+    // Additional reason codes
+    'wants_more_contact', 'missed_routine'
+  ])).optional().default([]),
   confidence_overall: z.number().min(0).max(1)
 });
 ```
 
-**Implementation**:
-1. Validate input against schema
-2. Check call duration ≥ 3 minutes (skip if shorter)
-3. Encrypt insights JSON using account's DEK
-4. Insert into `ultaura_call_insights`
-5. Update `ultaura_line_baselines` (recalculate rolling averages)
-6. Check for concern novelty (new vs recurring)
-7. Update `consecutive_missed_calls` to 0 (call was answered)
-8. Log to `ultaura_debug_logs` for troubleshooting
+**Implementation** (follows existing tool patterns):
+
+```typescript
+// Standard tool handler structure
+router.post('/', async (req: Request, res: Response) => {
+  const { callSessionId, lineId, ...insightData } = req.body;
+
+  // 1. Get call session (standard pattern)
+  const session = await getCallSession(callSessionId);
+  if (!session) {
+    res.status(404).json({ error: 'Call session not found' });
+    return;
+  }
+  const accountId = session.account_id;
+
+  // 2. Define failure logger (standard pattern)
+  const recordFailure = async (errorCode?: string) => {
+    await recordCallEvent(callSessionId, 'tool_call', {
+      tool: 'log_call_insights',
+      success: false,
+      errorCode,
+    }, { skipDebugLog: true });
+  };
+
+  // 3. Validate input with Zod
+  const parsed = LogCallInsightsInputSchema.safeParse(insightData);
+  if (!parsed.success) {
+    await recordFailure('validation_error');
+    res.status(400).json({ error: 'Invalid insight data' });
+    return;
+  }
+
+  // 4. Check insights_enabled
+  const { data: privacy } = await supabase
+    .from('ultaura_insight_privacy')
+    .select('insights_enabled')
+    .eq('line_id', lineId)
+    .single();
+  if (!privacy?.insights_enabled) {
+    res.json({ success: true, skipped: true, reason: 'insights_disabled' });
+    return;
+  }
+
+  // 5. Check call duration ≥ 3 minutes
+  if (session.seconds_connected < 180) {
+    res.json({ success: true, skipped: true, reason: 'call_too_short' });
+    return;
+  }
+
+  // 6. Check is_test_call
+  if (session.is_test_call) {
+    res.json({ success: true, skipped: true, reason: 'test_call' });
+    return;
+  }
+
+  // 7. Check for duplicate (first-write-wins)
+  const { data: existing } = await supabase
+    .from('ultaura_call_insights')
+    .select('id')
+    .eq('call_session_id', callSessionId)
+    .single();
+  if (existing) {
+    res.json({ success: true, skipped: true, reason: 'already_recorded' });
+    return;
+  }
+
+  // 8-15. Core logic (see service function below)
+  const result = await storeCallInsights(accountId, lineId, callSessionId, parsed.data);
+
+  // 16. Increment tool invocations (standard pattern)
+  await incrementToolInvocations(callSessionId);
+
+  // 17. Record success event (standard pattern)
+  await recordCallEvent(callSessionId, 'tool_call', {
+    tool: 'log_call_insights',
+    success: true,
+    has_concerns: result.hasConcerns,
+    confidence: parsed.data.confidence_overall,
+  }, { skipDebugLog: true }); // IMPORTANT: skip debug log for sensitive data
+
+  res.json({ success: true, insightId: result.id });
+});
+```
+
+**Service function** (`/telephony/src/services/insights.ts`):
+```typescript
+async function storeCallInsights(
+  accountId: string,
+  lineId: string,
+  callSessionId: string,
+  data: LogCallInsightsInput
+): Promise<{ id: string; hasConcerns: boolean }> {
+  // 1. Merge private_topics with mark_topic_private calls from session
+  // 2. Persist to ultaura_insight_privacy.private_topic_codes
+  // 3. Compute blended engagement (objective + model)
+  // 4. Check if baseline exists (baseline_call_count >= 3)
+  // 5. Build AAD and encrypt insights JSON
+  // 6. Insert into ultaura_call_insights
+  // 7. Compute concern novelty (new/recurring)
+  // 8. Update consecutive_missed_calls = 0, last_answered_call_at = now()
+  // Returns { id, hasConcerns }
+}
+```
 
 ### 2. `set_pause_mode`
 
@@ -688,7 +880,7 @@ const SetPauseModeSchema = z.object({
 
 ### 3. `mark_topic_private`
 
-**Purpose**: Mark current conversation topic as private
+**Purpose**: Mark conversation topic as permanently private (persists to line settings)
 
 **Location**: `/telephony/src/routes/tools/mark-topic-private.ts`
 
@@ -703,6 +895,15 @@ const MarkTopicPrivateSchema = z.object({
 - "Keep this between us"
 - "Don't tell my [family member] about this"
 - "This is private"
+
+**Implementation**:
+1. Add `topic_code` to `ultaura_insight_privacy.private_topic_codes` array (persists permanently)
+2. Track in session state for merging with `log_call_insights.private_topics`
+3. Return confirmation to Grok: "I'll keep that private"
+
+**Note**: When senior requests privacy, Grok should:
+1. Always call `mark_topic_private` for insights
+2. Optionally also call existing `mark_private` tool if a specific memory was just discussed
 
 ---
 
@@ -744,15 +945,26 @@ export async function updateInsightPrivacy(
 export async function setPauseMode(lineId: string, enabled: boolean, reason?: string): Promise<void>
 ```
 
-### New Telephony Endpoints
+### New Telephony Endpoints (Grok Tools)
 
 ```
-POST /tools/log_call_insights     - Grok tool handler
+POST /tools/log_call_insights     - Grok tool handler (mounts as /tools/log_call_insights)
 POST /tools/set_pause_mode        - Grok tool handler
 POST /tools/mark_topic_private    - Grok tool handler
-POST /insights/generate-summary   - Internal: trigger weekly summary generation
-POST /insights/send-alerts        - Internal: check and send missed-call alerts
 ```
+
+### New Next.js API Endpoints (Email Delivery)
+
+Following the existing pattern where telephony calls Next.js for email delivery:
+
+```
+POST /api/telephony/weekly-summary  - Receives WeeklySummaryData, renders template, sends email
+POST /api/telephony/missed-calls    - Receives alert data, sends missed-call alert email
+```
+
+**Authentication**: `X-Webhook-Secret` header (timing-safe comparison against `ULTAURA_INTERNAL_API_SECRET`)
+
+**Pattern**: Telephony generates data → POST to Next.js → Next.js renders email template → sendEmail()
 
 ---
 
@@ -842,23 +1054,45 @@ Add to line settings page (`/src/app/dashboard/(app)/lines/[lineId]/settings/`):
 
 **Frequency**: Daily at 00:00 UTC (checks each line's preferred time)
 
-**Location**: Extend existing call-scheduler or new dedicated cron
+**Location**: `/telephony/src/scheduler/weekly-summary-scheduler.ts` (SEPARATE from call-scheduler)
+
+**Why separate**:
+- Call scheduler runs every 30 seconds; weekly summary runs once daily
+- Different concerns: call initiation vs. aggregation + email
+- If call scheduler hangs, weekly summaries shouldn't be blocked
 
 **Logic**:
 ```typescript
 async function generateWeeklySummaries() {
-  // Get lines where it's Sunday evening in their timezone
+  // Run once per day, check each line's preferred time in their timezone
   const lines = await getLinesForWeeklySummary();
 
   for (const line of lines) {
-    if (line.notificationPrefs.weekly_summary_enabled) {
-      const summary = await aggregateWeeklyInsights(line.id);
-      await storeWeeklySummary(line.id, summary);
-      await sendWeeklySummary(line, summary);
-    }
+    // Check if current time matches line's preferred time (within 60-min window)
+    const lineTime = DateTime.now().setZone(line.timezone);
+    const preferredHour = parseInt(line.weekly_summary_time.split(':')[0]);
+
+    if (!isWithinWindow(lineTime.hour, preferredHour, 1)) continue;
+    if (!line.notificationPrefs.weekly_summary_enabled) continue;
+
+    // Generate summary
+    const summary = await aggregateWeeklyInsights(line.id);
+    await storeWeeklySummary(line.id, summary);
+
+    // POST to Next.js for email delivery
+    await fetch(`${NEXT_PUBLIC_SITE_URL}/api/telephony/weekly-summary`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Webhook-Secret': ULTAURA_INTERNAL_API_SECRET,
+      },
+      body: JSON.stringify(summary),
+    });
   }
 }
 ```
+
+**Idempotency**: Uses `UNIQUE(line_id, week_start_date)` constraint to prevent duplicate summaries
 
 ### 2. Missed Call Alert Checker
 
@@ -888,7 +1122,9 @@ async function checkMissedCallAlert(lineId: string, wasAnswered: boolean) {
 
 ### 3. Baseline Recalculator
 
-**Frequency**: After each call with insights OR nightly batch
+**Frequency**: Nightly batch (more efficient than per-call)
+
+**Location**: Run during daily scheduler cycle or as part of weekly summary generator
 
 **Logic**:
 ```typescript
@@ -896,15 +1132,19 @@ async function recalculateBaseline(lineId: string) {
   const insights = await getInsightsLast14Days(lineId);
 
   if (insights.length < 3) {
-    // Not enough data for reliable baseline
+    // Not enough data for reliable baseline - mark as unavailable
+    await upsertBaseline(lineId, { baseline_call_count: insights.length });
     return;
   }
+
+  // Calculate answer_rate from SCHEDULED calls only (exclude reminders)
+  const answerRate = await calculateAnswerRate(lineId);
 
   const baseline = {
     avg_engagement: average(insights.map(i => i.engagement_score)),
     avg_duration_seconds: average(insights.map(i => i.duration_seconds)),
     calls_per_week: insights.length / 2, // 14 days = 2 weeks
-    answer_rate: calculateAnswerRate(lineId),
+    answer_rate: answerRate,
     mood_distribution: calculateMoodDistribution(insights),
     recent_concern_codes: getUniqueConcernCodes(insights),
     baseline_call_count: insights.length
@@ -912,7 +1152,29 @@ async function recalculateBaseline(lineId: string) {
 
   await upsertBaseline(lineId, baseline);
 }
+
+// Answer rate calculation (ONLY scheduled check-ins, not reminders)
+async function calculateAnswerRate(lineId: string): Promise<number> {
+  const { data } = await supabase
+    .from('ultaura_call_sessions')
+    .select('answered_by, seconds_connected')
+    .eq('line_id', lineId)
+    .like('scheduler_idempotency_key', 'schedule:%')  // Exclude reminder:*
+    .gte('created_at', DateTime.now().minus({ days: 14 }).toISO());
+
+  if (!data || data.length === 0) return 0;
+
+  const answered = data.filter(s =>
+    s.answered_by === 'human' ||
+    s.answered_by === 'unknown' ||
+    (s.answered_by === null && s.seconds_connected > 0)
+  ).length;
+
+  return answered / data.length;
+}
 ```
+
+**Baseline availability**: `baseline_call_count >= 3` determines if baseline is valid for trend comparisons
 
 ---
 
@@ -984,6 +1246,11 @@ At the natural end of the conversation, you must call `log_call_insights` to rec
 - fatigue: Low energy
 - appetite: Eating concerns
 
+### Follow-up Reason Codes (use ONLY these for follow_up_reasons)
+- Any concern code above (loneliness, sadness, anxiety, sleep, pain, fatigue, appetite)
+- wants_more_contact: Explicitly asked for more calls or visits
+- missed_routine: Confused about schedule or routine disruption
+
 ### Rules
 1. Call `log_call_insights` ONCE as the conversation naturally ends
 2. DO NOT include quotes or specific phrases
@@ -998,7 +1265,12 @@ When the resident says phrases like:
 - "Don't tell my family about this"
 - "This is private"
 
-Call `mark_topic_private` with the relevant topic code.
+1. ALWAYS call `mark_topic_private` with the relevant topic code (this hides the topic from insights)
+2. If you just stored a specific memory about this topic, ALSO call `mark_private` to hide that memory
+
+Example: If they shared something private about family drama:
+- Call `mark_topic_private({ topic_code: 'family' })` - hides family topics from insights
+- If you stored a memory about the specific situation, also call `mark_private({ what_to_keep_private: 'family drama' })`
 
 ### Pause Mode
 When the resident indicates they'll be away:
@@ -1252,3 +1524,272 @@ Call `set_pause_mode` with enabled: true.
 For weekly emails and any in-app displays:
 
 > These insights are generated by AI based on conversation patterns and are not medical, clinical, or professional advice. Ultaura is not an emergency service. If you believe there is immediate danger, contact local emergency services (911 in the US).
+
+---
+
+## Implementation Clarifications
+
+This section documents detailed implementation decisions made during spec review.
+
+### Data Model
+
+| Decision | Details |
+|----------|---------|
+| **Insights enable/disable toggle** | Lives in `ultaura_insight_privacy.insights_enabled` column |
+| **RLS approach** | Service-role only for encrypted tables (`ultaura_call_insights`, `ultaura_weekly_summaries`); server actions decrypt for dashboard. `ultaura_insight_privacy` gets standard account-based RLS |
+| **Server actions location** | Create new `/src/lib/ultaura/insights.ts` file (per-domain pattern, not monolithic actions.ts) |
+| **Encryption key ID (`insights_kid`)** | TEXT type storing version string like `'kek_v1'` (matches existing `ultaura_memories.value_kid` pattern), NOT UUID FK |
+| **AAD format** | JSON with `account_id`, `line_id`, `call_session_id`, `type` for stronger binding |
+| **Debug logging** | Log tool invocation metadata only (has_concerns, confidence), NOT insight values |
+| **`ultaura_insight_privacy` row creation** | Backfill existing lines in migration + trigger auto-creates for new lines |
+| **`ultaura_notification_preferences` scope** | Supports account-level defaults (`line_id` nullable) with partial unique index enforcing single default per account |
+| **Test call detection** | New `is_test_call BOOLEAN` column on `ultaura_call_sessions`, set true when `reason='test'` |
+| **`last_answered_call_at` updates** | Any answered call (inbound, reminder, scheduled) updates this field |
+| **`answered_by = 'unknown'` handling** | Treat as answered - resets missed counter, updates last_answered_call_at |
+| **`answered_by = NULL` with `seconds_connected > 0`** | Count as answered (AMD disabled but call connected) |
+| **`insights_enabled = false` behavior** | Skip everything (no storage, no baselines, no summaries, no alerts) + show disabled state in Insights tab |
+| **`has_baseline` column** | Non-encrypted metadata column on `ultaura_call_insights` for easy querying |
+| **Notification prefs creation** | Lazy creation - create default row on first read if missing |
+
+### Insights Processing
+
+| Decision | Details |
+|----------|---------|
+| **Engagement storage** | Store blended value (backend computes final score combining objective + model factors) |
+| **No baseline available** | Mark insight as provisional (`has_baseline = false`); display without trend comparison |
+| **`follow_up_reasons` validation** | Strict zod enum - reject unknown codes at validation time |
+| **Allowed `follow_up_reasons` codes** | Concern codes (`loneliness`, `sadness`, `anxiety`, `sleep`, `pain`, `fatigue`, `appetite`) + `wants_more_contact`, `missed_routine` |
+| **Fallback extraction scope** | Same as tool calls - if call ≥3min and `insights_enabled`, extract regardless of call type (except test) |
+| **Concern novelty** | Computed on backend: `new` = not in `recent_concern_codes`, `recurring` = in `recent_concern_codes`, `resolved` = was in previous week's concerns but not in current week (computed in weekly summary) |
+| **Duplicate `log_call_insights` handling** | First-write wins - check for existing row before inserting, ignore duplicates |
+| **Insights for call types** | Scheduled: Yes, Reminder: Yes (if conversation), Inbound: Yes, Test: No |
+| **Sub-3-minute calls** | Reset missed counter and update last_answered_call_at, but skip insights storage |
+| **Fallback integration** | Run BEFORE buffer clearing in call completion pipeline, same location as memory extraction |
+
+### Privacy
+
+| Decision | Details |
+|----------|---------|
+| **`mark_topic_private` persistence** | Persists to line settings (`ultaura_insight_privacy.private_topic_codes`) - affects future calls |
+| **Private topics merge behavior** | Union/merge both `mark_topic_private` tool calls AND `log_call_insights.private_topics` array |
+| **Who sees private topics** | Hide from ALL viewers (no role distinction) - simpler implementation |
+| **Private topics in calculations** | Include in baseline/trend math, only hide from UI display |
+| **Privacy copy updates** | Update all three surfaces: Grok prompt, dashboard UI (line settings), AND onboarding flow |
+| **When Grok should call privacy tools** | Call `mark_topic_private` when senior requests privacy; optionally also call existing `mark_private` if specific memory was just discussed |
+
+### Safety System Integration
+
+| Decision | Details |
+|----------|---------|
+| **Safety vs Concerns separation** | Keep both systems independent - safety handles emergencies (keyword backstop), concerns handle wellbeing patterns (model assessment) |
+| **Low-tier safety events** | Do NOT remove from safety system; they ensure Grok responds empathetically. Do NOT surface low-tier safety_events in insights dashboard (families see concerns via insights instead) |
+
+### Alerts & Baselines
+
+| Decision | Details |
+|----------|---------|
+| **What counts as "missed" for counter** | `end_reason` in (`no_answer`, `busy`, `error`) OR `answered_by` in (`machine_start`, `machine_end_beep`, `machine_end_silence`, `machine_end_other`, `fax`) |
+| **What does NOT count as missed** | `end_reason` in (`trial_cap`, `minutes_cap`) - system limitations, not senior behavior |
+| **What resets missed counter** | Human-answered scheduled outbound call (`answered_by` = `human` or `unknown`, `scheduler_idempotency_key` starts with `schedule:`) |
+| **Missed counter increment trigger** | Call session end only (not Twilio initiation failures) |
+| **Baseline `answer_rate` denominator** | Only `scheduler_idempotency_key` values starting with `schedule:` (exclude `reminder:`) |
+| **Baseline `answer_rate` calculation** | Actual sessions only: `answered / total` sessions with `schedule:*` key |
+
+### Weekly Summary & Notifications
+
+| Decision | Details |
+|----------|---------|
+| **Pause mode behavior** | Weekly summaries still sent with "paused" note; missed-call alerts are suppressed |
+| **Notification recipients** | Billing email only (account's `billing_email` field) |
+| **SMS in notification prefs UI** | Hide SMS option for MVP - only show email toggle |
+| **Summary generation flow** | Telephony generates + encrypts + stores summary; calls Next.js API just to send email |
+| **Delivery timing** | 60-minute window is "on time"; if missed, catch up later same day |
+| **Alert recipient** | Billing email only (same as summaries) |
+| **Summary API format** | Structured JSON data; Next.js renders email template |
+| **`week_start_date` format** | Line's local date (user's timezone), not UTC |
+| **Week range when not Sunday** | 7 days ending day before send (e.g., Wednesday send = previous Wed → this Tue) |
+
+### Dashboard UI
+
+| Decision | Details |
+|----------|---------|
+| **Date range UI** | Static "Last 30 days" label only - no picker, no interactivity |
+| **Default line selection** | Prioritize active status first; only fall back to paused/disabled if no active lines exist |
+
+---
+
+## Weekly Summary Structured Data Schema
+
+When telephony calls Next.js to send a summary, it provides this JSON structure:
+
+```typescript
+interface WeeklySummaryData {
+  // Identifiers
+  lineId: string;
+  lineName: string;
+  accountId: string;
+  billingEmail: string;
+  weekStartDate: string; // YYYY-MM-DD in line's timezone
+  weekEndDate: string;
+  timezone: string;
+
+  // Call activity
+  scheduledCalls: number;
+  answeredCalls: number;
+  avgDurationMinutes: number;
+  durationTrend: 'up' | 'down' | 'stable' | null;
+  durationTrendValue: number | null; // minutes difference
+
+  // Engagement (null if no insights this week)
+  engagementNote: string | null; // e.g., "down 2.1 points from typical"
+
+  // Mood
+  moodSummary: string | null; // e.g., "mostly positive", "mixed with some low moments"
+  moodDistribution: {
+    positive: number; // count
+    neutral: number;
+    low: number;
+  } | null;
+
+  // Topics & concerns
+  topTopics: Array<{
+    code: string;
+    label: string;
+    weight: number;
+  }>; // up to 5, with private topics filtered out
+
+  concerns: Array<{
+    code: string;
+    label: string;
+    severity: 'mild' | 'moderate' | 'significant';
+    novelty: 'new' | 'recurring' | 'resolved';
+  }>;
+
+  // Flags
+  needsFollowUp: boolean;
+  followUpReasons: string[]; // human-readable labels
+  isPaused: boolean;
+  pausedNote: string | null;
+
+  // Links
+  dashboardUrl: string;
+  settingsUrl: string;
+}
+```
+
+---
+
+## Answered Detection Logic
+
+```typescript
+function isCallAnswered(session: CallSession): boolean {
+  // Human confirmed by AMD
+  if (session.answered_by === 'human') return true;
+  // AMD uncertain but optimistic
+  if (session.answered_by === 'unknown') return true;
+  // AMD disabled but call connected
+  if (session.answered_by === null && session.seconds_connected > 0) return true;
+  // All other cases (machine, fax, no answer)
+  return false;
+}
+
+function shouldResetMissedCounter(session: CallSession): boolean {
+  return (
+    isCallAnswered(session) &&
+    session.direction === 'outbound' &&
+    session.scheduler_idempotency_key?.startsWith('schedule:')
+  );
+}
+
+function shouldUpdateLastAnsweredCallAt(session: CallSession): boolean {
+  // Any answered call updates this (inbound, reminder, scheduled)
+  return isCallAnswered(session);
+}
+```
+
+---
+
+## Lazy Notification Preferences Pattern
+
+```typescript
+async function getNotificationPreferences(
+  accountId: string,
+  lineId?: string
+): Promise<NotificationPreferences> {
+  const supabase = getSupabaseClient();
+
+  // Try line-specific first
+  if (lineId) {
+    const { data: linePrefs } = await supabase
+      .from('ultaura_notification_preferences')
+      .select('*')
+      .eq('account_id', accountId)
+      .eq('line_id', lineId)
+      .single();
+
+    if (linePrefs) return linePrefs;
+  }
+
+  // Try account default
+  const { data: accountPrefs } = await supabase
+    .from('ultaura_notification_preferences')
+    .select('*')
+    .eq('account_id', accountId)
+    .is('line_id', null)
+    .single();
+
+  if (accountPrefs) return accountPrefs;
+
+  // Create default lazily
+  const { data: newPrefs } = await supabase
+    .from('ultaura_notification_preferences')
+    .insert({
+      account_id: accountId,
+      line_id: null, // account default
+      weekly_summary_enabled: true,
+      weekly_summary_format: 'email',
+      weekly_summary_day: 'sunday',
+      weekly_summary_time: '18:00',
+      alert_missed_calls_enabled: true,
+      alert_missed_calls_threshold: 3,
+    })
+    .select()
+    .single();
+
+  return newPrefs;
+}
+```
+
+---
+
+## Encryption AAD Structure
+
+```typescript
+// For call insights
+function buildInsightsAAD(
+  accountId: string,
+  lineId: string,
+  callSessionId: string
+): Buffer {
+  return Buffer.from(JSON.stringify({
+    account_id: accountId,
+    line_id: lineId,
+    call_session_id: callSessionId,
+    type: 'call_insight'
+  }), 'utf8');
+}
+
+// For weekly summaries
+function buildSummaryAAD(
+  accountId: string,
+  lineId: string,
+  weekStartDate: string
+): Buffer {
+  return Buffer.from(JSON.stringify({
+    account_id: accountId,
+    line_id: lineId,
+    week_start: weekStartDate,
+    type: 'weekly_summary'
+  }), 'utf8');
+}
+```
