@@ -2,6 +2,7 @@
 name: codex-skill
 description: Leverage OpenAI Codex/GPT models for autonomous code implementation. Triggers: "codex", "use gpt", "gpt-5", "gpt-5.2", "let openai", "full-auto", "用codex", "让gpt实现".
 allowed-tools: Read, Write, Glob, Grep, Task, Bash(cat:*), Bash(ls:*), Bash(tree:*), Bash(codex:*), Bash(codex *), Bash(which:*), Bash(npm:*), Bash(brew:*)
+context: fork
 ---
 
 # Codex

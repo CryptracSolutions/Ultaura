@@ -2,6 +2,7 @@
 name: autonomous-skill
 description: Use when user wants to execute long-running tasks that require multiple sessions to complete. This skill manages task decomposition, progress tracking, and autonomous execution using Claude Code headless mode with auto-continuation. Trigger phrases: "autonomous", "long-running task", "multi-session", "自主执行", "长时任务", "autonomous skill".
 allowed-tools: Read, Write, Edit, Glob, Grep, Task, Bash(cat:*), Bash(ls:*), Bash(tree:*), Bash(mkdir:*), Bash(touch:*), Bash(pwd:*), Bash(cd:*), Bash(grep:*), Bash(find:*), Bash(head:*), Bash(tail:*), Bash(claude:*)
+context: fork
 ---
 
 # Autonomous Skill - Long-Running Task Execution
