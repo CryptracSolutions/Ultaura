@@ -16,7 +16,7 @@
 
 1. **Actionable > Interesting**: Every signal must answer "Should I check in?" and "About what?"
 2. **Trend + Change Detection**: Show *deviation from baseline* rather than absolute values
-3. **No Content Storage**: Store only scores, tag IDs, severity, confidence, and call metadata. No verbatim text, no "summary paragraph."
+3. **No Content Storage**: Store only scores, tag IDs, severity, overall confidence, and call metadata. No verbatim text, no "summary paragraph."
 4. **Consent Controls**: Privacy controls via settings AND voice commands during calls
 5. **Language Agnostic**: Works for all languages Grok supports
 
@@ -48,43 +48,35 @@
 
 ---
 
-### 2. Engagement Score (0-10)
+### 2. Engagement Score (1-10)
 
-**Definition**: Balanced blend of objective metrics + model assessment.
-
-**Objective factors**:
-- Duration relative to baseline
-- Talk-turn count
-- Senior talk time percentage
-- Early hangup indicator
-
-**Model factors**:
-- Willingness to continue conversation
-- Responsiveness to prompts/questions
+**Definition**: Model-provided 1-10 score only (no objective blending for MVP).
 
 **Stored fields**:
-- `engagement_score` (decimal 0-10)
-- `confidence` (decimal 0-1)
+- `engagement_score` (decimal 1-10)
+
+**Formatting**: Store as decimal; round for display
 
 **Display**: Change-focused only
-- Only surface when score deviates significantly from baseline
-- Example: "Engagement: down 2.1 points from typical"
+- Only surface when score deviates significantly downward from baseline
+- Example: "Engagement: down 2.6 points from typical"
+- Never show "higher than typical"
 
-**Alert threshold**: 2.5 points below rolling 14-day baseline triggers concern
+**Alert threshold**: 2.5 points below baseline triggers concern (downward only)
 
 ---
 
 ### 3. Mood (3-state + intensity)
 
 **Output**:
-- `mood_bucket`: enum (`positive` | `neutral` | `low`)
+- `mood_overall`: enum (`positive` | `neutral` | `low`)
 - `mood_intensity`: integer 0-3 (how strongly expressed)
-- `confidence`: decimal 0-1
 
 **UI Label**: "Mood" (not clinical, but clear)
 - Display as: "Mood: positive", "Mood: neutral", "Mood: low"
+- Weekly summary label can be "Mixed week" if the week includes both positive and low calls
 
-**Display**: Change-focused - only highlight when pattern shifts (e.g., "Mood trend: mostly neutral → more low this week")
+**Display**: Change-focused - only highlight when pattern shifts (3+ low calls in week with baseline ≤1)
 
 ---
 
@@ -92,7 +84,6 @@
 
 **Output**:
 - `social_need_level`: integer 0-3
-- `confidence`: decimal 0-1
 
 **Trigger signals** (detected but not stored as quotes):
 - Asked for more calls
@@ -100,8 +91,9 @@
 - Seeking reassurance
 - Limited social mentions
 
-**Display**: Trend-only
-- Only surface if increasing trend over multiple weeks
+**Display**: Trend-only (derived from `follow_up_reasons` contains `wants_more_contact`)
+- Only surface if `wants_more_contact` appears in 3 consecutive weeks and baseline had 0 occurrences
+- Baseline window for this trend is the 14 days immediately BEFORE the 3-week streak (total lookback = 5 weeks)
 - Example: "Social connection: may benefit from extra contact"
 - Do NOT show if level is normal/stable
 
@@ -157,9 +149,10 @@
 - Shown as simple tags/chips in UI
 
 ### Privacy Controls:
-- Topics can be marked private during calls ("keep this between us")
+- Topics can be marked private during calls via `mark_topic_private` (persists to line settings)
+- `log_call_insights.private_topics` hides topics for the current call only (does not persist)
 - Topics can be configured as private in line settings
-- Private topics are stored but NOT shown to family in insights
+- Private topics are stored but NOT shown to any viewer in insights
 
 ---
 
@@ -185,16 +178,15 @@
       "code": "loneliness",
       "severity": 2,
       "confidence": 0.8,
-      "novelty": "recurring"
+      "is_novel": false
     }
   ]
 }
 ```
 
-### Novelty Values:
-- `new`: First time detected
-- `recurring`: Detected again (was present before)
-- `resolved`: Was present previously, not detected this week
+### Novelty Tracking:
+- Per-call: store `is_novel` boolean (true = new, false = recurring)
+- Weekly summary: mark "resolved" when a concern appears in the baseline window but not in the current week
 
 ### Display:
 - Show ALL detected concerns by default (no opt-in required)
@@ -249,18 +241,18 @@ The **new concerns system** handles **non-urgent wellbeing patterns**:
 
 ### Tier 1: Weekly Summary Only (No Immediate Alert)
 
-- Engagement down ≥2.5 from baseline for 2+ calls
-- Mood "low" appears 2+ times in a week
+- Engagement down ≥2.5 from baseline for 2+ calls (downward only)
+- Mood pattern shift: 3+ calls in the week with mood=low and baseline window had ≤1
 - New concern at severity 2 or higher
-- Missed calls increased from typical pattern
+- Missed calls increased from typical pattern (answer_rate drop ≥20 percentage points vs baseline AND at least 2 missed scheduled calls)
 
 ### Tier 2: Immediate Notification
 
 **Triggers**:
 1. **Safety events** (existing system - unchanged)
-2. **3+ consecutive scheduled calls missed** (outbound call resets counter)
+2. **3+ consecutive scheduled calls missed** (send once per streak; reset on answered scheduled outbound)
 
-**Notification format**: SMS and/or email based on user preference
+**Notification format**: Email only for MVP (SMS not implemented)
 
 **Smart gap detection**:
 - Only alert if schedule was expected but calls didn't happen
@@ -294,7 +286,13 @@ Allow families to suppress alerts/insights when senior is traveling, hospitalize
 
 ## Baseline Calculation
 
-### Rolling 14-Day Average
+### Baseline Window (14 days, excluding current week)
+
+For trend comparisons, the baseline uses the 14 days immediately preceding the current 7-day summary window (no overlap).
+
+```
+|-------- baseline (days -21 to -8) --------|------- current week (days -7 to 0) -------|
+```
 
 For each metric (engagement, mood distribution, typical duration, typical call count):
 
@@ -303,9 +301,21 @@ For each metric (engagement, mood distribution, typical duration, typical call c
 SELECT AVG(engagement_score)
 FROM ultaura_call_insights
 WHERE line_id = $1
-  AND created_at > NOW() - INTERVAL '14 days'
+  AND created_at >= $baseline_start
+  AND created_at < $baseline_end
   AND engagement_score IS NOT NULL
 ```
+
+Baseline window definitions (line-local dates):
+
+```
+week_end = start of today
+week_start = week_end - 7 days
+baseline_end = week_start
+baseline_start = baseline_end - 14 days
+```
+
+**Note**: Social-need trend uses a separate 5-week lookback: 14-day baseline immediately before the 3-week streak window.
 
 ### Storage
 
@@ -322,8 +332,9 @@ WHERE line_id = $1
 | `answer_rate` | decimal | % of scheduled calls answered |
 
 ### Update Frequency
-- Recalculated after each call completes
-- Or via nightly batch job for efficiency
+- Nightly batch job (MVP): run once daily at 10:00 UTC
+- Include ALL answered call types (scheduled + reminder + inbound) for engagement and mood baselines; social-need trend uses the same call set on demand
+- Answer rate remains scheduled-only (see calculation below)
 
 ---
 
@@ -331,11 +342,11 @@ WHERE line_id = $1
 
 ### Delivery
 
-**Default format**: Email only (SMS hidden in MVP - see Implementation Clarifications)
+**Default format**: Email only (SMS not implemented in MVP)
 **Default timing**: Sunday evening (user's timezone)
 **Content**: Self-contained (no login required for basic info)
 
-**Note**: While the database schema supports `weekly_summary_format` values of `'email'`, `'sms'`, or `'both'`, the MVP implementation only shows email option in the UI. SMS can be enabled post-MVP by unhiding the toggle.
+**Note**: While the database schema supports `weekly_summary_format` values of `'email'`, `'sms'`, or `'both'`, the MVP implementation ignores SMS (even if selected) and only sends email. Add a TODO comment in notification sending logic for future SMS support.
 
 ### Email Template Structure
 
@@ -350,14 +361,17 @@ Week of [Date Range]
 CALL ACTIVITY
 • Calls answered: X/Y scheduled (trend vs last week)
 • Average duration: Xm (trend)
-• Missed calls: X (if notable)
+• Missed calls: X (only if answer_rate drop ≥20pp vs baseline and missed ≥2)
 
 ENGAGEMENT
-• [Only if changed] "Engagement has been [lower/steady/higher] than typical"
+• [Only if changed] "Engagement has been lower than typical"
 
 MOOD PATTERN
 • [Summary of week's mood trend]
-• Example: "Mostly neutral with some low moments mid-week"
+• Example: "Mostly neutral with some low moments mid-week" or "Mixed week"
+
+Mood summary logic:
+- "Mixed week" if the week includes both positive and low calls
 
 TOPICS DISCUSSED
 • [Top 5 topic tags as chips/list]
@@ -379,7 +393,7 @@ Manage notification preferences: [link to dashboard settings]
 ---
 ```
 
-### SMS Format (if selected)
+### SMS Format (future, not implemented in MVP)
 
 ```
 Ultaura Weekly: [Name]
@@ -405,9 +419,9 @@ During the call, Grok has access to a new tool: `log_call_insights`
   name: "log_call_insights",
   description: "Record conversation insights for this call. Call this as the conversation naturally concludes.",
   parameters: {
-    mood_bucket: "positive" | "neutral" | "low",
+    mood_overall: "positive" | "neutral" | "low",
     mood_intensity: 0-3,
-    engagement_score: 0-10,
+    engagement_score: 1-10,
     social_need_level: 0-3,
     topics: [{ code: string, weight: 0-1 }],
     concerns: [{
@@ -418,7 +432,7 @@ During the call, Grok has access to a new tool: `log_call_insights`
     needs_follow_up: boolean,
     follow_up_reasons: string[],
     confidence_overall: 0-1,
-    private_topics: string[] // topics senior marked as private
+    private_topics: string[] // topic codes to hide for this call only
   }
 }
 ```
@@ -437,13 +451,15 @@ Rules:
 - Only use codes from the allowed concern list: loneliness, sadness, anxiety, sleep, pain, fatigue, appetite
 - DO NOT include any quotes or paraphrased sentences
 - DO NOT include specific names, places, or identifying details
-- Only output scores, codes, and confidence levels
-- If unsure, lower your confidence score
+- Only output scores, codes, per-concern confidence, and confidence_overall
+- Engagement score should be your direct 1-10 rating (no blending)
+- If unsure, lower your confidence_overall score
+- Set confidence_overall to reflect your certainty across all extracted signals (0.0=uncertain, 1.0=very confident)
 
 Topic weights should sum to approximately 1.0.
 Concern severity: 1=mild, 2=moderate, 3=significant
 
-If the resident says "keep this between us" or similar about a topic, add that topic code to private_topics array.
+If the resident says "keep this between us" or similar about a topic, add that topic code to private_topics array. Use `mark_topic_private` for permanent privacy (see below).
 ```
 
 ### Handling Abrupt Endings
@@ -480,7 +496,7 @@ CREATE TABLE ultaura_call_insights (
   duration_seconds INTEGER,
   has_concerns BOOLEAN NOT NULL DEFAULT false,
   needs_follow_up BOOLEAN NOT NULL DEFAULT false,
-  has_baseline BOOLEAN NOT NULL DEFAULT false,  -- false if baseline unavailable when insight was created
+  has_baseline BOOLEAN NOT NULL DEFAULT false,  -- false if baseline unavailable OR confidence_overall < 0.5
 
   UNIQUE(call_session_id)
 );
@@ -501,9 +517,9 @@ type FollowUpReasonCode = ConcernCode | 'wants_more_contact' | 'missed_routine';
 
 interface CallInsights {
   // Core metrics
-  mood_bucket: 'positive' | 'neutral' | 'low';
+  mood_overall: 'positive' | 'neutral' | 'low';
   mood_intensity: number; // 0-3
-  engagement_score: number; // 0-10 (blended: objective + model)
+  engagement_score: number; // 1-10 (model-provided, no blending for MVP)
   social_need_level: number; // 0-3
 
   // Topics (strict enum codes)
@@ -520,6 +536,7 @@ interface CallInsights {
     code: ConcernCode;
     severity: number; // 1-3 (1=mild, 2=moderate, 3=significant)
     confidence: number; // 0-1
+    is_novel: boolean; // true=new, false=recurring
   }>;
 
   // Follow-up (strict enum codes)
@@ -527,8 +544,7 @@ interface CallInsights {
   follow_up_reasons: FollowUpReasonCode[];
 
   // Meta
-  confidence_overall: number; // 0-1
-  language_detected?: string;
+  confidence_overall: number; // 0-1 (if <0.5, treat insights as provisional)
 }
 ```
 
@@ -589,7 +605,7 @@ CREATE INDEX idx_summaries_line_week ON ultaura_weekly_summaries(line_id, week_s
 CREATE TABLE ultaura_notification_preferences (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id UUID NOT NULL REFERENCES ultaura_accounts(id) ON DELETE CASCADE,
-  line_id UUID REFERENCES ultaura_lines(id) ON DELETE CASCADE, -- NULL = account-level default
+  line_id UUID NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -605,11 +621,6 @@ CREATE TABLE ultaura_notification_preferences (
 
   UNIQUE(account_id, line_id)
 );
-
--- Enforce single account default row (line_id NULL)
-CREATE UNIQUE INDEX idx_notification_prefs_account_default
-ON ultaura_notification_preferences (account_id)
-WHERE line_id IS NULL;
 
 -- RLS: Account-based policies
 ALTER TABLE ultaura_notification_preferences ENABLE ROW LEVEL SECURITY;
@@ -705,6 +716,8 @@ ON CONFLICT (line_id) DO NOTHING;
 ```sql
 ALTER TABLE ultaura_lines ADD COLUMN consecutive_missed_calls INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE ultaura_lines ADD COLUMN last_answered_call_at TIMESTAMPTZ;
+ALTER TABLE ultaura_lines ADD COLUMN missed_alert_sent_at TIMESTAMPTZ;
+ALTER TABLE ultaura_lines ADD COLUMN last_weekly_summary_at TIMESTAMPTZ;
 ```
 
 ### Extend `ultaura_call_sessions` Table
@@ -729,9 +742,9 @@ CREATE INDEX idx_call_sessions_test ON ultaura_call_sessions(is_test_call) WHERE
 **Input Schema**:
 ```typescript
 const LogCallInsightsSchema = z.object({
-  mood_bucket: z.enum(['positive', 'neutral', 'low']),
+  mood_overall: z.enum(['positive', 'neutral', 'low']),
   mood_intensity: z.number().int().min(0).max(3),
-  engagement_score: z.number().min(0).max(10),
+  engagement_score: z.number().min(1).max(10),
   social_need_level: z.number().int().min(0).max(3),
   topics: z.array(z.object({
     code: z.enum(['family', 'friends', 'activities', 'interests', 'memories', 'plans', 'daily_life', 'entertainment', 'feelings', 'requests']),
@@ -846,14 +859,14 @@ async function storeCallInsights(
   callSessionId: string,
   data: LogCallInsightsInput
 ): Promise<{ id: string; hasConcerns: boolean }> {
-  // 1. Merge private_topics with mark_topic_private calls from session
-  // 2. Persist to ultaura_insight_privacy.private_topic_codes
-  // 3. Compute blended engagement (objective + model)
+  // 1. Merge per-call private_topics with any mark_topic_private calls from session
+  // 2. Persist ONLY mark_topic_private calls to ultaura_insight_privacy.private_topic_codes
+  // 3. Use engagement_score as provided (no blending for MVP)
   // 4. Check if baseline exists (baseline_call_count >= 3)
-  // 5. Build AAD and encrypt insights JSON
-  // 6. Insert into ultaura_call_insights
-  // 7. Compute concern novelty (new/recurring)
-  // 8. Update consecutive_missed_calls = 0, last_answered_call_at = now()
+  // 5. Set has_baseline = baselineAvailable && data.confidence_overall >= 0.5
+  // 6. Compute concern is_novel flags from baseline recent_concern_codes
+  // 7. Build AAD and encrypt insights JSON
+  // 8. Insert into ultaura_call_insights
   // Returns { id, hasConcerns }
 }
 ```
@@ -931,7 +944,7 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
 // Update notification preferences
 export async function updateNotificationPreferences(
   accountId: string,
-  lineId: string | null,
+  lineId: string,
   preferences: Partial<NotificationPreferences>
 ): Promise<void>
 
@@ -965,6 +978,17 @@ POST /api/telephony/missed-calls    - Receives alert data, sends missed-call ale
 **Authentication**: `X-Webhook-Secret` header (timing-safe comparison against `ULTAURA_INTERNAL_API_SECRET`)
 
 **Pattern**: Telephony generates data → POST to Next.js → Next.js renders email template → sendEmail()
+
+**Missed Calls Alert Payload**:
+```typescript
+interface MissedCallsAlertPayload {
+  lineId: string;
+  accountId: string;
+  lineName: string;
+  consecutiveMissedCount: number;
+  lastAttemptAt: string; // ISO timestamp
+}
+```
 
 ---
 
@@ -1001,7 +1025,7 @@ POST /api/telephony/missed-calls    - Receives alert data, sends missed-call ale
 │  │   ENGAGEMENT TREND   │  │         MOOD TREND           │ │
 │  │                      │  │                              │ │
 │  │  [Only if notable]   │  │  [Color-coded dots showing   │ │
-│  │  "Down 2.1 from      │  │   mood per call over time]   │ │
+│  │  "Down 2.6 from      │  │   mood per call over time]   │ │
 │  │   typical"           │  │                              │ │
 │  │                      │  │  ● positive ● neutral ● low  │ │
 │  └──────────────────────┘  └──────────────────────────────┘ │
@@ -1031,6 +1055,12 @@ POST /api/telephony/missed-calls    - Receives alert data, sends missed-call ale
 └─────────────────────────────────────────────────────────────┘
 ```
 
+**Call activity chart scope**: Include all call types (scheduled + reminder + inbound), with visual distinction by type/direction.
+
+**Insights disabled banner**: Show a read-only banner when insights are disabled for the line; include a link to Line Settings to re-enable; keep historical data visible.
+
+**Call history mood indicator**: 8x8 dot to the right of the status badge; show only for calls with insights where `mood_overall` is positive (`bg-success`) or low (`bg-destructive`); no dot for neutral or missing insights (including <3 min). Add tooltip text "Mood: Positive" / "Mood: Low".
+
 ### Settings Integration
 
 Add to line settings page (`/src/app/dashboard/(app)/lines/[lineId]/settings/`):
@@ -1042,9 +1072,20 @@ Add to line settings page (`/src/app/dashboard/(app)/lines/[lineId]/settings/`):
 
 **New section: "Weekly Summary"**
 - Toggle: Enable/disable weekly summary
-- Format: Email / SMS / Both
+- Format: Email only (SMS hidden in MVP)
 - Day: Dropdown (Sunday default)
 - Time: Time picker (6pm default)
+
+**Scope**: Line-specific controls only; no account-level defaults or inherited indicators
+
+**Add Line Modal (Step 2 info callout)**:
+```
+ℹ️ About Call Insights
+
+After each call, we'll capture a brief summary of topics discussed
+and overall mood — but never transcripts or quotes. You can disable
+insights anytime in Line Settings.
+```
 
 ---
 
@@ -1052,32 +1093,41 @@ Add to line settings page (`/src/app/dashboard/(app)/lines/[lineId]/settings/`):
 
 ### 1. Weekly Summary Generator
 
-**Frequency**: Daily at 00:00 UTC (checks each line's preferred time)
+**Frequency**: Hourly at :00 (checks which lines are due within the hour)
 
 **Location**: `/telephony/src/scheduler/weekly-summary-scheduler.ts` (SEPARATE from call-scheduler)
 
 **Why separate**:
-- Call scheduler runs every 30 seconds; weekly summary runs once daily
+- Call scheduler runs every 30 seconds; weekly summary runs hourly
 - Different concerns: call initiation vs. aggregation + email
 - If call scheduler hangs, weekly summaries shouldn't be blocked
 
 **Logic**:
 ```typescript
 async function generateWeeklySummaries() {
-  // Run once per day, check each line's preferred time in their timezone
+  // Run hourly, check each line's preferred day/time in their timezone
   const lines = await getLinesForWeeklySummary();
 
   for (const line of lines) {
-    // Check if current time matches line's preferred time (within 60-min window)
     const lineTime = DateTime.now().setZone(line.timezone);
     const preferredHour = parseInt(line.weekly_summary_time.split(':')[0]);
+    const preferredWeekday = mapWeekday(line.weekly_summary_day); // sunday=7 ... saturday=6
 
+    if (lineTime.weekday !== preferredWeekday) continue;
     if (!isWithinWindow(lineTime.hour, preferredHour, 1)) continue;
     if (!line.notificationPrefs.weekly_summary_enabled) continue;
+    if (!line.insightsEnabled) continue;
+
+    // Dedup: only send once per week per line
+    const weekStart = getWeekStart(lineTime, line.weekly_summary_day); // aligns with summary window
+    if (line.last_weekly_summary_at && line.last_weekly_summary_at >= weekStart) {
+      continue;
+    }
 
     // Generate summary
     const summary = await aggregateWeeklyInsights(line.id);
     await storeWeeklySummary(line.id, summary);
+    await markWeeklySummarySent(line.id, lineTime.toISO());
 
     // POST to Next.js for email delivery
     await fetch(`${NEXT_PUBLIC_SITE_URL}/api/telephony/weekly-summary`, {
@@ -1092,7 +1142,7 @@ async function generateWeeklySummaries() {
 }
 ```
 
-**Idempotency**: Uses `UNIQUE(line_id, week_start_date)` constraint to prevent duplicate summaries
+**Idempotency**: Use `ultaura_lines.last_weekly_summary_at` to prevent double-sends per week; `UNIQUE(line_id, week_start_date)` is a secondary backstop
 
 ### 2. Missed Call Alert Checker
 
@@ -1111,10 +1161,13 @@ async function checkMissedCallAlert(lineId: string, wasAnswered: boolean) {
   const newCount = await incrementConsecutiveMissedCalls(lineId);
   const threshold = await getMissedCallThreshold(lineId); // default: 3
 
-  if (newCount >= threshold) {
+  const { insightsEnabled, missedAlertSentAt } = await getInsightsAlertState(lineId);
+
+  if (newCount >= threshold && !missedAlertSentAt) {
     const isPaused = await isInsightsPaused(lineId);
-    if (!isPaused) {
+    if (!isPaused && insightsEnabled) {
       await sendMissedCallAlert(lineId, newCount);
+      await markMissedAlertSent(lineId);
     }
   }
 }
@@ -1122,14 +1175,17 @@ async function checkMissedCallAlert(lineId: string, wasAnswered: boolean) {
 
 ### 3. Baseline Recalculator
 
-**Frequency**: Nightly batch (more efficient than per-call)
+**Frequency**: Nightly batch at 10:00 UTC (MVP)
 
 **Location**: Run during daily scheduler cycle or as part of weekly summary generator
 
 **Logic**:
 ```typescript
 async function recalculateBaseline(lineId: string) {
-  const insights = await getInsightsLast14Days(lineId);
+  const { insightsEnabled } = await getInsightPrivacy(lineId);
+  if (!insightsEnabled) return;
+
+  const insights = await getInsightsBaselineWindow(lineId); // 14-day window excluding current week, all answered call types
 
   if (insights.length < 3) {
     // Not enough data for reliable baseline - mark as unavailable
@@ -1160,7 +1216,8 @@ async function calculateAnswerRate(lineId: string): Promise<number> {
     .select('answered_by, seconds_connected')
     .eq('line_id', lineId)
     .like('scheduler_idempotency_key', 'schedule:%')  // Exclude reminder:*
-    .gte('created_at', DateTime.now().minus({ days: 14 }).toISO());
+    .gte('created_at', baselineStart.toISO())
+    .lt('created_at', baselineEnd.toISO());
 
   if (!data || data.length === 0) return 0;
 
@@ -1174,7 +1231,7 @@ async function calculateAnswerRate(lineId: string): Promise<number> {
 }
 ```
 
-**Baseline availability**: `baseline_call_count >= 3` determines if baseline is valid for trend comparisons
+**Baseline availability**: `baseline_call_count >= 3` determines if baseline is available; per-call trend comparisons also require `confidence_overall >= 0.5`
 
 ---
 
@@ -1256,8 +1313,10 @@ At the natural end of the conversation, you must call `log_call_insights` to rec
 2. DO NOT include quotes or specific phrases
 3. Severity levels: 1=mild, 2=moderate, 3=significant
 4. Topic weights should sum to approximately 1.0
-5. Lower your confidence if uncertain
-6. If they say "keep this between us", add that topic to private_topics
+5. Use `mood_overall` as positive, neutral, or low (3-state only)
+6. Engagement score should be your direct 1-10 rating (no blending)
+7. Set confidence_overall to reflect your certainty across all signals (0.0=uncertain, 1.0=very confident)
+8. If they say "keep this between us", add that topic to private_topics for this call
 
 ### Privacy Commands
 When the resident says phrases like:
@@ -1267,6 +1326,8 @@ When the resident says phrases like:
 
 1. ALWAYS call `mark_topic_private` with the relevant topic code (this hides the topic from insights)
 2. If you just stored a specific memory about this topic, ALSO call `mark_private` to hide that memory
+
+Note: `private_topics` in `log_call_insights` applies to the current call only; `mark_topic_private` persists to settings.
 
 Example: If they shared something private about family drama:
 - Call `mark_topic_private({ topic_code: 'family' })` - hides family topics from insights
@@ -1287,7 +1348,7 @@ Call `set_pause_mode` with enabled: true.
 
 ### Weekly Summary Email
 
-**Location**: `/telephony/src/templates/weekly-summary.ts` or use React Email
+**Location**: `/src/lib/emails/weekly-summary.tsx` (React Email)
 
 ```html
 <!DOCTYPE html>
@@ -1375,6 +1436,34 @@ Call `set_pause_mode` with enabled: true.
 </html>
 ```
 
+### Missed Calls Alert Email
+
+**Location**: `/src/lib/emails/missed-calls-alert.tsx` (React Email)
+
+Subject: `Missed check-ins for [DisplayName]`
+
+Body content (HTML):
+```
+Hi,
+
+[DisplayName] has missed [X] consecutive scheduled calls from Ultaura.
+
+This could mean:
+• Phone is off or out of reach
+• They're busy or away
+• Line settings may need adjustment
+
+What you can do:
+• Give them a call to check in
+• Review call schedule in your dashboard
+
+[View Dashboard Button]
+
+If you'd like to pause calls temporarily, you can do so in Line Settings.
+
+— Ultaura
+```
+
 ---
 
 ## Implementation Order
@@ -1396,9 +1485,10 @@ Call `set_pause_mode` with enabled: true.
 ### Phase 3: Notifications
 1. Create notification preferences table and UI
 2. Implement weekly summary generation
-3. Build email template
-4. Add SMS summary format
+3. Build weekly summary email template (React Email)
+4. Build missed-calls alert email template (React Email)
 5. Implement missed-call alert logic
+6. Add Next.js API routes for weekly summaries + missed-call alerts
 
 ### Phase 4: Privacy & Pause
 1. Add `set_pause_mode` tool
@@ -1429,7 +1519,12 @@ Call `set_pause_mode` with enabled: true.
 - `/telephony/src/services/insights.ts`
 - `/telephony/src/services/baseline.ts`
 - `/telephony/src/services/weekly-summary.ts`
-- `/telephony/src/templates/weekly-summary.ts`
+
+**Next.js (Email + API)**:
+- `/src/lib/emails/weekly-summary.tsx`
+- `/src/lib/emails/missed-calls-alert.tsx`
+- `/src/app/api/telephony/weekly-summary/route.ts`
+- `/src/app/api/telephony/missed-calls/route.ts`
 
 **Dashboard**:
 - `/src/lib/ultaura/insights.ts`
@@ -1446,6 +1541,9 @@ Call `set_pause_mode` with enabled: true.
 - `/telephony/src/websocket/grok-bridge.ts` - Register new tools
 - `/telephony/src/services/call-session.ts` - Track consecutive missed calls
 - `/src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx` - Add privacy settings
+- `/src/app/dashboard/(app)/lines/components/AddLineModal.tsx` - Add insights privacy callout
+- `/src/app/dashboard/(app)/lines/[lineId]/components/CallActivityList.tsx` - Add mood dot indicator
+- `/src/navigation.config.tsx` - Add Insights tab
 - `/src/lib/ultaura/types.ts` - Add insight types
 - `/src/lib/ultaura/constants.ts` - Add topic/concern taxonomies
 
@@ -1540,30 +1638,36 @@ This section documents detailed implementation decisions made during spec review
 | **Server actions location** | Create new `/src/lib/ultaura/insights.ts` file (per-domain pattern, not monolithic actions.ts) |
 | **Encryption key ID (`insights_kid`)** | TEXT type storing version string like `'kek_v1'` (matches existing `ultaura_memories.value_kid` pattern), NOT UUID FK |
 | **AAD format** | JSON with `account_id`, `line_id`, `call_session_id`, `type` for stronger binding |
-| **Debug logging** | Log tool invocation metadata only (has_concerns, confidence), NOT insight values |
+| **Debug logging** | Log tool invocation metadata only (has_concerns, confidence_overall), NOT insight values |
 | **`ultaura_insight_privacy` row creation** | Backfill existing lines in migration + trigger auto-creates for new lines |
-| **`ultaura_notification_preferences` scope** | Supports account-level defaults (`line_id` nullable) with partial unique index enforcing single default per account |
+| **`ultaura_notification_preferences` scope** | Line-specific only (`line_id` required); no account-level defaults |
+| **Notification prefs UI** | Line-specific controls only; no account-level defaults screen or inherited indicator |
 | **Test call detection** | New `is_test_call BOOLEAN` column on `ultaura_call_sessions`, set true when `reason='test'` |
 | **`last_answered_call_at` updates** | Any answered call (inbound, reminder, scheduled) updates this field |
-| **`answered_by = 'unknown'` handling** | Treat as answered - resets missed counter, updates last_answered_call_at |
+| **`last_weekly_summary_at` updates** | Set after a weekly summary is generated and sent (dedup per week) |
+| **`answered_by = 'unknown'` handling** | Treat as answered (updates last_answered_call_at; resets missed counter only for scheduled outbound) |
 | **`answered_by = NULL` with `seconds_connected > 0`** | Count as answered (AMD disabled but call connected) |
-| **`insights_enabled = false` behavior** | Skip everything (no storage, no baselines, no summaries, no alerts) + show disabled state in Insights tab |
-| **`has_baseline` column** | Non-encrypted metadata column on `ultaura_call_insights` for easy querying |
-| **Notification prefs creation** | Lazy creation - create default row on first read if missing |
+| **`insights_enabled = false` behavior** | Skip insights storage/baselines/summaries; suppress insights alerts only; still update missed-call counters; show disabled banner in Insights tab |
+| **`has_baseline` column** | Non-encrypted metadata column on `ultaura_call_insights`; set false when baseline unavailable or confidence_overall < 0.5 |
+| **Notification prefs creation** | Lazy creation - create line-specific defaults on first read if missing |
+| **Language storage** | Use `ultaura_call_sessions.language_detected`; do not duplicate in insights JSON |
 
 ### Insights Processing
 
 | Decision | Details |
 |----------|---------|
-| **Engagement storage** | Store blended value (backend computes final score combining objective + model factors) |
-| **No baseline available** | Mark insight as provisional (`has_baseline = false`); display without trend comparison |
+| **Engagement storage** | Store model-provided engagement score directly (no blending for MVP) |
+| **No baseline available / low confidence** | Mark insight as provisional (`has_baseline = false`) when baseline unavailable or `confidence_overall < 0.5`; display without trend comparison |
+| **Engagement deviation** | Flag only when current engagement is ≥2.5 points below baseline; never surface positive deltas |
 | **`follow_up_reasons` validation** | Strict zod enum - reject unknown codes at validation time |
 | **Allowed `follow_up_reasons` codes** | Concern codes (`loneliness`, `sadness`, `anxiety`, `sleep`, `pain`, `fatigue`, `appetite`) + `wants_more_contact`, `missed_routine` |
 | **Fallback extraction scope** | Same as tool calls - if call ≥3min and `insights_enabled`, extract regardless of call type (except test) |
-| **Concern novelty** | Computed on backend: `new` = not in `recent_concern_codes`, `recurring` = in `recent_concern_codes`, `resolved` = was in previous week's concerns but not in current week (computed in weekly summary) |
+| **Concern novelty** | Stored per concern as `is_novel` at call time (true=new, false=recurring); weekly summary computes "resolved" by comparing baseline window to current week |
+| **Mood trend** | Pattern shift when week has 3+ low-mood calls and baseline window had ≤1 |
+| **Social need trend** | Derived from `follow_up_reasons` containing `wants_more_contact`; computed on-demand from call insights (no stored baseline); surface only after 3 consecutive weeks and baseline had 0 occurrences; baseline = 14 days immediately before the 3-week streak (5-week lookback) |
 | **Duplicate `log_call_insights` handling** | First-write wins - check for existing row before inserting, ignore duplicates |
 | **Insights for call types** | Scheduled: Yes, Reminder: Yes (if conversation), Inbound: Yes, Test: No |
-| **Sub-3-minute calls** | Reset missed counter and update last_answered_call_at, but skip insights storage |
+| **Sub-3-minute calls** | Update last_answered_call_at; reset missed counter only if answered scheduled outbound; skip insights storage |
 | **Fallback integration** | Run BEFORE buffer clearing in call completion pipeline, same location as memory extraction |
 
 ### Privacy
@@ -1571,10 +1675,10 @@ This section documents detailed implementation decisions made during spec review
 | Decision | Details |
 |----------|---------|
 | **`mark_topic_private` persistence** | Persists to line settings (`ultaura_insight_privacy.private_topic_codes`) - affects future calls |
-| **Private topics merge behavior** | Union/merge both `mark_topic_private` tool calls AND `log_call_insights.private_topics` array |
+| **Private topics merge behavior** | `mark_topic_private` persists to settings; `log_call_insights.private_topics` applies to the current call only |
 | **Who sees private topics** | Hide from ALL viewers (no role distinction) - simpler implementation |
 | **Private topics in calculations** | Include in baseline/trend math, only hide from UI display |
-| **Privacy copy updates** | Update all three surfaces: Grok prompt, dashboard UI (line settings), AND onboarding flow |
+| **Privacy copy updates** | Update Grok prompt, line settings UI, and AddLineModal Step 2 info callout |
 | **When Grok should call privacy tools** | Call `mark_topic_private` when senior requests privacy; optionally also call existing `mark_private` if specific memory was just discussed |
 
 ### Safety System Integration
@@ -1591,9 +1695,13 @@ This section documents detailed implementation decisions made during spec review
 | **What counts as "missed" for counter** | `end_reason` in (`no_answer`, `busy`, `error`) OR `answered_by` in (`machine_start`, `machine_end_beep`, `machine_end_silence`, `machine_end_other`, `fax`) |
 | **What does NOT count as missed** | `end_reason` in (`trial_cap`, `minutes_cap`) - system limitations, not senior behavior |
 | **What resets missed counter** | Human-answered scheduled outbound call (`answered_by` = `human` or `unknown`, `scheduler_idempotency_key` starts with `schedule:`) |
+| **Reset behavior** | Resetting consecutive missed calls also clears `missed_alert_sent_at` |
 | **Missed counter increment trigger** | Call session end only (not Twilio initiation failures) |
+| **Missed-call alerts** | Send once per streak when counter hits threshold; track `missed_alert_sent_at` to suppress repeats until reset |
+| **Baseline window for trends** | Use the 14-day window immediately preceding the current week (no overlap) for engagement/mood; social-need uses a 5-week lookback (2-week baseline + 3-week streak) |
 | **Baseline `answer_rate` denominator** | Only `scheduler_idempotency_key` values starting with `schedule:` (exclude `reminder:`) |
 | **Baseline `answer_rate` calculation** | Actual sessions only: `answered / total` sessions with `schedule:*` key |
+| **Missed calls increased (weekly summary)** | Flag when current week answer_rate (scheduled calls only) is ≥20 percentage points below baseline AND missed scheduled calls ≥2 |
 
 ### Weekly Summary & Notifications
 
@@ -1601,11 +1709,13 @@ This section documents detailed implementation decisions made during spec review
 |----------|---------|
 | **Pause mode behavior** | Weekly summaries still sent with "paused" note; missed-call alerts are suppressed |
 | **Notification recipients** | Billing email only (account's `billing_email` field) |
-| **SMS in notification prefs UI** | Hide SMS option for MVP - only show email toggle |
+| **SMS in notification prefs UI** | Hide SMS option for MVP - only show email toggle; ignore sms/both at send time |
 | **Summary generation flow** | Telephony generates + encrypts + stores summary; calls Next.js API just to send email |
+| **Weekly summary dedup** | Track `ultaura_lines.last_weekly_summary_at` and send at most once per line per week |
 | **Delivery timing** | 60-minute window is "on time"; if missed, catch up later same day |
 | **Alert recipient** | Billing email only (same as summaries) |
 | **Summary API format** | Structured JSON data; Next.js renders email template |
+| **Weekly summary call counts** | Use actual call sessions (schedule:*) for answered/total counts, not expected schedule occurrences |
 | **`week_start_date` format** | Line's local date (user's timezone), not UTC |
 | **Week range when not Sunday** | 7 days ending day before send (e.g., Wednesday send = previous Wed → this Tue) |
 
@@ -1615,6 +1725,8 @@ This section documents detailed implementation decisions made during spec review
 |----------|---------|
 | **Date range UI** | Static "Last 30 days" label only - no picker, no interactivity |
 | **Default line selection** | Prioritize active status first; only fall back to paused/disabled if no active lines exist |
+| **Insights disabled UI** | Show historical data with a disabled banner; include a link to Line Settings to re-enable (do not hide) |
+| **Call history mood indicator** | 8x8 dot to the right of status badge; show only for positive (`bg-success`) and low (`bg-destructive`) moods; no dot for neutral or missing insights (including <3 min); tooltip "Mood: Positive" / "Mood: Low" |
 
 ---
 
@@ -1634,17 +1746,17 @@ interface WeeklySummaryData {
   timezone: string;
 
   // Call activity
-  scheduledCalls: number;
-  answeredCalls: number;
+  scheduledCalls: number; // total scheduled session attempts (schedule:*)
+  answeredCalls: number; // answered scheduled sessions only
   avgDurationMinutes: number;
   durationTrend: 'up' | 'down' | 'stable' | null;
   durationTrendValue: number | null; // minutes difference
 
   // Engagement (null if no insights this week)
-  engagementNote: string | null; // e.g., "down 2.1 points from typical"
+  engagementNote: string | null; // e.g., "down 2.6 points from typical"
 
   // Mood
-  moodSummary: string | null; // e.g., "mostly positive", "mixed with some low moments"
+  moodSummary: string | null; // e.g., "mostly positive", "mixed week"
   moodDistribution: {
     positive: number; // count
     neutral: number;
@@ -1667,7 +1779,7 @@ interface WeeklySummaryData {
 
   // Flags
   needsFollowUp: boolean;
-  followUpReasons: string[]; // human-readable labels
+  followUpReasons: string[]; // deduped union across the week (human-readable labels)
   isPaused: boolean;
   pausedNote: string | null;
 
@@ -1705,6 +1817,10 @@ function shouldUpdateLastAnsweredCallAt(session: CallSession): boolean {
   // Any answered call updates this (inbound, reminder, scheduled)
   return isCallAnswered(session);
 }
+
+function shouldSendMissedAlert(line: LineRow, newCount: number, threshold: number): boolean {
+  return newCount >= threshold && !line.missed_alert_sent_at;
+}
 ```
 
 ---
@@ -1714,38 +1830,25 @@ function shouldUpdateLastAnsweredCallAt(session: CallSession): boolean {
 ```typescript
 async function getNotificationPreferences(
   accountId: string,
-  lineId?: string
+  lineId: string
 ): Promise<NotificationPreferences> {
   const supabase = getSupabaseClient();
 
-  // Try line-specific first
-  if (lineId) {
-    const { data: linePrefs } = await supabase
-      .from('ultaura_notification_preferences')
-      .select('*')
-      .eq('account_id', accountId)
-      .eq('line_id', lineId)
-      .single();
-
-    if (linePrefs) return linePrefs;
-  }
-
-  // Try account default
-  const { data: accountPrefs } = await supabase
+  const { data: linePrefs } = await supabase
     .from('ultaura_notification_preferences')
     .select('*')
     .eq('account_id', accountId)
-    .is('line_id', null)
+    .eq('line_id', lineId)
     .single();
 
-  if (accountPrefs) return accountPrefs;
+  if (linePrefs) return linePrefs;
 
-  // Create default lazily
-  const { data: newPrefs } = await supabase
+  // Create line-specific defaults if missing
+  const { data: newLinePrefs } = await supabase
     .from('ultaura_notification_preferences')
     .insert({
       account_id: accountId,
-      line_id: null, // account default
+      line_id: lineId,
       weekly_summary_enabled: true,
       weekly_summary_format: 'email',
       weekly_summary_day: 'sunday',
@@ -1756,7 +1859,7 @@ async function getNotificationPreferences(
     .select()
     .single();
 
-  return newPrefs;
+  return newLinePrefs;
 }
 ```
 
