@@ -23,6 +23,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
     }
 
     const isReminderCall = reason === 'reminder' && !!reminderMessage;
+    const isTestCall = reason === 'test';
 
     logger.info({ lineId, reason, isReminderCall, schedulerIdempotencyKey }, 'Outbound call request');
 
@@ -65,6 +66,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       twilioFrom: process.env.TWILIO_PHONE_NUMBER,
       twilioTo: line.phone_e164,
       isReminderCall,
+      isTestCall,
       reminderId: isReminderCall ? reminderId : undefined,
       reminderMessage: isReminderCall ? reminderMessage : undefined,
       schedulerIdempotencyKey,
@@ -158,6 +160,7 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
     direction: 'outbound',
     twilioFrom: process.env.TWILIO_PHONE_NUMBER,
     twilioTo: line.phone_e164,
+    isTestCall: true,
   });
 
   if (!session) {

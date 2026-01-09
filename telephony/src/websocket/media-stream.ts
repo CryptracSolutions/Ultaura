@@ -6,8 +6,9 @@ import { logger } from '../server.js';
 import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent, recordDebugEvent } from '../services/call-session.js';
 import { getLineById, recordOptOut } from '../services/line-lookup.js';
 import { getMemoriesForLine } from '../services/memory.js';
-import { createBuffer, clearBuffer } from '../services/ephemeral-buffer.js';
-import { summarizeAndExtractMemories } from '../services/call-summarization.js';
+import { createBuffer, clearBuffer, getBuffer } from '../services/ephemeral-buffer.js';
+import { summarizeAndExtractMemoriesFromBuffer } from '../services/call-summarization.js';
+import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback.js';
 import { getUsageSummary } from '../services/metering.js';
 import { getLastDetectedLanguageForLine } from '../services/language.js';
 import { GrokBridge } from './grok-bridge.js';
@@ -495,20 +496,29 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
       ? Date.now() - new Date(connectedAt).getTime()
       : 0;
 
+    const buffer = getBuffer(callSessionId);
+    const durationSeconds = Math.floor(duration / 1000);
     const shouldSummarize =
       isConnected &&
       duration >= 30000 &&
       !session?.is_reminder_call;
 
-    if (shouldSummarize) {
-      summarizeAndExtractMemories(callSessionId).catch(err => {
+    if (isConnected && buffer) {
+      extractFallbackInsightsFromBuffer(buffer, session, durationSeconds).catch(err => {
+        logger.error({ error: err, callSessionId }, 'Fallback insights extraction failed');
+      });
+    }
+
+    if (shouldSummarize && buffer) {
+      summarizeAndExtractMemoriesFromBuffer(buffer).catch(err => {
         logger.error({ error: err, callSessionId }, 'Background summarization failed');
       });
     } else {
-      clearBuffer(callSessionId);
       logger.debug({ callSessionId, duration, isReminderCall: session?.is_reminder_call },
         'Skipping summarization');
     }
+
+    clearBuffer(callSessionId);
 
     // Close Grok bridge
     if (grokBridge) {

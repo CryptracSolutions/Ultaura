@@ -621,6 +621,31 @@ export class GrokBridge {
           });
           break;
 
+        case 'mark_topic_private':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_topic_private`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            topic_code: args.topic_code,
+          });
+          break;
+
+        case 'set_pause_mode':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/set_pause_mode`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            enabled: args.enabled,
+            reason: args.reason,
+          });
+          break;
+
+        case 'log_call_insights':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/log_call_insights`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            ...args,
+          });
+          break;
+
         case 'log_safety_concern':
           this.markTierTriggeredByModel(args.tier);
           result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {

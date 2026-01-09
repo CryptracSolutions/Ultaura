@@ -416,29 +416,81 @@ export type Database = {
           },
         ]
       }
-      ultaura_call_events_export_backup: {
+      ultaura_call_insights: {
         Row: {
+          account_id: string
           call_session_id: string
           created_at: string
+          duration_seconds: number | null
+          extraction_method: string
+          has_baseline: boolean
+          has_concerns: boolean
           id: string
-          payload: Json | null
-          type: string
+          insights_alg: string
+          insights_ciphertext: string
+          insights_iv: string
+          insights_kid: string
+          insights_tag: string
+          line_id: string
+          needs_follow_up: boolean
         }
         Insert: {
+          account_id: string
           call_session_id: string
           created_at?: string
+          duration_seconds?: number | null
+          extraction_method: string
+          has_baseline?: boolean
+          has_concerns?: boolean
           id?: string
-          payload?: Json | null
-          type: string
+          insights_alg?: string
+          insights_ciphertext: string
+          insights_iv: string
+          insights_kid?: string
+          insights_tag: string
+          line_id: string
+          needs_follow_up?: boolean
         }
         Update: {
+          account_id?: string
           call_session_id?: string
           created_at?: string
+          duration_seconds?: number | null
+          extraction_method?: string
+          has_baseline?: boolean
+          has_concerns?: boolean
           id?: string
-          payload?: Json | null
-          type?: string
+          insights_alg?: string
+          insights_ciphertext?: string
+          insights_iv?: string
+          insights_kid?: string
+          insights_tag?: string
+          line_id?: string
+          needs_follow_up?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_call_insights_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_call_insights_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_call_insights_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ultaura_call_sessions: {
         Row: {
@@ -455,6 +507,7 @@ export type Database = {
           ended_at: string | null
           id: string
           is_reminder_call: boolean
+          is_test_call: boolean
           language_detected: string | null
           line_id: string
           recording_sid: string | null
@@ -483,6 +536,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           is_reminder_call?: boolean
+          is_test_call?: boolean
           language_detected?: string | null
           line_id: string
           recording_sid?: string | null
@@ -511,6 +565,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           is_reminder_call?: boolean
+          is_test_call?: boolean
           language_detected?: string | null
           line_id?: string
           recording_sid?: string | null
@@ -648,24 +703,116 @@ export type Database = {
           },
         ]
       }
+      ultaura_insight_privacy: {
+        Row: {
+          created_at: string
+          id: string
+          insights_enabled: boolean
+          is_paused: boolean
+          line_id: string
+          paused_at: string | null
+          paused_reason: string | null
+          private_topic_codes: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          insights_enabled?: boolean
+          is_paused?: boolean
+          line_id: string
+          paused_at?: string | null
+          paused_reason?: string | null
+          private_topic_codes?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          insights_enabled?: boolean
+          is_paused?: boolean
+          line_id?: string
+          paused_at?: string | null
+          paused_reason?: string | null
+          private_topic_codes?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_insight_privacy_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_line_baselines: {
+        Row: {
+          answer_rate: number | null
+          avg_duration_seconds: number | null
+          avg_engagement: number | null
+          baseline_call_count: number
+          calls_per_week: number | null
+          line_id: string
+          mood_distribution: Json
+          recent_concern_codes: string[]
+          updated_at: string
+        }
+        Insert: {
+          answer_rate?: number | null
+          avg_duration_seconds?: number | null
+          avg_engagement?: number | null
+          baseline_call_count?: number
+          calls_per_week?: number | null
+          line_id: string
+          mood_distribution?: Json
+          recent_concern_codes?: string[]
+          updated_at?: string
+        }
+        Update: {
+          answer_rate?: number | null
+          avg_duration_seconds?: number | null
+          avg_engagement?: number | null
+          baseline_call_count?: number
+          calls_per_week?: number | null
+          line_id?: string
+          mood_distribution?: Json
+          recent_concern_codes?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_line_baselines_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_lines: {
         Row: {
           account_id: string
           allow_voice_reminder_control: boolean
+          consecutive_missed_calls: number
           created_at: string
           display_name: string
           do_not_call: boolean
           id: string
           inbound_allowed: boolean
+          last_answered_call_at: string | null
           last_successful_call_at: string | null
+          last_weekly_summary_at: string | null
+          missed_alert_sent_at: string | null
           next_scheduled_call_at: string | null
           phone_e164: string
           phone_verified_at: string | null
           quiet_hours_end: string
           quiet_hours_start: string
-          short_id: string
           seed_avoid_topics: string[] | null
           seed_interests: string[] | null
+          short_id: string
           status: Database["public"]["Enums"]["ultaura_line_status"]
           timezone: string
           voicemail_behavior: string
@@ -673,20 +820,24 @@ export type Database = {
         Insert: {
           account_id: string
           allow_voice_reminder_control?: boolean
+          consecutive_missed_calls?: number
           created_at?: string
           display_name: string
           do_not_call?: boolean
           id?: string
           inbound_allowed?: boolean
+          last_answered_call_at?: string | null
           last_successful_call_at?: string | null
+          last_weekly_summary_at?: string | null
+          missed_alert_sent_at?: string | null
           next_scheduled_call_at?: string | null
           phone_e164: string
           phone_verified_at?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
-          short_id: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
+          short_id: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
           voicemail_behavior?: string
@@ -694,20 +845,24 @@ export type Database = {
         Update: {
           account_id?: string
           allow_voice_reminder_control?: boolean
+          consecutive_missed_calls?: number
           created_at?: string
           display_name?: string
           do_not_call?: boolean
           id?: string
           inbound_allowed?: boolean
+          last_answered_call_at?: string | null
           last_successful_call_at?: string | null
+          last_weekly_summary_at?: string | null
+          missed_alert_sent_at?: string | null
           next_scheduled_call_at?: string | null
           phone_e164?: string
           phone_verified_at?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
-          short_id?: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
+          short_id?: string
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
           voicemail_behavior?: string
@@ -799,30 +954,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      ultaura_migration_log: {
-        Row: {
-          executed_at: string
-          id: string
-          migration_name: string
-          notes: string | null
-          record_count: number | null
-        }
-        Insert: {
-          executed_at?: string
-          id?: string
-          migration_name: string
-          notes?: string | null
-          record_count?: number | null
-        }
-        Update: {
-          executed_at?: string
-          id?: string
-          migration_name?: string
-          notes?: string | null
-          record_count?: number | null
-        }
-        Relationships: []
       }
       ultaura_minute_ledger: {
         Row: {
@@ -2626,3 +2757,4 @@ export const Constants = {
     },
   },
 } as const
+

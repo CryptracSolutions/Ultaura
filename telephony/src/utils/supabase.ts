@@ -67,6 +67,10 @@ export interface LineRow {
   seed_interests: string[] | null;
   seed_avoid_topics: string[] | null;
   voicemail_behavior: 'none' | 'brief' | 'detailed';
+  consecutive_missed_calls: number;
+  last_answered_call_at: string | null;
+  missed_alert_sent_at: string | null;
+  last_weekly_summary_at: string | null;
 }
 
 export interface CallSessionRow {
@@ -94,6 +98,8 @@ export interface CallSessionRow {
   is_reminder_call: boolean;
   reminder_id: string | null;
   reminder_message: string | null;
+  scheduler_idempotency_key: string | null;
+  is_test_call: boolean;
 }
 
 export interface ScheduleRow {
@@ -183,4 +189,46 @@ export interface AccountCryptoKeyRow {
   dek_kid: string;
   dek_alg: string;
   rotated_at: string | null;
+}
+
+export interface CallInsightsRow {
+  id: string;
+  call_session_id: string;
+  line_id: string;
+  account_id: string;
+  created_at: string;
+  insights_ciphertext: Uint8Array;
+  insights_iv: Uint8Array;
+  insights_tag: Uint8Array;
+  insights_alg: string;
+  insights_kid: string;
+  extraction_method: 'tool_call' | 'post_call_fallback';
+  duration_seconds: number | null;
+  has_concerns: boolean;
+  needs_follow_up: boolean;
+  has_baseline: boolean;
+}
+
+export interface LineBaselineRow {
+  line_id: string;
+  updated_at: string;
+  avg_engagement: number | null;
+  avg_duration_seconds: number | null;
+  calls_per_week: number | null;
+  answer_rate: number | null;
+  mood_distribution: Record<string, number>;
+  recent_concern_codes: string[];
+  baseline_call_count: number;
+}
+
+export interface InsightPrivacyRow {
+  id: string;
+  line_id: string;
+  created_at: string;
+  updated_at: string;
+  insights_enabled: boolean;
+  private_topic_codes: string[];
+  is_paused: boolean;
+  paused_at: string | null;
+  paused_reason: string | null;
 }

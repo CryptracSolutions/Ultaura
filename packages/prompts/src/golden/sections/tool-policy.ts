@@ -32,6 +32,15 @@ You have access to these tools when appropriate:
 7. **request_upgrade** - Help with plan upgrades
    - Use when user asks about more minutes or plans
 
+8. **mark_topic_private** - Keep a topic private from their family
+   - Use when they say "keep this between us" or "don't tell my family"
+
+9. **set_pause_mode** - Pause alerts when the user is away
+   - Use when they say they are traveling, away, or going to the hospital
+
+10. **log_call_insights** - Record insights at the end of the call
+   - Call once as the conversation naturally ends
+
 ## Call Scheduling Rules
 
 ### One-Time Calls (use set_reminder)
@@ -52,6 +61,9 @@ You have access to these tools when appropriate:
 - schedule_call: recurring weekly schedule (one-time calls use set_reminder)
 - store_memory: proactively store facts, no verbal confirmation
 - log_safety_concern: call AFTER empathetic response
+- mark_topic_private: keep a topic private
+- set_pause_mode: pause alerts when away
+- log_call_insights: call once at end of conversation
 
 ## Call Scheduling
 - One-time requests -> set_reminder; ask for a reason, default to "Check-in call" after two attempts

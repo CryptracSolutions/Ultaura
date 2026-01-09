@@ -161,7 +161,7 @@ CREATE TABLE ultaura_line_baselines (
   calls_per_week DECIMAL(4,2),
   answer_rate DECIMAL(4,3),
 
-  -- Mood distribution (% over 14 days)
+  -- Mood distribution (fractions 0-1 over 14 days)
   mood_distribution JSONB NOT NULL DEFAULT '{"positive": 0, "neutral": 0, "low": 0}',
 
   -- For novelty detection
@@ -663,7 +663,7 @@ This section documents detailed implementation decisions made during spec review
 | **Baseline window for trends** | Use the 14-day window immediately preceding the current week (no overlap) for engagement/mood; social-need uses a 5-week lookback (2-week baseline + 3-week streak) |
 | **Baseline `answer_rate` denominator** | Only `scheduler_idempotency_key` values starting with `schedule:` (exclude `reminder:`) |
 | **Baseline `answer_rate` calculation** | Actual sessions only: `answered / total` sessions with `schedule:*` key |
-| **Missed calls increased (weekly summary)** | Flag when current week answer_rate (scheduled calls only) is >= 20 percentage points below baseline AND missed scheduled calls >= 2 |
+| **Missed calls increased (weekly summary)** | Flag when current week answer_rate (scheduled calls only) is >= 0.20 (20 percentage points) below baseline AND missed scheduled calls >= 2 |
 
 ## Acceptance Criteria (Part 1)
 - log_call_insights validates input and stores insights only when insights_enabled is true, call duration >= 3 minutes, and is_test_call is false; duplicates are ignored (first-write-wins).
@@ -904,7 +904,7 @@ The new concerns system handles non-urgent wellbeing patterns:
 - Engagement down >= 2.5 from baseline for 2+ calls (downward only)
 - Mood pattern shift: 3+ calls in the week with mood=low and baseline window had <= 1
 - New concern at severity 2 or higher
-- Missed calls increased from typical pattern (answer_rate drop >= 20 percentage points vs baseline AND at least 2 missed scheduled calls)
+- Missed calls increased from typical pattern (answer_rate drop >= 0.20 [20 percentage points] vs baseline AND at least 2 missed scheduled calls)
 
 #### Tier 2: Immediate Notification
 
@@ -984,8 +984,8 @@ baseline_start = baseline_end - 14 days
 | `avg_engagement` | decimal | Rolling average engagement |
 | `avg_duration_seconds` | integer | Rolling average call duration |
 | `calls_per_week` | decimal | Rolling average calls/week |
-| `mood_distribution` | jsonb | % positive/neutral/low |
-| `answer_rate` | decimal | % of scheduled calls answered |
+| `mood_distribution` | jsonb | Fractions 0-1 for positive/neutral/low |
+| `answer_rate` | decimal | Fraction 0-1 of scheduled calls answered |
 
 #### Update Frequency
 - Nightly batch job (MVP): run once daily at 10:00 UTC

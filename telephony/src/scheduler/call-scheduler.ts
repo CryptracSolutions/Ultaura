@@ -3,10 +3,12 @@
 // Supports horizontal scaling with lease-based coordination
 
 import { v4 as uuidv4 } from 'uuid';
+import { DateTime } from 'luxon';
 import { getSupabaseClient, ScheduleRow, ReminderRow } from '../utils/supabase.js';
 import { logger } from '../utils/logger.js';
 import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
+import { recalculateBaselinesForAllLines } from '../services/baseline.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
 
 // Configuration
@@ -27,6 +29,7 @@ let heartbeatIntervals: ReturnType<typeof setInterval>[] = [];
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let shuttingDown = false;
 let lastCleanupTimestamp = 0;
+let lastBaselineRunDate: string | null = null;
 
 /**
  * Calculate the next occurrence for a recurring reminder.
@@ -155,6 +158,24 @@ async function maybeCleanupDebugLogs(): Promise<void> {
   logger.info({ deletedCount: count ?? 0 }, 'Cleaned up old debug logs');
 }
 
+async function maybeRecalculateBaselines(): Promise<void> {
+  const now = DateTime.utc();
+  const today = now.toISODate();
+
+  if (!today || lastBaselineRunDate === today) {
+    return;
+  }
+
+  const targetTime = now.set({ hour: 10, minute: 0, second: 0, millisecond: 0 });
+  if (now < targetTime) {
+    return;
+  }
+
+  logger.info({ runDate: today }, 'Running baseline recalculation');
+  await recalculateBaselinesForAllLines();
+  lastBaselineRunDate = today;
+}
+
 /**
  * Execute a processor function while holding a lease.
  * Handles lease acquisition, heartbeat, and release.
@@ -256,6 +277,7 @@ async function processScheduledCalls(): Promise<void> {
   }
 
   if (!claimedSchedules || claimedSchedules.length === 0) {
+    await maybeRecalculateBaselines();
     return;
   }
 
@@ -267,6 +289,8 @@ async function processScheduledCalls(): Promise<void> {
   for (const schedule of claimedSchedules) {
     await processSchedule(schedule as ScheduleRow);
   }
+
+  await maybeRecalculateBaselines();
 }
 
 /**

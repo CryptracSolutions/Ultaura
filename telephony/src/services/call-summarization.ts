@@ -1,7 +1,7 @@
 // End-of-call summarization and memory extraction
 // Uses ephemeral buffer turns to extract memories after call ends
 
-import { clearBuffer } from './ephemeral-buffer.js';
+import { clearBuffer, type EphemeralBuffer } from './ephemeral-buffer.js';
 import { storeMemory, getMemoriesForLine } from './memory.js';
 import { logger } from '../server.js';
 
@@ -44,6 +44,14 @@ export async function summarizeAndExtractMemories(callSessionId: string): Promis
     return;
   }
 
+  await summarizeAndExtractMemoriesFromBuffer(buffer);
+}
+
+export async function summarizeAndExtractMemoriesFromBuffer(buffer: EphemeralBuffer): Promise<void> {
+  if (!buffer.turns.length) {
+    return;
+  }
+
   try {
     const turnText = buffer.turns
       .map(t => `[${t.speaker.toUpperCase()}] ${t.summary}`)
@@ -83,14 +91,14 @@ export async function summarizeAndExtractMemories(callSessionId: string): Promis
     }
 
     logger.info({
-      callSessionId,
+      callSessionId: buffer.callSessionId,
       turnsProcessed: buffer.turns.length,
       memoriesExtracted: extractedMemories.length,
       memoriesStored: storedCount,
     }, 'End-of-call summarization complete');
 
   } catch (error) {
-    logger.error({ error, callSessionId }, 'End-of-call summarization failed');
+    logger.error({ error, callSessionId: buffer.callSessionId }, 'End-of-call summarization failed');
   }
 }
 

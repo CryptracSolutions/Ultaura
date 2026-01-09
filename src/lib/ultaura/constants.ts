@@ -178,6 +178,67 @@ export const GROK = {
 export type GrokVoice = typeof GROK.VOICES[number];
 
 // ============================================
+// INSIGHTS
+// ============================================
+
+export const INSIGHTS = {
+  TOPIC_CODES: [
+    'family',
+    'friends',
+    'activities',
+    'interests',
+    'memories',
+    'plans',
+    'daily_life',
+    'entertainment',
+    'feelings',
+    'requests',
+  ] as const,
+  TOPIC_LABELS: {
+    family: 'Family',
+    friends: 'Friends',
+    activities: 'Activities',
+    interests: 'Interests',
+    memories: 'Memories',
+    plans: 'Plans',
+    daily_life: 'Daily Life',
+    entertainment: 'Entertainment',
+    feelings: 'Feelings',
+    requests: 'Requests',
+  } as const,
+  CONCERN_CODES: [
+    'loneliness',
+    'sadness',
+    'anxiety',
+    'sleep',
+    'pain',
+    'fatigue',
+    'appetite',
+  ] as const,
+  CONCERN_LABELS: {
+    loneliness: 'Loneliness',
+    sadness: 'Sadness',
+    anxiety: 'Anxiety',
+    sleep: 'Sleep Trouble',
+    pain: 'Pain',
+    fatigue: 'Fatigue',
+    appetite: 'Appetite',
+  } as const,
+  FOLLOW_UP_REASON_CODES: [
+    'loneliness',
+    'sadness',
+    'anxiety',
+    'sleep',
+    'pain',
+    'fatigue',
+    'appetite',
+    'wants_more_contact',
+    'missed_routine',
+  ] as const,
+  MOOD_OPTIONS: ['positive', 'neutral', 'low'] as const,
+} as const;
+
+// ============================================
 // TIMEZONES (US-focused)
 // ============================================
 

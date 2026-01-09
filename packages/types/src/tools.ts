@@ -1,5 +1,6 @@
 import type { MemoryType } from './memory.js';
 import type { SafetyTier } from './safety.js';
+import type { TopicCode, ConcernCode, FollowUpReasonCode } from './insights.js';
 
 export interface GrokTool {
   type: 'web_search' | 'function';
@@ -105,6 +106,35 @@ export interface RequestUpgradeArgs {
   send_link?: boolean;
 }
 
+export interface LogCallInsightsArgs {
+  mood_overall: 'positive' | 'neutral' | 'low';
+  mood_intensity: number;
+  engagement_score: number;
+  social_need_level: number;
+  topics: Array<{
+    code: TopicCode;
+    weight: number;
+  }>;
+  private_topics?: TopicCode[];
+  concerns?: Array<{
+    code: ConcernCode;
+    severity: number;
+    confidence: number;
+  }>;
+  needs_follow_up: boolean;
+  follow_up_reasons?: FollowUpReasonCode[];
+  confidence_overall: number;
+}
+
+export interface SetPauseModeArgs {
+  enabled: boolean;
+  reason?: string;
+}
+
+export interface MarkTopicPrivateArgs {
+  topic_code: TopicCode;
+}
+
 export type ToolCallArgs =
   | { name: 'set_reminder'; args: SetReminderArgs }
   | { name: 'schedule_call'; args: ScheduleCallArgs }
@@ -122,4 +152,7 @@ export type ToolCallArgs =
   | { name: 'resume_reminder'; args: ResumeReminderArgs }
   | { name: 'snooze_reminder'; args: SnoozeReminderArgs }
   | { name: 'cancel_reminder'; args: CancelReminderArgs }
-  | { name: 'request_upgrade'; args: RequestUpgradeArgs };
+  | { name: 'request_upgrade'; args: RequestUpgradeArgs }
+  | { name: 'log_call_insights'; args: LogCallInsightsArgs }
+  | { name: 'set_pause_mode'; args: SetPauseModeArgs }
+  | { name: 'mark_topic_private'; args: MarkTopicPrivateArgs };

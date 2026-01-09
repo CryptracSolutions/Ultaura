@@ -12,6 +12,9 @@ import { safetyEventRouter } from './safety-event.js';
 import { overageActionRouter } from './overage-action.js';
 import { requestUpgradeRouter } from './request-upgrade.js';
 import { reportConversationLanguageRouter } from './report-conversation-language.js';
+import { logCallInsightsRouter } from './log-call-insights.js';
+import { setPauseModeRouter } from './set-pause-mode.js';
+import { markTopicPrivateRouter } from './mark-topic-private.js';
 // Reminder management tools
 import { listRemindersRouter } from './list-reminders.js';
 import { editReminderRouter } from './edit-reminder.js';
@@ -36,6 +39,9 @@ toolsRouter.use('/safety_event', safetyEventRouter);
 toolsRouter.use('/overage_action', overageActionRouter);
 toolsRouter.use('/request_upgrade', requestUpgradeRouter);
 toolsRouter.use('/report_conversation_language', reportConversationLanguageRouter);
+toolsRouter.use('/log_call_insights', logCallInsightsRouter);
+toolsRouter.use('/set_pause_mode', setPauseModeRouter);
+toolsRouter.use('/mark_topic_private', markTopicPrivateRouter);
 // Reminder management routes
 toolsRouter.use('/list_reminders', listRemindersRouter);
 toolsRouter.use('/edit_reminder', editReminderRouter);

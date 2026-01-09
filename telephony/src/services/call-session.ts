@@ -7,6 +7,8 @@ import { logger } from '../server.js';
 import { recordUsage } from './metering.js';
 import { updateLineLastCall } from './line-lookup.js';
 import { clearSafetyState, getSafetySummary, markSafetySummaryLogged } from './safety-state.js';
+import { clearInsightState } from './insight-state.js';
+import { updateInsightsDuration } from './insights.js';
 import { sanitizePayload, getStrippedFieldsInfo, CallEventType } from '../utils/event-sanitizer.js';
 
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
@@ -21,6 +23,111 @@ export type CallAnsweredBy =
   | 'fax'
   | 'unknown';
 
+function isCallAnswered(options: {
+  answeredBy: CallAnsweredBy | null;
+  secondsConnected: number;
+}): boolean {
+  if (options.answeredBy === 'human') return true;
+  if (options.answeredBy === 'unknown') return true;
+  if (options.answeredBy === null && options.secondsConnected > 0) return true;
+  return false;
+}
+
+function isMissedCall(options: {
+  answeredBy: CallAnsweredBy | null;
+  endReason: CallEndReason;
+}): boolean {
+  if (options.endReason === 'trial_cap' || options.endReason === 'minutes_cap') {
+    return false;
+  }
+
+  const machineAnswers = new Set<CallAnsweredBy>([
+    'machine_start',
+    'machine_end_beep',
+    'machine_end_silence',
+    'machine_end_other',
+    'fax',
+  ]);
+
+  if (options.answeredBy && machineAnswers.has(options.answeredBy)) {
+    return true;
+  }
+
+  return ['no_answer', 'busy', 'error'].includes(options.endReason);
+}
+
+function isScheduledOutbound(session: CallSessionRow): boolean {
+  return (
+    session.direction === 'outbound' &&
+    session.scheduler_idempotency_key?.startsWith('schedule:')
+  );
+}
+
+async function updateLineCallOutcome(
+  session: CallSessionRow,
+  options: {
+    endReason: CallEndReason;
+    secondsConnected: number;
+  }
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const answered = isCallAnswered({
+    answeredBy: session.answered_by,
+    secondsConnected: options.secondsConnected,
+  });
+
+  const scheduledOutbound = isScheduledOutbound(session);
+  const shouldResetMissedCounter = answered && scheduledOutbound;
+  const shouldIncrementMissedCounter =
+    scheduledOutbound &&
+    !answered &&
+    isMissedCall({
+      answeredBy: session.answered_by,
+      endReason: options.endReason,
+    });
+
+  const updates: Record<string, unknown> = {};
+
+  if (answered) {
+    updates.last_answered_call_at = new Date().toISOString();
+  }
+
+  if (shouldResetMissedCounter) {
+    updates.consecutive_missed_calls = 0;
+    updates.missed_alert_sent_at = null;
+  }
+
+  if (shouldIncrementMissedCounter) {
+    const { data: line, error } = await supabase
+      .from('ultaura_lines')
+      .select('consecutive_missed_calls')
+      .eq('id', session.line_id)
+      .single();
+
+    if (error) {
+      logger.error({ error, lineId: session.line_id }, 'Failed to fetch line for missed call update');
+      return;
+    }
+
+    const currentCount = line?.consecutive_missed_calls ?? 0;
+    updates.consecutive_missed_calls = currentCount + 1;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from('ultaura_lines')
+    .update(updates)
+    .eq('id', session.line_id);
+
+  if (error) {
+    logger.error({ error, lineId: session.line_id }, 'Failed to update line call outcome');
+  }
+}
+
 // Create a new call session
 export async function createCallSession(options: {
   accountId: string;
@@ -33,6 +140,8 @@ export async function createCallSession(options: {
   isReminderCall?: boolean;
   reminderId?: string;
   reminderMessage?: string;
+  // Test call flag
+  isTestCall?: boolean;
   // Scheduler idempotency key for preventing duplicate scheduled calls
   schedulerIdempotencyKey?: string;
 }): Promise<CallSessionRow | null> {
@@ -54,6 +163,7 @@ export async function createCallSession(options: {
       is_reminder_call: options.isReminderCall || false,
       reminder_id: options.reminderId || null,
       reminder_message: options.reminderMessage || null,
+      is_test_call: options.isTestCall || false,
       scheduler_idempotency_key: options.schedulerIdempotencyKey || null,
     })
     .select()
@@ -303,6 +413,9 @@ export async function completeCallSession(
 
   logger.info({ sessionId, secondsConnected, endReason, isReminderCall: session.is_reminder_call }, 'Call session completed');
 
+  await updateLineCallOutcome(session, { endReason, secondsConnected });
+  await updateInsightsDuration(sessionId, secondsConnected);
+
   // Record usage if call was long enough (or if it's a reminder call - always bill at least 1 min)
   const shouldRecordUsage = secondsConnected >= 30 || session.is_reminder_call;
   if (shouldRecordUsage) {
@@ -333,6 +446,7 @@ export async function completeCallSession(
   }
 
   clearSafetyState(sessionId);
+  clearInsightState(sessionId);
 }
 
 // Fail a call session
@@ -341,6 +455,7 @@ export async function failCallSession(
   endReason: CallEndReason
 ): Promise<void> {
   const supabase = getSupabaseClient();
+  const session = await getCallSession(sessionId);
 
   const { error } = await supabase
     .from('ultaura_call_sessions')
@@ -354,6 +469,13 @@ export async function failCallSession(
   if (error) {
     logger.error({ error, sessionId }, 'Failed to fail call session');
     return;
+  }
+
+  if (session) {
+    const secondsConnected = session.seconds_connected ?? 0;
+    await updateLineCallOutcome(session, { endReason, secondsConnected });
+    await updateInsightsDuration(sessionId, secondsConnected);
+    clearInsightState(sessionId);
   }
 
   logger.info({ sessionId, endReason }, 'Call session failed');
@@ -377,6 +499,7 @@ export async function cancelCallSession(sessionId: string): Promise<void> {
   }
 
   logger.info({ sessionId }, 'Call session canceled');
+  clearInsightState(sessionId);
 }
 
 // Record a call event

@@ -53,6 +53,17 @@ const SENSITIVE_KEYS = new Set([
   'new_value',
   'what_to_forget',
   'what_to_keep_private',
+  'mood_overall',
+  'mood_intensity',
+  'engagement_score',
+  'social_need_level',
+  'topics',
+  'concerns',
+  'needs_follow_up',
+  'follow_up_reasons',
+  'private_topics',
+  'confidence_overall',
+  'topic_code',
 ]);
 
 const PHONE_KEYS = new Set([

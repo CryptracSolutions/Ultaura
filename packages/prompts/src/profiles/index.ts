@@ -13,6 +13,7 @@ import { PRIVACY_POLICY_SECTION } from '../golden/sections/privacy-policy.js';
 import { ONBOARDING_SECTION } from '../golden/sections/onboarding.js';
 import { PLANS_PRICING_SECTION } from '../golden/sections/plans-pricing.js';
 import { AVOID_SECTION } from '../golden/sections/avoid.js';
+import { INSIGHTS_SECTION } from '../golden/sections/insights.js';
 
 export type PromptProfile = 'voice_realtime' | 'admin_preview';
 
@@ -74,6 +75,12 @@ export function compilePrompt(
     isRealtime
       ? MEMORY_POLICY_SECTION.compressed
       : MEMORY_POLICY_SECTION.full
+  );
+
+  sections.push(
+    isRealtime
+      ? INSIGHTS_SECTION.compressed
+      : INSIGHTS_SECTION.full
   );
 
   if (params.currentPlanId && params.accountStatus) {

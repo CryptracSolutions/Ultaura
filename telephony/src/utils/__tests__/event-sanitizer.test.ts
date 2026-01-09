@@ -51,6 +51,30 @@ describe('sanitizePayload', () => {
       });
     });
 
+    it('should keep only metadata for log_call_insights', () => {
+      const payload = {
+        tool: 'log_call_insights',
+        success: true,
+        has_concerns: true,
+        confidence_overall: 0.7,
+        engagement_score: 5,
+        topics: [{ code: 'family', weight: 1 }],
+      };
+
+      const { sanitized, stripped } = sanitizePayload('tool_call', payload);
+
+      expect(sanitized).toEqual({
+        tool: 'log_call_insights',
+        success: true,
+        has_concerns: true,
+        confidence_overall: 0.7,
+      });
+      expect(stripped).toEqual({
+        engagement_score: 5,
+        topics: [{ code: 'family', weight: 1 }],
+      });
+    });
+
     it('should handle unknown tools with default allowlist', () => {
       const payload = {
         tool: 'unknown_future_tool',

@@ -3,15 +3,22 @@
 
 import type {
   AccountStatus,
+  CallInsights,
+  ConcernCode,
+  FollowUpReasonCode,
   GrokTool,
   MemoryType,
   PlanId,
   PrivacyScope,
   SafetyTier,
+  TopicCode,
 } from '@ultaura/types';
 import type { Database } from '~/database.types';
 export type {
   AccountStatus,
+  CallInsights,
+  ConcernCode,
+  FollowUpReasonCode,
   GrokTool,
   Memory,
   MemoryType,
@@ -19,6 +26,7 @@ export type {
   PrivacyScope,
   SafetyActionTaken,
   SafetyTier,
+  TopicCode,
 } from '@ultaura/types';
 
 // ============================================
@@ -116,6 +124,10 @@ export interface Line {
   doNotCall: boolean;
   inboundAllowed: boolean;
   lastSuccessfulCallAt: string | null;
+  lastAnsweredCallAt: string | null;
+  consecutiveMissedCalls: number;
+  missedAlertSentAt: string | null;
+  lastWeeklySummaryAt: string | null;
   nextScheduledCallAt: string | null;
   seedInterests: string[] | null;
   seedAvoidTopics: string[] | null;
@@ -209,6 +221,7 @@ export interface CallSession {
   toolInvocations: number;
   costEstimateCentsTwilio: number | null;
   costEstimateCentsModel: number | null;
+  isTestCall: boolean;
   isReminderCall: boolean;
   reminderId: string | null;
   reminderMessage: string | null;

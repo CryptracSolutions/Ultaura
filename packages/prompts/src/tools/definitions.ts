@@ -237,6 +237,198 @@ Do NOT confirm the update verbally - just update silently and continue.`,
   },
   {
     type: 'function',
+    name: 'mark_topic_private',
+    description: 'User wants a conversation topic kept private from their family. Call when they say "keep this between us", "don\'t tell my family", "this is private", etc.',
+    parameters: {
+      type: 'object',
+      properties: {
+        topic_code: {
+          type: 'string',
+          enum: [
+            'family',
+            'friends',
+            'activities',
+            'interests',
+            'memories',
+            'plans',
+            'daily_life',
+            'entertainment',
+            'feelings',
+            'requests',
+          ],
+          description: 'Topic code to mark private',
+        },
+      },
+      required: ['topic_code'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'set_pause_mode',
+    description: 'Enable or disable pause mode when the user is away or traveling. This suppresses alerts but still allows calls.',
+    parameters: {
+      type: 'object',
+      properties: {
+        enabled: {
+          type: 'boolean',
+          description: 'Whether pause mode should be enabled',
+        },
+        reason: {
+          type: 'string',
+          description: 'Optional reason (e.g., traveling, hospital)',
+        },
+      },
+      required: ['enabled'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'log_call_insights',
+    description: 'Record conversation insights for this call. Call this once at the natural end of the conversation.',
+    parameters: {
+      type: 'object',
+      properties: {
+        mood_overall: {
+          type: 'string',
+          enum: ['positive', 'neutral', 'low'],
+          description: 'Overall mood for the call',
+        },
+        mood_intensity: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 3,
+          description: 'Mood intensity (0-3)',
+        },
+        engagement_score: {
+          type: 'number',
+          minimum: 1,
+          maximum: 10,
+          description: 'Engagement score (1-10)',
+        },
+        social_need_level: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 3,
+          description: 'Social need level (0-3)',
+        },
+        topics: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              code: {
+                type: 'string',
+                enum: [
+                  'family',
+                  'friends',
+                  'activities',
+                  'interests',
+                  'memories',
+                  'plans',
+                  'daily_life',
+                  'entertainment',
+                  'feelings',
+                  'requests',
+                ],
+              },
+              weight: {
+                type: 'number',
+                minimum: 0,
+                maximum: 1,
+              },
+            },
+            required: ['code', 'weight'],
+          },
+        },
+        private_topics: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: [
+              'family',
+              'friends',
+              'activities',
+              'interests',
+              'memories',
+              'plans',
+              'daily_life',
+              'entertainment',
+              'feelings',
+              'requests',
+            ],
+          },
+          description: 'Topics to hide for this call only',
+        },
+        concerns: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              code: {
+                type: 'string',
+                enum: [
+                  'loneliness',
+                  'sadness',
+                  'anxiety',
+                  'sleep',
+                  'pain',
+                  'fatigue',
+                  'appetite',
+                ],
+              },
+              severity: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 3,
+              },
+              confidence: {
+                type: 'number',
+                minimum: 0,
+                maximum: 1,
+              },
+            },
+            required: ['code', 'severity', 'confidence'],
+          },
+        },
+        needs_follow_up: {
+          type: 'boolean',
+        },
+        follow_up_reasons: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: [
+              'loneliness',
+              'sadness',
+              'anxiety',
+              'sleep',
+              'pain',
+              'fatigue',
+              'appetite',
+              'wants_more_contact',
+              'missed_routine',
+            ],
+          },
+        },
+        confidence_overall: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+        },
+      },
+      required: [
+        'mood_overall',
+        'mood_intensity',
+        'engagement_score',
+        'social_need_level',
+        'topics',
+        'needs_follow_up',
+        'confidence_overall',
+      ],
+    },
+  },
+  {
+    type: 'function',
     name: 'log_safety_concern',
     description: `Log when you detect genuine safety concerns during the conversation.
 
