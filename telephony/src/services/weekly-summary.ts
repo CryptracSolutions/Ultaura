@@ -852,14 +852,12 @@ async function aggregateWeeklySummary(options: {
       novelty: 'resolved' as const,
     }));
 
-  const currentConcerns = Array.from(concernMap.entries())
-    .filter(([, data]) => !(data.isNovel && data.severity < 2))
-    .map(([code, data]) => ({
-      code,
-      label: CONCERN_LABELS[code],
-      severity: toSeverityLabel(data.severity),
-      novelty: data.isNovel ? 'new' : 'recurring',
-    }));
+  const currentConcerns = Array.from(concernMap.entries()).map(([code, data]) => ({
+    code,
+    label: CONCERN_LABELS[code],
+    severity: toSeverityLabel(data.severity),
+    novelty: data.isNovel ? 'new' : 'recurring',
+  }));
 
   const concerns = [...currentConcerns, ...resolvedConcerns];
 
@@ -949,7 +947,9 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
     millisecond: 0,
   });
 
-  if (lineTime < preferredTime) {
+  const preferredWindowEnd = preferredTime.plus({ hours: 1 });
+
+  if (lineTime < preferredTime || lineTime > preferredWindowEnd) {
     return;
   }
 

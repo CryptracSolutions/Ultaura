@@ -838,14 +838,12 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   const currentConcernCodes = new Set(concernMap.keys());
   const baselineConcernMap = getConcernSeverityMap(baselineInsights);
 
-  const currentConcerns = Array.from(concernMap.entries())
-    .filter(([, data]) => !(data.isNovel && data.severity < 2))
-    .map(([code, data]) => ({
-      code,
-      label: INSIGHTS.CONCERN_LABELS[code],
-      severity: toSeverityLabel(data.severity),
-      novelty: data.isNovel ? 'new' : 'recurring',
-    }));
+  const currentConcerns = Array.from(concernMap.entries()).map(([code, data]) => ({
+    code,
+    label: INSIGHTS.CONCERN_LABELS[code],
+    severity: toSeverityLabel(data.severity),
+    novelty: data.isNovel ? 'new' : 'recurring',
+  }));
 
   const resolvedConcerns = Array.from(baselineConcernMap.entries())
     .filter(([code]) => !currentConcernCodes.has(code))
@@ -889,10 +887,15 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   const callHistory = [...weekSessions]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10)
-    .map((session) => ({
-      ...session,
-      mood_overall: insightsBySession.get(session.id)?.mood_overall ?? null,
-    }));
+    .map((session) => {
+      const insight = insightsBySession.get(session.id);
+      const moodOverall =
+        insight && insight.confidence_overall >= 0.5 ? insight.mood_overall : null;
+      return {
+        ...session,
+        mood_overall: moodOverall,
+      };
+    });
 
   return {
     lineId: line.id,
