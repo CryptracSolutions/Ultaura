@@ -335,6 +335,17 @@ export function AddLineModal({
                       </span>
                     </label>
                   </div>
+
+                  <div className="rounded-lg border border-border bg-muted/40 p-4">
+                    <p className="text-sm font-medium text-foreground">
+                      Info: About Call Insights
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      After each call, we&apos;ll capture a brief summary of topics discussed
+                      and overall mood -- but never transcripts or quotes. You can disable
+                      insights anytime in Line Settings.
+                    </p>
+                  </div>
                 </>
               )}
             </div>

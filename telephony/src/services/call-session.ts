@@ -9,6 +9,7 @@ import { updateLineLastCall } from './line-lookup.js';
 import { clearSafetyState, getSafetySummary, markSafetySummaryLogged } from './safety-state.js';
 import { clearInsightState } from './insight-state.js';
 import { updateInsightsDuration } from './insights.js';
+import { checkMissedCallAlert } from './weekly-summary.js';
 import { sanitizePayload, getStrippedFieldsInfo, CallEventType } from '../utils/event-sanitizer.js';
 
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
@@ -68,6 +69,7 @@ async function updateLineCallOutcome(
   options: {
     endReason: CallEndReason;
     secondsConnected: number;
+    endedAt?: string;
   }
 ): Promise<void> {
   const supabase = getSupabaseClient();
@@ -98,20 +100,29 @@ async function updateLineCallOutcome(
     updates.missed_alert_sent_at = null;
   }
 
+  let missedCount: number | null = null;
+  let missedAlertSentAt: string | null = null;
+  let lineName: string | null = null;
+  let lineShortId: string | null = null;
+
   if (shouldIncrementMissedCounter) {
     const { data: line, error } = await supabase
       .from('ultaura_lines')
-      .select('consecutive_missed_calls')
+      .select('consecutive_missed_calls, missed_alert_sent_at, display_name, short_id')
       .eq('id', session.line_id)
       .single();
 
-    if (error) {
+    if (error || !line) {
       logger.error({ error, lineId: session.line_id }, 'Failed to fetch line for missed call update');
       return;
     }
 
-    const currentCount = line?.consecutive_missed_calls ?? 0;
-    updates.consecutive_missed_calls = currentCount + 1;
+    const currentCount = line.consecutive_missed_calls ?? 0;
+    missedCount = currentCount + 1;
+    missedAlertSentAt = line.missed_alert_sent_at ?? null;
+    lineName = line.display_name;
+    lineShortId = line.short_id;
+    updates.consecutive_missed_calls = missedCount;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -125,6 +136,20 @@ async function updateLineCallOutcome(
 
   if (error) {
     logger.error({ error, lineId: session.line_id }, 'Failed to update line call outcome');
+    return;
+  }
+
+  if (missedCount && lineName && lineShortId) {
+    const lastAttemptAt = options.endedAt || session.ended_at || session.created_at;
+    await checkMissedCallAlert({
+      lineId: session.line_id,
+      accountId: session.account_id,
+      lineName,
+      lineShortId,
+      consecutiveMissedCalls: missedCount,
+      missedAlertSentAt,
+      lastAttemptAt,
+    });
   }
 }
 
@@ -413,7 +438,7 @@ export async function completeCallSession(
 
   logger.info({ sessionId, secondsConnected, endReason, isReminderCall: session.is_reminder_call }, 'Call session completed');
 
-  await updateLineCallOutcome(session, { endReason, secondsConnected });
+  await updateLineCallOutcome(session, { endReason, secondsConnected, endedAt });
   await updateInsightsDuration(sessionId, secondsConnected);
 
   // Record usage if call was long enough (or if it's a reminder call - always bill at least 1 min)
@@ -473,7 +498,7 @@ export async function failCallSession(
 
   if (session) {
     const secondsConnected = session.seconds_connected ?? 0;
-    await updateLineCallOutcome(session, { endReason, secondsConnected });
+    await updateLineCallOutcome(session, { endReason, secondsConnected, endedAt: session.ended_at || new Date().toISOString() });
     await updateInsightsDuration(sessionId, secondsConnected);
     clearInsightState(sessionId);
   }

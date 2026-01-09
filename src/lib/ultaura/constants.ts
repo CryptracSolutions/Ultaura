@@ -235,6 +235,17 @@ export const INSIGHTS = {
     'wants_more_contact',
     'missed_routine',
   ] as const,
+  FOLLOW_UP_REASON_LABELS: {
+    loneliness: 'Loneliness',
+    sadness: 'Sadness',
+    anxiety: 'Anxiety',
+    sleep: 'Sleep Trouble',
+    pain: 'Pain',
+    fatigue: 'Fatigue',
+    appetite: 'Appetite',
+    wants_more_contact: 'Asked for more contact',
+    missed_routine: 'Missed routine / schedule confusion',
+  } as const,
   MOOD_OPTIONS: ['positive', 'neutral', 'low'] as const,
 } as const;
 
@@ -260,6 +271,16 @@ export const DAYS_OF_WEEK = [
   { value: 4, label: 'Thursday', short: 'Thu' },
   { value: 5, label: 'Friday', short: 'Fri' },
   { value: 6, label: 'Saturday', short: 'Sat' },
+] as const;
+
+export const WEEKDAY_OPTIONS = [
+  { value: 'sunday', label: 'Sunday' },
+  { value: 'monday', label: 'Monday' },
+  { value: 'tuesday', label: 'Tuesday' },
+  { value: 'wednesday', label: 'Wednesday' },
+  { value: 'thursday', label: 'Thursday' },
+  { value: 'friday', label: 'Friday' },
+  { value: 'saturday', label: 'Saturday' },
 ] as const;
 
 export const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {

@@ -8,11 +8,12 @@ import {
   Clock,
   XCircle,
 } from 'lucide-react';
-import type { CallSessionRow } from '~/lib/ultaura/types';
+import type { CallSessionRow, InsightMood } from '~/lib/ultaura/types';
 import { getLanguageDisplayName } from '~/lib/ultaura/language';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 interface CallActivityListProps {
-  sessions: CallSessionRow[];
+  sessions: Array<CallSessionRow & { mood_overall?: InsightMood | null }>;
 }
 
 export function CallActivityList({ sessions }: CallActivityListProps) {
@@ -111,6 +112,13 @@ function CallActivityItem({ session }: { session: CallSessionRow }) {
     ? getLanguageDisplayName(session.language_detected)
     : null;
 
+  const moodIndicator =
+    session.mood_overall === 'positive'
+      ? { color: 'bg-success', label: 'Mood: Positive' }
+      : session.mood_overall === 'low'
+      ? { color: 'bg-destructive', label: 'Mood: Low' }
+      : null;
+
   return (
     <div className="flex items-center gap-4 py-3">
       <div
@@ -132,9 +140,22 @@ function CallActivityItem({ session }: { session: CallSessionRow }) {
           )}
         </p>
       </div>
-      {isCompleted && <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />}
-      {(isFailed || isMissed) && <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />}
-      {isInProgress && <Clock className="w-5 h-5 text-primary flex-shrink-0 animate-pulse" />}
+      <div className="flex items-center gap-2">
+        {isCompleted && <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />}
+        {(isFailed || isMissed) && <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />}
+        {isInProgress && <Clock className="w-5 h-5 text-primary flex-shrink-0 animate-pulse" />}
+        {moodIndicator && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className={`inline-flex h-2 w-2 rounded-full ${moodIndicator.color}`}
+                aria-label={moodIndicator.label}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{moodIndicator.label}</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </div>
   );
 }

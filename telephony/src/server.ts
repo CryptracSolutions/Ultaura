@@ -13,6 +13,7 @@ import { callsRouter } from './routes/calls.js';
 import { toolsRouter } from './routes/tools/index.js';
 import { handleMediaStreamConnection } from './websocket/media-stream.js';
 import { startScheduler, stopScheduler } from './scheduler/call-scheduler.js';
+import { startWeeklySummaryScheduler, stopWeeklySummaryScheduler } from './scheduler/weekly-summary-scheduler.js';
 import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
 import testRoutes from './routes/test.js';
@@ -188,12 +189,14 @@ server.listen(PORT, () => {
 
   // Start the call scheduler
   startScheduler();
+  startWeeklySummaryScheduler();
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   stopScheduler();
+  stopWeeklySummaryScheduler();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
@@ -203,6 +206,7 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
   stopScheduler();
+  stopWeeklySummaryScheduler();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);

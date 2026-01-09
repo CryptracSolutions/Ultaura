@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
+import { getInsightPrivacy, getNotificationPreferences } from '~/lib/ultaura/insights';
 import { SettingsClient } from './SettingsClient';
 import { isUUID } from '~/lib/ultaura/short-id';
 import AppHeader from '../../../components/AppHeader';
@@ -35,7 +36,11 @@ export default async function LineSettingsPage({ params }: PageProps) {
     redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
-  const trialInfo = await getTrialInfo(line.account_id);
+  const [trialInfo, insightPrivacy, notificationPreferences] = await Promise.all([
+    getTrialInfo(line.account_id),
+    getInsightPrivacy(line.id),
+    getNotificationPreferences(line.account_id, line.id),
+  ]);
   const isTrialExpired = trialInfo?.isExpired ?? false;
   const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
   const trialPlanId = trialInfo?.trialPlanId ?? null;
@@ -55,7 +60,12 @@ export default async function LineSettingsPage({ params }: PageProps) {
       <PageBody>
         <div className="space-y-6">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <SettingsClient line={line} disabled={isTrialExpired} />
+          <SettingsClient
+            line={line}
+            insightPrivacy={insightPrivacy}
+            notificationPreferences={notificationPreferences}
+            disabled={isTrialExpired}
+          />
         </div>
       </PageBody>
     </>

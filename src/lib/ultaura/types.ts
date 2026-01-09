@@ -536,6 +536,111 @@ export interface GrokMessage {
 }
 
 // ============================================
+// INSIGHTS DASHBOARD TYPES
+// ============================================
+
+export type InsightMood = 'positive' | 'neutral' | 'low';
+
+export interface WeeklySummaryData {
+  lineId: string;
+  lineName: string;
+  accountId: string;
+  billingEmail: string;
+  weekStartDate: string;
+  weekEndDate: string;
+  timezone: string;
+  scheduledCalls: number;
+  answeredCalls: number;
+  missedCalls: number;
+  showMissedCallsWarning: boolean;
+  answerTrend: 'up' | 'down' | 'stable' | null;
+  answerTrendValue: number | null;
+  avgDurationMinutes: number;
+  durationTrend: 'up' | 'down' | 'stable' | null;
+  durationTrendValue: number | null;
+  engagementNote: string | null;
+  moodSummary: string | null;
+  moodShiftNote: string | null;
+  moodDistribution: {
+    positive: number;
+    neutral: number;
+    low: number;
+  } | null;
+  socialNeedNote: string | null;
+  topTopics: Array<{
+    code: string;
+    label: string;
+    weight: number;
+  }>;
+  concerns: Array<{
+    code: string;
+    label: string;
+    severity: 'mild' | 'moderate' | 'significant';
+    novelty: 'new' | 'recurring' | 'resolved';
+  }>;
+  needsFollowUp: boolean;
+  followUpReasons: string[];
+  isPaused: boolean;
+  pausedNote: string | null;
+  dashboardUrl: string;
+  settingsUrl: string;
+}
+
+export interface InsightsDashboard {
+  lineId: string;
+  lineShortId: string;
+  lineName: string;
+  timezone: string;
+  status: LineStatus;
+  insightsEnabled: boolean;
+  isPaused: boolean;
+  pausedReason: string | null;
+  privateTopicCodes: string[];
+  summary: {
+    scheduledCalls: number;
+    answeredCalls: number;
+    answeredDelta: number | null;
+    avgDurationMinutes: number | null;
+    durationDeltaMinutes: number | null;
+    moodSummary: string | null;
+    moodShiftNote: string | null;
+    engagementNote: string | null;
+    showMissedCallsWarning: boolean;
+    missedCalls: number;
+    needsFollowUp: boolean;
+    followUpReasons: string[];
+    socialNeedNote: string | null;
+  };
+  moodTrend: Array<{
+    callSessionId: string;
+    occurredAt: string;
+    mood: InsightMood;
+  }>;
+  topics: Array<{
+    code: string;
+    label: string;
+    weight: number;
+  }>;
+  concerns: Array<{
+    code: string;
+    label: string;
+    severity: 'mild' | 'moderate' | 'significant';
+    novelty: 'new' | 'recurring' | 'resolved';
+  }>;
+  callActivity: Array<{
+    date: string;
+    scheduled: number;
+    reminder: number;
+    inbound: number;
+  }>;
+  callHistory: Array<
+    CallSessionRow & {
+      mood_overall?: InsightMood | null;
+    }
+  >;
+}
+
+// ============================================
 // DATABASE ROW TYPES (snake_case for direct DB mapping)
 // ============================================
 
@@ -547,6 +652,11 @@ export type ReminderRow = Database['public']['Tables']['ultaura_reminders']['Row
 export type ReminderEventRow = Database['public']['Tables']['ultaura_reminder_events']['Row'] & {
   reminder_message?: string;
 };
+export type InsightPrivacyRow = Database['public']['Tables']['ultaura_insight_privacy']['Row'];
+export type LineBaselineRow = Database['public']['Tables']['ultaura_line_baselines']['Row'];
+export type NotificationPreferencesRow =
+  Database['public']['Tables']['ultaura_notification_preferences']['Row'];
+export type WeeklySummaryRow = Database['public']['Tables']['ultaura_weekly_summaries']['Row'];
 
 export interface EditReminderInput {
   message?: string;

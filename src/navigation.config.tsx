@@ -7,6 +7,7 @@ import {
   UserIcon,
   CreditCardIcon,
 } from '@heroicons/react/24/outline';
+import { BarChart3 } from 'lucide-react';
 
 import configuration from '~/configuration';
 
@@ -73,6 +74,15 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
         isCallsRouteActive(currentPath),
     },
     {
+      label: 'Insights',
+      path: getPath('insights'),
+      Icon: ({ className }: { className: string }) => {
+        return <BarChart3 className={className} />;
+      },
+      activeMatch: (currentPath: string) =>
+        isInsightsRouteActive(currentPath),
+    },
+    {
       label: 'Usage',
       path: getPath('usage'),
       Icon: ({ className }: { className: string }) => {
@@ -114,6 +124,7 @@ const remindersRoutePattern = createRoutePattern(
   getPath('reminders'),
 );
 const callsRoutePattern = createRoutePattern(getPath('calls'));
+const insightsRoutePattern = createRoutePattern(getPath('insights'));
 const linesRoutePattern = createRoutePattern(getPath('lines'));
 const lineRemindersRoutePattern = createRoutePattern(
   getPath('lines/:lineId/reminders'),
@@ -134,6 +145,10 @@ function isCallsRouteActive(currentPath: string) {
     callsRoutePattern.test(currentPath) ||
     lineScheduleRoutePattern.test(currentPath)
   );
+}
+
+function isInsightsRouteActive(currentPath: string) {
+  return insightsRoutePattern.test(currentPath);
 }
 
 function isLineRouteActive(currentPath: string) {
