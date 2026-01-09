@@ -1021,6 +1021,63 @@ export type Database = {
           },
         ]
       }
+      ultaura_notification_preferences: {
+        Row: {
+          account_id: string
+          alert_missed_calls_enabled: boolean
+          alert_missed_calls_threshold: number
+          created_at: string
+          id: string
+          line_id: string
+          updated_at: string
+          weekly_summary_day: string
+          weekly_summary_enabled: boolean
+          weekly_summary_format: string
+          weekly_summary_time: string
+        }
+        Insert: {
+          account_id: string
+          alert_missed_calls_enabled?: boolean
+          alert_missed_calls_threshold?: number
+          created_at?: string
+          id?: string
+          line_id: string
+          updated_at?: string
+          weekly_summary_day?: string
+          weekly_summary_enabled?: boolean
+          weekly_summary_format?: string
+          weekly_summary_time?: string
+        }
+        Update: {
+          account_id?: string
+          alert_missed_calls_enabled?: boolean
+          alert_missed_calls_threshold?: number
+          created_at?: string
+          id?: string
+          line_id?: string
+          updated_at?: string
+          weekly_summary_day?: string
+          weekly_summary_enabled?: boolean
+          weekly_summary_format?: string
+          weekly_summary_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_notification_preferences_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_notification_preferences_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_opt_outs: {
         Row: {
           account_id: string
@@ -1669,6 +1726,66 @@ export type Database = {
           },
           {
             foreignKeyName: "ultaura_trusted_contacts_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_weekly_summaries: {
+        Row: {
+          account_id: string
+          created_at: string
+          email_sent_at: string | null
+          id: string
+          line_id: string
+          sms_sent_at: string | null
+          summary_alg: string
+          summary_ciphertext: string
+          summary_iv: string
+          summary_kid: string
+          summary_tag: string
+          week_start_date: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          line_id: string
+          sms_sent_at?: string | null
+          summary_alg?: string
+          summary_ciphertext: string
+          summary_iv: string
+          summary_kid?: string
+          summary_tag: string
+          week_start_date: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          line_id?: string
+          sms_sent_at?: string | null
+          summary_alg?: string
+          summary_ciphertext?: string
+          summary_iv?: string
+          summary_kid?: string
+          summary_tag?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_weekly_summaries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_weekly_summaries_line_id_fkey"
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"

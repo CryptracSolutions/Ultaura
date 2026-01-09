@@ -38,7 +38,11 @@ export function CallActivityList({ sessions }: CallActivityListProps) {
   );
 }
 
-function CallActivityItem({ session }: { session: CallSessionRow }) {
+function CallActivityItem({
+  session,
+}: {
+  session: CallSessionRow & { mood_overall?: InsightMood | null };
+}) {
   const isCompleted = session.status === 'completed';
   const isFailed = session.status === 'failed';
   const isInProgress = session.status === 'in_progress';

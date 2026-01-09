@@ -803,10 +803,10 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   const topicWeights = new Map<TopicCode, number>();
 
   for (const insight of weekInsights) {
-    const callPrivateTopics = new Set<string>([
-      ...privateTopics,
-      ...insight.private_topics,
-    ]);
+    const callPrivateTopics = new Set<string>(insight.private_topics);
+    privateTopics.forEach((topic) => {
+      callPrivateTopics.add(topic);
+    });
 
     for (const topic of insight.topics || []) {
       if (callPrivateTopics.has(topic.code)) {
@@ -838,12 +838,15 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   const currentConcernCodes = new Set(concernMap.keys());
   const baselineConcernMap = getConcernSeverityMap(baselineInsights);
 
-  const currentConcerns = Array.from(concernMap.entries()).map(([code, data]) => ({
-    code,
-    label: INSIGHTS.CONCERN_LABELS[code],
-    severity: toSeverityLabel(data.severity),
-    novelty: data.isNovel ? 'new' : 'recurring',
-  }));
+  const currentConcerns = Array.from(concernMap.entries()).map(([code, data]) => {
+    const novelty: 'new' | 'recurring' = data.isNovel ? 'new' : 'recurring';
+    return {
+      code,
+      label: INSIGHTS.CONCERN_LABELS[code],
+      severity: toSeverityLabel(data.severity),
+      novelty,
+    };
+  });
 
   const resolvedConcerns = Array.from(baselineConcernMap.entries())
     .filter(([code]) => !currentConcernCodes.has(code))
