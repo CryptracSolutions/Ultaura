@@ -8,6 +8,20 @@ import { getInternalApiSecret } from '../utils/env.js';
 import { logger } from '../utils/logger.js';
 import { getBaselineWindow, isCallAnswered } from './baseline.js';
 
+type CallSessionSummaryRow = Pick<
+  CallSessionRow,
+  | 'id'
+  | 'created_at'
+  | 'ended_at'
+  | 'seconds_connected'
+  | 'answered_by'
+  | 'direction'
+  | 'scheduler_idempotency_key'
+  | 'is_reminder_call'
+  | 'is_test_call'
+  | 'end_reason'
+>;
+
 export interface WeeklySummaryData {
   lineId: string;
   lineName: string;
@@ -22,7 +36,7 @@ export interface WeeklySummaryData {
   showMissedCallsWarning: boolean;
   answerTrend: 'up' | 'down' | 'stable' | null;
   answerTrendValue: number | null;
-  avgDurationMinutes: number;
+  avgDurationMinutes: number | null;
   durationTrend: 'up' | 'down' | 'stable' | null;
   durationTrendValue: number | null;
   engagementNote: string | null;
@@ -165,19 +179,12 @@ function getWeekEndDate(weekStartDate: string): string {
   return date.plus({ days: 6 }).toISODate() || weekStartDate;
 }
 
-function buildWeeklySummaryAAD(
-  accountId: string,
-  lineId: string,
-  summaryId: string,
-  weekStartDate: string
-): Buffer {
+function buildWeeklySummaryAAD(accountId: string, lineId: string, weekStartDate: string): Buffer {
   return Buffer.from(
     JSON.stringify({
       account_id: accountId,
       line_id: lineId,
-      summary_id: summaryId,
-      week_start_date: weekStartDate,
-      week_end_date: getWeekEndDate(weekStartDate),
+      week_start: weekStartDate,
       type: 'weekly_summary',
     }),
     'utf8'
@@ -276,7 +283,7 @@ async function fetchCallSessions(options: {
   lineId: string;
   startUtc: string;
   endUtc: string;
-}): Promise<CallSessionRow[]> {
+}): Promise<CallSessionSummaryRow[]> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('ultaura_call_sessions')
@@ -295,7 +302,7 @@ async function fetchCallSessions(options: {
   return data || [];
 }
 
-async function getBaselineConcerns(options: {
+function getBaselineConcerns(options: {
   insights: CallInsights[];
 }): Map<ConcernCode, number> {
   const baselineMap = new Map<ConcernCode, number>();
@@ -386,12 +393,7 @@ async function storeWeeklySummary(options: {
   const summaryId = existing?.id ?? crypto.randomUUID();
 
   const dek = await getOrCreateAccountDEK(supabase, options.accountId);
-  const aad = buildWeeklySummaryAAD(
-    options.accountId,
-    options.lineId,
-    summaryId,
-    options.weekStartDate
-  );
+  const aad = buildWeeklySummaryAAD(options.accountId, options.lineId, options.weekStartDate);
 
   const { ciphertext, iv, tag } = encryptMemoryValue(dek, options.summary, aad);
 
@@ -443,7 +445,6 @@ async function storeWeeklySummary(options: {
         const retryAad = buildWeeklySummaryAAD(
           options.accountId,
           options.lineId,
-          retryId,
           options.weekStartDate
         );
         const retryEncrypted = encryptMemoryValue(dek, options.summary, retryAad);
@@ -629,12 +630,6 @@ async function getBaselineStats(lineId: string): Promise<{
   };
 }
 
-function getCallType(session: CallSessionRow): 'scheduled' | 'reminder' | 'inbound' {
-  if (session.direction === 'inbound') return 'inbound';
-  if (session.is_reminder_call) return 'reminder';
-  return 'scheduled';
-}
-
 function getFollowUpReasons(insights: CallInsights[]): string[] {
   const reasonSet = new Set<FollowUpReasonCode>();
 
@@ -729,7 +724,7 @@ async function aggregateWeeklySummary(options: {
     end: socialBaselineEnd,
     timezone: line.timezone,
   });
-  const baselineConcerns = getBaselineConcerns({ insights: baselineInsights });
+	  const baselineConcerns = getBaselineConcerns({ insights: baselineInsights });
 
   const filteredSessions = currentSessions.filter((session) => !session.is_test_call);
   const priorSessionsFiltered = priorSessions.filter((session) => !session.is_test_call);
@@ -749,13 +744,14 @@ async function aggregateWeeklySummary(options: {
     isCallAnswered({ answered_by: session.answered_by, seconds_connected: session.seconds_connected })
   );
 
-  const avgDurationMinutes = answeredAll.length
-    ? Math.round(
-        answeredAll.reduce((sum, session) => sum + (session.seconds_connected ?? 0), 0) /
-          answeredAll.length /
-          60
-      )
-    : 0;
+  const avgDurationMinutes =
+    answeredAll.length > 0
+      ? Math.round(
+          answeredAll.reduce((sum, session) => sum + (session.seconds_connected ?? 0), 0) /
+            answeredAll.length /
+            60
+        )
+      : null;
 
   const priorScheduled = priorSessionsFiltered.filter(
     (session) => session.scheduler_idempotency_key?.startsWith('schedule:')
@@ -780,7 +776,9 @@ async function aggregateWeeklySummary(options: {
       : null;
 
   const durationTrendValue =
-    priorAvgDurationMinutes === null ? null : avgDurationMinutes - priorAvgDurationMinutes;
+    priorAvgDurationMinutes === null || avgDurationMinutes === null
+      ? null
+      : avgDurationMinutes - priorAvgDurationMinutes;
 
   const { avgEngagement, answerRate } = await getBaselineStats(line.id);
 
@@ -856,7 +854,7 @@ async function aggregateWeeklySummary(options: {
     code,
     label: CONCERN_LABELS[code],
     severity: toSeverityLabel(data.severity),
-    novelty: data.isNovel ? 'new' : 'recurring',
+    novelty: data.isNovel ? ('new' as const) : ('recurring' as const),
   }));
 
   const concerns = [...currentConcerns, ...resolvedConcerns];
@@ -947,9 +945,7 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
     millisecond: 0,
   });
 
-  const preferredWindowEnd = preferredTime.plus({ hours: 1 });
-
-  if (lineTime < preferredTime || lineTime > preferredWindowEnd) {
+  if (lineTime < preferredTime) {
     return;
   }
 

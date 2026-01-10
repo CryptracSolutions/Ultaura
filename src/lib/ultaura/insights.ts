@@ -127,24 +127,34 @@ function buildInsightsAAD(accountId: string, lineId: string, callSessionId: stri
   );
 }
 
-function getWeekEndDate(weekStartDate: string): string {
-  const date = DateTime.fromISO(weekStartDate, { zone: 'utc' });
-  return date.plus({ days: 6 }).toISODate() || weekStartDate;
+function buildWeeklySummaryAAD(accountId: string, lineId: string, weekStartDate: string): Buffer {
+  return Buffer.from(
+    JSON.stringify({
+      account_id: accountId,
+      line_id: lineId,
+      week_start: weekStartDate,
+      type: 'weekly_summary',
+    }),
+    'utf8'
+  );
 }
 
-function buildWeeklySummaryAAD(
+function buildWeeklySummaryAADLegacy(
   accountId: string,
   lineId: string,
   summaryId: string,
   weekStartDate: string
 ): Buffer {
+  const weekEndDate =
+    DateTime.fromISO(weekStartDate, { zone: 'utc' }).plus({ days: 6 }).toISODate() ||
+    weekStartDate;
   return Buffer.from(
     JSON.stringify({
       account_id: accountId,
       line_id: lineId,
       summary_id: summaryId,
       week_start_date: weekStartDate,
-      week_end_date: getWeekEndDate(weekStartDate),
+      week_end_date: weekEndDate,
       type: 'weekly_summary',
     }),
     'utf8'
@@ -290,14 +300,30 @@ async function decryptWeeklySummary(
   summary: WeeklySummaryRow
 ): Promise<WeeklySummaryData> {
   const dek = await getOrCreateAccountDEK(client, accountId);
-  const aad = buildWeeklySummaryAAD(accountId, lineId, summary.id, summary.week_start_date);
-  return decryptValue(
-    dek,
-    Buffer.from(summary.summary_ciphertext),
-    Buffer.from(summary.summary_iv),
-    Buffer.from(summary.summary_tag),
-    aad
-  ) as WeeklySummaryData;
+  const encrypted = {
+    ciphertext: Buffer.from(summary.summary_ciphertext),
+    iv: Buffer.from(summary.summary_iv),
+    tag: Buffer.from(summary.summary_tag),
+  };
+
+  try {
+    const aad = buildWeeklySummaryAAD(accountId, lineId, summary.week_start_date);
+    return decryptValue(dek, encrypted.ciphertext, encrypted.iv, encrypted.tag, aad) as WeeklySummaryData;
+  } catch {
+    const legacyAad = buildWeeklySummaryAADLegacy(
+      accountId,
+      lineId,
+      summary.id,
+      summary.week_start_date
+    );
+    return decryptValue(
+      dek,
+      encrypted.ciphertext,
+      encrypted.iv,
+      encrypted.tag,
+      legacyAad
+    ) as WeeklySummaryData;
+  }
 }
 
 export async function getNotificationPreferences(
@@ -887,9 +913,8 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   const showMissedCallsWarning =
     baselineAnswerRate !== null && answerRateDrop >= 0.2 && missedCalls >= 2;
 
-  const callHistory = [...weekSessions]
+  const callHistory = [...thirtyDaySessions]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 10)
     .map((session) => {
       const insight = insightsBySession.get(session.id);
       const moodOverall =

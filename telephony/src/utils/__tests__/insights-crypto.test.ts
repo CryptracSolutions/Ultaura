@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import crypto from 'crypto';
+import type { CallInsights } from '@ultaura/types';
 import {
   buildInsightsAAD,
   decryptInsightsWithDek,
   encryptInsightsWithDek,
 } from '../insights-crypto.js';
 
-const sampleInsights = {
+const sampleInsights: CallInsights = {
   mood_overall: 'positive',
   mood_intensity: 2,
   engagement_score: 7,

@@ -70,7 +70,7 @@ logCallInsightsRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const recordFailure = async (errorCode?: 'validation_error' | 'call_too_short' | 'test_call' | 'already_recorded' | 'insights_disabled') => {
+    const recordFailure = async (errorCode?: 'validation_error') => {
       const payload: Record<string, unknown> = {
         tool: 'log_call_insights',
         success: false,
@@ -79,6 +79,22 @@ logCallInsightsRouter.post('/', async (req: Request, res: Response) => {
         payload.errorCode = errorCode;
       }
       await recordCallEvent(callSessionId, 'tool_call', payload, { skipDebugLog: true });
+    };
+
+    const recordSkip = async (
+      reason: 'call_too_short' | 'test_call' | 'already_recorded' | 'insights_disabled'
+    ) => {
+      await recordCallEvent(
+        callSessionId,
+        'tool_call',
+        {
+          tool: 'log_call_insights',
+          success: true,
+          skipped: true,
+          reason,
+        },
+        { skipDebugLog: true }
+      );
     };
 
     if (lineId !== session.line_id) {
@@ -102,20 +118,20 @@ logCallInsightsRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (privacy && privacy.insights_enabled === false) {
-      await recordFailure('insights_disabled');
+      await recordSkip('insights_disabled');
       res.json({ success: true, skipped: true, reason: 'insights_disabled' });
       return;
     }
 
     const durationSeconds = getCallDurationSeconds(session);
     if (durationSeconds < 180) {
-      await recordFailure('call_too_short');
+      await recordSkip('call_too_short');
       res.json({ success: true, skipped: true, reason: 'call_too_short' });
       return;
     }
 
     if (session.is_test_call) {
-      await recordFailure('test_call');
+      await recordSkip('test_call');
       res.json({ success: true, skipped: true, reason: 'test_call' });
       return;
     }
@@ -134,7 +150,7 @@ logCallInsightsRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (existing) {
-      await recordFailure('already_recorded');
+      await recordSkip('already_recorded');
       res.json({ success: true, skipped: true, reason: 'already_recorded' });
       return;
     }
@@ -153,7 +169,7 @@ logCallInsightsRouter.post('/', async (req: Request, res: Response) => {
       );
     } catch (error) {
       if (error instanceof DuplicateInsightError || (error as { code?: string })?.code === 'already_recorded') {
-        await recordFailure('already_recorded');
+        await recordSkip('already_recorded');
         res.json({ success: true, skipped: true, reason: 'already_recorded' });
         return;
       }

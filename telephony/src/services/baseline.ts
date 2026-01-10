@@ -116,10 +116,6 @@ export async function recalculateBaseline(
         }
       );
 
-      if (insights.confidence_overall < 0.5) {
-        continue;
-      }
-
       decryptedInsights.push({ insights, durationSeconds: row.duration_seconds });
     } catch (error) {
       logger.warn({ error, lineId }, 'Failed to decrypt insight row');

@@ -6,6 +6,7 @@ const POLL_INTERVAL_MS = 60 * 60 * 1000; // hourly
 
 let isRunning = false;
 let interval: ReturnType<typeof setInterval> | null = null;
+let timeout: ReturnType<typeof setTimeout> | null = null;
 let shuttingDown = false;
 
 export function startWeeklySummaryScheduler(): void {
@@ -16,12 +17,25 @@ export function startWeeklySummaryScheduler(): void {
 
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS }, 'Starting weekly summary scheduler');
 
-  interval = setInterval(runWeeklySummaryCycle, POLL_INTERVAL_MS);
   runWeeklySummaryCycle();
+
+  const now = new Date();
+  const nextHour = new Date(now);
+  nextHour.setMinutes(60, 0, 0);
+  const delayMs = Math.max(0, nextHour.getTime() - now.getTime());
+
+  timeout = setTimeout(() => {
+    runWeeklySummaryCycle();
+    interval = setInterval(runWeeklySummaryCycle, POLL_INTERVAL_MS);
+  }, delayMs);
 }
 
 export function stopWeeklySummaryScheduler(): void {
   shuttingDown = true;
+  if (timeout) {
+    clearTimeout(timeout);
+    timeout = null;
+  }
   if (interval) {
     clearInterval(interval);
     interval = null;

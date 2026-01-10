@@ -555,7 +555,7 @@ export interface WeeklySummaryData {
   showMissedCallsWarning: boolean;
   answerTrend: 'up' | 'down' | 'stable' | null;
   answerTrendValue: number | null;
-  avgDurationMinutes: number;
+  avgDurationMinutes: number | null;
   durationTrend: 'up' | 'down' | 'stable' | null;
   durationTrendValue: number | null;
   engagementNote: string | null;

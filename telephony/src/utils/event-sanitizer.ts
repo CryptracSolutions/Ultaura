@@ -23,7 +23,7 @@ const TOOL_ALLOWLISTS: Record<string, string[]> = {
   mark_private: [],
   mark_topic_private: [],
   set_pause_mode: ['enabled'],
-  log_call_insights: ['has_concerns', 'confidence_overall'],
+  log_call_insights: ['has_concerns', 'confidence_overall', 'skipped', 'reason'],
   choose_overage_action: ['action', 'planId'],
   request_upgrade: ['planId', 'sendLink'],
   request_opt_out: ['confirmed'],

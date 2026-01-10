@@ -1,3 +1,4 @@
+import { INSIGHTS_SECTION } from '../golden/sections/insights.js';
 import { getLanguageName } from '../utils/language.js';
 
 export interface ReminderPromptParams {
@@ -27,7 +28,9 @@ Deliver this reminder: "${reminderMessage}"
 "Hello ${userName}, this is Ultaura calling with a quick reminder. ${reminderMessage}. Is there anything you'd like me to help with regarding this? ...Alright, take care and have a wonderful day!"
 
 ## Language
-Start in ${languageName}. If they speak another language, switch naturally. When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
+Start in ${languageName}. If they speak another language, switch naturally. When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.
+
+${INSIGHTS_SECTION.compressed}`;
 
   return prompt;
 }

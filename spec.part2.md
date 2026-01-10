@@ -613,9 +613,9 @@ interface WeeklySummaryData {
   showMissedCallsWarning: boolean; // true when answer_rate drop >=20pp vs baseline and missedCalls >=2
   answerTrend: 'up' | 'down' | 'stable' | null; // compared to prior week
   answerTrendValue: number | null; // answeredCalls - priorWeekAnsweredCalls (null if no prior week data)
-  avgDurationMinutes: number; // average across all answered calls (scheduled + reminder + inbound)
+  avgDurationMinutes: number | null; // average across all answered calls (scheduled + reminder + inbound), null if none
   durationTrend: 'up' | 'down' | 'stable' | null; // compared to prior week
-  durationTrendValue: number | null; // avgDurationMinutes - priorWeekAvgDurationMinutes (null if no prior week data)
+  durationTrendValue: number | null; // avgDurationMinutes - priorWeekAvgDurationMinutes (null if no prior week data OR no answered calls)
 
   // Engagement (null if no insights this week)
   engagementNote: string | null; // e.g., "down 2.6 points from typical"
@@ -710,8 +710,8 @@ This section documents detailed implementation decisions made during spec review
 | **Summary API format** | Structured JSON data; Next.js renders email template |
 | **Weekly summary call counts** | Use actual call sessions (schedule:*) for answered/total counts, not expected schedule occurrences |
 | **Answer trend (weekly summary)** | `answerTrendValue = answeredCalls - priorWeekAnsweredCalls`; `answerTrend` is `up/down/stable` based on the sign; null if no prior week data |
-| **Duration trend (weekly summary)** | `durationTrendValue = avgDurationMinutes - priorWeekAvgDurationMinutes`; `durationTrend` is `up/down/stable` based on the sign; null if no prior week data |
-| **Average duration scope** | Compute `avgDurationMinutes` from all answered calls (scheduled + reminder + inbound) |
+| **Duration trend (weekly summary)** | `durationTrendValue = avgDurationMinutes - priorWeekAvgDurationMinutes`; `durationTrend` is `up/down/stable` based on the sign; null if no prior week data or no answered calls |
+| **Average duration scope** | Compute `avgDurationMinutes` from all answered calls (scheduled + reminder + inbound); null if there are no answered calls |
 | **Missed calls warning** | Set `showMissedCallsWarning` when answer_rate drop >=20pp vs baseline AND missedCalls >=2; show the metric only when true |
 | **Missed call alerts enabled** | Only send missed-call alerts when `alert_missed_calls_enabled` is true |
 | **`week_start_date` format** | Line's local date (user's timezone), not UTC |

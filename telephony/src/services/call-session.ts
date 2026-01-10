@@ -60,7 +60,7 @@ function isMissedCall(options: {
 function isScheduledOutbound(session: CallSessionRow): boolean {
   return (
     session.direction === 'outbound' &&
-    session.scheduler_idempotency_key?.startsWith('schedule:')
+    (session.scheduler_idempotency_key?.startsWith('schedule:') ?? false)
   );
 }
 
