@@ -302,6 +302,57 @@ export type Database = {
           },
         ]
       }
+      ultaura_account_privacy_settings: {
+        Row: {
+          account_id: string
+          ai_summarization_enabled: boolean
+          created_at: string
+          id: string
+          recording_enabled: boolean
+          retention_period: Database["public"]["Enums"]["ultaura_retention_period"]
+          updated_at: string
+          vendor_disclosure_acknowledged_at: string | null
+          vendor_disclosure_acknowledged_by: string | null
+        }
+        Insert: {
+          account_id: string
+          ai_summarization_enabled?: boolean
+          created_at?: string
+          id?: string
+          recording_enabled?: boolean
+          retention_period?: Database["public"]["Enums"]["ultaura_retention_period"]
+          updated_at?: string
+          vendor_disclosure_acknowledged_at?: string | null
+          vendor_disclosure_acknowledged_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          ai_summarization_enabled?: boolean
+          created_at?: string
+          id?: string
+          recording_enabled?: boolean
+          retention_period?: Database["public"]["Enums"]["ultaura_retention_period"]
+          updated_at?: string
+          vendor_disclosure_acknowledged_at?: string | null
+          vendor_disclosure_acknowledged_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_account_privacy_setti_vendor_disclosure_acknowledg_fkey"
+            columns: ["vendor_disclosure_acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_account_privacy_settings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_accounts: {
         Row: {
           billing_email: string
@@ -510,6 +561,8 @@ export type Database = {
           is_test_call: boolean
           language_detected: string | null
           line_id: string
+          recording_deleted_at: string | null
+          recording_deletion_reason: string | null
           recording_sid: string | null
           reminder_id: string | null
           reminder_message: string | null
@@ -539,6 +592,8 @@ export type Database = {
           is_test_call?: boolean
           language_detected?: string | null
           line_id: string
+          recording_deleted_at?: string | null
+          recording_deletion_reason?: string | null
           recording_sid?: string | null
           reminder_id?: string | null
           reminder_message?: string | null
@@ -568,6 +623,8 @@ export type Database = {
           is_test_call?: boolean
           language_detected?: string | null
           line_id?: string
+          recording_deleted_at?: string | null
+          recording_deletion_reason?: string | null
           recording_sid?: string | null
           reminder_id?: string | null
           reminder_message?: string | null
@@ -600,6 +657,86 @@ export type Database = {
             columns: ["reminder_id"]
             isOneToOne: false
             referencedRelation: "ultaura_reminders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_consent_audit_log: {
+        Row: {
+          account_id: string
+          action: Database["public"]["Enums"]["ultaura_consent_audit_action"]
+          actor_type: string
+          actor_user_id: string | null
+          call_session_id: string | null
+          consent_type: string | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          line_id: string | null
+          metadata: Json | null
+          new_value: Json | null
+          old_value: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          account_id: string
+          action: Database["public"]["Enums"]["ultaura_consent_audit_action"]
+          actor_type: string
+          actor_user_id?: string | null
+          call_session_id?: string | null
+          consent_type?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          line_id?: string | null
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          account_id?: string
+          action?: Database["public"]["Enums"]["ultaura_consent_audit_action"]
+          actor_type?: string
+          actor_user_id?: string | null
+          call_session_id?: string | null
+          consent_type?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          line_id?: string | null
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_consent_audit_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_consent_audit_log_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_consent_audit_log_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_consent_audit_log_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
             referencedColumns: ["id"]
           },
         ]
@@ -651,6 +788,72 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_data_export_requests: {
+        Row: {
+          account_id: string
+          created_at: string
+          download_url: string | null
+          error_message: string | null
+          expires_at: string | null
+          file_size_bytes: number | null
+          format: Database["public"]["Enums"]["ultaura_export_format"]
+          id: string
+          include_call_metadata: boolean
+          include_memories: boolean
+          include_reminders: boolean
+          processed_at: string | null
+          requested_by: string
+          status: Database["public"]["Enums"]["ultaura_export_status"]
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          download_url?: string | null
+          error_message?: string | null
+          expires_at?: string | null
+          file_size_bytes?: number | null
+          format?: Database["public"]["Enums"]["ultaura_export_format"]
+          id?: string
+          include_call_metadata?: boolean
+          include_memories?: boolean
+          include_reminders?: boolean
+          processed_at?: string | null
+          requested_by: string
+          status?: Database["public"]["Enums"]["ultaura_export_status"]
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          download_url?: string | null
+          error_message?: string | null
+          expires_at?: string | null
+          file_size_bytes?: number | null
+          format?: Database["public"]["Enums"]["ultaura_export_format"]
+          id?: string
+          include_call_metadata?: boolean
+          include_memories?: boolean
+          include_reminders?: boolean
+          processed_at?: string | null
+          requested_by?: string
+          status?: Database["public"]["Enums"]["ultaura_export_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_data_export_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_data_export_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -787,6 +990,64 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: true
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_line_voice_consent: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          last_consent_prompt_at: string | null
+          line_id: string
+          memory_consent: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          memory_consent_at: string | null
+          memory_consent_call_session_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          last_consent_prompt_at?: string | null
+          line_id: string
+          memory_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          memory_consent_at?: string | null
+          memory_consent_call_session_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          last_consent_prompt_at?: string | null
+          line_id?: string
+          memory_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          memory_consent_at?: string | null
+          memory_consent_call_session_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_line_voice_consent_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_line_voice_consent_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_line_voice_consent_memory_consent_call_session_id_fkey"
+            columns: ["memory_consent_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1129,6 +1390,63 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_pending_recording_deletions: {
+        Row: {
+          account_id: string
+          attempts: number
+          call_session_id: string | null
+          created_at: string
+          id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          max_attempts: number
+          processed_at: string | null
+          reason: string
+          recording_sid: string
+        }
+        Insert: {
+          account_id: string
+          attempts?: number
+          call_session_id?: string | null
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          processed_at?: string | null
+          reason: string
+          recording_sid: string
+        }
+        Update: {
+          account_id?: string
+          attempts?: number
+          call_session_id?: string | null
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          processed_at?: string | null
+          reason?: string
+          recording_sid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_pending_recording_deletions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_pending_recording_deletions_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1911,6 +2229,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cleanup_account_retention: {
+        Args: { p_account_id: string }
+        Returns: Json
+      }
       cleanup_old_rate_limit_events: { Args: never; Returns: undefined }
       complete_reminder_processing: {
         Args: { p_reminder_id: string; p_worker_id: string }
@@ -1947,6 +2269,7 @@ export type Database = {
         Args: never
         Returns: number[]
       }
+      get_retention_cutoff: { Args: { p_account_id: string }; Returns: string }
       get_role_for_authenticated_user: {
         Args: { org_id: number }
         Returns: number
@@ -2014,6 +2337,7 @@ export type Database = {
         Args: { p_lease_id: string; p_worker_id: string }
         Returns: boolean
       }
+      run_retention_cleanup: { Args: never; Returns: Json }
       transfer_organization: {
         Args: { org_id: number; target_user_membership_id: number }
         Returns: undefined
@@ -2059,11 +2383,32 @@ export type Database = {
         | "completed"
         | "failed"
         | "canceled"
+      ultaura_consent_audit_action:
+        | "granted"
+        | "revoked"
+        | "updated"
+        | "voice_consent_given"
+        | "voice_consent_denied"
+        | "retention_changed"
+        | "recording_toggled"
+        | "summarization_toggled"
+        | "vendor_acknowledged"
+        | "data_export_requested"
+        | "data_deletion_requested"
       ultaura_consent_type:
         | "outbound_calls"
         | "trusted_contact_notify"
         | "sms_to_payer"
         | "data_retention"
+        | "audio_processing"
+        | "recording"
+      ultaura_export_format: "json" | "csv"
+      ultaura_export_status:
+        | "pending"
+        | "processing"
+        | "ready"
+        | "expired"
+        | "failed"
       ultaura_line_status: "active" | "paused" | "disabled"
       ultaura_memory_type:
         | "fact"
@@ -2075,12 +2420,18 @@ export type Database = {
       ultaura_opt_out_channel: "outbound_calls" | "sms" | "all"
       ultaura_privacy_scope: "line_only" | "shareable_with_payer"
       ultaura_reminder_status: "scheduled" | "sent" | "missed" | "canceled"
+      ultaura_retention_period:
+        | "30_days"
+        | "90_days"
+        | "365_days"
+        | "indefinite"
       ultaura_safety_tier: "low" | "medium" | "high"
       ultaura_schedule_result:
         | "success"
         | "missed"
         | "suppressed_quiet_hours"
         | "failed"
+      ultaura_voice_consent_status: "pending" | "granted" | "denied"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2841,11 +3192,34 @@ export const Constants = {
         "failed",
         "canceled",
       ],
+      ultaura_consent_audit_action: [
+        "granted",
+        "revoked",
+        "updated",
+        "voice_consent_given",
+        "voice_consent_denied",
+        "retention_changed",
+        "recording_toggled",
+        "summarization_toggled",
+        "vendor_acknowledged",
+        "data_export_requested",
+        "data_deletion_requested",
+      ],
       ultaura_consent_type: [
         "outbound_calls",
         "trusted_contact_notify",
         "sms_to_payer",
         "data_retention",
+        "audio_processing",
+        "recording",
+      ],
+      ultaura_export_format: ["json", "csv"],
+      ultaura_export_status: [
+        "pending",
+        "processing",
+        "ready",
+        "expired",
+        "failed",
       ],
       ultaura_line_status: ["active", "paused", "disabled"],
       ultaura_memory_type: [
@@ -2859,6 +3233,12 @@ export const Constants = {
       ultaura_opt_out_channel: ["outbound_calls", "sms", "all"],
       ultaura_privacy_scope: ["line_only", "shareable_with_payer"],
       ultaura_reminder_status: ["scheduled", "sent", "missed", "canceled"],
+      ultaura_retention_period: [
+        "30_days",
+        "90_days",
+        "365_days",
+        "indefinite",
+      ],
       ultaura_safety_tier: ["low", "medium", "high"],
       ultaura_schedule_result: [
         "success",
@@ -2866,6 +3246,7 @@ export const Constants = {
         "suppressed_quiet_hours",
         "failed",
       ],
+      ultaura_voice_consent_status: ["pending", "granted", "denied"],
     },
   },
   storage: {

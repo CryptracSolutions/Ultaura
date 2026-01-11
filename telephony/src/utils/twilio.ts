@@ -70,12 +70,33 @@ export function isValidUSPhone(phone: string): boolean {
 }
 
 // Generate TwiML for connecting to WebSocket stream
-export function generateStreamTwiML(callSessionId: string, websocketUrl: string): string {
+export function generateStreamTwiML(
+  callSessionId: string,
+  websocketUrl: string,
+  options?: {
+    includeDisclosure?: boolean;
+    disclosureLanguage?: string;
+    recordCall?: boolean;
+    recordingStatusCallback?: string;
+  }
+): string {
   const streamUrl = `${websocketUrl}?callSessionId=${callSessionId}`;
+  const includeDisclosure = options?.includeDisclosure ?? false;
+  const recordCall = options?.recordCall ?? false;
+  const recordingStatusCallback = options?.recordingStatusCallback;
+
+  const disclosure = includeDisclosure
+    ? buildRecordingDisclosure(options?.disclosureLanguage)
+    : '';
+
+  const recordAttribute = recordCall ? ' record="record-from-answer"' : '';
+  const recordingCallback = recordCall && recordingStatusCallback
+    ? ` recordingStatusCallback="${recordingStatusCallback}" recordingStatusCallbackEvent="completed"`
+    : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Connect>
+${disclosure}  <Connect${recordAttribute}${recordingCallback}>
     <Stream url="${streamUrl}">
       <Parameter name="callSessionId" value="${callSessionId}" />
     </Stream>
@@ -141,6 +162,24 @@ export function generateHoldTwiML(message: string): string {
 </Response>`;
 }
 
+function getRecordingDisclosureMessage(languageCode?: string): string {
+  // TODO: Expand localization beyond English and Spanish as demographics require.
+  const normalized = languageCode ? normalizeLanguageCode(languageCode) : 'en';
+  if (normalized === 'es') {
+    return 'Esta llamada puede ser grabada para fines de calidad.';
+  }
+  return 'This call may be recorded for quality purposes.';
+}
+
+function buildRecordingDisclosure(languageCode?: string): string {
+  const { voice, language } = getTwilioVoiceConfig(languageCode);
+  const message = getRecordingDisclosureMessage(languageCode);
+
+  return `  <Say voice="${voice}" language="${language}">${escapeXml(message)}</Say>
+  <Pause length="1" />
+`;
+}
+
 // Escape XML special characters
 function escapeXml(text: string): string {
   return text
@@ -158,12 +197,10 @@ export async function initiateOutboundCall(options: {
   callbackUrl: string;
   statusCallbackUrl: string;
   callSessionId: string;
-  publicUrl: string;
   amdEnabled?: boolean;
 }): Promise<string> {
   const client = getTwilioClient();
   const amdEnabled = options.amdEnabled ?? isAmdEnabled(process.env.TWILIO_AMD_ENABLED);
-  const enableRecording = process.env.ULTAURA_ENABLE_RECORDING === 'true';
 
   const callOptions: Parameters<typeof client.calls.create>[0] = {
     to: options.to,
@@ -177,13 +214,6 @@ export async function initiateOutboundCall(options: {
       machineDetectionTimeout: 30,
     }),
   };
-
-  if (enableRecording) {
-    const baseUrl = options.publicUrl.replace(/\/$/, '');
-    callOptions.record = true;
-    callOptions.recordingStatusCallback = `${baseUrl}/twilio/recording-status`;
-    callOptions.recordingStatusCallbackEvent = ['completed'];
-  }
 
   const call = await client.calls.create(callOptions);
 

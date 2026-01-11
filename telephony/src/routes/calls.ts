@@ -100,7 +100,6 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
         callbackUrl: `${publicUrl}/twilio/voice/outbound`,
         statusCallbackUrl: `${publicUrl}/twilio/status`,
         callSessionId: session.id,
-        publicUrl,
       });
 
       logger.info({ sessionId: session.id, callSid, lineId, isReminderCall }, 'Outbound call initiated');
@@ -177,7 +176,6 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
       callbackUrl: `${publicUrl}/twilio/voice/outbound`,
       statusCallbackUrl: `${publicUrl}/twilio/status`,
       callSessionId: session.id,
-      publicUrl,
     });
 
     logger.info({ sessionId: session.id, callSid, lineId, reason: 'test' }, 'Test call initiated');

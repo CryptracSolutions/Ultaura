@@ -6,6 +6,7 @@ import {
   BellIcon,
   UserIcon,
   CreditCardIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { BarChart3 } from 'lucide-react';
 
@@ -87,6 +88,13 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       path: getPath('usage'),
       Icon: ({ className }: { className: string }) => {
         return <ChartBarIcon className={className} />;
+      },
+    },
+    {
+      label: 'common:privacyTabLabel',
+      path: getPath('privacy'),
+      Icon: ({ className }: { className: string }) => {
+        return <ShieldCheckIcon className={className} />;
       },
     },
     {

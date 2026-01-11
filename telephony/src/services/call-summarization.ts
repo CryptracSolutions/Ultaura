@@ -4,6 +4,7 @@
 import { clearBuffer, type EphemeralBuffer } from './ephemeral-buffer.js';
 import { storeMemory, getMemoriesForLine } from './memory.js';
 import { logger } from '../server.js';
+import { getAccountPrivacySettings, getLineVoiceConsent } from './privacy.js';
 
 interface ExtractedMemory {
   type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
@@ -53,7 +54,30 @@ export async function summarizeAndExtractMemoriesFromBuffer(buffer: EphemeralBuf
   }
 
   try {
-    const turnText = buffer.turns
+    const privacySettings = await getAccountPrivacySettings(buffer.accountId);
+    if (!privacySettings?.aiSummarizationEnabled) {
+      logger.info({ accountId: buffer.accountId }, 'AI summarization disabled - skipping memory extraction');
+      return;
+    }
+
+    const voiceConsent = await getLineVoiceConsent(buffer.lineId);
+    if (voiceConsent?.memoryConsent !== 'granted') {
+      logger.info({ lineId: buffer.lineId }, 'Memory consent not granted - skipping memory extraction');
+      return;
+    }
+
+    const consentIndex = buffer.consentGrantedAtTurnIndex;
+    const turnsForSummary =
+      consentIndex !== null && consentIndex !== undefined
+        ? buffer.turns.slice(consentIndex)
+        : buffer.turns;
+
+    if (!turnsForSummary.length) {
+      logger.info({ callSessionId: buffer.callSessionId }, 'No post-consent turns to summarize');
+      return;
+    }
+
+    const turnText = turnsForSummary
       .map(t => `[${t.speaker.toUpperCase()}] ${t.summary}`)
       .join('\n');
 

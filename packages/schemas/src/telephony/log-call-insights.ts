@@ -51,6 +51,7 @@ export const LogCallInsightsInputSchema = z.object({
     code: ConcernCodeSchema,
     severity: z.number().int().min(1).max(3),
     confidence: z.number().min(0).max(1),
+    is_novel: z.boolean().optional(),
   })).optional().default([]),
   needs_follow_up: z.boolean(),
   follow_up_reasons: z.array(FollowUpReasonSchema).optional().default([]),

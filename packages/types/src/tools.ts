@@ -62,6 +62,10 @@ export interface UpdateMemoryArgs {
   confidence?: number;
 }
 
+export interface GrantMemoryConsentArgs {}
+
+export interface DenyMemoryConsentArgs {}
+
 export interface MarkPrivateArgs {
   what_to_keep_private: string;
 }
@@ -120,6 +124,7 @@ export interface LogCallInsightsArgs {
     code: ConcernCode;
     severity: number;
     confidence: number;
+    is_novel?: boolean;
   }>;
   needs_follow_up: boolean;
   follow_up_reasons?: FollowUpReasonCode[];
@@ -143,6 +148,8 @@ export type ToolCallArgs =
   | { name: 'forget_memory'; args: ForgetMemoryArgs }
   | { name: 'store_memory'; args: StoreMemoryArgs }
   | { name: 'update_memory'; args: UpdateMemoryArgs }
+  | { name: 'grant_memory_consent'; args: GrantMemoryConsentArgs }
+  | { name: 'deny_memory_consent'; args: DenyMemoryConsentArgs }
   | { name: 'mark_private'; args: MarkPrivateArgs }
   | { name: 'log_safety_concern'; args: LogSafetyConcernArgs }
   | { name: 'report_conversation_language'; args: ReportConversationLanguageArgs }

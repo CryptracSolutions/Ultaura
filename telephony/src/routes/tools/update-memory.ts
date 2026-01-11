@@ -3,6 +3,7 @@ import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getMemoriesForLine, storeMemory, updateMemory } from '../../services/memory.js';
 import { addStoredKey } from '../../services/ephemeral-buffer.js';
+import { getAccountPrivacySettings, getLineVoiceConsent } from '../../services/privacy.js';
 
 export const updateMemoryRouter = Router();
 
@@ -43,6 +44,20 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
         errorCode,
       }, { skipDebugLog: true });
     };
+
+    const privacySettings = await getAccountPrivacySettings(accountId);
+    if (!privacySettings?.aiSummarizationEnabled) {
+      await recordFailure('memory_disabled');
+      res.json({ success: false, error: 'Memory features are disabled for this account.' });
+      return;
+    }
+
+    const voiceConsent = await getLineVoiceConsent(lineId);
+    if (voiceConsent?.memoryConsent !== 'granted') {
+      await recordFailure('consent_not_granted');
+      res.json({ success: false, error: 'Memory consent has not been granted for this line.' });
+      return;
+    }
 
     const memories = await getMemoriesForLine(accountId, lineId, { limit: 100 });
     const existingMemory = memories.find(

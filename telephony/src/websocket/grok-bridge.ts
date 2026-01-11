@@ -12,7 +12,8 @@ import type {
   SafetyTier,
 } from '@ultaura/types';
 import { logger } from '../server.js';
-import { addTurn, TurnSummary } from '../services/ephemeral-buffer.js';
+import { addTurn, markConsentGranted, TurnSummary } from '../services/ephemeral-buffer.js';
+import { recordCallEvent } from '../services/call-session.js';
 import { getMemoriesForLine } from '../services/memory.js';
 import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
@@ -35,6 +36,8 @@ interface GrokBridgeOptions {
   startingLanguage?: string;
   isFirstCall: boolean;
   memories: Memory[];
+  memoryEnabled: boolean;
+  needsConsentPrompt: boolean;
   seedInterests: string[] | null;
   seedAvoidTopics: string[] | null;
   lowMinutesWarning: boolean;
@@ -190,6 +193,7 @@ export class GrokBridge {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     const systemPrompt = this.buildSystemPrompt();
+    const tools = this.getActiveTools();
 
     const sessionConfig: GrokMessage = {
       type: 'session.update',
@@ -206,7 +210,7 @@ export class GrokBridge {
           prefix_padding_ms: 300,
           silence_duration_ms: VAD_SILENCE_DURATION_MS,
         },
-        tools: GROK_TOOLS,
+        tools,
       },
     };
 
@@ -231,20 +235,28 @@ export class GrokBridge {
       accountStatus,
     } = this.options;
     const memories = overrides?.memories ?? this.options.memories;
+    const memoryEnabled = this.options.memoryEnabled;
 
     // Use dedicated short prompt for reminder calls
     if (isReminderCall && reminderMessage) {
-      return buildReminderPrompt({
+      let prompt = buildReminderPrompt({
         userName,
         reminderMessage,
         startingLanguage,
       });
+
+      if (this.options.needsConsentPrompt) {
+        prompt += `\n\n${this.getConsentPromptSection()}`;
+      }
+
+      return prompt;
     }
 
-    return compilePrompt('voice_realtime', {
+    let prompt = compilePrompt('voice_realtime', {
       userName,
       startingLanguage,
       memories,
+      memoryEnabled,
       isFirstCall,
       timezone,
       seedInterests,
@@ -254,27 +266,94 @@ export class GrokBridge {
       currentPlanId,
       accountStatus,
     });
+
+    if (this.options.needsConsentPrompt) {
+      prompt += `\n\n${this.getConsentPromptSection()}`;
+    }
+
+    return prompt;
   }
 
-  private async refreshMemoryContext(): Promise<void> {
+  private getConsentPromptSection(): string {
+    return `## First Call Memory Consent\n\nAt the START of this call, you MUST ask for permission to remember things:\n\n\"Before we get started, I'd like to ask - would it be okay if I remember things you tell me?\nThis helps me personalize our conversations. You can say yes or no.\"\n\nBased on their response:\n- If they say YES or agree: Call the grant_memory_consent tool\n- If they say NO or decline: Call the deny_memory_consent tool\n\nDo NOT store any memories until you receive explicit consent.`;
+  }
+  private async refreshMemoryContext(reason: string): Promise<void> {
     try {
       const memories = await getMemoriesForLine(
         this.options.accountId,
         this.options.lineId,
         { limit: 50 }
       );
+      const memoriesForPrompt = this.options.memoryEnabled ? memories : [];
+      const tools = this.getActiveTools();
 
       this.sendMessage({
         type: 'session.update',
         session: {
-          instructions: this.buildSystemPrompt({ memories }),
+          instructions: this.buildSystemPrompt({ memories: memoriesForPrompt }),
+          tools,
         },
       });
 
+      this.options.memories = memoriesForPrompt;
       logger.debug({ lineId: this.options.lineId }, 'Memory context refreshed');
     } catch (error) {
-      logger.warn({ error }, 'Failed to refresh memory context, continuing without refresh');
+      logger.warn({
+        error,
+        callSessionId: this.options.callSessionId,
+        reason,
+      }, 'Failed to refresh memory context, continuing without refresh');
+      void recordCallEvent(
+        this.options.callSessionId,
+        'error',
+        { errorType: 'memory_refresh_failed', reason },
+        { skipDebugLog: true }
+      );
     }
+  }
+
+  private parseToolResponse(
+    raw: string,
+    toolName: string
+  ): { success?: boolean } | null {
+    try {
+      return JSON.parse(raw) as { success?: boolean };
+    } catch (error) {
+      const errorType = error instanceof SyntaxError
+        ? 'tool_response_invalid_json'
+        : 'tool_response_parse_error';
+
+      logger.warn({
+        error,
+        callSessionId: this.options.callSessionId,
+        toolName,
+      }, 'Failed to parse tool response');
+      void recordCallEvent(
+        this.options.callSessionId,
+        'error',
+        { errorType, reason: toolName },
+        { skipDebugLog: true }
+      );
+      return null;
+    }
+  }
+
+  private getActiveTools() {
+    return GROK_TOOLS.filter((tool) => {
+      if (tool.type !== 'function') {
+        return true;
+      }
+
+      if (tool.name === 'store_memory' || tool.name === 'update_memory') {
+        return this.options.memoryEnabled;
+      }
+
+      if (tool.name === 'grant_memory_consent' || tool.name === 'deny_memory_consent') {
+        return this.options.needsConsentPrompt;
+      }
+
+      return true;
+    });
   }
 
   private sendMessage(message: unknown): void {
@@ -594,9 +673,7 @@ export class GrokBridge {
             suggestReminder: args.suggest_reminder || false,
           });
           // Refresh context after storing
-          this.refreshMemoryContext().catch(err => {
-            logger.warn({ error: err }, 'Memory refresh failed');
-          });
+          void this.refreshMemoryContext('store_memory');
           break;
 
         case 'update_memory':
@@ -608,10 +685,43 @@ export class GrokBridge {
             memoryType: args.memory_type,
             confidence: args.confidence || 1.0,
           });
-          this.refreshMemoryContext().catch(err => {
-            logger.warn({ error: err }, 'Memory refresh failed');
-          });
+          void this.refreshMemoryContext('update_memory');
           break;
+
+        case 'grant_memory_consent': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/grant_memory_consent`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'grant_memory_consent');
+          if (parsed?.success) {
+            this.options.needsConsentPrompt = false;
+            this.options.memoryEnabled = true;
+            markConsentGranted(this.options.callSessionId);
+            void this.refreshMemoryContext('grant_memory_consent');
+          }
+
+          result = raw;
+          break;
+        }
+
+        case 'deny_memory_consent': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/deny_memory_consent`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'deny_memory_consent');
+          if (parsed?.success) {
+            this.options.needsConsentPrompt = false;
+            this.options.memoryEnabled = false;
+            void this.refreshMemoryContext('deny_memory_consent');
+          }
+
+          result = raw;
+          break;
+        }
 
         case 'mark_private':
           result = await this.callToolEndpoint(`${baseUrl}/tools/mark_private`, {

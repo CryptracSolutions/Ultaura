@@ -18,15 +18,22 @@ export type {
   AccountStatus,
   CallInsights,
   ConcernCode,
+  ConsentAuditAction,
+  ConsentAuditEntry,
+  DataExportRequest,
   FollowUpReasonCode,
   GrokTool,
   Memory,
   MemoryType,
+  AccountPrivacySettings,
   PlanId,
   PrivacyScope,
+  RetentionPeriod,
   SafetyActionTaken,
   SafetyTier,
   TopicCode,
+  LineVoiceConsent,
+  VoiceConsentStatus,
 } from '@ultaura/types';
 
 // ============================================
@@ -52,7 +59,13 @@ export type ReminderEventType =
   | 'no_answer'
   | 'failed';
 export type ReminderEventTrigger = 'dashboard' | 'voice' | 'system';
-export type ConsentType = 'outbound_calls' | 'trusted_contact_notify' | 'sms_to_payer' | 'data_retention';
+export type ConsentType =
+  | 'outbound_calls'
+  | 'trusted_contact_notify'
+  | 'sms_to_payer'
+  | 'data_retention'
+  | 'audio_processing'
+  | 'recording';
 export type OptOutChannel = 'outbound_calls' | 'sms' | 'all';
 export type CallEndReason = 'hangup' | 'no_answer' | 'busy' | 'trial_cap' | 'minutes_cap' | 'error';
 export type CallAnsweredBy =
@@ -657,6 +670,13 @@ export type LineBaselineRow = Database['public']['Tables']['ultaura_line_baselin
 export type NotificationPreferencesRow =
   Database['public']['Tables']['ultaura_notification_preferences']['Row'];
 export type WeeklySummaryRow = Database['public']['Tables']['ultaura_weekly_summaries']['Row'];
+export type AccountPrivacySettingsRow =
+  Database['public']['Tables']['ultaura_account_privacy_settings']['Row'];
+export type LineVoiceConsentRow = Database['public']['Tables']['ultaura_line_voice_consent']['Row'];
+export type ConsentAuditRow = Database['public']['Tables']['ultaura_consent_audit_log']['Row'];
+export type DataExportRequestRow = Database['public']['Tables']['ultaura_data_export_requests']['Row'];
+export type PendingRecordingDeletionRow =
+  Database['public']['Tables']['ultaura_pending_recording_deletions']['Row'];
 
 export interface EditReminderInput {
   message?: string;

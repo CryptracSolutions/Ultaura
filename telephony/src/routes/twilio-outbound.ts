@@ -6,8 +6,9 @@ import type { CallAnsweredBy } from '../services/call-session.js';
 import { getCallSession, updateCallSession, updateCallStatus } from '../services/call-session.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
 import { getLastDetectedLanguageForLine } from '../services/language.js';
+import { getAccountPrivacySettings } from '../services/privacy.js';
 import { generateStreamTwiML, generateMessageTwiML, generateHangupTwiML, validateTwilioSignature } from '../utils/twilio.js';
-import { getWebsocketUrl } from '../utils/env.js';
+import { getPublicUrl, getWebsocketUrl } from '../utils/env.js';
 import { getVoicemailMessage } from '../utils/voicemail-messages.js';
 
 export const twilioOutboundRouter = Router();
@@ -149,6 +150,12 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
       return;
     }
 
+    const privacySettings = await getAccountPrivacySettings(account.id);
+    const recordingActive = process.env.ULTAURA_ENABLE_RECORDING === 'true' &&
+      !!privacySettings?.recordingEnabled;
+    const startingLanguage = await getLastDetectedLanguageForLine(line.id);
+    const publicUrl = getPublicUrl().replace(/\/$/, '');
+
     if (isMachine) {
       logger.info({ callSessionId, answeredBy }, 'Answering machine detected');
       const voicemailBehavior = line.voicemail_behavior || 'brief';
@@ -158,7 +165,6 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
         return;
       }
 
-      const startingLanguage = await getLastDetectedLanguageForLine(line.id);
       const message = getVoicemailMessage({
         name: line.display_name,
         language: startingLanguage,
@@ -173,7 +179,12 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
 
     // Generate TwiML to connect to WebSocket stream
     const websocketUrl = getWebsocketUrl();
-    const twiml = generateStreamTwiML(session.id, websocketUrl);
+    const twiml = generateStreamTwiML(session.id, websocketUrl, {
+      includeDisclosure: true,
+      disclosureLanguage: startingLanguage || undefined,
+      recordCall: recordingActive,
+      recordingStatusCallback: recordingActive ? `${publicUrl}/twilio/recording-status` : undefined,
+    });
 
     logger.info({ sessionId: session.id, lineId: line.id }, 'Connecting outbound call to media stream');
 

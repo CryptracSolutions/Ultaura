@@ -12,6 +12,7 @@ interface LinesPageClientProps {
   lines: LineRow[];
   planLinesLimit: number;
   disabled?: boolean;
+  vendorAlreadyAcknowledged?: boolean;
 }
 
 export function LinesPageClient({
@@ -19,6 +20,7 @@ export function LinesPageClient({
   lines,
   planLinesLimit,
   disabled = false,
+  vendorAlreadyAcknowledged = false,
 }: LinesPageClientProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -104,6 +106,7 @@ export function LinesPageClient({
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         accountId={accountId}
+        vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}
       />
     </div>
   );

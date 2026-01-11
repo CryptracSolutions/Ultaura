@@ -22,6 +22,7 @@ export interface CompanionPromptParams {
   startingLanguage?: string;
   memories: Memory[];
   isFirstCall: boolean;
+  memoryEnabled?: boolean;
   timezone?: string;
   seedInterests?: string[] | null;
   seedAvoidTopics?: string[] | null;
@@ -37,6 +38,7 @@ export function compilePrompt(
 ): string {
   const sections: string[] = [];
   const isRealtime = profile === 'voice_realtime';
+  const memoryEnabled = params.memoryEnabled !== false;
 
   sections.push(isRealtime ? IDENTITY_SECTION.compressed : IDENTITY_SECTION.full);
 
@@ -71,11 +73,13 @@ export function compilePrompt(
       : TOOL_POLICY_SECTION.full
   );
 
-  sections.push(
-    isRealtime
-      ? MEMORY_POLICY_SECTION.compressed
-      : MEMORY_POLICY_SECTION.full
-  );
+  if (memoryEnabled) {
+    sections.push(
+      isRealtime
+        ? MEMORY_POLICY_SECTION.compressed
+        : MEMORY_POLICY_SECTION.full
+    );
+  }
 
   sections.push(
     isRealtime

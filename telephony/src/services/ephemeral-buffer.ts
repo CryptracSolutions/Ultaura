@@ -16,6 +16,7 @@ export interface EphemeralBuffer {
   startTime: number;
   turns: TurnSummary[];
   storedKeys: Set<string>;
+  consentGrantedAtTurnIndex: number | null;
 }
 
 const buffers = new Map<string, EphemeralBuffer>();
@@ -31,6 +32,7 @@ export function createBuffer(callSessionId: string, lineId: string, accountId: s
     startTime: Date.now(),
     turns: [],
     storedKeys: new Set(),
+    consentGrantedAtTurnIndex: null,
   });
 }
 
@@ -56,6 +58,15 @@ export function addStoredKey(callSessionId: string, key: string): void {
   const buffer = buffers.get(callSessionId);
   if (buffer) {
     buffer.storedKeys.add(key.toLowerCase());
+  }
+}
+
+export function markConsentGranted(callSessionId: string): void {
+  const buffer = buffers.get(callSessionId);
+  if (!buffer) return;
+
+  if (buffer.consentGrantedAtTurnIndex === null) {
+    buffer.consentGrantedAtTurnIndex = buffer.turns.length;
   }
 }
 

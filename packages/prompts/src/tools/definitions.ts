@@ -222,6 +222,26 @@ Do NOT confirm the update verbally - just update silently and continue.`,
   },
   {
     type: 'function',
+    name: 'grant_memory_consent',
+    description: 'Call when the user agrees to have their conversations remembered for personalization.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    type: 'function',
+    name: 'deny_memory_consent',
+    description: 'Call when the user declines to have their conversations remembered.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    type: 'function',
     name: 'mark_private',
     description: 'User wants to keep something private from their family. Call when user says "don\'t tell my family", "keep this between us", "this is private", etc.',
     parameters: {
@@ -385,6 +405,10 @@ Do NOT confirm the update verbally - just update silently and continue.`,
                 type: 'number',
                 minimum: 0,
                 maximum: 1,
+              },
+              is_novel: {
+                type: 'boolean',
+                description: 'Whether this concern is newly observed (optional).',
               },
             },
             required: ['code', 'severity', 'confidence'],

@@ -19,6 +19,8 @@ const TOOL_ALLOWLISTS: Record<string, string[]> = {
   schedule_call: ['scheduleId', 'mode'],
   store_memory: ['key'],
   update_memory: ['key', 'action'],
+  grant_memory_consent: [],
+  deny_memory_consent: [],
   forget_memory: ['result'],
   mark_private: [],
   mark_topic_private: [],

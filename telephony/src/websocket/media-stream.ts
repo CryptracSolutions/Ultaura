@@ -11,6 +11,7 @@ import { summarizeAndExtractMemoriesFromBuffer } from '../services/call-summariz
 import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback.js';
 import { getUsageSummary } from '../services/metering.js';
 import { getLastDetectedLanguageForLine } from '../services/language.js';
+import { getAccountPrivacySettings, getLineVoiceConsent } from '../services/privacy.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
 import { redactSensitive } from '../utils/redact.js';
@@ -183,8 +184,26 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
           try {
             createBuffer(callSessionId, line.id, account.id);
 
-            // Fetch memories for the line
+            const [privacySettings, voiceConsent] = await Promise.all([
+              getAccountPrivacySettings(account.id),
+              getLineVoiceConsent(line.id),
+            ]);
+
+            const aiSummarizationEnabled = privacySettings?.aiSummarizationEnabled ?? true;
+            const memoryConsent = voiceConsent?.memoryConsent ?? 'pending';
+            const lastPromptAt = voiceConsent?.lastConsentPromptAt;
+            const consentCooldownMs = 30 * 24 * 60 * 60 * 1000;
+            const canPromptAfterDenial = !lastPromptAt ||
+              (Date.now() - new Date(lastPromptAt).getTime() > consentCooldownMs);
+            const needsConsentPrompt = aiSummarizationEnabled && (
+              memoryConsent === 'pending' ||
+              (memoryConsent === 'denied' && canPromptAfterDenial)
+            );
+            const memoryEnabled = aiSummarizationEnabled && memoryConsent === 'granted';
+
+            // Fetch memories for the line (use empty list when memory is disabled)
             const memories = await getMemoriesForLine(account.id, line.id, { limit: 50 });
+            const memoriesForPrompt = memoryEnabled ? memories : [];
 
             // Check if this is the first call
             const isFirstCall = !line.last_successful_call_at;
@@ -356,7 +375,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 timezone: line.timezone,
                 startingLanguage,
                 isFirstCall,
-                memories,
+                memories: memoriesForPrompt,
+                memoryEnabled,
+                needsConsentPrompt,
                 seedInterests: line.seed_interests,
                 seedAvoidTopics: line.seed_avoid_topics,
                 lowMinutesWarning: minutesStatus.warn,

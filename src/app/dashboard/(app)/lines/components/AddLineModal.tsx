@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Phone, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
 import { US_TIMEZONES } from '~/lib/ultaura/constants';
+import { acknowledgeVendorDisclosure } from '~/lib/ultaura/privacy';
 import {
   Select,
   SelectTrigger,
@@ -45,12 +46,14 @@ interface AddLineModalProps {
   isOpen: boolean;
   onClose: () => void;
   accountId: string;
+  vendorAlreadyAcknowledged?: boolean;
 }
 
 export function AddLineModal({
   isOpen,
   onClose,
   accountId,
+  vendorAlreadyAcknowledged = false,
 }: AddLineModalProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -66,6 +69,13 @@ export function AddLineModal({
   const [avoidTopics, setAvoidTopics] = useState('');
   const [disclosure, setDisclosure] = useState(false);
   const [consent, setConsent] = useState(false);
+  const [vendorAcknowledged, setVendorAcknowledged] = useState(vendorAlreadyAcknowledged);
+
+  useEffect(() => {
+    if (isOpen) {
+      setVendorAcknowledged(vendorAlreadyAcknowledged);
+    }
+  }, [isOpen, vendorAlreadyAcknowledged]);
 
   if (!isOpen) return null;
 
@@ -87,6 +97,7 @@ export function AddLineModal({
 
   const selectedCount = combinedTopics.length;
   const customDisabled = selectedTopics.length >= MAX_INTEREST_TOPICS;
+  const isVendorAcknowledged = vendorAlreadyAcknowledged || vendorAcknowledged;
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics((prev) => {
@@ -100,8 +111,8 @@ export function AddLineModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!disclosure || !consent) {
-      setError('Please acknowledge the disclosures to continue');
+    if (!disclosure || !consent || !isVendorAcknowledged) {
+      setError('Please acknowledge the required disclosures to continue');
       return;
     }
 
@@ -127,6 +138,9 @@ export function AddLineModal({
       }
 
       if (result.data?.lineId && result.data?.shortId) {
+        if (!vendorAlreadyAcknowledged && vendorAcknowledged) {
+          await acknowledgeVendorDisclosure(accountId);
+        }
         onClose();
         router.push(`/dashboard/lines/${result.data.shortId}/verify`);
       } else {
@@ -314,6 +328,28 @@ export function AddLineModal({
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
+                        checked={isVendorAcknowledged}
+                        onChange={(e) => setVendorAcknowledged(e.target.checked)}
+                        disabled={vendorAlreadyAcknowledged}
+                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus:ring-ring"
+                      />
+                      <span className="text-sm text-foreground">
+                        I understand that Ultaura uses xAI and Twilio to power voice conversations.
+                        Audio is processed in real-time by these services.{' '}
+                        <a
+                          href="/privacy"
+                          className="text-primary hover:underline"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Learn more
+                        </a>
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
                         checked={disclosure}
                         onChange={(e) => setDisclosure(e.target.checked)}
                         className="mt-1 h-4 w-4 rounded border-input accent-primary focus:ring-ring"
@@ -381,7 +417,7 @@ export function AddLineModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={isLoading || !disclosure || !consent}
+                    disabled={isLoading || !disclosure || !consent || !isVendorAcknowledged}
                     className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? 'Creating...' : 'Add Line'}

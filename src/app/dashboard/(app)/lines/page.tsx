@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
 import { getUsageSummary } from '~/lib/ultaura/usage';
+import { getAccountPrivacySettings } from '~/lib/ultaura/privacy';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { LinesPageClient } from './components/LinesPageClient';
 import { AlertBanner } from './components/AlertBanner';
@@ -57,9 +58,10 @@ export default async function LinesPage() {
   }
 
   // Get lines and usage
-  const [lines, usage] = await Promise.all([
+  const [lines, usage, privacySettings] = await Promise.all([
     getLines(account.id),
     getUsageSummary(account.id),
+    getAccountPrivacySettings(account.id),
   ]);
 
   const isOnTrial = account.status === 'trial';
@@ -75,6 +77,7 @@ export default async function LinesPage() {
   // Determine if we should show any alerts
   const isPayg = account.plan_id === 'payg';
   const showLowMinutesAlert = !isPayg && account.status !== 'trial' && usage && usage.minutesRemaining <= 15;
+  const vendorAlreadyAcknowledged = !!privacySettings?.vendorDisclosureAcknowledgedAt;
 
   return (
     <>
@@ -103,6 +106,7 @@ export default async function LinesPage() {
               lines={lines}
               planLinesLimit={getPlanLinesLimit(account.plan_id ?? 'free_trial')}
               disabled={isTrialExpired}
+              vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}
             />
           </Suspense>
         </div>

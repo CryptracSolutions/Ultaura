@@ -14,8 +14,11 @@ import { toolsRouter } from './routes/tools/index.js';
 import { handleMediaStreamConnection } from './websocket/media-stream.js';
 import { startScheduler, stopScheduler } from './scheduler/call-scheduler.js';
 import { startWeeklySummaryScheduler, stopWeeklySummaryScheduler } from './scheduler/weekly-summary-scheduler.js';
+import { startRecordingDeletionScheduler, stopRecordingDeletionScheduler } from './scheduler/recording-deletion.js';
 import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
+import { internalRecordingsRouter } from './routes/internal/recordings.js';
+import { internalExportsRouter } from './routes/internal/exports.js';
 import testRoutes from './routes/test.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
@@ -125,6 +128,8 @@ app.use('/calls', callsRouter);
 app.use('/tools', toolsRouter);
 app.use('/verify', verifyRouter);
 app.use('/internal', internalSmsRouter);
+app.use('/internal', internalRecordingsRouter);
+app.use('/internal', internalExportsRouter);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/test', testRoutes);
 }
@@ -190,6 +195,7 @@ server.listen(PORT, () => {
   // Start the call scheduler
   startScheduler();
   startWeeklySummaryScheduler();
+  startRecordingDeletionScheduler();
 });
 
 // Graceful shutdown
@@ -197,6 +203,7 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   stopScheduler();
   stopWeeklySummaryScheduler();
+  stopRecordingDeletionScheduler();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
