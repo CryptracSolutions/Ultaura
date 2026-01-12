@@ -6,6 +6,7 @@ export type ConsentAuditAction =
   | 'updated'
   | 'voice_consent_given'
   | 'voice_consent_denied'
+  | 'memory_hard_deleted'
   | 'retention_changed'
   | 'recording_toggled'
   | 'summarization_toggled'

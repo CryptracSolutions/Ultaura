@@ -3,7 +3,7 @@ import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getMemoriesForLine, storeMemory, updateMemory } from '../../services/memory.js';
 import { addStoredKey } from '../../services/ephemeral-buffer.js';
-import { getAccountPrivacySettings, getLineVoiceConsent } from '../../services/privacy.js';
+import { enforceMemoryConsent } from './memory-guard.js';
 
 export const updateMemoryRouter = Router();
 
@@ -45,17 +45,14 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
-    const privacySettings = await getAccountPrivacySettings(accountId);
-    if (!privacySettings?.aiSummarizationEnabled) {
-      await recordFailure('memory_disabled');
-      res.json({ success: false, error: 'Memory features are disabled for this account.' });
-      return;
-    }
-
-    const voiceConsent = await getLineVoiceConsent(lineId);
-    if (voiceConsent?.memoryConsent !== 'granted') {
-      await recordFailure('consent_not_granted');
-      res.json({ success: false, error: 'Memory consent has not been granted for this line.' });
+    const consent = await enforceMemoryConsent({
+      accountId,
+      lineId,
+      callSessionId,
+      toolName: 'update_memory',
+    });
+    if (!consent.ok) {
+      res.json({ success: false, error: consent.error });
       return;
     }
 
@@ -66,13 +63,13 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
 
     if (!existingMemory) {
       logger.info({ key: existingKey }, 'No existing memory found, creating new');
-      const memoryId = await storeMemory(accountId, lineId, memoryType as any, existingKey, newValue, {
+      const result = await storeMemory(accountId, lineId, memoryType as any, existingKey, newValue, {
         confidence,
         source: 'conversation',
         privacyScope: 'line_only',
       });
 
-      if (!memoryId) {
+      if (!result) {
         await recordFailure();
         res.status(500).json({ success: false, error: 'Failed to store memory' });
         return;
@@ -83,22 +80,32 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
         tool: 'update_memory',
         success: true,
         key: existingKey,
-        action: 'created',
+        action: result.action,
+        reason: result.reason,
+        version: result.version,
       }, { skipDebugLog: true });
 
       addStoredKey(callSessionId, existingKey);
 
       res.json({
         success: true,
-        memoryId,
-        action: 'created',
+        memoryId: result.memoryId,
+        action: result.action,
+        reason: result.reason,
+        version: result.version,
       });
       return;
     }
 
-    const updatedId = await updateMemory(accountId, lineId, existingMemory.id, newValue);
+    const updated = await updateMemory(
+      accountId,
+      lineId,
+      existingMemory.id,
+      newValue,
+      existingMemory
+    );
 
-    if (!updatedId) {
+    if (!updated) {
       await recordFailure();
       res.status(500).json({ success: false, error: 'Failed to update memory' });
       return;
@@ -109,17 +116,21 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
       tool: 'update_memory',
       success: true,
       key: existingKey,
-      action: 'updated',
+      action: updated.action,
+      reason: updated.reason,
+      version: updated.version,
     }, { skipDebugLog: true });
 
     addStoredKey(callSessionId, existingKey);
 
-    logger.info({ key: existingKey, callSessionId }, 'Memory updated');
+    logger.info({ key: existingKey, callSessionId, action: updated.action }, 'Memory update processed');
 
     res.json({
       success: true,
-      memoryId: updatedId,
-      action: 'updated',
+      memoryId: updated.memoryId,
+      action: updated.action,
+      reason: updated.reason,
+      version: updated.version,
     });
   } catch (error) {
     logger.error({ error }, 'Error updating memory');

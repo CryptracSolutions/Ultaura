@@ -2591,6 +2591,7 @@ export type Database = {
         | "updated"
         | "voice_consent_given"
         | "voice_consent_denied"
+        | "memory_hard_deleted"
         | "retention_changed"
         | "recording_toggled"
         | "summarization_toggled"
@@ -3400,6 +3401,7 @@ export const Constants = {
         "updated",
         "voice_consent_given",
         "voice_consent_denied",
+        "memory_hard_deleted",
         "retention_changed",
         "recording_toggled",
         "summarization_toggled",

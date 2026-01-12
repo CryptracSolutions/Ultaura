@@ -17,6 +17,7 @@ import { INSIGHTS_SECTION } from '../golden/sections/insights.js';
 import { RETENTION_POLICY_SECTION, INBOUND_REMINDER_SECTION } from '../golden/sections/retention-policy.js';
 import { WEB_SEARCH_POLICY_SECTION } from '../golden/sections/web-search-policy.js';
 import { SEGMENTS_POLICY_SECTION } from '../golden/sections/segments-policy.js';
+import { sanitizeForPrompt, sanitizeKey } from '../utils/sanitize.js';
 
 export type PromptProfile = 'voice_realtime' | 'admin_preview';
 
@@ -55,12 +56,19 @@ export function compilePrompt(
   const memoryEnabled = params.memoryEnabled !== false;
   const canReceiveInboundCalls = params.canReceiveInboundCalls === true;
   const isTestCall = params.isTestCall === true;
+  const safeUserName = sanitizeForPrompt(params.userName);
+  const safeSeedInterests = params.seedInterests
+    ?.map((interest) => sanitizeForPrompt(interest))
+    .filter((interest) => interest.length > 0);
+  const safeSeedAvoidTopics = params.seedAvoidTopics
+    ?.map((topic) => sanitizeForPrompt(topic))
+    .filter((topic) => topic.length > 0);
 
   sections.push(selectSection(IDENTITY_SECTION, compressed));
   sections.push(selectSection(CONVERSATION_STYLE_SECTION, compressed));
 
   const memoryText = formatMemoriesForPrompt(params.memories);
-  const memoryHeader = compressed ? '## Memory' : `## Your Memory of ${params.userName}`;
+  const memoryHeader = compressed ? '## Memory' : `## Your Memory of ${safeUserName}`;
   sections.push(`${memoryHeader}\n${memoryText}`);
 
   sections.push(selectSection(PRIVACY_POLICY_SECTION, compressed));
@@ -90,21 +98,21 @@ export function compilePrompt(
     sections.push(formatPlansSection(params.currentPlanId, params.accountStatus, compressed));
   }
 
-  if (params.seedInterests?.length) {
-    const interests = params.seedInterests.join(', ');
+  if (safeSeedInterests?.length) {
+    const interests = safeSeedInterests.join(', ');
     sections.push(
       compressed
         ? `Interests (from family): ${interests}`
-        : `## Interests (provided by family)\n${params.userName}'s family mentioned they enjoy: ${interests}.\nUse these as natural conversation starters. Don't force - weave in organically.`
+        : `## Interests (provided by family)\n${safeUserName}'s family mentioned they enjoy: ${interests}.\nUse these as natural conversation starters. Don't force - weave in organically.`
     );
   }
 
-  if (params.seedAvoidTopics?.length) {
-    const topics = params.seedAvoidTopics.join(', ');
+  if (safeSeedAvoidTopics?.length) {
+    const topics = safeSeedAvoidTopics.join(', ');
     sections.push(
       compressed
         ? `Avoid topics: ${topics}`
-        : `## Topics to Avoid (provided by family)\nPlease avoid discussing: ${topics}.\nIf ${params.userName} brings up these topics themselves, engage gently but don't initiate.`
+        : `## Topics to Avoid (provided by family)\nPlease avoid discussing: ${topics}.\nIf ${safeUserName} brings up these topics themselves, engage gently but don't initiate.`
     );
   }
 
@@ -116,7 +124,7 @@ export function compilePrompt(
     sections.push(
       compressed
         ? `Low minutes: ~${params.minutesRemaining} remaining. Mention near end of call.`
-        : `## Low Minutes Warning\n${params.userName} has approximately ${params.minutesRemaining} minutes remaining. Near the end of the call, gently mention this.`
+        : `## Low Minutes Warning\n${safeUserName} has approximately ${params.minutesRemaining} minutes remaining. Near the end of the call, gently mention this.`
     );
   }
 
@@ -127,12 +135,21 @@ export function compilePrompt(
     sections.push(AVOID_SECTION.full);
   }
 
-  return applyPlaceholders(sections.join('\n\n'), params);
+  return applyPlaceholders(sections.join('\n\n'), {
+    ...params,
+    userName: safeUserName,
+    seedInterests: safeSeedInterests,
+    seedAvoidTopics: safeSeedAvoidTopics,
+  });
 }
 
 export function formatMemoriesForPrompt(memories: Memory[]): string {
   if (!memories.length) return 'No previous memories recorded yet.';
-  return memories.map((memory) => `- ${memory.key}: ${formatValue(memory.value)}`).join('\n');
+  return memories.map((memory) => {
+    const key = sanitizeKey(memory.key);
+    const value = sanitizeForPrompt(formatValue(memory.value));
+    return `- ${key}: ${value}`;
+  }).join('\n');
 }
 
 function formatValue(value: unknown): string {

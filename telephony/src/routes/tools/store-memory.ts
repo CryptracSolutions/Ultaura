@@ -3,7 +3,7 @@ import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { storeMemory } from '../../services/memory.js';
 import { addStoredKey } from '../../services/ephemeral-buffer.js';
-import { getAccountPrivacySettings, getLineVoiceConsent } from '../../services/privacy.js';
+import { enforceMemoryConsent } from './memory-guard.js';
 
 export const storeMemoryRouter = Router();
 
@@ -47,27 +47,24 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
-    const privacySettings = await getAccountPrivacySettings(accountId);
-    if (!privacySettings?.aiSummarizationEnabled) {
-      await recordFailure('memory_disabled');
-      res.json({ success: false, error: 'Memory features are disabled for this account.' });
+    const consent = await enforceMemoryConsent({
+      accountId,
+      lineId,
+      callSessionId,
+      toolName: 'store_memory',
+    });
+    if (!consent.ok) {
+      res.json({ success: false, error: consent.error });
       return;
     }
 
-    const voiceConsent = await getLineVoiceConsent(lineId);
-    if (voiceConsent?.memoryConsent !== 'granted') {
-      await recordFailure('consent_not_granted');
-      res.json({ success: false, error: 'Memory consent has not been granted for this line.' });
-      return;
-    }
-
-    const memoryId = await storeMemory(accountId, lineId, memoryType as any, key, value, {
+    const result = await storeMemory(accountId, lineId, memoryType as any, key, value, {
       confidence,
       source: 'conversation',
       privacyScope: 'line_only',
     });
 
-    if (!memoryId) {
+    if (!result) {
       await recordFailure();
       res.status(500).json({ success: false, error: 'Failed to store memory' });
       return;
@@ -78,6 +75,9 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
       tool: 'store_memory',
       success: true,
       key,
+      action: result.action,
+      reason: result.reason,
+      version: result.version,
     }, { skipDebugLog: true });
 
     addStoredKey(callSessionId, key);
@@ -85,14 +85,23 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     const response: {
       success: boolean;
       memoryId: string;
+      action: 'created' | 'updated' | 'skipped';
+      reason?: 'duplicate_value' | 'key_updated';
+      version: number;
       suggestReminder?: boolean;
       message?: string;
     } = {
       success: true,
-      memoryId,
+      memoryId: result.memoryId,
+      action: result.action,
+      version: result.version,
     };
 
-    if (memoryType === 'follow_up' && suggestReminder) {
+    if (result.reason) {
+      response.reason = result.reason;
+    }
+
+    if (memoryType === 'follow_up' && suggestReminder && result.action !== 'skipped') {
       response.suggestReminder = true;
       response.message = 'Would you like me to set a reminder about this?';
     }

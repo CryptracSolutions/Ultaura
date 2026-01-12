@@ -704,6 +704,7 @@ At the START of this call:
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
             whatToForget: args.what_to_forget,
+            permanent: args.permanent === true,
           });
           break;
 
@@ -1075,13 +1076,18 @@ At the START of this call:
           {
             type: 'function',
             name: 'forget_memory',
-            description: 'User wants to forget something they previously shared. Call this when user says "forget that", "never mind", "don\'t remember that", etc.',
+            description: 'User wants to forget something they previously shared. Call this when user says "forget that", "never mind", "don\'t remember that", etc. If they explicitly ask for permanent deletion, confirm and set permanent=true.',
             parameters: {
               type: 'object',
               properties: {
                 what_to_forget: {
                   type: 'string',
                   description: 'Brief description of what to forget',
+                },
+                permanent: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Set true only if the user explicitly asks for permanent deletion (confirm first)',
                 },
               },
               required: ['what_to_forget'],

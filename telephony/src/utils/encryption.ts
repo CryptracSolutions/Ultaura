@@ -8,6 +8,8 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits for GCM
 const TAG_LENGTH = 16; // 128 bits
 const KEY_LENGTH = 32; // 256 bits
+const VALUE_ALG = 'AES-256-GCM';
+const VALUE_KID = 'kek_v1';
 
 // Get the Key Encryption Key (KEK) from environment
 function getKEK(): Buffer {
@@ -112,6 +114,63 @@ export function decryptMemoryValue(
   return JSON.parse(plaintext.toString('utf8'));
 }
 
+function escapeLikePattern(value: string): string {
+  return value.replace(/([\\%_])/g, '\\$1');
+}
+
+function decryptMemoryRow(
+  dek: Buffer,
+  memory: any
+): {
+  id: string;
+  accountId: string;
+  lineId: string;
+  createdAt: string;
+  updatedAt: string | null;
+  type: string;
+  key: string;
+  value: unknown;
+  confidence: number | null;
+  source: string | null;
+  version: number;
+  active: boolean;
+  privacyScope: string;
+  redactionLevel: string;
+} {
+  const aad = buildMemoryAAD(
+    memory.account_id,
+    memory.line_id,
+    memory.id,
+    memory.type,
+    memory.key
+  );
+
+  const value = decryptMemoryValue(
+    dek,
+    Buffer.from(memory.value_ciphertext),
+    Buffer.from(memory.value_iv),
+    Buffer.from(memory.value_tag),
+    aad
+  );
+
+  return {
+    id: memory.id,
+    accountId: memory.account_id,
+    lineId: memory.line_id,
+    createdAt: memory.created_at,
+    updatedAt: memory.updated_at,
+    type: memory.type,
+    key: memory.key,
+    value,
+    confidence: memory.confidence,
+    source: memory.source,
+    version: memory.version,
+    active: memory.active,
+    privacyScope: memory.privacy_scope,
+    redactionLevel: memory.redaction_level,
+  };
+}
+
 // Build AAD for a memory entry
 export function buildMemoryAAD(
   accountId: string,
@@ -178,6 +237,72 @@ export async function getOrCreateAccountDEK(
   return dek;
 }
 
+export async function upsertEncryptedMemory(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  accountId: string,
+  lineId: string,
+  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing',
+  key: string,
+  value: unknown,
+  options?: {
+    confidence?: number;
+    source?: 'onboarding' | 'conversation' | 'caregiver_seed';
+    privacyScope?: 'line_only' | 'shareable_with_payer';
+    redactionLevel?: 'none' | 'low' | 'high';
+  }
+): Promise<{ memoryId: string; action: 'created' | 'updated'; version: number }> {
+  const dek = await getOrCreateAccountDEK(supabase, accountId);
+
+  const memoryId = crypto.randomUUID();
+  const aad = buildMemoryAAD(accountId, lineId, memoryId, type, key);
+
+  const { ciphertext, iv, tag } = encryptMemoryValue(dek, value, aad);
+
+  const { data, error } = await supabase.rpc('upsert_ultaura_memory', {
+    p_account_id: accountId,
+    p_line_id: lineId,
+    p_type: type,
+    p_key: key,
+    p_value_ciphertext: ciphertext,
+    p_value_iv: iv,
+    p_value_tag: tag,
+    p_value_alg: VALUE_ALG,
+    p_value_kid: VALUE_KID,
+    p_confidence: options?.confidence ?? 1.0,
+    p_source: options?.source ?? 'conversation',
+    p_privacy_scope: options?.privacyScope ?? 'line_only',
+    p_redaction_level: options?.redactionLevel ?? 'none',
+    p_memory_id: memoryId,
+  });
+
+  if (error) {
+    logger.error({ error, accountId, lineId }, 'Failed to upsert encrypted memory');
+    throw new Error('Failed to store memory');
+  }
+
+  const result = Array.isArray(data) ? data[0] : data;
+  if (!result?.memory_id) {
+    logger.error({ accountId, lineId, data }, 'Upsert memory returned unexpected payload');
+    throw new Error('Failed to store memory');
+  }
+
+  logger.info({
+    memoryId: result.memory_id,
+    accountId,
+    lineId,
+    type,
+    key,
+    action: result.action,
+    version: result.version,
+  }, 'Stored encrypted memory');
+
+  return {
+    memoryId: result.memory_id,
+    action: result.action ?? 'created',
+    version: result.version ?? 1,
+  };
+}
+
 // Encrypt and store a memory
 export async function storeEncryptedMemory(
   supabase: import('@supabase/supabase-js').SupabaseClient,
@@ -193,43 +318,119 @@ export async function storeEncryptedMemory(
     redactionLevel?: 'none' | 'low' | 'high';
   }
 ): Promise<string> {
-  const dek = await getOrCreateAccountDEK(supabase, accountId);
-
-  // Generate a new memory ID
-  const memoryId = crypto.randomUUID();
-
-  // Build AAD
-  const aad = buildMemoryAAD(accountId, lineId, memoryId, type, key);
-
-  // Encrypt the value
-  const { ciphertext, iv, tag } = encryptMemoryValue(dek, value, aad);
-
-  // Store in database
-  const { error } = await supabase.from('ultaura_memories').insert({
-    id: memoryId,
-    account_id: accountId,
-    line_id: lineId,
+  const result = await upsertEncryptedMemory(
+    supabase,
+    accountId,
+    lineId,
     type,
     key,
-    value_ciphertext: ciphertext,
-    value_iv: iv,
-    value_tag: tag,
-    value_alg: 'AES-256-GCM',
-    value_kid: 'kek_v1',
-    confidence: options?.confidence ?? 1.0,
-    source: options?.source ?? 'conversation',
-    privacy_scope: options?.privacyScope ?? 'line_only',
-    redaction_level: options?.redactionLevel ?? 'none',
-  });
+    value,
+    options
+  );
+
+  return result.memoryId;
+}
+
+export async function fetchDecryptedMemoryByKey(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  accountId: string,
+  lineId: string,
+  key: string
+): Promise<{
+  id: string;
+  accountId: string;
+  lineId: string;
+  createdAt: string;
+  updatedAt: string | null;
+  type: string;
+  key: string;
+  value: unknown;
+  confidence: number | null;
+  source: string | null;
+  version: number;
+  active: boolean;
+  privacyScope: string;
+  redactionLevel: string;
+} | null> {
+  const dek = await getOrCreateAccountDEK(supabase, accountId);
+  const pattern = escapeLikePattern(key);
+
+  let query = supabase
+    .from('ultaura_memories')
+    .select('*')
+    .eq('account_id', accountId)
+    .eq('line_id', lineId)
+    .eq('active', true)
+    .ilike('key', pattern)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  const { data: memories, error } = await query;
 
   if (error) {
-    logger.error({ error, accountId, lineId }, 'Failed to store encrypted memory');
-    throw new Error('Failed to store memory');
+    logger.error({ error, lineId, key }, 'Failed to fetch memory by key');
+    throw new Error('Failed to fetch memory');
   }
 
-  logger.info({ memoryId, accountId, lineId, type, key }, 'Stored encrypted memory');
+  if (!memories || memories.length === 0) {
+    return null;
+  }
 
-  return memoryId;
+  try {
+    return decryptMemoryRow(dek, memories[0]);
+  } catch (err) {
+    logger.error({ error: err, memoryId: memories[0]?.id }, 'Failed to decrypt memory');
+    return null;
+  }
+}
+
+export async function fetchDecryptedMemoryById(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  accountId: string,
+  lineId: string,
+  memoryId: string
+): Promise<{
+  id: string;
+  accountId: string;
+  lineId: string;
+  createdAt: string;
+  updatedAt: string | null;
+  type: string;
+  key: string;
+  value: unknown;
+  confidence: number | null;
+  source: string | null;
+  version: number;
+  active: boolean;
+  privacyScope: string;
+  redactionLevel: string;
+} | null> {
+  const dek = await getOrCreateAccountDEK(supabase, accountId);
+
+  const { data: memories, error } = await supabase
+    .from('ultaura_memories')
+    .select('*')
+    .eq('id', memoryId)
+    .eq('account_id', accountId)
+    .eq('line_id', lineId)
+    .limit(1);
+
+  if (error) {
+    logger.error({ error, memoryId, lineId }, 'Failed to fetch memory by id');
+    throw new Error('Failed to fetch memory');
+  }
+
+  const memory = memories?.[0];
+  if (!memory) {
+    return null;
+  }
+
+  try {
+    return decryptMemoryRow(dek, memory);
+  } catch (err) {
+    logger.error({ error: err, memoryId }, 'Failed to decrypt memory');
+    return null;
+  }
 }
 
 // Fetch and decrypt memories for a line
@@ -291,38 +492,7 @@ export async function fetchDecryptedMemories(
 
   for (const memory of memories) {
     try {
-      const aad = buildMemoryAAD(
-        memory.account_id,
-        memory.line_id,
-        memory.id,
-        memory.type,
-        memory.key
-      );
-
-      const value = decryptMemoryValue(
-        dek,
-        Buffer.from(memory.value_ciphertext),
-        Buffer.from(memory.value_iv),
-        Buffer.from(memory.value_tag),
-        aad
-      );
-
-      decrypted.push({
-        id: memory.id,
-        accountId: memory.account_id,
-        lineId: memory.line_id,
-        createdAt: memory.created_at,
-        updatedAt: memory.updated_at,
-        type: memory.type,
-        key: memory.key,
-        value,
-        confidence: memory.confidence,
-        source: memory.source,
-        version: memory.version,
-        active: memory.active,
-        privacyScope: memory.privacy_scope,
-        redactionLevel: memory.redaction_level,
-      });
+      decrypted.push(decryptMemoryRow(dek, memory));
     } catch (err) {
       logger.error({ error: err, memoryId: memory.id }, 'Failed to decrypt memory');
       // Skip this memory but continue with others
@@ -348,4 +518,26 @@ export async function deactivateMemory(
   }
 
   logger.info({ memoryId }, 'Memory deactivated');
+}
+
+export async function deleteMemoriesByKey(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  accountId: string,
+  lineId: string,
+  key: string
+): Promise<number> {
+  const { data, error } = await supabase.rpc('delete_ultaura_memories_for_key', {
+    p_account_id: accountId,
+    p_line_id: lineId,
+    p_key: key,
+  });
+
+  if (error) {
+    logger.error({ error, accountId, lineId, key }, 'Failed to hard delete memories');
+    throw new Error('Failed to hard delete memories');
+  }
+
+  const deletedCount = typeof data === 'number' ? data : 0;
+  logger.info({ accountId, lineId, key, deletedCount }, 'Memories hard deleted');
+  return deletedCount;
 }

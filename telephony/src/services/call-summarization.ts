@@ -2,7 +2,7 @@
 // Uses ephemeral buffer turns to extract memories after call ends
 
 import { clearBuffer, type EphemeralBuffer } from './ephemeral-buffer.js';
-import { storeMemory, getMemoriesForLine } from './memory.js';
+import { storeMemory, getMemoriesForLine, updateMemory } from './memory.js';
 import { logger } from '../server.js';
 import { getAccountPrivacySettings, getLineVoiceConsent } from './privacy.js';
 
@@ -36,6 +36,12 @@ If nothing worth storing, respond with: []
 
 CONVERSATION TURNS:
 `;
+
+function normalizeMemoryKey(key: string): string {
+  return key
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_');
+}
 
 export async function summarizeAndExtractMemories(callSessionId: string): Promise<void> {
   const buffer = clearBuffer(callSessionId);
@@ -82,33 +88,47 @@ export async function summarizeAndExtractMemoriesFromBuffer(buffer: EphemeralBuf
       .join('\n');
 
     const existingMemories = await getMemoriesForLine(buffer.accountId, buffer.lineId, { limit: 100 });
-    const existingKeys = new Set(existingMemories.map(m => m.key.toLowerCase()));
-    const storedDuringCall = new Set([...buffer.storedKeys].map(k => k.toLowerCase()));
+    const existingByKey = new Map<string, (typeof existingMemories)[number]>();
+    for (const memory of existingMemories) {
+      const normalizedKey = normalizeMemoryKey(memory.key);
+      if (!existingByKey.has(normalizedKey)) {
+        existingByKey.set(normalizedKey, memory);
+      }
+    }
+    const storedDuringCall = new Set([...buffer.storedKeys].map(normalizeMemoryKey));
 
     const extractedMemories = await extractMemoriesWithGrok(turnText);
 
     let storedCount = 0;
     for (const memory of extractedMemories) {
-      const keyLower = memory.key.toLowerCase();
-      if (existingKeys.has(keyLower) || storedDuringCall.has(keyLower)) {
-        logger.debug({ key: memory.key }, 'Skipping already-stored memory key');
+      const normalizedKey = normalizeMemoryKey(memory.key);
+      if (storedDuringCall.has(normalizedKey)) {
+        logger.debug({ key: memory.key }, 'Skipping memory already handled during call');
         continue;
       }
 
       try {
-        await storeMemory(
-          buffer.accountId,
-          buffer.lineId,
-          memory.type,
-          memory.key,
-          memory.value,
-          {
-            confidence: memory.confidence,
-            source: 'conversation',
-            privacyScope: 'line_only',
-          }
-        );
-        storedCount++;
+        const existing = existingByKey.get(normalizedKey);
+        const result = existing
+          ? await updateMemory(buffer.accountId, buffer.lineId, existing.id, memory.value, existing)
+          : await storeMemory(
+            buffer.accountId,
+            buffer.lineId,
+            memory.type,
+            normalizedKey,
+            memory.value,
+            {
+              confidence: memory.confidence,
+              source: 'conversation',
+              privacyScope: 'line_only',
+            }
+          );
+
+        if (result?.action !== 'skipped') {
+          storedCount++;
+        } else {
+          logger.debug({ key: memory.key }, 'Skipping duplicate memory value');
+        }
       } catch (err) {
         logger.warn({ error: err, key: memory.key }, 'Failed to store extracted memory');
       }

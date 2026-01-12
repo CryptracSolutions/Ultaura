@@ -81,6 +81,7 @@ export interface RequestOptOutArgs {
 
 export interface ForgetMemoryArgs {
   what_to_forget: string;
+  permanent?: boolean;
 }
 
 export interface StoreMemoryArgs {

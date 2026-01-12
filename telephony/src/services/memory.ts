@@ -4,11 +4,33 @@
 import { getSupabaseClient } from '../utils/supabase.js';
 import {
   fetchDecryptedMemories,
-  storeEncryptedMemory,
+  fetchDecryptedMemoryById,
+  fetchDecryptedMemoryByKey,
+  upsertEncryptedMemory,
   deactivateMemory,
+  deleteMemoriesByKey,
 } from '../utils/encryption.js';
 import { logger } from '../server.js';
 import type { Memory, MemoryType, PrivacyScope } from '@ultaura/types';
+import { isDeepStrictEqual } from 'node:util';
+
+export type MemoryWriteAction = 'created' | 'updated' | 'skipped';
+export type MemoryWriteReason = 'duplicate_value' | 'key_updated';
+
+export interface MemoryWriteResult {
+  memoryId: string;
+  action: MemoryWriteAction;
+  reason?: MemoryWriteReason;
+  version: number;
+}
+
+function normalizeMemoryKey(key: string): string {
+  return key.toLowerCase();
+}
+
+function valuesMatch(a: unknown, b: unknown): boolean {
+  return isDeepStrictEqual(a, b);
+}
 
 // Fetch memories for a line (for prompt assembly)
 export async function getMemoriesForLine(
@@ -67,16 +89,33 @@ export async function storeMemory(
     source?: 'onboarding' | 'conversation' | 'caregiver_seed';
     privacyScope?: PrivacyScope;
   }
-): Promise<string | null> {
+): Promise<MemoryWriteResult | null> {
   const supabase = getSupabaseClient();
+  const normalizedKey = normalizeMemoryKey(key);
 
   try {
-    const memoryId = await storeEncryptedMemory(
+    const existing = await fetchDecryptedMemoryByKey(
+      supabase,
+      accountId,
+      lineId,
+      normalizedKey
+    );
+
+    if (existing && valuesMatch(existing.value, value)) {
+      return {
+        memoryId: existing.id,
+        action: 'skipped',
+        reason: 'duplicate_value',
+        version: existing.version,
+      };
+    }
+
+    const result = await upsertEncryptedMemory(
       supabase,
       accountId,
       lineId,
       type,
-      key,
+      normalizedKey,
       value,
       {
         confidence: options?.confidence,
@@ -85,7 +124,12 @@ export async function storeMemory(
       }
     );
 
-    return memoryId;
+    return {
+      memoryId: result.memoryId,
+      action: result.action,
+      reason: result.action === 'updated' ? 'key_updated' : undefined,
+      version: result.version,
+    };
   } catch (error) {
     logger.error({ error, lineId, type, key }, 'Failed to store memory');
     return null;
@@ -97,30 +141,47 @@ export async function updateMemory(
   accountId: string,
   lineId: string,
   memoryId: string,
-  value: unknown
-): Promise<string | null> {
+  value: unknown,
+  existingMemory?: Memory
+): Promise<MemoryWriteResult | null> {
   const supabase = getSupabaseClient();
 
   try {
     // Get the existing memory
-    const memories = await fetchDecryptedMemories(supabase, accountId, lineId, { limit: 1000 });
-    const existing = memories.find(m => m.id === memoryId);
+    const existing = existingMemory ?? await fetchDecryptedMemoryById(
+      supabase,
+      accountId,
+      lineId,
+      memoryId
+    );
 
     if (!existing) {
       logger.error({ memoryId }, 'Memory not found for update');
       return null;
     }
 
-    // Deactivate old version
-    await deactivateMemory(supabase, memoryId);
+    if (existing.id !== memoryId) {
+      logger.warn({ memoryId, existingId: existing.id }, 'Memory mismatch during update');
+    }
+
+    if (valuesMatch(existing.value, value)) {
+      return {
+        memoryId: existing.id,
+        action: 'skipped',
+        reason: 'duplicate_value',
+        version: existing.version,
+      };
+    }
+
+    const normalizedKey = normalizeMemoryKey(existing.key);
 
     // Create new version
-    const newId = await storeEncryptedMemory(
+    const result = await upsertEncryptedMemory(
       supabase,
       accountId,
       lineId,
       existing.type as MemoryType,
-      existing.key,
+      normalizedKey,
       value,
       {
         confidence: existing.confidence || 1.0,
@@ -128,7 +189,12 @@ export async function updateMemory(
       }
     );
 
-    return newId;
+    return {
+      memoryId: result.memoryId,
+      action: result.action,
+      reason: result.action === 'updated' ? 'key_updated' : undefined,
+      version: result.version,
+    };
   } catch (error) {
     logger.error({ error, memoryId }, 'Failed to update memory');
     return null;
@@ -149,6 +215,21 @@ export async function forgetMemory(
   } catch (error) {
     logger.error({ error, memoryId }, 'Failed to forget memory');
     return false;
+  }
+}
+
+export async function hardDeleteMemoryByKey(
+  accountId: string,
+  lineId: string,
+  key: string
+): Promise<number | null> {
+  const supabase = getSupabaseClient();
+
+  try {
+    return await deleteMemoriesByKey(supabase, accountId, lineId, key);
+  } catch (error) {
+    logger.error({ error, lineId, key }, 'Failed to hard delete memory');
+    return null;
   }
 }
 
