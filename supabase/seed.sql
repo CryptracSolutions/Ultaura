@@ -113,5 +113,5 @@ INSERT INTO ultaura_lines (
   NOW(),
   'active',
   'America/Los_Angeles',
-  'TEST01'
+  '00000000'
 ) ON CONFLICT (id) DO NOTHING;

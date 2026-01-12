@@ -26,11 +26,21 @@ export class UltauraErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Ultaura Error:', error, errorInfo);
+    // Don't log Next.js navigation errors (they'll be re-thrown in render)
+    if (error.message === 'NEXT_NOT_FOUND' || error.message === 'NEXT_REDIRECT') {
+      return;
+    }
+    console.error('Ultaura Error:', error.message, errorInfo.componentStack);
   }
 
   render() {
     if (this.state.hasError) {
+      // Re-throw Next.js navigation errors so Next.js can handle them properly
+      const errorMessage = this.state.error?.message;
+      if (errorMessage === 'NEXT_NOT_FOUND' || errorMessage === 'NEXT_REDIRECT') {
+        throw this.state.error;
+      }
+
       if (this.props.fallback) {
         return this.props.fallback;
       }
