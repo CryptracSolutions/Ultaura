@@ -563,17 +563,20 @@ export async function requestAccountDataDeletion(
   if (memoryFetchError) {
     logger.error({ error: memoryFetchError, accountId }, 'Failed to load memories for deletion log');
   } else if (memories && memories.length > 0) {
+    const deactivationReason: Database['public']['Enums']['ultaura_deactivation_reason'] = 'payer_deletion';
+    const rows: Database['public']['Tables']['ultaura_memory_deactivation_log']['Insert'][] = memories.map((memory) => ({
+      memory_id: memory.id,
+      memory_key: memory.key,
+      line_id: memory.line_id,
+      account_id: memory.account_id,
+      reason: deactivationReason,
+      confidence_at_deactivation: memory.confidence,
+      metadata: { requestId, requestedBy: actorUserId, reason },
+    }));
+
     const { error: logError } = await adminClient
       .from('ultaura_memory_deactivation_log')
-      .insert(memories.map((memory) => ({
-        memory_id: memory.id,
-        memory_key: memory.key,
-        line_id: memory.line_id,
-        account_id: memory.account_id,
-        reason: 'payer_deletion',
-        confidence_at_deactivation: memory.confidence,
-        metadata: { requestId, requestedBy: actorUserId, reason },
-      })));
+      .insert(rows);
 
     if (logError) {
       logger.error({ error: logError, accountId }, 'Failed to log payer memory deletions');
