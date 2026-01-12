@@ -17,14 +17,18 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
       value,
       confidence = 1.0,
       suggestReminder = false,
+      expectedEndDate,
+      routineLevel,
     } = req.body as {
       callSessionId?: string;
       lineId?: string;
       memoryType?: string;
       key?: string;
-      value?: string;
+      value?: unknown;
       confidence?: number;
       suggestReminder?: boolean;
+      expectedEndDate?: string;
+      routineLevel?: 'general' | 'time_specific' | 'day_specific';
     };
 
     if (!callSessionId || !lineId || !memoryType || !key || !value) {
@@ -62,6 +66,8 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
       confidence,
       source: 'conversation',
       privacyScope: 'line_only',
+      expectedEndDate,
+      routineLevel,
     });
 
     if (!result) {
@@ -85,11 +91,14 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     const response: {
       success: boolean;
       memoryId: string;
-      action: 'created' | 'updated' | 'skipped';
-      reason?: 'duplicate_value' | 'key_updated';
+      action: 'created' | 'updated' | 'skipped' | 'excluded';
+      reason?: 'duplicate_value' | 'key_updated' | 'topic_excluded' | 'embedding_pending';
       version: number;
       suggestReminder?: boolean;
       message?: string;
+      excludedCategory?: string | null;
+      embeddingGenerated?: boolean;
+      pinned?: boolean;
     } = {
       success: true,
       memoryId: result.memoryId,
@@ -99,6 +108,18 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
 
     if (result.reason) {
       response.reason = result.reason;
+    }
+
+    if (result.excludedCategory) {
+      response.excludedCategory = result.excludedCategory;
+    }
+
+    if (result.embeddingGenerated !== undefined) {
+      response.embeddingGenerated = result.embeddingGenerated;
+    }
+
+    if (result.pinned !== undefined) {
+      response.pinned = result.pinned;
     }
 
     if (memoryType === 'follow_up' && suggestReminder && result.action !== 'skipped') {

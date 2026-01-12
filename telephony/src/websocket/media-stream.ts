@@ -5,7 +5,7 @@ import { WebSocket } from 'ws';
 import { logger } from '../server.js';
 import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent, recordDebugEvent } from '../services/call-session.js';
 import { getLineById, recordOptOut } from '../services/line-lookup.js';
-import { getMemoriesForLine } from '../services/memory.js';
+import { getMemoriesForLine, markMemoriesAccessed } from '../services/memory.js';
 import { createBuffer, clearBuffer, getBuffer } from '../services/ephemeral-buffer.js';
 import { summarizeAndExtractMemoriesFromBuffer } from '../services/call-summarization.js';
 import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback.js';
@@ -194,6 +194,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
             // Fetch memories for the line (use empty list when memory is disabled)
             const memories = await getMemoriesForLine(account.id, line.id, { limit: 50 });
+            if (memoryEnabled && memories.length > 0) {
+              await markMemoriesAccessed(memories.map((memory) => memory.id));
+            }
             const memoriesForPrompt = memoryEnabled ? memories : [];
 
             // Check if this is the first call

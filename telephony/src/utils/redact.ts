@@ -53,6 +53,7 @@ const SENSITIVE_KEYS = new Set([
   'new_value',
   'what_to_forget',
   'what_to_keep_private',
+  'clarification',
   'mood_overall',
   'mood_intensity',
   'engagement_score',

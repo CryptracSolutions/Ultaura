@@ -1,6 +1,7 @@
 import type { CallInsights } from '@ultaura/types';
 import { getSupabaseClient } from './supabase.js';
-import { decryptMemoryValue, encryptMemoryValue, getOrCreateAccountDEK } from './encryption.js';
+import { decryptMemoryValue, encryptMemoryValue } from './encryption.js';
+import { getOrCreateAccountDEK } from '../services/account-encryption.js';
 
 const INSIGHTS_ALG = 'aes-256-gcm';
 const INSIGHTS_KID = 'kek_v1';

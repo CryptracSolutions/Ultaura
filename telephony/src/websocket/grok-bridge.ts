@@ -2,19 +2,21 @@
 // Handles bidirectional audio streaming with Grok
 
 import { WebSocket } from 'ws';
+import { DateTime } from 'luxon';
 import { compilePrompt, buildReminderPrompt, GROK_TOOLS } from '@ultaura/prompts';
 import { SAFETY_EXCLUSION_PATTERNS, SAFETY_KEYWORDS } from '@ultaura/prompts/safety';
 import type {
   AccountStatus,
   Memory,
   PlanId,
+  RoutineMemoryValue,
   SafetyMatch,
   SafetyTier,
 } from '@ultaura/types';
 import { logger } from '../server.js';
 import { addTurn, markConsentGranted, TurnSummary } from '../services/ephemeral-buffer.js';
 import { recordCallEvent } from '../services/call-session.js';
-import { getMemoriesForLine } from '../services/memory.js';
+import { getMemoriesForLine, markMemoriesAccessed } from '../services/memory.js';
 import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
 import type { CallPreview } from '../services/call-preview.js';
@@ -28,6 +30,98 @@ import {
 } from '../utils/constants.js';
 
 const GROK_REALTIME_URL = process.env.XAI_REALTIME_URL || 'wss://api.x.ai/v1/realtime';
+const ROUTINE_TIME_WINDOW_MINUTES = 120;
+
+function sanitizePromptSnippet(input: string): string {
+  return input
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/[`]/g, '')
+    .replace(/\b(system|assistant|user)\s*:/gi, '')
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, 160);
+}
+
+function parseTimeOfDayToMinutes(timeOfDay: string): number | null {
+  const trimmed = timeOfDay.trim().toLowerCase();
+  const ampmMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+  if (ampmMatch) {
+    const hour = Number.parseInt(ampmMatch[1], 10) % 12;
+    const minute = ampmMatch[2] ? Number.parseInt(ampmMatch[2], 10) : 0;
+    const isPm = ampmMatch[3] === 'pm';
+    return ((hour + (isPm ? 12 : 0)) * 60) + minute;
+  }
+
+  const twentyFourMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (twentyFourMatch) {
+    const hour = Number.parseInt(twentyFourMatch[1], 10);
+    const minute = Number.parseInt(twentyFourMatch[2], 10);
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return (hour * 60) + minute;
+    }
+  }
+
+  return null;
+}
+
+function isRoutineDue(value: RoutineMemoryValue, timezone?: string): boolean {
+  const zone = timezone || 'America/Los_Angeles';
+  const now = DateTime.now().setZone(zone);
+  const luxonToOurDay = (luxonDay: number): number => (luxonDay % 7);
+  const today = luxonToOurDay(now.weekday);
+
+  if (value.daysOfWeek && value.daysOfWeek.length > 0 && !value.daysOfWeek.includes(today)) {
+    return false;
+  }
+
+  if (value.timeOfDay) {
+    const targetMinutes = parseTimeOfDayToMinutes(value.timeOfDay);
+    if (targetMinutes === null) {
+      return true;
+    }
+    const nowMinutes = (now.hour * 60) + now.minute;
+    return Math.abs(nowMinutes - targetMinutes) <= ROUTINE_TIME_WINDOW_MINUTES;
+  }
+
+  return true;
+}
+
+function buildRoutinePromptSection(memories: Memory[], timezone?: string): string | null {
+  const routinePrompts = memories
+    .filter((memory) => memory.type === 'routine')
+    .flatMap((memory) => {
+      if (typeof memory.value === 'string') {
+        const safeValue = sanitizePromptSnippet(memory.value);
+        return safeValue ? [`How was your ${safeValue}?`] : [];
+      }
+
+      if (memory.value && typeof memory.value === 'object') {
+        const value = memory.value as RoutineMemoryValue;
+        if (!isRoutineDue(value, timezone)) {
+          return [];
+        }
+        if (!value.proactivePrompt) {
+          return [];
+        }
+        const safePrompt = sanitizePromptSnippet(value.proactivePrompt);
+        return safePrompt ? [safePrompt] : [];
+      }
+
+      return [];
+    });
+
+  if (routinePrompts.length === 0) {
+    return null;
+  }
+
+  const prompts = routinePrompts
+    .slice(0, 3)
+    .map((prompt) => `- ${prompt}`)
+    .join('\n');
+
+  return `## Routine Check-ins\nIf it feels natural, work in one of these today:\n${prompts}`;
+}
 
 interface GrokBridgeOptions {
   callSessionId: string;
@@ -278,6 +372,13 @@ export class GrokBridge {
       canReceiveInboundCalls,
     });
 
+    if (memoryEnabled) {
+      const routineSection = buildRoutinePromptSection(memories, timezone);
+      if (routineSection) {
+        prompt += `\n\n${routineSection}`;
+      }
+    }
+
     if (this.options.needsConsentPrompt) {
       prompt += `\n\n${this.getConsentPromptSection()}`;
     }
@@ -327,6 +428,9 @@ At the START of this call:
         this.options.lineId,
         { limit: 50 }
       );
+      if (this.options.memoryEnabled && memories.length > 0) {
+        await markMemoriesAccessed(memories.map((memory) => memory.id));
+      }
       const memoriesForPrompt = this.options.memoryEnabled ? memories : [];
       const tools = this.getActiveTools();
 
@@ -393,6 +497,9 @@ At the START of this call:
       if (tool.type !== 'function' || !tool.name) return true;
 
       if (tool.name === 'store_memory' || tool.name === 'update_memory') {
+        return this.options.memoryEnabled;
+      }
+      if (tool.name === 'review_memories') {
         return this.options.memoryEnabled;
       }
       if (tool.name === 'grant_memory_consent' || tool.name === 'deny_memory_consent') {
@@ -705,6 +812,8 @@ At the START of this call:
             lineId: this.options.lineId,
             whatToForget: args.what_to_forget,
             permanent: args.permanent === true,
+            confirmed: args.confirmed === true,
+            clarification: args.clarification,
           });
           break;
 
@@ -717,6 +826,8 @@ At the START of this call:
             value: args.value,
             confidence: args.confidence || 1.0,
             suggestReminder: args.suggest_reminder || false,
+            expectedEndDate: args.expected_end_date,
+            routineLevel: args.routine_level,
           });
           // Refresh context after storing
           void this.refreshMemoryContext('store_memory');
@@ -730,6 +841,8 @@ At the START of this call:
             newValue: args.new_value,
             memoryType: args.memory_type,
             confidence: args.confidence || 1.0,
+            confirmed: args.confirmed === true,
+            clarification: args.clarification,
           });
           void this.refreshMemoryContext('update_memory');
           break;
@@ -774,6 +887,41 @@ At the START of this call:
             callSessionId: this.options.callSessionId,
             lineId: this.options.lineId,
             whatToKeepPrivate: args.what_to_keep_private,
+            confirmed: args.confirmed === true,
+            clarification: args.clarification,
+          });
+          break;
+
+        case 'exclude_memory_topic':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/exclude_topic`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            category: args.category,
+          });
+          void this.refreshMemoryContext('exclude_memory_topic');
+          break;
+
+        case 'include_memory_topic':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/include_topic`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            category: args.category,
+          });
+          void this.refreshMemoryContext('include_memory_topic');
+          break;
+
+        case 'list_topic_exclusions':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/list_topic_exclusions`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+          break;
+
+        case 'review_memories':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/review_memories`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            category: args.category,
           });
           break;
 
@@ -1089,6 +1237,14 @@ At the START of this call:
                   default: false,
                   description: 'Set true only if the user explicitly asks for permanent deletion (confirm first)',
                 },
+                confirmed: {
+                  type: 'boolean',
+                  description: 'Set true only after the user confirms the specific memory to forget',
+                },
+                clarification: {
+                  type: 'string',
+                  description: 'Additional detail if the user says the guess was wrong',
+                },
               },
               required: ['what_to_forget'],
             },
@@ -1103,6 +1259,14 @@ At the START of this call:
                 what_to_keep_private: {
                   type: 'string',
                   description: 'Brief description of what to keep private',
+                },
+                confirmed: {
+                  type: 'boolean',
+                  description: 'Set true only after the user confirms the specific memory to keep private',
+                },
+                clarification: {
+                  type: 'string',
+                  description: 'Additional detail if the user says the guess was wrong',
                 },
               },
               required: ['what_to_keep_private'],

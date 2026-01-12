@@ -7,9 +7,9 @@ import { logger } from '../server.js';
 import { getAccountPrivacySettings, getLineVoiceConsent } from './privacy.js';
 
 interface ExtractedMemory {
-  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
+  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing' | 'relationship' | 'temporal' | 'routine';
   key: string;
-  value: string;
+  value: unknown;
   confidence: number;
 }
 
@@ -18,10 +18,14 @@ const EXTRACTION_PROMPT = `You are analyzing a conversation summary to extract m
 Review the conversation turns below and extract any important information worth remembering for future calls.
 
 For each memory, provide:
-- type: fact | preference | follow_up | context | history | wellbeing
+- type: fact | preference | follow_up | context | history | wellbeing | relationship | temporal | routine
 - key: semantic identifier (snake_case)
 - value: the information to remember
 - confidence: 0-1 how confident you are this is accurate
+
+For relationship type, include: name, role, contactFrequency (if mentioned)
+For temporal type, include: description, expectedEndDate (ISO), durationEstimateWeeks (if mentioned)
+For routine type, include: description, level, and time/day info if available
 
 IMPORTANT:
 - Only extract genuinely useful information, not small talk

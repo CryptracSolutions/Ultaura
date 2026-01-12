@@ -1,15 +1,21 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
-import { getMemoriesForLine, markMemoryPrivate } from '../../services/memory.js';
+import { findFuzzyMatches, markMemoriesAccessed, markMemoryPrivate, searchMemoriesSemantic } from '../../services/memory.js';
 
 export const markPrivateRouter = Router();
 
 markPrivateRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const { callSessionId, lineId, whatToKeepPrivate } = req.body;
+    const { callSessionId, lineId, whatToKeepPrivate, confirmed, clarification } = req.body as {
+      callSessionId?: string;
+      lineId?: string;
+      whatToKeepPrivate?: string;
+      confirmed?: boolean;
+      clarification?: string;
+    };
 
-    if (!callSessionId || !lineId) {
+    if (!callSessionId || !lineId || !whatToKeepPrivate) {
       res.status(400).json({ error: 'Missing required fields' });
       return;
     }
@@ -36,27 +42,100 @@ markPrivateRouter.post('/', async (req: Request, res: Response) => {
 
     const accountId = session.account_id;
 
-    // Get recent memories
-    const memories = await getMemoriesForLine(accountId, lineId, { limit: 50 });
+    const query = (clarification?.trim() || whatToKeepPrivate.trim());
 
-    // Find matching memory
-    const searchTerms = (whatToKeepPrivate as string).toLowerCase().split(' ');
-    const toMark = memories.find(m => {
-      const keyValue = `${m.key} ${String(m.value)}`.toLowerCase();
-      return searchTerms.some(term => keyValue.includes(term));
+    const semanticMatches = await searchMemoriesSemantic(accountId, lineId, query, {
+      limit: 3,
+      similarityThreshold: Number.parseFloat(process.env.ULTAURA_EMBEDDING_SIMILARITY_THRESHOLD || '0.7'),
     });
 
-    if (toMark) {
-      await markMemoryPrivate(accountId, lineId, toMark.id);
-      logger.info({ lineId, memoryId: toMark.id }, 'Memory marked as private');
-    } else {
-      logger.info({ lineId }, 'No matching memory found to mark private');
+    if (semanticMatches.length > 0) {
+      await markMemoriesAccessed(semanticMatches.map(match => match.memory.id));
     }
+
+    let matches = semanticMatches;
+    let matchType: 'exact' | 'semantic' | 'multiple' | 'not_found' = 'not_found';
+
+    if (matches.length === 0) {
+      matches = await findFuzzyMatches(accountId, lineId, query, { limit: 25 });
+      if (matches.length === 1) {
+        matchType = 'exact';
+      } else if (matches.length > 1) {
+        matchType = 'multiple';
+      }
+    } else if (matches.length === 1) {
+      matchType = 'semantic';
+    } else {
+      matchType = 'multiple';
+    }
+
+    const previewFor = (memory: { value: unknown }): string => {
+      const raw = String(memory.value ?? '');
+      return raw.length > 50 ? `${raw.slice(0, 50)}...` : raw;
+    };
+
+    if (matches.length === 0) {
+      logger.info({ lineId }, 'No matching memory found to mark private');
+
+      await incrementToolInvocations(callSessionId);
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'mark_private',
+        success: true,
+        matchType,
+        result: 'not_found',
+      }, { skipDebugLog: true });
+
+      res.json({
+        success: true,
+        matchType,
+        message: `Of course, I'll keep that just between us. Your family won't see it.`,
+      });
+      return;
+    }
+
+    if (matches.length > 1 && !confirmed) {
+      const bestGuess = matches[0];
+      const alternatives = matches.slice(1, 4).map(match => ({
+        id: match.memory.id,
+        key: match.memory.key,
+        preview: previewFor(match.memory),
+        similarity: match.similarity,
+      }));
+
+      await incrementToolInvocations(callSessionId);
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'mark_private',
+        success: true,
+        matchType: 'multiple',
+        result: 'needs_confirmation',
+      }, { skipDebugLog: true });
+
+      res.json({
+        success: true,
+        matchType: 'multiple',
+        needsConfirmation: true,
+        bestGuess: {
+          id: bestGuess.memory.id,
+          key: bestGuess.memory.key,
+          preview: previewFor(bestGuess.memory),
+          similarity: bestGuess.similarity,
+        },
+        alternatives,
+        confirmationPrompt: `I think you mean "${bestGuess.memory.key}" - is that right?`,
+        wrongGuessPrompt: 'Can you tell me a bit more about which one you meant?',
+      });
+      return;
+    }
+
+    const toMark = matches[0].memory;
+    await markMemoryPrivate(accountId, lineId, toMark.id);
+    logger.info({ lineId, memoryId: toMark.id }, 'Memory marked as private');
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'mark_private',
       success: true,
+      matchType,
     }, { skipDebugLog: true });
 
     res.json({

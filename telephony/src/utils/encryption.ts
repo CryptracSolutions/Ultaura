@@ -2,72 +2,15 @@
 // AES-256-GCM encryption for memory values
 
 import crypto from 'crypto';
+import type { MemoryType } from '@ultaura/types';
 import { logger } from '../server.js';
+import { getMemoryDEK } from '../services/line-encryption.js';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits for GCM
 const TAG_LENGTH = 16; // 128 bits
-const KEY_LENGTH = 32; // 256 bits
 const VALUE_ALG = 'AES-256-GCM';
 const VALUE_KID = 'kek_v1';
-
-// Get the Key Encryption Key (KEK) from environment
-function getKEK(): Buffer {
-  const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
-
-  if (!kekHex) {
-    throw new Error('Missing ULTAURA_ENCRYPTION_KEY environment variable');
-  }
-
-  if (kekHex.length !== 64) {
-    throw new Error('ULTAURA_ENCRYPTION_KEY must be 64 hex characters (256 bits)');
-  }
-
-  return Buffer.from(kekHex, 'hex');
-}
-
-// Generate a new Data Encryption Key (DEK)
-export function generateDEK(): Buffer {
-  return crypto.randomBytes(KEY_LENGTH);
-}
-
-// Wrap (encrypt) a DEK using the KEK
-export function wrapDEK(dek: Buffer): {
-  wrapped: Buffer;
-  iv: Buffer;
-  tag: Buffer;
-} {
-  const kek = getKEK();
-  const iv = crypto.randomBytes(IV_LENGTH);
-
-  const cipher = crypto.createCipheriv(ALGORITHM, kek, iv, {
-    authTagLength: TAG_LENGTH,
-  });
-
-  const wrapped = Buffer.concat([cipher.update(dek), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
-  return { wrapped, iv, tag };
-}
-
-// Unwrap (decrypt) a DEK using the KEK
-export function unwrapDEK(
-  wrapped: Buffer,
-  iv: Buffer,
-  tag: Buffer
-): Buffer {
-  const kek = getKEK();
-
-  const decipher = crypto.createDecipheriv(ALGORITHM, kek, iv, {
-    authTagLength: TAG_LENGTH,
-  });
-
-  decipher.setAuthTag(tag);
-
-  const dek = Buffer.concat([decipher.update(wrapped), decipher.final()]);
-
-  return dek;
-}
 
 // Encrypt a memory value
 export function encryptMemoryValue(
@@ -136,6 +79,14 @@ function decryptMemoryRow(
   active: boolean;
   privacyScope: string;
   redactionLevel: string;
+  lastAccessedAt?: string | null;
+  accessCount?: number | null;
+  pinned?: boolean;
+  pinnedReason?: string | null;
+  excludedCategory?: string | null;
+  embeddingPending?: boolean;
+  expectedEndDate?: string | null;
+  expiryPending?: boolean;
 } {
   const aad = buildMemoryAAD(
     memory.account_id,
@@ -168,6 +119,14 @@ function decryptMemoryRow(
     active: memory.active,
     privacyScope: memory.privacy_scope,
     redactionLevel: memory.redaction_level,
+    lastAccessedAt: memory.last_accessed_at ?? null,
+    accessCount: memory.access_count ?? null,
+    pinned: memory.pinned ?? false,
+    pinnedReason: memory.pinned_reason ?? null,
+    excludedCategory: memory.excluded_category ?? null,
+    embeddingPending: memory.embedding_pending ?? false,
+    expectedEndDate: memory.expected_end_date ?? null,
+    expiryPending: memory.expiry_pending ?? false,
   };
 }
 
@@ -191,57 +150,11 @@ export function buildMemoryAAD(
 }
 
 // Create or get DEK for an account
-export async function getOrCreateAccountDEK(
-  supabase: import('@supabase/supabase-js').SupabaseClient,
-  accountId: string
-): Promise<Buffer> {
-  // Try to get existing DEK
-  const { data: existingKey } = await supabase
-    .from('ultaura_account_crypto_keys')
-    .select('*')
-    .eq('account_id', accountId)
-    .single();
-
-  if (existingKey) {
-    // Unwrap the existing DEK
-    const wrapped = Buffer.from(existingKey.dek_wrapped);
-    const iv = Buffer.from(existingKey.dek_wrap_iv);
-    const tag = Buffer.from(existingKey.dek_wrap_tag);
-
-    return unwrapDEK(wrapped, iv, tag);
-  }
-
-  // Generate new DEK
-  const dek = generateDEK();
-  const { wrapped, iv, tag } = wrapDEK(dek);
-
-  // Store wrapped DEK
-  const { error: insertError } = await supabase
-    .from('ultaura_account_crypto_keys')
-    .insert({
-      account_id: accountId,
-      dek_wrapped: wrapped,
-      dek_wrap_iv: iv,
-      dek_wrap_tag: tag,
-      dek_kid: 'kek_v1',
-      dek_alg: 'AES-256-GCM',
-    });
-
-  if (insertError) {
-    logger.error({ error: insertError, accountId }, 'Failed to store account DEK');
-    throw new Error('Failed to create account encryption key');
-  }
-
-  logger.info({ accountId }, 'Created new account encryption key');
-
-  return dek;
-}
-
 export async function upsertEncryptedMemory(
   supabase: import('@supabase/supabase-js').SupabaseClient,
   accountId: string,
   lineId: string,
-  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing',
+  type: MemoryType,
   key: string,
   value: unknown,
   options?: {
@@ -251,7 +164,7 @@ export async function upsertEncryptedMemory(
     redactionLevel?: 'none' | 'low' | 'high';
   }
 ): Promise<{ memoryId: string; action: 'created' | 'updated'; version: number }> {
-  const dek = await getOrCreateAccountDEK(supabase, accountId);
+  const dek = await getMemoryDEK(supabase, accountId, lineId);
 
   const memoryId = crypto.randomUUID();
   const aad = buildMemoryAAD(accountId, lineId, memoryId, type, key);
@@ -308,7 +221,7 @@ export async function storeEncryptedMemory(
   supabase: import('@supabase/supabase-js').SupabaseClient,
   accountId: string,
   lineId: string,
-  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing',
+  type: MemoryType,
   key: string,
   value: unknown,
   options?: {
@@ -351,8 +264,16 @@ export async function fetchDecryptedMemoryByKey(
   active: boolean;
   privacyScope: string;
   redactionLevel: string;
+  lastAccessedAt?: string | null;
+  accessCount?: number | null;
+  pinned?: boolean;
+  pinnedReason?: string | null;
+  excludedCategory?: string | null;
+  embeddingPending?: boolean;
+  expectedEndDate?: string | null;
+  expiryPending?: boolean;
 } | null> {
-  const dek = await getOrCreateAccountDEK(supabase, accountId);
+  const dek = await getMemoryDEK(supabase, accountId, lineId);
   const pattern = escapeLikePattern(key);
 
   let query = supabase
@@ -404,8 +325,16 @@ export async function fetchDecryptedMemoryById(
   active: boolean;
   privacyScope: string;
   redactionLevel: string;
+  lastAccessedAt?: string | null;
+  accessCount?: number | null;
+  pinned?: boolean;
+  pinnedReason?: string | null;
+  excludedCategory?: string | null;
+  embeddingPending?: boolean;
+  expectedEndDate?: string | null;
+  expiryPending?: boolean;
 } | null> {
-  const dek = await getOrCreateAccountDEK(supabase, accountId);
+  const dek = await getMemoryDEK(supabase, accountId, lineId);
 
   const { data: memories, error } = await supabase
     .from('ultaura_memories')
@@ -457,8 +386,16 @@ export async function fetchDecryptedMemories(
   active: boolean;
   privacyScope: string;
   redactionLevel: string;
+  lastAccessedAt?: string | null;
+  accessCount?: number | null;
+  pinned?: boolean;
+  pinnedReason?: string | null;
+  excludedCategory?: string | null;
+  embeddingPending?: boolean;
+  expectedEndDate?: string | null;
+  expiryPending?: boolean;
 }>> {
-  const dek = await getOrCreateAccountDEK(supabase, accountId);
+  const dek = await getMemoryDEK(supabase, accountId, lineId);
 
   // Fetch encrypted memories
   let query = supabase

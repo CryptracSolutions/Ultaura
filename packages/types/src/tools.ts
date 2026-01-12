@@ -1,4 +1,10 @@
-import type { MemoryType } from './memory.js';
+import type {
+  MemoryType,
+  RelationshipMemoryValue,
+  TemporalMemoryValue,
+  RoutineMemoryValue,
+  ExclusionCategory,
+} from './memory.js';
 import type { SafetyTier } from './safety.js';
 import type { TopicCode, ConcernCode, FollowUpReasonCode } from './insights.js';
 
@@ -82,21 +88,27 @@ export interface RequestOptOutArgs {
 export interface ForgetMemoryArgs {
   what_to_forget: string;
   permanent?: boolean;
+  confirmed?: boolean;
+  clarification?: string;
 }
 
 export interface StoreMemoryArgs {
   memory_type: MemoryType;
   key: string;
-  value: string;
+  value: string | RelationshipMemoryValue | TemporalMemoryValue | RoutineMemoryValue;
   confidence?: number;
   suggest_reminder?: boolean;
+  expected_end_date?: string;
+  routine_level?: 'general' | 'time_specific' | 'day_specific';
 }
 
 export interface UpdateMemoryArgs {
   existing_key: string;
-  new_value: string;
+  new_value: string | RelationshipMemoryValue | TemporalMemoryValue | RoutineMemoryValue;
   memory_type?: MemoryType;
   confidence?: number;
+  confirmed?: boolean;
+  clarification?: string;
 }
 
 export type GrantMemoryConsentArgs = Record<string, never>;
@@ -105,6 +117,22 @@ export type DenyMemoryConsentArgs = Record<string, never>;
 
 export interface MarkPrivateArgs {
   what_to_keep_private: string;
+  confirmed?: boolean;
+  clarification?: string;
+}
+
+export interface ExcludeMemoryTopicArgs {
+  category: ExclusionCategory;
+}
+
+export interface IncludeMemoryTopicArgs {
+  category: ExclusionCategory;
+}
+
+export type ListTopicExclusionsArgs = Record<string, never>;
+
+export interface ReviewMemoriesArgs {
+  category?: string;
 }
 
 export interface LogSafetyConcernArgs {
@@ -190,6 +218,10 @@ export type ToolCallArgs =
   | { name: 'grant_memory_consent'; args: GrantMemoryConsentArgs }
   | { name: 'deny_memory_consent'; args: DenyMemoryConsentArgs }
   | { name: 'mark_private'; args: MarkPrivateArgs }
+  | { name: 'exclude_memory_topic'; args: ExcludeMemoryTopicArgs }
+  | { name: 'include_memory_topic'; args: IncludeMemoryTopicArgs }
+  | { name: 'list_topic_exclusions'; args: ListTopicExclusionsArgs }
+  | { name: 'review_memories'; args: ReviewMemoriesArgs }
   | { name: 'log_safety_concern'; args: LogSafetyConcernArgs }
   | { name: 'report_conversation_language'; args: ReportConversationLanguageArgs }
   | { name: 'list_reminders'; args: ListRemindersArgs }

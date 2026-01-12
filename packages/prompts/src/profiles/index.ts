@@ -148,7 +148,8 @@ export function formatMemoriesForPrompt(memories: Memory[]): string {
   return memories.map((memory) => {
     const key = sanitizeKey(memory.key);
     const value = sanitizeForPrompt(formatValue(memory.value));
-    return `- ${key}: ${value}`;
+    const expiryNote = memory.expiryPending ? ' (needs review)' : '';
+    return `- ${key}: ${value}${expiryNote}`;
   }).join('\n');
 }
 

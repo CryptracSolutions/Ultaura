@@ -326,6 +326,14 @@ For recurring reminders, parse natural language like:
           default: false,
           description: 'Set true only if the user explicitly asks for permanent deletion (confirm first)',
         },
+        confirmed: {
+          type: 'boolean',
+          description: 'Set true only after the user confirms the specific memory to forget',
+        },
+        clarification: {
+          type: 'string',
+          description: 'Additional detail if the user says the guess was wrong',
+        },
       },
       required: ['what_to_forget'],
     },
@@ -348,14 +356,27 @@ Do NOT confirm storage verbally - just store silently and continue conversation 
       properties: {
         memory_type: {
           type: 'string',
-          enum: ['fact', 'preference', 'follow_up', 'context', 'history', 'wellbeing'],
+          enum: [
+            'fact',
+            'preference',
+            'follow_up',
+            'context',
+            'history',
+            'wellbeing',
+            'relationship',
+            'temporal',
+            'routine',
+          ],
           description: `Type of memory:
 - fact: Personal info (name, family, pets, location)
 - preference: Likes/dislikes, interests
 - follow_up: Things to ask about later
 - context: Living situation, environment
 - history: Past experiences, life stories
-- wellbeing: Wellness observations (energy, mood)`,
+- wellbeing: Wellness observations (energy, mood)
+- relationship: People and relationships mentioned
+- temporal: Time-bound situations with expected end dates
+- routine: Daily/weekly routines and habits`,
         },
         key: {
           type: 'string',
@@ -375,6 +396,15 @@ Do NOT confirm storage verbally - just store silently and continue conversation 
           type: 'boolean',
           description: 'For follow_up type: should we suggest creating a reminder for this?',
         },
+        expected_end_date: {
+          type: 'string',
+          description: 'For temporal type: ISO date when the situation likely ends',
+        },
+        routine_level: {
+          type: 'string',
+          enum: ['general', 'time_specific', 'day_specific'],
+          description: 'For routine type: level of timing detail',
+        },
       },
       required: ['memory_type', 'key', 'value'],
     },
@@ -388,7 +418,7 @@ Use this when:
 - Information has changed: "I moved to a new apartment"
 - Adding to existing memory: "I also like jazz, not just classical"
 
-Do NOT confirm the update verbally - just update silently and continue.`,
+Do NOT confirm the update verbally - just update silently and continue unless the tool response asks for confirmation.`,
     parameters: {
       type: 'object',
       properties: {
@@ -397,12 +427,22 @@ Do NOT confirm the update verbally - just update silently and continue.`,
           description: 'The key of the existing memory to update',
         },
         new_value: {
-          type: 'string',
-          description: 'The updated memory content',
+          type: ['string', 'object'],
+          description: 'The updated memory content (string or structured object for relationship/temporal/routine)',
         },
         memory_type: {
           type: 'string',
-          enum: ['fact', 'preference', 'follow_up', 'context', 'history', 'wellbeing'],
+          enum: [
+            'fact',
+            'preference',
+            'follow_up',
+            'context',
+            'history',
+            'wellbeing',
+            'relationship',
+            'temporal',
+            'routine',
+          ],
           description: 'Type to use if creating new memory (when key not found). Defaults to fact.',
         },
         confidence: {
@@ -410,6 +450,14 @@ Do NOT confirm the update verbally - just update silently and continue.`,
           minimum: 0,
           maximum: 1,
           description: 'Confidence in the update (0-1)',
+        },
+        confirmed: {
+          type: 'boolean',
+          description: 'Set true only after the user confirms the specific memory to update',
+        },
+        clarification: {
+          type: 'string',
+          description: 'Additional detail if the user says the guess was wrong',
         },
       },
       required: ['existing_key', 'new_value'],
@@ -429,6 +477,76 @@ Do NOT confirm the update verbally - just update silently and continue.`,
   },
   {
     type: 'function',
+    name: 'exclude_memory_topic',
+    description: `Exclude a category of memories from storage. Call when the senior clearly indicates they don't want certain topics remembered.
+
+Examples:
+- "Don't remember anything about my medications" -> health_medical
+- "Keep my family out of this" -> family_relationships
+- "Don't store anything about my money" -> finances
+- "Forget where I live" -> location_address
+
+IMPORTANT: This is controlled ONLY by the senior via voice. Ask for confirmation before excluding.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: ['health_medical', 'family_relationships', 'finances', 'location_address'],
+          description: 'Category to exclude from memory storage',
+        },
+      },
+      required: ['category'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'include_memory_topic',
+    description: `Re-enable a previously excluded memory category. Call when the senior explicitly asks to start remembering a topic again.
+
+Example: "You can remember my health stuff now"
+
+This will also restore any previously excluded memories of that type.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: ['health_medical', 'family_relationships', 'finances', 'location_address'],
+          description: 'Category to re-include in memory storage',
+        },
+      },
+      required: ['category'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'list_topic_exclusions',
+    description: 'List current memory topic exclusions for the senior (for AI reference).',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'review_memories',
+    description: `Summarize what you remember about the senior. Call when they ask:
+- "What do you remember about me?"
+- "What do you know about me?"
+- "Tell me what you've learned about me"
+
+Return a conversational summary they can listen to.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          description: 'Optional: focus on a specific area (family, hobbies, routines, etc.)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    type: 'function',
     name: 'mark_private',
     description: 'User wants to keep something private from their family. Call when user says "don\'t tell my family", "keep this between us", "this is private", etc.',
     parameters: {
@@ -437,6 +555,14 @@ Do NOT confirm the update verbally - just update silently and continue.`,
         what_to_keep_private: {
           type: 'string',
           description: 'Brief description of what to keep private',
+        },
+        confirmed: {
+          type: 'boolean',
+          description: 'Set true only after the user confirms the specific memory to keep private',
+        },
+        clarification: {
+          type: 'string',
+          description: 'Additional detail if the user says the guess was wrong',
         },
       },
       required: ['what_to_keep_private'],

@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import getLogger from '~/core/logger';
@@ -512,6 +513,7 @@ export async function requestAccountDataDeletion(
 ): Promise<{ success: boolean; error?: string }> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const headersList = await headers();
+  const requestId = randomUUID();
 
   const actorUserId = await getAuthenticatedUserId();
   if (!actorUserId) {
@@ -550,6 +552,31 @@ export async function requestAccountDataDeletion(
       } catch (error) {
         logger.error({ error, accountId }, 'Failed to trigger recording deletion');
       }
+    }
+  }
+
+  const { data: memories, error: memoryFetchError } = await adminClient
+    .from('ultaura_memories')
+    .select('id, key, line_id, account_id, confidence')
+    .eq('account_id', accountId);
+
+  if (memoryFetchError) {
+    logger.error({ error: memoryFetchError, accountId }, 'Failed to load memories for deletion log');
+  } else if (memories && memories.length > 0) {
+    const { error: logError } = await adminClient
+      .from('ultaura_memory_deactivation_log')
+      .insert(memories.map((memory) => ({
+        memory_id: memory.id,
+        memory_key: memory.key,
+        line_id: memory.line_id,
+        account_id: memory.account_id,
+        reason: 'payer_deletion',
+        confidence_at_deactivation: memory.confidence,
+        metadata: { requestId, requestedBy: actorUserId, reason },
+      })));
+
+    if (logError) {
+      logger.error({ error: logError, accountId }, 'Failed to log payer memory deletions');
     }
   }
 

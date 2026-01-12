@@ -17,6 +17,7 @@ const ULTAURA_ENV_VARS: EnvVariable[] = [
 
   // Required - External Services
   { name: 'XAI_API_KEY', required: true },
+  { name: 'OPENAI_API_KEY', required: false },
   { name: 'TWILIO_ACCOUNT_SID', required: true },
   { name: 'TWILIO_AUTH_TOKEN', required: true },
   { name: 'TWILIO_PHONE_NUMBER', required: true },
@@ -31,6 +32,18 @@ const ULTAURA_ENV_VARS: EnvVariable[] = [
   { name: 'ULTAURA_ENABLE_RECORDING', required: false, format: 'boolean', default: 'false' },
   { name: 'XAI_REALTIME_URL', required: false, format: 'wss', default: 'wss://api.x.ai/v1/realtime' },
   { name: 'TWILIO_AMD_ENABLED', required: false, format: 'boolean', default: 'true' },
+  { name: 'XAI_EMBEDDING_MODEL', required: false },
+  { name: 'OPENAI_EMBEDDING_MODEL', required: false },
+  { name: 'ULTAURA_SEMANTIC_SEARCH_ENABLED', required: false, format: 'boolean', default: 'true' },
+  { name: 'ULTAURA_EMBEDDING_SIMILARITY_THRESHOLD', required: false, format: 'decimal', default: '0.7' },
+  { name: 'ULTAURA_EMBEDDING_BATCH_SIZE', required: false, format: 'number', default: '10' },
+  { name: 'ULTAURA_TOPIC_EXCLUSIONS_ENABLED', required: false, format: 'boolean', default: 'true' },
+  { name: 'ULTAURA_MEMORY_DECAY_ENABLED', required: false, format: 'boolean', default: 'true' },
+  { name: 'ULTAURA_DECAY_RATE', required: false, format: 'decimal', default: '0.20' },
+  { name: 'ULTAURA_DECAY_THRESHOLD', required: false, format: 'decimal', default: '0.5' },
+  { name: 'ULTAURA_DECAY_CRON', required: false },
+  { name: 'ULTAURA_PER_LINE_DEK_ENABLED', required: false, format: 'boolean', default: 'true' },
+  { name: 'ULTAURA_PER_LINE_DEK_CUTOFF', required: false },
 
   // Optional - Redis (rate limiting)
   { name: 'UPSTASH_REDIS_REST_URL', required: false, format: 'url' },
@@ -98,6 +111,16 @@ export function validateEnvVariables(): void {
 
   if (warnings.length > 0) {
     warnings.forEach((warn) => console.warn(`[ENV WARNING] ${warn}`));
+  }
+
+  const semanticEnabled = process.env.ULTAURA_SEMANTIC_SEARCH_ENABLED !== 'false';
+  if (semanticEnabled && !process.env.OPENAI_API_KEY) {
+    console.error('\n========================================');
+    console.error('ENVIRONMENT VALIDATION FAILED');
+    console.error('========================================\n');
+    console.error('  - OPENAI_API_KEY is required when semantic search is enabled');
+    console.error('\n');
+    process.exit(1);
   }
 }
 

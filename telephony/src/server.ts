@@ -15,6 +15,8 @@ import { handleMediaStreamConnection } from './websocket/media-stream.js';
 import { startScheduler, stopScheduler } from './scheduler/call-scheduler.js';
 import { startWeeklySummaryScheduler, stopWeeklySummaryScheduler } from './scheduler/weekly-summary-scheduler.js';
 import { startRecordingDeletionScheduler, stopRecordingDeletionScheduler } from './scheduler/recording-deletion.js';
+import { startEmbeddingJob, stopEmbeddingJob } from './jobs/embedding-job.js';
+import { startMemoryDecayJob, stopMemoryDecayJob } from './jobs/decay-job.js';
 import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
 import { internalRecordingsRouter } from './routes/internal/recordings.js';
@@ -196,6 +198,8 @@ server.listen(PORT, () => {
   startScheduler();
   startWeeklySummaryScheduler();
   startRecordingDeletionScheduler();
+  startEmbeddingJob();
+  startMemoryDecayJob();
 });
 
 // Graceful shutdown
@@ -204,6 +208,8 @@ process.on('SIGTERM', () => {
   stopScheduler();
   stopWeeklySummaryScheduler();
   stopRecordingDeletionScheduler();
+  stopEmbeddingJob();
+  stopMemoryDecayJob();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
@@ -214,6 +220,9 @@ process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
   stopScheduler();
   stopWeeklySummaryScheduler();
+  stopRecordingDeletionScheduler();
+  stopEmbeddingJob();
+  stopMemoryDecayJob();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);

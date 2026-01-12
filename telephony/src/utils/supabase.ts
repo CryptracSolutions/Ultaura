@@ -124,7 +124,7 @@ export interface MemoryRow {
   line_id: string;
   created_at: string;
   updated_at: string | null;
-  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing';
+  type: 'fact' | 'preference' | 'follow_up' | 'context' | 'history' | 'wellbeing' | 'relationship' | 'temporal' | 'routine';
   key: string;
   value_ciphertext: Uint8Array;
   value_iv: Uint8Array;
@@ -137,6 +137,14 @@ export interface MemoryRow {
   active: boolean;
   privacy_scope: 'line_only' | 'shareable_with_payer';
   redaction_level: 'none' | 'low' | 'high';
+  last_accessed_at: string | null;
+  access_count: number | null;
+  pinned: boolean;
+  pinned_reason: string | null;
+  excluded_category: 'health_medical' | 'family_relationships' | 'finances' | 'location_address' | null;
+  embedding_pending: boolean;
+  expected_end_date: string | null;
+  expiry_pending: boolean;
 }
 
 export interface MinuteLedgerRow {
