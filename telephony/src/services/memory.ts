@@ -18,6 +18,7 @@ import type {
   RelationshipMemoryValue,
   TemporalMemoryValue,
   RoutineMemoryValue,
+  ExclusionCategory,
 } from '@ultaura/types';
 import { isDeepStrictEqual } from 'node:util';
 import { buildSearchableText, generateEmbedding, formatEmbeddingForDb } from './embedding.js';
@@ -110,6 +111,8 @@ function mapDecryptedMemory(m: {
   expectedEndDate?: string | null;
   expiryPending?: boolean;
 }): Memory {
+  const normalizedExcludedCategory = (m.excludedCategory ?? null) as ExclusionCategory | null;
+
   return {
     id: m.id,
     accountId: m.accountId,
@@ -129,7 +132,7 @@ function mapDecryptedMemory(m: {
     accessCount: m.accessCount ?? 0,
     pinned: m.pinned ?? false,
     pinnedReason: m.pinnedReason ?? null,
-    excludedCategory: m.excludedCategory ?? null,
+    excludedCategory: normalizedExcludedCategory,
     embeddingPending: m.embeddingPending ?? false,
     expectedEndDate: m.expectedEndDate ?? null,
     expiryPending: m.expiryPending ?? false,

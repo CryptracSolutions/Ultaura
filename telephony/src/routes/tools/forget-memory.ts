@@ -203,7 +203,7 @@ forgetMemoryRouter.post('/', async (req: Request, res: Response) => {
         });
 
       if (auditError) {
-        logger.error({ error: auditError, lineId, memoryKey: target.key }, 'Failed to log memory hard delete');
+        logger.error({ error: auditError, lineId, keys }, 'Failed to log memory hard delete');
       }
 
       logger.info({ lineId, keys, deletedTotal }, 'Memory hard deleted');
