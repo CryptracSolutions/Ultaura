@@ -17,6 +17,8 @@ import { recordCallEvent } from '../services/call-session.js';
 import { getMemoriesForLine } from '../services/memory.js';
 import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
+import type { CallPreview } from '../services/call-preview.js';
+import type { StoryArc } from '../services/retention-context.js';
 import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 import {
   GROK_INITIAL_CONNECT_TIMEOUT_MS,
@@ -45,6 +47,11 @@ interface GrokBridgeOptions {
   // Reminder call fields
   isReminderCall: boolean;
   reminderMessage: string | null;
+  isTestCall: boolean;
+  canReceiveInboundCalls: boolean;
+  pendingCallPreview?: CallPreview | null;
+  segmentPreferences?: string | null;
+  activeStoryArcs?: StoryArc[];
   // Plan info for upgrade context
   currentPlanId: PlanId;
   accountStatus: AccountStatus;
@@ -230,6 +237,8 @@ export class GrokBridge {
       minutesRemaining,
       isReminderCall,
       reminderMessage,
+      isTestCall,
+      canReceiveInboundCalls,
       timezone,
       currentPlanId,
       accountStatus,
@@ -265,10 +274,44 @@ export class GrokBridge {
       minutesRemaining,
       currentPlanId,
       accountStatus,
+      isTestCall,
+      canReceiveInboundCalls,
     });
 
     if (this.options.needsConsentPrompt) {
       prompt += `\n\n${this.getConsentPromptSection()}`;
+    }
+
+    if (this.options.pendingCallPreview) {
+      const preview = this.options.pendingCallPreview;
+      const isSurprise =
+        preview.topicType === 'free_form' && preview.topicKey === 'surprise_me';
+      const webSearchHint = preview.topicType === 'web_search'
+        ? '\nUse web_search to fetch current information about this topic and share it naturally.'
+        : '';
+      const surpriseHint = isSurprise
+        ? '\nThey asked for a surprise. Pick something delightful from their interests.'
+        : '';
+
+      prompt += `\n\n## Pending Call Preview
+The senior chose "${preview.topicDisplay}" for this call.
+Topic type: ${preview.topicType}${preview.segmentType ? `\nSegment type: ${preview.segmentType}` : ''}${webSearchHint}${surpriseHint}
+
+At the START of this call:
+1. Reference their choice: "Last time you said you'd like to hear about ${preview.topicDisplay}"
+2. If they seem confused, remind them gently
+3. Proceed with their chosen topic OR offer alternatives if they prefer`;
+    }
+
+    if (this.options.segmentPreferences) {
+      prompt += `\n\n${this.options.segmentPreferences}`;
+    }
+
+    if (this.options.activeStoryArcs?.length) {
+      const arcs = this.options.activeStoryArcs
+        .map((arc) => `- "${arc.title}" (${arc.storyType}): Chapter ${arc.currentChapter}/${arc.totalChapters}`)
+        .join('\n');
+      prompt += `\n\n## Active Story Arcs\n${arcs}`;
     }
 
     return prompt;
@@ -339,19 +382,25 @@ export class GrokBridge {
   }
 
   private getActiveTools() {
+    const retentionTools = new Set([
+      'store_call_preview',
+      'mark_preview_outcome',
+      'log_segment_engagement',
+      'manage_story_arc',
+    ]);
+
     return GROK_TOOLS.filter((tool) => {
-      if (tool.type !== 'function') {
-        return true;
-      }
+      if (tool.type !== 'function' || !tool.name) return true;
 
       if (tool.name === 'store_memory' || tool.name === 'update_memory') {
         return this.options.memoryEnabled;
       }
-
       if (tool.name === 'grant_memory_consent' || tool.name === 'deny_memory_consent') {
         return this.options.needsConsentPrompt;
       }
-
+      if ((this.options.isReminderCall || this.options.isTestCall) && retentionTools.has(tool.name)) {
+        return false;
+      }
       return true;
     });
   }
@@ -363,9 +412,7 @@ export class GrokBridge {
   }
 
   private triggerRecovery(type: 'error' | 'close', detail: string): void {
-    if (this.options.onDisconnect) {
-      this.options.onDisconnect(type, detail);
-    }
+    this.options.onDisconnect?.(type, detail);
   }
 
   private scanForSafetyKeywords(transcript: string): SafetyMatch[] {
@@ -471,10 +518,8 @@ export class GrokBridge {
 
     this.safetyState.lastDetectionTime = Date.now();
 
-    const highestTier =
-      matches.find((match) => match.tier === 'high')?.tier ||
-      matches.find((match) => match.tier === 'medium')?.tier ||
-      matches[0].tier;
+    const tierPriority: SafetyTier[] = ['high', 'medium', 'low'];
+    const highestTier = tierPriority.find((t) => matches.some((m) => m.tier === t)) ?? matches[0].tier;
 
     this.injectSafetyHint(highestTier);
   }
@@ -489,18 +534,18 @@ export class GrokBridge {
   private injectSafetyHint(tier: SafetyTier): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const hintText = tier === 'high'
-      ? '[SYSTEM: Safety keywords detected (high severity). Assess user wellbeing immediately and call log_safety_concern. Consider suggesting 988 crisis line.]'
-      : tier === 'medium'
-        ? '[SYSTEM: Safety keywords detected (medium severity). Assess user wellbeing and call log_safety_concern if warranted.]'
-        : '[SYSTEM: Potential distress keywords detected. Please respond with empathy and assess if follow-up is needed.]';
+    const SAFETY_HINTS: Record<SafetyTier, string> = {
+      high: '[SYSTEM: Safety keywords detected (high severity). Assess user wellbeing immediately and call log_safety_concern. Consider suggesting 988 crisis line.]',
+      medium: '[SYSTEM: Safety keywords detected (medium severity). Assess user wellbeing and call log_safety_concern if warranted.]',
+      low: '[SYSTEM: Potential distress keywords detected. Please respond with empathy and assess if follow-up is needed.]',
+    };
 
     const itemMessage = {
       type: 'conversation.item.create',
       item: {
         type: 'message',
         role: 'system',
-        content: [{ type: 'input_text', text: hintText }],
+        content: [{ type: 'input_text', text: SAFETY_HINTS[tier] }],
       },
     };
 
@@ -836,6 +881,58 @@ export class GrokBridge {
           });
           break;
 
+        case 'store_call_preview':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/store_call_preview`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            topicType: args.topic_type,
+            topicKey: args.topic_key,
+            topicDisplay: args.topic_display,
+            segmentType: args.segment_type,
+            segmentContext: args.segment_context,
+          });
+          break;
+
+        case 'mark_preview_outcome':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_preview_outcome`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            outcome: args.outcome,
+            previewId: args.preview_id || this.options.pendingCallPreview?.id,
+          });
+          break;
+
+        case 'log_segment_engagement':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/log_segment_engagement`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            segmentType: args.segment_type,
+            segmentDomain: args.segment_domain,
+            segmentContext: args.segment_context,
+            engagementSignals: args.engagement_signals,
+            durationSeconds: args.duration_seconds,
+            completed: args.completed,
+            seniorResponse: args.senior_response,
+            storyArcId: args.story_arc_id,
+            chapterCompleted: args.chapter_completed,
+          });
+          break;
+
+        case 'manage_story_arc':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/manage_story_arc`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            action: args.action,
+            storyArcId: args.story_arc_id,
+            storyType: args.story_type,
+            title: args.title,
+            description: args.description,
+            totalChapters: args.total_chapters,
+            chapterCompleted: args.chapter_completed,
+            storyState: args.story_state,
+          });
+          break;
+
         default:
           result = JSON.stringify({ error: `Unknown tool: ${name}` });
       }
@@ -861,14 +958,9 @@ export class GrokBridge {
 
   private extractAssistantTurn(message: GrokMessage): TurnSummary {
     const output = (message as any).output as Array<any> | undefined;
-    const transcript =
-      output
-        ?.find(o => o.type === 'message')
-        ?.content?.find((c: any) => c.transcript || c.text)?.transcript ||
-      output
-        ?.find(o => o.type === 'message')
-        ?.content?.find((c: any) => c.transcript || c.text)?.text ||
-      '';
+    const messageContent = output?.find((o) => o.type === 'message')?.content;
+    const textContent = messageContent?.find((c: any) => c.transcript || c.text);
+    const transcript = textContent?.transcript ?? textContent?.text ?? '';
 
     return {
       timestamp: Date.now(),

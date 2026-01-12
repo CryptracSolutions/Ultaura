@@ -1,7 +1,197 @@
 import type { GrokTool } from '@ultaura/types';
 
+const EMPTY_PARAMS = { type: 'object', properties: {}, required: [] as string[] };
+
+const REMINDER_ID_PARAM = {
+  reminder_id: { type: 'string', description: 'The ID of the reminder' },
+} as const;
+
+const TOPIC_CODES = [
+  'family',
+  'friends',
+  'activities',
+  'interests',
+  'memories',
+  'plans',
+  'daily_life',
+  'entertainment',
+  'feelings',
+  'requests',
+] as const;
+
+const CONCERN_CODES = [
+  'loneliness',
+  'sadness',
+  'anxiety',
+  'sleep',
+  'pain',
+  'fatigue',
+  'appetite',
+] as const;
+
 export const GROK_TOOLS: GrokTool[] = [
   { type: 'web_search' },
+  {
+    type: 'function',
+    name: 'store_call_preview',
+    description: `Store the senior's choice for the next call topic. Call this at the END of the conversation when they select what they want to discuss next time.
+
+WHEN TO CALL:
+- After offering 2-3 topic choices based on conversation or their interests
+- When senior expresses interest in a topic for "next time"
+- When wrapping up a multi-call story/segment
+
+Topic types:
+- memory_follow_up: Continue a personal story they shared
+- web_search: News, weather, sports, local events
+- segment: Trivia, story, or learning journey
+- free_form: General topic of interest`,
+    parameters: {
+      type: 'object',
+      properties: {
+        topic_type: {
+          type: 'string',
+          enum: ['memory_follow_up', 'web_search', 'segment', 'free_form'],
+          description: 'Category of the selected topic',
+        },
+        topic_key: {
+          type: 'string',
+          description: 'Machine-readable key (e.g., "baseball_news", "lighthouse_story_ch2")',
+        },
+        topic_display: {
+          type: 'string',
+          description: 'Human-readable description for confirmation (e.g., "baseball news this week")',
+        },
+        segment_type: {
+          type: 'string',
+          enum: ['trivia', 'story', 'learning'],
+          description: 'For segment type: which segment format',
+        },
+        segment_context: {
+          type: 'object',
+          description: 'Additional context (story chapter, trivia domain, etc.)',
+        },
+      },
+      required: ['topic_type', 'topic_key', 'topic_display'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'mark_preview_outcome',
+    description: `Record how the senior responded to the call preview at the start of the call.
+Call this after you reference the preview and they respond.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        outcome: {
+          type: 'string',
+          enum: ['engaged', 'declined', 'redirected'],
+          description: 'How they responded to the preview choice',
+        },
+        preview_id: {
+          type: 'string',
+          description: 'Optional preview ID if provided in context',
+        },
+      },
+      required: ['outcome'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'log_segment_engagement',
+    description: `Log engagement with a content segment (trivia, story, learning).
+Call this when a segment ends or is interrupted.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        segment_type: {
+          type: 'string',
+          enum: ['trivia', 'story', 'learning', 'memory_lane'],
+          description: 'Type of segment',
+        },
+        segment_domain: {
+          type: 'string',
+          description: 'Topic domain (e.g., "history", "sports", "1960s")',
+        },
+        segment_context: {
+          type: 'object',
+          description: 'Segment context (story chapter, trivia topic, etc.)',
+        },
+        engagement_signals: {
+          type: 'object',
+          description: 'Engagement signals (e.g., laughs, questions, comments)',
+        },
+        duration_seconds: {
+          type: 'integer',
+          description: 'Approximate segment duration',
+        },
+        completed: {
+          type: 'boolean',
+          description: 'Whether segment reached natural end',
+        },
+        senior_response: {
+          type: 'string',
+          enum: ['enjoyed', 'neutral', 'declined', 'interrupted'],
+          description: 'Overall senior reaction',
+        },
+        story_arc_id: {
+          type: 'string',
+          description: 'For stories: the arc ID to update progress',
+        },
+        chapter_completed: {
+          type: 'integer',
+          description: 'For stories: chapter number just completed',
+        },
+      },
+      required: ['segment_type', 'senior_response'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'manage_story_arc',
+    description: `Create, update, or complete a story arc for multi-call narratives.
+Use when starting a new story series or updating progress.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'update', 'complete', 'abandon'],
+          description: 'Action to perform',
+        },
+        story_arc_id: {
+          type: 'string',
+          description: 'For update/complete/abandon: existing arc ID',
+        },
+        story_type: {
+          type: 'string',
+          enum: ['serial', 'learning_journey'],
+          description: 'For create: type of story',
+        },
+        title: {
+          type: 'string',
+          description: 'For create: story title',
+        },
+        description: {
+          type: 'string',
+          description: 'For create: brief description',
+        },
+        total_chapters: {
+          type: 'integer',
+          description: 'For create: planned number of chapters (default 5)',
+        },
+        chapter_completed: {
+          type: 'integer',
+          description: 'For update: chapter number just completed',
+        },
+        story_state: {
+          type: 'object',
+          description: 'Current state: characters, plot points, cliffhanger',
+        },
+      },
+      required: ['action'],
+    },
+  },
   {
     type: 'function',
     name: 'set_reminder',
@@ -224,21 +414,13 @@ Do NOT confirm the update verbally - just update silently and continue.`,
     type: 'function',
     name: 'grant_memory_consent',
     description: 'Call when the user agrees to have their conversations remembered for personalization.',
-    parameters: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
+    parameters: EMPTY_PARAMS,
   },
   {
     type: 'function',
     name: 'deny_memory_consent',
     description: 'Call when the user declines to have their conversations remembered.',
-    parameters: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
+    parameters: EMPTY_PARAMS,
   },
   {
     type: 'function',
@@ -264,18 +446,7 @@ Do NOT confirm the update verbally - just update silently and continue.`,
       properties: {
         topic_code: {
           type: 'string',
-          enum: [
-            'family',
-            'friends',
-            'activities',
-            'interests',
-            'memories',
-            'plans',
-            'daily_life',
-            'entertainment',
-            'feelings',
-            'requests',
-          ],
+          enum: TOPIC_CODES,
           description: 'Topic code to mark private',
         },
       },
@@ -336,47 +507,15 @@ Do NOT confirm the update verbally - just update silently and continue.`,
           items: {
             type: 'object',
             properties: {
-              code: {
-                type: 'string',
-                enum: [
-                  'family',
-                  'friends',
-                  'activities',
-                  'interests',
-                  'memories',
-                  'plans',
-                  'daily_life',
-                  'entertainment',
-                  'feelings',
-                  'requests',
-                ],
-              },
-              weight: {
-                type: 'number',
-                minimum: 0,
-                maximum: 1,
-              },
+              code: { type: 'string', enum: TOPIC_CODES },
+              weight: { type: 'number', minimum: 0, maximum: 1 },
             },
             required: ['code', 'weight'],
           },
         },
         private_topics: {
           type: 'array',
-          items: {
-            type: 'string',
-            enum: [
-              'family',
-              'friends',
-              'activities',
-              'interests',
-              'memories',
-              'plans',
-              'daily_life',
-              'entertainment',
-              'feelings',
-              'requests',
-            ],
-          },
+          items: { type: 'string', enum: TOPIC_CODES },
           description: 'Topics to hide for this call only',
         },
         concerns: {
@@ -384,32 +523,10 @@ Do NOT confirm the update verbally - just update silently and continue.`,
           items: {
             type: 'object',
             properties: {
-              code: {
-                type: 'string',
-                enum: [
-                  'loneliness',
-                  'sadness',
-                  'anxiety',
-                  'sleep',
-                  'pain',
-                  'fatigue',
-                  'appetite',
-                ],
-              },
-              severity: {
-                type: 'integer',
-                minimum: 1,
-                maximum: 3,
-              },
-              confidence: {
-                type: 'number',
-                minimum: 0,
-                maximum: 1,
-              },
-              is_novel: {
-                type: 'boolean',
-                description: 'Whether this concern is newly observed (optional).',
-              },
+              code: { type: 'string', enum: CONCERN_CODES },
+              severity: { type: 'integer', minimum: 1, maximum: 3 },
+              confidence: { type: 'number', minimum: 0, maximum: 1 },
+              is_novel: { type: 'boolean', description: 'Whether this concern is newly observed (optional).' },
             },
             required: ['code', 'severity', 'confidence'],
           },
@@ -421,17 +538,7 @@ Do NOT confirm the update verbally - just update silently and continue.`,
           type: 'array',
           items: {
             type: 'string',
-            enum: [
-              'loneliness',
-              'sadness',
-              'anxiety',
-              'sleep',
-              'pain',
-              'fatigue',
-              'appetite',
-              'wants_more_contact',
-              'missed_routine',
-            ],
+            enum: [...CONCERN_CODES, 'wants_more_contact', 'missed_routine'],
           },
         },
         confidence_overall: {
@@ -500,16 +607,11 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
       required: ['language_code'],
     },
   },
-  // Reminder management tools
   {
     type: 'function',
     name: 'list_reminders',
     description: 'List the user\'s upcoming reminders. Call this when they ask "what reminders do I have?", "show me my reminders", etc.',
-    parameters: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
+    parameters: EMPTY_PARAMS,
   },
   {
     type: 'function',
@@ -540,12 +642,7 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
     description: 'Pause a reminder so it stops firing until resumed. Call when user says "pause my reminder", "stop the medication reminder for now", etc.',
     parameters: {
       type: 'object',
-      properties: {
-        reminder_id: {
-          type: 'string',
-          description: 'The ID of the reminder to pause',
-        },
-      },
+      properties: REMINDER_ID_PARAM,
       required: ['reminder_id'],
     },
   },
@@ -555,12 +652,7 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
     description: 'Resume a paused reminder. Call when user says "start my reminder again", "unpause the medication reminder", etc.',
     parameters: {
       type: 'object',
-      properties: {
-        reminder_id: {
-          type: 'string',
-          description: 'The ID of the reminder to resume',
-        },
-      },
+      properties: REMINDER_ID_PARAM,
       required: ['reminder_id'],
     },
   },
@@ -590,12 +682,7 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
     description: 'Cancel a reminder completely. For recurring reminders, this cancels the entire series. Call when user says "delete my reminder", "cancel the appointment reminder", etc.',
     parameters: {
       type: 'object',
-      properties: {
-        reminder_id: {
-          type: 'string',
-          description: 'The ID of the reminder to cancel',
-        },
-      },
+      properties: REMINDER_ID_PARAM,
       required: ['reminder_id'],
     },
   },

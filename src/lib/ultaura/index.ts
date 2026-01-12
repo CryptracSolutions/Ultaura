@@ -10,6 +10,7 @@ export * from './reminder-events';
 export * from './usage';
 export * from './checkout';
 export * from './privacy';
+export * from './retention';
 
 export * from './types';
 export * from './constants';

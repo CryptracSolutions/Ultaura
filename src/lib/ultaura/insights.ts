@@ -18,6 +18,7 @@ import type {
   WeeklySummaryRow,
 } from './types';
 import { INSIGHTS } from './constants';
+import type { SegmentType } from './types/retention';
 
 const logger = getLogger();
 
@@ -165,10 +166,12 @@ function isCallAnswered(session: {
   answered_by: string | null;
   seconds_connected: number | null;
 }): boolean {
-  if (session.answered_by === 'human') return true;
-  if (session.answered_by === 'unknown') return true;
-  if (session.answered_by === null && (session.seconds_connected ?? 0) > 0) return true;
-  return false;
+  const { answered_by, seconds_connected } = session;
+  return (
+    answered_by === 'human' ||
+    answered_by === 'unknown' ||
+    (answered_by === null && (seconds_connected ?? 0) > 0)
+  );
 }
 
 function toSeverityLabel(severity: number): 'mild' | 'moderate' | 'significant' {
@@ -201,6 +204,92 @@ function summarizeMood(counts: { positive: number; neutral: number; low: number 
   return 'Neutral week';
 }
 
+function computeSegmentStats(
+  rows: Array<{ segment_type: string; senior_response: string | null }>
+): Map<SegmentType, { enjoyed: number; total: number }> {
+  const stats = new Map<SegmentType, { enjoyed: number; total: number }>();
+  for (const row of rows) {
+    const type = row.segment_type as SegmentType;
+    const entry = stats.get(type) ?? { enjoyed: 0, total: 0 };
+    entry.total += 1;
+    if (row.senior_response === 'enjoyed') {
+      entry.enjoyed += 1;
+    }
+    stats.set(type, entry);
+  }
+  return stats;
+}
+
+function computePreferredSegmentType(
+  rows: Array<{ segment_type: string; senior_response: string | null }>
+): SegmentType | null {
+  if (!rows.length) return null;
+
+  const stats = computeSegmentStats(rows);
+  let preferred: SegmentType | null = null;
+  let bestRate = -1;
+  let bestCount = 0;
+
+  stats.forEach((entry, type) => {
+    const rate = entry.total ? entry.enjoyed / entry.total : 0;
+    if (rate > bestRate || (rate === bestRate && entry.total > bestCount)) {
+      preferred = type;
+      bestRate = rate;
+      bestCount = entry.total;
+    }
+  });
+
+  return preferred;
+}
+
+function computeFavoriteSegments(
+  rows: Array<{ segment_type: string; senior_response: string | null }>,
+  limit: number = 3
+): string[] {
+  if (!rows.length) return [];
+
+  const stats = computeSegmentStats(rows);
+  return Array.from(stats.entries())
+    .map(([type, entry]) => ({
+      type,
+      enjoymentRate: entry.total ? entry.enjoyed / entry.total : 0,
+      total: entry.total,
+    }))
+    .sort((a, b) => b.enjoymentRate - a.enjoymentRate || b.total - a.total)
+    .slice(0, limit)
+    .map((entry) => entry.type);
+}
+
+function computeInboundTrend(
+  sessions: CallSessionRow[],
+  windowStart: DateTime,
+  windowMid: DateTime,
+  windowEnd: DateTime,
+  timezone: string
+): 'increasing' | 'stable' | 'decreasing' {
+  const firstInbound = sessions.filter(
+    (session) =>
+      session.direction === 'inbound' &&
+      isWithinWindow(session.created_at, windowStart, windowMid, timezone)
+  ).length;
+
+  const secondInbound = sessions.filter(
+    (session) =>
+      session.direction === 'inbound' &&
+      isWithinWindow(session.created_at, windowMid, windowEnd, timezone)
+  ).length;
+
+  if (secondInbound > firstInbound + 1) {
+    return 'increasing';
+  }
+
+  if (secondInbound + 1 < firstInbound) {
+    return 'decreasing';
+  }
+
+  return 'stable';
+}
+
 interface DecryptedInsightEntry {
   callSessionId: string;
   createdAt: string;
@@ -221,12 +310,12 @@ function filterInsightEntries(
     minConfidence?: number | null;
   }
 ): DecryptedInsightEntry[] {
-  const minConfidence = options.minConfidence ?? null;
+  const { start, end, timezone, minConfidence = null } = options;
   return entries.filter((entry) => {
     if (minConfidence !== null && entry.insights.confidence_overall < minConfidence) {
       return false;
     }
-    return isWithinWindow(entry.createdAt, options.start, options.end, options.timezone);
+    return isWithinWindow(entry.createdAt, start, end, timezone);
   });
 }
 
@@ -351,18 +440,20 @@ export async function getNotificationPreferences(
     return existing as NotificationPreferencesRow;
   }
 
+  const defaultPrefs = {
+    account_id: accountId,
+    line_id: lineId,
+    weekly_summary_enabled: true,
+    weekly_summary_format: 'email' as const,
+    weekly_summary_day: 'sunday' as const,
+    weekly_summary_time: '18:00',
+    alert_missed_calls_enabled: true,
+    alert_missed_calls_threshold: 3,
+  };
+
   const { data: created, error: insertError } = await client
     .from('ultaura_notification_preferences')
-    .insert({
-      account_id: accountId,
-      line_id: lineId,
-      weekly_summary_enabled: true,
-      weekly_summary_format: 'email',
-      weekly_summary_day: 'sunday',
-      weekly_summary_time: '18:00',
-      alert_missed_calls_enabled: true,
-      alert_missed_calls_threshold: 3,
-    })
+    .insert(defaultPrefs)
     .select('*')
     .single();
 
@@ -381,14 +472,7 @@ export async function getNotificationPreferences(
     }
 
     logger.error({ error: insertError, accountId, lineId }, 'Failed to create notification preferences');
-    return {
-      weekly_summary_enabled: true,
-      weekly_summary_format: 'email',
-      weekly_summary_day: 'sunday',
-      weekly_summary_time: '18:00',
-      alert_missed_calls_enabled: true,
-      alert_missed_calls_threshold: 3,
-    } as NotificationPreferencesRow;
+    return defaultPrefs as NotificationPreferencesRow;
   }
 
   return created as NotificationPreferencesRow;
@@ -518,7 +602,7 @@ export async function getLineBaseline(lineId: string): Promise<LineBaselineRow |
     return null;
   }
 
-  return (data as LineBaselineRow | null) ?? null;
+  return data as LineBaselineRow | null;
 }
 
 export async function getWeeklySummary(
@@ -598,7 +682,7 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     throw new Error('Failed to compute insights dashboard window');
   }
 
-  const [sessions, insightsRows, baseline] = await Promise.all([
+  const [sessions, insightsRows, baseline, previewRows, segmentRows, storyArcs] = await Promise.all([
     client
       .from('ultaura_call_sessions')
       .select('*')
@@ -616,6 +700,21 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
       .select('*')
       .eq('line_id', lineId)
       .maybeSingle(),
+    client
+      .from('ultaura_call_previews')
+      .select('*')
+      .eq('line_id', lineId)
+      .gte('created_at', sessionWindowStartUtc),
+    client
+      .from('ultaura_segment_engagement')
+      .select('*')
+      .eq('line_id', lineId)
+      .gte('created_at', sessionWindowStartUtc),
+    client
+      .from('ultaura_story_arcs')
+      .select('*')
+      .eq('line_id', lineId)
+      .eq('status', 'active'),
   ]);
 
   if (sessions.error) {
@@ -628,8 +727,23 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     return null;
   }
 
+  if (previewRows.error) {
+    logger.error({ error: previewRows.error, lineId }, 'Failed to fetch call previews for dashboard');
+  }
+
+  if (segmentRows.error) {
+    logger.error({ error: segmentRows.error, lineId }, 'Failed to fetch segment engagement for dashboard');
+  }
+
+  if (storyArcs.error) {
+    logger.error({ error: storyArcs.error, lineId }, 'Failed to fetch story arcs for dashboard');
+  }
+
   const sessionList = (sessions.data || []) as CallSessionRow[];
   const insightsList = insightsRows.data || [];
+  const previewList = previewRows.data || [];
+  const segmentList = segmentRows.data || [];
+  const activeStoryArcs = storyArcs.data || [];
 
   const decryptedInsights: DecryptedInsightEntry[] = [];
 
@@ -656,13 +770,11 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     }
   }
 
-  const insightsBySession = new Map<string, CallInsights>();
-  decryptedInsights.forEach((entry) => {
-    insightsBySession.set(entry.callSessionId, entry.insights);
-  });
+  const insightsBySession = new Map(
+    decryptedInsights.map((entry) => [entry.callSessionId, entry.insights])
+  );
 
-  const filteredSessions = sessionList.filter((session) => !session.is_test_call);
-  const thirtyDaySessions = filteredSessions;
+  const thirtyDaySessions = sessionList.filter((session) => !session.is_test_call);
 
   const dayBuckets = new Map<string, { scheduled: number; reminder: number; inbound: number }>();
   for (let i = 0; i < 30; i += 1) {
@@ -705,11 +817,11 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     mood: entry.insights.mood_overall,
   }));
 
-  const weekSessions = filteredSessions.filter((session) =>
+  const weekSessions = thirtyDaySessions.filter((session) =>
     DateTime.fromISO(session.created_at) >= DateTime.fromISO(weekStartUtc) &&
     DateTime.fromISO(session.created_at) < DateTime.fromISO(weekEndUtc)
   );
-  const priorWeekSessions = filteredSessions.filter((session) =>
+  const priorWeekSessions = thirtyDaySessions.filter((session) =>
     DateTime.fromISO(session.created_at) >= DateTime.fromISO(priorWeekStartUtc) &&
     DateTime.fromISO(session.created_at) < DateTime.fromISO(weekStartUtc)
   );
@@ -724,6 +836,7 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   const scheduledCalls = scheduledWeek.length;
   const answeredCalls = answeredScheduledWeek.length;
   const missedCalls = Math.max(0, scheduledCalls - answeredCalls);
+  const inboundCallsWeek = weekSessions.filter((session) => session.direction === 'inbound').length;
 
   const answeredAllWeek = weekSessions.filter((session) =>
     isCallAnswered({ answered_by: session.answered_by, seconds_connected: session.seconds_connected })
@@ -925,6 +1038,47 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
       };
     });
 
+  const previewOutcomes = previewList.filter((row) => row.follow_through_response !== null);
+  const previewEngaged = previewOutcomes.filter((row) => row.followed_through === true).length;
+  const callPreviewFollowThrough = previewOutcomes.length
+    ? Math.round((previewEngaged / previewOutcomes.length) * 100)
+    : 0;
+
+  const segmentCompleted = segmentList.filter((row) => row.completed === true).length;
+  const segmentCompletionRate = segmentList.length
+    ? Math.round((segmentCompleted / segmentList.length) * 100)
+    : 0;
+
+  const segmentDurations = segmentList
+    .map((row) => row.duration_seconds)
+    .filter((value): value is number => typeof value === 'number');
+  const averageSegmentDuration = segmentDurations.length
+    ? Math.round(segmentDurations.reduce((sum, value) => sum + value, 0) / segmentDurations.length)
+    : 0;
+
+  const preferredSegmentType = computePreferredSegmentType(segmentList);
+  const favoriteSegments = computeFavoriteSegments(segmentList);
+
+  const inboundCallCount = thirtyDaySessions.filter((session) => session.direction === 'inbound').length;
+
+  const trendWindowStart = todayStart.minus({ days: 28 });
+  const trendWindowMid = todayStart.minus({ days: 14 });
+  const inboundCallTrend = computeInboundTrend(
+    thirtyDaySessions,
+    trendWindowStart,
+    trendWindowMid,
+    todayStart,
+    line.timezone
+  );
+
+  const activeStoryArcSummaries = activeStoryArcs.map((arc) => ({
+    id: arc.id,
+    title: arc.title,
+    progress: arc.total_chapters
+      ? Math.round((arc.current_chapter / arc.total_chapters) * 100)
+      : 0,
+  }));
+
   return {
     lineId: line.id,
     lineShortId: line.short_id,
@@ -935,6 +1089,24 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     isPaused: privacy?.is_paused ?? false,
     pausedReason: privacy?.paused_reason ?? null,
     privateTopicCodes: (privacy?.private_topic_codes as string[]) || [],
+    retention: {
+      retentionFeatures: {
+        callPreviewEnabled: previewList.length > 0,
+        segmentsEnabled: segmentList.length > 0,
+        favoriteSegments,
+        activeStoryArcs: activeStoryArcSummaries,
+      },
+      engagementMetrics: {
+        callPreviewFollowThrough,
+        segmentCompletionRate,
+        preferredSegmentType,
+        averageSegmentDuration,
+      },
+      inboundMetrics: {
+        inboundCallCount,
+        inboundCallTrend,
+      },
+    },
     summary: {
       scheduledCalls,
       answeredCalls,
@@ -946,6 +1118,7 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
       engagementNote,
       showMissedCallsWarning,
       missedCalls,
+      inboundCalls: inboundCallsWeek,
       needsFollowUp,
       followUpReasons,
       socialNeedNote,
@@ -978,14 +1151,7 @@ export async function updateNotificationPreferences(
 
   const client = await getAdminClient();
   const existing = await getNotificationPreferences(accountId, lineId);
-  const base = existing ?? {
-    weekly_summary_enabled: true,
-    weekly_summary_format: 'email',
-    weekly_summary_day: 'sunday',
-    weekly_summary_time: '18:00',
-    alert_missed_calls_enabled: true,
-    alert_missed_calls_threshold: 3,
-  };
+  const base = existing ?? {};
 
   const { error } = await client
     .from('ultaura_notification_preferences')
@@ -1003,6 +1169,54 @@ export async function updateNotificationPreferences(
   }
 }
 
+async function fetchInsightPrivacyBase(
+  client: SupabaseClient,
+  lineId: string
+): Promise<{
+  insights_enabled: boolean;
+  is_paused: boolean;
+  paused_reason: string | null;
+  paused_at: string | null;
+  private_topic_codes: unknown[];
+}> {
+  const { data: existing, error } = await client
+    .from('ultaura_insight_privacy')
+    .select('insights_enabled, is_paused, paused_reason, paused_at, private_topic_codes')
+    .eq('line_id', lineId)
+    .maybeSingle();
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to fetch insight privacy');
+    throw new Error('Failed to fetch insight privacy');
+  }
+
+  return {
+    insights_enabled: existing?.insights_enabled ?? true,
+    is_paused: existing?.is_paused ?? false,
+    paused_reason: existing?.paused_reason ?? null,
+    paused_at: existing?.paused_at ?? null,
+    private_topic_codes: existing?.private_topic_codes ?? [],
+  };
+}
+
+async function upsertInsightPrivacy(
+  client: SupabaseClient,
+  lineId: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { error } = await client
+    .from('ultaura_insight_privacy')
+    .upsert(
+      { line_id: lineId, ...data, updated_at: new Date().toISOString() },
+      { onConflict: 'line_id' }
+    );
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to update insight privacy');
+    throw new Error('Failed to update insight privacy');
+  }
+}
+
 export async function updateInsightPrivacy(
   lineId: string,
   settings: Partial<InsightPrivacyRow>
@@ -1013,42 +1227,12 @@ export async function updateInsightPrivacy(
   }
 
   const client = await getAdminClient();
-  const { data: existing, error: fetchError } = await client
-    .from('ultaura_insight_privacy')
-    .select('insights_enabled, is_paused, paused_reason, paused_at, private_topic_codes')
-    .eq('line_id', lineId)
-    .maybeSingle();
-
-  if (fetchError) {
-    logger.error({ error: fetchError, lineId }, 'Failed to fetch insight privacy');
-    throw new Error('Failed to update insight privacy');
-  }
-
-  const base = {
-    insights_enabled: existing?.insights_enabled ?? true,
-    is_paused: existing?.is_paused ?? false,
-    paused_reason: existing?.paused_reason ?? null,
-    paused_at: existing?.paused_at ?? null,
-    private_topic_codes: existing?.private_topic_codes ?? [],
-  };
-
+  const base = await fetchInsightPrivacyBase(client, lineId);
   const updates = Object.fromEntries(
     Object.entries(settings).filter(([, value]) => value !== undefined)
   );
 
-  const { error } = await client
-    .from('ultaura_insight_privacy')
-    .upsert({
-      line_id: lineId,
-      ...base,
-      ...updates,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'line_id' });
-
-  if (error) {
-    logger.error({ error, lineId }, 'Failed to update insight privacy');
-    throw new Error('Failed to update insight privacy');
-  }
+  await upsertInsightPrivacy(client, lineId, { ...base, ...updates });
 }
 
 export async function setPauseMode(
@@ -1062,48 +1246,10 @@ export async function setPauseMode(
   }
 
   const client = await getAdminClient();
-  const { data: existing, error: fetchError } = await client
-    .from('ultaura_insight_privacy')
-    .select('insights_enabled, is_paused, paused_reason, paused_at, private_topic_codes')
-    .eq('line_id', lineId)
-    .maybeSingle();
+  const base = await fetchInsightPrivacyBase(client, lineId);
+  const pauseUpdate = enabled
+    ? { is_paused: true, paused_at: new Date().toISOString(), paused_reason: reason || null }
+    : { is_paused: false, paused_at: null, paused_reason: null };
 
-  if (fetchError) {
-    logger.error({ error: fetchError, lineId }, 'Failed to fetch insight privacy for pause mode');
-    throw new Error('Failed to update pause mode');
-  }
-
-  const base = {
-    insights_enabled: existing?.insights_enabled ?? true,
-    is_paused: existing?.is_paused ?? false,
-    paused_reason: existing?.paused_reason ?? null,
-    paused_at: existing?.paused_at ?? null,
-    private_topic_codes: existing?.private_topic_codes ?? [],
-  };
-
-  const update = enabled
-    ? {
-        is_paused: true,
-        paused_at: new Date().toISOString(),
-        paused_reason: reason || null,
-      }
-    : {
-        is_paused: false,
-        paused_at: null,
-        paused_reason: null,
-      };
-
-  const { error } = await client
-    .from('ultaura_insight_privacy')
-    .upsert({
-      line_id: lineId,
-      ...base,
-      ...update,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'line_id' });
-
-  if (error) {
-    logger.error({ error, lineId }, 'Failed to update pause mode');
-    throw new Error('Failed to update pause mode');
-  }
+  await upsertInsightPrivacy(client, lineId, { ...base, ...pauseUpdate });
 }

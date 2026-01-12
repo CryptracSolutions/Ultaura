@@ -20,7 +20,15 @@ import {
   Bell,
   ChevronRight,
 } from 'lucide-react';
-import type { LineRow, UsageSummary, CallSessionRow } from '~/lib/ultaura/types';
+import type {
+  LineRow,
+  UsageSummary,
+  CallSessionRow,
+  RetentionMetrics,
+  CallPreview,
+  StoryArc,
+  SegmentStats,
+} from '~/lib/ultaura/types';
 import { updateLine, deleteLine } from '~/lib/ultaura/lines';
 import { initiateTestCall } from '~/lib/ultaura/usage';
 import { formatTime } from '~/lib/ultaura/constants';
@@ -28,6 +36,60 @@ import { CallActivityList } from './components/CallActivityList';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 const MAX_INTEREST_TOPICS = 5;
+
+const METRIC_CARD_CLASS = 'rounded-lg border border-border bg-muted/40 p-4';
+const CARD_CLASS = 'bg-card rounded-xl border border-border p-6';
+const CARD_HEADER_CLASS = 'flex items-center gap-2';
+const BTN_PRIMARY_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+const BTN_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50';
+const QUICK_LINK_CLASS = 'flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group';
+
+interface MetricCardProps {
+  label: string;
+  value: string;
+  large?: boolean;
+}
+
+function MetricCard({ label, value, large = false }: MetricCardProps): JSX.Element {
+  return (
+    <div className={METRIC_CARD_CLASS}>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={`font-semibold text-foreground ${large ? 'text-lg' : 'text-sm'} capitalize`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+interface QuickLinkProps {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+  zeroLabel: string;
+  itemLabel: string;
+}
+
+function QuickLink({ href, icon, title, count, zeroLabel, itemLabel }: QuickLinkProps): JSX.Element {
+  const description = count === 0
+    ? zeroLabel
+    : `${count} ${itemLabel}${count !== 1 ? 's' : ''}`;
+
+  return (
+    <Link href={href} className={QUICK_LINK_CLASS}>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+          {icon}
+        </div>
+        <div>
+          <p className="font-medium text-foreground">{title}</p>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+    </Link>
+  );
+}
 
 // Curated topics that tend to work well for 60+ conversation starters
 const INTEREST_TOPIC_OPTIONS = [
@@ -61,6 +123,10 @@ interface LineDetailClientProps {
   callSessions: CallSessionRow[];
   activeSchedulesCount: number;
   pendingRemindersCount: number;
+  retentionMetrics: RetentionMetrics;
+  previewHistory: CallPreview[];
+  storyArcs: StoryArc[];
+  segmentStats: SegmentStats;
   isReadOnly?: boolean;
   isTrialActive?: boolean;
 }
@@ -71,6 +137,10 @@ export function LineDetailClient({
   callSessions,
   activeSchedulesCount,
   pendingRemindersCount,
+  retentionMetrics,
+  previewHistory,
+  storyArcs,
+  segmentStats,
   isReadOnly = false,
   isTrialActive = false,
 }: LineDetailClientProps) {
@@ -125,6 +195,53 @@ export function LineDetailClient({
     }
     return e164;
   };
+
+  const favoriteSegments = Object.entries(segmentStats.byType)
+    .filter(([, stats]) => stats.count > 0)
+    .map(([type, stats]) => ({
+      type: type.replace(/_/g, ' '),
+      score: stats.enjoymentRate,
+      count: stats.count,
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.count - a.count;
+    })
+    .slice(0, 3)
+    .map((entry) => entry.type);
+
+  const preferredSegmentLabel = retentionMetrics.preferredSegmentType
+    ? retentionMetrics.preferredSegmentType.replace(/_/g, ' ')
+    : 'None yet';
+
+  const formatPreviewDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  function getPreviewStatusLabel(preview: CallPreview): string {
+    if (preview.followThroughResponse === 'engaged') return 'Engaged';
+    if (preview.followThroughResponse === 'redirected') return 'Redirected';
+    if (preview.status === 'declined') return 'Declined';
+    if (preview.status === 'expired') return 'Expired';
+    if (preview.status === 'used') return 'Used';
+    return 'Pending';
+  }
+
+  function getStatusBadgeClass(status: string): string {
+    if (status === 'active') return 'bg-success/10 text-success';
+    if (status === 'paused') return 'bg-warning/10 text-warning';
+    return 'bg-muted text-muted-foreground';
+  }
+
+  function getFeatureBadgeClass(enabled: boolean): string {
+    return enabled
+      ? 'bg-primary/10 text-primary'
+      : 'bg-muted text-muted-foreground';
+  }
 
   const handleDelete = async () => {
     if (isReadOnly) return;
@@ -251,7 +368,7 @@ export function LineDetailClient({
             <button
               onClick={handleTestCall}
               disabled={isReadOnly || isTestCalling}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+              className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto`}
             >
               <Play className="w-4 h-4" />
               {isTestCalling ? 'Calling...' : 'Test Call'}
@@ -276,9 +393,9 @@ export function LineDetailClient({
       )}
 
       {/* Settings Card */}
-      <div className="bg-card rounded-xl border border-border p-6 mb-6">
+      <div className={`${CARD_CLASS} mb-6`}>
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div className={CARD_HEADER_CLASS}>
             <Settings className="w-5 h-5 text-muted-foreground" />
             <h2 className="font-semibold text-foreground">Line Settings</h2>
           </div>
@@ -304,15 +421,7 @@ export function LineDetailClient({
           <div>
             <dt className="text-sm text-muted-foreground">Status</dt>
             <dd>
-              <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  line.status === 'active'
-                    ? 'bg-success/10 text-success'
-                    : line.status === 'paused'
-                    ? 'bg-warning/10 text-warning'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(line.status)}`}>
                 {line.status.charAt(0).toUpperCase() + line.status.slice(1)}
               </span>
             </dd>
@@ -321,9 +430,9 @@ export function LineDetailClient({
       </div>
 
       {/* Conversation Topics Card */}
-      <div className="bg-card rounded-xl border border-border p-6 mb-6">
+      <div className={`${CARD_CLASS} mb-6`}>
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div className={CARD_HEADER_CLASS}>
             <MessageCircle className="w-5 h-5 text-muted-foreground" />
             <h2 className="font-semibold text-foreground">Conversation topics</h2>
           </div>
@@ -426,7 +535,7 @@ export function LineDetailClient({
                 type="button"
                 onClick={cancelEditingTopics}
                 disabled={isSavingTopics}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                className={`${BTN_OUTLINE_CLASS} w-full sm:w-auto`}
               >
                 <X className="w-4 h-4" />
                 Cancel
@@ -435,7 +544,7 @@ export function LineDetailClient({
                 type="button"
                 onClick={saveTopics}
                 disabled={isSavingTopics || isReadOnly}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto`}
               >
                 <Save className="w-4 h-4" />
                 {isSavingTopics ? 'Saving...' : 'Save Changes'}
@@ -447,12 +556,9 @@ export function LineDetailClient({
             <div>
               <div className="text-sm text-muted-foreground">Topics they enjoy</div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {(line.seed_interests ?? []).length ? (
-                  (line.seed_interests ?? []).map((topic) => (
-                    <span
-                      key={topic}
-                      className="inline-flex items-center rounded-full border border-primary/10 bg-primary/10 px-3 py-1 text-xs text-primary"
-                    >
+                {line.seed_interests?.length ? (
+                  line.seed_interests.map((topic) => (
+                    <span key={topic} className="inline-flex items-center rounded-full border border-primary/10 bg-primary/10 px-3 py-1 text-xs text-primary">
                       {topic}
                     </span>
                   ))
@@ -461,67 +567,125 @@ export function LineDetailClient({
                 )}
               </div>
             </div>
-
             <div>
               <div className="text-sm text-muted-foreground">Topics to avoid</div>
               <div className="mt-2 text-sm text-foreground">
-                {(line.seed_avoid_topics ?? []).length
-                  ? (line.seed_avoid_topics ?? []).join(', ')
-                  : 'None'}
+                {line.seed_avoid_topics?.length ? line.seed_avoid_topics.join(', ') : 'None'}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Quick Links */}
-      <div className="bg-card rounded-xl border border-border p-6">
-        <div className="space-y-3">
-          <Link
-            href={`/dashboard/lines/${line.short_id}/schedule`}
-            className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground">Call Schedules</p>
-                <p className="text-sm text-muted-foreground">
-                  {activeSchedulesCount === 0
-                    ? 'No schedules set up'
-                    : `${activeSchedulesCount} active schedule${activeSchedulesCount !== 1 ? 's' : ''}`}
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-          </Link>
+      {/* Engagement Features Card */}
+      <div className={`${CARD_CLASS} mb-6`}>
+        <div className={`${CARD_HEADER_CLASS} mb-4`}>
+          <MessageCircle className="w-5 h-5 text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">Engagement features</h2>
+        </div>
 
-          <Link
-            href={`/dashboard/lines/${line.short_id}/reminders`}
-            className="flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:bg-muted transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground">Reminders</p>
-                <p className="text-sm text-muted-foreground">
-                  {pendingRemindersCount === 0
-                    ? 'No reminders scheduled'
-                    : `${pendingRemindersCount} reminder${pendingRemindersCount !== 1 ? 's' : ''} scheduled`}
-                </p>
-              </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <MetricCard label="Preview follow-through" value={`${retentionMetrics.callPreviewFollowThrough}%`} large />
+          <MetricCard label="Segment completion" value={`${retentionMetrics.segmentCompletionRate}%`} large />
+          <MetricCard label="Preferred segment" value={preferredSegmentLabel} />
+          <MetricCard
+            label="Avg segment duration"
+            value={retentionMetrics.averageSegmentDuration ? `${retentionMetrics.averageSegmentDuration}s` : 'N/A'}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <div className="text-xs text-muted-foreground">Favorite segments</div>
+            <div className="text-sm font-medium text-foreground mt-1 capitalize">
+              {favoriteSegments.length ? favoriteSegments.join(', ') : 'None yet'}
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-          </Link>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Features enabled</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(['callPreview', 'segments', 'stories'] as const).map((feature) => (
+                <span
+                  key={feature}
+                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getFeatureBadgeClass(retentionMetrics.featureEnrollment[feature])}`}
+                >
+                  {feature === 'callPreview' ? 'Call preview' : feature.charAt(0).toUpperCase() + feature.slice(1)}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <div className="text-xs text-muted-foreground">Active story arcs</div>
+          {storyArcs.length > 0 ? (
+            <div className="mt-2 space-y-2">
+              {storyArcs.map((arc) => (
+                <div key={arc.id} className={`${METRIC_CARD_CLASS.replace('p-4', 'p-3')}`}>
+                  <div className="text-sm font-medium text-foreground">{arc.title}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Chapter {arc.currentChapter}/{arc.totalChapters}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground mt-1">No active stories</div>
+          )}
+        </div>
+      </div>
+
+      {/* Call Preview History */}
+      <div className={`${CARD_CLASS} mb-6`}>
+        <div className={`${CARD_HEADER_CLASS} mb-4`}>
+          <MessageCircle className="w-5 h-5 text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">Call preview history</h2>
+        </div>
+
+        {previewHistory.length > 0 ? (
+          <div className="divide-y divide-border">
+            {previewHistory.map((preview) => (
+              <div key={preview.id} className="flex items-center justify-between py-3 gap-4">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-foreground truncate">{preview.topicDisplay}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {preview.topicType.replace(/_/g, ' ')} · {formatPreviewDate(preview.createdAt)}
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">{getPreviewStatusLabel(preview)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">No previews yet</div>
+        )}
+      </div>
+
+      {/* Quick Links */}
+      <div className={CARD_CLASS}>
+        <div className="space-y-3">
+          <QuickLink
+            href={`/dashboard/lines/${line.short_id}/schedule`}
+            icon={<Calendar className="w-5 h-5 text-primary" />}
+            title="Call Schedules"
+            count={activeSchedulesCount}
+            zeroLabel="No schedules set up"
+            itemLabel="active schedule"
+          />
+          <QuickLink
+            href={`/dashboard/lines/${line.short_id}/reminders`}
+            icon={<Bell className="w-5 h-5 text-primary" />}
+            title="Reminders"
+            count={pendingRemindersCount}
+            zeroLabel="No reminders scheduled"
+            itemLabel="reminder scheduled"
+          />
         </div>
       </div>
 
       {/* Call History Card */}
-      <div className="bg-card rounded-xl border border-border p-6 mt-6">
-        <div className="flex items-center gap-2 mb-6">
+      <div className={`${CARD_CLASS} mt-6`}>
+        <div className={`${CARD_HEADER_CLASS} mb-6`}>
           <Phone className="w-5 h-5 text-muted-foreground" />
           <h2 className="font-semibold text-foreground">Recent Calls</h2>
         </div>

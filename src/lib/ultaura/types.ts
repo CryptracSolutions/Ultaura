@@ -14,6 +14,7 @@ import type {
   TopicCode,
 } from '@ultaura/types';
 import type { Database } from '~/database.types';
+import type { RetentionInsights } from './types/retention';
 export type {
   AccountStatus,
   CallInsights,
@@ -35,6 +36,7 @@ export type {
   LineVoiceConsent,
   VoiceConsentStatus,
 } from '@ultaura/types';
+export * from './types/retention';
 
 // ============================================
 // ENUMS
@@ -609,6 +611,7 @@ export interface InsightsDashboard {
   isPaused: boolean;
   pausedReason: string | null;
   privateTopicCodes: string[];
+  retention?: RetentionInsights;
   summary: {
     scheduledCalls: number;
     answeredCalls: number;
@@ -620,6 +623,7 @@ export interface InsightsDashboard {
     engagementNote: string | null;
     showMissedCallsWarning: boolean;
     missedCalls: number;
+    inboundCalls: number;
     needsFollowUp: boolean;
     followUpReasons: string[];
     socialNeedNote: string | null;
@@ -665,6 +669,9 @@ export type ReminderRow = Database['public']['Tables']['ultaura_reminders']['Row
 export type ReminderEventRow = Database['public']['Tables']['ultaura_reminder_events']['Row'] & {
   reminder_message?: string;
 };
+export type CallPreviewRow = Database['public']['Tables']['ultaura_call_previews']['Row'];
+export type SegmentEngagementRow = Database['public']['Tables']['ultaura_segment_engagement']['Row'];
+export type StoryArcRow = Database['public']['Tables']['ultaura_story_arcs']['Row'];
 export type InsightPrivacyRow = Database['public']['Tables']['ultaura_insight_privacy']['Row'];
 export type LineBaselineRow = Database['public']['Tables']['ultaura_line_baselines']['Row'];
 export type NotificationPreferencesRow =

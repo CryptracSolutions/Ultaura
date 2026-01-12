@@ -34,6 +34,42 @@ export interface ScheduleCallArgs {
   time_local: string;
 }
 
+export interface StoreCallPreviewArgs {
+  topic_type: 'memory_follow_up' | 'web_search' | 'segment' | 'free_form';
+  topic_key: string;
+  topic_display: string;
+  segment_type?: 'trivia' | 'story' | 'learning';
+  segment_context?: Record<string, unknown>;
+}
+
+export interface MarkPreviewOutcomeArgs {
+  outcome: 'engaged' | 'declined' | 'redirected';
+  preview_id?: string;
+}
+
+export interface LogSegmentEngagementArgs {
+  segment_type: 'trivia' | 'story' | 'learning' | 'memory_lane';
+  segment_domain?: string;
+  segment_context?: Record<string, unknown>;
+  engagement_signals?: Record<string, unknown>;
+  duration_seconds?: number;
+  completed?: boolean;
+  senior_response: 'enjoyed' | 'neutral' | 'declined' | 'interrupted';
+  story_arc_id?: string;
+  chapter_completed?: number;
+}
+
+export interface ManageStoryArcArgs {
+  action: 'create' | 'update' | 'complete' | 'abandon';
+  story_arc_id?: string;
+  story_type?: 'serial' | 'learning_journey';
+  title?: string;
+  description?: string;
+  total_chapters?: number;
+  chapter_completed?: number;
+  story_state?: Record<string, unknown>;
+}
+
 export interface ChooseOverageActionArgs {
   action: 'continue' | 'upgrade' | 'stop';
   plan_id?: UpgradePlanId;
@@ -62,9 +98,9 @@ export interface UpdateMemoryArgs {
   confidence?: number;
 }
 
-export interface GrantMemoryConsentArgs {}
+export type GrantMemoryConsentArgs = Record<string, never>;
 
-export interface DenyMemoryConsentArgs {}
+export type DenyMemoryConsentArgs = Record<string, never>;
 
 export interface MarkPrivateArgs {
   what_to_keep_private: string;
@@ -80,7 +116,7 @@ export interface ReportConversationLanguageArgs {
   language_code: string;
 }
 
-export interface ListRemindersArgs {}
+export type ListRemindersArgs = Record<string, never>;
 
 export interface EditReminderArgs {
   reminder_id: string;
@@ -88,22 +124,20 @@ export interface EditReminderArgs {
   new_time_local?: string;
 }
 
-export interface PauseReminderArgs {
+export interface ReminderIdArgs {
   reminder_id: string;
 }
 
-export interface ResumeReminderArgs {
-  reminder_id: string;
-}
+export type PauseReminderArgs = ReminderIdArgs;
+
+export type ResumeReminderArgs = ReminderIdArgs;
 
 export interface SnoozeReminderArgs {
   reminder_id?: string;
   snooze_minutes: 15 | 30 | 60 | 120 | 1440;
 }
 
-export interface CancelReminderArgs {
-  reminder_id: string;
-}
+export type CancelReminderArgs = ReminderIdArgs;
 
 export interface RequestUpgradeArgs {
   plan_id?: UpgradePlanId;
@@ -143,6 +177,10 @@ export interface MarkTopicPrivateArgs {
 export type ToolCallArgs =
   | { name: 'set_reminder'; args: SetReminderArgs }
   | { name: 'schedule_call'; args: ScheduleCallArgs }
+  | { name: 'store_call_preview'; args: StoreCallPreviewArgs }
+  | { name: 'mark_preview_outcome'; args: MarkPreviewOutcomeArgs }
+  | { name: 'log_segment_engagement'; args: LogSegmentEngagementArgs }
+  | { name: 'manage_story_arc'; args: ManageStoryArcArgs }
   | { name: 'choose_overage_action'; args: ChooseOverageActionArgs }
   | { name: 'request_opt_out'; args: RequestOptOutArgs }
   | { name: 'forget_memory'; args: ForgetMemoryArgs }

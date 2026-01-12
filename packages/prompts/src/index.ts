@@ -9,16 +9,7 @@ export { buildAdminPreviewPrompt } from './profiles/admin-preview.js';
 export { buildCompanionPrompt } from './builders/companion.js';
 export { buildReminderPrompt, type ReminderPromptParams } from './builders/reminder.js';
 
-export { IDENTITY_SECTION } from './golden/sections/identity.js';
-export { CONVERSATION_STYLE_SECTION } from './golden/sections/conversation-style.js';
-export { SAFETY_POLICY_SECTION } from './golden/sections/safety-policy.js';
-export { TOOL_POLICY_SECTION } from './golden/sections/tool-policy.js';
-export { MEMORY_POLICY_SECTION } from './golden/sections/memory-policy.js';
-export { PRIVACY_POLICY_SECTION } from './golden/sections/privacy-policy.js';
-export { LANGUAGE_POLICY_SECTION } from './golden/sections/language-policy.js';
-export { ONBOARDING_SECTION } from './golden/sections/onboarding.js';
-export { PLANS_PRICING_SECTION } from './golden/sections/plans-pricing.js';
-export { AVOID_SECTION } from './golden/sections/avoid.js';
+export * from './golden/index.js';
 
 export { GROK_TOOLS } from './tools/definitions.js';
 

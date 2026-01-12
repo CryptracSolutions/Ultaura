@@ -16,6 +16,10 @@ import { reportConversationLanguageRouter } from './report-conversation-language
 import { logCallInsightsRouter } from './log-call-insights.js';
 import { setPauseModeRouter } from './set-pause-mode.js';
 import { markTopicPrivateRouter } from './mark-topic-private.js';
+import { storeCallPreviewRouter } from './store-call-preview.js';
+import { markPreviewOutcomeRouter } from './mark-preview-outcome.js';
+import { logSegmentEngagementRouter } from './log-segment-engagement.js';
+import { manageStoryArcRouter } from './manage-story-arc.js';
 // Reminder management tools
 import { listRemindersRouter } from './list-reminders.js';
 import { editReminderRouter } from './edit-reminder.js';
@@ -44,6 +48,10 @@ toolsRouter.use('/report_conversation_language', reportConversationLanguageRoute
 toolsRouter.use('/log_call_insights', logCallInsightsRouter);
 toolsRouter.use('/set_pause_mode', setPauseModeRouter);
 toolsRouter.use('/mark_topic_private', markTopicPrivateRouter);
+toolsRouter.use('/store_call_preview', storeCallPreviewRouter);
+toolsRouter.use('/mark_preview_outcome', markPreviewOutcomeRouter);
+toolsRouter.use('/log_segment_engagement', logSegmentEngagementRouter);
+toolsRouter.use('/manage_story_arc', manageStoryArcRouter);
 // Reminder management routes
 toolsRouter.use('/list_reminders', listRemindersRouter);
 toolsRouter.use('/edit_reminder', editReminderRouter);

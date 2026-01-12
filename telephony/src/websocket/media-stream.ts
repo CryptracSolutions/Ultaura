@@ -12,6 +12,7 @@ import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback
 import { getUsageSummary } from '../services/metering.js';
 import { getLastDetectedLanguageForLine } from '../services/language.js';
 import { getAccountPrivacySettings, getLineVoiceConsent } from '../services/privacy.js';
+import { buildRetentionContext, type RetentionContext } from '../services/retention-context.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
 import { redactSensitive } from '../utils/redact.js';
@@ -94,12 +95,11 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   const isPayg = account.plan_id === 'payg';
 
   const formatPlanOptions = () =>
-    PLAN_OPTIONS.map((option) => {
-      if (option.minutes) {
-        return `${option.name} (${option.minutes} minutes per month, ${option.price})`;
-      }
-      return `${option.name} (${option.price})`;
-    }).join('; ');
+    PLAN_OPTIONS.map((option) =>
+      option.minutes
+        ? `${option.name} (${option.minutes} minutes per month, ${option.price})`
+        : `${option.name} (${option.price})`
+    ).join('; ');
 
   const getMinutesStatus = async () => {
     // Trial accounts have unlimited usage during the trial period.
@@ -124,28 +124,21 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
   const clearOveragePrompt = () => {
     overagePromptActive = false;
-    if (overagePromptTimeout) {
-      clearTimeout(overagePromptTimeout);
-      overagePromptTimeout = null;
-    }
+    if (overagePromptTimeout) clearTimeout(overagePromptTimeout);
+    overagePromptTimeout = null;
   };
 
   const sendOveragePrompt = () => {
-    if (!grokBridge || overagePromptActive) {
-      return;
-    }
+    if (!grokBridge || overagePromptActive) return;
 
     overagePromptActive = true;
-
     const planOptions = formatPlanOptions();
-    const prompt = `SYSTEM: The user has 0 included minutes remaining. Continuing will incur overage charges at $0.15 per minute. At the start of the call, explain this and ask if they would like to continue with overage charges, upgrade, or stop the call. If they want to upgrade, offer these options: ${planOptions}. Ask which plan they prefer. Once they decide, call choose_overage_action with action "continue", "upgrade", or "stop". If upgrading, include plan_id ("care", "comfort", "family", or "payg"). Do not ask for payment details; tell them you will email a secure link to the billing email on file. If they do not respond within one minute, give a short warm goodbye and end the call.`;
-
-    grokBridge.sendTextInput(prompt);
+    grokBridge.sendTextInput(
+      `SYSTEM: The user has 0 included minutes remaining. Continuing will incur overage charges at $0.15 per minute. At the start of the call, explain this and ask if they would like to continue with overage charges, upgrade, or stop the call. If they want to upgrade, offer these options: ${planOptions}. Ask which plan they prefer. Once they decide, call choose_overage_action with action "continue", "upgrade", or "stop". If upgrading, include plan_id ("care", "comfort", "family", or "payg"). Do not ask for payment details; tell them you will email a secure link to the billing email on file. If they do not respond within one minute, give a short warm goodbye and end the call.`
+    );
 
     overagePromptTimeout = setTimeout(() => {
-      if (!overagePromptActive || !grokBridge) {
-        return;
-      }
+      if (!overagePromptActive || !grokBridge) return;
 
       grokBridge.sendTextInput(
         'SYSTEM: The user did not respond. Give a short warm goodbye and end the call now.'
@@ -153,9 +146,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
       if (ws.readyState === WebSocket.OPEN) {
         setTimeout(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.close(1000, 'No response to overage prompt');
-          }
+          if (ws.readyState === WebSocket.OPEN) ws.close(1000, 'No response to overage prompt');
         }, 15000);
       }
     }, 60000);
@@ -208,6 +199,19 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             // Check if this is the first call
             const isFirstCall = !line.last_successful_call_at;
             const startingLanguage = await getLastDetectedLanguageForLine(line.id);
+
+            let retentionContext: RetentionContext = {
+              pendingPreview: null,
+              segmentPreferences: null,
+              activeStoryArcs: [],
+            };
+            if (!session.is_reminder_call && !session.is_test_call) {
+              try {
+                retentionContext = await buildRetentionContext(line.id);
+              } catch (err) {
+                logger.error({ error: err, callSessionId, lineId: line.id }, 'Failed to build retention context');
+              }
+            }
 
             // Check minutes status
             const minutesStatus = await getMinutesStatus();
@@ -384,8 +388,13 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 minutesRemaining,
                 isReminderCall: session.is_reminder_call,
                 reminderMessage: session.reminder_message,
+                isTestCall: session.is_test_call,
                 currentPlanId: account.plan_id as PlanId,
                 accountStatus: account.status as AccountStatus,
+                canReceiveInboundCalls: line.inbound_allowed,
+                pendingCallPreview: retentionContext.pendingPreview,
+                segmentPreferences: retentionContext.segmentPreferences,
+                activeStoryArcs: retentionContext.activeStoryArcs,
                 onAudioReceived,
                 onClearBuffer,
                 onError,
@@ -625,20 +634,13 @@ async function handleDTMF(
         grokBridge.sendTextInput('DTMF_0: User pressed 0 for help. Explain that they can call this number anytime, and if they need account help, ask their family member to contact support.');
       }
       break;
-
-    default:
-      // Ignore other digits
-      break;
   }
 }
 
+const XML_ESCAPE_MAP: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' };
+
 function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+  return text.replace(/[&<>"']/g, (char) => XML_ESCAPE_MAP[char]);
 }
 
 function buildSayTwiML(options: {
@@ -661,35 +663,22 @@ async function playFallbackTTS(
   languageCode: string,
   options: { pauseSeconds?: number; hangup?: boolean } = {}
 ): Promise<void> {
-  if (!callSid) {
-    return;
-  }
+  if (!callSid) return;
 
   try {
-    const client = getTwilioClient();
-    const twiml = buildSayTwiML({
-      message,
-      languageCode,
-      pauseSeconds: options.pauseSeconds,
-      hangup: options.hangup,
-    });
-
-    await client.calls(callSid).update({ twiml });
+    const twiml = buildSayTwiML({ message, languageCode, ...options });
+    await getTwilioClient().calls(callSid).update({ twiml });
   } catch (error) {
     logger.error({ error, callSid }, 'Failed to play fallback TTS');
   }
 }
 
 async function reconnectMediaStream(callSid: string | null, callSessionId: string): Promise<void> {
-  if (!callSid) {
-    return;
-  }
+  if (!callSid) return;
 
   try {
-    const websocketUrl = getWebsocketUrl();
-    const twiml = generateStreamTwiML(callSessionId, websocketUrl);
-    const client = getTwilioClient();
-    await client.calls(callSid).update({ twiml });
+    const twiml = generateStreamTwiML(callSessionId, getWebsocketUrl());
+    await getTwilioClient().calls(callSid).update({ twiml });
   } catch (error) {
     logger.error({ error, callSid, callSessionId }, 'Failed to reconnect media stream');
   }

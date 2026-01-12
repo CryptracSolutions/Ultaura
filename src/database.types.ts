@@ -543,6 +543,78 @@ export type Database = {
           },
         ]
       }
+      ultaura_call_previews: {
+        Row: {
+          account_id: string
+          created_at: string
+          follow_through_response: string | null
+          followed_through: boolean | null
+          id: string
+          line_id: string
+          offered_at: string
+          segment_context: Json | null
+          segment_type: string | null
+          selected_at: string | null
+          source_memory_ids: string[] | null
+          status: string
+          topic_display: string
+          topic_key: string
+          topic_type: string
+          used_at: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          follow_through_response?: string | null
+          followed_through?: boolean | null
+          id?: string
+          line_id: string
+          offered_at: string
+          segment_context?: Json | null
+          segment_type?: string | null
+          selected_at?: string | null
+          source_memory_ids?: string[] | null
+          status?: string
+          topic_display: string
+          topic_key: string
+          topic_type: string
+          used_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          follow_through_response?: string | null
+          followed_through?: boolean | null
+          id?: string
+          line_id?: string
+          offered_at?: string
+          segment_context?: Json | null
+          segment_type?: string | null
+          selected_at?: string | null
+          source_memory_ids?: string[] | null
+          status?: string
+          topic_display?: string
+          topic_key?: string
+          topic_type?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_call_previews_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_call_previews_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_call_sessions: {
         Row: {
           account_id: string
@@ -1762,6 +1834,73 @@ export type Database = {
           },
         ]
       }
+      ultaura_segment_engagement: {
+        Row: {
+          account_id: string
+          call_session_id: string
+          completed: boolean
+          created_at: string
+          duration_seconds: number | null
+          engagement_signals: Json | null
+          id: string
+          line_id: string
+          segment_context: Json | null
+          segment_domain: string | null
+          segment_type: string
+          senior_response: string | null
+        }
+        Insert: {
+          account_id: string
+          call_session_id: string
+          completed?: boolean
+          created_at?: string
+          duration_seconds?: number | null
+          engagement_signals?: Json | null
+          id?: string
+          line_id: string
+          segment_context?: Json | null
+          segment_domain?: string | null
+          segment_type: string
+          senior_response?: string | null
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string
+          completed?: boolean
+          created_at?: string
+          duration_seconds?: number | null
+          engagement_signals?: Json | null
+          id?: string
+          line_id?: string
+          segment_context?: Json | null
+          segment_domain?: string | null
+          segment_type?: string
+          senior_response?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_segment_engagement_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_segment_engagement_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_segment_engagement_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_safety_events: {
         Row: {
           account_id: string
@@ -1912,6 +2051,69 @@ export type Database = {
           },
           {
             foreignKeyName: "ultaura_schedules_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_story_arcs: {
+        Row: {
+          account_id: string
+          created_at: string
+          current_chapter: number
+          description: string | null
+          id: string
+          last_chapter_at: string | null
+          line_id: string
+          status: string
+          story_state: Json
+          story_type: string
+          title: string
+          total_chapters: number
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          current_chapter?: number
+          description?: string | null
+          id?: string
+          last_chapter_at?: string | null
+          line_id: string
+          status?: string
+          story_state?: Json
+          story_type: string
+          title: string
+          total_chapters?: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          current_chapter?: number
+          description?: string | null
+          id?: string
+          last_chapter_at?: string | null
+          line_id?: string
+          status?: string
+          story_state?: Json
+          story_type?: string
+          title?: string
+          total_chapters?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_story_arcs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_story_arcs_line_id_fkey"
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
@@ -3255,4 +3457,3 @@ export const Constants = {
     },
   },
 } as const
-

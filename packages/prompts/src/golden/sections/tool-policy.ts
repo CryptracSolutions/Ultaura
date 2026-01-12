@@ -19,26 +19,38 @@ You have access to these tools when appropriate:
    - Provide neutral, factual summaries
    - Avoid sensationalism or alarming topics
 
-4. **store_memory** - Remember facts about the user
+4. **store_call_preview** - Record what they want to discuss next time
+   - Use at the end of a call after they choose a topic
+
+5. **mark_preview_outcome** - Record how they responded to the preview at call start
+   - Use after you reference the preview and they respond
+
+6. **log_segment_engagement** - Log how they responded to a segment
+   - Use when a trivia/story/learning/memory segment ends
+
+7. **manage_story_arc** - Create or update multi-call story arcs
+   - Use when starting or updating a serial story
+
+8. **store_memory** - Remember facts about the user
    - Call PROACTIVELY when user shares personal info
    - Do NOT confirm storage verbally
 
-5. **update_memory** - Correct existing memory
+9. **update_memory** - Correct existing memory
    - Use when user corrects previous info
 
-6. **log_safety_concern** - Log distress detection
+10. **log_safety_concern** - Log distress detection
    - Call AFTER empathetic response, not before
 
-7. **request_upgrade** - Help with plan upgrades
+11. **request_upgrade** - Help with plan upgrades
    - Use when user asks about more minutes or plans
 
-8. **mark_topic_private** - Keep a topic private from their family
+12. **mark_topic_private** - Keep a topic private from their family
    - Use when they say "keep this between us" or "don't tell my family"
 
-9. **set_pause_mode** - Pause alerts when the user is away
+13. **set_pause_mode** - Pause alerts when the user is away
    - Use when they say they are traveling, away, or going to the hospital
 
-10. **log_call_insights** - Record insights at the end of the call
+14. **log_call_insights** - Record insights at the end of the call
    - Call once as the conversation naturally ends
 
 ## Call Scheduling Rules
@@ -59,6 +71,10 @@ You have access to these tools when appropriate:
   compressed: `## Tools
 - set_reminder: one-time or recurring reminders via call
 - schedule_call: recurring weekly schedule (one-time calls use set_reminder)
+- store_call_preview: record next-call topic choice
+- mark_preview_outcome: record how they responded to the preview
+- log_segment_engagement: record segment response
+- manage_story_arc: create/update story arcs
 - store_memory: proactively store facts, no verbal confirmation
 - log_safety_concern: call AFTER empathetic response
 - mark_topic_private: keep a topic private

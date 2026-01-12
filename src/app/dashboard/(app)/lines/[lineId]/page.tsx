@@ -6,6 +6,12 @@ import { getSchedules } from '~/lib/ultaura/schedules';
 import { getUsageSummary, getCallSessions } from '~/lib/ultaura/usage';
 import { getReminders } from '~/lib/ultaura/reminders';
 import { isUUID } from '~/lib/ultaura/short-id';
+import {
+  getRetentionMetrics,
+  getCallPreviewHistory,
+  getStoryArcProgress,
+  getSegmentEngagementStats,
+} from '~/lib/ultaura/retention';
 import { LineDetailClient } from './LineDetailClient';
 import AppHeader from '../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
@@ -51,37 +57,43 @@ export default async function LineDetailPage({ params }: PageProps) {
     redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
-  const [usage, callSessions, counts] = await Promise.all([
+  const [usage, callSessions, counts, retentionMetrics, previewHistory, storyArcs, segmentStats] =
+    await Promise.all([
     getUsageSummary(line.account_id),
     getCallSessions(line.id, 10),
     getScheduleAndReminderCounts(line.id),
+    getRetentionMetrics(line.id),
+    getCallPreviewHistory(line.id, 8),
+    getStoryArcProgress(line.id),
+    getSegmentEngagementStats(line.id),
   ]);
 
   const trialInfo = await getTrialInfo(line.account_id);
   const isTrialExpired = trialInfo?.isExpired ?? false;
-  const isOnTrial = trialInfo?.isOnTrial ?? false;
-  const isTrialActive = isOnTrial && !isTrialExpired;
-  const trialPlanId = trialInfo?.trialPlanId ?? null;
-  const trialPlanKey = (trialPlanId ?? 'free_trial') as PlanId;
+  const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
+  const trialPlanKey = (trialInfo?.trialPlanId ?? 'free_trial') as PlanId;
   const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
 
   return (
     <>
       <AppHeader title={line.display_name} description="View and manage this phone line">
-        {isTrialActive && trialInfo ? (
+        {isTrialActive && trialInfo && (
           <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />
-        ) : null}
+        )}
       </AppHeader>
       <PageBody>
         <div className="space-y-6">
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-
+          {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
           <LineDetailClient
             line={line}
             usage={usage}
             callSessions={callSessions}
             activeSchedulesCount={counts.activeSchedulesCount}
             pendingRemindersCount={counts.pendingRemindersCount}
+            retentionMetrics={retentionMetrics}
+            previewHistory={previewHistory}
+            storyArcs={storyArcs}
+            segmentStats={segmentStats}
             isReadOnly={isTrialExpired}
             isTrialActive={isTrialActive}
           />

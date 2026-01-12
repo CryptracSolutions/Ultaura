@@ -14,8 +14,16 @@ import { ONBOARDING_SECTION } from '../golden/sections/onboarding.js';
 import { PLANS_PRICING_SECTION } from '../golden/sections/plans-pricing.js';
 import { AVOID_SECTION } from '../golden/sections/avoid.js';
 import { INSIGHTS_SECTION } from '../golden/sections/insights.js';
+import { RETENTION_POLICY_SECTION, INBOUND_REMINDER_SECTION } from '../golden/sections/retention-policy.js';
+import { WEB_SEARCH_POLICY_SECTION } from '../golden/sections/web-search-policy.js';
+import { SEGMENTS_POLICY_SECTION } from '../golden/sections/segments-policy.js';
 
 export type PromptProfile = 'voice_realtime' | 'admin_preview';
+
+interface PromptSection {
+  full: string;
+  compressed: string;
+}
 
 export interface CompanionPromptParams {
   userName: string;
@@ -30,6 +38,12 @@ export interface CompanionPromptParams {
   minutesRemaining?: number;
   currentPlanId?: PlanId;
   accountStatus?: AccountStatus;
+  canReceiveInboundCalls?: boolean;
+  isTestCall?: boolean;
+}
+
+function selectSection(section: PromptSection, compressed: boolean): string {
+  return compressed ? section.compressed : section.full;
 }
 
 export function compilePrompt(
@@ -37,103 +51,83 @@ export function compilePrompt(
   params: CompanionPromptParams
 ): string {
   const sections: string[] = [];
-  const isRealtime = profile === 'voice_realtime';
+  const compressed = profile === 'voice_realtime';
   const memoryEnabled = params.memoryEnabled !== false;
+  const canReceiveInboundCalls = params.canReceiveInboundCalls === true;
+  const isTestCall = params.isTestCall === true;
 
-  sections.push(isRealtime ? IDENTITY_SECTION.compressed : IDENTITY_SECTION.full);
-
-  sections.push(
-    isRealtime
-      ? CONVERSATION_STYLE_SECTION.compressed
-      : CONVERSATION_STYLE_SECTION.full
-  );
+  sections.push(selectSection(IDENTITY_SECTION, compressed));
+  sections.push(selectSection(CONVERSATION_STYLE_SECTION, compressed));
 
   const memoryText = formatMemoriesForPrompt(params.memories);
-  sections.push(
-    isRealtime
-      ? `## Memory\n${memoryText}`
-      : `## Your Memory of ${params.userName}\n${memoryText}`
-  );
+  const memoryHeader = compressed ? '## Memory' : `## Your Memory of ${params.userName}`;
+  sections.push(`${memoryHeader}\n${memoryText}`);
 
-  sections.push(
-    isRealtime
-      ? PRIVACY_POLICY_SECTION.compressed
-      : PRIVACY_POLICY_SECTION.full
-  );
-
-  sections.push(
-    isRealtime
-      ? SAFETY_POLICY_SECTION.compressed
-      : SAFETY_POLICY_SECTION.full
-  );
-
-  sections.push(
-    isRealtime
-      ? TOOL_POLICY_SECTION.compressed
-      : TOOL_POLICY_SECTION.full
-  );
+  sections.push(selectSection(PRIVACY_POLICY_SECTION, compressed));
+  sections.push(selectSection(SAFETY_POLICY_SECTION, compressed));
+  sections.push(selectSection(TOOL_POLICY_SECTION, compressed));
 
   if (memoryEnabled) {
-    sections.push(
-      isRealtime
-        ? MEMORY_POLICY_SECTION.compressed
-        : MEMORY_POLICY_SECTION.full
-    );
+    sections.push(selectSection(MEMORY_POLICY_SECTION, compressed));
   }
 
-  sections.push(
-    isRealtime
-      ? INSIGHTS_SECTION.compressed
-      : INSIGHTS_SECTION.full
-  );
+  if (!isTestCall) {
+    sections.push(selectSection(RETENTION_POLICY_SECTION, compressed));
+    if (canReceiveInboundCalls) {
+      sections.push(selectSection(INBOUND_REMINDER_SECTION, compressed));
+    }
+  }
+
+  sections.push(selectSection(WEB_SEARCH_POLICY_SECTION, compressed));
+
+  if (!isTestCall) {
+    sections.push(selectSection(SEGMENTS_POLICY_SECTION, compressed));
+  }
+
+  sections.push(selectSection(INSIGHTS_SECTION, compressed));
 
   if (params.currentPlanId && params.accountStatus) {
-    sections.push(
-      isRealtime
-        ? formatPlansCompressed(params.currentPlanId, params.accountStatus)
-        : formatPlansFull(params.currentPlanId, params.accountStatus)
-    );
+    sections.push(formatPlansSection(params.currentPlanId, params.accountStatus, compressed));
   }
 
   if (params.seedInterests?.length) {
+    const interests = params.seedInterests.join(', ');
     sections.push(
-      isRealtime
-        ? `Interests (from family): ${params.seedInterests.join(', ')}`
-        : `## Interests (provided by family)\n${params.userName}'s family mentioned they enjoy: ${params.seedInterests.join(', ')}.\nUse these as natural conversation starters. Don't force - weave in organically.`
+      compressed
+        ? `Interests (from family): ${interests}`
+        : `## Interests (provided by family)\n${params.userName}'s family mentioned they enjoy: ${interests}.\nUse these as natural conversation starters. Don't force - weave in organically.`
     );
   }
 
   if (params.seedAvoidTopics?.length) {
+    const topics = params.seedAvoidTopics.join(', ');
     sections.push(
-      isRealtime
-        ? `Avoid topics: ${params.seedAvoidTopics.join(', ')}`
-        : `## Topics to Avoid (provided by family)\nPlease avoid discussing: ${params.seedAvoidTopics.join(', ')}.\nIf ${params.userName} brings up these topics themselves, engage gently but don't initiate.`
+      compressed
+        ? `Avoid topics: ${topics}`
+        : `## Topics to Avoid (provided by family)\nPlease avoid discussing: ${topics}.\nIf ${params.userName} brings up these topics themselves, engage gently but don't initiate.`
     );
   }
 
   if (params.isFirstCall) {
-    sections.push(isRealtime ? ONBOARDING_SECTION.compressed : ONBOARDING_SECTION.full);
+    sections.push(selectSection(ONBOARDING_SECTION, compressed));
   }
 
   if (params.lowMinutesWarning && params.minutesRemaining !== undefined) {
     sections.push(
-      isRealtime
+      compressed
         ? `Low minutes: ~${params.minutesRemaining} remaining. Mention near end of call.`
         : `## Low Minutes Warning\n${params.userName} has approximately ${params.minutesRemaining} minutes remaining. Near the end of the call, gently mention this.`
     );
   }
 
-  sections.push(formatLanguageSection(params.startingLanguage ?? 'en', isRealtime));
+  sections.push(formatLanguageSection(params.startingLanguage ?? 'en', compressed));
   sections.push(formatTimezoneSection(params.timezone));
 
-  if (!isRealtime) {
+  if (!compressed) {
     sections.push(AVOID_SECTION.full);
   }
 
-  let prompt = sections.join('\n\n');
-  prompt = applyPlaceholders(prompt, params);
-
-  return prompt;
+  return applyPlaceholders(sections.join('\n\n'), params);
 }
 
 export function formatMemoriesForPrompt(memories: Memory[]): string {
@@ -148,43 +142,22 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function formatPlansFull(planId: PlanId, status: AccountStatus): string {
-  const labels = formatPlanLabels(planId, status);
-  return PLANS_PRICING_SECTION.full
-    .replace(/\{currentPlanLabel\}/g, labels.planLabel)
-    .replace(/\{accountStatusLabel\}/g, labels.statusLabel);
-}
-
-function formatPlansCompressed(planId: PlanId, status: AccountStatus): string {
-  const labels = formatPlanLabels(planId, status);
-  return PLANS_PRICING_SECTION.compressed
-    .replace(/\{currentPlanLabel\}/g, labels.planLabel)
-    .replace(/\{accountStatusLabel\}/g, labels.statusLabel);
-}
-
-function formatPlanLabels(planId: PlanId, status: AccountStatus): {
-  planLabel: string;
-  statusLabel: string;
-} {
+function formatPlansSection(planId: PlanId, status: AccountStatus, compressed: boolean): string {
   const planLabel = planId === 'free_trial' ? 'Trial' : planId;
-  const statusLabel =
-    status === 'trial' ? 'Trial' : status === 'active' ? 'Active Subscription' : status;
-  return { planLabel, statusLabel };
+  const statusLabel = status === 'trial' ? 'Trial' : status === 'active' ? 'Active Subscription' : status;
+  const template = compressed ? PLANS_PRICING_SECTION.compressed : PLANS_PRICING_SECTION.full;
+  return template
+    .replace(/\{currentPlanLabel\}/g, planLabel)
+    .replace(/\{accountStatusLabel\}/g, statusLabel);
 }
 
-function formatLanguageSection(startingLanguage: string, isRealtime: boolean): string {
+function formatLanguageSection(startingLanguage: string, compressed: boolean): string {
   const languageName = getLanguageName(startingLanguage);
-  const baseInstruction = startingLanguage === 'en'
-    ? 'Start in English.'
-    : `Start in ${languageName}.`;
-
-  if (isRealtime) {
-    return `## Language
-${baseInstruction} Respond in whatever language the user speaks. Switch naturally mid-conversation if they change languages. When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
-  }
-
-  return `## Language
-${baseInstruction} If the user speaks another language, switch to match them naturally. When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
+  const baseInstruction = startingLanguage === 'en' ? 'Start in English.' : `Start in ${languageName}.`;
+  const switchBehavior = compressed
+    ? 'Respond in whatever language the user speaks. Switch naturally mid-conversation if they change languages.'
+    : 'If the user speaks another language, switch to match them naturally.';
+  return `## Language\n${baseInstruction} ${switchBehavior} When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
 }
 
 function formatTimezoneSection(timezone?: string): string {

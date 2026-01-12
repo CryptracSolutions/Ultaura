@@ -17,6 +17,10 @@ const TOOL_ALLOWLISTS: Record<string, string[]> = {
   cancel_reminder: ['reminderId'],
   list_reminders: ['reminderCount'],
   schedule_call: ['scheduleId', 'mode'],
+  store_call_preview: ['topicType', 'previewId'],
+  mark_preview_outcome: ['outcome', 'previewId'],
+  log_segment_engagement: ['segmentType', 'seniorResponse', 'completed', 'storyArcId', 'chapterCompleted'],
+  manage_story_arc: ['action', 'storyArcId', 'storyType'],
   store_memory: ['key'],
   update_memory: ['key', 'action'],
   grant_memory_consent: [],
@@ -33,11 +37,16 @@ const TOOL_ALLOWLISTS: Record<string, string[]> = {
   report_conversation_language: ['languageCode'],
 };
 
-const STATE_CHANGE_ALLOWLIST = ['event', 'action', 'planId', 'source', 'sendLink'];
+const EVENT_ALLOWLISTS: Record<CallEventType, string[]> = {
+  dtmf: ['digit'],
+  tool_call: [], // Built dynamically
+  state_change: ['event', 'action', 'planId', 'source', 'sendLink'],
+  error: ['errorType', 'errorCode', 'code', 'reason'],
+  safety_tier: ['tier', 'actionTaken'],
+};
 
 function resolveToolName(toolName: string | undefined): string | undefined {
-  if (!toolName) return toolName;
-  return TOOL_NAME_ALIASES[toolName] || toolName;
+  return toolName ? (TOOL_NAME_ALIASES[toolName] ?? toolName) : toolName;
 }
 
 export function sanitizePayload(
@@ -47,41 +56,19 @@ export function sanitizePayload(
   const sanitized: Record<string, unknown> = {};
   const stripped: Record<string, unknown> = {};
 
-  let allowlist: string[] = [];
+  let allowlist: string[];
   let canonicalToolName: string | undefined;
 
-  switch (eventType) {
-    case 'dtmf':
-      allowlist = ['digit'];
-      break;
-
-    case 'tool_call':
-      canonicalToolName = resolveToolName(
-        typeof payload.tool === 'string' ? payload.tool : undefined
-      );
-      allowlist = [
-        ...TOOL_BASE_FIELDS,
-        ...(canonicalToolName && TOOL_ALLOWLISTS[canonicalToolName]
-          ? TOOL_ALLOWLISTS[canonicalToolName]
-          : []),
-      ];
-      break;
-
-    case 'state_change':
-      allowlist = STATE_CHANGE_ALLOWLIST;
-      // event can include values like 'barge_in'
-      break;
-
-    case 'error':
-      allowlist = ['errorType', 'errorCode', 'code', 'reason'];
-      break;
-
-    case 'safety_tier':
-      allowlist = ['tier', 'actionTaken'];
-      break;
-
-    default:
-      allowlist = [];
+  if (eventType === 'tool_call') {
+    canonicalToolName = resolveToolName(
+      typeof payload.tool === 'string' ? payload.tool : undefined
+    );
+    allowlist = [
+      ...TOOL_BASE_FIELDS,
+      ...(canonicalToolName ? (TOOL_ALLOWLISTS[canonicalToolName] ?? []) : []),
+    ];
+  } else {
+    allowlist = EVENT_ALLOWLISTS[eventType] ?? [];
   }
 
   for (const [key, value] of Object.entries(payload)) {
@@ -103,8 +90,5 @@ export function getStrippedFieldsInfo(
   stripped: Record<string, unknown>
 ): { hasStripped: boolean; fieldNames: string[] } {
   const fieldNames = Object.keys(stripped);
-  return {
-    hasStripped: fieldNames.length > 0,
-    fieldNames,
-  };
+  return { hasStripped: fieldNames.length > 0, fieldNames };
 }

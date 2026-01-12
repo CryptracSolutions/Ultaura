@@ -9,6 +9,7 @@ import { CallMetrics } from './components/CallMetrics';
 import { MoodTrend } from './components/MoodTrend';
 import { TopicsChart } from './components/TopicsChart';
 import { ConcernsList } from './components/ConcernsList';
+import { RetentionInsightsCard } from './components/RetentionInsightsCard';
 import { CallActivityList } from '../lines/[lineId]/components/CallActivityList';
 
 interface LineOption {
@@ -100,13 +101,15 @@ export function InsightsPageClient({
         <div className="text-sm text-muted-foreground">Last 30 days</div>
       </div>
 
-      {!dashboard ? (
+      {!dashboard && (
         <div className="rounded-xl border border-border bg-card p-6">
           <p className="text-muted-foreground">Insights are not available for this line yet.</p>
         </div>
-      ) : (
+      )}
+
+      {dashboard && (
         <>
-          {!dashboard.insightsEnabled ? (
+          {!dashboard.insightsEnabled && (
             <div className="rounded-lg border border-border bg-muted/40 p-4">
               <p className="text-sm text-foreground">
                 Insights are disabled for this line. Historical insights remain visible.
@@ -118,7 +121,7 @@ export function InsightsPageClient({
                 Enable insights in Line Settings
               </Link>
             </div>
-          ) : null}
+          )}
 
           <div className="rounded-lg border border-border bg-muted/40 p-4">
             <p className="text-sm text-muted-foreground">
@@ -134,20 +137,22 @@ export function InsightsPageClient({
             <CallMetrics activity={dashboard.callActivity} />
           </div>
 
-          <div className={`grid gap-6 ${showEngagement ? 'lg:grid-cols-2' : ''}`}>
-            {showEngagement ? (
+          <RetentionInsightsCard retention={dashboard.retention} />
+
+          <div className={showEngagement ? 'grid gap-6 lg:grid-cols-2' : 'grid gap-6'}>
+            {showEngagement && (
               <div className="rounded-xl border border-border bg-card p-6">
                 <h3 className="text-sm font-semibold text-foreground">Engagement Trend</h3>
                 <p className="text-sm text-muted-foreground mt-2">
                   Engagement has been {dashboard.summary.engagementNote}.
                 </p>
               </div>
-            ) : null}
+            )}
             <MoodTrend
               moodTrend={dashboard.moodTrend}
               dateRange={callActivityDates}
               timezone={dashboard.timezone}
-              className={showEngagement ? '' : 'lg:col-span-2'}
+              className={showEngagement ? undefined : 'lg:col-span-2'}
             />
           </div>
 
@@ -156,9 +161,7 @@ export function InsightsPageClient({
           <ConcernsList concerns={dashboard.concerns} />
 
           <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <h2 className="font-semibold text-foreground">Call History</h2>
-            </div>
+            <h2 className="font-semibold text-foreground mb-6">Call History</h2>
             <CallActivityList sessions={dashboard.callHistory} />
           </div>
         </>

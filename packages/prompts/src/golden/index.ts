@@ -8,3 +8,6 @@ export { LANGUAGE_POLICY_SECTION } from './sections/language-policy.js';
 export { ONBOARDING_SECTION } from './sections/onboarding.js';
 export { PLANS_PRICING_SECTION } from './sections/plans-pricing.js';
 export { AVOID_SECTION } from './sections/avoid.js';
+export { RETENTION_POLICY_SECTION, INBOUND_REMINDER_SECTION } from './sections/retention-policy.js';
+export { WEB_SEARCH_POLICY_SECTION } from './sections/web-search-policy.js';
+export { SEGMENTS_POLICY_SECTION } from './sections/segments-policy.js';
