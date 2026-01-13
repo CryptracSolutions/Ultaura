@@ -645,6 +645,8 @@ export async function recordSafetyEvent(options: {
   lineId: string;
   callSessionId: string;
   tier: 'low' | 'medium' | 'high';
+  category?: string;
+  confidence?: number;
   signals?: Record<string, unknown>;
   actionTaken?: 'none' | 'suggested_988' | 'suggested_911' | 'notified_contact' | 'transferred_call';
 }): Promise<void> {
@@ -655,6 +657,8 @@ export async function recordSafetyEvent(options: {
     line_id: options.lineId,
     call_session_id: options.callSessionId,
     tier: options.tier,
+    category: options.category ?? null,
+    confidence: options.confidence ?? null,
     signals: options.signals || null,
     action_taken: options.actionTaken || 'none',
   });

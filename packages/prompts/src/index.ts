@@ -13,7 +13,7 @@ export * from './golden/index.js';
 
 export { GROK_TOOLS } from './tools/definitions.js';
 
-export { SAFETY_KEYWORDS } from './safety/keywords.js';
+export { SAFETY_KEYWORDS, KEYWORD_CATEGORIES } from './safety/keywords.js';
 export { SAFETY_EXCLUSION_PATTERNS } from './safety/exclusions.js';
 
 export {

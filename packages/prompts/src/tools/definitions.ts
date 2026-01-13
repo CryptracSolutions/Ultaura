@@ -694,10 +694,16 @@ Return a conversational summary they can listen to.`,
     name: 'log_safety_concern',
     description: `Log when you detect genuine safety concerns during the conversation.
 
-WHEN TO CALL:
-- tier: 'high' -> User mentions suicide, self-harm, or wanting to die. Action: suggested_988 or suggested_911
-- tier: 'medium' -> User expresses hopelessness, despair, or "giving up". Action: none or suggested_988
-- tier: 'low' -> User seems persistently sad, lonely, or isolated. Action: none
+CATEGORIES (with fixed tier mapping):
+- SUICIDAL_IDEATION (HIGH): User mentions suicide, wanting to die, ending their life
+- SELF_HARM (HIGH): User mentions cutting, hurting themselves, self-injury
+- HOPELESSNESS (MEDIUM): User expresses hopelessness, despair, "giving up"
+- ISOLATION_DISTRESS (LOW): User seems persistently sad, lonely, isolated
+- PHYSICAL_DANGER (HIGH): User in immediate physical danger from others or environment
+- MEDICAL_EMERGENCY (HIGH): User describes symptoms requiring immediate medical attention
+- ABUSE_CONCERN (HIGH): Signs of elder abuse, neglect, or exploitation
+- COGNITIVE_DECLINE (LOW): Concerning changes in memory, confusion, disorientation
+- GENERAL_CONCERN: Other concerning behavior not fitting above categories (specify tier)
 
 IMPORTANT: Call this tool AFTER providing an empathetic response, not before.
 
@@ -705,14 +711,31 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
     parameters: {
       type: 'object',
       properties: {
+        category: {
+          type: 'string',
+          enum: [
+            'SUICIDAL_IDEATION',
+            'SELF_HARM',
+            'HOPELESSNESS',
+            'ISOLATION_DISTRESS',
+            'PHYSICAL_DANGER',
+            'MEDICAL_EMERGENCY',
+            'ABUSE_CONCERN',
+            'COGNITIVE_DECLINE',
+            'GENERAL_CONCERN',
+          ],
+          description: 'Clinical category of the safety concern',
+        },
         tier: {
           type: 'string',
           enum: ['low', 'medium', 'high'],
-          description: 'Severity: low=persistent sadness, medium=hopelessness/despair, high=self-harm ideation',
+          description: 'Severity tier (required only for GENERAL_CONCERN)',
         },
-        signals: {
-          type: 'string',
-          description: 'Brief summary of what concerned you (e.g., "expressed feeling hopeless about the future")',
+        confidence: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'Confidence in the assessment (0.0-1.0)',
         },
         action_taken: {
           type: 'string',
@@ -720,7 +743,7 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
           description: 'What action you recommended to the user',
         },
       },
-      required: ['tier', 'signals', 'action_taken'],
+      required: ['category', 'confidence', 'action_taken'],
     },
   },
   {

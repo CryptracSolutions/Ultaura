@@ -1,5 +1,6 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getLogger from '~/core/logger';
@@ -15,6 +16,31 @@ import type { UltauraAccountRow } from './types';
 
 const logger = getLogger();
 
+async function getDashboardUserId(): Promise<string | undefined> {
+  try {
+    const client = getSupabaseServerComponentClient();
+    const { data, error } = await client.auth.getUser();
+    if (error || !data.user) {
+      return undefined;
+    }
+    return data.user.id;
+  } catch {
+    return undefined;
+  }
+}
+
+function getRequestMetadata(): { ipAddress?: string; userAgent?: string } {
+  try {
+    const headersList = headers();
+    const forwardedFor = headersList.get('x-forwarded-for');
+    const ipAddress = forwardedFor?.split(',')[0]?.trim() || headersList.get('x-real-ip') || undefined;
+    const userAgent = headersList.get('user-agent') || undefined;
+    return { ipAddress, userAgent };
+  } catch {
+    return { ipAddress: undefined, userAgent: undefined };
+  }
+}
+
 export async function getTrustedContacts(lineId: string) {
   const client = getSupabaseServerComponentClient();
   const { data } = await client
@@ -27,7 +53,18 @@ export async function getTrustedContacts(lineId: string) {
 
 const addTrustedContactWithTrial = withTrialCheck(async (
   account: UltauraAccountRow,
-  input: { lineId: string; lineShortId: string; contact: unknown }
+  input: {
+    lineId: string;
+    lineShortId: string;
+    contact: unknown;
+    consentEvidence: {
+      timestamp: string;
+      ipAddress?: string;
+      userAgent?: string;
+      dashboardUserId?: string;
+      contactName: string;
+    };
+  }
 ): Promise<ActionResult<void>> => {
   const parsed = CreateTrustedContactInputSchema.safeParse(input.contact);
   if (!parsed.success) {
@@ -60,6 +97,30 @@ const addTrustedContactWithTrial = withTrialCheck(async (
     };
   }
 
+  const { data: existingConsent } = await client
+    .from('ultaura_consents')
+    .select('id')
+    .eq('line_id', input.lineId)
+    .eq('type', 'trusted_contact_notify')
+    .eq('granted', true)
+    .is('revoked_at', null)
+    .maybeSingle();
+
+  if (!existingConsent) {
+    const { error: consentError } = await client.from('ultaura_consents').insert({
+      account_id: account.id,
+      line_id: input.lineId,
+      type: 'trusted_contact_notify',
+      granted: true,
+      granted_by: 'payer_ack',
+      evidence: input.consentEvidence,
+    });
+
+    if (consentError) {
+      logger.warn({ error: consentError, lineId: input.lineId }, 'Failed to create trusted contact consent');
+    }
+  }
+
   revalidatePath(`/dashboard/lines/${input.lineShortId}/contacts`);
   return { success: true, data: undefined };
 });
@@ -84,10 +145,22 @@ export async function addTrustedContact(
     };
   }
 
+  const parsed = CreateTrustedContactInputSchema.safeParse(input);
+  const contactName = parsed.success ? parsed.data.name : 'Unknown';
+  const { ipAddress, userAgent } = getRequestMetadata();
+  const dashboardUserId = await getDashboardUserId();
+
   return addTrustedContactWithTrial(account, {
     lineId,
     lineShortId: line.short_id,
     contact: input,
+    consentEvidence: {
+      timestamp: new Date().toISOString(),
+      ipAddress,
+      userAgent,
+      dashboardUserId,
+      contactName,
+    },
   });
 }
 

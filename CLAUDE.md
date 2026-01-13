@@ -127,6 +127,7 @@ Configure after deploying telephony server:
 ```
 Voice Webhook: https://your-server.com/twilio/voice/inbound
 Status Callback: https://your-server.com/twilio/status
+Messaging Webhook: https://your-server.com/twilio/sms/inbound (POST)
 ```
 
 ### 4. Start Telephony Server

@@ -13,9 +13,10 @@ internalSmsRouter.use(requireInternalSecret);
 
 internalSmsRouter.post('/sms', async (req: Request, res: Response) => {
   try {
-    const { to, body } = req.body as {
+    const { to, body, skipOptOutCheck } = req.body as {
       to?: string;
       body?: string;
+      skipOptOutCheck?: boolean;
     };
 
     if (!to || !body) {
@@ -29,7 +30,7 @@ internalSmsRouter.post('/sms', async (req: Request, res: Response) => {
       return;
     }
 
-    const messageSid = await sendSms({ to, body });
+    const messageSid = await sendSms({ to, body, skipOptOutCheck });
 
     logger.info({ to: redactPhone(to), messageSid }, 'SMS sent via internal endpoint');
 

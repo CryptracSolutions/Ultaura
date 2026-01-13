@@ -5,7 +5,7 @@ import type {
   RoutineMemoryValue,
   ExclusionCategory,
 } from './memory.js';
-import type { SafetyTier } from './safety.js';
+import type { SafetyCategory, SafetyTier } from './safety.js';
 import type { TopicCode, ConcernCode, FollowUpReasonCode } from './insights.js';
 
 export interface GrokTool {
@@ -136,8 +136,9 @@ export interface ReviewMemoriesArgs {
 }
 
 export interface LogSafetyConcernArgs {
-  tier: SafetyTier;
-  signals: string;
+  category: SafetyCategory;
+  tier?: SafetyTier;
+  confidence: number;
   action_taken: 'none' | 'suggested_988' | 'suggested_911';
 }
 

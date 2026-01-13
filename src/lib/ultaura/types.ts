@@ -10,6 +10,7 @@ import type {
   MemoryType,
   PlanId,
   PrivacyScope,
+  SafetyCategory,
   SafetyTier,
   TopicCode,
 } from '@ultaura/types';
@@ -31,6 +32,7 @@ export type {
   PrivacyScope,
   RetentionPeriod,
   SafetyActionTaken,
+  SafetyCategory,
   SafetyTier,
   TopicCode,
   LineVoiceConsent,
@@ -383,7 +385,10 @@ export interface Consent {
   grantedBy: 'payer_ack' | 'line_voice';
   evidence: {
     ip?: string;
+    ipAddress?: string;
     userAgent?: string;
+    dashboardUserId?: string;
+    contactName?: string;
     callSessionId?: string;
     timestamp?: string;
   } | null;
@@ -401,7 +406,7 @@ export interface OptOut {
   createdAt: string;
   channel: OptOutChannel;
   reason: string | null;
-  source: 'dtmf' | 'voice' | 'dashboard';
+  source: 'dtmf' | 'voice' | 'dashboard' | 'sms_keyword';
   callSessionId: string | null;
 }
 
@@ -431,7 +436,9 @@ export interface SafetyEvent {
   lineId: string;
   callSessionId: string | null;
   createdAt: string;
+  category: SafetyCategory | null;
   tier: SafetyTier;
+  confidence: number | null;
   signals: Record<string, unknown> | null;
   actionTaken: 'none' | 'suggested_988' | 'suggested_911' | 'notified_contact' | 'transferred_call' | null;
 }

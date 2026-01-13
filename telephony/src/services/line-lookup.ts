@@ -237,15 +237,16 @@ export async function recordOptOut(
   accountId: string,
   lineId: string,
   callSessionId: string | null,
-  source: 'dtmf' | 'voice' | 'dashboard',
-  reason?: string
+  source: 'dtmf' | 'voice' | 'dashboard' | 'sms_keyword',
+  reason?: string,
+  channel: 'outbound_calls' | 'sms' | 'all' = 'outbound_calls'
 ): Promise<void> {
   const supabase = getSupabaseClient();
 
   const { error } = await supabase.from('ultaura_opt_outs').insert({
     account_id: accountId,
     line_id: lineId,
-    channel: 'outbound_calls',
+    channel,
     source,
     reason,
     call_session_id: callSessionId,
@@ -255,6 +256,7 @@ export async function recordOptOut(
     logger.error({ error, lineId }, 'Failed to record opt-out');
   }
 
-  // Also set the do_not_call flag
-  await setDoNotCall(lineId, true);
+  if (channel === 'outbound_calls' || channel === 'all') {
+    await setDoNotCall(lineId, true);
+  }
 }

@@ -9,6 +9,7 @@ import cors from 'cors';
 import { twilioInboundRouter } from './routes/twilio-inbound.js';
 import { twilioOutboundRouter } from './routes/twilio-outbound.js';
 import { twilioStatusRouter } from './routes/twilio-status.js';
+import { twilioSmsInboundRouter } from './routes/twilio-sms-inbound.js';
 import { callsRouter } from './routes/calls.js';
 import { toolsRouter } from './routes/tools/index.js';
 import { handleMediaStreamConnection } from './websocket/media-stream.js';
@@ -124,6 +125,7 @@ app.get('/health', async (_req, res) => {
 app.use('/twilio/voice', twilioInboundRouter);
 app.use('/twilio/voice', twilioOutboundRouter);
 app.use('/twilio', twilioStatusRouter);
+app.use('/twilio/sms', twilioSmsInboundRouter);
 
 // Internal API routes
 app.use('/calls', callsRouter);

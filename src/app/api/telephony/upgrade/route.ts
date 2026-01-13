@@ -190,6 +190,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           to: phoneNumber,
           body: smsBody,
+          skipOptOutCheck: true,
         }),
       });
     } catch (smsError) {

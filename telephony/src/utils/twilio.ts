@@ -4,6 +4,7 @@ import Twilio from 'twilio';
 import { normalizeLanguageCode } from '@ultaura/prompts';
 import { logger } from '../server.js';
 import { redactPhone } from './redact.js';
+import { getSupabaseClient } from './supabase.js';
 
 let twilioClient: Twilio.Twilio | null = null;
 
@@ -290,7 +291,16 @@ export async function checkVerificationCode(
 export async function sendSms(options: {
   to: string;
   body: string;
+  skipOptOutCheck?: boolean;
 }): Promise<string> {
+  if (!options.skipOptOutCheck) {
+    const isOptedOut = await checkSmsOptOut(options.to);
+    if (isOptedOut) {
+      logger.info({ to: redactPhone(options.to) }, 'SMS blocked due to opt-out');
+      throw new Error('Recipient has opted out of SMS');
+    }
+  }
+
   const client = getTwilioClient();
   const from = process.env.TWILIO_PHONE_NUMBER;
 
@@ -311,4 +321,21 @@ export async function sendSms(options: {
     logger.error({ error, to: redactPhone(options.to) }, 'Failed to send SMS');
     throw error;
   }
+}
+
+async function checkSmsOptOut(phoneE164: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('ultaura_sms_opt_outs')
+    .select('id')
+    .eq('phone_e164', phoneE164)
+    .maybeSingle();
+
+  if (error) {
+    logger.error({ error, phone: redactPhone(phoneE164) }, 'Failed to check SMS opt-out status');
+    return false;
+  }
+
+  return !!data;
 }

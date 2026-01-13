@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { Checkbox } from '~/core/ui/Checkbox';
 import { Phone, Trash2, Plus } from 'lucide-react';
 import {
   getTrustedContacts,
@@ -32,6 +33,7 @@ interface ContactsClientProps {
 export function ContactsClient({ line, disabled = false }: ContactsClientProps) {
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [newContact, setNewContact] = useState({
     name: '',
     phone: '',
@@ -46,6 +48,12 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
   useEffect(() => {
     loadContacts();
   }, [loadContacts]);
+
+  useEffect(() => {
+    if (!isAdding) {
+      setConsentAcknowledged(false);
+    }
+  }, [isAdding]);
 
   async function handleAddContact(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +73,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
 
       toast.success('Trusted contact added');
       setNewContact({ name: '', phone: '', relationship: '' });
+      setConsentAcknowledged(false);
       setIsAdding(false);
       loadContacts();
     } catch (error) {
@@ -94,8 +103,11 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
     <div className="space-y-6 pb-12">
       <div className="flex justify-between items-center">
         <p className="text-muted-foreground">
-          Trusted contacts can be notified if we detect signs of distress during calls
-          (only with the caller&apos;s consent).
+          Trusted contacts receive SMS alerts when Ultaura detects signs of distress during calls,
+          such as expressions of hopelessness, self-harm, or other safety concerns.
+          <a href="/docs" className="text-primary hover:underline ml-1">
+            Learn more
+          </a>
         </p>
         <Button onClick={() => setIsAdding(true)} disabled={disabled}>
           <Plus className="h-4 w-4 mr-2" />
@@ -130,9 +142,32 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                   setNewContact({ ...newContact, relationship: e.target.value })
                 }
               />
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="consent-acknowledgment"
+                    checked={consentAcknowledged}
+                    onCheckedChange={(checked) => setConsentAcknowledged(checked === true)}
+                  />
+                  <label htmlFor="consent-acknowledgment" className="text-sm leading-tight">
+                    I understand that this contact will receive SMS notifications when Ultaura detects
+                    signs of distress during calls (such as expressions of hopelessness or self-harm).
+                  </label>
+                </div>
+                <a href="/docs" className="text-xs text-primary hover:underline">
+                  Learn more about trusted contact notifications
+                </a>
+              </div>
               <div className="flex gap-2">
-                <Button type="submit">Add</Button>
-                <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>
+                <Button type="submit" disabled={!consentAcknowledged}>Add</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsAdding(false);
+                    setConsentAcknowledged(false);
+                  }}
+                >
                   Cancel
                 </Button>
               </div>

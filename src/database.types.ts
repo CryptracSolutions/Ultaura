@@ -2058,6 +2058,10 @@ export type Database = {
           account_id: string
           action_taken: string | null
           call_session_id: string | null
+          category:
+            | Database["public"]["Enums"]["ultaura_safety_category"]
+            | null
+          confidence: number | null
           created_at: string
           id: string
           line_id: string
@@ -2068,6 +2072,10 @@ export type Database = {
           account_id: string
           action_taken?: string | null
           call_session_id?: string | null
+          category?:
+            | Database["public"]["Enums"]["ultaura_safety_category"]
+            | null
+          confidence?: number | null
           created_at?: string
           id?: string
           line_id: string
@@ -2078,6 +2086,10 @@ export type Database = {
           account_id?: string
           action_taken?: string | null
           call_session_id?: string | null
+          category?:
+            | Database["public"]["Enums"]["ultaura_safety_category"]
+            | null
+          confidence?: number | null
           created_at?: string
           id?: string
           line_id?: string
@@ -2276,6 +2288,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ultaura_sms_opt_outs: {
+        Row: {
+          created_at: string
+          id: string
+          keyword: string | null
+          phone_e164: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          keyword?: string | null
+          phone_e164: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          keyword?: string | null
+          phone_e164?: string
+          source?: string
+        }
+        Relationships: []
       }
       ultaura_story_arcs: {
         Row: {
@@ -3005,6 +3041,16 @@ export type Database = {
         | "90_days"
         | "365_days"
         | "indefinite"
+      ultaura_safety_category:
+        | "SUICIDAL_IDEATION"
+        | "SELF_HARM"
+        | "HOPELESSNESS"
+        | "ISOLATION_DISTRESS"
+        | "PHYSICAL_DANGER"
+        | "MEDICAL_EMERGENCY"
+        | "ABUSE_CONCERN"
+        | "COGNITIVE_DECLINE"
+        | "GENERAL_CONCERN"
       ultaura_safety_tier: "low" | "medium" | "high"
       ultaura_schedule_result:
         | "success"
@@ -3836,6 +3882,17 @@ export const Constants = {
         "90_days",
         "365_days",
         "indefinite",
+      ],
+      ultaura_safety_category: [
+        "SUICIDAL_IDEATION",
+        "SELF_HARM",
+        "HOPELESSNESS",
+        "ISOLATION_DISTRESS",
+        "PHYSICAL_DANGER",
+        "MEDICAL_EMERGENCY",
+        "ABUSE_CONCERN",
+        "COGNITIVE_DECLINE",
+        "GENERAL_CONCERN",
       ],
       ultaura_safety_tier: ["low", "medium", "high"],
       ultaura_schedule_result: [

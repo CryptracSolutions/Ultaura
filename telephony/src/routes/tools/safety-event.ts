@@ -3,6 +3,7 @@ import {
   SafetyEventInputSchema,
   type SafetyEventInput,
 } from '@ultaura/schemas/telephony';
+import { SAFETY_CATEGORY_TIERS } from '@ultaura/types';
 import { logger } from '../../server.js';
 import { getCallSession, recordCallEvent, recordSafetyEvent } from '../../services/call-session.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
@@ -141,11 +142,21 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
     const {
       callSessionId,
       lineId,
+      category,
       tier,
-      signals,
+      confidence,
       actionTaken,
       source = 'model',
     } = parsed.data;
+
+    const effectiveTier = category === 'GENERAL_CONCERN'
+      ? tier
+      : SAFETY_CATEGORY_TIERS[category];
+
+    if (!effectiveTier) {
+      res.status(400).json({ error: 'GENERAL_CONCERN requires tier' });
+      return;
+    }
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -157,27 +168,32 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
 
     const sourceValue = source === 'keyword_backstop' ? 'keyword_backstop' : 'model';
     const backstopWasTriggered =
-      sourceValue === 'model' ? wasBackstopTriggered(callSessionId, tier) : false;
+      sourceValue === 'model' ? wasBackstopTriggered(callSessionId, effectiveTier) : false;
+
+    const effectiveConfidence = sourceValue === 'keyword_backstop' ? 1.0 : confidence;
 
     logger.info({
       event: sourceValue === 'keyword_backstop' ? 'safety_backstop_triggered' : 'safety_model_confirmed',
       callSessionId,
       lineId,
-      tier,
+      tier: effectiveTier,
+      category,
+      confidence: effectiveConfidence,
       source: sourceValue,
       backstopWasTriggered: sourceValue === 'model' ? backstopWasTriggered : undefined,
       timestamp: Date.now(),
     }, `Safety event logged via ${sourceValue}`);
 
-    markSafetyTier(callSessionId, tier, sourceValue);
+    markSafetyTier(callSessionId, effectiveTier, sourceValue);
 
     await recordSafetyEvent({
       accountId,
       lineId,
       callSessionId,
-      tier,
+      tier: effectiveTier,
+      category,
+      confidence: effectiveConfidence,
       signals: {
-        description: signals,
         source: sourceValue,
       },
       actionTaken,
@@ -188,19 +204,22 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
       {
         tool: 'log_safety_concern',
         success: true,
-        tier,
+        tier: effectiveTier,
+        category,
+        confidence: effectiveConfidence,
         actionTaken,
       },
       { skipDebugLog: true }
     );
 
     // For high-tier events, notify trusted contacts
-    if (tier === 'high' && sourceValue === 'model') {
-      logger.warn({ callSessionId, lineId, tier, actionTaken }, 'HIGH SAFETY TIER EVENT');
+    if (effectiveTier === 'high' && sourceValue === 'model') {
+      logger.warn({ callSessionId, lineId, tier: effectiveTier, category, actionTaken }, 'HIGH SAFETY TIER EVENT');
       // Run notification in background to not block the response
-      notifyTrustedContacts(accountId, callSessionId, lineId, tier, actionTaken).catch((error) => {
-        logger.error({ error, lineId }, 'Background trusted contact notification failed');
-      });
+      notifyTrustedContacts(accountId, callSessionId, lineId, effectiveTier, actionTaken)
+        .catch((error) => {
+          logger.error({ error, lineId }, 'Background trusted contact notification failed');
+        });
     }
 
     res.json({ success: true, message: 'Safety concern logged' });

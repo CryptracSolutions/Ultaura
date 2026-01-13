@@ -4,7 +4,7 @@
 import { WebSocket } from 'ws';
 import { DateTime } from 'luxon';
 import { compilePrompt, buildReminderPrompt, GROK_TOOLS } from '@ultaura/prompts';
-import { SAFETY_EXCLUSION_PATTERNS, SAFETY_KEYWORDS } from '@ultaura/prompts/safety';
+import { KEYWORD_CATEGORIES, SAFETY_EXCLUSION_PATTERNS, SAFETY_KEYWORDS } from '@ultaura/prompts/safety';
 import type {
   AccountStatus,
   Memory,
@@ -13,6 +13,7 @@ import type {
   SafetyMatch,
   SafetyTier,
 } from '@ultaura/types';
+import { SAFETY_CATEGORY_TIERS } from '@ultaura/types';
 import { logger } from '../server.js';
 import { addTurn, markConsentGranted, TurnSummary } from '../services/ephemeral-buffer.js';
 import { recordCallEvent } from '../services/call-session.js';
@@ -596,7 +597,11 @@ At the START of this call:
     const baseUrl = getBackendUrl();
 
     for (const match of matches) {
-      const { tier } = match;
+      const { tier, matchedKeyword } = match;
+      const category = KEYWORD_CATEGORIES[matchedKeyword] || 'GENERAL_CONCERN';
+      const effectiveTier = category === 'GENERAL_CONCERN'
+        ? tier
+        : SAFETY_CATEGORY_TIERS[category] || tier;
 
       this.safetyState.triggeredTiers.add(tier);
       this.safetyState.backstopTiersTriggered.add(tier);
@@ -605,8 +610,9 @@ At the START of this call:
         await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
           callSessionId: this.options.callSessionId,
           lineId: this.options.lineId,
-          tier,
-          signals: 'keyword_backstop_detected',
+          category,
+          tier: effectiveTier,
+          confidence: 1.0,
           actionTaken: 'none',
           source: 'keyword_backstop',
         });
@@ -951,15 +957,23 @@ At the START of this call:
           break;
 
         case 'log_safety_concern':
-          this.markTierTriggeredByModel(args.tier);
-          result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            tier: args.tier,
-            signals: args.signals,
-            actionTaken: args.action_taken,
-            source: 'model',
-          });
+          {
+            const effectiveTier = args.category === 'GENERAL_CONCERN'
+              ? args.tier
+              : SAFETY_CATEGORY_TIERS[args.category];
+            if (effectiveTier) {
+              this.markTierTriggeredByModel(effectiveTier);
+            }
+            result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              category: args.category,
+              tier: effectiveTier,
+              confidence: args.confidence,
+              actionTaken: args.action_taken,
+              source: 'model',
+            });
+          }
           break;
 
         case 'report_conversation_language':
@@ -1279,14 +1293,31 @@ At the START of this call:
             parameters: {
               type: 'object',
               properties: {
+                category: {
+                  type: 'string',
+                  enum: [
+                    'SUICIDAL_IDEATION',
+                    'SELF_HARM',
+                    'HOPELESSNESS',
+                    'ISOLATION_DISTRESS',
+                    'PHYSICAL_DANGER',
+                    'MEDICAL_EMERGENCY',
+                    'ABUSE_CONCERN',
+                    'COGNITIVE_DECLINE',
+                    'GENERAL_CONCERN',
+                  ],
+                  description: 'Clinical category of the safety concern',
+                },
                 tier: {
                   type: 'string',
                   enum: ['low', 'medium', 'high'],
-                  description: 'low=sad/lonely, medium=distress/hopelessness, high=self-harm/crisis',
+                  description: 'Severity tier (required only for GENERAL_CONCERN)',
                 },
-                signals: {
-                  type: 'string',
-                  description: 'Brief description of concerning statements',
+                confidence: {
+                  type: 'number',
+                  minimum: 0,
+                  maximum: 1,
+                  description: 'Confidence score (0.0-1.0)',
                 },
                 action_taken: {
                   type: 'string',
@@ -1294,7 +1325,7 @@ At the START of this call:
                   description: 'What action you recommended',
                 },
               },
-              required: ['tier', 'signals', 'action_taken'],
+              required: ['category', 'confidence', 'action_taken'],
             },
           },
         ],

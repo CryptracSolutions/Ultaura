@@ -37,7 +37,7 @@ const TOOL_ALLOWLISTS: Record<string, string[]> = {
   choose_overage_action: ['action', 'planId'],
   request_upgrade: ['planId', 'sendLink'],
   request_opt_out: ['confirmed'],
-  log_safety_concern: ['tier', 'actionTaken'],
+  log_safety_concern: ['tier', 'category', 'confidence', 'actionTaken'],
   report_conversation_language: ['languageCode'],
 };
 
