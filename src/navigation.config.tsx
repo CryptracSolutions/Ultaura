@@ -7,6 +7,7 @@ import {
   UserIcon,
   CreditCardIcon,
   ShieldCheckIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { BarChart3 } from 'lucide-react';
 
@@ -84,6 +85,15 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
         isInsightsRouteActive(currentPath),
     },
     {
+      label: 'Alerts',
+      path: getPath('alerts'),
+      Icon: ({ className }: { className: string }) => {
+        return <ExclamationTriangleIcon className={className} />;
+      },
+      activeMatch: (currentPath: string) =>
+        isAlertsRouteActive(currentPath),
+    },
+    {
       label: 'Usage',
       path: getPath('usage'),
       Icon: ({ className }: { className: string }) => {
@@ -133,12 +143,16 @@ const remindersRoutePattern = createRoutePattern(
 );
 const callsRoutePattern = createRoutePattern(getPath('calls'));
 const insightsRoutePattern = createRoutePattern(getPath('insights'));
+const alertsRoutePattern = createRoutePattern(getPath('alerts'));
 const linesRoutePattern = createRoutePattern(getPath('lines'));
 const lineRemindersRoutePattern = createRoutePattern(
   getPath('lines/:lineId/reminders'),
 );
 const lineScheduleRoutePattern = createRoutePattern(
   getPath('lines/:lineId/schedule'),
+);
+const lineInsightsRoutePattern = createRoutePattern(
+  getPath('lines/:lineId/insights'),
 );
 
 function isRemindersRouteActive(currentPath: string) {
@@ -156,13 +170,18 @@ function isCallsRouteActive(currentPath: string) {
 }
 
 function isInsightsRouteActive(currentPath: string) {
-  return insightsRoutePattern.test(currentPath);
+  return insightsRoutePattern.test(currentPath) || lineInsightsRoutePattern.test(currentPath);
+}
+
+function isAlertsRouteActive(currentPath: string) {
+  return alertsRoutePattern.test(currentPath);
 }
 
 function isLineRouteActive(currentPath: string) {
   if (
     lineRemindersRoutePattern.test(currentPath) ||
-    lineScheduleRoutePattern.test(currentPath)
+    lineScheduleRoutePattern.test(currentPath) ||
+    lineInsightsRoutePattern.test(currentPath)
   ) {
     return false;
   }

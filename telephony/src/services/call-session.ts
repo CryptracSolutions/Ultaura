@@ -10,6 +10,7 @@ import { clearSafetyState, getSafetySummary, markSafetySummaryLogged } from './s
 import { clearInsightState } from './insight-state.js';
 import { updateInsightsDuration } from './insights.js';
 import { checkMissedCallAlert } from './weekly-summary.js';
+import { processWellnessAlertsForCall } from './wellness-alerts.js';
 import { sanitizePayload, getStrippedFieldsInfo, CallEventType } from '../utils/event-sanitizer.js';
 
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
@@ -455,6 +456,18 @@ export async function completeCallSession(
 
     // Update line's last successful call
     await updateLineLastCall(session.line_id);
+  }
+
+  if (!session.is_reminder_call && !session.is_test_call) {
+    try {
+      await processWellnessAlertsForCall({
+        callSessionId: sessionId,
+        lineId: session.line_id,
+        accountId: session.account_id,
+      });
+    } catch (error) {
+      logger.error({ error, sessionId }, 'Failed to process wellness alerts');
+    }
   }
 
   if (markSafetySummaryLogged(sessionId)) {

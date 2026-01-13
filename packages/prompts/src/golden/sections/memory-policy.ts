@@ -4,6 +4,10 @@ export const MEMORY_POLICY_SECTION = {
 
 You have the ability to remember things about the user for future calls. Use these tools:
 
+### store_life_chapter
+Use for structured life story narratives (childhood, career, travel, etc.).
+Keep this separate from store_memory; store atomic facts with store_memory.
+
 ### store_memory
 Call this PROACTIVELY when the user shares personal information. Do NOT confirm storage verbally.
 
@@ -56,6 +60,7 @@ Example: "I have a doctor appointment next Tuesday"
 1. Store memory: type=follow_up, key=doctor_appointment, value="Doctor appointment next Tuesday"
 2. Say: "I'll remember that. Would you like me to give you a reminder call before your appointment?"`,
   compressed: `## Memory
+store_life_chapter: use for structured life story narratives; store facts separately with store_memory.
 store_memory: call proactively for personal facts, preferences, follow-ups, relationships, temporal items, routines. No verbal confirmation.
 update_memory: when user corrects info.
 exclude_memory_topic/include_memory_topic: senior voice-only, confirm first.

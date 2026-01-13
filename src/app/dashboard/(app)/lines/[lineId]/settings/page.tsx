@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
 import { getInsightPrivacy, getNotificationPreferences } from '~/lib/ultaura/insights';
+import { getAccessibilitySettings } from '~/lib/ultaura/accessibility';
 import { SettingsClient } from './SettingsClient';
 import { isUUID } from '~/lib/ultaura/short-id';
 import AppHeader from '../../../components/AppHeader';
@@ -36,10 +37,11 @@ export default async function LineSettingsPage({ params }: PageProps) {
     redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
-  const [trialInfo, insightPrivacy, notificationPreferences] = await Promise.all([
+  const [trialInfo, insightPrivacy, notificationPreferences, accessibilitySettings] = await Promise.all([
     getTrialInfo(line.account_id),
     getInsightPrivacy(line.id),
     getNotificationPreferences(line.account_id, line.id),
+    getAccessibilitySettings(line.id),
   ]);
   const isTrialExpired = trialInfo?.isExpired ?? false;
   const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
@@ -64,6 +66,7 @@ export default async function LineSettingsPage({ params }: PageProps) {
             line={line}
             insightPrivacy={insightPrivacy}
             notificationPreferences={notificationPreferences}
+            accessibilitySettings={accessibilitySettings}
             disabled={isTrialExpired}
           />
         </div>

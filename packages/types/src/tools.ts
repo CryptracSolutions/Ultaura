@@ -1,5 +1,6 @@
 import type {
   MemoryType,
+  LifeStoryMemoryValue,
   RelationshipMemoryValue,
   TemporalMemoryValue,
   RoutineMemoryValue,
@@ -95,7 +96,7 @@ export interface ForgetMemoryArgs {
 export interface StoreMemoryArgs {
   memory_type: MemoryType;
   key: string;
-  value: string | RelationshipMemoryValue | TemporalMemoryValue | RoutineMemoryValue;
+  value: string | LifeStoryMemoryValue | RelationshipMemoryValue | TemporalMemoryValue | RoutineMemoryValue;
   confidence?: number;
   suggest_reminder?: boolean;
   expected_end_date?: string;
@@ -104,7 +105,7 @@ export interface StoreMemoryArgs {
 
 export interface UpdateMemoryArgs {
   existing_key: string;
-  new_value: string | RelationshipMemoryValue | TemporalMemoryValue | RoutineMemoryValue;
+  new_value: string | LifeStoryMemoryValue | RelationshipMemoryValue | TemporalMemoryValue | RoutineMemoryValue;
   memory_type?: MemoryType;
   confidence?: number;
   confirmed?: boolean;
@@ -174,6 +175,83 @@ export interface RequestUpgradeArgs {
   send_link?: boolean;
 }
 
+export interface StoreLifeChapterArgs {
+  chapter_type: 'childhood' | 'education' | 'career' | 'marriage' | 'parenting' | 'military' | 'travel' | 'retirement' | 'accomplishment' | 'loss' | 'other';
+  title: string;
+  era_start_year?: number;
+  era_end_year?: number;
+  narrative_summary: string;
+  key_people?: string[];
+  emotional_tone?: 'joyful' | 'proud' | 'bittersweet' | 'difficult' | 'neutral';
+}
+
+export interface LogMoodSnapshotArgs {
+  mood_start: 'positive' | 'neutral' | 'low' | 'anxious' | 'sad' | 'frustrated';
+  mood_mid?: 'positive' | 'neutral' | 'low' | 'anxious' | 'sad' | 'frustrated';
+  mood_end: 'positive' | 'neutral' | 'low' | 'anxious' | 'sad' | 'frustrated';
+  mood_trajectory: 'improved' | 'declined' | 'stable';
+  techniques_used?: string[];
+  energy_level: 'high' | 'normal' | 'low' | 'very_low';
+}
+
+export interface UpdateContentPreferenceArgs {
+  content_type: 'trivia' | 'story' | 'memory_lane' | 'brain_games';
+  preference_change: 'increase' | 'decrease';
+  specific_update?: Record<string, unknown>;
+}
+
+export interface UpdateRelationshipArgs {
+  name: string;
+  updates: {
+    nickname?: string;
+    contact_frequency?: string;
+    sentiment?: string;
+    recent_topic?: string;
+    location?: string;
+    shared_activity?: string;
+  };
+}
+
+export interface MarkRelationshipDeceasedArgs {
+  name: string;
+  passed_at?: string;
+  grief_sensitivity?: 'high' | 'medium' | 'low';
+}
+
+export interface LogCognitiveObservationArgs {
+  observation_type: 'confusion' | 'repetition' | 'word_finding' | 'orientation' | 'memory_lapse';
+  severity: 'mild' | 'moderate' | 'significant';
+  context?: string;
+  response_given?: string;
+}
+
+export interface AdjustAccessibilityArgs {
+  setting: 'speech_rate' | 'hearing_mode' | 'cognitive_mode';
+  value: string;
+  source?: 'senior_request' | 'ai_detected';
+}
+
+export interface StoreMilestoneArgs {
+  milestone_type: 'birthday' | 'anniversary' | 'memorial' | 'achievement' | 'holiday' | 'custom';
+  title: string;
+  date_month: number;
+  date_day: number;
+  date_year?: number;
+  related_person_name?: string;
+  is_recurring?: boolean;
+}
+
+export interface MarkMilestoneCelebratedArgs {
+  milestone_id?: string;
+  milestone_title?: string;
+}
+
+export interface LogHealthMentionArgs {
+  category: 'pain' | 'medication' | 'appointment' | 'symptom' | 'sleep' | 'appetite' | 'mobility' | 'energy' | 'general';
+  summary: string;
+  severity?: 'mild' | 'moderate' | 'concerning';
+}
+
 export interface LogCallInsightsArgs {
   mood_overall: 'positive' | 'neutral' | 'low';
   mood_intensity: number;
@@ -232,6 +310,16 @@ export type ToolCallArgs =
   | { name: 'snooze_reminder'; args: SnoozeReminderArgs }
   | { name: 'cancel_reminder'; args: CancelReminderArgs }
   | { name: 'request_upgrade'; args: RequestUpgradeArgs }
+  | { name: 'store_life_chapter'; args: StoreLifeChapterArgs }
+  | { name: 'log_mood_snapshot'; args: LogMoodSnapshotArgs }
+  | { name: 'update_content_preference'; args: UpdateContentPreferenceArgs }
+  | { name: 'update_relationship'; args: UpdateRelationshipArgs }
+  | { name: 'mark_relationship_deceased'; args: MarkRelationshipDeceasedArgs }
+  | { name: 'log_cognitive_observation'; args: LogCognitiveObservationArgs }
+  | { name: 'adjust_accessibility'; args: AdjustAccessibilityArgs }
+  | { name: 'store_milestone'; args: StoreMilestoneArgs }
+  | { name: 'mark_milestone_celebrated'; args: MarkMilestoneCelebratedArgs }
+  | { name: 'log_health_mention'; args: LogHealthMentionArgs }
   | { name: 'log_call_insights'; args: LogCallInsightsArgs }
   | { name: 'set_pause_mode'; args: SetPauseModeArgs }
   | { name: 'mark_topic_private'; args: MarkTopicPrivateArgs };

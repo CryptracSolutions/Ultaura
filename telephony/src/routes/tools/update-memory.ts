@@ -121,6 +121,7 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
         confidence,
         source: 'conversation',
         privacyScope: 'line_only',
+        callSessionId,
       });
 
       if (!result) {
@@ -157,7 +158,8 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
       lineId,
       existingMemory.id,
       newValue,
-      existingMemory
+      existingMemory,
+      { callSessionId }
     );
 
     if (!updated) {

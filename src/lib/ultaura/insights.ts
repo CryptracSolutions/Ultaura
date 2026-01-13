@@ -3,17 +3,34 @@
 import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CallInsights, ConcernCode, FollowUpReasonCode, TopicCode } from '@ultaura/types';
+import type {
+  CallInsights,
+  ConcernCode,
+  FollowUpReasonCode,
+  MemoryType,
+  TopicCode,
+} from '@ultaura/types';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import requireSession from '~/lib/user/require-session';
 import getLogger from '~/core/logger';
 import type {
   CallSessionRow,
+  ConversationHighlightsData,
+  EmotionalTrendsData,
   InsightPrivacyRow,
   InsightsDashboard,
   LineBaselineRow,
   LineRow,
+  MemoryActivityData,
+  MemoryActivityItem,
+  MoodCalendarData,
+  MoodEnergyLevel,
+  MoodSnapshotMood,
+  MoodSnapshotRow,
+  MoodTrajectory,
   NotificationPreferencesRow,
+  RelationshipIndicator,
+  RelationshipIndicatorsData,
   WeeklySummaryData,
   WeeklySummaryRow,
 } from './types';
@@ -449,6 +466,10 @@ export async function getNotificationPreferences(
     weekly_summary_time: '18:00',
     alert_missed_calls_enabled: true,
     alert_missed_calls_threshold: 3,
+    health_mention_alerts: true,
+    mood_drop_alerts: true,
+    cognitive_concern_alerts: true,
+    alert_delivery_method: 'email' as const,
   };
 
   const { data: created, error: insertError } = await client
@@ -1129,6 +1150,386 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     callActivity,
     callHistory,
   };
+}
+
+const MOOD_SNAPSHOT_VALUES: MoodSnapshotMood[] = [
+  'positive',
+  'neutral',
+  'low',
+  'anxious',
+  'sad',
+  'frustrated',
+];
+const ENERGY_LEVEL_VALUES: MoodEnergyLevel[] = ['high', 'normal', 'low', 'very_low'];
+const TRAJECTORY_VALUES: MoodTrajectory[] = ['improved', 'declined', 'stable'];
+
+function initializeCountMap<T extends string>(values: T[]): Record<T, number> {
+  return values.reduce((acc, value) => {
+    acc[value] = 0;
+    return acc;
+  }, {} as Record<T, number>);
+}
+
+function pickMoodSnapshot(
+  entry: MoodSnapshotRow
+): MoodSnapshotMood | null {
+  return (entry.mood_end || entry.mood_start || entry.mood_mid || null) as MoodSnapshotMood | null;
+}
+
+export async function getEmotionalTrends(
+  lineId: string,
+  days: number = 14
+): Promise<EmotionalTrendsData> {
+  const line = await getAuthorizedLine(lineId);
+  if (!line) {
+    return {
+      entries: [],
+      distribution: initializeCountMap(MOOD_SNAPSHOT_VALUES),
+      energyLevels: initializeCountMap(ENERGY_LEVEL_VALUES),
+      trajectories: initializeCountMap(TRAJECTORY_VALUES),
+    };
+  }
+
+  const client = await getAdminClient();
+  const now = DateTime.now().setZone(line.timezone);
+  const start = now.minus({ days });
+  const startUtc = start.toUTC().toISO();
+
+  if (!startUtc) {
+    return {
+      entries: [],
+      distribution: initializeCountMap(MOOD_SNAPSHOT_VALUES),
+      energyLevels: initializeCountMap(ENERGY_LEVEL_VALUES),
+      trajectories: initializeCountMap(TRAJECTORY_VALUES),
+    };
+  }
+
+  const { data: rows, error } = await client
+    .from('ultaura_mood_snapshots')
+    .select('call_session_id, created_at, mood_start, mood_mid, mood_end, energy_level, mood_trajectory')
+    .eq('line_id', lineId)
+    .gte('created_at', startUtc)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to fetch mood snapshots');
+  }
+
+  const entries: EmotionalTrendEntry[] = [];
+  const distribution = initializeCountMap(MOOD_SNAPSHOT_VALUES);
+  const energyLevels = initializeCountMap(ENERGY_LEVEL_VALUES);
+  const trajectories = initializeCountMap(TRAJECTORY_VALUES);
+
+  for (const row of rows ?? []) {
+    const moodValue = pickMoodSnapshot(row as MoodSnapshotRow);
+    if (moodValue && distribution[moodValue] !== undefined) {
+      distribution[moodValue] += 1;
+    }
+
+    if (row.energy_level && energyLevels[row.energy_level as MoodEnergyLevel] !== undefined) {
+      energyLevels[row.energy_level as MoodEnergyLevel] += 1;
+    }
+
+    if (row.mood_trajectory && trajectories[row.mood_trajectory as MoodTrajectory] !== undefined) {
+      trajectories[row.mood_trajectory as MoodTrajectory] += 1;
+    }
+
+    entries.push({
+      callSessionId: row.call_session_id,
+      occurredAt: row.created_at,
+      moodStart: row.mood_start as MoodSnapshotMood | null,
+      moodMid: row.mood_mid as MoodSnapshotMood | null,
+      moodEnd: row.mood_end as MoodSnapshotMood | null,
+      energyLevel: row.energy_level as MoodEnergyLevel | null,
+      trajectory: row.mood_trajectory as MoodTrajectory | null,
+    });
+  }
+
+  return { entries, distribution, energyLevels, trajectories };
+}
+
+export async function getMoodCalendar(
+  lineId: string,
+  month: string
+): Promise<MoodCalendarData> {
+  const line = await getAuthorizedLine(lineId);
+  if (!line) {
+    return { month, days: [] };
+  }
+
+  const client = await getAdminClient();
+  const parsedMonth = DateTime.fromFormat(month, 'yyyy-MM', { zone: line.timezone });
+  const monthStart = parsedMonth.isValid
+    ? parsedMonth.startOf('month')
+    : DateTime.now().setZone(line.timezone).startOf('month');
+  const monthEnd = monthStart.endOf('month');
+  const startUtc = monthStart.toUTC().toISO();
+  const endUtc = monthEnd.toUTC().toISO();
+
+  if (!startUtc || !endUtc) {
+    return { month: monthStart.toFormat('yyyy-MM'), days: [] };
+  }
+
+  const { data: rows, error } = await client
+    .from('ultaura_mood_snapshots')
+    .select('created_at, mood_start, mood_mid, mood_end')
+    .eq('line_id', lineId)
+    .gte('created_at', startUtc)
+    .lte('created_at', endUtc)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to fetch mood calendar data');
+  }
+
+  const moodByDate = new Map<string, MoodSnapshotMood>();
+  for (const row of rows ?? []) {
+    const localDate = DateTime.fromISO(row.created_at).setZone(line.timezone).toISODate();
+    if (!localDate || moodByDate.has(localDate)) {
+      continue;
+    }
+
+    const moodValue = pickMoodSnapshot(row as MoodSnapshotRow);
+    if (moodValue) {
+      moodByDate.set(localDate, moodValue);
+    }
+  }
+
+  const days: MoodCalendarDay[] = [];
+  const totalDays = monthStart.daysInMonth ?? 30;
+  for (let day = 1; day <= totalDays; day += 1) {
+    const date = monthStart.set({ day }).toISODate();
+    if (!date) continue;
+    days.push({
+      date,
+      mood: moodByDate.get(date) ?? null,
+    });
+  }
+
+  return { month: monthStart.toFormat('yyyy-MM'), days };
+}
+
+export async function getConversationHighlights(
+  lineId: string,
+  limit: number = 10
+): Promise<ConversationHighlightsData> {
+  const line = await getAuthorizedLine(lineId);
+  if (!line) {
+    return { highlights: [] };
+  }
+
+  const client = await getAdminClient();
+  const { data: sessions, error: sessionError } = await client
+    .from('ultaura_call_sessions')
+    .select('id, created_at, answered_by, seconds_connected, is_test_call, is_reminder_call')
+    .eq('line_id', lineId)
+    .order('created_at', { ascending: false })
+    .limit(limit * 2);
+
+  if (sessionError) {
+    logger.error({ error: sessionError, lineId }, 'Failed to fetch call sessions for highlights');
+    return { highlights: [] };
+  }
+
+  const answeredSessions = (sessions ?? [])
+    .filter((session) =>
+      !session.is_test_call &&
+      !session.is_reminder_call &&
+      isCallAnswered(session)
+    )
+    .slice(0, limit);
+
+  const callSessionIds = answeredSessions.map((session) => session.id);
+  if (callSessionIds.length === 0) {
+    return { highlights: [] };
+  }
+
+  const [insightRows, memoryRows, eventRows] = await Promise.all([
+    client
+      .from('ultaura_call_insights')
+      .select('call_session_id, created_at, insights_ciphertext, insights_iv, insights_tag')
+      .in('call_session_id', callSessionIds),
+    client
+      .from('ultaura_memories')
+      .select('id, key, privacy_scope, created_in_call_session_id')
+      .in('created_in_call_session_id', callSessionIds),
+    client
+      .from('ultaura_call_events')
+      .select('call_session_id, payload')
+      .eq('type', 'tool_call')
+      .in('call_session_id', callSessionIds),
+  ]);
+
+  const insightsByCall = new Map<string, CallInsights>();
+  for (const row of insightRows.data ?? []) {
+    try {
+      const insights = await decryptInsights(
+        client,
+        line.account_id,
+        lineId,
+        row.call_session_id,
+        {
+          ciphertext: row.insights_ciphertext,
+          iv: row.insights_iv,
+          tag: row.insights_tag,
+        }
+      );
+      insightsByCall.set(row.call_session_id, insights);
+    } catch (decryptError) {
+      logger.warn({ decryptError, lineId }, 'Failed to decrypt insights for highlights');
+    }
+  }
+
+  const memoryKeysByCall = new Map<string, string[]>();
+  for (const row of memoryRows.data ?? []) {
+    if (row.privacy_scope === 'line_only') {
+      continue;
+    }
+    const callSessionId = row.created_in_call_session_id;
+    if (!callSessionId) continue;
+    const entries = memoryKeysByCall.get(callSessionId) ?? [];
+    entries.push(row.key);
+    memoryKeysByCall.set(callSessionId, entries);
+  }
+
+  const milestoneIdsByCall = new Map<string, Set<string>>();
+  for (const row of eventRows.data ?? []) {
+    const payload = row.payload as Record<string, unknown> | null;
+    const tool = typeof payload?.tool === 'string' ? payload.tool : null;
+    if (!tool || (tool !== 'store_milestone' && tool !== 'mark_milestone_celebrated')) {
+      continue;
+    }
+    const milestoneId = typeof payload?.milestoneId === 'string' ? payload.milestoneId : null;
+    if (!milestoneId) {
+      continue;
+    }
+    const set = milestoneIdsByCall.get(row.call_session_id) ?? new Set<string>();
+    set.add(milestoneId);
+    milestoneIdsByCall.set(row.call_session_id, set);
+  }
+
+  const milestoneIds = Array.from(new Set(
+    Array.from(milestoneIdsByCall.values()).flatMap((set) => Array.from(set))
+  ));
+
+  const milestoneTitleMap = new Map<string, string>();
+  if (milestoneIds.length > 0) {
+    const { data: milestones, error: milestoneError } = await client
+      .from('ultaura_milestones')
+      .select('id, title')
+      .in('id', milestoneIds);
+
+    if (milestoneError) {
+      logger.error({ error: milestoneError, lineId }, 'Failed to fetch milestone titles');
+    }
+
+    for (const milestone of milestones ?? []) {
+      milestoneTitleMap.set(milestone.id, milestone.title);
+    }
+  }
+
+  const highlights = answeredSessions.map((session) => {
+    const insight = insightsByCall.get(session.id);
+    const topics = (insight?.topics ?? [])
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 3)
+      .map((topic) => INSIGHTS.TOPIC_LABELS[topic.code as TopicCode] ?? topic.code);
+
+    const milestoneSet = milestoneIdsByCall.get(session.id);
+    const milestones = milestoneSet
+      ? Array.from(milestoneSet)
+          .map((id) => milestoneTitleMap.get(id))
+          .filter((title): title is string => Boolean(title))
+      : [];
+
+    return {
+      callSessionId: session.id,
+      occurredAt: session.created_at,
+      mood: insight?.mood_overall ?? null,
+      topics,
+      newMemoryKeys: memoryKeysByCall.get(session.id) ?? [],
+      milestones,
+    };
+  });
+
+  return { highlights };
+}
+
+export async function getMemoryActivity(
+  lineId: string,
+  limit: number = 20
+): Promise<MemoryActivityData> {
+  const line = await getAuthorizedLine(lineId);
+  if (!line) {
+    return { items: [] };
+  }
+
+  const client = await getAdminClient();
+  const { data, error } = await client
+    .from('ultaura_memories')
+    .select('id, type, key, created_at, privacy_scope')
+    .eq('line_id', lineId)
+    .eq('active', true)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to fetch memory activity');
+    return { items: [] };
+  }
+
+  const items: MemoryActivityItem[] = (data ?? []).map((row) => ({
+    memoryId: row.id,
+    type: row.type as MemoryType,
+    key: row.key,
+    createdAt: row.created_at,
+    isPrivate: row.privacy_scope === 'line_only',
+  }));
+
+  return { items };
+}
+
+export async function getRelationshipIndicators(
+  lineId: string
+): Promise<RelationshipIndicatorsData> {
+  const line = await getAuthorizedLine(lineId);
+  if (!line) {
+    return { indicators: [] };
+  }
+
+  const client = await getAdminClient();
+  const { data, error } = await client
+    .from('ultaura_relationships')
+    .select('name, relation_type, relation_role, sentiment, times_mentioned, last_mentioned_at')
+    .eq('line_id', lineId)
+    .order('times_mentioned', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to fetch relationship indicators');
+    return { indicators: [] };
+  }
+
+  const now = DateTime.now();
+  const thirtyDaysAgo = now.minus({ days: 30 });
+
+  const indicators: RelationshipIndicator[] = (data ?? []).map((row) => {
+    const lastMentionedAt = row.last_mentioned_at;
+    const recentlyMentioned = lastMentionedAt
+      ? DateTime.fromISO(lastMentionedAt) >= thirtyDaysAgo
+      : false;
+
+    return {
+      name: row.name,
+      relationType: row.relation_type || 'unknown',
+      relationRole: row.relation_role || 'relationship',
+      sentiment: (row.sentiment || 'neutral') as RelationshipIndicator['sentiment'],
+      mentionCount30d: recentlyMentioned ? (row.times_mentioned ?? 1) : 0,
+      lastMentionedAt: lastMentionedAt ?? null,
+    };
+  });
+
+  return { indicators };
 }
 
 export async function updateNotificationPreferences(

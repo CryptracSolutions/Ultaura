@@ -114,7 +114,9 @@ export async function summarizeAndExtractMemoriesFromBuffer(buffer: EphemeralBuf
       try {
         const existing = existingByKey.get(normalizedKey);
         const result = existing
-          ? await updateMemory(buffer.accountId, buffer.lineId, existing.id, memory.value, existing)
+          ? await updateMemory(buffer.accountId, buffer.lineId, existing.id, memory.value, existing, {
+            callSessionId: buffer.callSessionId,
+          })
           : await storeMemory(
             buffer.accountId,
             buffer.lineId,
@@ -125,6 +127,7 @@ export async function summarizeAndExtractMemoriesFromBuffer(buffer: EphemeralBuf
               confidence: memory.confidence,
               source: 'conversation',
               privacyScope: 'line_only',
+              callSessionId: buffer.callSessionId,
             }
           );
 

@@ -85,6 +85,10 @@ interface NotificationPreferencesRow {
   weekly_summary_time: string;
   alert_missed_calls_enabled: boolean;
   alert_missed_calls_threshold: number;
+  health_mention_alerts?: boolean;
+  mood_drop_alerts?: boolean;
+  cognitive_concern_alerts?: boolean;
+  alert_delivery_method?: string;
 }
 
 interface InsightPrivacyRow {
@@ -560,6 +564,10 @@ export async function getNotificationPreferences(
       weekly_summary_time: '18:00',
       alert_missed_calls_enabled: true,
       alert_missed_calls_threshold: 3,
+      health_mention_alerts: true,
+      mood_drop_alerts: true,
+      cognitive_concern_alerts: true,
+      alert_delivery_method: 'email',
     })
     .select('*')
     .single();
@@ -586,6 +594,10 @@ export async function getNotificationPreferences(
       weekly_summary_time: '18:00',
       alert_missed_calls_enabled: true,
       alert_missed_calls_threshold: 3,
+      health_mention_alerts: true,
+      mood_drop_alerts: true,
+      cognitive_concern_alerts: true,
+      alert_delivery_method: 'email',
     };
   }
 

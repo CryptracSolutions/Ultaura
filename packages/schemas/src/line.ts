@@ -36,6 +36,17 @@ export const UpdateLineInputSchema = z.object({
   allowVoiceReminderControl: z.boolean().optional(),
   voicemailBehavior: VoicemailBehaviorSchema.optional(),
   status: LineStatusSchema.optional(),
+  birthYear: z.number().int().optional(),
+  formativeDecade: z.number().int().optional(),
+  hometown: z.string().optional(),
+  currentLocation: z.string().optional(),
+  optimalCallTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  optimalCallTimeSource: z.enum(['family_set', 'ai_learned', 'senior_request']).optional(),
+  optimalCallDays: z.array(z.number().int().min(0).max(6)).optional(),
+  interruptionTolerance: z.enum(['high', 'normal', 'low']).optional(),
+  fillerWordPatience: z.enum(['high', 'normal', 'low']).optional(),
+  silenceToleranceMs: z.number().int().min(500).optional(),
+  crosstalkRecoveryMode: z.enum(['immediate', 'patient', 'very_patient']).optional(),
 }).partial();
 
 export type UpdateLineInput = z.infer<typeof UpdateLineInputSchema>;

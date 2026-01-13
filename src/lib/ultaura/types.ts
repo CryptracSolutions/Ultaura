@@ -150,6 +150,18 @@ export interface Line {
   seedAvoidTopics: string[] | null;
   allowVoiceReminderControl: boolean;
   voicemailBehavior: VoicemailBehavior;
+  birthYear?: number | null;
+  birthDecade?: number | null;
+  formativeDecade?: number | null;
+  hometown?: string | null;
+  currentLocation?: string | null;
+  optimalCallTime?: string | null;
+  optimalCallTimeSource?: 'family_set' | 'ai_learned' | 'senior_request' | null;
+  optimalCallDays?: number[] | null;
+  interruptionTolerance?: 'high' | 'normal' | 'low' | null;
+  fillerWordPatience?: 'high' | 'normal' | 'low' | null;
+  silenceToleranceMs?: number | null;
+  crosstalkRecoveryMode?: 'immediate' | 'patient' | 'very_patient' | null;
 }
 
 export interface CreateLineInput {
@@ -172,6 +184,17 @@ export interface UpdateLineInput {
   seedAvoidTopics?: string[];
   allowVoiceReminderControl?: boolean;
   voicemailBehavior?: VoicemailBehavior;
+  birthYear?: number | null;
+  formativeDecade?: number | null;
+  hometown?: string | null;
+  currentLocation?: string | null;
+  optimalCallTime?: string | null;
+  optimalCallTimeSource?: 'family_set' | 'ai_learned' | 'senior_request' | null;
+  optimalCallDays?: number[] | null;
+  interruptionTolerance?: 'high' | 'normal' | 'low';
+  fillerWordPatience?: 'high' | 'normal' | 'low';
+  silenceToleranceMs?: number;
+  crosstalkRecoveryMode?: 'immediate' | 'patient' | 'very_patient';
 }
 
 // ============================================
@@ -664,6 +687,87 @@ export interface InsightsDashboard {
   >;
 }
 
+export type MoodSnapshotMood = 'positive' | 'neutral' | 'low' | 'anxious' | 'sad' | 'frustrated';
+export type MoodEnergyLevel = 'high' | 'normal' | 'low' | 'very_low';
+export type MoodTrajectory = 'improved' | 'declined' | 'stable';
+
+export interface EmotionalTrendEntry {
+  callSessionId: string;
+  occurredAt: string;
+  moodStart?: MoodSnapshotMood | null;
+  moodMid?: MoodSnapshotMood | null;
+  moodEnd?: MoodSnapshotMood | null;
+  energyLevel?: MoodEnergyLevel | null;
+  trajectory?: MoodTrajectory | null;
+}
+
+export interface EmotionalTrendsData {
+  entries: EmotionalTrendEntry[];
+  distribution: Record<MoodSnapshotMood, number>;
+  energyLevels: Record<MoodEnergyLevel, number>;
+  trajectories: Record<MoodTrajectory, number>;
+}
+
+export interface MoodCalendarDay {
+  date: string;
+  mood: MoodSnapshotMood | null;
+}
+
+export interface MoodCalendarData {
+  month: string;
+  days: MoodCalendarDay[];
+}
+
+export interface ConversationHighlight {
+  callSessionId: string;
+  occurredAt: string;
+  mood: InsightMood | null;
+  topics: string[];
+  newMemoryKeys: string[];
+  milestones: string[];
+}
+
+export interface ConversationHighlightsData {
+  highlights: ConversationHighlight[];
+}
+
+export interface MemoryActivityItem {
+  memoryId: string;
+  type: MemoryType;
+  key: string;
+  createdAt: string;
+  isPrivate: boolean;
+}
+
+export interface MemoryActivityData {
+  items: MemoryActivityItem[];
+}
+
+export interface RelationshipIndicator {
+  name: string;
+  relationType: string;
+  relationRole: string;
+  sentiment: 'positive' | 'neutral' | 'complicated';
+  mentionCount30d: number;
+  lastMentionedAt: string | null;
+}
+
+export interface RelationshipIndicatorsData {
+  indicators: RelationshipIndicator[];
+}
+
+export interface WellnessAlert {
+  id: string;
+  lineId: string;
+  lineName: string;
+  createdAt: string;
+  alertType: string;
+  severity: 'info' | 'warning' | 'urgent';
+  title: string;
+  summary: string;
+  acknowledgedAt: string | null;
+}
+
 // ============================================
 // DATABASE ROW TYPES (snake_case for direct DB mapping)
 // ============================================
@@ -683,6 +787,34 @@ export type InsightPrivacyRow = Database['public']['Tables']['ultaura_insight_pr
 export type LineBaselineRow = Database['public']['Tables']['ultaura_line_baselines']['Row'];
 export type NotificationPreferencesRow =
   Database['public']['Tables']['ultaura_notification_preferences']['Row'];
+export type AccessibilitySettingsRow =
+  Database['public']['Tables']['ultaura_accessibility_settings']['Row'];
+export type ContentPreferencesRow =
+  Database['public']['Tables']['ultaura_content_preferences']['Row'];
+export type DailyRhythmRow =
+  Database['public']['Tables']['ultaura_daily_rhythms']['Row'];
+export type EmotionalPatternRow =
+  Database['public']['Tables']['ultaura_emotional_patterns']['Row'];
+export type LifeChapterRow =
+  Database['public']['Tables']['ultaura_life_chapters']['Row'];
+export type RelationshipRow =
+  Database['public']['Tables']['ultaura_relationships']['Row'];
+export type MilestoneRow =
+  Database['public']['Tables']['ultaura_milestones']['Row'];
+export type MoodSnapshotRow =
+  Database['public']['Tables']['ultaura_mood_snapshots']['Row'];
+export type PersonaAdaptationRow =
+  Database['public']['Tables']['ultaura_persona_adaptations']['Row'];
+export type CognitiveObservationRow =
+  Database['public']['Tables']['ultaura_cognitive_observations']['Row'];
+export type CognitiveFlagRow =
+  Database['public']['Tables']['ultaura_cognitive_flags']['Row'];
+export type GriefInteractionRow =
+  Database['public']['Tables']['ultaura_grief_interactions']['Row'];
+export type HealthMentionRow =
+  Database['public']['Tables']['ultaura_health_mentions']['Row'];
+export type WellnessAlertRow =
+  Database['public']['Tables']['ultaura_wellness_alerts']['Row'];
 export type WeeklySummaryRow = Database['public']['Tables']['ultaura_weekly_summaries']['Row'];
 export type AccountPrivacySettingsRow =
   Database['public']['Tables']['ultaura_account_privacy_settings']['Row'];

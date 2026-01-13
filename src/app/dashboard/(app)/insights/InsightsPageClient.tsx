@@ -98,7 +98,17 @@ export function InsightsPageClient({
             </SelectContent>
           </Select>
         </div>
-        <div className="text-sm text-muted-foreground">Last 30 days</div>
+        <div className="flex flex-col items-start gap-1 text-sm text-muted-foreground sm:items-end">
+          <span>Last 30 days</span>
+          {selectedLine?.short_id ? (
+            <Link
+              href={`/dashboard/lines/${selectedLine.short_id}/insights`}
+              className="text-xs text-primary hover:underline"
+            >
+              View detailed insights
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {!dashboard && (

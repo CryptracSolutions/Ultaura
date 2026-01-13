@@ -9,6 +9,7 @@ import { logger } from '../utils/logger.js';
 import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
 import { recalculateBaselinesForAllLines } from '../services/baseline.js';
+import { runPersonaAnalyzerForAllLines } from '../services/persona-analyzer.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
 
 // Configuration
@@ -30,6 +31,7 @@ let pollInterval: ReturnType<typeof setInterval> | null = null;
 let shuttingDown = false;
 let lastCleanupTimestamp = 0;
 let lastBaselineRunDate: string | null = null;
+let lastPersonaRunDate: string | null = null;
 
 /**
  * Calculate the next occurrence for a recurring reminder.
@@ -176,6 +178,24 @@ async function maybeRecalculateBaselines(): Promise<void> {
   lastBaselineRunDate = today;
 }
 
+async function maybeRunPersonaAnalyzer(): Promise<void> {
+  const now = DateTime.utc();
+  const today = now.toISODate();
+
+  if (!today || lastPersonaRunDate === today) {
+    return;
+  }
+
+  const targetTime = now.set({ hour: 11, minute: 0, second: 0, millisecond: 0 });
+  if (now < targetTime) {
+    return;
+  }
+
+  logger.info({ runDate: today }, 'Running persona analyzer rollups');
+  await runPersonaAnalyzerForAllLines();
+  lastPersonaRunDate = today;
+}
+
 /**
  * Execute a processor function while holding a lease.
  * Handles lease acquisition, heartbeat, and release.
@@ -278,6 +298,7 @@ async function processScheduledCalls(): Promise<void> {
 
   if (!claimedSchedules || claimedSchedules.length === 0) {
     await maybeRecalculateBaselines();
+    await maybeRunPersonaAnalyzer();
     return;
   }
 
@@ -291,6 +312,7 @@ async function processScheduledCalls(): Promise<void> {
   }
 
   await maybeRecalculateBaselines();
+  await maybeRunPersonaAnalyzer();
 }
 
 /**

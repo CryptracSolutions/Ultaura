@@ -102,6 +102,7 @@ function mapDecryptedMemory(m: {
   active: boolean;
   privacyScope: string;
   redactionLevel: string;
+  createdInCallSessionId?: string | null;
   lastAccessedAt?: string | null;
   accessCount?: number | null;
   pinned?: boolean;
@@ -128,6 +129,7 @@ function mapDecryptedMemory(m: {
     active: m.active,
     privacyScope: m.privacyScope as PrivacyScope,
     redactionLevel: m.redactionLevel as Memory['redactionLevel'],
+    createdInCallSessionId: m.createdInCallSessionId ?? null,
     lastAccessedAt: m.lastAccessedAt ?? null,
     accessCount: m.accessCount ?? 0,
     pinned: m.pinned ?? false,
@@ -332,7 +334,7 @@ export async function getMemoriesForLine(
       })
       .map((entry) => entry.memory);
 
-    return scored.slice(0, options?.limit ?? 200);
+    return scored.slice(0, options?.limit ?? 300);
   } catch (error) {
     logger.error({
       error,
@@ -358,6 +360,7 @@ export async function storeMemory(
     privacyScope?: PrivacyScope;
     expectedEndDate?: string;
     routineLevel?: RoutineMemoryValue['level'];
+    callSessionId?: string | null;
   }
 ): Promise<MemoryWriteResult | null> {
   const supabase = getSupabaseClient();
@@ -434,6 +437,7 @@ export async function storeMemory(
         confidence: options?.confidence,
         source: options?.source || 'conversation',
         privacyScope: options?.privacyScope || 'line_only',
+        createdInCallSessionId: options?.callSessionId ?? null,
       }
     );
 
@@ -516,7 +520,8 @@ export async function updateMemory(
   lineId: string,
   memoryId: string,
   value: unknown,
-  existingMemory?: Memory
+  existingMemory?: Memory,
+  options?: { callSessionId?: string | null }
 ): Promise<MemoryWriteResult | null> {
   const supabase = getSupabaseClient();
 
@@ -589,6 +594,7 @@ export async function updateMemory(
       {
         confidence: existing.confidence || 1.0,
         privacyScope: existing.privacyScope as PrivacyScope,
+        createdInCallSessionId: options?.callSessionId ?? null,
       }
     );
 

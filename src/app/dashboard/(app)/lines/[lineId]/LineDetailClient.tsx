@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Bell,
   ChevronRight,
+  Gift,
 } from 'lucide-react';
 import type {
   LineRow,
@@ -123,6 +124,7 @@ interface LineDetailClientProps {
   callSessions: CallSessionRow[];
   activeSchedulesCount: number;
   pendingRemindersCount: number;
+  milestonesCount: number;
   retentionMetrics: RetentionMetrics;
   previewHistory: CallPreview[];
   storyArcs: StoryArc[];
@@ -137,6 +139,7 @@ export function LineDetailClient({
   callSessions,
   activeSchedulesCount,
   pendingRemindersCount,
+  milestonesCount,
   retentionMetrics,
   previewHistory,
   storyArcs,
@@ -679,6 +682,14 @@ export function LineDetailClient({
             count={pendingRemindersCount}
             zeroLabel="No reminders scheduled"
             itemLabel="reminder scheduled"
+          />
+          <QuickLink
+            href={`/dashboard/lines/${line.short_id}/milestones`}
+            icon={<Gift className="w-5 h-5 text-primary" />}
+            title="Milestones"
+            count={milestonesCount}
+            zeroLabel="No milestones yet"
+            itemLabel="milestone"
           />
         </div>
       </div>

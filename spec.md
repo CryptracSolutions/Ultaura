@@ -1585,3 +1585,183 @@ Well within 2M token limit.
 ---
 
 *This specification provides complete implementation guidance for transforming Ultaura from a functional check-in service into a deeply personalized companion that seniors look forward to speaking with.*
+
+
+### Responses You Gave To The Questions The Agent Had 
+1. Data + Encryption
+
+  DEK Scope for new tables:
+  - ultaura_life_chapters → Use Line DEK (like memories). Life chapters are deeply personal per-senior data with long retention, warranting per-line encryption isolation.
+  - ultaura_health_mentions → Use Account DEK (like insights). Health mentions are call-associated, transient, and trigger account-level alerts, making account-scope appropriate.
+
+  Should store_life_chapter auto-create a history memory?
+  → No, keep them separate. Life chapters are structured narrative records with chapter_type, era_years, key_people, etc. The model should call store_memory separately for atomic facts extracted from stories. This preserves:
+  - Clean separation of concerns (chapters = narratives, memories = facts)
+  - Existing memory decay/scoring logic untouched
+  - Simpler tool semantics
+
+  Call-memory association for conversation highlights:
+  → Add created_in_call_session_id column to ultaura_memories (nullable). This is cleaner than deriving from call_events because:
+  - Direct query for "memories created in call X"
+  - Deactivation log only tracks deletions, not creations
+  - Simple join for dashboard highlights
+  - Minimal schema change (one nullable FK)
+
+  ---
+  2. Relationships + Milestones
+
+  Canonical source:
+  → ultaura_relationships is canonical; relationship memories become a sync cache. Rationale:
+  - The table supports extended attributes (contact_frequency, sentiment, deceased tracking, recent_topics[], etc.) that don't fit cleanly in memory JSON
+  - Memories work well for atomic facts; relationships are inherently multi-attribute entities
+  - Dashboard CRUD operates on the table directly
+  - Prompt compilation reads from table and formats for prompt
+  - When Grok calls update_relationship, update the table. Optionally sync a simplified memory for backward compatibility, but table is source of truth.
+
+  Milestone dashboard CRUD:
+  → Full CRUD (add/edit/delete/view). Following existing patterns (reminders have full CRUD), milestones should too:
+  - Family should be able to add birthdays they know
+  - Family should correct mistakes ("wrong date")
+  - Family should delete obsolete milestones
+  - This matches user expectations from reminders/contacts UI
+
+  ---
+  3. Alerts + Privacy
+
+  Alert content for health mentions:
+  → Generic category + severity, no details. Example:
+  - ✅ "Health concern detected (pain, concerning severity)"
+  - ❌ "Margaret mentioned her hip is hurting badly and she can't walk"
+
+  This balances:
+  - Privacy: Senior's specific words stay private
+  - Actionability: Family knows to check in, category helps contextualize
+  - Legal safety: Not medical advice, just awareness
+
+  Delivery methods to implement now:
+  → Email only for MVP, with architecture supporting future expansion:
+  - Email is universal, low-friction, and async-friendly
+  - SMS/push require additional infrastructure (Twilio SMS already exists but adds cost)
+  - Store delivery_method in alerts table and alert_delivery_method preference
+  - Future: Add SMS via Twilio, push via web-push/FCM
+
+  Should alerts respect ultaura_notification_preferences?
+  → Yes, absolutely. The spec adds health_mention_alerts, mood_drop_alerts, cognitive_concern_alerts columns to preferences. Honor them:
+  -- Only generate alert if preference enabled
+  WHERE (
+    (alert_type = 'health_mention' AND prefs.health_mention_alerts = true) OR
+    (alert_type = 'mood_drop' AND prefs.mood_drop_alerts = true) OR
+    ...
+  )
+
+  ---
+  4. Behavioral Algorithms
+
+  Mood drop definition:
+  → start→end decline within single call, or 3+ consecutive calls with mood_end = 'low':
+  - Single call: mood_start IN ('positive', 'neutral') AND mood_end IN ('low', 'sad', 'anxious') = immediate alert
+  - Pattern: 3+ consecutive calls where mood_end IN ('low', 'sad', 'anxious') = pattern alert
+  - Keep it simple; complex mid-point analysis adds noise
+
+  Cognitive flags threshold:
+  → 3+ observations in rolling 14 days (matches existing baseline window):
+  - Count distinct calls with cognitive observations
+  - consecutive_calls_with_concern tracks streak
+  - When count ≥ 3 AND concern_level = 'none', upgrade to 'monitoring'
+  - When count ≥ 5 OR severity = 'significant', upgrade to 'flagged' and notify family
+  - Reset streak when call has no observations
+
+  Emotional patterns, daily rhythms, persona adaptation:
+  → Simple rollups via scheduled job, NOT Grok post-call analysis:
+  - Run nightly/weekly background job (like existing baseline calculation)
+  - Aggregate from ultaura_mood_snapshots and ultaura_call_sessions
+  - Persona adaptation: Compute from tool call patterns, engagement scores
+  - Avoids token cost and latency of extra Grok call
+  - Example rollup:
+  -- Daily rhythm: avg engagement by time of day
+  SELECT
+    CASE WHEN EXTRACT(hour FROM started_at AT TIME ZONE line.timezone) < 12 THEN 'morning'
+         WHEN EXTRACT(hour FROM ...) < 17 THEN 'afternoon'
+         ELSE 'evening' END as time_of_day,
+    AVG(engagement_score)
+  FROM ultaura_call_sessions s
+  JOIN ultaura_call_insights i ON ...
+  GROUP BY time_of_day
+
+  ---
+  5. Prompt Inputs
+
+  Pull in per-call summaries beyond memories?
+  → Yes, add last N call topic summaries. The existing baseline system already stores recent_concern_codes. Extend with:
+  - Last 5-10 calls: topics discussed (from ultaura_call_insights.topics)
+  - Build a "Recent Conversations" prompt section:
+  ## Recent Calls (last 10)
+  - Jan 10: Talked about family (high engagement), mentioned grandson's soccer
+  - Jan 9: Low mood, discussed missing husband, concerns about sleep
+  - This enables context pickup ("Last time you mentioned...") with specificity
+
+  Raise memory fetch limit?
+  → Yes, raise to 150 for prompts, 300 for fetch. With 2M context window and flat-rate pricing:
+  - Current: Fetch 200, use 50
+  - Recommended: Fetch 300, use 150
+  - Token impact: ~50 tokens/memory × 150 = 7,500 tokens (still tiny vs 2M)
+  - Benefit: Richer personalization, more relationship/history context
+
+  Update in:
+  - /telephony/src/websocket/media-stream.ts line 196: limit: 150
+  - /telephony/src/websocket/grok-bridge.ts line 431: limit: 150
+
+  ---
+  6. UI Placement + Routes
+
+  Page placement:
+  → Fold into existing pages where natural, create new pages for distinct features:
+  Feature: Accessibility settings
+  Recommendation: Add section to existing Settings page
+  Rationale: Natural fit, follows timezone/quiet hours pattern
+  ────────────────────────────────────────
+  Feature: Milestone calendar
+  Recommendation: New page: /lines/[lineId]/milestones/
+  Rationale: Distinct CRUD like reminders/contacts
+  ────────────────────────────────────────
+  Feature: Relationships view
+  Recommendation: New section in Insights
+  Rationale: Part of relationship quality indicators
+  ────────────────────────────────────────
+  Feature: Emotional trends
+  Recommendation: Extend existing Insights components
+  Rationale: Add MoodTrendChart, MoodCalendar to grid
+  ────────────────────────────────────────
+  Feature: Wellness alerts
+  Recommendation: New page: /alerts/
+  Rationale: Account-level (not per-line), needs dedicated list view
+  ────────────────────────────────────────
+  Feature: Alert settings
+  Recommendation: Add section to new /alerts/ page
+  Rationale: Simple toggles, fits notification pattern
+  ────────────────────────────────────────
+  Feature: Conversation highlights
+  Recommendation: Extend existing Insights
+  Rationale: Add MemoryActivity component to grid
+  New nav links:
+  → Add one top-level nav item: "Alerts". Everything else nests:
+  - Alerts → New sidebar item (account-level)
+  - Milestones → Accessible from line detail page (like Reminders, Contacts)
+  - Relationships → Section within Insights (not separate nav)
+
+  Sidebar structure:
+  Dashboard
+  Lines
+    └ [Line Name]
+        ├ Overview
+        ├ Settings (includes accessibility, alert prefs)
+        ├ Schedule
+        ├ Reminders
+        ├ Milestones ← NEW
+        └ Contacts
+  Insights (includes emotional trends, relationships, highlights)
+  Alerts ← NEW (account-level)
+  Usage
+  Privacy
+  
+  ---

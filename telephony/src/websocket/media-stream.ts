@@ -13,6 +13,7 @@ import { getUsageSummary } from '../services/metering.js';
 import { getLastDetectedLanguageForLine } from '../services/language.js';
 import { getAccountPrivacySettings, getLineVoiceConsent } from '../services/privacy.js';
 import { buildRetentionContext, type RetentionContext } from '../services/retention-context.js';
+import { buildPromptPlaceholders } from '../services/prompt-context.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
 import { redactSensitive } from '../utils/redact.js';
@@ -193,7 +194,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             const memoryEnabled = aiSummarizationEnabled && memoryConsent === 'granted';
 
             // Fetch memories for the line (use empty list when memory is disabled)
-            const memories = await getMemoriesForLine(account.id, line.id, { limit: 50 });
+            const memories = await getMemoriesForLine(account.id, line.id, { limit: 150 });
             if (memoryEnabled && memories.length > 0) {
               await markMemoriesAccessed(memories.map((memory) => memory.id));
             }
@@ -214,6 +215,17 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               } catch (err) {
                 logger.error({ error: err, callSessionId, lineId: line.id }, 'Failed to build retention context');
               }
+            }
+
+            let promptPlaceholders: Record<string, string> = {};
+            try {
+              promptPlaceholders = await buildPromptPlaceholders({
+                accountId: account.id,
+                line,
+                activeStoryArcs: retentionContext.activeStoryArcs,
+              });
+            } catch (error) {
+              logger.warn({ error, callSessionId, lineId: line.id }, 'Failed to build prompt placeholders');
             }
 
             // Check minutes status
@@ -394,10 +406,15 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 isTestCall: session.is_test_call,
                 currentPlanId: account.plan_id as PlanId,
                 accountStatus: account.status as AccountStatus,
+                promptPlaceholders,
                 canReceiveInboundCalls: line.inbound_allowed,
                 pendingCallPreview: retentionContext.pendingPreview,
                 segmentPreferences: retentionContext.segmentPreferences,
                 activeStoryArcs: retentionContext.activeStoryArcs,
+                interruptionTolerance: line.interruption_tolerance,
+                fillerWordPatience: line.filler_word_patience,
+                silenceToleranceMs: line.silence_tolerance_ms,
+                crosstalkRecoveryMode: line.crosstalk_recovery_mode,
                 onAudioReceived,
                 onClearBuffer,
                 onError,

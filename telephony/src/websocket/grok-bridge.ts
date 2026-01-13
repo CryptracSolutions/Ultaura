@@ -151,6 +151,11 @@ interface GrokBridgeOptions {
   // Plan info for upgrade context
   currentPlanId: PlanId;
   accountStatus: AccountStatus;
+  promptPlaceholders?: Record<string, string>;
+  interruptionTolerance?: 'high' | 'normal' | 'low' | null;
+  fillerWordPatience?: 'high' | 'normal' | 'low' | null;
+  silenceToleranceMs?: number | null;
+  crosstalkRecoveryMode?: 'immediate' | 'patient' | 'very_patient' | null;
   onAudioReceived: (audioBase64: string) => void;
   onClearBuffer: () => void;
   onError: (error: Error) => void;
@@ -309,9 +314,9 @@ export class GrokBridge {
         },
         turn_detection: {
           type: 'server_vad',
-          threshold: VAD_THRESHOLD,
-          prefix_padding_ms: 300,
-          silence_duration_ms: VAD_SILENCE_DURATION_MS,
+          threshold: this.getVadThreshold(),
+          prefix_padding_ms: this.getPrefixPaddingMs(),
+          silence_duration_ms: this.getSilenceDurationMs(),
         },
         tools,
       },
@@ -341,6 +346,7 @@ export class GrokBridge {
     } = this.options;
     const memories = overrides?.memories ?? this.options.memories;
     const memoryEnabled = this.options.memoryEnabled;
+    const placeholders = this.options.promptPlaceholders;
 
     // Use dedicated short prompt for reminder calls
     if (isReminderCall && reminderMessage) {
@@ -372,6 +378,7 @@ export class GrokBridge {
       accountStatus,
       isTestCall,
       canReceiveInboundCalls,
+      placeholders,
     });
 
     if (memoryEnabled) {
@@ -423,12 +430,30 @@ At the START of this call:
   private getConsentPromptSection(): string {
     return `## First Call Memory Consent\n\nAt the START of this call, you MUST ask for permission to remember things:\n\n\"Before we get started, I'd like to ask - would it be okay if I remember things you tell me?\nThis helps me personalize our conversations. You can say yes or no.\"\n\nBased on their response:\n- If they say YES or agree: Call the grant_memory_consent tool\n- If they say NO or decline: Call the deny_memory_consent tool\n\nDo NOT store any memories until you receive explicit consent.`;
   }
+
+  private getVadThreshold(): number {
+    const tolerance = this.options.interruptionTolerance ?? 'normal';
+    if (tolerance === 'high') return 0.35;
+    if (tolerance === 'low') return 0.65;
+    return VAD_THRESHOLD;
+  }
+
+  private getPrefixPaddingMs(): number {
+    const patience = this.options.fillerWordPatience ?? 'normal';
+    if (patience === 'high') return 500;
+    if (patience === 'low') return 150;
+    return 300;
+  }
+
+  private getSilenceDurationMs(): number {
+    return this.options.silenceToleranceMs ?? VAD_SILENCE_DURATION_MS;
+  }
   private async refreshMemoryContext(reason: string): Promise<void> {
     try {
       const memories = await getMemoriesForLine(
         this.options.accountId,
         this.options.lineId,
-        { limit: 50 }
+        { limit: 150 }
       );
       if (this.options.memoryEnabled && memories.length > 0) {
         await markMemoriesAccessed(memories.map((memory) => memory.id));
@@ -1095,6 +1120,106 @@ At the START of this call:
             totalChapters: args.total_chapters,
             chapterCompleted: args.chapter_completed,
             storyState: args.story_state,
+          });
+          break;
+        case 'store_life_chapter':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/store_life_chapter`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            chapter_type: args.chapter_type,
+            title: args.title,
+            era_start_year: args.era_start_year,
+            era_end_year: args.era_end_year,
+            narrative_summary: args.narrative_summary,
+            key_people: args.key_people,
+            emotional_tone: args.emotional_tone,
+          });
+          break;
+        case 'store_milestone':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/store_milestone`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            milestone_type: args.milestone_type,
+            title: args.title,
+            date_month: args.date_month,
+            date_day: args.date_day,
+            date_year: args.date_year,
+            related_person_name: args.related_person_name,
+            is_recurring: args.is_recurring,
+          });
+          break;
+        case 'mark_milestone_celebrated':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_milestone_celebrated`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            milestone_id: args.milestone_id,
+            milestone_title: args.milestone_title,
+          });
+          break;
+        case 'update_relationship':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/update_relationship`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            name: args.name,
+            updates: args.updates,
+          });
+          break;
+        case 'mark_relationship_deceased':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_relationship_deceased`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            name: args.name,
+            passed_at: args.passed_at,
+            grief_sensitivity: args.grief_sensitivity,
+          });
+          break;
+        case 'log_mood_snapshot':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/log_mood_snapshot`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            mood_start: args.mood_start,
+            mood_mid: args.mood_mid,
+            mood_end: args.mood_end,
+            mood_trajectory: args.mood_trajectory,
+            techniques_used: args.techniques_used,
+            energy_level: args.energy_level,
+          });
+          break;
+        case 'log_cognitive_observation':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/log_cognitive_observation`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            observation_type: args.observation_type,
+            severity: args.severity,
+            context: args.context,
+            response_given: args.response_given,
+          });
+          break;
+        case 'adjust_accessibility':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/adjust_accessibility`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            setting: args.setting,
+            value: args.value,
+            source: args.source,
+          });
+          break;
+        case 'update_content_preference':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/update_content_preference`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            content_type: args.content_type,
+            preference_change: args.preference_change,
+            specific_update: args.specific_update,
+          });
+          break;
+        case 'log_health_mention':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/log_health_mention`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            category: args.category,
+            summary: args.summary,
+            severity: args.severity,
           });
           break;
 

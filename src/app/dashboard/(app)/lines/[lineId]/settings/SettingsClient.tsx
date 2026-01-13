@@ -4,19 +4,21 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Settings, Globe, Clock, Bell, Voicemail, Sparkles, Mail, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Settings, Globe, Clock, Bell, Voicemail, Sparkles, Mail, AlertTriangle, Ear } from 'lucide-react';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
-import type { LineRow, VoicemailBehavior, InsightPrivacyRow, NotificationPreferencesRow } from '~/lib/ultaura/types';
+import type { LineRow, VoicemailBehavior, InsightPrivacyRow, NotificationPreferencesRow, AccessibilitySettingsRow } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/lines';
 import { INSIGHTS, US_TIMEZONES, TIME_OPTIONS, WEEKDAY_OPTIONS } from '~/lib/ultaura/constants';
 import { setPauseMode, updateInsightPrivacy, updateNotificationPreferences } from '~/lib/ultaura/insights';
+import { updateAccessibilitySettings } from '~/lib/ultaura/accessibility';
 
 interface SettingsClientProps {
   line: LineRow;
   insightPrivacy: InsightPrivacyRow | null;
   notificationPreferences: NotificationPreferencesRow | null;
+  accessibilitySettings: AccessibilitySettingsRow | null;
   disabled?: boolean;
 }
 
@@ -24,6 +26,7 @@ export function SettingsClient({
   line,
   insightPrivacy,
   notificationPreferences,
+  accessibilitySettings,
   disabled = false,
 }: SettingsClientProps) {
   const router = useRouter();
@@ -40,6 +43,13 @@ export function SettingsClient({
   const [voicemailBehavior, setVoicemailBehavior] = useState<VoicemailBehavior>(
     (line.voicemail_behavior || 'brief') as VoicemailBehavior
   );
+
+  const accessibilityDefaults = {
+    hearing_mode: accessibilitySettings?.hearing_mode ?? 'normal',
+    speech_rate: accessibilitySettings?.speech_rate ?? 1.0,
+    cognitive_mode: accessibilitySettings?.cognitive_mode ?? 'normal',
+    context_window_calls: accessibilitySettings?.context_window_calls ?? 10,
+  };
 
   const privacyDefaults = {
     insights_enabled: insightPrivacy?.insights_enabled ?? true,
@@ -83,6 +93,13 @@ export function SettingsClient({
   );
   const [missedCallsThreshold, setMissedCallsThreshold] = useState(
     notificationDefaults.alert_missed_calls_threshold
+  );
+
+  const [hearingMode, setHearingMode] = useState(accessibilityDefaults.hearing_mode);
+  const [speechRate, setSpeechRate] = useState(accessibilityDefaults.speech_rate);
+  const [cognitiveMode, setCognitiveMode] = useState(accessibilityDefaults.cognitive_mode);
+  const [contextWindowCalls, setContextWindowCalls] = useState(
+    accessibilityDefaults.context_window_calls
   );
 
   const weeklySummaryFormat = notificationDefaults.weekly_summary_format;
@@ -149,6 +166,19 @@ export function SettingsClient({
         });
       }
 
+      if (hasAccessibilityChanges) {
+        const result = await updateAccessibilitySettings(line.id, {
+          hearingMode,
+          speechRate,
+          cognitiveMode,
+          contextWindowCalls,
+        });
+        if (!result.success) {
+          setError(result.error.message || 'Failed to update accessibility settings');
+          return;
+        }
+      }
+
       toast.success('Settings saved');
       router.push(`/dashboard/lines/${line.short_id}`);
       router.refresh();
@@ -183,11 +213,18 @@ export function SettingsClient({
     missedCallsEnabled !== notificationDefaults.alert_missed_calls_enabled ||
     missedCallsThreshold !== notificationDefaults.alert_missed_calls_threshold;
 
+  const hasAccessibilityChanges =
+    hearingMode !== accessibilityDefaults.hearing_mode ||
+    speechRate !== accessibilityDefaults.speech_rate ||
+    cognitiveMode !== accessibilityDefaults.cognitive_mode ||
+    contextWindowCalls !== accessibilityDefaults.context_window_calls;
+
   const hasChanges =
     hasLineChanges ||
     hasInsightPrivacyChanges ||
     hasPauseChanges ||
-    hasNotificationChanges;
+    hasNotificationChanges ||
+    hasAccessibilityChanges;
 
   return (
     <div className="w-full p-6 pb-12">
@@ -344,6 +381,98 @@ export function SettingsClient({
                 onCheckedChange={setAllowVoiceReminderControl}
                 disabled={disabled}
               />
+            </div>
+          </div>
+
+          {/* Accessibility Settings */}
+          <div className="pt-6 border-t border-border space-y-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Ear className="w-4 h-4 text-muted-foreground" />
+              Accessibility Settings
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  Hearing Mode
+                </label>
+                <Select value={hearingMode} onValueChange={setHearingMode}>
+                  <SelectTrigger className="w-full py-3" disabled={disabled}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="enhanced_clarity">Enhanced clarity</SelectItem>
+                    <SelectItem value="slow_pace">Slow pace</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  Cognitive Mode
+                </label>
+                <Select value={cognitiveMode} onValueChange={setCognitiveMode}>
+                  <SelectTrigger className="w-full py-3" disabled={disabled}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="supportive">Supportive</SelectItem>
+                    <SelectItem value="high_support">High support</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  Speech Rate
+                </label>
+                <input
+                  type="number"
+                  min={0.7}
+                  max={1.3}
+                  step={0.05}
+                  value={speechRate}
+                  onChange={(event) => {
+                    const next = Number.parseFloat(event.target.value);
+                    if (Number.isFinite(next)) {
+                      setSpeechRate(next);
+                    }
+                  }}
+                  disabled={disabled}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  1.0 is normal pace.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  Context Window (calls)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={contextWindowCalls}
+                  onChange={(event) => {
+                    const next = Number.parseInt(event.target.value, 10);
+                    if (Number.isFinite(next)) {
+                      setContextWindowCalls(next);
+                    }
+                  }}
+                  disabled={disabled}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  How many recent calls Ultaura can reference.
+                </p>
+              </div>
             </div>
           </div>
 

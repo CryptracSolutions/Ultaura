@@ -119,6 +119,7 @@ function decryptMemoryRow(
     active: memory.active,
     privacyScope: memory.privacy_scope,
     redactionLevel: memory.redaction_level,
+    createdInCallSessionId: memory.created_in_call_session_id ?? null,
     lastAccessedAt: memory.last_accessed_at ?? null,
     accessCount: memory.access_count ?? null,
     pinned: memory.pinned ?? false,
@@ -162,6 +163,7 @@ export async function upsertEncryptedMemory(
     source?: 'onboarding' | 'conversation' | 'caregiver_seed';
     privacyScope?: 'line_only' | 'shareable_with_payer';
     redactionLevel?: 'none' | 'low' | 'high';
+    createdInCallSessionId?: string | null;
   }
 ): Promise<{ memoryId: string; action: 'created' | 'updated'; version: number }> {
   const dek = await getMemoryDEK(supabase, accountId, lineId);
@@ -186,6 +188,7 @@ export async function upsertEncryptedMemory(
     p_privacy_scope: options?.privacyScope ?? 'line_only',
     p_redaction_level: options?.redactionLevel ?? 'none',
     p_memory_id: memoryId,
+    p_created_in_call_session_id: options?.createdInCallSessionId ?? null,
   });
 
   if (error) {

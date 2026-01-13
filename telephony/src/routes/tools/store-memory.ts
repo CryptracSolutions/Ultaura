@@ -68,6 +68,7 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
       privacyScope: 'line_only',
       expectedEndDate,
       routineLevel,
+      callSessionId,
     });
 
     if (!result) {

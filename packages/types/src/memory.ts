@@ -18,10 +18,18 @@ export type ExclusionCategory =
 export interface RelationshipMemoryValue {
   name: string;
   role: string;
-  contactFrequency?: 'daily' | 'weekly' | 'monthly' | 'rarely';
+  nickname?: string;
+  relationType?: 'family' | 'friend' | 'professional' | 'pet';
+  contactFrequency?: 'daily' | 'weekly' | 'monthly' | 'rarely' | 'unknown';
+  sentiment?: 'positive' | 'neutral' | 'complicated' | 'strained';
+  location?: string;
+  sharedActivities?: string[];
+  emotionalSignificance?: 'high' | 'medium' | 'low';
+  isDeceased?: boolean;
+  passedAt?: string;
+  griefSensitivity?: 'high' | 'medium' | 'low';
   topicsDiscussed?: string[];
   lastMentioned?: string;
-  sentiment?: 'positive' | 'neutral' | 'complicated';
   notes?: string;
 }
 
@@ -31,6 +39,15 @@ export interface TemporalMemoryValue {
   durationEstimateWeeks?: number;
   context?: string;
   reviewBeforeArchive: boolean;
+}
+
+export interface LifeStoryMemoryValue {
+  chapterId?: string;
+  era: string;
+  location?: string;
+  keyPeople?: string[];
+  emotionalSignificance: 'high' | 'medium' | 'low';
+  narrativeThread?: string;
 }
 
 export interface RoutineMemoryValue {
@@ -58,6 +75,7 @@ export interface Memory {
   active: boolean;
   privacyScope: PrivacyScope;
   redactionLevel: 'none' | 'low' | 'high';
+  createdInCallSessionId?: string | null;
   lastAccessedAt?: string | null;
   accessCount?: number | null;
   pinned?: boolean;

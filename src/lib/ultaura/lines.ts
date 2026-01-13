@@ -259,6 +259,17 @@ export async function updateLine(
   if (parsed.data.allowVoiceReminderControl !== undefined) updates.allow_voice_reminder_control = parsed.data.allowVoiceReminderControl;
   if (parsed.data.voicemailBehavior !== undefined) updates.voicemail_behavior = parsed.data.voicemailBehavior;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
+  if (parsed.data.birthYear !== undefined) updates.birth_year = parsed.data.birthYear;
+  if (parsed.data.formativeDecade !== undefined) updates.formative_decade = parsed.data.formativeDecade;
+  if (parsed.data.hometown !== undefined) updates.hometown = parsed.data.hometown;
+  if (parsed.data.currentLocation !== undefined) updates.current_location = parsed.data.currentLocation;
+  if (parsed.data.optimalCallTime !== undefined) updates.optimal_call_time = parsed.data.optimalCallTime;
+  if (parsed.data.optimalCallTimeSource !== undefined) updates.optimal_call_time_source = parsed.data.optimalCallTimeSource;
+  if (parsed.data.optimalCallDays !== undefined) updates.optimal_call_days = parsed.data.optimalCallDays;
+  if (parsed.data.interruptionTolerance !== undefined) updates.interruption_tolerance = parsed.data.interruptionTolerance;
+  if (parsed.data.fillerWordPatience !== undefined) updates.filler_word_patience = parsed.data.fillerWordPatience;
+  if (parsed.data.silenceToleranceMs !== undefined) updates.silence_tolerance_ms = parsed.data.silenceToleranceMs;
+  if (parsed.data.crosstalkRecoveryMode !== undefined) updates.crosstalk_recovery_mode = parsed.data.crosstalkRecoveryMode;
 
   return updateLineWithTrial(account, { lineId, updates });
 }

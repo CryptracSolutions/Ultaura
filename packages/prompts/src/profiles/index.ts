@@ -6,6 +6,19 @@ import type {
 import { getLanguageName } from '../utils/language.js';
 import { IDENTITY_SECTION } from '../golden/sections/identity.js';
 import { CONVERSATION_STYLE_SECTION } from '../golden/sections/conversation-style.js';
+import { ADAPTIVE_PERSONA_SECTION } from '../golden/sections/adaptive-persona.js';
+import { LIFE_STORY_SECTION } from '../golden/sections/life-story.js';
+import { RELATIONSHIP_MAPPING_SECTION } from '../golden/sections/relationships.js';
+import { EMOTIONAL_INTELLIGENCE_SECTION } from '../golden/sections/emotional-intelligence.js';
+import { ACCESSIBILITY_SECTION } from '../golden/sections/accessibility.js';
+import { DAILY_RHYTHM_SECTION } from '../golden/sections/daily-rhythm.js';
+import { HEALTH_WELLNESS_SECTION } from '../golden/sections/health-wellness.js';
+import { CELEBRATION_SECTION } from '../golden/sections/celebration.js';
+import { GRIEF_SUPPORT_SECTION } from '../golden/sections/grief-support.js';
+import { CONTENT_ENGINE_SECTION } from '../golden/sections/content-engine.js';
+import { SEAMLESS_EXPERIENCE_SECTION } from '../golden/sections/seamless-experience.js';
+import { INTERRUPTION_HANDLING_SECTION } from '../golden/sections/interruption-handling.js';
+import { RECENT_CALLS_SECTION } from '../golden/sections/recent-calls.js';
 import { SAFETY_POLICY_SECTION } from '../golden/sections/safety-policy.js';
 import { TOOL_POLICY_SECTION } from '../golden/sections/tool-policy.js';
 import { MEMORY_POLICY_SECTION } from '../golden/sections/memory-policy.js';
@@ -41,6 +54,7 @@ export interface CompanionPromptParams {
   accountStatus?: AccountStatus;
   canReceiveInboundCalls?: boolean;
   isTestCall?: boolean;
+  placeholders?: Record<string, string>;
 }
 
 function selectSection(section: PromptSection, compressed: boolean): string {
@@ -66,10 +80,23 @@ export function compilePrompt(
 
   sections.push(selectSection(IDENTITY_SECTION, compressed));
   sections.push(selectSection(CONVERSATION_STYLE_SECTION, compressed));
+  sections.push(selectSection(ADAPTIVE_PERSONA_SECTION, compressed));
+  sections.push(selectSection(LIFE_STORY_SECTION, compressed));
+  sections.push(selectSection(RELATIONSHIP_MAPPING_SECTION, compressed));
+  sections.push(selectSection(EMOTIONAL_INTELLIGENCE_SECTION, compressed));
+  sections.push(selectSection(ACCESSIBILITY_SECTION, compressed));
+  sections.push(selectSection(DAILY_RHYTHM_SECTION, compressed));
 
   const memoryText = formatMemoriesForPrompt(params.memories);
   const memoryHeader = compressed ? '## Memory' : `## Your Memory of ${safeUserName}`;
   sections.push(`${memoryHeader}\n${memoryText}`);
+
+  sections.push(selectSection(HEALTH_WELLNESS_SECTION, compressed));
+  sections.push(selectSection(CELEBRATION_SECTION, compressed));
+  sections.push(selectSection(GRIEF_SUPPORT_SECTION, compressed));
+  sections.push(selectSection(CONTENT_ENGINE_SECTION, compressed));
+  sections.push(selectSection(SEAMLESS_EXPERIENCE_SECTION, compressed));
+  sections.push(selectSection(INTERRUPTION_HANDLING_SECTION, compressed));
 
   sections.push(selectSection(PRIVACY_POLICY_SECTION, compressed));
   sections.push(selectSection(SAFETY_POLICY_SECTION, compressed));
@@ -128,6 +155,7 @@ export function compilePrompt(
     );
   }
 
+  sections.push(selectSection(RECENT_CALLS_SECTION, compressed));
   sections.push(formatLanguageSection(params.startingLanguage ?? 'en', compressed));
   sections.push(formatTimezoneSection(params.timezone));
 
@@ -183,7 +211,22 @@ function formatTimezoneSection(timezone?: string): string {
 }
 
 function applyPlaceholders(prompt: string, params: CompanionPromptParams): string {
-  return prompt
-    .replace(/\{userName\}/g, params.userName)
-    .replace(/\{timezone\}/g, params.timezone || 'America/Los_Angeles');
+  const replacements: Record<string, string> = {
+    userName: params.userName,
+    timezone: params.timezone || 'America/Los_Angeles',
+    ...(params.placeholders ?? {}),
+  };
+
+  let output = prompt;
+  for (const [key, value] of Object.entries(replacements)) {
+    const safeValue = value ?? '';
+    const pattern = new RegExp(`\\{${escapeRegExp(key)}\\}`, 'g');
+    output = output.replace(pattern, safeValue);
+  }
+
+  return output;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

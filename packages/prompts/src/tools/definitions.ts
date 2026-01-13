@@ -194,6 +194,192 @@ Use when starting a new story series or updating progress.`,
   },
   {
     type: 'function',
+    name: 'store_life_chapter',
+    description: 'Store a significant life chapter when the senior shares an important story.',
+    parameters: {
+      type: 'object',
+      properties: {
+        chapter_type: {
+          type: 'string',
+          enum: [
+            'childhood',
+            'education',
+            'career',
+            'marriage',
+            'parenting',
+            'military',
+            'travel',
+            'retirement',
+            'accomplishment',
+            'loss',
+            'other',
+          ],
+        },
+        title: { type: 'string' },
+        era_start_year: { type: 'integer' },
+        era_end_year: { type: 'integer' },
+        narrative_summary: { type: 'string' },
+        key_people: { type: 'array', items: { type: 'string' } },
+        emotional_tone: {
+          type: 'string',
+          enum: ['joyful', 'proud', 'bittersweet', 'difficult', 'neutral'],
+        },
+      },
+      required: ['chapter_type', 'title', 'narrative_summary'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'store_milestone',
+    description: 'Store a milestone.',
+    parameters: {
+      type: 'object',
+      properties: {
+        milestone_type: {
+          type: 'string',
+          enum: ['birthday', 'anniversary', 'memorial', 'achievement', 'holiday', 'custom'],
+        },
+        title: { type: 'string' },
+        date_month: { type: 'integer', minimum: 1, maximum: 12 },
+        date_day: { type: 'integer', minimum: 1, maximum: 31 },
+        date_year: { type: 'integer' },
+        related_person_name: { type: 'string' },
+        is_recurring: { type: 'boolean' },
+      },
+      required: ['milestone_type', 'title', 'date_month', 'date_day'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'mark_milestone_celebrated',
+    description: 'Mark milestone as acknowledged.',
+    parameters: {
+      type: 'object',
+      properties: {
+        milestone_id: { type: 'string' },
+        milestone_title: { type: 'string' },
+      },
+    },
+  },
+  {
+    type: 'function',
+    name: 'update_relationship',
+    description: 'Update relationship information.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        updates: {
+          type: 'object',
+          properties: {
+            nickname: { type: 'string' },
+            contact_frequency: { type: 'string' },
+            sentiment: { type: 'string' },
+            recent_topic: { type: 'string' },
+            location: { type: 'string' },
+            shared_activity: { type: 'string' },
+          },
+        },
+      },
+      required: ['name', 'updates'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'mark_relationship_deceased',
+    description: 'Mark a relationship as deceased.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        passed_at: { type: 'string' },
+        grief_sensitivity: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'log_mood_snapshot',
+    description: 'Record mood observations at call end.',
+    parameters: {
+      type: 'object',
+      properties: {
+        mood_start: { type: 'string', enum: ['positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated'] },
+        mood_mid: { type: 'string', enum: ['positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated'] },
+        mood_end: { type: 'string', enum: ['positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated'] },
+        mood_trajectory: { type: 'string', enum: ['improved', 'declined', 'stable'] },
+        techniques_used: { type: 'array', items: { type: 'string' } },
+        energy_level: { type: 'string', enum: ['high', 'normal', 'low', 'very_low'] },
+      },
+      required: ['mood_start', 'mood_end', 'mood_trajectory', 'energy_level'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'log_cognitive_observation',
+    description: 'Log cognitive observation for pattern detection.',
+    parameters: {
+      type: 'object',
+      properties: {
+        observation_type: {
+          type: 'string',
+          enum: ['confusion', 'repetition', 'word_finding', 'orientation', 'memory_lapse'],
+        },
+        severity: { type: 'string', enum: ['mild', 'moderate', 'significant'] },
+        context: { type: 'string' },
+        response_given: { type: 'string' },
+      },
+      required: ['observation_type', 'severity'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'adjust_accessibility',
+    description: 'Adjust accessibility settings.',
+    parameters: {
+      type: 'object',
+      properties: {
+        setting: { type: 'string', enum: ['speech_rate', 'hearing_mode', 'cognitive_mode'] },
+        value: { type: 'string' },
+        source: { type: 'string', enum: ['senior_request', 'ai_detected'] },
+      },
+      required: ['setting', 'value'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'update_content_preference',
+    description: 'Update content preferences.',
+    parameters: {
+      type: 'object',
+      properties: {
+        content_type: { type: 'string', enum: ['trivia', 'story', 'memory_lane', 'brain_games'] },
+        preference_change: { type: 'string', enum: ['increase', 'decrease'] },
+        specific_update: { type: 'object' },
+      },
+      required: ['content_type', 'preference_change'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'log_health_mention',
+    description: 'Log health mention. Always private.',
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: ['pain', 'medication', 'appointment', 'symptom', 'sleep', 'appetite', 'mobility', 'energy', 'general'],
+        },
+        summary: { type: 'string' },
+        severity: { type: 'string', enum: ['mild', 'moderate', 'concerning'] },
+      },
+      required: ['category', 'summary'],
+    },
+  },
+  {
+    type: 'function',
     name: 'set_reminder',
     description: `Set a reminder for the user. Supports one-time and recurring reminders.
 

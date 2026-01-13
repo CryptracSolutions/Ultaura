@@ -71,6 +71,18 @@ export interface LineRow {
   last_answered_call_at: string | null;
   missed_alert_sent_at: string | null;
   last_weekly_summary_at: string | null;
+  birth_year: number | null;
+  birth_decade: number | null;
+  formative_decade: number | null;
+  hometown: string | null;
+  current_location: string | null;
+  optimal_call_time: string | null;
+  optimal_call_time_source: 'family_set' | 'ai_learned' | 'senior_request' | null;
+  optimal_call_days: number[] | null;
+  interruption_tolerance: 'high' | 'normal' | 'low' | null;
+  filler_word_patience: 'high' | 'normal' | 'low' | null;
+  silence_tolerance_ms: number | null;
+  crosstalk_recovery_mode: 'immediate' | 'patient' | 'very_patient' | null;
 }
 
 export interface CallSessionRow {
@@ -145,6 +157,7 @@ export interface MemoryRow {
   embedding_pending: boolean;
   expected_end_date: string | null;
   expiry_pending: boolean;
+  created_in_call_session_id: string | null;
 }
 
 export interface MinuteLedgerRow {
@@ -239,4 +252,260 @@ export interface InsightPrivacyRow {
   is_paused: boolean;
   paused_at: string | null;
   paused_reason: string | null;
+}
+
+export interface AccessibilitySettingsRow {
+  id: string;
+  line_id: string;
+  updated_at: string;
+  hearing_mode: string;
+  speech_rate: number;
+  pause_between_sentences: boolean;
+  repeat_key_info: boolean;
+  cognitive_mode: string;
+  simplified_language: boolean;
+  shorter_responses: boolean;
+  provide_call_recap: boolean;
+  remind_of_previous_topics: boolean;
+  context_window_calls: number;
+  hearing_mode_source: string;
+  cognitive_mode_source: string;
+}
+
+export interface ContentPreferencesRow {
+  id: string;
+  line_id: string;
+  updated_at: string;
+  trivia_preference: number;
+  story_preference: number;
+  memory_lane_preference: number;
+  brain_games_preference: number;
+  favorite_trivia_domains: string[];
+  avoided_trivia_domains: string[];
+  trivia_difficulty: string;
+  favorite_story_genres: string[];
+  avoided_story_themes: string[];
+  preferred_story_length: string;
+  favorite_eras: string[];
+  favorite_memory_topics: string[];
+  best_segment_time_of_call: string;
+}
+
+export interface DailyRhythmRow {
+  id: string;
+  line_id: string;
+  updated_at: string;
+  morning_energy: string | null;
+  afternoon_energy: string | null;
+  evening_energy: string | null;
+  morning_routine_summary: string | null;
+  afternoon_routine_summary: string | null;
+  evening_routine_summary: string | null;
+  best_engagement_time: string | null;
+  worst_engagement_time: string | null;
+  avg_duration_by_time: Record<string, number> | null;
+  best_days_of_week: number[] | null;
+  avoid_days_of_week: number[] | null;
+}
+
+export interface EmotionalPatternRow {
+  id: string;
+  line_id: string;
+  updated_at: string;
+  dominant_mood: string | null;
+  mood_variability: string | null;
+  best_time_of_day: string | null;
+  worst_time_of_day: string | null;
+  positive_triggers: string[] | null;
+  negative_triggers: string[] | null;
+  effective_techniques: string[] | null;
+  ineffective_techniques: string[] | null;
+}
+
+export interface LifeChapterRow {
+  id: string;
+  line_id: string;
+  account_id: string;
+  created_at: string;
+  updated_at: string;
+  chapter_type: string;
+  title: string;
+  era_start_year: number | null;
+  era_end_year: number | null;
+  location: string | null;
+  narrative_ciphertext: Uint8Array;
+  narrative_iv: Uint8Array;
+  narrative_tag: Uint8Array;
+  narrative_alg: string;
+  narrative_kid: string;
+  key_people: string[] | null;
+  emotional_tone: string | null;
+  times_referenced: number;
+  last_referenced_at: string | null;
+  connects_to_chapter_ids: string[] | null;
+  source: string;
+}
+
+export interface RelationshipRow {
+  id: string;
+  line_id: string;
+  account_id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  nickname: string | null;
+  relation_type: string;
+  relation_role: string;
+  contact_frequency: string | null;
+  last_contact_mentioned: string | null;
+  typical_contact_method: string | null;
+  sentiment: string | null;
+  emotional_significance: string | null;
+  location: string | null;
+  distance_category: string | null;
+  shared_activities: string[] | null;
+  conversation_topics: string[] | null;
+  times_mentioned: number;
+  last_mentioned_at: string | null;
+  recent_topics: string[] | null;
+  is_deceased: boolean;
+  passed_at: string | null;
+  death_mentioned_at: string | null;
+  grief_sensitivity: string | null;
+  privacy_scope: string;
+}
+
+export interface MilestoneRow {
+  id: string;
+  line_id: string;
+  account_id: string;
+  created_at: string;
+  updated_at: string;
+  milestone_type: string;
+  title: string;
+  description: string | null;
+  date_month: number;
+  date_day: number;
+  date_year: number | null;
+  is_recurring: boolean;
+  related_relationship_id: string | null;
+  related_person_name: string | null;
+  notify_days_before: number;
+  notify_on_day: boolean;
+  last_celebrated_at: string | null;
+  times_celebrated: number;
+  source: string;
+  privacy_scope: string;
+}
+
+export interface MoodSnapshotRow {
+  id: string;
+  call_session_id: string;
+  line_id: string;
+  account_id: string;
+  created_at: string;
+  mood_start: string | null;
+  mood_mid: string | null;
+  mood_end: string | null;
+  mood_start_at: string | null;
+  mood_mid_at: string | null;
+  mood_end_at: string | null;
+  mood_trajectory: string | null;
+  techniques_used: string[];
+  technique_effectiveness: Record<string, unknown>;
+  energy_level: string | null;
+}
+
+export interface PersonaAdaptationRow {
+  id: string;
+  line_id: string;
+  updated_at: string;
+  formality_level: string;
+  humor_level: string;
+  directness_level: string;
+  vocabulary_complexity: string;
+  regional_expressions: string[];
+  preferred_phrases: string[];
+  avoided_phrases: string[];
+  prefers_short_exchanges: boolean;
+  prefers_stories: boolean;
+  asks_many_questions: boolean;
+  typical_energy: string;
+  morning_energy: string | null;
+  afternoon_energy: string | null;
+  evening_energy: string | null;
+  calls_analyzed: number;
+  confidence_score: number;
+}
+
+export interface CognitiveObservationRow {
+  id: string;
+  call_session_id: string;
+  line_id: string;
+  created_at: string;
+  observation_type: string;
+  severity: string | null;
+  context: string | null;
+  response_given: string | null;
+  is_novel: boolean;
+  similar_observation_count: number;
+}
+
+export interface CognitiveFlagRow {
+  id: string;
+  line_id: string;
+  updated_at: string;
+  concern_level: string;
+  confusion_count_14d: number;
+  repetition_count_14d: number;
+  orientation_count_14d: number;
+  consecutive_calls_with_concern: number;
+  last_concern_at: string | null;
+  flagged_at: string | null;
+  family_notified_at: string | null;
+}
+
+export interface GriefInteractionRow {
+  id: string;
+  call_session_id: string;
+  line_id: string;
+  relationship_id: string | null;
+  created_at: string;
+  interaction_type: string;
+  emotional_tone: string | null;
+  support_techniques_used: string[] | null;
+  days_since_passing: number | null;
+}
+
+export interface HealthMentionRow {
+  id: string;
+  call_session_id: string;
+  line_id: string;
+  account_id: string;
+  created_at: string;
+  mention_ciphertext: Uint8Array;
+  mention_iv: Uint8Array;
+  mention_tag: Uint8Array;
+  mention_alg: string;
+  mention_kid: string;
+  category: string;
+  severity: string | null;
+  triggers_alert: boolean;
+  alert_sent_at: string | null;
+}
+
+export interface WellnessAlertRow {
+  id: string;
+  line_id: string;
+  account_id: string;
+  created_at: string;
+  alert_type: string;
+  severity: string;
+  title: string;
+  summary: string;
+  source_call_session_id: string | null;
+  delivery_method: string;
+  delivered_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_by_user_id: string | null;
 }
