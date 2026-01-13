@@ -8,9 +8,13 @@ import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 
 function AppSidebarNavigation() {
   const { data: account } = useUltauraAccount();
+  const userType =
+    account?.user_type === 'self' || account?.user_type === 'family_managed'
+      ? account.user_type
+      : undefined;
   const navigation = createNavigationConfig(
     account
-      ? { userType: account.user_type, accountId: account.id }
+      ? { userType, accountId: account.id }
       : undefined
   );
 

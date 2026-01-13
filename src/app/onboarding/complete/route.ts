@@ -190,17 +190,19 @@ export const POST = async (req: NextRequest) => {
     timezone: lineTimezone,
   });
 
-  if (!lineResult.success || !lineResult.data) {
+  if (!lineResult.success) {
     logger.error({ error: lineResult.error, organizationUid }, 'Failed to create line during onboarding');
     return throwInternalServerErrorException();
   }
+
+  const { lineId, shortId } = lineResult.data;
 
   if (body.userType === 'self' && body.selfBirthday) {
     const { error: milestoneError } = await adminClient
       .from('ultaura_milestones')
       .insert({
         account_id: accountId,
-        line_id: lineResult.data.lineId,
+        line_id: lineId,
         milestone_type: 'birthday',
         title: 'My Birthday',
         date_month: body.selfBirthday.month,
@@ -225,7 +227,7 @@ export const POST = async (req: NextRequest) => {
 
   cookies().set(createOrganizationIdCookie({ userId, organizationUid }));
 
-  const returnUrl = `/dashboard/lines/${lineResult.data.shortId}/verify`;
+  const returnUrl = `/dashboard/lines/${shortId}/verify`;
 
   return NextResponse.json({
     success: true,

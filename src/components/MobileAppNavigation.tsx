@@ -70,9 +70,13 @@ const MobileAppNavigation = () => {
   };
 
   // Extract navigation items and settings from config
+  const userType =
+    ultauraAccount?.user_type === 'self' || ultauraAccount?.user_type === 'family_managed'
+      ? ultauraAccount.user_type
+      : undefined;
   const navConfig = NAVIGATION_CONFIG(
     ultauraAccount
-      ? { userType: ultauraAccount.user_type, accountId: ultauraAccount.id }
+      ? { userType, accountId: ultauraAccount.id }
       : undefined
   );
   const mainNavItems = navConfig.items.filter(

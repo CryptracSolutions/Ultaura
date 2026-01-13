@@ -42,12 +42,14 @@ describe('workflow fit actions', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.data).toBeDefined();
+    if (!result.success) {
+      throw new Error(result.error.message);
+    }
 
     const { data: recipient } = await testServiceRoleClient
       .from('ultaura_notification_recipients')
       .select('*')
-      .eq('id', result.data!.id)
+      .eq('id', result.data.id)
       .single();
 
     expect(recipient).toBeDefined();

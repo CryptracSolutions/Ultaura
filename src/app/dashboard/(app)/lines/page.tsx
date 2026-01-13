@@ -57,7 +57,11 @@ export default async function LinesPage() {
     );
   }
 
-  const isSelfUser = account.user_type === 'self';
+  const userType =
+    account.user_type === 'self' || account.user_type === 'family_managed'
+      ? account.user_type
+      : undefined;
+  const isSelfUser = userType === 'self';
   const headerTitle = isSelfUser ? 'My Line' : 'Phone Lines';
   const headerDescription = isSelfUser
     ? 'Manage your phone number and call settings'
@@ -110,7 +114,7 @@ export default async function LinesPage() {
             <LinesPageClient
               accountId={account.id}
               lines={lines}
-              userType={account.user_type}
+              userType={userType}
               planLinesLimit={getPlanLinesLimit(account.plan_id ?? 'free_trial')}
               disabled={isTrialExpired}
               vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}

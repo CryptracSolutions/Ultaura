@@ -125,7 +125,7 @@ export async function POST(request: Request) {
 
     const subject = `Missed check-ins for ${payload.lineName}`;
 
-    for (const [email, meta] of recipients.entries()) {
+    for (const [email, meta] of Array.from(recipients.entries())) {
       const unsubscribeLink = meta.isPrimary || !meta.token
         ? undefined
         : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
