@@ -6,6 +6,7 @@ import { getSchedules } from '~/lib/ultaura/schedules';
 import { getUsageSummary, getCallSessions } from '~/lib/ultaura/usage';
 import { getReminders } from '~/lib/ultaura/reminders';
 import { getMilestones } from '~/lib/ultaura/milestones';
+import { getTrustedContacts } from '~/lib/ultaura/contacts';
 import { isUUID } from '~/lib/ultaura/short-id';
 import {
   getRetentionMetrics,
@@ -23,16 +24,18 @@ import type { PlanId } from '~/lib/ultaura/types';
 
 // Helper to get counts without fetching full data
 async function getScheduleAndReminderCounts(lineId: string) {
-  const [schedules, reminders, milestones] = await Promise.all([
+  const [schedules, reminders, milestones, trustedContacts] = await Promise.all([
     getSchedules(lineId),
     getReminders(lineId),
     getMilestones(lineId),
+    getTrustedContacts(lineId),
   ]);
 
   return {
     activeSchedulesCount: schedules.filter(s => s.enabled).length,
     pendingRemindersCount: reminders.filter(r => r.status === 'scheduled').length,
     milestonesCount: milestones.length,
+    trustedContactsCount: trustedContacts.length,
   };
 }
 
@@ -94,6 +97,7 @@ export default async function LineDetailPage({ params }: PageProps) {
             activeSchedulesCount={counts.activeSchedulesCount}
             pendingRemindersCount={counts.pendingRemindersCount}
             milestonesCount={counts.milestonesCount}
+            trustedContactsCount={counts.trustedContactsCount}
             retentionMetrics={retentionMetrics}
             previewHistory={previewHistory}
             storyArcs={storyArcs}

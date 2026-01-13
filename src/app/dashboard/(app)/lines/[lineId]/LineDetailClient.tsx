@@ -20,6 +20,7 @@ import {
   Bell,
   ChevronRight,
   Gift,
+  Users,
 } from 'lucide-react';
 import type {
   LineRow,
@@ -125,6 +126,7 @@ interface LineDetailClientProps {
   activeSchedulesCount: number;
   pendingRemindersCount: number;
   milestonesCount: number;
+  trustedContactsCount: number;
   retentionMetrics: RetentionMetrics;
   previewHistory: CallPreview[];
   storyArcs: StoryArc[];
@@ -140,6 +142,7 @@ export function LineDetailClient({
   activeSchedulesCount,
   pendingRemindersCount,
   milestonesCount,
+  trustedContactsCount,
   retentionMetrics,
   previewHistory,
   storyArcs,
@@ -690,6 +693,14 @@ export function LineDetailClient({
             count={milestonesCount}
             zeroLabel="No milestones yet"
             itemLabel="milestone"
+          />
+          <QuickLink
+            href={`/dashboard/lines/${line.short_id}/contacts`}
+            icon={<Users className="w-5 h-5 text-primary" />}
+            title="Trusted Contacts"
+            count={trustedContactsCount}
+            zeroLabel="No contacts added"
+            itemLabel="contact"
           />
         </div>
       </div>
