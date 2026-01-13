@@ -8,8 +8,8 @@ import {
   CreditCardIcon,
   ShieldCheckIcon,
   ExclamationTriangleIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
-import { BarChart3 } from 'lucide-react';
 
 import configuration from '~/configuration';
 
@@ -79,7 +79,7 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       label: 'Insights',
       path: getPath('insights'),
       Icon: ({ className }: { className: string }) => {
-        return <BarChart3 className={className} />;
+        return <EyeIcon className={className} />;
       },
       activeMatch: (currentPath: string) =>
         isInsightsRouteActive(currentPath),
