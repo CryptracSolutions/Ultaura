@@ -366,12 +366,14 @@ export async function buildPromptPlaceholders(options: {
         return null;
       }
       const baseYear = milestone.is_recurring ? now.year : (milestone.date_year ?? now.year);
-      let date = DateTime.fromObject({
+      let date = DateTime.fromObject(
+      {
         year: baseYear,
         month: milestone.date_month,
         day: milestone.date_day,
-        zone: options.line.timezone,
-      });
+      },
+      { zone: options.line.timezone }
+    );
       if (date < now.startOf('day')) {
         date = date.plus({ years: 1 });
       }

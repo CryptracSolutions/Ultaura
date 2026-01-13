@@ -79,6 +79,7 @@ function decryptMemoryRow(
   active: boolean;
   privacyScope: string;
   redactionLevel: string;
+  createdInCallSessionId?: string | null;
   lastAccessedAt?: string | null;
   accessCount?: number | null;
   pinned?: boolean;
