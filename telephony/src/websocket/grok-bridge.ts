@@ -10,6 +10,7 @@ import type {
   Memory,
   PlanId,
   RoutineMemoryValue,
+  SafetyCategory,
   SafetyMatch,
   SafetyTier,
 } from '@ultaura/types';
@@ -958,16 +959,17 @@ At the START of this call:
 
         case 'log_safety_concern':
           {
-            const effectiveTier = args.category === 'GENERAL_CONCERN'
-              ? args.tier
-              : SAFETY_CATEGORY_TIERS[args.category];
+            const category = args.category as SafetyCategory;
+            const effectiveTier = category === 'GENERAL_CONCERN'
+              ? (args.tier as SafetyTier | undefined)
+              : SAFETY_CATEGORY_TIERS[category];
             if (effectiveTier) {
               this.markTierTriggeredByModel(effectiveTier);
             }
             result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
               callSessionId: this.options.callSessionId,
               lineId: this.options.lineId,
-              category: args.category,
+              category,
               tier: effectiveTier,
               confidence: args.confidence,
               actionTaken: args.action_taken,
