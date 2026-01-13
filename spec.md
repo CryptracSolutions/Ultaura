@@ -1,1060 +1,1587 @@
-# Ultaura Safety and Compliance Gaps - Implementation Specification
+# Ultaura Personalization Roadmap - Implementation Specification
 
-This specification outlines 7 safety and compliance gaps to be implemented in the Ultaura codebase. Each gap is self-contained with all necessary context for implementation.
+## Executive Summary
+
+### Project Overview
+
+This specification details the implementation of 16 interconnected personalization systems for Ultaura, an AI voice companion for seniors. The systems leverage Grok Voice Agent's 2M token context window and flat-rate pricing ($0.05/min connection-based) to dramatically expand personalization capabilities without cost impact.
+
+### Goals
+
+1. **Deep Personalization**: Transform Ultaura from a general companion to a deeply personalized presence that knows each senior's life story, relationships, preferences, and daily rhythms
+2. **Adaptive Intelligence**: Enable the AI to detect, respond to, and adapt based on emotional states, cognitive needs, and communication preferences
+3. **Family Visibility**: Provide family members with privacy-respecting insights into their loved one's wellbeing without exposing private conversation details
+4. **Proactive Support**: Anticipate needs through wellness monitoring, milestone celebrations, and grief support
+
+### Success Metrics
+
+- **Engagement**: 25% increase in average call duration within 90 days
+- **Retention**: 40% reduction in churn rate
+- **Family Satisfaction**: 80% of families rate dashboard insights as "valuable"
+- **Senior Satisfaction**: 90% positive mood readings at call end
+- **Safety Coverage**: 100% detection of health mentions and mood drops
+
+### Key Design Decisions (from requirements interview)
+
+| Decision | Choice |
+|----------|--------|
+| Rollout | All-or-nothing (all 16 systems together) |
+| Content Source | AI-generated on-the-fly |
+| Family Visibility | Topic summaries only (no verbatim quotes) |
+| Life Story Input | Voice-only (organic capture) |
+| Accessibility | Family-configurable + AI fine-tuning |
+| Alert Triggers | Health mentions + mood drops |
+| Milestones | Dashboard calendar + voice-captured |
+| Relationships | Extended schema (name, relation, frequency, sentiment, topics, location, activities) |
+| Mood Storage | Per-call snapshot (start, mid, end) |
+| Story Arcs | Up to 3 concurrent |
+| Context Window | Last 10+ calls |
+| Grief Tracking | Flag on relationship record (deceased + passed_at) |
+| Call Timing | Smart scheduling (family initial + AI refinement) |
+| Health Privacy | All health private by default |
+| AI Persona | Auto-adaptive (mirrors senior's style) |
+| Cognitive Support | Tiered response (3+ calls with confusion = flag) |
 
 ---
 
-## Table of Contents
+## Current Architecture Summary
 
-1. [Gap 1: Emergency Boundary Statement in Onboarding](#gap-1-emergency-boundary-statement-in-onboarding)
-2. [Gap 2: trusted_contact_notify Consent Creation](#gap-2-trusted_contact_notify-consent-creation)
-3. [Gap 3: Consent Management UI for Trusted Contacts](#gap-3-consent-management-ui-for-trusted-contacts)
-4. [Gap 4: Safety Signals Taxonomy (Structured Categories)](#gap-4-safety-signals-taxonomy-structured-categories)
-5. [Gap 5: Confidence Score for Safety Events](#gap-5-confidence-score-for-safety-events)
-6. [Gap 6: SMS STOP Keyword Handling](#gap-6-sms-stop-keyword-handling)
-7. [Gap 7: Call Events Include Safety Category](#gap-7-call-events-include-safety-category)
-8. [Database Migration Summary](#database-migration-summary)
-9. [Implementation Order](#implementation-order)
-10. [Cross-Reference Summary](#cross-reference-summary)
+### Memory System (from codebase exploration)
+- **9 memory types**: fact, preference, follow_up, context, history, wellbeing, relationship, temporal, routine
+- **Encryption**: AES-256-GCM envelope encryption (DEK wrapped by KEK)
+- **Relevance scoring**: confidence (40%) + recency (30%) + access_count (20%) + pinned (10%)
+- **Limits**: 50-200 memories fetched per call, filtered by decay/exclusions
+- **Auto-pinning**: Medical/emergency keywords automatically pinned
+
+### Prompt System
+- **Architecture**: Modular "golden sections" in `/packages/prompts/src/golden/sections/` (14 files)
+- **Compilation**: `compilePrompt()` with `voice_realtime` vs `admin_preview` profiles
+- **Current size**: ~700-900 tokens (massive headroom to 2M)
+- **Injection points**: memories, routines, story arcs, call previews, interests, avoid topics
+- **Tools**: 26 Grok tools available
+
+### Database Schema
+- **Core tables**: ultaura_memories, ultaura_lines, ultaura_accounts, ultaura_call_sessions
+- **Insights**: ultaura_call_insights (encrypted), ultaura_line_baselines (14-day averages)
+- **Safety**: ultaura_safety_events (3 tiers, 9 categories)
+- **Existing relationships**: Stored as `relationship` memory type with structured value
 
 ---
 
-## Gap 1: Emergency Boundary Statement in Onboarding
+## Architecture Overview
 
-### Summary
-Add an emergency boundary statement to the first-call onboarding prompt that clearly sets expectations about Ultaura's role as a companion (not an emergency service).
+### System Integration Diagram
 
-### Current State
-The onboarding prompt in `/packages/prompts/src/golden/sections/onboarding.ts` contains a warm introduction but lacks any explicit emergency/safety boundary statement:
-
-```typescript
-export const ONBOARDING_SECTION = {
-  tag: 'onboarding',
-  full: `## First Call - Onboarding
-This is your first call with {userName}. Take time to:
-1. Introduce yourself warmly: "Hello! I'm Ultaura, an AI voice companion."
-2. Ask what they'd like to be called
-3. Learn about their interests
-4. Ask about topics to avoid
-5. Explain privacy: "Your family doesn't see our conversations."
-6. Discuss call schedule if they'd like regular check-ins`,
-  compressed: `## First Call
-Introduce yourself, ask what they'd like to be called, learn interests + avoid topics, explain privacy, ask about schedule.`,
-};
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           PROMPT ASSEMBLY                                │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
+│  │  Identity   │ │  Life Story │ │  Emotional  │ │  Content    │       │
+│  │  Section    │ │  Context    │ │  Intelligence│ │  Engine     │       │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘       │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
+│  │ Relationship│ │ Accessibility│ │  Adaptive   │ │  Celebration│       │
+│  │  Context    │ │  Settings   │ │  Persona    │ │  & Grief    │       │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘       │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
+│  │ Daily Rhythm│ │   Health    │ │ Interruption│ │  Memories   │       │
+│  │  Awareness  │ │  Wellness   │ │  Handling   │ │  Formatted  │       │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘       │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           GROK VOICE AGENT                               │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ System Prompt (expanded from ~900 → ~15,000-50,000 tokens)      │   │
+│  │ • Golden sections (identity, safety, privacy, tools)            │   │
+│  │ • Personalization sections (all 16 systems inject here)         │   │
+│  │ • Dynamic context (memories, relationships, recent calls)       │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ Tools (expanded from 26 → ~40 tools)                            │   │
+│  │ • Memory tools (existing)                                        │   │
+│  │ • Relationship tools (new)                                       │   │
+│  │ • Mood/wellness tools (new)                                      │   │
+│  │ • Content generation tools (new)                                 │   │
+│  │ • Milestone/celebration tools (new)                              │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           DATA LAYER                                     │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐   │
+│  │ ultaura_memories  │  │ ultaura_          │  │ ultaura_          │   │
+│  │ (extended schema) │  │ relationships     │  │ milestones        │   │
+│  └───────────────────┘  └───────────────────┘  └───────────────────┘   │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐   │
+│  │ ultaura_mood_     │  │ ultaura_persona   │  │ ultaura_wellness  │   │
+│  │ snapshots         │  │ _adaptations      │  │ _alerts           │   │
+│  └───────────────────┘  └───────────────────┘  └───────────────────┘   │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐   │
+│  │ ultaura_          │  │ ultaura_          │  │ ultaura_          │   │
+│  │ accessibility     │  │ cognitive_flags   │  │ life_chapters     │   │
+│  └───────────────────┘  └───────────────────┘  └───────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       FAMILY DASHBOARD                                   │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐   │
+│  │ Emotional Trends  │  │ Wellness Alerts   │  │ Conversation      │   │
+│  │ (mood charts)     │  │ (health/mood)     │  │ Highlights        │   │
+│  └───────────────────┘  └───────────────────┘  └───────────────────┘   │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐   │
+│  │ Relationship      │  │ Milestone         │  │ Accessibility     │   │
+│  │ Quality Metrics   │  │ Calendar          │  │ Settings          │   │
+│  └───────────────────┘  └───────────────────┘  └───────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Required Changes
-
-**File: `/packages/prompts/src/golden/sections/onboarding.ts`**
-
-Modify the onboarding section to include an emergency boundary statement after the greeting but before the conversation begins.
-
-**Approved wording:**
-> "Hi, I'm Ultaura! Just so you know, I'm a companion—not an emergency service. If you're ever in immediate danger, please call 911."
-
-**Updated implementation:**
-```typescript
-export const ONBOARDING_SECTION = {
-  tag: 'onboarding',
-  full: `## First Call - Onboarding
-This is your first call with {userName}. Take time to:
-1. Introduce yourself warmly: "Hello! I'm Ultaura, an AI voice companion."
-2. Provide the emergency boundary statement: "Just so you know, I'm a companion—not an emergency service. If you're ever in immediate danger, please call 911."
-3. Ask what they'd like to be called
-4. Learn about their interests
-5. Ask about topics to avoid
-6. Explain privacy: "Your family doesn't see our conversations."
-7. Discuss call schedule if they'd like regular check-ins`,
-  compressed: `## First Call
-Introduce yourself + emergency boundary, ask what they'd like to be called, learn interests + avoid topics, explain privacy, ask about schedule.`,
-};
-```
-
-### Implementation Notes
-- Keep the statement simple and direct (no mention of family notifications)
-- The statement should be delivered naturally after the greeting
-- Reference `/packages/prompts/src/golden/sections/identity.ts` for the boundary statement style pattern (lines 7-9 show similar boundary statements about not being a therapist/doctor)
-
 ---
 
-## Gap 2: trusted_contact_notify Consent Creation
+## System 1: Deep Life Story Engine
 
-### Summary
-When adding a trusted contact via the dashboard, automatically create a `trusted_contact_notify` consent record after the payer acknowledges the notification behavior through a confirmation dialog.
+### Purpose
+Captures and utilizes biographical information to create deeply personalized conversations that reference the senior's life history, formative experiences, and personal narratives.
 
-### Current State
+### Database Schema
 
-**Consent Check Location:** `/telephony/src/routes/tools/safety-event.ts` (lines 26-39)
+```sql
+-- New table for structured life chapters
+CREATE TABLE ultaura_life_chapters (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES ultaura_accounts(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  chapter_type text NOT NULL CHECK (chapter_type IN (
+    'childhood', 'education', 'career', 'marriage', 'parenting',
+    'military', 'travel', 'retirement', 'accomplishment', 'loss', 'other'
+  )),
+  title text NOT NULL,
+  era_start_year integer,
+  era_end_year integer,
+  location text,
+
+  -- Encrypted narrative content
+  narrative_ciphertext bytea NOT NULL,
+  narrative_iv bytea NOT NULL,
+  narrative_tag bytea NOT NULL,
+  narrative_alg text NOT NULL DEFAULT 'aes-256-gcm',
+  narrative_kid text NOT NULL DEFAULT 'kek_v1',
+
+  key_people text[],
+  emotional_tone text CHECK (emotional_tone IN ('joyful', 'proud', 'bittersweet', 'difficult', 'neutral')),
+  times_referenced integer NOT NULL DEFAULT 0,
+  last_referenced_at timestamptz,
+  connects_to_chapter_ids uuid[],
+  source text NOT NULL DEFAULT 'conversation' CHECK (source IN ('conversation', 'family_input', 'onboarding'))
+);
+
+CREATE INDEX idx_life_chapters_line ON ultaura_life_chapters(line_id);
+CREATE INDEX idx_life_chapters_type ON ultaura_life_chapters(line_id, chapter_type);
+
+-- Extend ultaura_lines with era context
+ALTER TABLE ultaura_lines
+  ADD COLUMN IF NOT EXISTS birth_year integer,
+  ADD COLUMN IF NOT EXISTS birth_decade integer GENERATED ALWAYS AS ((birth_year / 10) * 10) STORED,
+  ADD COLUMN IF NOT EXISTS formative_decade integer,
+  ADD COLUMN IF NOT EXISTS hometown text,
+  ADD COLUMN IF NOT EXISTS current_location text;
+```
+
+### Memory Type Extension
+
+Use existing `history` type with structured value:
+
 ```typescript
-// Check for trusted_contact_notify consent
-const { data: consent } = await supabase
-  .from('ultaura_consents')
-  .select('granted')
-  .eq('line_id', lineId)
-  .eq('type', 'trusted_contact_notify')
-  .eq('granted', true)
-  .is('revoked_at', null)
-  .maybeSingle();
-
-if (!consent) {
-  logger.info({ lineId }, 'No trusted contact consent found, skipping notification');
-  return;  // SILENTLY FAILS - notifications never send
+interface LifeStoryMemoryValue {
+  chapterId?: string;
+  era: string; // e.g., "1950s childhood"
+  location?: string;
+  keyPeople?: string[];
+  emotionalSignificance: 'high' | 'medium' | 'low';
+  narrativeThread?: string;
 }
 ```
 
-**Missing Consent Creation:** `/src/lib/ultaura/contacts.ts` (lines 28-65)
-The `addTrustedContact` function inserts into `ultaura_trusted_contacts` but does NOT create a consent record.
+### Prompt Section
 
-**Reference Pattern:** `/src/lib/ultaura/schedules.ts` (lines 117-124)
-```typescript
-await client.from('ultaura_consents').insert({
-  account_id: input.accountId,
-  line_id: parsed.data.lineId,
-  type: 'outbound_calls',
-  granted: true,
-  granted_by: 'payer_ack',
-  evidence: { timestamp: new Date().toISOString() },
-});
-```
-
-### Required Changes
-
-**File: `/src/lib/ultaura/contacts.ts`**
-
-Modify `addTrustedContactWithTrial` to create a consent record after successful contact insertion.
-
-**Updated implementation:**
-```typescript
-const addTrustedContactWithTrial = withTrialCheck(async (
-  account: UltauraAccountRow,
-  input: {
-    lineId: string;
-    lineShortId: string;
-    contact: unknown;
-    consentEvidence: {
-      timestamp: string;
-      ipAddress?: string;
-      userAgent?: string;
-      dashboardUserId?: string;
-      contactName: string;
-    };
-  }
-): Promise<ActionResult<void>> => {
-  const parsed = CreateTrustedContactInputSchema.safeParse(input.contact);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: createError(
-        ErrorCodes.INVALID_INPUT,
-        parsed.error.issues[0]?.message || 'Invalid input'
-      ),
-    };
-  }
-
-  const client = getSupabaseServerComponentClient();
-
-  const { error } = await client.from('ultaura_trusted_contacts').insert({
-    account_id: account.id,
-    line_id: input.lineId,
-    name: parsed.data.name,
-    phone_e164: parsed.data.phoneE164,
-    relationship: parsed.data.relationship,
-    notify_on: parsed.data.notifyOn || ['medium', 'high'],
-    enabled: true,
-  });
-
-  if (error) {
-    logger.error({ error }, 'Failed to add trusted contact');
-    return {
-      success: false,
-      error: createError(ErrorCodes.DATABASE_ERROR, error.message || 'Failed to add contact'),
-    };
-  }
-
-  // Create trusted_contact_notify consent record
-  await client.from('ultaura_consents').insert({
-    account_id: account.id,
-    line_id: input.lineId,
-    type: 'trusted_contact_notify',
-    granted: true,
-    granted_by: 'payer_ack',
-    evidence: input.consentEvidence,
-  });
-
-  revalidatePath(`/dashboard/lines/${input.lineShortId}/contacts`);
-  return { success: true, data: undefined };
-});
-```
-
-**File: `/src/lib/ultaura/contacts.ts`**
-
-Update the public `addTrustedContact` function signature to accept consent evidence:
+**File**: `/packages/prompts/src/golden/sections/life-story.ts`
 
 ```typescript
-export async function addTrustedContact(
-  lineId: string,
-  input: unknown,
-  consentEvidence?: {
-    ipAddress?: string;
-    userAgent?: string;
-    dashboardUserId?: string;
-  }
-): Promise<ActionResult<void>> {
-  // ... existing validation ...
+export const LIFE_STORY_SECTION = {
+  tag: 'life_story',
+  full: `## Life Story Context
 
-  const parsed = CreateTrustedContactInputSchema.safeParse(input);
-  const contactName = parsed.success ? parsed.data.name : 'Unknown';
+{userName}'s life story provides context for meaningful conversation.
 
-  return addTrustedContactWithTrial(account, {
-    lineId,
-    lineShortId: line.short_id,
-    contact: input,
-    consentEvidence: {
-      timestamp: new Date().toISOString(),
-      ipAddress: consentEvidence?.ipAddress,
-      userAgent: consentEvidence?.userAgent,
-      dashboardUserId: consentEvidence?.dashboardUserId,
-      contactName,
-    },
-  });
-}
-```
+### Era Context
+- Born: {birthDecade}s
+- Formative years: {formativeDecade}s
+- Hometown: {hometown}
+- Current location: {currentLocation}
 
-### Consent Evidence Fields (Full Audit Trail)
-- `timestamp`: ISO 8601 timestamp of acknowledgment
-- `ipAddress`: Request IP (from headers)
-- `userAgent`: Browser user agent
-- `dashboardUserId`: ID of the payer user creating the contact
-- `contactName`: Name of the trusted contact being added
+### Life Chapters
+{lifeChaptersFormatted}
 
----
+### Narrative Threading Guidelines
+When {userName} shares a story:
+1. Store it using store_memory with type='history'
+2. Note connections to existing chapters
+3. Reference related memories naturally: "That reminds me of when you mentioned..."
+4. For ongoing stories, pick up where you left off
 
-## Gap 3: Consent Management UI for Trusted Contacts
-
-### Summary
-Update the trusted contacts UI to include a consent confirmation checkbox and explanatory text clarifying notification triggers.
-
-### Current State
-
-**File: `/src/app/dashboard/(app)/lines/[lineId]/contacts/ContactsClient.tsx`**
-
-The current UI has:
-- Basic form with name, phone, relationship fields
-- No consent confirmation checkbox/dialog
-- Minimal explanatory text (line 96-98):
-```typescript
-<p className="text-muted-foreground">
-  Trusted contacts can be notified if we detect signs of distress during calls
-  (only with the caller&apos;s consent).
-</p>
-```
-
-### Required Changes
-
-**File: `/src/app/dashboard/(app)/lines/[lineId]/contacts/ContactsClient.tsx`**
-
-#### 1. Add consent confirmation checkbox to the add contact form:
-
-```typescript
-// Add to state
-const [consentAcknowledged, setConsentAcknowledged] = useState(false);
-
-// Add to form (before submit buttons)
-<div className="space-y-2">
-  <div className="flex items-start gap-2">
-    <Checkbox
-      id="consent-acknowledgment"
-      checked={consentAcknowledged}
-      onCheckedChange={(checked) => setConsentAcknowledged(checked === true)}
-    />
-    <label htmlFor="consent-acknowledgment" className="text-sm leading-tight">
-      I understand that this contact will receive SMS notifications when Ultaura detects
-      signs of distress during calls (such as expressions of hopelessness or self-harm).
-    </label>
-  </div>
-  <a href="/docs" className="text-xs text-primary hover:underline">
-    Learn more about trusted contact notifications
-  </a>
-</div>
-```
-
-#### 2. Disable submit button until consent is acknowledged:
-```typescript
-<Button type="submit" disabled={!consentAcknowledged}>Add</Button>
-```
-
-#### 3. Update explanatory text at the top:
-```typescript
-<p className="text-muted-foreground">
-  Trusted contacts receive SMS alerts when Ultaura detects signs of distress during calls,
-  such as expressions of hopelessness, self-harm, or other safety concerns.
-  <a href="/docs" className="text-primary hover:underline ml-1">
-    Learn more
-  </a>
-</p>
-```
-
-#### 4. Reset consent checkbox when modal closes or form submits:
-```typescript
-// In handleAddContact success path:
-setConsentAcknowledged(false);
-
-// When modal closes:
-onOpenChange={(open) => {
-  if (!open) setConsentAcknowledged(false);
-}}
-```
-
-### Implementation Notes
-- The "Learn more" link points to `/docs` as a placeholder for now
-- Consent checkbox must be checked before the "Add" button is enabled
-- Evidence is captured server-side from request headers where possible
-
----
-
-## Gap 4: Safety Signals Taxonomy (Structured Categories)
-
-### Summary
-Add a structured clinical taxonomy for safety signal categories to replace free-text descriptions.
-
-### Current State
-
-**Tool Definition:** `/packages/prompts/src/tools/definitions.ts` (lines 694-725)
-The `log_safety_concern` tool only accepts `tier`, `signals` (free text), and `action_taken`.
-
-**Storage:** `/telephony/src/routes/tools/safety-event.ts` (lines 174-184)
-```typescript
-await recordSafetyEvent({
-  accountId,
-  lineId,
-  callSessionId,
-  tier,
-  signals: {
-    description: signals,  // Free-text, problematic
-    source: sourceValue,
-  },
-  actionTaken,
-});
-```
-
-**Keywords:** `/packages/prompts/src/safety/keywords.ts`
-Maps keywords to tiers but doesn't assign categories.
-
-### Required Changes
-
-#### 1. Define Safety Categories
-
-**File: `/packages/types/src/safety.ts`** (new or update existing)
-
-```typescript
-export type SafetyTier = 'low' | 'medium' | 'high';
-export type SafetyActionTaken = 'none' | 'suggested_988' | 'suggested_911' | 'notified_contact' | 'transferred_call';
-
-export type SafetyCategory =
-  | 'SUICIDAL_IDEATION'      // HIGH tier
-  | 'SELF_HARM'               // HIGH tier
-  | 'HOPELESSNESS'            // MEDIUM tier
-  | 'ISOLATION_DISTRESS'      // LOW tier
-  | 'PHYSICAL_DANGER'         // HIGH tier
-  | 'MEDICAL_EMERGENCY'       // HIGH tier
-  | 'ABUSE_CONCERN'           // HIGH tier
-  | 'COGNITIVE_DECLINE'       // LOW tier
-  | 'GENERAL_CONCERN';        // Tier determined by model (catch-all)
-
-export const SAFETY_CATEGORY_TIERS: Record<SafetyCategory, SafetyTier | null> = {
-  SUICIDAL_IDEATION: 'high',
-  SELF_HARM: 'high',
-  HOPELESSNESS: 'medium',
-  ISOLATION_DISTRESS: 'low',
-  PHYSICAL_DANGER: 'high',
-  MEDICAL_EMERGENCY: 'high',
-  ABUSE_CONCERN: 'high',
-  COGNITIVE_DECLINE: 'low',
-  GENERAL_CONCERN: null, // Tier determined by model
+### Era-Aware Conversation
+- Reference pop culture, events from their formative years
+- Connect their experiences to broader historical context when natural`,
+  compressed: `## Life Story
+Era: {birthDecade}s born, {formativeDecade}s formative. Chapters: {lifeChaptersCompressed}
+Reference their era naturally; thread narratives across calls.`
 };
 ```
 
-#### 2. Update Tool Definition
+### New Grok Tool
 
-**File: `/packages/prompts/src/tools/definitions.ts`**
-
-Update `log_safety_concern` tool:
 ```typescript
 {
   type: 'function',
-  name: 'log_safety_concern',
-  description: `Log when you detect genuine safety concerns during the conversation.
-
-CATEGORIES (with fixed tier mapping):
-- SUICIDAL_IDEATION (HIGH): User mentions suicide, wanting to die, ending their life
-- SELF_HARM (HIGH): User mentions cutting, hurting themselves, self-injury
-- HOPELESSNESS (MEDIUM): User expresses hopelessness, despair, "giving up"
-- ISOLATION_DISTRESS (LOW): User seems persistently sad, lonely, isolated
-- PHYSICAL_DANGER (HIGH): User in immediate physical danger from others or environment
-- MEDICAL_EMERGENCY (HIGH): User describes symptoms requiring immediate medical attention
-- ABUSE_CONCERN (HIGH): Signs of elder abuse, neglect, or exploitation
-- COGNITIVE_DECLINE (LOW): Concerning changes in memory, confusion, disorientation
-- GENERAL_CONCERN: Other concerning behavior not fitting above categories (specify tier)
-
-IMPORTANT: Call this tool AFTER providing an empathetic response, not before.`,
+  name: 'store_life_chapter',
+  description: 'Store a significant life chapter when senior shares an important story.',
   parameters: {
     type: 'object',
     properties: {
-      category: {
+      chapter_type: {
         type: 'string',
-        enum: [
-          'SUICIDAL_IDEATION',
-          'SELF_HARM',
-          'HOPELESSNESS',
-          'ISOLATION_DISTRESS',
-          'PHYSICAL_DANGER',
-          'MEDICAL_EMERGENCY',
-          'ABUSE_CONCERN',
-          'COGNITIVE_DECLINE',
-          'GENERAL_CONCERN',
-        ],
-        description: 'Clinical category of the safety concern',
+        enum: ['childhood', 'education', 'career', 'marriage', 'parenting',
+               'military', 'travel', 'retirement', 'accomplishment', 'loss', 'other']
       },
-      tier: {
-        type: 'string',
-        enum: ['low', 'medium', 'high'],
-        description: 'Severity tier (auto-assigned for most categories, required for GENERAL_CONCERN)',
-      },
-      confidence: {
-        type: 'number',
-        minimum: 0,
-        maximum: 1,
-        description: 'Confidence in the assessment (0.0-1.0)',
-      },
-      action_taken: {
-        type: 'string',
-        enum: ['none', 'suggested_988', 'suggested_911'],
-        description: 'What action you recommended to the user',
-      },
+      title: { type: 'string' },
+      era_start_year: { type: 'integer' },
+      era_end_year: { type: 'integer' },
+      narrative_summary: { type: 'string' },
+      key_people: { type: 'array', items: { type: 'string' } },
+      emotional_tone: { type: 'string', enum: ['joyful', 'proud', 'bittersweet', 'difficult', 'neutral'] }
     },
-    required: ['category', 'confidence', 'action_taken'],
-  },
-},
+    required: ['chapter_type', 'title', 'narrative_summary']
+  }
+}
 ```
 
-#### 3. Update Schema
+### API Endpoint
 
-**File: `/packages/schemas/src/telephony/safety-event.ts`**
+`POST /tools/store_life_chapter`
 
-```typescript
-import { z } from 'zod';
+### Privacy
 
-export const SafetyCategorySchema = z.enum([
-  'SUICIDAL_IDEATION',
-  'SELF_HARM',
-  'HOPELESSNESS',
-  'ISOLATION_DISTRESS',
-  'PHYSICAL_DANGER',
-  'MEDICAL_EMERGENCY',
-  'ABUSE_CONCERN',
-  'COGNITIVE_DECLINE',
-  'GENERAL_CONCERN',
-]);
+- All narrative content encrypted at rest
+- Life chapters inherit `line_only` privacy scope
+- Never surfaced to family dashboard directly
 
-export const SafetyEventInputSchema = z.object({
-  callSessionId: z.string().uuid(),
-  lineId: z.string().uuid(),
-  category: SafetyCategorySchema,
-  tier: z.enum(['low', 'medium', 'high']),
-  confidence: z.number().min(0).max(1),
-  actionTaken: z.enum([
-    'none',
-    'suggested_988',
-    'suggested_911',
-    'notified_contact',
-    'transferred_call',
-  ]),
-  source: z.enum(['model', 'keyword_backstop']).optional(),
-});
+---
 
-export type SafetyEventInput = z.infer<typeof SafetyEventInputSchema>;
-export type SafetyCategory = z.infer<typeof SafetyCategorySchema>;
+## System 2: Adaptive Emotional Intelligence
+
+### Purpose
+Detects emotional states in real-time and adapts conversation strategy. Provides therapeutic techniques and mood-appropriate responses.
+
+### Database Schema
+
+```sql
+-- Mood snapshots per call
+CREATE TABLE ultaura_mood_snapshots (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_session_id uuid NOT NULL REFERENCES ultaura_call_sessions(id) ON DELETE CASCADE,
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES ultaura_accounts(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+
+  -- Three-point mood tracking
+  mood_start text CHECK (mood_start IN ('positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated')),
+  mood_mid text CHECK (mood_mid IN ('positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated')),
+  mood_end text CHECK (mood_end IN ('positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated')),
+
+  mood_start_at timestamptz,
+  mood_mid_at timestamptz,
+  mood_end_at timestamptz,
+
+  mood_trajectory text CHECK (mood_trajectory IN ('improved', 'declined', 'stable')),
+  techniques_used text[] DEFAULT '{}',
+  technique_effectiveness jsonb DEFAULT '{}',
+  energy_level text CHECK (energy_level IN ('high', 'normal', 'low', 'very_low')),
+
+  UNIQUE(call_session_id)
+);
+
+CREATE INDEX idx_mood_snapshots_line ON ultaura_mood_snapshots(line_id, created_at DESC);
+
+-- Emotional patterns for trend detection
+CREATE TABLE ultaura_emotional_patterns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE UNIQUE,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  dominant_mood text,
+  mood_variability text CHECK (mood_variability IN ('stable', 'moderate', 'high')),
+  best_time_of_day text CHECK (best_time_of_day IN ('morning', 'afternoon', 'evening')),
+  worst_time_of_day text CHECK (worst_time_of_day IN ('morning', 'afternoon', 'evening')),
+  positive_triggers text[],
+  negative_triggers text[],
+  effective_techniques text[],
+  ineffective_techniques text[]
+);
 ```
 
-#### 4. Update Keyword Mappings
+### Prompt Section
 
-**File: `/packages/prompts/src/safety/keywords.ts`**
+**File**: `/packages/prompts/src/golden/sections/emotional-intelligence.ts`
 
-Add category mappings for keyword backstop:
 ```typescript
-import type { SafetyCategory } from '@ultaura/types';
+export const EMOTIONAL_INTELLIGENCE_SECTION = {
+  tag: 'emotional_intelligence',
+  full: `## Emotional Intelligence
 
-// Map keywords to categories for backstop
-export const KEYWORD_CATEGORIES: Record<string, SafetyCategory> = {
-  // HIGH - SUICIDAL_IDEATION
-  'suicide': 'SUICIDAL_IDEATION',
-  'kill myself': 'SUICIDAL_IDEATION',
-  'end my life': 'SUICIDAL_IDEATION',
-  'end it all': 'SUICIDAL_IDEATION',
-  'want to die': 'SUICIDAL_IDEATION',
-  'take my own life': 'SUICIDAL_IDEATION',
-  'better off dead': 'SUICIDAL_IDEATION',
-  "don't want to live": 'SUICIDAL_IDEATION',
-  'no reason to live': 'SUICIDAL_IDEATION',
-  'suicidio': 'SUICIDAL_IDEATION',
-  'matarme': 'SUICIDAL_IDEATION',
-  'quiero morir': 'SUICIDAL_IDEATION',
-  'acabar con todo': 'SUICIDAL_IDEATION',
+### Mood Detection
+Assess {userName}'s emotional state through:
+- Tone of voice (energy, pace, pitch)
+- Word choice and language patterns
+- Topic selection and engagement level
 
-  // HIGH - SELF_HARM
-  'hurt myself': 'SELF_HARM',
-  'harm myself': 'SELF_HARM',
-  'self-harm': 'SELF_HARM',
-  'self harm': 'SELF_HARM',
-  'cut myself': 'SELF_HARM',
+### Mood Categories
+- positive: Upbeat, engaged, sharing happily
+- neutral: Conversational, neither up nor down
+- low: Subdued, less responsive, slower
+- anxious: Worried, repetitive concerns
+- sad: Grief, loss-focused, tearful
+- frustrated: Irritated, complaining
 
-  // MEDIUM - HOPELESSNESS
-  'hopeless': 'HOPELESSNESS',
-  'give up': 'HOPELESSNESS',
-  'giving up': 'HOPELESSNESS',
-  'not worth living': 'HOPELESSNESS',
-  "what's the point": 'HOPELESSNESS',
-  'no point in living': 'HOPELESSNESS',
-  "can't go on": 'HOPELESSNESS',
-  "can't take it anymore": 'HOPELESSNESS',
-  "wish i wasn't here": 'HOPELESSNESS',
-  'disappear': 'HOPELESSNESS',
-  'nobody would miss me': 'HOPELESSNESS',
-  'burden to everyone': 'HOPELESSNESS',
-  'sin esperanza': 'HOPELESSNESS',
-  'no vale la pena': 'HOPELESSNESS',
-  'rendirme': 'HOPELESSNESS',
+### Adaptive Response Strategies
 
-  // LOW - ISOLATION_DISTRESS
-  'so lonely': 'ISOLATION_DISTRESS',
-  'all alone': 'ISOLATION_DISTRESS',
-  'nobody cares': 'ISOLATION_DISTRESS',
-  "don't care anymore": 'ISOLATION_DISTRESS',
-  'tired of everything': 'ISOLATION_DISTRESS',
-  'exhausted with life': 'ISOLATION_DISTRESS',
-  'nothing matters': 'ISOLATION_DISTRESS',
-  'muy solo': 'ISOLATION_DISTRESS',
-  'muy sola': 'ISOLATION_DISTRESS',
-  'nadie me quiere': 'ISOLATION_DISTRESS',
+**LOW mood:** Validate feelings, offer gentle distraction, use reminiscence
+**ANXIOUS mood:** Ground in present, break down concerns, reassure
+**SAD mood:** Acknowledge, sit with silence, offer companionship
+**FRUSTRATED mood:** Validate, don't defend, offer subject change
+
+### Therapeutic Micro-Techniques
+- Reflection: "It sounds like..."
+- Normalization: "Many people feel that way"
+- Positive reframing: "That shows how much you care"
+- Gratitude prompt: "What's one small thing that went well?"
+
+### Call log_mood_snapshot at END
+Record: mood_start, mood_mid, mood_end, mood_trajectory, techniques_used, energy_level`,
+  compressed: `## Emotional Intelligence
+Detect mood: positive/neutral/low/anxious/sad/frustrated.
+Adapt response. Use therapeutic techniques naturally. Match energy.
+Call log_mood_snapshot at end with start/mid/end moods and trajectory.`
 };
 ```
 
-#### 5. Update Safety Event Handler
+### New Grok Tool
 
-**File: `/telephony/src/routes/tools/safety-event.ts`**
-
-Update to handle category and confidence:
 ```typescript
-const {
-  callSessionId,
-  lineId,
-  category,
-  tier,
-  confidence,
-  actionTaken,
-  source = 'model',
-} = parsed.data;
-
-// ... existing validation ...
-
-// Determine category for keyword backstop if not provided
-let effectiveCategory = category;
-let effectiveConfidence = confidence;
-
-if (sourceValue === 'keyword_backstop') {
-  // Keyword backstop gets confidence = 1.0
-  effectiveConfidence = 1.0;
-  // Category derived from keyword mapping if not provided
-  if (!category) {
-    effectiveCategory = getKeywordCategory(matchedKeyword) || 'GENERAL_CONCERN';
-  }
-}
-
-await recordSafetyEvent({
-  accountId,
-  lineId,
-  callSessionId,
-  tier,
-  category: effectiveCategory,
-  confidence: effectiveConfidence,
-  signals: {
-    source: sourceValue,
-  },
-  actionTaken,
-});
-```
-
-### New Signals Structure
-```json
 {
-  "source": "model"
-}
-```
-
-The category and confidence are now stored as separate columns, not inside the signals JSONB.
-
-### Migration Notes
-- Forward-only migration, no backfill of historical data
-- Historical events retain their existing signals structure
-- New events use category + confidence columns
-
----
-
-## Gap 5: Confidence Score for Safety Events
-
-### Summary
-Add model-provided confidence scores (0.0-1.0) for safety events, with keyword backstop matches getting confidence = 1.0.
-
-### Implementation
-This gap is fully addressed by Gap 4 implementation. The key additions are:
-
-1. **Schema:** Added `confidence` field (0.0-1.0) to `SafetyEventInputSchema`
-2. **Tool definition:** Added `confidence` parameter (required) to `log_safety_concern`
-3. **Database:** Added `confidence` column to `ultaura_safety_events`
-4. **Storage:** Updated `recordSafetyEvent` to store confidence as separate column
-
-### Confidence Values
-- **Model-detected events:** Model provides confidence score (e.g., 0.85)
-- **Keyword backstop events:** Always gets `confidence = 1.0` (exact match)
-
-### Database Record Structure (new)
-```sql
--- Example row
-category: 'SUICIDAL_IDEATION'
-tier: 'high'
-confidence: 0.92
-signals: { "source": "model" }
-action_taken: 'suggested_988'
-```
-
----
-
-## Gap 6: SMS STOP Keyword Handling
-
-### Summary
-Implement inbound SMS webhook to handle STOP/UNSUBSCRIBE keywords and manage SMS opt-outs at the phone number level.
-
-### Current State
-
-**SMS Sending:** `/telephony/src/utils/twilio.ts` (lines 290-314)
-- `sendSms()` function exists but no opt-out checking
-
-**Opt-Out Recording:** `/telephony/src/services/line-lookup.ts` (lines 236-260)
-```typescript
-export async function recordOptOut(...) {
-  const { error } = await supabase.from('ultaura_opt_outs').insert({
-    account_id: accountId,
-    line_id: lineId,
-    channel: 'outbound_calls',  // HARDCODED - needs fix
-    source,
-    reason,
-    call_session_id: callSessionId,
-  });
-}
-```
-
-### Required Changes
-
-#### 1. Create SMS Inbound Route
-
-**File: `/telephony/src/routes/twilio-sms-inbound.ts`** (new file)
-
-```typescript
-import { Router, Request, Response } from 'express';
-import { logger } from '../server.js';
-import { getSupabaseClient } from '../utils/supabase.js';
-import { validateTwilioSignature, sendSms } from '../utils/twilio.js';
-
-export const twilioSmsInboundRouter = Router();
-
-const STOP_KEYWORDS = new Set(['stop', 'unsubscribe', 'cancel', 'end', 'quit']);
-const START_KEYWORDS = new Set(['start', 'subscribe', 'unstop']);
-
-interface TwilioSmsWebhook {
-  From: string;
-  To: string;
-  Body: string;
-  MessageSid: string;
-}
-
-twilioSmsInboundRouter.post('/inbound', async (req: Request, res: Response) => {
-  try {
-    // Validate Twilio signature in production
-    if (process.env.NODE_ENV === 'production') {
-      const signature = req.headers['x-twilio-signature'] as string;
-      const url = `${process.env.ULTAURA_PUBLIC_URL}/twilio/sms/inbound`;
-      if (!validateTwilioSignature(url, req.body, signature)) {
-        logger.warn('Invalid Twilio signature on SMS webhook');
-        res.status(403).send('Forbidden');
-        return;
-      }
-    }
-
-    const { From: from, To: to, Body: body, MessageSid: messageSid } = req.body as TwilioSmsWebhook;
-    const normalizedBody = body.trim().toLowerCase();
-
-    logger.info({ from, messageSid, body: normalizedBody }, 'Inbound SMS received');
-
-    if (STOP_KEYWORDS.has(normalizedBody)) {
-      await handleSmsOptOut(from);
-
-      // Send confirmation response
-      const dashboardUrl = process.env.ULTAURA_DASHBOARD_URL || 'https://ultaura.com';
-      await sendSms({
-        to: from,
-        body: `Unsubscribed from Ultaura SMS. Manage preferences at ${dashboardUrl}/settings. Reply START to re-subscribe.`,
-        skipOptOutCheck: true,  // Allow sending opt-out confirmation
-      });
-
-      logger.info({ phone: from }, 'SMS opt-out processed');
-    } else if (START_KEYWORDS.has(normalizedBody)) {
-      await handleSmsOptIn(from);
-
-      await sendSms({
-        to: from,
-        body: 'You have been re-subscribed to Ultaura SMS notifications.',
-        skipOptOutCheck: true,
-      });
-
-      logger.info({ phone: from }, 'SMS opt-in processed');
-    }
-
-    // Return empty TwiML response
-    res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-  } catch (error) {
-    logger.error({ error }, 'Error processing inbound SMS');
-    res.status(500).send('Internal Server Error');
-  }
-});
-
-async function handleSmsOptOut(phoneE164: string): Promise<void> {
-  const supabase = getSupabaseClient();
-
-  // Insert into SMS opt-out table (phone-level, not line-level)
-  // Use upsert to handle duplicate STOP messages
-  await supabase.from('ultaura_sms_opt_outs').upsert({
-    phone_e164: phoneE164,
-    source: 'sms_keyword',
-    keyword: 'STOP',
-  }, {
-    onConflict: 'phone_e164',
-  });
-}
-
-async function handleSmsOptIn(phoneE164: string): Promise<void> {
-  const supabase = getSupabaseClient();
-
-  // Remove opt-out record
-  await supabase
-    .from('ultaura_sms_opt_outs')
-    .delete()
-    .eq('phone_e164', phoneE164);
-}
-```
-
-#### 2. Register Route in Server
-
-**File: `/telephony/src/server.ts`**
-
-Add import and registration:
-```typescript
-import { twilioSmsInboundRouter } from './routes/twilio-sms-inbound.js';
-
-// ... existing routes ...
-app.use('/twilio/sms', twilioSmsInboundRouter);
-```
-
-#### 3. Fix recordOptOut Channel Parameter
-
-**File: `/telephony/src/services/line-lookup.ts`**
-
-Update `recordOptOut` to accept channel parameter:
-```typescript
-export async function recordOptOut(
-  accountId: string,
-  lineId: string,
-  callSessionId: string | null,
-  source: 'dtmf' | 'voice' | 'dashboard' | 'sms_keyword',
-  reason?: string,
-  channel: 'outbound_calls' | 'sms' | 'all' = 'outbound_calls'
-): Promise<void> {
-  const supabase = getSupabaseClient();
-
-  const { error } = await supabase.from('ultaura_opt_outs').insert({
-    account_id: accountId,
-    line_id: lineId,
-    channel,  // Now parameterized
-    source,
-    reason,
-    call_session_id: callSessionId,
-  });
-
-  if (error) {
-    logger.error({ error, lineId }, 'Failed to record opt-out');
-  }
-
-  // Only set do_not_call for call-related opt-outs
-  if (channel === 'outbound_calls' || channel === 'all') {
-    await setDoNotCall(lineId, true);
+  type: 'function',
+  name: 'log_mood_snapshot',
+  description: 'Record mood observations at call end.',
+  parameters: {
+    type: 'object',
+    properties: {
+      mood_start: { type: 'string', enum: ['positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated'] },
+      mood_mid: { type: 'string', enum: ['positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated'] },
+      mood_end: { type: 'string', enum: ['positive', 'neutral', 'low', 'anxious', 'sad', 'frustrated'] },
+      mood_trajectory: { type: 'string', enum: ['improved', 'declined', 'stable'] },
+      techniques_used: { type: 'array', items: { type: 'string' } },
+      energy_level: { type: 'string', enum: ['high', 'normal', 'low', 'very_low'] }
+    },
+    required: ['mood_start', 'mood_end', 'mood_trajectory', 'energy_level']
   }
 }
 ```
 
-#### 4. Add SMS Opt-Out Check to sendSms
+### Dashboard Component
 
-**File: `/telephony/src/utils/twilio.ts`**
-
-Add opt-out check before sending SMS (for safety alerts only):
-```typescript
-export async function sendSms(options: {
-  to: string;
-  body: string;
-  skipOptOutCheck?: boolean;  // True for verification codes and opt-out confirmations
-}): Promise<string> {
-  // Check opt-out status unless explicitly skipped
-  if (!options.skipOptOutCheck) {
-    const isOptedOut = await checkSmsOptOut(options.to);
-    if (isOptedOut) {
-      logger.info({ to: redactPhone(options.to) }, 'SMS blocked due to opt-out');
-      throw new Error('Recipient has opted out of SMS');
-    }
-  }
-
-  // ... existing implementation ...
-}
-
-async function checkSmsOptOut(phoneE164: string): Promise<boolean> {
-  const supabase = getSupabaseClient();
-
-  const { data } = await supabase
-    .from('ultaura_sms_opt_outs')
-    .select('id')
-    .eq('phone_e164', phoneE164)
-    .maybeSingle();
-
-  return !!data;
-}
-```
-
-#### 5. Update Verification SMS to Skip Opt-Out Check
-
-**File: `/telephony/src/routes/verify.ts`**
-
-Ensure verification codes bypass opt-out check:
-```typescript
-// When sending verification SMS, use skipOptOutCheck: true
-await sendSms({
-  to: phoneNumber,
-  body: `Your Ultaura verification code is: ${code}`,
-  skipOptOutCheck: true,  // Verification codes always go through
-});
-```
-
-### Twilio Webhook Configuration
-Configure in Twilio console:
-```
-Messaging → Phone Numbers → [Your Number]
-Messaging Webhook: https://your-server.com/twilio/sms/inbound
-Method: POST
-```
-
-### Opt-Out Scope
-- **Global phone-level**: If +15551234567 sends STOP, they're opted out from ALL Ultaura SMS
-- **Check before**: Safety alerts only (verification codes and upgrade links are exempt)
-- **Recipients covered**: Trusted contacts AND payers
+`/src/app/dashboard/(app)/insights/MoodTrendChart.tsx`
+- 14-day mood trend line chart
+- Mood distribution pie chart
+- Energy level indicators
+- Mood trajectory per call
 
 ---
 
-## Gap 7: Call Events Include Safety Category
+## System 3: Personalized Content Engine
 
-### Summary
-Extend call event logging to include safety category and confidence alongside tier for per-call analytics.
+### Purpose
+Generates on-the-fly personalized content including serialized fiction, trivia, memory lane journeys, and brain games tailored to interests, era, and cognitive needs.
 
-### Current State
-
-**File: `/telephony/src/routes/tools/safety-event.ts` (lines 185-194)**
-```typescript
-await recordCallEvent(
-  callSessionId,
-  'tool_call',
-  {
-    tool: 'log_safety_concern',
-    success: true,
-    tier,
-    actionTaken,
-  },
-  { skipDebugLog: true }
-);
-```
-
-### Required Changes
-
-**File: `/telephony/src/routes/tools/safety-event.ts`**
-
-Update call event recording to include category and confidence:
-```typescript
-await recordCallEvent(
-  callSessionId,
-  'tool_call',
-  {
-    tool: 'log_safety_concern',
-    success: true,
-    tier,
-    category: effectiveCategory,
-    confidence: effectiveConfidence,
-    actionTaken,
-  },
-  { skipDebugLog: true }
-);
-```
-
-### Event Payload Structure (new)
-```json
-{
-  "tool": "log_safety_concern",
-  "success": true,
-  "tier": "high",
-  "category": "SUICIDAL_IDEATION",
-  "confidence": 0.92,
-  "actionTaken": "suggested_988"
-}
-```
-
-### Benefits
-- Enables per-call analytics without querying `ultaura_safety_events` table
-- Category information available in call event stream
-- Supports real-time dashboards and alerting
-
----
-
-## Database Migration Summary
-
-A single migration file should be created combining Gaps 4, 5, and 6:
-
-**File: `/supabase/migrations/YYYYMMDD000001_safety_compliance_gaps.sql`**
+### Database Schema
 
 ```sql
--- ============================================
--- Safety Categories and Confidence (Gaps 4 & 5)
--- ============================================
+-- Extend existing story_arcs
+ALTER TABLE ultaura_story_arcs
+  ADD COLUMN IF NOT EXISTS personalization_context jsonb DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS era_setting text,
+  ADD COLUMN IF NOT EXISTS themes text[],
+  ADD COLUMN IF NOT EXISTS engagement_score decimal(3,2);
 
--- Create safety category enum
-CREATE TYPE ultaura_safety_category AS ENUM (
-  'SUICIDAL_IDEATION',
-  'SELF_HARM',
-  'HOPELESSNESS',
-  'ISOLATION_DISTRESS',
-  'PHYSICAL_DANGER',
-  'MEDICAL_EMERGENCY',
-  'ABUSE_CONCERN',
-  'COGNITIVE_DECLINE',
-  'GENERAL_CONCERN'
-);
-
--- Add category column to safety_events (nullable for backward compatibility)
-ALTER TABLE ultaura_safety_events
-ADD COLUMN category ultaura_safety_category;
-
--- Add confidence column to safety_events
-ALTER TABLE ultaura_safety_events
-ADD COLUMN confidence numeric(3,2) CHECK (confidence >= 0 AND confidence <= 1);
-
--- Index for category filtering
-CREATE INDEX idx_ultaura_safety_events_category
-ON ultaura_safety_events(category, created_at DESC);
-
-COMMENT ON COLUMN ultaura_safety_events.category IS 'Clinical taxonomy category for the safety concern';
-COMMENT ON COLUMN ultaura_safety_events.confidence IS 'Model confidence score (0.0-1.0), 1.0 for keyword backstop matches';
-
--- ============================================
--- SMS Opt-Out Table (Gap 6)
--- ============================================
-
--- Create phone-level SMS opt-out table
-CREATE TABLE ultaura_sms_opt_outs (
+-- Content preferences per line
+CREATE TABLE ultaura_content_preferences (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  phone_e164 text NOT NULL UNIQUE,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  source text NOT NULL CHECK (source IN ('sms_keyword', 'dashboard', 'api')),
-  keyword text
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE UNIQUE,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  trivia_preference integer DEFAULT 3 CHECK (trivia_preference BETWEEN 1 AND 5),
+  story_preference integer DEFAULT 3 CHECK (story_preference BETWEEN 1 AND 5),
+  memory_lane_preference integer DEFAULT 3 CHECK (memory_lane_preference BETWEEN 1 AND 5),
+  brain_games_preference integer DEFAULT 3 CHECK (brain_games_preference BETWEEN 1 AND 5),
+
+  favorite_trivia_domains text[] DEFAULT '{}',
+  avoided_trivia_domains text[] DEFAULT '{}',
+  trivia_difficulty text DEFAULT 'medium' CHECK (trivia_difficulty IN ('easy', 'medium', 'hard')),
+
+  favorite_story_genres text[] DEFAULT '{}',
+  avoided_story_themes text[] DEFAULT '{}',
+  preferred_story_length text DEFAULT 'medium' CHECK (preferred_story_length IN ('short', 'medium', 'long')),
+
+  favorite_eras text[] DEFAULT '{}',
+  favorite_memory_topics text[] DEFAULT '{}',
+
+  best_segment_time_of_call text DEFAULT 'middle' CHECK (best_segment_time_of_call IN ('early', 'middle', 'late'))
 );
+```
 
--- Index for fast lookup
-CREATE INDEX idx_ultaura_sms_opt_outs_phone ON ultaura_sms_opt_outs(phone_e164);
+### Prompt Section
 
--- Enable RLS (service role only for now)
-ALTER TABLE ultaura_sms_opt_outs ENABLE ROW LEVEL SECURITY;
+```typescript
+export const CONTENT_ENGINE_SECTION = {
+  tag: 'content_engine',
+  full: `## Personalized Content Engine
 
-COMMENT ON TABLE ultaura_sms_opt_outs IS 'Phone-level SMS opt-out tracking. Applies to all Ultaura SMS (safety alerts, etc.) except verification codes.';
+Generate personalized content on-the-fly based on {userName}'s interests and era.
 
--- ============================================
--- Update opt_outs source constraint (Gap 6)
--- ============================================
+### Content Types
 
--- Update source constraint to include sms_keyword
-ALTER TABLE ultaura_opt_outs
-DROP CONSTRAINT IF EXISTS ultaura_opt_outs_source_check;
+**1. Trivia (2-3 minutes)**
+From their interests: {favoriteTriviaDomains}
+Difficulty: {triviaDifficulty}
+Connect answers to their experiences
 
-ALTER TABLE ultaura_opt_outs
-ADD CONSTRAINT ultaura_opt_outs_source_check
-CHECK (source IN ('dtmf', 'voice', 'dashboard', 'sms_keyword'));
+**2. Serialized Stories (3-5 minutes per chapter)**
+Era settings: {eraSetting}
+Themes: {favoriteStoryGenres}
+End each chapter with cliffhanger
+Maximum 3 active story arcs
+
+**3. Memory Lane Journeys (2-4 minutes)**
+Topics: {favoriteMemoryTopics}
+Eras: {favoriteEras}
+Use "What do you remember about..." prompts
+
+**4. Brain Games (2-3 minutes)**
+Word association, trivia with hints, pattern games
+Adjust difficulty based on success
+
+### Active Story Arcs
+{activeStoryArcsFormatted}`,
+  compressed: `## Content
+Generate trivia, stories, memory lane, brain games dynamically.
+Era: {birthDecade}s-{formativeDecade}s. Max 3 story arcs.
+Offer content when conversation lulls. Never force.`
+};
+```
+
+### New Grok Tool
+
+```typescript
+{
+  type: 'function',
+  name: 'update_content_preference',
+  description: 'Update content preferences based on engagement.',
+  parameters: {
+    type: 'object',
+    properties: {
+      content_type: { type: 'string', enum: ['trivia', 'story', 'memory_lane', 'brain_games'] },
+      preference_change: { type: 'string', enum: ['increase', 'decrease'] },
+      specific_update: { type: 'object' }
+    },
+    required: ['content_type', 'preference_change']
+  }
+}
 ```
 
 ---
 
-## Implementation Order
+## System 4: Family Connection & Relationship Mapping
 
-Recommended implementation sequence:
+### Purpose
+Maintains comprehensive relationship map with extended attributes for personalized conversation nurturing.
 
-| Order | Gap | Complexity | Dependencies |
-|-------|-----|------------|--------------|
-| 1 | Gap 1 | Low | None |
-| 2 | Gap 4 & 5 | Medium | DB migration |
-| 3 | Gap 7 | Low | Gap 4/5 |
-| 4 | Gap 2 | Medium | None |
-| 5 | Gap 3 | Medium | Gap 2 |
-| 6 | Gap 6 | High | DB migration |
+### Database Schema
 
-### Rationale
-1. **Gap 1** - Single file edit, no dependencies
-2. **Gap 4 & 5** - Schema + types + tool definition (combined, DB migration needed)
-3. **Gap 7** - Simple extension of Gap 4/5 work
-4. **Gap 2** - Backend consent creation (independent)
-5. **Gap 3** - Frontend consent UI (depends on Gap 2 backend)
-6. **Gap 6** - SMS infrastructure (independent but most complex)
+```sql
+-- Extended relationship tracking
+CREATE TABLE ultaura_relationships (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES ultaura_accounts(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  name text NOT NULL,
+  nickname text,
+  relation_type text NOT NULL, -- 'family', 'friend', 'professional', 'pet'
+  relation_role text NOT NULL, -- 'daughter', 'grandson', 'neighbor', 'doctor'
+
+  contact_frequency text CHECK (contact_frequency IN ('daily', 'weekly', 'monthly', 'rarely', 'unknown')),
+  last_contact_mentioned timestamptz,
+  typical_contact_method text,
+
+  sentiment text DEFAULT 'positive' CHECK (sentiment IN ('positive', 'neutral', 'complicated', 'strained')),
+  emotional_significance text DEFAULT 'medium' CHECK (emotional_significance IN ('high', 'medium', 'low')),
+
+  location text,
+  distance_category text CHECK (distance_category IN ('local', 'regional', 'distant', 'unknown')),
+
+  shared_activities text[],
+  conversation_topics text[],
+
+  times_mentioned integer DEFAULT 1,
+  last_mentioned_at timestamptz,
+  recent_topics text[],
+
+  -- Grief tracking (System 9)
+  is_deceased boolean DEFAULT false,
+  passed_at timestamptz,
+  death_mentioned_at timestamptz,
+  grief_sensitivity text CHECK (grief_sensitivity IN ('high', 'medium', 'low')),
+
+  privacy_scope text DEFAULT 'line_only' CHECK (privacy_scope IN ('line_only', 'shareable_with_payer'))
+);
+
+CREATE INDEX idx_relationships_line ON ultaura_relationships(line_id);
+CREATE INDEX idx_relationships_deceased ON ultaura_relationships(line_id, is_deceased) WHERE is_deceased = true;
+```
+
+### Extended Relationship Memory Value
+
+```typescript
+interface RelationshipMemoryValue {
+  relationshipId?: string;
+  name: string;
+  role: string;
+  nickname?: string;
+  relationType?: 'family' | 'friend' | 'professional' | 'pet';
+  contactFrequency?: 'daily' | 'weekly' | 'monthly' | 'rarely' | 'unknown';
+  sentiment?: 'positive' | 'neutral' | 'complicated' | 'strained';
+  location?: string;
+  sharedActivities?: string[];
+  emotionalSignificance?: 'high' | 'medium' | 'low';
+  isDeceased?: boolean;
+  passedAt?: string;
+  griefSensitivity?: 'high' | 'medium' | 'low';
+}
+```
+
+### Prompt Section
+
+```typescript
+export const RELATIONSHIP_MAPPING_SECTION = {
+  tag: 'relationships',
+  full: `## Relationship Network
+
+{userName}'s important people:
+
+### Family
+{familyRelationshipsFormatted}
+
+### Friends & Community
+{friendRelationshipsFormatted}
+
+### Deceased Loved Ones
+{deceasedRelationshipsFormatted}
+
+### Relationship Nurturing
+1. Remember details: "How is {grandchildName} doing with {sharedActivity}?"
+2. Track mentions: store new info via update_relationship
+3. Prompt follow-ups for HIGH significance relationships
+4. For complicated: acknowledge without probing
+5. For deceased: allow memories, don't avoid`,
+  compressed: `## Relationships
+Family: {familyCompressed}. Friends: {friendsCompressed}. Deceased: {deceasedCompressed}.
+Remember details, track mentions, prompt follow-ups for high-significance.`
+};
+```
+
+### New Grok Tools
+
+```typescript
+{
+  type: 'function',
+  name: 'update_relationship',
+  description: 'Update relationship information.',
+  parameters: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      updates: {
+        type: 'object',
+        properties: {
+          nickname: { type: 'string' },
+          contact_frequency: { type: 'string' },
+          sentiment: { type: 'string' },
+          recent_topic: { type: 'string' },
+          location: { type: 'string' },
+          shared_activity: { type: 'string' }
+        }
+      }
+    },
+    required: ['name', 'updates']
+  }
+},
+{
+  type: 'function',
+  name: 'mark_relationship_deceased',
+  description: 'Mark a relationship as deceased.',
+  parameters: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      passed_at: { type: 'string' },
+      grief_sensitivity: { type: 'string', enum: ['high', 'medium', 'low'] }
+    },
+    required: ['name']
+  }
+}
+```
+
+### Dashboard Component
+
+`/src/app/dashboard/(app)/lines/[lineId]/Relationships.tsx`
+- Visual relationship map
+- Mention frequency
+- Sentiment indicators
+- No private content
 
 ---
 
-## Cross-Reference Summary
+## System 5: Cognitive Accessibility & Context Continuity
 
-| Gap | Primary Files | Changes |
-|-----|---------------|---------|
-| 1 | `/packages/prompts/src/golden/sections/onboarding.ts` | Add emergency boundary statement |
-| 2 | `/src/lib/ultaura/contacts.ts` | Add consent creation on contact add |
-| 3 | `/src/app/dashboard/(app)/lines/[lineId]/contacts/ContactsClient.tsx` | Add consent checkbox, update text |
-| 4 | `/packages/types/src/safety.ts` (new), `/packages/prompts/src/tools/definitions.ts`, `/packages/schemas/src/telephony/safety-event.ts`, `/telephony/src/routes/tools/safety-event.ts`, `/packages/prompts/src/safety/keywords.ts` | Add category taxonomy, update tool |
-| 5 | Same as Gap 4 | Add confidence field |
-| 6 | `/telephony/src/routes/twilio-sms-inbound.ts` (new), `/telephony/src/server.ts`, `/telephony/src/utils/twilio.ts`, `/telephony/src/services/line-lookup.ts` | New inbound SMS route, opt-out handling |
-| 7 | `/telephony/src/routes/tools/safety-event.ts` | Add category/confidence to call events |
+### Purpose
+Adapts communication for hearing/cognitive needs, provides context pickup between calls, implements tiered cognitive support.
+
+### Database Schema
+
+```sql
+-- Accessibility settings per line
+CREATE TABLE ultaura_accessibility_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE UNIQUE,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  hearing_mode text DEFAULT 'normal' CHECK (hearing_mode IN ('normal', 'enhanced_clarity', 'slow_pace')),
+  speech_rate decimal(3,2) DEFAULT 1.0 CHECK (speech_rate BETWEEN 0.7 AND 1.3),
+  pause_between_sentences boolean DEFAULT false,
+  repeat_key_info boolean DEFAULT true,
+
+  cognitive_mode text DEFAULT 'normal' CHECK (cognitive_mode IN ('normal', 'supportive', 'high_support')),
+  simplified_language boolean DEFAULT false,
+  shorter_responses boolean DEFAULT false,
+
+  provide_call_recap boolean DEFAULT true,
+  remind_of_previous_topics boolean DEFAULT true,
+  context_window_calls integer DEFAULT 10,
+
+  hearing_mode_source text DEFAULT 'default' CHECK (hearing_mode_source IN ('default', 'family', 'ai_detected', 'senior_request')),
+  cognitive_mode_source text DEFAULT 'default'
+);
+
+-- Cognitive observations
+CREATE TABLE ultaura_cognitive_observations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_session_id uuid NOT NULL REFERENCES ultaura_call_sessions(id) ON DELETE CASCADE,
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+
+  observation_type text NOT NULL CHECK (observation_type IN (
+    'confusion', 'repetition', 'word_finding', 'orientation', 'memory_lapse'
+  )),
+  severity text CHECK (severity IN ('mild', 'moderate', 'significant')),
+  context text,
+  response_given text,
+  is_novel boolean DEFAULT true,
+  similar_observation_count integer DEFAULT 1
+);
+
+-- Cognitive concern flags (tiered response)
+CREATE TABLE ultaura_cognitive_flags (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE UNIQUE,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  concern_level text DEFAULT 'none' CHECK (concern_level IN ('none', 'monitoring', 'flagged')),
+  confusion_count_14d integer DEFAULT 0,
+  repetition_count_14d integer DEFAULT 0,
+  orientation_count_14d integer DEFAULT 0,
+  consecutive_calls_with_concern integer DEFAULT 0,
+  last_concern_at timestamptz,
+  flagged_at timestamptz,
+  family_notified_at timestamptz
+);
+```
+
+### Prompt Section
+
+```typescript
+export const ACCESSIBILITY_SECTION = {
+  tag: 'accessibility',
+  full: `## Accessibility & Context Continuity
+
+### Settings
+- Hearing: {hearingMode}, Rate: {speechRate}x
+- Cognitive: {cognitiveMode}
+- Context window: {contextWindowCalls} calls
+
+### Context Continuity
+At call START: "Last time we talked about {lastCallTopicsSummary}."
+Reference last {contextWindowCalls} calls naturally.
+
+### Cognitive Support (Tiered)
+**Occasional confusion:** Supportive response only, log observation
+**Repeated patterns (3+ calls):** Auto-flag for family notification
+
+### Important
+- NEVER diagnose or suggest dementia
+- NEVER express worry to senior
+- Observations for pattern detection only`,
+  compressed: `## Accessibility
+Hearing: {hearingMode}. Cognitive: {cognitiveMode}. Rate: {speechRate}x.
+Context recap at start. Confusion: supportive only, log. 3+ calls: auto-flag.
+Never diagnose. Never express worry.`
+};
+```
+
+### New Grok Tools
+
+```typescript
+{
+  type: 'function',
+  name: 'log_cognitive_observation',
+  description: 'Log cognitive observation for pattern detection.',
+  parameters: {
+    type: 'object',
+    properties: {
+      observation_type: { type: 'string', enum: ['confusion', 'repetition', 'word_finding', 'orientation', 'memory_lapse'] },
+      severity: { type: 'string', enum: ['mild', 'moderate', 'significant'] },
+      context: { type: 'string' },
+      response_given: { type: 'string' }
+    },
+    required: ['observation_type', 'severity']
+  }
+},
+{
+  type: 'function',
+  name: 'adjust_accessibility',
+  description: 'Adjust accessibility settings.',
+  parameters: {
+    type: 'object',
+    properties: {
+      setting: { type: 'string', enum: ['speech_rate', 'hearing_mode', 'cognitive_mode'] },
+      value: { type: 'string' },
+      source: { type: 'string', enum: ['senior_request', 'ai_detected'] }
+    },
+    required: ['setting', 'value']
+  }
+}
+```
+
+### Dashboard Component
+
+`/src/app/dashboard/(app)/lines/[lineId]/settings/Accessibility.tsx`
+- Hearing mode selector
+- Speech rate slider
+- Cognitive support toggle
+- Cognitive flag indicator
 
 ---
 
-## Summary of User Decisions
+## System 6: Adaptive Companion Personality
 
-| Decision Point | Choice |
-|----------------|--------|
-| Boundary statement timing | After greeting, before conversation |
-| Boundary statement content | Simple, no family mention |
-| Consent creation model | Show dialog + auto-create on confirm |
-| Consent evidence | Full audit trail (timestamp, IP, userAgent, userId, contactName) |
-| Safety categories | Clinical taxonomy (9 categories) |
-| Category-tier mapping | Fixed mapping (except GENERAL_CONCERN) |
-| Confidence source | Model-provided (0.0-1.0), keyword backstop = 1.0 |
-| Catch-all category | Yes, GENERAL_CONCERN |
-| STOP response | Confirmation with dashboard link |
-| SMS recipients | Trusted contacts AND payers |
-| SMS opt-out scope | Global phone-level |
-| SMS opt-out check | Safety alerts only (verification exempt) |
-| Call events category | Yes, include category + confidence |
-| Data migration | Forward-only, no backfill |
-| Help article | Link to /docs for now |
+### Purpose
+Learns and mirrors senior's communication style, energy, vocabulary, and patterns.
+
+### Database Schema
+
+```sql
+CREATE TABLE ultaura_persona_adaptations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE UNIQUE,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  formality_level text DEFAULT 'warm' CHECK (formality_level IN ('casual', 'warm', 'formal')),
+  humor_level text DEFAULT 'light' CHECK (humor_level IN ('none', 'light', 'moderate', 'frequent')),
+  directness_level text DEFAULT 'balanced' CHECK (directness_level IN ('very_direct', 'balanced', 'gentle')),
+
+  vocabulary_complexity text DEFAULT 'standard' CHECK (vocabulary_complexity IN ('simple', 'standard', 'sophisticated')),
+  regional_expressions text[] DEFAULT '{}',
+  preferred_phrases text[] DEFAULT '{}',
+  avoided_phrases text[] DEFAULT '{}',
+
+  prefers_short_exchanges boolean DEFAULT false,
+  prefers_stories boolean DEFAULT true,
+  asks_many_questions boolean DEFAULT true,
+
+  typical_energy text DEFAULT 'moderate' CHECK (typical_energy IN ('high', 'moderate', 'low', 'variable')),
+  morning_energy text,
+  afternoon_energy text,
+  evening_energy text,
+
+  calls_analyzed integer DEFAULT 0,
+  confidence_score decimal(3,2) DEFAULT 0.5
+);
+```
+
+### Prompt Section
+
+```typescript
+export const ADAPTIVE_PERSONA_SECTION = {
+  tag: 'adaptive_persona',
+  full: `## Adaptive Companion Personality
+
+### Learned Style for {userName}
+- Formality: {formalityLevel}
+- Humor: {humorLevel}
+- Directness: {directnessLevel}
+- Vocabulary: {vocabularyComplexity}
+
+### Vocabulary Adaptation
+- Use their phrases: {preferredPhrases}
+- Avoid: {avoidedPhrases}
+- Regional expressions: {regionalExpressions}
+
+### Energy Matching
+Typical: {typicalEnergy}. Now: {timeSpecificEnergy}
+Match their pace and energy level.`,
+  compressed: `## Persona
+Style: {formalityLevel}/{humorLevel}/{directnessLevel}. Vocab: {vocabularyComplexity}.
+Energy: {typicalEnergy} typical, {timeSpecificEnergy} now. Mirror naturally.`
+};
+```
+
+### Post-Call Analysis
+
+New service: `/telephony/src/services/persona-analyzer.ts`
+- Analyzes engagement patterns
+- Updates persona adaptations automatically
+
+---
+
+## System 7: Seamless Companion Experience
+
+### Purpose
+Ensures natural conversation flow, authentic interest, appropriate AI transparency.
+
+### Prompt Section (no database changes)
+
+```typescript
+export const SEAMLESS_EXPERIENCE_SECTION = {
+  tag: 'seamless_experience',
+  full: `## Seamless Companion Experience
+
+### Natural Flow
+- Smooth transitions: "That reminds me..." not "Now let's talk about..."
+- Authentic interest: Ask follow-ups, remember details
+- Allow comfortable silences
+
+### AI Transparency
+- Transparent if directly asked
+- Don't proactively announce AI nature
+- Focus on genuine connection
+
+### Avoid Uncanny Valley
+- Don't claim human experiences
+- Don't use robotic phrases
+- Use remembered info naturally: "How's Sarah?" not "My records show..."
+
+### Error Recovery
+- "Let me make sure I heard you right..."
+- Never pretend to understand when you didn't`,
+  compressed: `## Seamless
+Natural transitions. Authentic interest. Allow pauses. Transparent if asked.
+Don't claim human experiences. Use memories naturally. Recover gracefully.`
+};
+```
+
+---
+
+## System 8: Celebration & Validation System
+
+### Purpose
+Tracks milestones and provides timely celebration and validation.
+
+### Database Schema
+
+```sql
+CREATE TABLE ultaura_milestones (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES ultaura_accounts(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  milestone_type text NOT NULL CHECK (milestone_type IN (
+    'birthday', 'anniversary', 'memorial', 'achievement', 'holiday', 'custom'
+  )),
+  title text NOT NULL,
+  description text,
+
+  date_month integer NOT NULL CHECK (date_month BETWEEN 1 AND 12),
+  date_day integer NOT NULL CHECK (date_day BETWEEN 1 AND 31),
+  date_year integer,
+  is_recurring boolean NOT NULL DEFAULT true,
+
+  related_relationship_id uuid REFERENCES ultaura_relationships(id) ON DELETE SET NULL,
+  related_person_name text,
+
+  notify_days_before integer DEFAULT 0,
+  notify_on_day boolean DEFAULT true,
+
+  last_celebrated_at timestamptz,
+  times_celebrated integer DEFAULT 0,
+
+  source text DEFAULT 'conversation' CHECK (source IN ('conversation', 'family_input', 'calendar_import')),
+  privacy_scope text DEFAULT 'shareable_with_payer'
+);
+
+CREATE INDEX idx_milestones_upcoming ON ultaura_milestones(date_month, date_day);
+```
+
+### Prompt Section
+
+```typescript
+export const CELEBRATION_SECTION = {
+  tag: 'celebration',
+  full: `## Celebration & Validation
+
+### Today's Celebrations
+{todayMilestonesFormatted}
+
+### Upcoming Milestones
+{upcomingMilestonesFormatted}
+
+### Guidelines
+**Birthdays:** Lead with celebration, ask about plans
+**Anniversaries:** Congratulate, prompt memory sharing
+**Memorial Dates:** Gentle acknowledgment, allow them to share
+**Achievements:** Enthusiastic validation
+
+### Storing Milestones
+Call store_milestone when they mention dates
+Call mark_milestone_celebrated after acknowledging`,
+  compressed: `## Celebrate
+Today: {todayMilestonesFormatted}. Upcoming: {upcomingMilestonesFormatted}.
+Lead with celebration. Allow memorial reflection. Store new dates.`
+};
+```
+
+### New Grok Tools
+
+```typescript
+{
+  type: 'function',
+  name: 'store_milestone',
+  description: 'Store a milestone.',
+  parameters: {
+    type: 'object',
+    properties: {
+      milestone_type: { type: 'string', enum: ['birthday', 'anniversary', 'memorial', 'achievement', 'holiday', 'custom'] },
+      title: { type: 'string' },
+      date_month: { type: 'integer', minimum: 1, maximum: 12 },
+      date_day: { type: 'integer', minimum: 1, maximum: 31 },
+      date_year: { type: 'integer' },
+      related_person_name: { type: 'string' },
+      is_recurring: { type: 'boolean' }
+    },
+    required: ['milestone_type', 'title', 'date_month', 'date_day']
+  }
+},
+{
+  type: 'function',
+  name: 'mark_milestone_celebrated',
+  description: 'Mark milestone as acknowledged.',
+  parameters: {
+    type: 'object',
+    properties: {
+      milestone_id: { type: 'string' },
+      milestone_title: { type: 'string' }
+    }
+  }
+}
+```
+
+### Dashboard Component
+
+`/src/app/dashboard/(app)/lines/[lineId]/milestones/MilestoneCalendar.tsx`
+- Calendar view with milestones
+- Add/edit form
+- Celebration history
+
+---
+
+## System 9: Grief & Loss Support
+
+### Purpose
+Sensitively handles conversations about deceased loved ones and supports during grief.
+
+### Database Schema
+
+Uses `ultaura_relationships` with `is_deceased`, `passed_at`, `grief_sensitivity` (from System 4).
+
+Additional:
+
+```sql
+CREATE TABLE ultaura_grief_interactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_session_id uuid NOT NULL REFERENCES ultaura_call_sessions(id) ON DELETE CASCADE,
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  relationship_id uuid REFERENCES ultaura_relationships(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+
+  interaction_type text NOT NULL CHECK (interaction_type IN (
+    'mention', 'memory_sharing', 'grief_expression', 'anniversary_acknowledgment'
+  )),
+  emotional_tone text CHECK (emotional_tone IN ('sad', 'nostalgic', 'grateful', 'peaceful', 'complicated')),
+  support_techniques_used text[],
+  days_since_passing integer
+);
+```
+
+### Prompt Section
+
+```typescript
+export const GRIEF_SUPPORT_SECTION = {
+  tag: 'grief_support',
+  full: `## Grief & Loss Support
+
+### Deceased Loved Ones
+{deceasedRelationshipsWithContext}
+
+### Guidelines
+- Follow their lead
+- "Tell me about {name}" not past tense
+- Allow memory sharing without redirecting
+- Validate: "It sounds like you really miss them"
+
+### New Death Disclosure
+1. Express sympathy
+2. Ask if they want to talk
+3. Call mark_relationship_deceased
+4. Store memories they share
+
+### What NOT to do
+- Don't say "They're in a better place"
+- Don't rush through grief
+- Don't compare losses`,
+  compressed: `## Grief
+Deceased: {deceasedCompressed}. Follow their lead. Allow memories.
+New death: express sympathy, call mark_relationship_deceased.
+Don't rush or compare.`
+};
+```
+
+---
+
+## System 10: Daily Rhythm Awareness
+
+### Purpose
+Maps daily patterns, enables time-aware conversations, optimizes call scheduling.
+
+### Database Schema
+
+```sql
+ALTER TABLE ultaura_lines
+  ADD COLUMN IF NOT EXISTS optimal_call_time time,
+  ADD COLUMN IF NOT EXISTS optimal_call_time_source text CHECK (optimal_call_time_source IN ('family_set', 'ai_learned', 'senior_request')),
+  ADD COLUMN IF NOT EXISTS optimal_call_days integer[];
+
+CREATE TABLE ultaura_daily_rhythms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE UNIQUE,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  morning_energy text DEFAULT 'moderate' CHECK (morning_energy IN ('high', 'moderate', 'low')),
+  afternoon_energy text DEFAULT 'moderate',
+  evening_energy text DEFAULT 'moderate',
+
+  morning_routine_summary text,
+  afternoon_routine_summary text,
+  evening_routine_summary text,
+
+  best_engagement_time time,
+  worst_engagement_time time,
+  avg_duration_by_time jsonb,
+
+  best_days_of_week integer[],
+  avoid_days_of_week integer[]
+);
+```
+
+### Prompt Section
+
+```typescript
+export const DAILY_RHYTHM_SECTION = {
+  tag: 'daily_rhythm',
+  full: `## Daily Rhythm Awareness
+
+### Current Context
+Time: {currentTimeOfDay}. Day: {currentDayOfWeek}. Expected energy: {expectedEnergyNow}
+
+### Typical Day
+- Morning: {morningRoutineSummary}
+- Afternoon: {afternoonRoutineSummary}
+- Evening: {eveningRoutineSummary}
+
+### Time-Aware Conversation
+Reference routines naturally. Match energy to time.
+If engagement consistently low: offer to reschedule.`,
+  compressed: `## Rhythm
+Time: {currentTimeOfDay}. Energy: {expectedEnergyNow}.
+Morning: {morningRoutineSummary}. Afternoon: {afternoonRoutineSummary}. Evening: {eveningRoutineSummary}.
+Match energy. Offer reschedule if engagement low.`
+};
+```
+
+---
+
+## System 11: Health & Wellness Context
+
+### Purpose
+Tracks health mentions (private by default), provides wellness check-ins, never gives medical advice.
+
+### Database Schema
+
+```sql
+CREATE TABLE ultaura_health_mentions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_session_id uuid NOT NULL REFERENCES ultaura_call_sessions(id) ON DELETE CASCADE,
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES ultaura_accounts(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+
+  -- Encrypted content
+  mention_ciphertext bytea NOT NULL,
+  mention_iv bytea NOT NULL,
+  mention_tag bytea NOT NULL,
+  mention_alg text NOT NULL DEFAULT 'aes-256-gcm',
+  mention_kid text NOT NULL DEFAULT 'kek_v1',
+
+  category text NOT NULL CHECK (category IN (
+    'pain', 'medication', 'appointment', 'symptom', 'sleep',
+    'appetite', 'mobility', 'energy', 'general'
+  )),
+  severity text CHECK (severity IN ('mild', 'moderate', 'concerning')),
+
+  triggers_alert boolean DEFAULT false,
+  alert_sent_at timestamptz
+);
+
+CREATE INDEX idx_health_mentions_alert ON ultaura_health_mentions(triggers_alert) WHERE triggers_alert = true;
+-- Service role only - no user RLS policies
+```
+
+### Prompt Section
+
+```typescript
+export const HEALTH_WELLNESS_SECTION = {
+  tag: 'health_wellness',
+  full: `## Health & Wellness Context
+
+### Privacy First
+ALL health mentions are PRIVATE. Never share with family.
+
+### Track via log_health_mention
+- Pain, medication, symptoms, sleep, appetite, mobility, energy
+
+### Alert Triggers (auto-notify family)
+- Severe pain, medication confusion, concerning symptoms, falls
+
+### Guidelines
+- Acknowledge: "That sounds uncomfortable"
+- Never diagnose or advise
+- Suggest doctor for concerning symptoms
+- Log silently
+
+### What NOT to do
+- Don't give medical advice
+- Don't scare them
+- Don't promise everything will be okay`,
+  compressed: `## Health
+ALL health PRIVATE. Track: pain, medication, symptoms, sleep, appetite.
+Alert family only for severe/concerning. Never diagnose. Suggest doctor. Log silently.`
+};
+```
+
+### New Grok Tool
+
+```typescript
+{
+  type: 'function',
+  name: 'log_health_mention',
+  description: 'Log health mention. Always private.',
+  parameters: {
+    type: 'object',
+    properties: {
+      category: { type: 'string', enum: ['pain', 'medication', 'appointment', 'symptom', 'sleep', 'appetite', 'mobility', 'energy', 'general'] },
+      summary: { type: 'string' },
+      severity: { type: 'string', enum: ['mild', 'moderate', 'concerning'] }
+    },
+    required: ['category', 'summary']
+  }
+}
+```
+
+---
+
+## System 12: Emotional Trend Insights (Dashboard)
+
+### Purpose
+Visualizes mood patterns for family dashboard.
+
+### Dashboard Components
+
+1. `/src/app/dashboard/(app)/insights/EmotionalTrends.tsx`
+   - Mood distribution pie chart
+   - Mood trend line over time
+   - Energy level indicators
+   - "Concerning patterns" alert
+
+2. `/src/app/dashboard/(app)/insights/MoodCalendar.tsx`
+   - Heatmap calendar by mood
+
+### Server Actions
+
+```typescript
+export async function getEmotionalTrends(lineId: string, days: number = 14): Promise<EmotionalTrendsData>;
+export async function getMoodCalendar(lineId: string, month: string): Promise<MoodCalendarData>;
+```
+
+---
+
+## System 13: Proactive Wellness Alerts
+
+### Purpose
+Notifies family of health mentions and mood drops.
+
+### Database Schema
+
+```sql
+CREATE TABLE ultaura_wellness_alerts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  line_id uuid NOT NULL REFERENCES ultaura_lines(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES ultaura_accounts(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+
+  alert_type text NOT NULL CHECK (alert_type IN (
+    'health_mention', 'mood_drop', 'cognitive_concern', 'missed_calls', 'custom'
+  )),
+  severity text NOT NULL CHECK (severity IN ('info', 'warning', 'urgent')),
+
+  title text NOT NULL,
+  summary text NOT NULL,
+
+  source_call_session_id uuid REFERENCES ultaura_call_sessions(id),
+
+  delivery_method text NOT NULL CHECK (delivery_method IN ('email', 'sms', 'push', 'dashboard_only')),
+  delivered_at timestamptz,
+
+  acknowledged_at timestamptz,
+  acknowledged_by_user_id uuid
+);
+
+ALTER TABLE ultaura_notification_preferences
+  ADD COLUMN IF NOT EXISTS health_mention_alerts boolean DEFAULT true,
+  ADD COLUMN IF NOT EXISTS mood_drop_alerts boolean DEFAULT true,
+  ADD COLUMN IF NOT EXISTS cognitive_concern_alerts boolean DEFAULT true,
+  ADD COLUMN IF NOT EXISTS alert_delivery_method text DEFAULT 'email';
+```
+
+### Alert Generation Service
+
+`/telephony/src/services/wellness-alerts.ts`
+- Triggered after call completion
+- Checks mood drops, health mentions, cognitive flags
+- Generates and delivers alerts
+
+### Dashboard Components
+
+1. `/src/app/dashboard/(app)/alerts/WellnessAlertsList.tsx`
+2. `/src/app/dashboard/(app)/lines/[lineId]/settings/AlertSettings.tsx`
+
+---
+
+## System 14: Conversation Highlights (Dashboard)
+
+### Purpose
+Shows topic summaries without verbatim quotes.
+
+### Dashboard Components
+
+1. `/src/app/dashboard/(app)/lines/[lineId]/insights/ConversationHighlights.tsx`
+   - Topics discussed per call
+   - New memories added (keys only)
+   - Milestones mentioned
+   - Mood indicator
+
+2. `/src/app/dashboard/(app)/lines/[lineId]/insights/MemoryActivity.tsx`
+   - Recent memory keys (no values)
+   - Category distribution
+   - Private indicator
+
+### Privacy
+
+```typescript
+interface MemoryActivityItem {
+  memoryId: string;
+  type: MemoryType;
+  key: string;
+  createdAt: string;
+  isPrivate: boolean;
+  // value NEVER included
+}
+```
+
+---
+
+## System 15: Relationship Quality Indicators (Dashboard)
+
+### Purpose
+Shows mention frequency and sentiment for relationships.
+
+### Dashboard Component
+
+`/src/app/dashboard/(app)/lines/[lineId]/insights/RelationshipIndicators.tsx`
+- People mentioned most frequently
+- Sentiment indicators
+- Recent mention dates
+- Relationship map visualization
+
+### Data Structure
+
+```typescript
+interface RelationshipIndicator {
+  name: string;
+  relationType: string;
+  relationRole: string;
+  sentiment: 'positive' | 'neutral' | 'complicated';
+  mentionCount30d: number;
+  lastMentionedAt: string | null;
+  // No private details
+}
+```
+
+---
+
+## System 16: Natural Interruption Handling
+
+### Purpose
+Configures patience parameters for natural voice interaction.
+
+### Database Schema
+
+```sql
+ALTER TABLE ultaura_lines
+  ADD COLUMN IF NOT EXISTS interruption_tolerance text DEFAULT 'normal' CHECK (interruption_tolerance IN ('high', 'normal', 'low')),
+  ADD COLUMN IF NOT EXISTS filler_word_patience text DEFAULT 'normal' CHECK (filler_word_patience IN ('high', 'normal', 'low')),
+  ADD COLUMN IF NOT EXISTS silence_tolerance_ms integer DEFAULT 2000,
+  ADD COLUMN IF NOT EXISTS crosstalk_recovery_mode text DEFAULT 'patient' CHECK (crosstalk_recovery_mode IN ('immediate', 'patient', 'very_patient'));
+```
+
+### Prompt Section
+
+```typescript
+export const INTERRUPTION_HANDLING_SECTION = {
+  tag: 'interruption_handling',
+  full: `## Natural Interruption Handling
+
+### Settings
+- Interruption tolerance: {interruptionTolerance}
+- Filler patience: {fillerWordPatience}
+- Silence tolerance: {silenceToleranceMs}ms
+- Cross-talk recovery: {crosstalkRecoveryMode}
+
+### Recovery Phrases
+- "Oh, please go ahead"
+- "Sorry, you first"
+- "Take your time, I'm listening"
+
+### Word-Finding Support
+Wait patiently. Don't guess too quickly.
+If they ask: offer gentle suggestions.`,
+  compressed: `## Interruptions
+Tolerance: {interruptionTolerance}. Filler: {fillerWordPatience}. Silence: {silenceToleranceMs}ms.
+"Please go ahead" for crosstalk. Help word-finding gently.`
+};
+```
+
+### Grok Session Config
+
+Update VAD settings in `/telephony/src/websocket/grok-bridge.ts`:
+
+```typescript
+turn_detection: {
+  type: 'server_vad',
+  threshold: this.getVadThreshold(), // varies by interruption_tolerance
+  prefix_padding_ms: this.getPrefixPadding(), // varies by filler_word_patience
+  silence_duration_ms: this.options.silenceToleranceMs || VAD_SILENCE_DURATION_MS,
+}
+```
+
+---
+
+## Prompt Engineering Strategy
+
+### Assembly Order in `compilePrompt()`
+
+```typescript
+// 1. Core Identity (existing)
+// 2. Adaptive Persona (System 6) ~200 tokens
+// 3. Life Story (System 1) ~500-2000 tokens
+// 4. Relationships (System 4) ~500-1500 tokens
+// 5. Emotional Intelligence (System 2) ~400 tokens
+// 6. Accessibility (System 5) ~300 tokens
+// 7. Daily Rhythm (System 10) ~200 tokens
+// 8. Memories (existing, enhanced) ~1000-5000 tokens
+// 9. Health/Wellness (System 11) ~300 tokens
+// 10. Celebration (System 8) ~200 tokens
+// 11. Grief Support (System 9) ~300 tokens
+// 12. Content Engine (System 3) ~400 tokens
+// 13. Seamless Experience (System 7) ~300 tokens
+// 14. Interruption Handling (System 16) ~150 tokens
+// 15. Existing sections (safety, privacy, tools, etc.)
+// 16. Dynamic context (recent calls, preview)
+```
+
+### Token Estimation
+
+| Component | Compressed | Full |
+|-----------|------------|------|
+| Core Identity | 50 | 100 |
+| Adaptive Persona | 80 | 200 |
+| Life Story | 200-500 | 500-2000 |
+| Relationships | 200-400 | 500-1500 |
+| Emotional Intelligence | 150 | 400 |
+| Accessibility | 100 | 300 |
+| Daily Rhythm | 80 | 200 |
+| Memories | 500-2000 | 1000-5000 |
+| Health/Wellness | 100 | 300 |
+| Celebration | 80 | 200 |
+| Grief Support | 100 | 300 |
+| Content Engine | 150 | 400 |
+| Seamless Experience | 100 | 300 |
+| Interruption Handling | 60 | 150 |
+| Existing Sections | 800 | 1500 |
+| Dynamic Context | 300-600 | 500-1000 |
+| **Total** | **3,000-6,000** | **7,000-15,000** |
+
+Well within 2M token limit.
+
+---
+
+## Implementation Sequence
+
+### Phase 1: Foundation
+1. Database migrations (all new tables/columns)
+2. Type extensions in `@ultaura/types`
+
+### Phase 2: Core Systems
+3. All 16 prompt sections
+4. Tool definitions and handlers
+
+### Phase 3: Data Layer
+5. Memory service extensions
+6. New services (persona analyzer, wellness alerts, mood patterns)
+
+### Phase 4: Dashboard
+7. Family dashboard components
+8. API routes and server actions
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+- Prompt assembly for each section
+- Tool handler validation
+- Memory service extensions
+
+### Integration Tests
+- Call flow with mock Grok
+- Dashboard data aggregation
+- Privacy filtering
+
+### End-to-End Tests
+- Full call simulation
+- Dashboard verification after calls
+
+### Manual Testing
+- Voice quality with various accents
+- Interruption handling
+- Family dashboard usability
+
+---
+
+## Critical Files for Implementation
+
+| File | Changes Required |
+|------|------------------|
+| `/packages/prompts/src/profiles/index.ts` | Inject 16 new sections with proper ordering |
+| `/telephony/src/websocket/grok-bridge.ts` | Add ~10 new tool handlers, update VAD settings |
+| `/packages/types/src/memory.ts` | Extend interfaces for all system types |
+| `/telephony/src/services/memory.ts` | Handle extended relationships, life chapters, health mentions |
+| `/supabase/migrations/[new]_personalization_systems.sql` | Create 8+ new tables with RLS |
+| `/src/lib/ultaura/actions.ts` | New server actions for dashboard data |
+
+---
+
+## Verification Plan
+
+### Post-Implementation Verification
+
+1. **Call Flow Test**
+   - Make test call with new prompt
+   - Verify all tools invocable
+   - Verify memory storage
+
+2. **Dashboard Test**
+   - Create test data
+   - Verify all components render
+   - Verify privacy (no verbatim quotes)
+
+3. **Alert Test**
+   - Trigger health mention
+   - Verify alert generated
+   - Verify delivery
+
+4. **End-to-End**
+   - Full call → dashboard update cycle
+   - Verify all 16 systems functioning
+
+---
+
+## Migration Path
+
+### Existing Users
+1. Non-breaking migrations (nullable columns with defaults)
+2. Feature flags per account
+3. Data backfill from existing memories
+4. A/B test prompt updates
+
+### New Users
+- All systems enabled by default
+- First 3-5 calls build baseline
+
+---
+
+*This specification provides complete implementation guidance for transforming Ultaura from a functional check-in service into a deeply personalized companion that seniors look forward to speaking with.*
