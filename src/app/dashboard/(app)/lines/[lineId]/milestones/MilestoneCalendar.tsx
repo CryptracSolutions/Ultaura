@@ -24,8 +24,7 @@ function formatMilestoneDate(
     year,
     month: milestone.date_month,
     day: milestone.date_day,
-    zone: timezone,
-  });
+  }, { zone: timezone });
   if (!date.isValid) {
     return `${milestone.date_month}/${milestone.date_day}`;
   }
@@ -45,8 +44,7 @@ function getNextOccurrence(milestone: MilestoneRow, timezone: string): DateTime 
       year: milestone.date_year,
       month: milestone.date_month,
       day: milestone.date_day,
-      zone: timezone,
-    });
+    }, { zone: timezone });
     return date.isValid && date >= now ? date : null;
   }
 
@@ -55,8 +53,7 @@ function getNextOccurrence(milestone: MilestoneRow, timezone: string): DateTime 
     year: baseYear,
     month: milestone.date_month,
     day: milestone.date_day,
-    zone: timezone,
-  });
+  }, { zone: timezone });
 
   if (!date.isValid) {
     return null;

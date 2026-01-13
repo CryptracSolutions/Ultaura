@@ -56,7 +56,7 @@ function VerificationCodeInput({
     setFocus('values.0.value');
   }, [setFocus]);
 
-  const onInput: FormEventHandler<HTMLFormElement> = useCallback(
+  const onInput: FormEventHandler<HTMLInputElement> = useCallback(
     (target) => {
       const element = target.currentTarget;
       const isValid = element.reportValidity();
@@ -75,7 +75,7 @@ function VerificationCodeInput({
   );
 
   const onPaste = useCallback(
-    (event: React.ClipboardEvent<HTMLFormElement>) => {
+    (event: React.ClipboardEvent<HTMLInputElement>) => {
       const pasted = event.clipboardData.getData('text/plain');
 
       // check if value is numeric

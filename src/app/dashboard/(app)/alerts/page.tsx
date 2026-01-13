@@ -57,7 +57,7 @@ export default async function AlertsPage() {
               href="/dashboard/settings/subscription"
               className="mt-4 inline-flex items-center text-sm font-medium text-primary hover:underline"
             >
-              Start trial ->
+              Start trial →
             </Link>
           </div>
         </PageBody>

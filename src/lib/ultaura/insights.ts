@@ -16,6 +16,7 @@ import getLogger from '~/core/logger';
 import type {
   CallSessionRow,
   ConversationHighlightsData,
+  EmotionalTrendEntry,
   EmotionalTrendsData,
   InsightPrivacyRow,
   InsightsDashboard,
@@ -24,6 +25,7 @@ import type {
   MemoryActivityData,
   MemoryActivityItem,
   MoodCalendarData,
+  MoodCalendarDay,
   MoodEnergyLevel,
   MoodSnapshotMood,
   MoodSnapshotRow,

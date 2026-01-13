@@ -5,7 +5,7 @@ import classNames from 'clsx';
 
 import Label from './Label';
 
-type Props = React.InputHTMLAttributes<unknown>;
+type Props = React.InputHTMLAttributes<HTMLInputElement>;
 
 const Hint: React.FC<React.PropsWithChildren> = ({ children }) => {
   return (
