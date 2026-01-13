@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Archive,
@@ -10,12 +11,14 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  Users,
 } from 'lucide-react';
 
 import Alert from '~/core/ui/Alert';
 import Button from '~/core/ui/Button';
 import { Switch } from '~/core/ui/Switch';
 import { Checkbox } from '~/core/ui/Checkbox';
+import TextField from '~/core/ui/TextField';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
@@ -28,15 +31,23 @@ import type {
   ConsentAuditEntry,
   DataExportRequest,
   LineRow,
+  NotificationRecipient,
   RetentionPeriod,
   UltauraAccountRow,
 } from '~/lib/ultaura/types';
+import { updateAccountSharing, upgradeSelfToFamilyMode } from '~/lib/ultaura/accounts';
 import {
   getDataExportRequests,
   requestAccountDataDeletion,
   requestDataExport,
   updatePrivacySettings,
 } from '~/lib/ultaura/privacy';
+import {
+  inviteNotificationRecipient,
+  removeNotificationRecipient,
+} from '~/lib/ultaura/notification-recipients';
+import { InvitedFamilyList } from './components/InvitedFamilyList';
+import { TELEPHONY } from '~/lib/ultaura/constants';
 
 interface PrivacyCenterClientProps {
   account: UltauraAccountRow;
@@ -44,6 +55,7 @@ interface PrivacyCenterClientProps {
   lines: LineRow[];
   auditLog: ConsentAuditEntry[];
   exportRequests: DataExportRequest[];
+  notificationRecipients: NotificationRecipient[];
 }
 
 const RETENTION_OPTIONS: Array<{
@@ -81,7 +93,9 @@ export function PrivacyCenterClient({
   lines,
   auditLog,
   exportRequests,
+  notificationRecipients,
 }: PrivacyCenterClientProps) {
+  const router = useRouter();
   const [recordingEnabled, setRecordingEnabled] = useState(
     privacySettings?.recordingEnabled ?? false
   );
@@ -97,10 +111,29 @@ export function PrivacyCenterClient({
   const [includeCallMetadata, setIncludeCallMetadata] = useState(true);
   const [includeReminders, setIncludeReminders] = useState(true);
   const [exports, setExports] = useState<DataExportRequest[]>(exportRequests);
+  const [recipients, setRecipients] = useState<NotificationRecipient[]>(
+    notificationRecipients
+  );
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isSharingUpdating, setIsSharingUpdating] = useState(false);
+  const [sharingEnabled, setSharingEnabled] = useState(account.sharing_enabled ?? true);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePhone, setInvitePhone] = useState('');
+  const [inviteRelationship, setInviteRelationship] = useState('');
+  const [inviteAsTrusted, setInviteAsTrusted] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [reinviteDialogOpen, setReinviteDialogOpen] = useState(false);
+  const [pendingInvite, setPendingInvite] = useState<{
+    name: string;
+    email: string;
+    phoneE164?: string;
+    relationship?: string;
+    addAsTrustedContact: boolean;
+  } | null>(null);
 
   const lineCount = lines.length;
   const exportInProgress = exports.some(
@@ -215,6 +248,155 @@ export function PrivacyCenterClient({
     toast.success('Deletion requested. Privacy data will be removed shortly.');
   };
 
+  const isSelfUser = account.user_type === 'self';
+  const canManageRecipients = account.user_type === 'family_managed' || (isSelfUser && sharingEnabled);
+
+  const handleSharingToggle = async (nextEnabled: boolean) => {
+    const previous = sharingEnabled;
+    setSharingEnabled(nextEnabled);
+    setIsSharingUpdating(true);
+    try {
+      const result = await updateAccountSharing(account.id, nextEnabled);
+      if (!result.success) {
+        setSharingEnabled(previous);
+        toast.error(result.error.message || 'Failed to update sharing');
+      } else {
+        toast.success(nextEnabled ? 'Family sharing enabled' : 'Family sharing disabled');
+      }
+    } catch {
+      setSharingEnabled(previous);
+      toast.error('Failed to update sharing');
+    } finally {
+      setIsSharingUpdating(false);
+    }
+  };
+
+  const buildInvitePayload = (override?: {
+    name?: string;
+    email?: string;
+    phoneE164?: string;
+    relationship?: string;
+    addAsTrustedContact?: boolean;
+  }) => {
+    const trimmedName = (override?.name ?? inviteName).trim();
+    const trimmedEmail = (override?.email ?? inviteEmail).trim().toLowerCase();
+    const trimmedPhone = invitePhone.trim();
+    const trimmedRelationship = (override?.relationship ?? inviteRelationship).trim();
+    const phoneE164 = override?.phoneE164 ?? (trimmedPhone ? formatToE164(trimmedPhone) : undefined);
+
+    return {
+      name: trimmedName,
+      email: trimmedEmail,
+      phoneE164,
+      relationship: trimmedRelationship || undefined,
+      addAsTrustedContact: override?.addAsTrustedContact ?? inviteAsTrusted,
+    };
+  };
+
+  const handleInvite = async (
+    allowReinvite = false,
+    override?: {
+      name?: string;
+      email?: string;
+      phoneE164?: string;
+      relationship?: string;
+      addAsTrustedContact?: boolean;
+    }
+  ) => {
+    const payload = buildInvitePayload(override);
+
+    if (!payload.name || !payload.email) {
+      toast.error('Name and email are required');
+      return;
+    }
+
+    if (payload.phoneE164 && !TELEPHONY.PHONE_REGEX.test(payload.phoneE164)) {
+      toast.error('Enter a valid US phone number');
+      return;
+    }
+
+    if (payload.addAsTrustedContact && !payload.phoneE164) {
+      toast.error('Phone number is required for emergency contacts');
+      return;
+    }
+
+    setIsInviting(true);
+
+    try {
+      const result = await inviteNotificationRecipient(account.id, {
+        name: payload.name,
+        email: payload.email,
+        phoneE164: payload.phoneE164,
+        relationship: payload.relationship,
+        addAsTrustedContact: payload.addAsTrustedContact,
+        allowReinvite,
+      });
+
+      if (!result.success) {
+        const reason = result.error.details?.reason;
+        if (reason === 'unsubscribed') {
+          setPendingInvite(payload);
+          setReinviteDialogOpen(true);
+          return;
+        }
+
+        toast.error(result.error.message || 'Failed to send invite');
+        return;
+      }
+
+      const nextRecipients = recipients.filter((item) => item.id !== result.data.id);
+      setRecipients([result.data, ...nextRecipients]);
+      setInviteName('');
+      setInviteEmail('');
+      setInvitePhone('');
+      setInviteRelationship('');
+      setInviteAsTrusted(false);
+      toast.success('Invite sent');
+    } catch {
+      toast.error('Failed to send invite');
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleConfirmReinvite = async () => {
+    if (!pendingInvite) return;
+    setReinviteDialogOpen(false);
+    await handleInvite(true, pendingInvite);
+    setPendingInvite(null);
+  };
+
+  const handleRemoveRecipient = async (recipientId: string) => {
+    try {
+      const result = await removeNotificationRecipient(recipientId);
+      if (!result.success) {
+        toast.error(result.error.message || 'Failed to remove recipient');
+        return;
+      }
+      setRecipients((prev) => prev.filter((recipient) => recipient.id !== recipientId));
+      toast.success('Recipient removed');
+    } catch {
+      toast.error('Failed to remove recipient');
+    }
+  };
+
+  const handleUpgrade = async () => {
+    setIsSharingUpdating(true);
+    try {
+      const result = await upgradeSelfToFamilyMode(account.id);
+      if (!result.success) {
+        toast.error(result.error.message || 'Failed to upgrade');
+      } else {
+        toast.success('Upgraded to family mode');
+        router.refresh();
+      }
+    } catch {
+      toast.error('Failed to upgrade');
+    } finally {
+      setIsSharingUpdating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 pb-24">
       <Alert type="info">
@@ -228,6 +410,147 @@ export function PrivacyCenterClient({
           .
         </p>
       </Alert>
+
+      {isSelfUser && (
+        <Section>
+          <SectionHeader
+            title={
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                Family Sharing
+              </div>
+            }
+            description="Control whether family members can receive updates."
+          />
+          <SectionBody className="gap-4">
+            <p className="text-sm text-muted-foreground">
+              When enabled, you can invite family members to receive weekly summaries and alerts.
+              Only data from after you enable sharing will be shared.
+            </p>
+            {sharingEnabled ? (
+              <div className="flex items-start justify-between gap-4">
+                <div className="text-sm text-muted-foreground">Sharing is currently enabled.</div>
+                <Switch
+                  checked={sharingEnabled}
+                  onCheckedChange={handleSharingToggle}
+                  disabled={isSharingUpdating}
+                />
+              </div>
+            ) : (
+              <Button onClick={() => handleSharingToggle(true)} disabled={isSharingUpdating}>
+                Enable family sharing
+              </Button>
+            )}
+          </SectionBody>
+        </Section>
+      )}
+
+      {canManageRecipients && (
+        <Section>
+          <SectionHeader
+            title={
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                Family Recipients
+              </div>
+            }
+            description="Invite up to 5 family members to receive summaries and alerts."
+          />
+          <SectionBody className="gap-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextField>
+                <TextField.Label>
+                  Name
+                  <TextField.Input
+                    value={inviteName}
+                    onChange={(event) => setInviteName(event.target.value)}
+                    placeholder="e.g., Sarah Johnson"
+                  />
+                </TextField.Label>
+              </TextField>
+              <TextField>
+                <TextField.Label>
+                  Email
+                  <TextField.Input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    placeholder="sarah@example.com"
+                  />
+                </TextField.Label>
+              </TextField>
+              <TextField>
+                <TextField.Label>
+                  Phone (optional)
+                  <TextField.Input
+                    type="tel"
+                    value={invitePhone}
+                    onChange={(event) => setInvitePhone(event.target.value)}
+                    placeholder="(555) 123-4567"
+                  />
+                </TextField.Label>
+              </TextField>
+              <TextField>
+                <TextField.Label>
+                  Relationship (optional)
+                  <TextField.Input
+                    value={inviteRelationship}
+                    onChange={(event) => setInviteRelationship(event.target.value)}
+                    placeholder="e.g., Daughter"
+                  />
+                </TextField.Label>
+              </TextField>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={inviteAsTrusted}
+                onCheckedChange={(checked) => setInviteAsTrusted(Boolean(checked))}
+              />
+              Also add as emergency contact (requires phone number)
+            </label>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => handleInvite(false)} disabled={isInviting}>
+                {isInviting ? 'Sending...' : 'Send invite'}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {recipients.length}/5 recipients
+              </p>
+            </div>
+
+            <InvitedFamilyList
+              recipients={recipients}
+              onRemove={handleRemoveRecipient}
+              disabled={isInviting}
+            />
+          </SectionBody>
+        </Section>
+      )}
+
+      {isSelfUser && (
+        <Section>
+          <SectionHeader
+            title="Upgrade to Family Mode"
+            description="Unlock family insights and additional lines."
+          />
+          <SectionBody className="gap-4">
+            <p className="text-sm text-muted-foreground">Upgrading to family mode will:</p>
+            <ul className="text-sm text-muted-foreground list-disc ml-4">
+              <li>Show the Insights page with conversation analytics</li>
+              <li>Show the Alerts page for wellness monitoring</li>
+              <li>Allow adding additional phone lines (if your plan supports it)</li>
+              <li>Enable inviting family members for notifications</li>
+            </ul>
+            <p className="text-sm text-muted-foreground">
+              Your existing settings and data will be preserved.
+            </p>
+            <Button onClick={handleUpgrade} disabled={isSharingUpdating}>
+              Upgrade to Family Mode
+            </Button>
+          </SectionBody>
+        </Section>
+      )}
 
       <Section>
         <SectionHeader
@@ -502,6 +825,15 @@ export function PrivacyCenterClient({
       </Section>
 
       <ConfirmationDialog
+        open={reinviteDialogOpen}
+        onOpenChange={setReinviteDialogOpen}
+        title="Re-invite this recipient?"
+        description="They previously unsubscribed from updates. Re-inviting will send a new confirmation email."
+        confirmLabel="Re-invite"
+        onConfirm={handleConfirmReinvite}
+      />
+
+      <ConfirmationDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         title="Delete privacy data"
@@ -580,4 +912,22 @@ function statusToColor(status: DataExportRequest['status']): string {
     default:
       return 'bg-muted text-muted-foreground';
   }
+}
+
+function formatToE164(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+${digits}`;
+  }
+
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+
+  if (!phone.startsWith('+')) {
+    return `+${digits}`;
+  }
+
+  return phone;
 }

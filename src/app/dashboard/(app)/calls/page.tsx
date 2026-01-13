@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
 import { getAllSchedules } from '~/lib/ultaura/schedules';
@@ -22,7 +21,7 @@ export default async function CallsPage() {
   if (!organizationId) {
     return (
       <>
-        <AppHeader title="Call Schedules" description="Manage when Ultaura calls your loved ones" />
+        <AppHeader title="Call Schedules" description="Manage when Ultaura calls your account" />
         <PageBody>
           <p className="text-muted-foreground">Organization not found.</p>
         </PageBody>
@@ -35,12 +34,12 @@ export default async function CallsPage() {
   if (!account) {
     return (
       <>
-        <AppHeader title="Call Schedules" description="Manage when Ultaura calls your loved ones" />
+        <AppHeader title="Call Schedules" description="Manage when Ultaura calls your account" />
         <PageBody>
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
             <p className="text-muted-foreground mb-6">
-              Set up phone companionship for your loved ones. Start with a 3-day free trial.
+              Set up phone companionship with Ultaura. Start with a 3-day free trial.
             </p>
             <a
               href="/dashboard/settings/subscription"
@@ -53,6 +52,11 @@ export default async function CallsPage() {
       </>
     );
   }
+
+  const isSelfUser = account.user_type === 'self';
+  const headerDescription = isSelfUser
+    ? 'Manage when Ultaura calls you'
+    : 'Manage when Ultaura calls your loved ones';
 
   const [lines, schedules] = await Promise.all([
     getLines(account.id),
@@ -74,7 +78,7 @@ export default async function CallsPage() {
 
   return (
     <>
-      <AppHeader title="Call Schedules" description="Manage when Ultaura calls your loved ones">
+      <AppHeader title="Call Schedules" description={headerDescription}>
         {isOnTrial && !isTrialExpired ? (
           <TrialStatusBadge daysRemaining={trialDaysRemaining} planName={trialPlanName} />
         ) : null}

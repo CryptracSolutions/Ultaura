@@ -83,6 +83,7 @@ export type CallAnsweredBy =
 export type VoicemailBehavior = 'none' | 'brief' | 'detailed';
 export type VerificationChannel = 'sms' | 'call';
 export type VerificationStatus = 'pending' | 'approved' | 'canceled' | 'expired';
+export type UserType = 'self' | 'family_managed';
 
 // ============================================
 // PLANS
@@ -120,6 +121,24 @@ export interface UltauraAccount {
   cycleEnd: string | null;
   overageCentsCap: number;
   createdByUserId: string;
+  userType: UserType;
+  sharingEnabled: boolean;
+  sharingEnabledAt: string | null;
+}
+
+export interface NotificationRecipient {
+  id: string;
+  accountId: string;
+  name: string;
+  email: string;
+  phoneE164: string | null;
+  relationship?: string | null;
+  isTrustedContact: boolean;
+  trustedContactId: string | null;
+  confirmedAt: string | null;
+  unsubscribedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================

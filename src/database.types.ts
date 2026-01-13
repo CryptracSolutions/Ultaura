@@ -430,10 +430,13 @@ export type Database = {
           organization_id: number
           overage_cents_cap: number
           plan_id: string | null
+          sharing_enabled: boolean
+          sharing_enabled_at: string | null
           status: Database["public"]["Enums"]["ultaura_account_status"]
           trial_ends_at: string | null
           trial_plan_id: string | null
           trial_starts_at: string | null
+          user_type: string
         }
         Insert: {
           billing_email: string
@@ -449,10 +452,13 @@ export type Database = {
           organization_id: number
           overage_cents_cap?: number
           plan_id?: string | null
+          sharing_enabled?: boolean
+          sharing_enabled_at?: string | null
           status?: Database["public"]["Enums"]["ultaura_account_status"]
           trial_ends_at?: string | null
           trial_plan_id?: string | null
           trial_starts_at?: string | null
+          user_type?: string
         }
         Update: {
           billing_email?: string
@@ -468,10 +474,13 @@ export type Database = {
           organization_id?: number
           overage_cents_cap?: number
           plan_id?: string | null
+          sharing_enabled?: boolean
+          sharing_enabled_at?: string | null
           status?: Database["public"]["Enums"]["ultaura_account_status"]
           trial_ends_at?: string | null
           trial_plan_id?: string | null
           trial_starts_at?: string | null
+          user_type?: string
         }
         Relationships: [
           {
@@ -2409,6 +2418,72 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_notification_recipients: {
+        Row: {
+          account_id: string
+          confirmation_token_expires_at: string | null
+          confirmation_token_hash: string | null
+          confirmed_at: string | null
+          created_at: string
+          email: string
+          id: string
+          is_trusted_contact: boolean
+          name: string
+          phone_e164: string | null
+          relationship: string | null
+          trusted_contact_id: string | null
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          is_trusted_contact?: boolean
+          name: string
+          phone_e164?: string | null
+          relationship?: string | null
+          trusted_contact_id?: string | null
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          is_trusted_contact?: boolean
+          name?: string
+          phone_e164?: string | null
+          relationship?: string | null
+          trusted_contact_id?: string | null
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_notification_recipients_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_notification_recipients_trusted_contact_id_fkey"
+            columns: ["trusted_contact_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_trusted_contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -4976,4 +5051,3 @@ export const Constants = {
     },
   },
 } as const
-

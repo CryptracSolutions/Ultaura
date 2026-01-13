@@ -4,7 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Settings, Globe, Clock, Bell, Voicemail, Sparkles, Mail, AlertTriangle, Ear } from 'lucide-react';
+import {
+  ArrowLeft,
+  Settings,
+  Globe,
+  Clock,
+  Bell,
+  Voicemail,
+  Sparkles,
+  Mail,
+  AlertTriangle,
+  Ear,
+  PhoneIncoming,
+} from 'lucide-react';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
@@ -40,6 +52,7 @@ export function SettingsClient({
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
     line.allow_voice_reminder_control ?? true
   );
+  const [inboundAllowed, setInboundAllowed] = useState(line.inbound_allowed ?? true);
   const [voicemailBehavior, setVoicemailBehavior] = useState<VoicemailBehavior>(
     (line.voicemail_behavior || 'brief') as VoicemailBehavior
   );
@@ -136,6 +149,7 @@ export function SettingsClient({
           quietHoursStart,
           quietHoursEnd,
           allowVoiceReminderControl,
+          inboundAllowed,
           voicemailBehavior,
         });
 
@@ -196,6 +210,7 @@ export function SettingsClient({
     quietHoursStart !== line.quiet_hours_start ||
     quietHoursEnd !== line.quiet_hours_end ||
     allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
+    inboundAllowed !== (line.inbound_allowed ?? true) ||
     voicemailBehavior !== (line.voicemail_behavior || 'brief');
 
   const hasInsightPrivacyChanges =
@@ -360,6 +375,27 @@ export function SettingsClient({
                 </div>
               </RadioGroupItemLabel>
             </RadioGroup>
+          </div>
+
+          {/* Inbound Calling */}
+          <div className="pt-6 border-t border-border">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <PhoneIncoming className="w-4 h-4 text-muted-foreground" />
+                  Allow Inbound Calls
+                </label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  When enabled, {line.display_name} can call Ultaura to start a conversation at
+                  any time. Disable to only receive scheduled calls.
+                </p>
+              </div>
+              <Switch
+                checked={inboundAllowed}
+                onCheckedChange={setInboundAllowed}
+                disabled={disabled}
+              />
+            </div>
           </div>
 
           {/* Voice Reminder Control */}

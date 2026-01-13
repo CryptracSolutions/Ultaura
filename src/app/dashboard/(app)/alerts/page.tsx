@@ -27,7 +27,7 @@ export default async function AlertsPage() {
       <>
         <AppHeader
           title="Alerts"
-          description="Stay on top of wellness alerts for your loved ones"
+          description="Stay on top of wellness alerts"
         />
         <PageBody>
           <div className="py-8">
@@ -45,7 +45,7 @@ export default async function AlertsPage() {
       <>
         <AppHeader
           title="Alerts"
-          description="Stay on top of wellness alerts for your loved ones"
+          description="Stay on top of wellness alerts"
         />
         <PageBody>
           <div className="max-w-lg rounded-xl border border-border bg-card p-6">
@@ -64,6 +64,11 @@ export default async function AlertsPage() {
       </>
     );
   }
+
+  const isSelfUser = account.user_type === 'self';
+  const headerDescription = isSelfUser
+    ? 'Stay on top of wellness alerts for your line'
+    : 'Stay on top of wellness alerts for your loved ones';
 
   const [lines, alerts, trialInfo] = await Promise.all([
     getLines(account.id),
@@ -87,7 +92,7 @@ export default async function AlertsPage() {
     <>
       <AppHeader
         title="Alerts"
-        description="Stay on top of wellness alerts for your loved ones"
+        description={headerDescription}
       >
         {isTrialActive && trialInfo ? (
           <TrialStatusBadge

@@ -24,7 +24,7 @@ export default async function LinesPage() {
   if (!organizationId) {
     return (
       <>
-        <AppHeader title="Phone Lines" description="Manage phone numbers for your loved ones" />
+        <AppHeader title="Phone Lines" description="Manage phone numbers for your account" />
         <PageBody>
           <p className="text-muted-foreground">Organization not found.</p>
         </PageBody>
@@ -38,12 +38,12 @@ export default async function LinesPage() {
   if (!account) {
     return (
       <>
-        <AppHeader title="Phone Lines" description="Manage phone numbers for your loved ones" />
+        <AppHeader title="Phone Lines" description="Manage phone numbers for your account" />
         <PageBody>
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
             <p className="text-muted-foreground mb-6">
-              Set up phone companionship for your loved ones. Start with a 3-day free trial.
+              Set up phone companionship with Ultaura. Start with a 3-day free trial.
             </p>
             <a
               href="/dashboard/settings/subscription"
@@ -56,6 +56,12 @@ export default async function LinesPage() {
       </>
     );
   }
+
+  const isSelfUser = account.user_type === 'self';
+  const headerTitle = isSelfUser ? 'My Line' : 'Phone Lines';
+  const headerDescription = isSelfUser
+    ? 'Manage your phone number and call settings'
+    : 'Manage phone numbers for your loved ones';
 
   // Get lines and usage
   const [lines, usage, privacySettings] = await Promise.all([
@@ -81,7 +87,7 @@ export default async function LinesPage() {
 
   return (
     <>
-      <AppHeader title="Phone Lines" description="Manage phone numbers for your loved ones">
+      <AppHeader title={headerTitle} description={headerDescription}>
         {isOnTrial && !isTrialExpired ? (
           <TrialStatusBadge daysRemaining={trialDaysRemaining} planName={trialPlanName} />
         ) : null}
@@ -104,6 +110,7 @@ export default async function LinesPage() {
             <LinesPageClient
               accountId={account.id}
               lines={lines}
+              userType={account.user_type}
               planLinesLimit={getPlanLinesLimit(account.plan_id ?? 'free_trial')}
               disabled={isTrialExpired}
               vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}

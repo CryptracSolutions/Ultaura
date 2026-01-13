@@ -32,6 +32,10 @@ vi.mock('~/core/supabase/server-component-client', () => ({
   default: vi.fn(() => testServiceRoleClient),
 }));
 
+vi.mock('~/core/supabase/action-client', () => ({
+  default: vi.fn(() => testServiceRoleClient),
+}));
+
 vi.mock('~/core/logger', () => ({
   default: vi.fn(() => ({
     info: vi.fn(),

@@ -38,8 +38,14 @@ type NavigationConfig = {
   items: NavigationItem[];
 };
 
-const NAVIGATION_CONFIG = (): NavigationConfig => ({
-  items: [
+export interface NavigationContext {
+  userType?: 'self' | 'family_managed';
+  accountId?: string;
+}
+
+const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
+  const isSelfUser = context?.userType === 'self';
+  const items: NavigationItem[] = [
     {
       label: 'Home',
       path: getPath(''),
@@ -49,7 +55,7 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       end: true,
     },
     {
-      label: 'Lines',
+      label: isSelfUser ? 'My Line' : 'Lines',
       path: getPath('lines'),
       Icon: ({ className }: { className: string }) => {
         return <PhoneIcon className={className} />;
@@ -75,24 +81,32 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
       activeMatch: (currentPath: string) =>
         isCallsRouteActive(currentPath),
     },
-    {
-      label: 'Insights',
-      path: getPath('insights'),
-      Icon: ({ className }: { className: string }) => {
-        return <EyeIcon className={className} />;
+  ];
+
+  if (!isSelfUser) {
+    items.push(
+      {
+        label: 'Insights',
+        path: getPath('insights'),
+        Icon: ({ className }: { className: string }) => {
+          return <EyeIcon className={className} />;
+        },
+        activeMatch: (currentPath: string) =>
+          isInsightsRouteActive(currentPath),
       },
-      activeMatch: (currentPath: string) =>
-        isInsightsRouteActive(currentPath),
-    },
-    {
-      label: 'Alerts',
-      path: getPath('alerts'),
-      Icon: ({ className }: { className: string }) => {
-        return <ExclamationTriangleIcon className={className} />;
+      {
+        label: 'Alerts',
+        path: getPath('alerts'),
+        Icon: ({ className }: { className: string }) => {
+          return <ExclamationTriangleIcon className={className} />;
+        },
+        activeMatch: (currentPath: string) =>
+          isAlertsRouteActive(currentPath),
       },
-      activeMatch: (currentPath: string) =>
-        isAlertsRouteActive(currentPath),
-    },
+    );
+  }
+
+  items.push(
     {
       label: 'Usage',
       path: getPath('usage'),
@@ -127,8 +141,10 @@ const NAVIGATION_CONFIG = (): NavigationConfig => ({
         },
       ],
     },
-  ],
-});
+  );
+
+  return { items };
+};
 
 export default NAVIGATION_CONFIG;
 

@@ -4,11 +4,19 @@ import Trans from '~/core/ui/Trans';
 import { SidebarItem, SidebarDivider, SidebarGroup } from '~/core/ui/Sidebar';
 
 import createNavigationConfig from '~/navigation.config';
+import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 
 function AppSidebarNavigation() {
+  const { data: account } = useUltauraAccount();
+  const navigation = createNavigationConfig(
+    account
+      ? { userType: account.user_type, accountId: account.id }
+      : undefined
+  );
+
   return (
     <>
-      {createNavigationConfig().items.map((item, index) => {
+      {navigation.items.map((item, index) => {
         if ('divider' in item) {
           return <SidebarDivider key={index} />;
         }

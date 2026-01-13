@@ -21,6 +21,7 @@ import Trans from '~/core/ui/Trans';
 import NAVIGATION_CONFIG from '../navigation.config';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import useSignOut from '~/core/hooks/use-sign-out';
+import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 
 import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
@@ -28,6 +29,7 @@ import Logo from '~/core/ui/Logo';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
+  const { data: ultauraAccount } = useUltauraAccount();
   const { open: openHelp } = useHelpPanel();
   const [isVisible, setIsVisible] = useState(false);
   const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
@@ -68,7 +70,11 @@ const MobileAppNavigation = () => {
   };
 
   // Extract navigation items and settings from config
-  const navConfig = NAVIGATION_CONFIG();
+  const navConfig = NAVIGATION_CONFIG(
+    ultauraAccount
+      ? { userType: ultauraAccount.user_type, accountId: ultauraAccount.id }
+      : undefined
+  );
   const mainNavItems = navConfig.items.filter(
     (item) => !('children' in item) && !('divider' in item)
   ) as Array<{ path: string; label: string; Icon: React.ElementType }>;

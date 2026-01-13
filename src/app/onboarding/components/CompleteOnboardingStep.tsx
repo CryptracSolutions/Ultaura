@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import useMutation from 'swr/mutation';
 import { CheckIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
@@ -14,12 +15,19 @@ import useApiRequest from '~/core/hooks/use-api';
 import configuration from '~/configuration';
 
 interface CompleteOnboardingStepData {
+  userType: 'self' | 'family_managed' | null;
   organization: string;
   selectedPlanId: string;
   invites: Array<{
     email: string;
     role: number;
   }>;
+  selfPhoneE164: string;
+  selfTimezone: string;
+  selfBirthday: { month: number; day: number } | null;
+  lovedOneName: string;
+  lovedOnePhoneE164: string;
+  lovedOneTimezone: string;
 }
 
 const CompleteOnboardingStep: React.FC<{
@@ -80,6 +88,15 @@ function ErrorState() {
 
 function SuccessState(props: { returnUrl: string }) {
   const href = props.returnUrl || configuration.paths.appHome;
+  const router = useRouter();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      router.push(href);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [href, router]);
 
   return (
     <section

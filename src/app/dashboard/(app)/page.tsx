@@ -113,6 +113,11 @@ async function DashboardPage() {
     );
   }
 
+  const isSelfUser = account.user_type === 'self';
+  const headerDescription = isSelfUser
+    ? 'Your home for call activity, schedules, and reminders.'
+    : <Trans i18nKey={'common:dashboardTabDescription'} />;
+
   const [lines, usage, activity, upcomingSchedules, upcomingReminders] = await Promise.all([
     getLines(account.id),
     getUsageSummary(account.id),
@@ -163,7 +168,7 @@ async function DashboardPage() {
     <>
       <AppHeader
         title={<Trans i18nKey={'common:dashboardTabLabel'} />}
-        description={<Trans i18nKey={'common:dashboardTabDescription'} />}
+        description={headerDescription}
       />
 
       <PageBody>

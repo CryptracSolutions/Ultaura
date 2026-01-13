@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
 import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
-import type { PlanId } from '~/lib/ultaura/types';
+import type { PlanId, UserType } from '~/lib/ultaura/types';
 import { PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
 
 const PLAN_FEATURES: Record<PlanId, string[]> = {
@@ -42,13 +42,17 @@ const PLAN_FEATURES: Record<PlanId, string[]> = {
   ],
 };
 
-const DEFAULT_PLAN_ID: PlanId = 'comfort';
-
 const PlanSelectionStep: React.FCC<{
   onSubmit: (planId: PlanId) => void;
-}> = ({ onSubmit }) => {
+  userType?: UserType;
+}> = ({ onSubmit, userType }) => {
   const { t } = useTranslation('onboarding');
-  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(DEFAULT_PLAN_ID);
+  const defaultPlanId: PlanId = userType === 'self' ? 'care' : 'comfort';
+  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlanId);
+
+  useEffect(() => {
+    setSelectedPlanId(defaultPlanId);
+  }, [defaultPlanId]);
 
   const plans = useMemo(() => {
     return TRIAL_ELIGIBLE_PLANS.map((planId) => ({
@@ -78,7 +82,8 @@ const PlanSelectionStep: React.FCC<{
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {plans.map(({ planId, plan, features }) => {
-          const isPopular = planId === 'comfort';
+          const isPopular = userType === 'self' ? planId === 'care' : planId === 'comfort';
+          const isBestForFamilies = userType !== 'self' && planId === 'family';
           const selected = selectedPlanId === planId;
 
           const priceLabel =
@@ -100,7 +105,14 @@ const PlanSelectionStep: React.FCC<{
               {isPopular && (
                 <div className="absolute -top-2 left-4">
                   <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                    Most Popular
+                    {userType === 'self' ? 'Best for you' : 'Most Popular'}
+                  </span>
+                </div>
+              )}
+              {isBestForFamilies && (
+                <div className="absolute -top-2 right-4">
+                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                    Best for multiple loved ones
                   </span>
                 </div>
               )}
@@ -152,4 +164,3 @@ const PlanSelectionStep: React.FCC<{
 };
 
 export default PlanSelectionStep;
-

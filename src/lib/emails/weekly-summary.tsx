@@ -31,14 +31,25 @@ function titleCase(value: string): string {
   return value[0].toUpperCase() + value.slice(1);
 }
 
-export default function renderWeeklySummaryEmail(summary: WeeklySummaryData) {
-  const previewText = `Weekly check-in summary for ${summary.lineName}`;
+type WeeklySummaryEmailProps = WeeklySummaryData & {
+  isSelfRecipient?: boolean;
+  isPrimaryRecipient?: boolean;
+  unsubscribeLink?: string;
+};
+
+export default function renderWeeklySummaryEmail(summary: WeeklySummaryEmailProps) {
+  const previewText = summary.isSelfRecipient
+    ? 'Your weekly check-in summary'
+    : `Weekly check-in summary for ${summary.lineName}`;
   const answerTrendLabel = formatTrendLabel(summary.answerTrendValue);
   const durationTrendLabel =
     summary.avgDurationMinutes === null ? null : formatTrendLabel(summary.durationTrendValue, 'm');
   const followUpText = summary.followUpReasons.join(', ');
   const avgDurationLabel =
     summary.avgDurationMinutes === null ? 'N/A' : `${summary.avgDurationMinutes}m`;
+  const greeting = summary.isSelfRecipient
+    ? 'Here is your weekly summary.'
+    : `Here is the weekly summary for ${summary.lineName}.`;
 
   return render(
     <Html>
@@ -59,6 +70,10 @@ export default function renderWeeklySummaryEmail(summary: WeeklySummaryData) {
                 {summary.lineName} - Week of {summary.weekStartDate} to {summary.weekEndDate}
               </Text>
             </Section>
+
+            <Text className="text-[14px] text-stone-700 mt-[16px] mb-0">
+              {greeting}
+            </Text>
 
             {summary.isPaused ? (
               <Section className="mt-[16px] bg-stone-100 rounded-lg px-[14px] py-[12px]">
@@ -208,6 +223,13 @@ export default function renderWeeklySummaryEmail(summary: WeeklySummaryData) {
                   Manage notification preferences
                 </Link>
               </Text>
+              {summary.unsubscribeLink && !summary.isPrimaryRecipient ? (
+                <Text className="text-[12px] text-stone-500 mt-[6px] mb-0">
+                  <Link href={summary.unsubscribeLink} style={{ color: brandColors.primary }}>
+                    Unsubscribe from these updates
+                  </Link>
+                </Text>
+              ) : null}
             </Section>
           </Container>
         </Body>

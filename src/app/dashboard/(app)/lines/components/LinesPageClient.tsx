@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Phone, Plus } from 'lucide-react';
-import { LineRow } from '~/lib/ultaura/types';
+import type { LineRow, UserType } from '~/lib/ultaura/types';
 import { LineCard } from './LineCard';
 import { AddLineModal } from './AddLineModal';
 
@@ -11,6 +11,7 @@ interface LinesPageClientProps {
   accountId: string;
   lines: LineRow[];
   planLinesLimit: number;
+  userType?: UserType;
   disabled?: boolean;
   vendorAlreadyAcknowledged?: boolean;
 }
@@ -19,6 +20,7 @@ export function LinesPageClient({
   accountId,
   lines,
   planLinesLimit,
+  userType,
   disabled = false,
   vendorAlreadyAcknowledged = false,
 }: LinesPageClientProps) {
@@ -38,6 +40,7 @@ export function LinesPageClient({
   }, [disabled, searchParams, router]);
 
   const canAddLine = !disabled && lines.length < planLinesLimit;
+  const isSelfUser = userType === 'self';
 
   return (
     <div className="space-y-6 pb-12">
@@ -57,7 +60,7 @@ export function LinesPageClient({
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Add a Phone Line
+            {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
           </button>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -88,7 +91,9 @@ export function LinesPageClient({
             No phone lines yet
           </h3>
           <p className="text-muted-foreground mb-6 max-w-sm">
-            Add a phone line to start providing voice companionship for your loved one.
+            {isSelfUser
+              ? 'Add your phone number to start receiving check-in calls.'
+              : 'Add a phone line to start providing voice companionship for your loved one.'}
           </p>
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -96,7 +101,7 @@ export function LinesPageClient({
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Add First Line
+            {isSelfUser ? 'Add My Phone' : 'Add First Line'}
           </button>
         </div>
       )}
@@ -106,6 +111,7 @@ export function LinesPageClient({
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         accountId={accountId}
+        userType={userType}
         vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}
       />
     </div>

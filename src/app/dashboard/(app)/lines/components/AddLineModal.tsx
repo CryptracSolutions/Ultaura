@@ -6,6 +6,7 @@ import { X, Phone, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
 import { US_TIMEZONES } from '~/lib/ultaura/constants';
 import { acknowledgeVendorDisclosure } from '~/lib/ultaura/privacy';
+import type { UserType } from '~/lib/ultaura/types';
 import {
   Select,
   SelectTrigger,
@@ -46,6 +47,7 @@ interface AddLineModalProps {
   isOpen: boolean;
   onClose: () => void;
   accountId: string;
+  userType?: UserType;
   vendorAlreadyAcknowledged?: boolean;
 }
 
@@ -53,6 +55,7 @@ export function AddLineModal({
   isOpen,
   onClose,
   accountId,
+  userType,
   vendorAlreadyAcknowledged = false,
 }: AddLineModalProps) {
   const router = useRouter();
@@ -98,6 +101,7 @@ export function AddLineModal({
   const selectedCount = combinedTopics.length;
   const customDisabled = selectedTopics.length >= MAX_INTEREST_TOPICS;
   const isVendorAcknowledged = vendorAlreadyAcknowledged || vendorAcknowledged;
+  const isSelfUser = userType === 'self';
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics((prev) => {
@@ -166,7 +170,9 @@ export function AddLineModal({
         <div className="relative w-full max-w-lg bg-card rounded-xl shadow-lg border border-border">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-border">
-            <h2 className="text-xl font-semibold text-foreground">Add a Phone Line</h2>
+            <h2 className="text-xl font-semibold text-foreground">
+              {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
+            </h2>
             <button
               onClick={onClose}
               className="p-2 rounded-md hover:bg-muted transition-colors"
@@ -195,12 +201,14 @@ export function AddLineModal({
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g., Mom, Dad, Carmen"
+                      placeholder={isSelfUser ? 'e.g., My phone' : 'e.g., Mom, Dad, Carmen'}
                       className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      This is how Ultaura will greet them on calls
+                      {isSelfUser
+                        ? 'This is how Ultaura will greet you on calls'
+                        : 'This is how Ultaura will greet them on calls'}
                     </p>
                   </div>
 

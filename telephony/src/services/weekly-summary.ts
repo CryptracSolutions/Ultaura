@@ -184,6 +184,17 @@ function getWeekEndDate(weekStartDate: string): string {
   return date.plus({ days: 6 }).toISODate() || weekStartDate;
 }
 
+function clampStartUtc(startUtc: string, shareStartUtc?: string | null): string {
+  if (!shareStartUtc) {
+    return startUtc;
+  }
+
+  const start = DateTime.fromISO(startUtc);
+  const shareStart = DateTime.fromISO(shareStartUtc);
+
+  return shareStart > start ? shareStartUtc : startUtc;
+}
+
 function buildWeeklySummaryAAD(accountId: string, lineId: string, weekStartDate: string): Buffer {
   return Buffer.from(
     JSON.stringify({
@@ -665,8 +676,10 @@ async function aggregateWeeklySummary(options: {
   preferences: NotificationPreferencesRow;
   privacy: InsightPrivacyRow | null;
   window: ReturnType<typeof getBaselineWindow>;
+  shareStartUtc?: string | null;
 }): Promise<WeeklySummaryData> {
   const { line, account, privacy, window } = options;
+  const shareStartUtc = options.shareStartUtc ?? null;
   const weekStartDate = window.weekStart.toISODate();
   if (!weekStartDate) {
     throw new Error('Failed to compute week start date.');
@@ -697,17 +710,17 @@ async function aggregateWeeklySummary(options: {
     decryptInsightsForWindow({
       lineId: line.id,
       accountId: account.id,
-      startUtc: insightWindowStartUtc,
+      startUtc: clampStartUtc(insightWindowStartUtc, shareStartUtc),
       endUtc: weekEndUtc,
     }),
     fetchCallSessions({
       lineId: line.id,
-      startUtc: weekStartUtc,
+      startUtc: clampStartUtc(weekStartUtc, shareStartUtc),
       endUtc: weekEndUtc,
     }),
     fetchCallSessions({
       lineId: line.id,
-      startUtc: priorWeekStartUtc,
+      startUtc: clampStartUtc(priorWeekStartUtc, shareStartUtc),
       endUtc: weekStartUtc,
     }),
   ]);
@@ -793,7 +806,9 @@ async function aggregateWeeklySummary(options: {
       ? null
       : avgDurationMinutes - priorAvgDurationMinutes;
 
-  const { avgEngagement, answerRate } = await getBaselineStats(line.id);
+  const { avgEngagement, answerRate } = shareStartUtc
+    ? { avgEngagement: null, answerRate: null }
+    : await getBaselineStats(line.id);
 
   const engagementScores = weekInsights.map((entry) => entry.engagement_score);
   const avgEngagementScore = engagementScores.length
@@ -974,7 +989,7 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
 
   const { data: account, error: accountError } = await supabase
     .from('ultaura_accounts')
-    .select('id, billing_email')
+    .select('id, billing_email, user_type, sharing_enabled, sharing_enabled_at')
     .eq('id', line.account_id)
     .single();
 
@@ -984,6 +999,10 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
   }
 
   let summary: WeeklySummaryData;
+  const shareStartUtc =
+    account.user_type === 'self' && account.sharing_enabled && account.sharing_enabled_at
+      ? DateTime.fromISO(account.sharing_enabled_at).toUTC().toISO()
+      : null;
 
   try {
     summary = await aggregateWeeklySummary({
@@ -992,6 +1011,7 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
       preferences,
       privacy,
       window,
+      shareStartUtc,
     });
   } catch (error) {
     logger.error({ error, lineId: line.id }, 'Failed to aggregate weekly summary');

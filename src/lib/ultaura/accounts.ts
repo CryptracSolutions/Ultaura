@@ -1,8 +1,15 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getLogger from '~/core/logger';
-import { GetOrCreateAccountInputSchema, OrganizationIdSchema } from '@ultaura/schemas';
+import {
+  GetOrCreateAccountInputSchema,
+  OrganizationIdSchema,
+  createError,
+  ErrorCodes,
+  type ActionResult,
+} from '@ultaura/schemas';
 import { BILLING, PLANS } from './constants';
 import type { PlanId, UltauraAccountRow } from './types';
 import { getUltauraAccountById, getTrialStatus } from './helpers';
@@ -13,13 +20,17 @@ export async function getOrCreateUltauraAccount(
   organizationId: number,
   userId: string,
   name: string,
-  email: string
+  email: string,
+  options?: {
+    userType?: 'self' | 'family_managed';
+  }
 ): Promise<{ accountId: string; isNew: boolean }> {
   const parsed = GetOrCreateAccountInputSchema.safeParse({
     organizationId,
     userId,
     name,
     email,
+    userType: options?.userType,
   });
 
   if (!parsed.success) {
@@ -43,6 +54,9 @@ export async function getOrCreateUltauraAccount(
   const defaultTrialPlanId: PlanId = 'comfort';
   const plan = PLANS[defaultTrialPlanId];
 
+  const userType = options?.userType ?? 'family_managed';
+  const sharingEnabled = userType === 'family_managed';
+
   const { data: account, error } = await client
     .from('ultaura_accounts')
     .insert({
@@ -59,6 +73,9 @@ export async function getOrCreateUltauraAccount(
       minutes_used: 0,
       cycle_start: now.toISOString(),
       cycle_end: trialEndsAt.toISOString(),
+      user_type: userType,
+      sharing_enabled: sharingEnabled,
+      sharing_enabled_at: null,
     })
     .select('id')
     .single();
@@ -69,6 +86,83 @@ export async function getOrCreateUltauraAccount(
   }
 
   return { accountId: account.id, isNew: true };
+}
+
+export async function updateAccountSharing(
+  accountId: string,
+  sharingEnabled: boolean
+): Promise<ActionResult<void>> {
+  const account = await getUltauraAccountById(accountId);
+  if (!account) {
+    return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Account not found') };
+  }
+
+  const updates: Record<string, unknown> = {
+    sharing_enabled: sharingEnabled,
+  };
+
+  if (sharingEnabled && !account.sharing_enabled_at) {
+    updates.sharing_enabled_at = new Date().toISOString();
+  }
+
+  const client = getSupabaseServerComponentClient();
+  const { error } = await client
+    .from('ultaura_accounts')
+    .update(updates)
+    .eq('id', accountId);
+
+  if (error) {
+    logger.error({ error, accountId }, 'Failed to update account sharing');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to update sharing settings'),
+    };
+  }
+
+  revalidatePath('/dashboard/privacy', 'page');
+  revalidatePath('/dashboard', 'layout');
+
+  return { success: true, data: undefined };
+}
+
+export async function upgradeSelfToFamilyMode(
+  accountId: string
+): Promise<ActionResult<void>> {
+  const account = await getUltauraAccountById(accountId);
+  if (!account) {
+    return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Account not found') };
+  }
+
+  if (account.user_type !== 'self') {
+    return { success: true, data: undefined };
+  }
+
+  const updates: Record<string, unknown> = {
+    user_type: 'family_managed',
+    sharing_enabled: true,
+  };
+
+  if (!account.sharing_enabled_at) {
+    updates.sharing_enabled_at = new Date().toISOString();
+  }
+
+  const client = getSupabaseServerComponentClient();
+  const { error } = await client
+    .from('ultaura_accounts')
+    .update(updates)
+    .eq('id', accountId)
+    .eq('user_type', 'self');
+
+  if (error) {
+    logger.error({ error, accountId }, 'Failed to upgrade self user to family mode');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to upgrade account'),
+    };
+  }
+
+  revalidatePath('/dashboard', 'layout');
+  return { success: true, data: undefined };
 }
 
 export async function getUltauraAccount(organizationId: number): Promise<UltauraAccountRow | null> {

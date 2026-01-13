@@ -15,8 +15,9 @@ import MembershipRole from '~/lib/organizations/types/membership-role';
 import inviteMembers from '~/lib/server/organizations/invite-members';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 
-import configuration from '~/configuration';
 import { BILLING, PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
+import { createLine } from '~/lib/ultaura/lines';
+import { getUserDataById } from '~/lib/server/queries';
 
 export const POST = async (req: NextRequest) => {
   const logger = getLogger();
@@ -38,7 +39,14 @@ export const POST = async (req: NextRequest) => {
     );
   }
 
-  const organizationName = body.organization;
+  const userRecord = await getUserDataById(client, userId).catch(() => null);
+  const displayName = userRecord?.displayName?.trim() || '';
+  const emailPrefix = session.user.email?.split('@')[0] || '';
+  const fallbackName = emailPrefix || 'My Account';
+  const accountName = displayName || fallbackName;
+
+  const organizationName =
+    body.userType === 'self' ? accountName : body.organization;
   const selectedPlanId = body.selectedPlanId;
   const invites = body.invites;
 
@@ -70,24 +78,27 @@ export const POST = async (req: NextRequest) => {
     return throwInternalServerErrorException();
   }
 
-  logger.info(
-    {
-      invites: invites.length,
-    },
-    `Processing ${invites.length} members invites...`,
-  );
+  if (body.userType === 'family_managed' && invites.length > 0) {
+    logger.info(
+      {
+        invites: invites.length,
+      },
+      `Processing ${invites.length} members invites...`,
+    );
 
-  await inviteMembers({
-    organizationUid,
-    invites,
-    client,
-    adminClient: getSupabaseRouteHandlerClient({
-      admin: true,
-    }),
-    inviterId: userId,
-  });
+    await inviteMembers({
+      organizationUid,
+      invites,
+      client,
+      adminClient: getSupabaseRouteHandlerClient({
+        admin: true,
+      }),
+      inviterId: userId,
+    });
+  }
 
   // Create Ultaura account with a 3-day trial on the chosen plan (no credit card required)
+  let accountId: string | null = null;
   try {
     const { data: orgRow, error: orgError } = await adminClient
       .from('organizations')
@@ -118,7 +129,7 @@ export const POST = async (req: NextRequest) => {
         now.getTime() + BILLING.TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000,
       );
 
-      const { error: accountError } = await adminClient
+      const { data: accountRow, error: accountError } = await adminClient
         .from('ultaura_accounts')
         .insert({
           organization_id: orgRow.id,
@@ -134,16 +145,74 @@ export const POST = async (req: NextRequest) => {
           minutes_used: 0,
           cycle_start: now.toISOString(),
           cycle_end: trialEnds.toISOString(),
-        });
+          user_type: body.userType,
+          sharing_enabled: body.userType === 'family_managed',
+          sharing_enabled_at: null,
+        })
+        .select('id')
+        .single();
 
       if (accountError) {
         logger.error({ accountError, organizationUid }, 'Failed to create Ultaura account during onboarding');
         return throwInternalServerErrorException();
       }
+
+      accountId = accountRow?.id ?? null;
+    } else {
+      accountId = existingAccount.id;
     }
   } catch (error) {
     logger.error({ error, organizationUid }, 'Failed to create Ultaura account during onboarding');
     return throwInternalServerErrorException();
+  }
+
+  if (!accountId) {
+    logger.error({ organizationUid }, 'Missing Ultaura account ID after onboarding');
+    return throwInternalServerErrorException();
+  }
+
+  const lineName = body.userType === 'self'
+    ? (displayName || 'My Account')
+    : body.lovedOneName;
+
+  const linePhone = body.userType === 'self'
+    ? body.selfPhoneE164
+    : body.lovedOnePhoneE164;
+
+  const lineTimezone = body.userType === 'self'
+    ? body.selfTimezone
+    : body.lovedOneTimezone;
+
+  const lineResult = await createLine({
+    accountId,
+    displayName: lineName,
+    phoneE164: linePhone,
+    timezone: lineTimezone,
+  });
+
+  if (!lineResult.success || !lineResult.data) {
+    logger.error({ error: lineResult.error, organizationUid }, 'Failed to create line during onboarding');
+    return throwInternalServerErrorException();
+  }
+
+  if (body.userType === 'self' && body.selfBirthday) {
+    const { error: milestoneError } = await adminClient
+      .from('ultaura_milestones')
+      .insert({
+        account_id: accountId,
+        line_id: lineResult.data.lineId,
+        milestone_type: 'birthday',
+        title: 'My Birthday',
+        date_month: body.selfBirthday.month,
+        date_day: body.selfBirthday.day,
+        is_recurring: true,
+        source: 'family_input',
+        privacy_scope: 'line_only',
+      });
+
+    if (milestoneError) {
+      logger.warn({ milestoneError, organizationUid }, 'Failed to create birthday milestone during onboarding');
+    }
   }
 
   logger.info(
@@ -156,7 +225,7 @@ export const POST = async (req: NextRequest) => {
 
   cookies().set(createOrganizationIdCookie({ userId, organizationUid }));
 
-  const returnUrl = configuration.paths.appHome;
+  const returnUrl = `/dashboard/lines/${lineResult.data.shortId}/verify`;
 
   return NextResponse.json({
     success: true,
@@ -165,14 +234,81 @@ export const POST = async (req: NextRequest) => {
 };
 
 function getOnboardingBodySchema() {
-  return z.object({
-    organization: z.string().trim().min(1),
-    selectedPlanId: z.enum(TRIAL_ELIGIBLE_PLANS),
-    invites: z.array(
-      z.object({
-        email: z.string().email(),
-        role: z.nativeEnum(MembershipRole),
-      }),
-    ),
-  });
+  const phoneSchema = z.string().regex(/^\+1[2-9]\d{9}$/);
+
+  return z
+    .object({
+      userType: z.enum(['self', 'family_managed']),
+      organization: z.string().trim().optional().default(''),
+      selectedPlanId: z.enum(TRIAL_ELIGIBLE_PLANS),
+      invites: z
+        .array(
+          z.object({
+            email: z.string().email(),
+            role: z.nativeEnum(MembershipRole),
+          }),
+        )
+        .optional()
+        .default([]),
+      selfPhoneE164: phoneSchema.optional(),
+      selfTimezone: z.string().optional(),
+      selfBirthday: z
+        .object({
+          month: z.number().int().min(1).max(12),
+          day: z.number().int().min(1).max(31),
+        })
+        .nullable()
+        .optional(),
+      lovedOneName: z.string().trim().optional(),
+      lovedOnePhoneE164: phoneSchema.optional(),
+      lovedOneTimezone: z.string().optional(),
+    })
+    .superRefine((data, ctx) => {
+      if (data.userType === 'self') {
+        if (!data.selfPhoneE164) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['selfPhoneE164'],
+            message: 'Phone is required',
+          });
+        }
+        if (!data.selfTimezone) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['selfTimezone'],
+            message: 'Timezone is required',
+          });
+        }
+        return;
+      }
+
+      if (!data.organization) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['organization'],
+          message: 'Organization is required',
+        });
+      }
+      if (!data.lovedOneName) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['lovedOneName'],
+          message: 'Loved one name is required',
+        });
+      }
+      if (!data.lovedOnePhoneE164) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['lovedOnePhoneE164'],
+          message: 'Phone is required',
+        });
+      }
+      if (!data.lovedOneTimezone) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['lovedOneTimezone'],
+          message: 'Timezone is required',
+        });
+      }
+    });
 }

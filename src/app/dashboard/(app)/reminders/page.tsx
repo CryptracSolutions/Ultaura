@@ -39,7 +39,7 @@ export default async function RemindersPage() {
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
             <p className="text-muted-foreground mb-6">
-              Set up phone companionship for your loved ones. Start with a 3-day free trial.
+              Set up phone companionship and reminders. Start with a 3-day free trial.
             </p>
             <a
               href="/dashboard/settings/subscription"

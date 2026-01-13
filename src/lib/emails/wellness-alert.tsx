@@ -21,6 +21,7 @@ interface WellnessAlertEmailProps {
   severity: 'info' | 'warning' | 'urgent';
   dashboardUrl: string;
   settingsUrl: string;
+  unsubscribeLink?: string;
 }
 
 const SEVERITY_LABELS: Record<WellnessAlertEmailProps['severity'], string> = {
@@ -84,6 +85,14 @@ export default function renderWellnessAlertEmail(props: WellnessAlertEmailProps)
               </Link>
               .
             </Text>
+
+            {props.unsubscribeLink ? (
+              <Text className="text-[12px] text-stone-500 mt-[16px] mb-0">
+                <Link href={props.unsubscribeLink} style={{ color: brandColors.primary }}>
+                  Unsubscribe from these updates
+                </Link>
+              </Text>
+            ) : null}
 
             <Text className="text-[14px] text-stone-700 mt-[18px] mb-0">
               -- Ultaura

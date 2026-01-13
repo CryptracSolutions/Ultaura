@@ -11,6 +11,7 @@ import {
   getDataExportRequests,
 } from '~/lib/ultaura/privacy';
 import { PrivacyCenterClient } from './PrivacyCenterClient';
+import { getNotificationRecipients } from '~/lib/ultaura/notification-recipients';
 
 export const metadata: Metadata = {
   title: 'Privacy Center - Ultaura',
@@ -61,11 +62,12 @@ export default async function PrivacyCenterPage() {
     );
   }
 
-  const [privacySettings, lines, auditLog, exportRequests] = await Promise.all([
+  const [privacySettings, lines, auditLog, exportRequests, notificationRecipients] = await Promise.all([
     getAccountPrivacySettings(account.id),
     getLines(account.id),
     getConsentAuditLog(account.id, { limit: 50 }),
     getDataExportRequests(account.id),
+    getNotificationRecipients(account.id),
   ]);
 
   return (
@@ -78,6 +80,7 @@ export default async function PrivacyCenterPage() {
           lines={lines}
           auditLog={auditLog}
           exportRequests={exportRequests}
+          notificationRecipients={notificationRecipients}
         />
       </PageBody>
     </>
