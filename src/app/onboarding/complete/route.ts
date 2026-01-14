@@ -30,8 +30,10 @@ export const POST = async (req: NextRequest) => {
   let body;
   try {
     const json = await req.json();
+    console.log('[DEBUG] Onboarding request body:', JSON.stringify(json, null, 2));
     body = await getOnboardingBodySchema().parseAsync(json);
   } catch (error) {
+    console.log('[DEBUG] Onboarding validation error:', error);
     logger.warn({ error, userId }, 'Invalid onboarding request body');
     return NextResponse.json(
       { success: false, error: 'Invalid request body' },
@@ -67,6 +69,7 @@ export const POST = async (req: NextRequest) => {
   const { data: organizationUid, error } = await completeOnboarding(payload);
 
   if (error) {
+    console.log('[DEBUG] completeOnboarding error:', JSON.stringify(error, null, 2));
     logger.error(
       {
         error,
@@ -107,6 +110,7 @@ export const POST = async (req: NextRequest) => {
       .single();
 
     if (orgError || !orgRow) {
+      console.log('[DEBUG] orgError:', JSON.stringify(orgError, null, 2), 'organizationUid:', organizationUid);
       logger.error({ orgError, organizationUid }, 'Failed to fetch organization for Ultaura account creation');
       return throwInternalServerErrorException();
     }
@@ -118,6 +122,7 @@ export const POST = async (req: NextRequest) => {
       .maybeSingle();
 
     if (existingAccountError) {
+      console.log('[DEBUG] existingAccountError:', JSON.stringify(existingAccountError, null, 2));
       logger.error({ existingAccountError, organizationUid }, 'Failed to check existing Ultaura account');
       return throwInternalServerErrorException();
     }
@@ -153,6 +158,7 @@ export const POST = async (req: NextRequest) => {
         .single();
 
       if (accountError) {
+        console.log('[DEBUG] accountError:', JSON.stringify(accountError, null, 2));
         logger.error({ accountError, organizationUid }, 'Failed to create Ultaura account during onboarding');
         return throwInternalServerErrorException();
       }
@@ -237,6 +243,8 @@ export const POST = async (req: NextRequest) => {
 
 function getOnboardingBodySchema() {
   const phoneSchema = z.string().regex(/^\+1[2-9]\d{9}$/);
+  // Allow empty string or valid phone - empty strings are treated as "not provided"
+  const optionalPhoneSchema = phoneSchema.or(z.literal(''));
 
   return z
     .object({
@@ -252,7 +260,7 @@ function getOnboardingBodySchema() {
         )
         .optional()
         .default([]),
-      selfPhoneE164: phoneSchema.optional(),
+      selfPhoneE164: optionalPhoneSchema.optional(),
       selfTimezone: z.string().optional(),
       selfBirthday: z
         .object({
@@ -262,7 +270,7 @@ function getOnboardingBodySchema() {
         .nullable()
         .optional(),
       lovedOneName: z.string().trim().optional(),
-      lovedOnePhoneE164: phoneSchema.optional(),
+      lovedOnePhoneE164: optionalPhoneSchema.optional(),
       lovedOneTimezone: z.string().optional(),
     })
     .superRefine((data, ctx) => {
