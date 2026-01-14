@@ -231,7 +231,7 @@ export const POST = async (req: NextRequest) => {
     `Onboarding successfully completed for user`,
   );
 
-  cookies().set(createOrganizationIdCookie({ userId, organizationUid }));
+  (await cookies()).set(createOrganizationIdCookie({ userId, organizationUid }));
 
   const returnUrl = `/dashboard/lines/${shortId}/verify`;
 

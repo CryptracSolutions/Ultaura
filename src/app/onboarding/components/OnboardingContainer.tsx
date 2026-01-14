@@ -193,37 +193,42 @@ function OnboardingContainer(
     <CsrfTokenContext.Provider value={props.csrfToken}>
       <Stepper variant={'default'} currentStep={currentStep} steps={steps} />
 
-      <If condition={stepId === 'onboarding:userType'}>
-        <UserTypeStep onSubmit={onUserTypeSubmitted} />
-      </If>
+      <div
+        key={stepId}
+        className="animate-fade-in-up"
+      >
+        <If condition={stepId === 'onboarding:userType'}>
+          <UserTypeStep onSubmit={onUserTypeSubmitted} />
+        </If>
 
-      <If condition={stepId === 'onboarding:info'}>
-        <OrganizationInfoStep onSubmit={onInfoStepSubmitted} onGoBack={prevStep} />
-      </If>
+        <If condition={stepId === 'onboarding:info'}>
+          <OrganizationInfoStep onSubmit={onInfoStepSubmitted} onGoBack={prevStep} />
+        </If>
 
-      <If condition={stepId === 'onboarding:phoneCollection'}>
-        <PhoneCollectionStep onSubmit={onPhoneStepSubmitted} onGoBack={prevStep} />
-      </If>
+        <If condition={stepId === 'onboarding:phoneCollection'}>
+          <PhoneCollectionStep onSubmit={onPhoneStepSubmitted} onGoBack={prevStep} />
+        </If>
 
-      <If condition={stepId === 'onboarding:birthday'}>
-        <BirthdayStep onSubmit={onBirthdayStepSubmitted} onGoBack={prevStep} />
-      </If>
+        <If condition={stepId === 'onboarding:birthday'}>
+          <BirthdayStep onSubmit={onBirthdayStepSubmitted} onGoBack={prevStep} />
+        </If>
 
-      <If condition={stepId === 'onboarding:lovedOneSetup'}>
-        <LovedOneSetupStep onSubmit={onLovedOneStepSubmitted} onGoBack={prevStep} />
-      </If>
+        <If condition={stepId === 'onboarding:lovedOneSetup'}>
+          <LovedOneSetupStep onSubmit={onLovedOneStepSubmitted} onGoBack={prevStep} />
+        </If>
 
-      <If condition={stepId === 'onboarding:plan'}>
-        <PlanSelectionStep onSubmit={onPlanStepSubmitted} userType={userType ?? undefined} onGoBack={prevStep} />
-      </If>
+        <If condition={stepId === 'onboarding:plan'}>
+          <PlanSelectionStep onSubmit={onPlanStepSubmitted} userType={userType ?? undefined} onGoBack={prevStep} />
+        </If>
 
-      <If condition={stepId === 'onboarding:invites'}>
-        <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} onGoBack={prevStep} />
-      </If>
+        <If condition={stepId === 'onboarding:invites'}>
+          <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} onGoBack={prevStep} />
+        </If>
 
-      <If condition={stepId === 'onboarding:complete' && formData}>
-        {(formData) => <CompleteOnboardingStep data={formData} />}
-      </If>
+        <If condition={stepId === 'onboarding:complete' && formData}>
+          {(formData) => <CompleteOnboardingStep data={formData} />}
+        </If>
+      </div>
     </CsrfTokenContext.Provider>
   );
 }
