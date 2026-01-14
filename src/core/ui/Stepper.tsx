@@ -46,8 +46,7 @@ function Stepper(props: {
         <Fragment key={index}>
           <div aria-selected={selected} className={className}>
             <span className={labelClassName}>
-              <span className="sm:hidden">{number}</span>
-              <span className="hidden sm:inline">{number}<If condition={!isNumberVariant}>. {label}</If></span>
+              {number}<If condition={!isNumberVariant}>. {label}</If>
             </span>
           </div>
 

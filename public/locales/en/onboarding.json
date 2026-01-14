@@ -1,7 +1,7 @@
 {
-  "setupOrganization": "Setup Organization",
-  "setupOrganizationDescription": "Welcome! First, let's setup your organization.",
-  "organizationNameLabel": "Organization name",
+  "setupOrganization": "Name Your Account",
+  "setupOrganizationDescription": "Give your account a name.",
+  "organizationNameLabel": "Account name",
   "userType": "Type",
   "userTypeHeading": "Who are you setting up Ultaura for?",
   "userTypeDescription": "Choose the option that fits your situation.",
@@ -18,12 +18,11 @@
   "phoneCollectionError": "Enter a valid US phone number.",
   "birthday": "Birthday",
   "birthdayHeading": "When is your birthday?",
-  "birthdayDescription": "Optional — you can skip if you prefer.",
+  "birthdayDescription": "Ultaura will celebrate your birthday with you!",
   "birthdayMonthLabel": "Month",
   "birthdayMonthPlaceholder": "Select a month",
   "birthdayDayLabel": "Day",
   "birthdayDayPlaceholder": "DD",
-  "birthdayPreview": "Ultaura will celebrate your birthday with you!",
   "birthdayError": "Select a month and day, or skip this step.",
   "birthdayDayError": "Enter a day between 1 and 31.",
   "skipBirthday": "Skip for now",
@@ -48,5 +47,5 @@
   "successStepHeading": "You're all set! You can now start using the app.",
   "continue": "Continue to your Dashboard",
   "settingAccount": "We're setting up your account. Please wait...",
-  "organizationNamePlaceholder": "Ex. Acme Inc."
+  "organizationNamePlaceholder": "e.g., Mom's Care, Smith Family"
 }

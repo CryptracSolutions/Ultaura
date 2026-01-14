@@ -117,10 +117,6 @@ const BirthdayStep: React.FCC<{
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        <Trans i18nKey={'onboarding:birthdayPreview'} />
-      </p>
-
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="flex flex-col gap-3">
