@@ -35,6 +35,7 @@
   "loading": "Loading. Please wait...",
   "yourOrganizations": "Your Organizations",
   "continue": "Continue",
+  "goBack": "Go back",
   "skip": "Skip",
   "signedInAs": "Signed in as",
   "pageOfPages": "Page {{page}} of {{total}}",

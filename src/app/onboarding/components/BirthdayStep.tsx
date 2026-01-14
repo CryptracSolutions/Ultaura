@@ -31,7 +31,8 @@ const MONTHS = [
 
 const BirthdayStep: React.FCC<{
   onSubmit: (data: BirthdayStepData) => void;
-}> = ({ onSubmit }) => {
+  onGoBack?: () => void;
+}> = ({ onSubmit, onGoBack }) => {
   const { t } = useTranslation('onboarding');
   const [month, setMonth] = useState<string>('');
   const [day, setDay] = useState<string>('');
@@ -129,6 +130,11 @@ const BirthdayStep: React.FCC<{
         <Button type={'button'} variant={'ghost'} onClick={handleSkip}>
           <Trans i18nKey={'onboarding:skipBirthday'} />
         </Button>
+        {onGoBack && (
+          <Button type={'button'} variant={'ghost'} onClick={onGoBack}>
+            <Trans i18nKey={'common:goBack'} />
+          </Button>
+        )}
       </div>
     </div>
   );

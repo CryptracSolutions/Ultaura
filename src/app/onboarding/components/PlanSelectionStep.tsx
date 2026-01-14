@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Check, Clock, Users, Zap, Heart } from 'lucide-react';
 
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
@@ -10,42 +11,56 @@ import Trans from '~/core/ui/Trans';
 import type { PlanId, UserType } from '~/lib/ultaura/types';
 import { PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
 
-const PLAN_FEATURES: Record<PlanId, string[]> = {
-  free_trial: [],
+const planFeatures: Record<string, string[]> = {
   care: [
-    '300 minutes/month (after trial)',
+    '300 minutes per month',
     '1 phone line',
     'Scheduled daily calls',
     'Medication reminders',
+    'Activity suggestions',
     'Memory notes',
+    'Email support',
   ],
   comfort: [
-    '900 minutes/month (after trial)',
+    '900 minutes per month',
     '2 phone lines',
     'Multiple call times daily',
     'All Care features',
     'Priority support',
+    'Family dashboard access',
+    'Call summaries',
   ],
   family: [
-    '2,000 minutes/month (after trial)',
+    '2,200 minutes per month',
     '4 phone lines',
     'Unlimited call scheduling',
     'All Comfort features',
+    'Dedicated support',
     'Safety alerts',
+    'Wellness insights',
   ],
   payg: [
-    '$0/month + $0.15 per minute (after trial)',
+    'Pay only for what you use',
     '4 phone lines',
     'No monthly commitment',
     'All core features',
     'Flexible scheduling',
+    '$0.15 per minute',
   ],
+};
+
+const planIcons: Record<string, React.ReactNode> = {
+  care: <Heart className="w-6 h-6" />,
+  comfort: <Clock className="w-6 h-6" />,
+  family: <Users className="w-6 h-6" />,
+  payg: <Zap className="w-6 h-6" />,
 };
 
 const PlanSelectionStep: React.FCC<{
   onSubmit: (planId: PlanId) => void;
   userType?: UserType;
-}> = ({ onSubmit, userType }) => {
+  onGoBack?: () => void;
+}> = ({ onSubmit, userType, onGoBack }) => {
   const { t } = useTranslation('onboarding');
   const defaultPlanId: PlanId = userType === 'self' ? 'care' : 'comfort';
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlanId);
@@ -58,7 +73,7 @@ const PlanSelectionStep: React.FCC<{
     return TRIAL_ELIGIBLE_PLANS.map((planId) => ({
       planId,
       plan: PLANS[planId],
-      features: PLAN_FEATURES[planId] ?? [],
+      features: planFeatures[planId] ?? [],
     }));
   }, []);
 
@@ -80,16 +95,11 @@ const PlanSelectionStep: React.FCC<{
         </SubHeading>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {plans.map(({ planId, plan, features }) => {
-          const isPopular = userType === 'self' ? planId === 'care' : planId === 'comfort';
-          const isBestForFamilies = userType !== 'self' && planId === 'family';
+          const isPopular = planId === 'comfort';
           const selected = selectedPlanId === planId;
-
-          const priceLabel =
-            planId === 'payg'
-              ? '$0.15/min'
-              : `$${Math.round(plan.monthlyPriceCents / 100)}/mo`;
+          const price = plan.monthlyPriceCents / 100;
 
           return (
             <button
@@ -98,57 +108,55 @@ const PlanSelectionStep: React.FCC<{
               onClick={() => setSelectedPlanId(planId)}
               className={`relative flex w-full flex-col rounded-xl border bg-card p-5 text-left transition-all ${
                 selected
-                  ? 'border-primary ring-2 ring-primary/20'
-                  : 'border-border hover:border-primary/40 hover:shadow-sm'
+                  ? 'border-primary ring-2 ring-primary shadow-xl shadow-primary/20'
+                  : isPopular
+                  ? 'border-primary/50 ring-1 ring-primary/30 shadow-md shadow-primary/10'
+                  : 'border-border hover:border-primary/50 hover:shadow-md'
               }`}
             >
               {isPopular && (
-                <div className="absolute -top-2 left-4">
-                  <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                    {userType === 'self' ? 'Best for you' : 'Most Popular'}
-                  </span>
-                </div>
-              )}
-              {isBestForFamilies && (
-                <div className="absolute -top-2 right-4">
-                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                    Best for multiple loved ones
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground">
+                    Most Popular
                   </span>
                 </div>
               )}
 
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-2 rounded-lg ${isPopular ? 'bg-primary/10 text-primary' : 'bg-muted text-primary'}`}>
+                  {planIcons[planId]}
+                </div>
                 <div>
-                  <div className="text-lg font-semibold text-foreground">
-                    {plan.displayName}
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {plan.linesIncluded} line{plan.linesIncluded === 1 ? '' : 's'}
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-xl font-semibold text-foreground">
-                    {priceLabel}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {t('plan', { defaultValue: 'Plan' })}
-                  </div>
+                  <h3 className="text-lg font-semibold text-primary">{plan.displayName}</h3>
                 </div>
               </div>
 
-              {features.length > 0 && (
-                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                  {features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <div className="mb-6">
+                {planId === 'payg' ? (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-foreground">$0.15</span>
+                    <span className="text-muted-foreground">/minute</span>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-foreground">
+                      ${Math.round(price)}
+                    </span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                )}
+              </div>
 
-              <div className="mt-4 text-xs text-muted-foreground">
+              <ul className="space-y-3 mb-6 flex-1">
+                {features.map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                    <span className="text-sm text-foreground">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="text-xs text-muted-foreground">
                 3-day free trial • No credit card required
               </div>
             </button>
@@ -156,9 +164,17 @@ const PlanSelectionStep: React.FCC<{
         })}
       </div>
 
-      <Button type={'button'} onClick={handleContinue}>
-        <Trans i18nKey={'common:continue'} />
-      </Button>
+      <div className={'flex flex-col space-y-3'}>
+        <Button type={'button'} onClick={handleContinue}>
+          <Trans i18nKey={'common:continue'} />
+        </Button>
+
+        {onGoBack && (
+          <Button type={'button'} variant={'ghost'} onClick={onGoBack}>
+            <Trans i18nKey={'common:goBack'} />
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

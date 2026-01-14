@@ -41,9 +41,9 @@ const UserTypeStep: React.FCC<{
         <button
           type="button"
           onClick={() => handleSelect('self')}
-          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-primary/50 hover:shadow-sm"
+          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-6 text-left transition-all hover:ring-2 hover:ring-primary hover:shadow-sm"
         >
-          <div className="text-lg font-semibold text-foreground">
+          <div className="text-lg font-semibold text-foreground whitespace-pre-line">
             {t('userTypeSelfTitle')}
           </div>
           <p className="text-sm text-muted-foreground">
@@ -54,7 +54,7 @@ const UserTypeStep: React.FCC<{
         <button
           type="button"
           onClick={() => handleSelect('family_managed')}
-          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-primary/50 hover:shadow-sm"
+          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-6 text-left transition-all hover:ring-2 hover:ring-primary hover:shadow-sm"
         >
           <div className="text-lg font-semibold text-foreground">
             {t('userTypeFamilyTitle')}

@@ -14,8 +14,10 @@ type OrganizationInvitesStepData = Array<{
 
 function OrganizationInvitesStep({
   onSubmit,
+  onGoBack,
 }: {
   onSubmit: (data: OrganizationInvitesStepData) => void;
+  onGoBack?: () => void;
 }) {
   const user = useUserSession();
   const userEmail = user?.auth.user.email;
@@ -34,6 +36,12 @@ function OrganizationInvitesStep({
       >
         <Trans i18nKey={'common:skip'} />
       </Button>
+
+      {onGoBack && (
+        <Button type={'button'} variant={'ghost'} onClick={onGoBack}>
+          <Trans i18nKey={'common:goBack'} />
+        </Button>
+      )}
     </div>
   );
 

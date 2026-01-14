@@ -91,6 +91,13 @@ function OnboardingContainer(
     form.setValue('currentStep', form.getValues('currentStep') + 1);
   }, [form]);
 
+  const prevStep = useCallback(() => {
+    const current = form.getValues('currentStep');
+    if (current > 0) {
+      form.setValue('currentStep', current - 1);
+    }
+  }, [form]);
+
   const onInfoStepSubmitted = useCallback(
     (organizationInfo: OrganizationInfoStepData) => {
       form.setValue('data.organization', organizationInfo.organization);
@@ -170,7 +177,8 @@ function OnboardingContainer(
       return enableTeamAccounts ? FAMILY_STEPS_WITH_INVITES : FAMILY_STEPS_NO_INVITES;
     }
 
-    return ['onboarding:userType'];
+    // Default to showing SELF_USER_STEPS as preview before user selects type
+    return SELF_USER_STEPS;
   }, [userType]);
 
   useEffect(() => {
@@ -190,27 +198,27 @@ function OnboardingContainer(
       </If>
 
       <If condition={stepId === 'onboarding:info'}>
-        <OrganizationInfoStep onSubmit={onInfoStepSubmitted} />
+        <OrganizationInfoStep onSubmit={onInfoStepSubmitted} onGoBack={prevStep} />
       </If>
 
       <If condition={stepId === 'onboarding:phoneCollection'}>
-        <PhoneCollectionStep onSubmit={onPhoneStepSubmitted} />
+        <PhoneCollectionStep onSubmit={onPhoneStepSubmitted} onGoBack={prevStep} />
       </If>
 
       <If condition={stepId === 'onboarding:birthday'}>
-        <BirthdayStep onSubmit={onBirthdayStepSubmitted} />
+        <BirthdayStep onSubmit={onBirthdayStepSubmitted} onGoBack={prevStep} />
       </If>
 
       <If condition={stepId === 'onboarding:lovedOneSetup'}>
-        <LovedOneSetupStep onSubmit={onLovedOneStepSubmitted} />
+        <LovedOneSetupStep onSubmit={onLovedOneStepSubmitted} onGoBack={prevStep} />
       </If>
 
       <If condition={stepId === 'onboarding:plan'}>
-        <PlanSelectionStep onSubmit={onPlanStepSubmitted} userType={userType ?? undefined} />
+        <PlanSelectionStep onSubmit={onPlanStepSubmitted} userType={userType ?? undefined} onGoBack={prevStep} />
       </If>
 
       <If condition={stepId === 'onboarding:invites'}>
-        <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} />
+        <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} onGoBack={prevStep} />
       </If>
 
       <If condition={stepId === 'onboarding:complete' && formData}>

@@ -16,7 +16,8 @@ export interface OrganizationInfoStepData {
 
 const OrganizationInfoStep: React.FCC<{
   onSubmit: (data: OrganizationInfoStepData) => void;
-}> = ({ onSubmit }) => {
+  onGoBack?: () => void;
+}> = ({ onSubmit, onGoBack }) => {
   const { t } = useTranslation('onboarding');
 
   const handleFormSubmit = useCallback(
@@ -65,9 +66,17 @@ const OrganizationInfoStep: React.FCC<{
         </TextField>
       </div>
 
-      <Button type={'submit'}>
-        <Trans i18nKey={'common:continue'} />
-      </Button>
+      <div className={'flex flex-col space-y-3'}>
+        <Button type={'submit'}>
+          <Trans i18nKey={'common:continue'} />
+        </Button>
+
+        {onGoBack && (
+          <Button type={'button'} variant={'ghost'} onClick={onGoBack}>
+            <Trans i18nKey={'common:goBack'} />
+          </Button>
+        )}
+      </div>
     </form>
   );
 };

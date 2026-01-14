@@ -1,16 +1,12 @@
-import LogoImage from '~/core/ui/Logo/LogoImage';
+import Logo from '~/core/ui/Logo';
 
 async function OnboardingLayout({ children }: React.PropsWithChildren) {
   return (
     <div className={'flex flex-1 flex-col dark:bg-background py-8 h-screen'}>
-      <div className={'px-8 justify-between hidden lg:flex'}>
-        <LogoImage />
-      </div>
-
       <div
         className={
-          'flex w-10/12 flex-1 flex-col items-center justify-center' +
-          ' lg:w-8/12 mx-auto xl:max-w-2xl'
+          'flex w-11/12 flex-1 flex-col items-center justify-center' +
+          ' lg:w-10/12 mx-auto xl:max-w-5xl'
         }
       >
         <div
@@ -20,6 +16,13 @@ async function OnboardingLayout({ children }: React.PropsWithChildren) {
             ' duration-1000 slide-in-from-bottom-24'
           }
         >
+          <div className={'flex justify-center -ml-7'}>
+            <Logo
+              className={'h-10'}
+              showWordmark
+              wordmarkClassName={'text-2xl font-semibold leading-none'}
+            />
+          </div>
           {children}
         </div>
       </div>

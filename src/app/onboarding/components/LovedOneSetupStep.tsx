@@ -37,7 +37,8 @@ function formatToE164(phone: string): string {
 
 const LovedOneSetupStep: React.FCC<{
   onSubmit: (data: LovedOneSetupStepData) => void;
-}> = ({ onSubmit }) => {
+  onGoBack?: () => void;
+}> = ({ onSubmit, onGoBack }) => {
   const { t } = useTranslation('onboarding');
   const [displayName, setDisplayName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -133,9 +134,17 @@ const LovedOneSetupStep: React.FCC<{
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
 
-      <Button type={'submit'}>
-        <Trans i18nKey={'common:continue'} />
-      </Button>
+      <div className={'flex flex-col space-y-3'}>
+        <Button type={'submit'}>
+          <Trans i18nKey={'common:continue'} />
+        </Button>
+
+        {onGoBack && (
+          <Button type={'button'} variant={'ghost'} onClick={onGoBack}>
+            <Trans i18nKey={'common:goBack'} />
+          </Button>
+        )}
+      </div>
     </form>
   );
 };
