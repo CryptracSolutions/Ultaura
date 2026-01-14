@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import If from '~/core/ui/If';
@@ -44,7 +44,6 @@ const SELF_USER_STEPS = [
   'onboarding:phoneCollection',
   'onboarding:birthday',
   'onboarding:plan',
-  'onboarding:complete',
 ];
 
 const FAMILY_STEPS_WITH_INVITES = [
@@ -53,7 +52,6 @@ const FAMILY_STEPS_WITH_INVITES = [
   'onboarding:lovedOneSetup',
   'onboarding:plan',
   'onboarding:invites',
-  'onboarding:complete',
 ];
 
 const FAMILY_STEPS_NO_INVITES = [
@@ -61,7 +59,6 @@ const FAMILY_STEPS_NO_INVITES = [
   'onboarding:info',
   'onboarding:lovedOneSetup',
   'onboarding:plan',
-  'onboarding:complete',
 ];
 
 function OnboardingContainer(
@@ -69,6 +66,7 @@ function OnboardingContainer(
     csrfToken: string | null;
   }>,
 ) {
+  const [isCompleting, setIsCompleting] = useState(false);
   const form = useForm({
     defaultValues: {
       data: {
@@ -144,9 +142,15 @@ function OnboardingContainer(
   );
 
   const onPlanStepSubmitted = useCallback(
-    (planId: PlanId) => {
+    (planId: PlanId, stepsCount: number) => {
       form.setValue('data.selectedPlanId', planId);
-      nextStep();
+      const current = form.getValues('currentStep');
+      // If plan is the last step, trigger completion
+      if (current + 1 >= stepsCount) {
+        setIsCompleting(true);
+      } else {
+        nextStep();
+      }
     },
     [form, nextStep],
   );
@@ -154,7 +158,7 @@ function OnboardingContainer(
   const onInvitesStepSubmitted = useCallback(
     (invites: Invite[]) => {
       form.setValue('data.invites', invites);
-      form.setValue('currentStep', form.getValues('currentStep') + 1);
+      setIsCompleting(true);
     },
     [form],
   );
@@ -191,7 +195,9 @@ function OnboardingContainer(
 
   return (
     <CsrfTokenContext.Provider value={props.csrfToken}>
-      <Stepper variant={'default'} currentStep={currentStep} steps={steps} />
+      {!isCompleting && (
+        <Stepper variant={'default'} currentStep={currentStep} steps={steps} />
+      )}
 
       <div
         key={stepId}
@@ -217,15 +223,20 @@ function OnboardingContainer(
           <LovedOneSetupStep onSubmit={onLovedOneStepSubmitted} onGoBack={prevStep} />
         </If>
 
-        <If condition={stepId === 'onboarding:plan'}>
-          <PlanSelectionStep onSubmit={onPlanStepSubmitted} userType={userType ?? undefined} onGoBack={prevStep} />
+        <If condition={stepId === 'onboarding:plan' && !isCompleting}>
+          <PlanSelectionStep
+            onSubmit={(planId) => onPlanStepSubmitted(planId, steps.length)}
+            userType={userType ?? undefined}
+            onGoBack={prevStep}
+            isLastStep={currentStep + 1 >= steps.length}
+          />
         </If>
 
-        <If condition={stepId === 'onboarding:invites'}>
+        <If condition={stepId === 'onboarding:invites' && !isCompleting}>
           <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} onGoBack={prevStep} />
         </If>
 
-        <If condition={stepId === 'onboarding:complete' && formData}>
+        <If condition={isCompleting && formData}>
           {(formData) => <CompleteOnboardingStep data={formData} />}
         </If>
       </div>

@@ -60,7 +60,8 @@ const PlanSelectionStep: React.FCC<{
   onSubmit: (planId: PlanId) => void;
   userType?: UserType;
   onGoBack?: () => void;
-}> = ({ onSubmit, userType, onGoBack }) => {
+  isLastStep?: boolean;
+}> = ({ onSubmit, userType, onGoBack, isLastStep }) => {
   const { t } = useTranslation('onboarding');
   const defaultPlanId: PlanId = userType === 'self' ? 'care' : 'comfort';
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlanId);
@@ -166,7 +167,7 @@ const PlanSelectionStep: React.FCC<{
 
       <div className={'flex flex-col space-y-3'}>
         <Button type={'button'} onClick={handleContinue}>
-          <Trans i18nKey={'common:continue'} />
+          {isLastStep ? 'Start free trial' : <Trans i18nKey={'common:continue'} />}
         </Button>
 
         {onGoBack && (

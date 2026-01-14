@@ -53,9 +53,10 @@ export const POST = async (req: NextRequest) => {
   const invites = body.invites;
 
   const payload = {
-    userId,
     organizationName,
+    userId,
     client,
+    adminClient,
   };
 
   logger.info(
@@ -79,6 +80,16 @@ export const POST = async (req: NextRequest) => {
     );
 
     return throwInternalServerErrorException();
+  }
+
+  // Ensure the user is marked as onboarded (handles case where user already existed)
+  const { error: onboardedError } = await adminClient
+    .from('users')
+    .update({ onboarded: true })
+    .eq('id', userId);
+
+  if (onboardedError) {
+    console.log('[DEBUG] Failed to update onboarded flag:', JSON.stringify(onboardedError, null, 2));
   }
 
   if (body.userType === 'family_managed' && invites.length > 0) {
