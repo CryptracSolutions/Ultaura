@@ -2,21 +2,16 @@ import Logo from '~/core/ui/Logo';
 
 async function OnboardingLayout({ children }: React.PropsWithChildren) {
   return (
-    <div className={'flex flex-1 flex-col dark:bg-background py-8 h-screen'}>
-      <div
-        className={
-          'flex w-11/12 flex-1 flex-col items-center justify-center' +
-          ' lg:w-10/12 mx-auto xl:max-w-5xl'
-        }
-      >
+    <div className={'flex min-h-screen w-full flex-col bg-background py-8'}>
+      <div className={'mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4'}>
         <div
           className={
-            'flex flex-col space-y-16 w-full lg:p-16' +
+            'flex w-full flex-col space-y-16 lg:p-16' +
             ' lg:rounded-md zoom-in-95 animate-in fade-in ease-out' +
             ' duration-1000 slide-in-from-bottom-24'
           }
         >
-          <div className={'flex justify-center -ml-7'}>
+          <div className={'flex w-full justify-center'}>
             <Logo
               className={'h-10'}
               showWordmark
