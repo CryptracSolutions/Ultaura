@@ -18,7 +18,7 @@ import { localToUtc, getNextReminderOccurrence } from './timezone';
 import { getLine } from './lines';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logReminderEvent } from './reminder-events';
-import { parseVacationRanges } from './vacation';
+import { parseVacationRanges } from './vacation-utils';
 import type { ReminderRow, UltauraAccountRow } from './types';
 
 const logger = getLogger();

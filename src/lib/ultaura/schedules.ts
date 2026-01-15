@@ -16,7 +16,7 @@ import { extractOriginalTimeOfDay, normalizeTimeOfDay } from './schedule-helpers
 import { getNextOccurrence } from './timezone';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logScheduleEvent } from './schedule-events';
-import { parseVacationRanges } from './vacation';
+import { parseVacationRanges } from './vacation-utils';
 import type { ScheduleRow, UltauraAccountRow } from './types';
 
 const logger = getLogger();

@@ -6,7 +6,7 @@ import { DateTime } from 'luxon';
 import { Palmtree, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { LineRow } from '~/lib/ultaura/types';
-import type { VacationRange } from '~/lib/ultaura/vacation';
+import type { VacationRange } from '~/lib/ultaura/vacation-utils';
 import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
 
 export function VacationSettings({

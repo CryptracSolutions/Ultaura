@@ -18,6 +18,17 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Usage-Based Billing**: Minutes pooled at account level with overage at $0.15/min
 - **Answering Machine Detection**: Configurable voicemail behavior when calls reach machines
 
+## Claude Code Agent Preferences
+
+When using the Task tool to spawn agents, always use `model: "opus"` for all agent types including:
+- Explore
+- Plan
+- code-simplifier
+- feature-dev agents
+- Any other subagent types
+
+This ensures thorough analysis and higher quality reasoning for all automated tasks.
+
 ## Architecture
 
 ```

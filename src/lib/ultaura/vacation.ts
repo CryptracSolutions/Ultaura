@@ -6,30 +6,13 @@ import getSupabaseServerComponentClient from '~/core/supabase/server-component-c
 import getLogger from '~/core/logger';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
 import type { Json } from '~/database.types';
+import { parseVacationRanges, type VacationRange } from './vacation-utils';
 import { getLine } from './lines';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logScheduleEvent } from './schedule-events';
 import type { UltauraAccountRow } from './types';
 
 const logger = getLogger();
-
-export interface VacationRange {
-  start: string;
-  end: string;
-}
-
-export function parseVacationRanges(value: unknown): VacationRange[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((range) => {
-      if (!range || typeof range !== 'object') return null;
-      const start = (range as { start?: unknown }).start;
-      const end = (range as { end?: unknown }).end;
-      if (typeof start !== 'string' || typeof end !== 'string') return null;
-      return { start, end };
-    })
-    .filter((range): range is VacationRange => Boolean(range));
-}
 
 function isRangeOverlap(a: VacationRange, b: VacationRange): boolean {
   return a.start <= b.end && a.end >= b.start;
