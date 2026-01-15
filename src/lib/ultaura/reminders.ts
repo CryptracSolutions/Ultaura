@@ -928,7 +928,9 @@ export async function getUpcomingReminders(accountId: string): Promise<{
       day_of_month,
       ultaura_lines!inner (
         display_name,
-        short_id
+        short_id,
+        vacation_ranges,
+        timezone
       )
     `)
     .eq('account_id', accountId)
@@ -942,20 +944,30 @@ export async function getUpcomingReminders(accountId: string): Promise<{
     return [];
   }
 
-  return (reminders || []).map((reminder) => ({
-    reminderId: reminder.id,
-    lineId: reminder.line_id,
-    lineShortId: (reminder.ultaura_lines as { short_id: string }).short_id,
-    displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
-    message: reminder.message,
-    dueAt: reminder.due_at,
-    timezone: reminder.timezone,
-    isRecurring: reminder.is_recurring,
-    rrule: reminder.rrule,
-    intervalDays: reminder.interval_days,
-    daysOfWeek: reminder.days_of_week,
-    dayOfMonth: reminder.day_of_month,
-  }));
+  return (reminders || [])
+    .filter((reminder) => {
+      const line = reminder.ultaura_lines as { vacation_ranges?: Array<{ start: string; end: string }>; timezone?: string };
+      const timezone = line?.timezone || reminder.timezone;
+      const localDate = DateTime.fromISO(reminder.due_at).setZone(timezone).toISODate();
+      if (!localDate) return false;
+      const ranges = line?.vacation_ranges || [];
+      const isOnVacation = ranges.some((range) => localDate >= range.start && localDate <= range.end);
+      return !isOnVacation;
+    })
+    .map((reminder) => ({
+      reminderId: reminder.id,
+      lineId: reminder.line_id,
+      lineShortId: (reminder.ultaura_lines as { short_id: string }).short_id,
+      displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
+      message: reminder.message,
+      dueAt: reminder.due_at,
+      timezone: reminder.timezone,
+      isRecurring: reminder.is_recurring,
+      rrule: reminder.rrule,
+      intervalDays: reminder.interval_days,
+      daysOfWeek: reminder.days_of_week,
+      dayOfMonth: reminder.day_of_month,
+    }));
 }
 
 export async function getAllReminders(accountId: string): Promise<{

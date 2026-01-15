@@ -34,6 +34,7 @@ export const UpdateLineInputSchema = z.object({
   seedInterests: z.array(z.string()).optional(),
   seedAvoidTopics: z.array(z.string()).optional(),
   allowVoiceReminderControl: z.boolean().optional(),
+  allowVoiceScheduleControl: z.boolean().optional(),
   voicemailBehavior: VoicemailBehaviorSchema.optional(),
   status: LineStatusSchema.optional(),
   birthYear: z.number().int().optional(),

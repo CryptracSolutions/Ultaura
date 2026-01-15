@@ -14,75 +14,84 @@ You have access to these tools when appropriate:
    - Use when they want to change when you call on a weekly pattern
    - For one-time calls, use set_reminder instead
 
-3. **web_search** - Look up current events
+3. **skip_schedule** - Skip the next scheduled call
+   - Use when they say "skip my next call" or "don't call me tomorrow"
+
+4. **snooze_schedule** - Delay the next scheduled call
+   - Use when they say "call me back in 30 minutes"
+
+5. **reschedule_schedule** - Move a scheduled call to a new time
+   - Use when they say "call me tomorrow at 2pm instead"
+
+6. **web_search** - Look up current events
    - Use when they ask about news, weather, or current events
    - Provide neutral, factual summaries
    - Avoid sensationalism or alarming topics
 
-4. **store_call_preview** - Record what they want to discuss next time
+7. **store_call_preview** - Record what they want to discuss next time
    - Use at the end of a call after they choose a topic
 
-5. **mark_preview_outcome** - Record how they responded to the preview at call start
+8. **mark_preview_outcome** - Record how they responded to the preview at call start
    - Use after you reference the preview and they respond
 
-6. **log_segment_engagement** - Log how they responded to a segment
+9. **log_segment_engagement** - Log how they responded to a segment
    - Use when a trivia/story/learning/memory segment ends
 
-7. **manage_story_arc** - Create or update multi-call story arcs
+10. **manage_story_arc** - Create or update multi-call story arcs
    - Use when starting or updating a serial story
 
-8. **store_life_chapter** - Save a significant life chapter narrative
+11. **store_life_chapter** - Save a significant life chapter narrative
    - Use when they share a meaningful story or life event
    - Separate from store_memory facts
 
-9. **store_milestone** - Save important dates
+12. **store_milestone** - Save important dates
    - Use when they mention birthdays, anniversaries, memorials, achievements
 
-10. **mark_milestone_celebrated** - Mark a milestone as acknowledged
+13. **mark_milestone_celebrated** - Mark a milestone as acknowledged
    - Use after celebrating or acknowledging a milestone
 
-11. **update_relationship** - Track relationship details
+14. **update_relationship** - Track relationship details
    - Use when they mention people and details (name, role, sentiment, contact frequency)
 
-12. **mark_relationship_deceased** - Mark someone as deceased
+15. **mark_relationship_deceased** - Mark someone as deceased
    - Use after a new death disclosure
 
-13. **log_mood_snapshot** - Record start/mid/end mood
+16. **log_mood_snapshot** - Record start/mid/end mood
    - Call once at the end of the conversation
 
-14. **log_cognitive_observation** - Log confusion patterns
+17. **log_cognitive_observation** - Log confusion patterns
    - Use when they show confusion, repetition, word-finding struggles
 
-15. **adjust_accessibility** - Adapt hearing/cognitive settings
+18. **adjust_accessibility** - Adapt hearing/cognitive settings
    - Use if they ask for slower pacing or clearer speech
 
-16. **update_content_preference** - Update content preferences
+19. **update_content_preference** - Update content preferences
    - Use when they clearly prefer or dislike trivia/stories/brain games
 
-17. **store_memory** - Remember facts about the user
+20. **store_memory** - Remember facts about the user
    - Call PROACTIVELY when user shares personal info
    - Do NOT confirm storage verbally
 
-18. **update_memory** - Correct existing memory
+21. **update_memory** - Correct existing memory
    - Use when user corrects previous info
 
-19. **log_safety_concern** - Log distress detection
+22. **log_safety_concern** - Log distress detection
    - Call AFTER empathetic response, not before
 
-20. **log_health_mention** - Log health mention (private)
+23. **log_health_mention** - Log health mention (private)
    - Use for pain, medication, symptoms, sleep, appetite, mobility
    - Never share details with family
 
-21. **request_upgrade** - Help with plan upgrades
+24. **request_upgrade** - Help with plan upgrades
    - Use when user asks about more minutes or plans
 
-22. **mark_topic_private** - Keep a topic private from their family
+25. **mark_topic_private** - Keep a topic private from their family
    - Use when they say "keep this between us" or "don't tell my family"
 
-23. **set_pause_mode** - Pause alerts when the user is away
+26. **set_pause_mode** - Pause alerts when the user is away
    - Use when they say they are traveling, away, or going to the hospital
 
-24. **log_call_insights** - Record insights at the end of the call
+27. **log_call_insights** - Record insights at the end of the call
    - Call once as the conversation naturally ends
 
 ## Call Scheduling Rules
@@ -97,12 +106,20 @@ You have access to these tools when appropriate:
 - Use for weekly patterns like "every Monday", "weekdays", or "every day at noon"
 - These calls repeat weekly on the specified days
 
+### Skipping or Delaying a Scheduled Call
+- "skip my next call" -> skip_schedule
+- "call me back in 30 minutes" -> snooze_schedule
+- "move my next call to tomorrow at 2pm" -> reschedule_schedule
+
 ### If They Ask to Pause Their Schedule
 - You can schedule a one-time call, but their regular schedule will continue
 - To pause or change recurring calls, they must ask a family member to update the schedule in the app`,
   compressed: `## Tools
 - set_reminder: one-time or recurring reminders via call
 - schedule_call: recurring weekly schedule (one-time calls use set_reminder)
+- skip_schedule: skip the next scheduled call
+- snooze_schedule: delay the next scheduled call
+- reschedule_schedule: move the next scheduled call
 - store_call_preview: record next-call topic choice
 - mark_preview_outcome: record how they responded to the preview
 - log_segment_engagement: record segment response
@@ -124,6 +141,9 @@ You have access to these tools when appropriate:
 ## Call Scheduling
 - One-time requests -> set_reminder; ask for a reason, default to "Check-in call" after two attempts
 - Recurring weekly patterns -> schedule_call
+- Skip next scheduled call -> skip_schedule
+- Delay next scheduled call -> snooze_schedule
+- Move next scheduled call -> reschedule_schedule
 - One-time calls must be at least 5 minutes in the future
 - If asked to pause the schedule, explain a family member must update it in the app`,
 };

@@ -1,6 +1,7 @@
 // Schedule call tool handler
 
 import { Router, Request, Response } from 'express';
+import { ErrorCodes } from '@ultaura/schemas';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
@@ -17,6 +18,35 @@ interface ScheduleCallRequest {
   daysOfWeek?: number[]; // 0-6, Sunday-Saturday
   timeLocal?: string; // HH:mm format
   timezone?: string;
+}
+
+function buildEditMetadata(prev: {
+  days_of_week: number[];
+  time_of_day: string;
+  timezone: string;
+}, next: {
+  days_of_week: number[];
+  time_of_day: string;
+  timezone: string;
+}): Record<string, unknown> | null {
+  const changes: Record<string, { old: unknown; new: unknown }> = {};
+
+  if (JSON.stringify(prev.days_of_week) !== JSON.stringify(next.days_of_week)) {
+    changes.days_of_week = { old: prev.days_of_week, new: next.days_of_week };
+  }
+  if (prev.time_of_day !== next.time_of_day) {
+    changes.time_of_day = { old: prev.time_of_day, new: next.time_of_day };
+  }
+  if (prev.timezone !== next.timezone) {
+    changes.timezone = { old: prev.timezone, new: next.timezone };
+  }
+
+  if (Object.keys(changes).length === 0) return null;
+
+  return {
+    changes,
+    summary: 'Updated schedule by phone',
+  };
 }
 
 scheduleCallRouter.post('/', async (req: Request, res: Response) => {
@@ -78,6 +108,16 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
 
     const { line } = lineWithAccount;
 
+    if (!line.allow_voice_schedule_control) {
+      await recordFailure();
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "I'm sorry, but your caregiver has disabled schedule changes by phone. Please ask them to make changes through the app.",
+      });
+      return;
+    }
+
     // Check if line is opted out
     if (line.do_not_call) {
       await recordFailure();
@@ -136,7 +176,7 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
       // Check for existing schedule and update or create
       const { data: existing } = await supabase
         .from('ultaura_schedules')
-        .select('id')
+        .select('id, days_of_week, time_of_day, timezone')
         .eq('line_id', lineId)
         .eq('enabled', true)
         .order('created_at', { ascending: false })
@@ -167,6 +207,24 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
         }
 
         schedule = data;
+
+        const editMetadata = buildEditMetadata(existing, {
+          days_of_week: validDays,
+          time_of_day: timeLocal,
+          timezone: tz,
+        });
+
+        if (editMetadata) {
+          await supabase.from('ultaura_schedule_events').insert({
+            account_id: session.account_id,
+            schedule_id: existing.id,
+            line_id: lineId,
+            event_type: 'edited',
+            triggered_by: 'voice',
+            call_session_id: callSessionId,
+            metadata: editMetadata,
+          });
+        }
       } else {
         // Create new schedule
         const { data, error } = await supabase
@@ -191,6 +249,21 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
         }
 
         schedule = data;
+
+        await supabase.from('ultaura_schedule_events').insert({
+          account_id: session.account_id,
+          schedule_id: schedule.id,
+          line_id: lineId,
+          event_type: 'created',
+          triggered_by: 'voice',
+          call_session_id: callSessionId,
+          metadata: {
+            source: 'voice',
+            days_of_week: validDays,
+            time_of_day: timeLocal,
+            timezone: tz,
+          },
+        });
       }
 
       // Update line's next scheduled call

@@ -41,6 +41,20 @@ export interface ScheduleCallArgs {
   time_local: string;
 }
 
+export interface SkipScheduleArgs {
+  schedule_id?: string;
+}
+
+export interface SnoozeScheduleArgs {
+  schedule_id?: string;
+  snooze_minutes: number;
+}
+
+export interface RescheduleScheduleArgs {
+  schedule_id?: string;
+  new_datetime_local: string;
+}
+
 export interface StoreCallPreviewArgs {
   topic_type: 'memory_follow_up' | 'web_search' | 'segment' | 'free_form';
   topic_key: string;

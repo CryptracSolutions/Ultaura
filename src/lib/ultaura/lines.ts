@@ -257,6 +257,7 @@ export async function updateLine(
   if (parsed.data.seedInterests !== undefined) updates.seed_interests = parsed.data.seedInterests;
   if (parsed.data.seedAvoidTopics !== undefined) updates.seed_avoid_topics = parsed.data.seedAvoidTopics;
   if (parsed.data.allowVoiceReminderControl !== undefined) updates.allow_voice_reminder_control = parsed.data.allowVoiceReminderControl;
+  if (parsed.data.allowVoiceScheduleControl !== undefined) updates.allow_voice_schedule_control = parsed.data.allowVoiceScheduleControl;
   if (parsed.data.voicemailBehavior !== undefined) updates.voicemail_behavior = parsed.data.voicemailBehavior;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
   if (parsed.data.birthYear !== undefined) updates.birth_year = parsed.data.birthYear;

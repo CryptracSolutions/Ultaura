@@ -429,6 +429,18 @@ async function DashboardPage() {
                               {formatDateTime(item.nextRunAt)}
                             </div>
                           </div>
+                          {(item.isOneTime || item.rescheduledFrom) && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {item.isOneTime && (
+                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                  One-time
+                                </span>
+                              )}
+                              {item.rescheduledFrom && (
+                                <span>{item.rescheduledFrom}</span>
+                              )}
+                            </div>
+                          )}
                           <div className="mt-2">
                             <Link
                               href={`/dashboard/lines/${item.lineShortId}/schedule`}

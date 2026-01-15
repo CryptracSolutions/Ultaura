@@ -1749,6 +1749,7 @@ export type Database = {
         Row: {
           account_id: string
           allow_voice_reminder_control: boolean
+          allow_voice_schedule_control: boolean
           birth_decade: number | null
           birth_year: number | null
           consecutive_missed_calls: number
@@ -1781,11 +1782,13 @@ export type Database = {
           silence_tolerance_ms: number | null
           status: Database["public"]["Enums"]["ultaura_line_status"]
           timezone: string
+          vacation_ranges: Json
           voicemail_behavior: string
         }
         Insert: {
           account_id: string
           allow_voice_reminder_control?: boolean
+          allow_voice_schedule_control?: boolean
           birth_decade?: number | null
           birth_year?: number | null
           consecutive_missed_calls?: number
@@ -1818,11 +1821,13 @@ export type Database = {
           silence_tolerance_ms?: number | null
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          vacation_ranges?: Json
           voicemail_behavior?: string
         }
         Update: {
           account_id?: string
           allow_voice_reminder_control?: boolean
+          allow_voice_schedule_control?: boolean
           birth_decade?: number | null
           birth_year?: number | null
           consecutive_missed_calls?: number
@@ -1855,6 +1860,7 @@ export type Database = {
           silence_tolerance_ms?: number | null
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          vacation_ranges?: Json
           voicemail_behavior?: string
         }
         Relationships: [
@@ -3154,6 +3160,155 @@ export type Database = {
           },
         ]
       }
+      ultaura_schedule_events: {
+        Row: {
+          account_id: string
+          call_session_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          line_id: string
+          metadata: Json | null
+          schedule_id: string
+          triggered_by: string
+        }
+        Insert: {
+          account_id: string
+          call_session_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          line_id: string
+          metadata?: Json | null
+          schedule_id: string
+          triggered_by: string
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          line_id?: string
+          metadata?: Json | null
+          schedule_id?: string
+          triggered_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_schedule_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_events_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_events_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_events_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_schedule_exceptions: {
+        Row: {
+          account_id: string
+          call_session_id: string | null
+          created_at: string
+          created_by: string
+          exception_date: string
+          exception_type:
+            | Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          id: string
+          line_id: string
+          metadata: Json | null
+          new_datetime: string | null
+          reschedule_schedule_id: string | null
+          schedule_id: string
+        }
+        Insert: {
+          account_id: string
+          call_session_id?: string | null
+          created_at?: string
+          created_by: string
+          exception_date: string
+          exception_type:
+            | Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          id?: string
+          line_id: string
+          metadata?: Json | null
+          new_datetime?: string | null
+          reschedule_schedule_id?: string | null
+          schedule_id: string
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string | null
+          created_at?: string
+          created_by?: string
+          exception_date?: string
+          exception_type?:
+            | Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          id?: string
+          line_id?: string
+          metadata?: Json | null
+          new_datetime?: string | null
+          reschedule_schedule_id?: string | null
+          schedule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_reschedule_schedule_id_fkey"
+            columns: ["reschedule_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_scheduler_leases: {
         Row: {
           acquired_at: string | null
@@ -3188,6 +3343,7 @@ export type Database = {
           days_of_week: number[]
           enabled: boolean
           id: string
+          is_one_time: boolean
           last_result:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -3207,6 +3363,7 @@ export type Database = {
           days_of_week?: number[]
           enabled?: boolean
           id?: string
+          is_one_time?: boolean
           last_result?:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -3226,6 +3383,7 @@ export type Database = {
           days_of_week?: number[]
           enabled?: boolean
           id?: string
+          is_one_time?: boolean
           last_result?:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -4197,7 +4355,10 @@ export type Database = {
         | "success"
         | "missed"
         | "suppressed_quiet_hours"
+        | "skipped"
+        | "suppressed_vacation"
         | "failed"
+      ultaura_schedule_exception_type: "skip" | "snooze" | "reschedule"
       ultaura_voice_consent_status: "pending" | "granted" | "denied"
     }
     CompositeTypes: {
@@ -5040,8 +5201,11 @@ export const Constants = {
         "success",
         "missed",
         "suppressed_quiet_hours",
+        "skipped",
+        "suppressed_vacation",
         "failed",
       ],
+      ultaura_schedule_exception_type: ["skip", "snooze", "reschedule"],
       ultaura_voice_consent_status: ["pending", "granted", "denied"],
     },
   },
@@ -5051,4 +5215,3 @@ export const Constants = {
     },
   },
 } as const
-

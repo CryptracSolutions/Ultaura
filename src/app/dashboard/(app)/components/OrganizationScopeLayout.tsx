@@ -8,6 +8,7 @@ import TopNavBar from '~/components/TopNavBar';
 import HelpPanel from '~/components/HelpPanel';
 import Toaster from '~/components/Toaster';
 import SentryBrowserWrapper from '~/components/SentryProvider';
+import { InProgressCallBanner } from '~/components/ultaura/InProgressCallBanner';
 
 import Organization from '~/lib/organizations/types/organization';
 import UserSession from '~/core/session/types/user-session';
@@ -27,7 +28,8 @@ import { cva } from 'cva';
 
 const OrganizationScopeLayout: React.FCC<{
   data: Awaited<ReturnType<typeof loadAppData>>;
-}> = ({ data, children }) => {
+  ultauraAccountId?: string | null;
+}> = ({ data, ultauraAccountId, children }) => {
   const userSessionContext: UserSession = useMemo(() => {
     return {
       auth: data.auth,
@@ -78,6 +80,7 @@ const OrganizationScopeLayout: React.FCC<{
 
                     <RouteShellWithSidebar
                       collapsed={data.ui.sidebarState === 'collapsed'}
+                      ultauraAccountId={ultauraAccountId}
                     >
                       {children}
                     </RouteShellWithSidebar>
@@ -97,6 +100,7 @@ export default OrganizationScopeLayout;
 function RouteShellWithSidebar(
   props: React.PropsWithChildren<{
     collapsed: boolean;
+    ultauraAccountId?: string | null;
   }>,
 ) {
   const [collapsed, setCollapsed] = useCollapsible(props.collapsed);
@@ -110,6 +114,9 @@ function RouteShellWithSidebar(
         sidebar={<AppSidebar />}
       >
         <TopNavBar onHelpClick={openHelp} />
+        {props.ultauraAccountId ? (
+          <InProgressCallBanner accountId={props.ultauraAccountId} />
+        ) : null}
         {props.children}
       </Page>
 

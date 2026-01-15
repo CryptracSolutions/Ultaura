@@ -25,6 +25,7 @@ import { updateLine } from '~/lib/ultaura/lines';
 import { INSIGHTS, US_TIMEZONES, TIME_OPTIONS, WEEKDAY_OPTIONS } from '~/lib/ultaura/constants';
 import { setPauseMode, updateInsightPrivacy, updateNotificationPreferences } from '~/lib/ultaura/insights';
 import { updateAccessibilitySettings } from '~/lib/ultaura/accessibility';
+import { VacationSettings } from './VacationSettings';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -51,6 +52,9 @@ export function SettingsClient({
   const [quietHoursEnd, setQuietHoursEnd] = useState(line.quiet_hours_end);
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
     line.allow_voice_reminder_control ?? true
+  );
+  const [allowVoiceScheduleControl, setAllowVoiceScheduleControl] = useState(
+    line.allow_voice_schedule_control ?? true
   );
   const [inboundAllowed, setInboundAllowed] = useState(line.inbound_allowed ?? true);
   const [voicemailBehavior, setVoicemailBehavior] = useState<VoicemailBehavior>(
@@ -149,6 +153,7 @@ export function SettingsClient({
           quietHoursStart,
           quietHoursEnd,
           allowVoiceReminderControl,
+          allowVoiceScheduleControl,
           inboundAllowed,
           voicemailBehavior,
         });
@@ -210,6 +215,7 @@ export function SettingsClient({
     quietHoursStart !== line.quiet_hours_start ||
     quietHoursEnd !== line.quiet_hours_end ||
     allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
+    allowVoiceScheduleControl !== (line.allow_voice_schedule_control ?? true) ||
     inboundAllowed !== (line.inbound_allowed ?? true) ||
     voicemailBehavior !== (line.voicemail_behavior || 'brief');
 
@@ -418,6 +424,33 @@ export function SettingsClient({
                 disabled={disabled}
               />
             </div>
+          </div>
+
+          {/* Voice Schedule Control */}
+          <div className="pt-6 border-t border-border">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  Voice Schedule Control
+                </label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  When enabled, {line.display_name} can skip, snooze, or reschedule
+                  calls during phone conversations. Disable to keep schedule changes
+                  in the dashboard.
+                </p>
+              </div>
+              <Switch
+                checked={allowVoiceScheduleControl}
+                onCheckedChange={setAllowVoiceScheduleControl}
+                disabled={disabled}
+              />
+            </div>
+          </div>
+
+          {/* Vacation Mode */}
+          <div className="pt-6 border-t border-border">
+            <VacationSettings line={line} disabled={disabled} />
           </div>
 
           {/* Accessibility Settings */}

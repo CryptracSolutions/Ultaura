@@ -812,6 +812,29 @@ At the START of this call:
             timeLocal: args.time_local,
           });
           break;
+        case 'skip_schedule':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/skip_schedule`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            scheduleId: args.schedule_id,
+          });
+          break;
+        case 'snooze_schedule':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/snooze_schedule`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            scheduleId: args.schedule_id,
+            snoozeMinutes: args.snooze_minutes,
+          });
+          break;
+        case 'reschedule_schedule':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/reschedule_schedule`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            scheduleId: args.schedule_id,
+            newDatetime: args.new_datetime_local,
+          });
+          break;
 
         case 'choose_overage_action':
           result = await this.callToolEndpoint(`${baseUrl}/tools/overage_action`, {

@@ -47,7 +47,24 @@ export type LineStatus = 'active' | 'paused' | 'disabled';
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
 export type CallDirection = 'inbound' | 'outbound';
 export type BillableType = 'trial' | 'included' | 'overage' | 'payg';
-export type ScheduleResult = 'success' | 'missed' | 'suppressed_quiet_hours' | 'failed';
+export type ScheduleResult =
+  | 'success'
+  | 'missed'
+  | 'suppressed_quiet_hours'
+  | 'skipped'
+  | 'suppressed_vacation'
+  | 'failed';
+export type ScheduleExceptionType = 'skip' | 'snooze' | 'reschedule';
+export type ScheduleEventType =
+  | 'created'
+  | 'edited'
+  | 'enabled'
+  | 'disabled'
+  | 'exception_added'
+  | 'exception_removed'
+  | 'vacation_started'
+  | 'vacation_ended';
+export type ScheduleEventTrigger = 'dashboard' | 'voice' | 'system';
 export type ReminderStatus = 'scheduled' | 'sent' | 'missed' | 'canceled';
 export type ReminderDeliveryStatus = 'completed' | 'no_answer' | 'failed';
 export type ReminderDeliveryMethod = 'outbound_call';
@@ -168,7 +185,9 @@ export interface Line {
   seedInterests: string[] | null;
   seedAvoidTopics: string[] | null;
   allowVoiceReminderControl: boolean;
+  allowVoiceScheduleControl: boolean;
   voicemailBehavior: VoicemailBehavior;
+  vacationRanges?: Array<{ start: string; end: string }>;
   birthYear?: number | null;
   birthDecade?: number | null;
   formativeDecade?: number | null;
@@ -304,6 +323,7 @@ export interface Schedule {
   lineId: string;
   createdAt: string;
   enabled: boolean;
+  isOneTime: boolean;
   timezone: string;
   daysOfWeek: number[];
   timeOfDay: string;
@@ -390,6 +410,33 @@ export interface ReminderEvent {
   createdAt: string;
   eventType: ReminderEventType;
   triggeredBy: ReminderEventTrigger;
+  callSessionId: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface ScheduleException {
+  id: string;
+  accountId: string;
+  scheduleId: string;
+  lineId: string;
+  createdAt: string;
+  exceptionDate: string;
+  exceptionType: ScheduleExceptionType;
+  newDatetime: string | null;
+  rescheduleScheduleId: string | null;
+  createdBy: 'dashboard' | 'voice';
+  callSessionId: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface ScheduleEvent {
+  id: string;
+  accountId: string;
+  scheduleId: string;
+  lineId: string;
+  createdAt: string;
+  eventType: ScheduleEventType;
+  triggeredBy: ScheduleEventTrigger;
   callSessionId: string | null;
   metadata: Record<string, unknown> | null;
 }
@@ -794,6 +841,8 @@ export interface WellnessAlert {
 export type UltauraAccountRow = Database['public']['Tables']['ultaura_accounts']['Row'];
 export type LineRow = Database['public']['Tables']['ultaura_lines']['Row'];
 export type ScheduleRow = Database['public']['Tables']['ultaura_schedules']['Row'];
+export type ScheduleExceptionRow = Database['public']['Tables']['ultaura_schedule_exceptions']['Row'];
+export type ScheduleEventRow = Database['public']['Tables']['ultaura_schedule_events']['Row'];
 export type CallSessionRow = Database['public']['Tables']['ultaura_call_sessions']['Row'];
 export type ReminderRow = Database['public']['Tables']['ultaura_reminders']['Row'];
 export type ReminderEventRow = Database['public']['Tables']['ultaura_reminder_events']['Row'] & {

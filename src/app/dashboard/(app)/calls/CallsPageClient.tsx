@@ -27,6 +27,8 @@ interface Schedule {
   nextRunAt: string | null;
   timeOfDay: string;
   daysOfWeek: number[];
+  isOneTime: boolean;
+  rescheduledFrom?: string | null;
 }
 
 interface CallsPageClientProps {
@@ -38,6 +40,12 @@ interface CallsPageClientProps {
 export function CallsPageClient({ lines, schedules, disabled = false }: CallsPageClientProps) {
   const router = useRouter();
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+
+  const sortByNextRunAt = (a: Schedule, b: Schedule) => {
+    const aTime = a.nextRunAt ? new Date(a.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
+    const bTime = b.nextRunAt ? new Date(b.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
+    return aTime - bTime;
+  };
 
   // Group schedules by line
   const schedulesByLine = schedules.reduce((acc, schedule) => {
@@ -137,8 +145,8 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         <div className="space-y-6">
           {lines.map((line) => {
             const lineSchedules = schedulesByLine[line.id] || [];
-            const enabledSchedules = lineSchedules.filter((s) => s.enabled);
-            const disabledSchedules = lineSchedules.filter((s) => !s.enabled);
+            const enabledSchedules = lineSchedules.filter((s) => s.enabled).sort(sortByNextRunAt);
+            const disabledSchedules = lineSchedules.filter((s) => !s.enabled).sort(sortByNextRunAt);
 
             return (
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
@@ -245,6 +253,9 @@ function ScheduleRow({
   formatNextCall,
   disabled = false,
 }: ScheduleRowProps) {
+  const isOneTime = schedule.isOneTime;
+  const nextCallLabel = schedule.nextRunAt ? formatNextCall(schedule.nextRunAt) : 'Scheduled time: TBD';
+
   return (
     <div
       className={`px-6 py-4 flex items-center justify-between gap-4 ${
@@ -266,8 +277,13 @@ function ScheduleRow({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium text-foreground">
-              {formatTime(schedule.timeOfDay)}
+              {isOneTime ? 'One-time call' : formatTime(schedule.timeOfDay)}
             </p>
+            {isOneTime && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                One-time
+              </span>
+            )}
             {!schedule.enabled && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                 Paused
@@ -275,25 +291,40 @@ function ScheduleRow({
             )}
           </div>
           <p className="text-sm text-muted-foreground truncate">
-            {formatDays(schedule.daysOfWeek)}
-            {schedule.enabled && schedule.nextRunAt && (
-              <span className="ml-2">
-                &middot; Next: {formatNextCall(schedule.nextRunAt)}
-              </span>
+            {isOneTime ? (
+              <>
+                Scheduled: {nextCallLabel}
+              </>
+            ) : (
+              <>
+                {formatDays(schedule.daysOfWeek)}
+                {schedule.enabled && schedule.nextRunAt && (
+                  <span className="ml-2">
+                    &middot; Next: {formatNextCall(schedule.nextRunAt)}
+                  </span>
+                )}
+              </>
             )}
           </p>
+          {isOneTime && schedule.rescheduledFrom ? (
+            <p className="text-xs text-muted-foreground">
+              {schedule.rescheduledFrom}
+            </p>
+          ) : null}
         </div>
       </div>
 
       {!disabled && (
         <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href={`/dashboard/lines/${schedule.lineShortId}/schedule?edit=${schedule.scheduleId}`}
-            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-            title="Edit schedule"
-          >
-            <Edit2 className="w-4 h-4" />
-          </Link>
+          {!isOneTime && (
+            <Link
+              href={`/dashboard/lines/${schedule.lineShortId}/schedule?edit=${schedule.scheduleId}`}
+              className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Edit schedule"
+            >
+              <Edit2 className="w-4 h-4" />
+            </Link>
+          )}
           <button
             onClick={onDelete}
             className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"

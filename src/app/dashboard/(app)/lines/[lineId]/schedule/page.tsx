@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
 import { getSchedules } from '~/lib/ultaura/schedules';
+import { getUpcomingExceptions } from '~/lib/ultaura/schedule-exceptions';
 import { ScheduleClient } from './ScheduleClient';
 import { isUUID } from '~/lib/ultaura/short-id';
 import AppHeader from '../../../components/AppHeader';
@@ -36,9 +37,10 @@ export default async function SchedulePage({ params }: PageProps) {
     redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
-  const [schedules, trialInfo] = await Promise.all([
+  const [schedules, trialInfo, exceptions] = await Promise.all([
     getSchedules(line.id),
     getTrialInfo(line.account_id),
+    getUpcomingExceptions(line.id),
   ]);
 
   const isTrialExpired = trialInfo?.isExpired ?? false;
@@ -57,7 +59,12 @@ export default async function SchedulePage({ params }: PageProps) {
       <PageBody>
         <div className="space-y-6">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <ScheduleClient line={line} schedules={schedules} disabled={isTrialExpired} />
+          <ScheduleClient
+            line={line}
+            schedules={schedules}
+            exceptions={exceptions}
+            disabled={isTrialExpired}
+          />
         </div>
       </PageBody>
     </>

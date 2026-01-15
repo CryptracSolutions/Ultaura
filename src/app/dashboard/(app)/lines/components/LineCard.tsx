@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   Phone,
+  PhoneCall,
   MoreVertical,
   Calendar,
   Clock,
@@ -14,6 +15,7 @@ import {
   Pause,
   AlertTriangle,
   Trash2,
+  Palmtree,
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
@@ -23,9 +25,16 @@ import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 interface LineCardProps {
   line: LineRow;
   disabled?: boolean;
+  callStatus?: 'ringing' | 'in_progress' | null;
+  isOnVacation?: boolean;
 }
 
-export function LineCard({ line, disabled = false }: LineCardProps) {
+export function LineCard({
+  line,
+  disabled = false,
+  callStatus = null,
+  isOnVacation = false,
+}: LineCardProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -50,6 +59,11 @@ export function LineCard({ line, disabled = false }: LineCardProps) {
   const isPaused = line.status === 'paused';
   const isDisabled = line.status === 'disabled';
   const isOptedOut = line.do_not_call;
+  const callBadge = callStatus === 'in_progress'
+    ? { label: 'On call', className: 'bg-green-100 text-green-800 animate-pulse' }
+    : callStatus === 'ringing'
+    ? { label: 'Calling...', className: 'bg-blue-100 text-blue-800 animate-pulse' }
+    : null;
 
   // Format phone number for display
   const formattedPhone = formatPhoneNumber(line.phone_e164);
@@ -134,6 +148,18 @@ export function LineCard({ line, disabled = false }: LineCardProps) {
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-foreground">{line.display_name}</h3>
                 {getStatusBadge()}
+                {isOnVacation && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    <Palmtree className="w-3 h-3 mr-1" />
+                    Vacation
+                  </span>
+                )}
+                {callBadge && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${callBadge.className}`}>
+                    <PhoneCall className="w-3 h-3 mr-1" />
+                    {callBadge.label}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-muted-foreground">{formattedPhone}</p>
             </div>

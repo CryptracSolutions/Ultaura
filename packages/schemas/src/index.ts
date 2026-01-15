@@ -3,6 +3,7 @@ export * from './errors.js';
 export * from './constants.js';
 export * from './line.js';
 export * from './schedule.js';
+export * from './schedule-exception.js';
 export * from './reminder.js';
 export * from './contact.js';
 export * from './account.js';

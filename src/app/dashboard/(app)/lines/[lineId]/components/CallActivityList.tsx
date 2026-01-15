@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { CallSessionRow, InsightMood } from '~/lib/ultaura/types';
 import { getLanguageDisplayName } from '~/lib/ultaura/language';
+import { getCallTypeLabel } from '~/lib/ultaura/call-utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 interface CallActivityListProps {
@@ -123,6 +124,8 @@ function CallActivityItem({
       ? { color: 'bg-destructive', label: 'Mood: Low' }
       : null;
 
+  const callTypeLabel = getCallTypeLabel(session);
+
   return (
     <div className="flex items-center gap-4 py-3">
       <div
@@ -131,8 +134,8 @@ function CallActivityItem({
         <Icon className={`w-5 h-5 ${iconColor}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-foreground capitalize">
-          {session.direction === 'inbound' ? 'Inbound' : 'Outbound'} call
+        <p className="font-medium text-foreground">
+          {callTypeLabel}
         </p>
         <p className="text-sm text-muted-foreground truncate">
           {getStatusLabel()} &middot; {formatDate(session.created_at)}

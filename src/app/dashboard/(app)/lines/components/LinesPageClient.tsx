@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { DateTime } from 'luxon';
 import { Phone, Plus } from 'lucide-react';
 import type { LineRow, UserType } from '~/lib/ultaura/types';
 import { LineCard } from './LineCard';
 import { AddLineModal } from './AddLineModal';
+import useSupabase from '~/core/hooks/use-supabase';
 
 interface LinesPageClientProps {
   accountId: string;
@@ -26,7 +28,9 @@ export function LinesPageClient({
 }: LinesPageClientProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const supabase = useSupabase();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [activeLineStatuses, setActiveLineStatuses] = useState<Record<string, 'ringing' | 'in_progress'>>({});
 
   // Open modal if ?action=add is in the URL
   useEffect(() => {
@@ -38,6 +42,52 @@ export function LinesPageClient({
       router.replace('/dashboard/lines', { scroll: false });
     }
   }, [disabled, searchParams, router]);
+
+  const refreshActiveLines = useCallback(async () => {
+    const { data } = await supabase
+      .from('ultaura_call_sessions')
+      .select('line_id, status, connected_at')
+      .eq('account_id', accountId)
+      .in('status', ['ringing', 'in_progress']);
+
+    const next: Record<string, 'ringing' | 'in_progress'> = {};
+    (data || []).forEach((session) => {
+      if (session.status === 'in_progress') {
+        next[session.line_id] = 'in_progress';
+      } else if (session.status === 'ringing' && !next[session.line_id]) {
+        next[session.line_id] = 'ringing';
+      }
+    });
+    setActiveLineStatuses(next);
+  }, [accountId, supabase]);
+
+  useEffect(() => {
+    refreshActiveLines().catch(() => undefined);
+
+    const channel = supabase
+      .channel('call_sessions_line_badges')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ultaura_call_sessions',
+        filter: `account_id=eq.${accountId}`,
+      }, () => {
+        refreshActiveLines().catch(() => undefined);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [accountId, refreshActiveLines, supabase]);
+
+  const isLineOnVacation = useCallback((line: LineRow) => {
+    const ranges = (line.vacation_ranges as Array<{ start: string; end: string }>) || [];
+    if (ranges.length === 0) return false;
+    const today = DateTime.now().setZone(line.timezone).toISODate();
+    if (!today) return false;
+    return ranges.some((range) => today >= range.start && today <= range.end);
+  }, []);
 
   const canAddLine = !disabled && lines.length < planLinesLimit;
   const isSelfUser = userType === 'self';
@@ -79,7 +129,13 @@ export function LinesPageClient({
       {lines.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {lines.map((line) => (
-            <LineCard key={line.id} line={line} disabled={disabled} />
+            <LineCard
+              key={line.id}
+              line={line}
+              disabled={disabled}
+              callStatus={activeLineStatuses[line.id] ?? null}
+              isOnVacation={isLineOnVacation(line)}
+            />
           ))}
         </div>
       ) : (

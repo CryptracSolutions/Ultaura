@@ -1,5 +1,6 @@
 'use server';
 
+import { DateTime } from 'luxon';
 import { revalidatePath } from 'next/cache';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getLogger from '~/core/logger';
@@ -10,9 +11,10 @@ import {
   ErrorCodes,
   type ActionResult,
 } from '@ultaura/schemas';
-import { TELEPHONY } from './constants';
+import { DAYS_OF_WEEK, TELEPHONY, formatTime } from './constants';
 import { getNextOccurrence } from './timezone';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
+import { logScheduleEvent } from './schedule-events';
 import type { ScheduleRow, UltauraAccountRow } from './types';
 
 const logger = getLogger();
@@ -57,6 +59,140 @@ function getNextRunAt(timeOfDay: string, timezone: string, daysOfWeek: number[])
     timezone,
     daysOfWeek,
   });
+}
+
+async function updateLineNextScheduledCallAt(lineId: string): Promise<void> {
+  const client = getSupabaseServerComponentClient();
+  const { data: nextSchedule } = await client
+    .from('ultaura_schedules')
+    .select('next_run_at')
+    .eq('line_id', lineId)
+    .eq('enabled', true)
+    .not('next_run_at', 'is', null)
+    .order('next_run_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  await client
+    .from('ultaura_lines')
+    .update({ next_scheduled_call_at: nextSchedule?.next_run_at ?? null })
+    .eq('id', lineId);
+}
+
+function normalizeTimeOfDay(timeOfDay: string): string {
+  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
+  return match ? match[1] : timeOfDay;
+}
+
+function formatDays(days: number[]): string {
+  return days
+    .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.label)
+    .filter(Boolean)
+    .join(', ');
+}
+
+function buildEditMetadata(prev: ScheduleRow, updates: Record<string, unknown>): Record<string, unknown> | null {
+  const changes: Record<string, { old: unknown; new: unknown }> = {};
+
+  if (updates.time_of_day !== undefined) {
+    const oldTime = normalizeTimeOfDay(prev.time_of_day);
+    const newTime = normalizeTimeOfDay(updates.time_of_day as string);
+    if (oldTime !== newTime) {
+      changes.time_of_day = { old: oldTime, new: newTime };
+    }
+  }
+
+  if (updates.days_of_week !== undefined) {
+    const oldDays = prev.days_of_week ?? [];
+    const newDays = updates.days_of_week as number[];
+    if (JSON.stringify(oldDays) !== JSON.stringify(newDays)) {
+      changes.days_of_week = { old: oldDays, new: newDays };
+    }
+  }
+
+  if (updates.timezone !== undefined) {
+    const oldTz = prev.timezone;
+    const newTz = updates.timezone as string;
+    if (oldTz !== newTz) {
+      changes.timezone = { old: oldTz, new: newTz };
+    }
+  }
+
+  if (updates.retry_policy !== undefined) {
+    const oldPolicy = prev.retry_policy;
+    const newPolicy = updates.retry_policy as ScheduleRow['retry_policy'];
+    if (JSON.stringify(oldPolicy) !== JSON.stringify(newPolicy)) {
+      changes.retry_policy = { old: oldPolicy, new: newPolicy };
+    }
+  }
+
+  if (Object.keys(changes).length === 0) {
+    return null;
+  }
+
+  const summaryParts: string[] = [];
+  if (changes.time_of_day) {
+    const oldTime = formatTime(changes.time_of_day.old as string);
+    const newTime = formatTime(changes.time_of_day.new as string);
+    summaryParts.push(`time from ${oldTime} to ${newTime}`);
+  }
+  if (changes.days_of_week) {
+    const oldDays = formatDays(changes.days_of_week.old as number[]);
+    const newDays = formatDays(changes.days_of_week.new as number[]);
+    summaryParts.push(`days from ${oldDays || 'none'} to ${newDays || 'none'}`);
+  }
+  if (changes.timezone) {
+    summaryParts.push(`timezone from ${changes.timezone.old} to ${changes.timezone.new}`);
+  }
+  if (changes.retry_policy) {
+    summaryParts.push('retry policy updated');
+  }
+
+  return {
+    changes,
+    summary: summaryParts.length > 0 ? `Changed ${summaryParts.join('; ')}` : 'Schedule updated',
+  };
+}
+
+function extractOriginalTimeOfDay(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const value = (metadata as Record<string, unknown>).original_time_of_day;
+  return typeof value === 'string' ? value : null;
+}
+
+function formatRescheduledFrom(
+  exceptionDate: string,
+  timeOfDay: string | null,
+  timezone: string
+): string {
+  const dayLabel = DateTime.fromISO(exceptionDate, { zone: timezone }).toFormat('cccc');
+  if (timeOfDay) {
+    return `Rescheduled from ${dayLabel} ${formatTime(timeOfDay)}`;
+  }
+  return `Rescheduled from ${dayLabel}`;
+}
+
+async function getRescheduleSourceMap(
+  client: ReturnType<typeof getSupabaseServerComponentClient>,
+  scheduleIds: string[]
+): Promise<Map<string, { exceptionDate: string; originalTimeOfDay: string | null }>> {
+  const map = new Map<string, { exceptionDate: string; originalTimeOfDay: string | null }>();
+  if (scheduleIds.length === 0) return map;
+
+  const { data } = await client
+    .from('ultaura_schedule_exceptions')
+    .select('reschedule_schedule_id, exception_date, metadata')
+    .in('reschedule_schedule_id', scheduleIds);
+
+  (data || []).forEach((exception) => {
+    if (!exception.reschedule_schedule_id) return;
+    map.set(exception.reschedule_schedule_id, {
+      exceptionDate: exception.exception_date,
+      originalTimeOfDay: extractOriginalTimeOfDay(exception.metadata),
+    });
+  });
+
+  return map;
 }
 
 const createScheduleWithTrial = withTrialCheck(async (
@@ -109,10 +245,20 @@ const createScheduleWithTrial = withTrialCheck(async (
     };
   }
 
-  await client
-    .from('ultaura_lines')
-    .update({ next_scheduled_call_at: next.toISOString() })
-    .eq('id', parsed.data.lineId);
+  await updateLineNextScheduledCallAt(parsed.data.lineId);
+
+  await logScheduleEvent({
+    accountId: input.accountId,
+    scheduleId: schedule.id,
+    lineId: parsed.data.lineId,
+    eventType: 'created',
+    triggeredBy: 'dashboard',
+    metadata: {
+      time_of_day: parsed.data.timeOfDay,
+      days_of_week: parsed.data.daysOfWeek,
+      timezone: parsed.data.timezone,
+    },
+  });
 
   await client.from('ultaura_consents').insert({
     account_id: input.accountId,
@@ -150,6 +296,12 @@ const updateScheduleWithTrial = withTrialCheck(async (
 ): Promise<ActionResult<void>> => {
   const client = getSupabaseServerComponentClient();
 
+  const { data: current } = await client
+    .from('ultaura_schedules')
+    .select('*')
+    .eq('id', input.scheduleId)
+    .single();
+
   const { error } = await client
     .from('ultaura_schedules')
     .update(input.updates)
@@ -164,6 +316,35 @@ const updateScheduleWithTrial = withTrialCheck(async (
   }
 
   revalidatePath('/dashboard/schedules', 'page');
+
+  if (current) {
+    const editMetadata = buildEditMetadata(current, input.updates);
+    if (editMetadata) {
+      await logScheduleEvent({
+        accountId: current.account_id,
+        scheduleId: current.id,
+        lineId: current.line_id,
+        eventType: 'edited',
+        triggeredBy: 'dashboard',
+        metadata: editMetadata,
+      });
+    }
+
+    if (input.updates.enabled !== undefined && input.updates.enabled !== current.enabled) {
+      await logScheduleEvent({
+        accountId: current.account_id,
+        scheduleId: current.id,
+        lineId: current.line_id,
+        eventType: input.updates.enabled ? 'enabled' : 'disabled',
+        triggeredBy: 'dashboard',
+        metadata: { previous_state: current.enabled },
+      });
+    }
+
+    if (input.updates.next_run_at !== current.next_run_at) {
+      await updateLineNextScheduledCallAt(current.line_id);
+    }
+  }
 
   return { success: true, data: undefined };
 });
@@ -187,7 +368,7 @@ export async function updateSchedule(
 
   const { data: schedule, error: scheduleError } = await client
     .from('ultaura_schedules')
-    .select('account_id')
+    .select('*')
     .eq('id', scheduleId)
     .single();
 
@@ -215,15 +396,9 @@ export async function updateSchedule(
   if (parsed.data.retryPolicy !== undefined) updates.retry_policy = parsed.data.retryPolicy;
 
   if (parsed.data.daysOfWeek || parsed.data.timeOfDay || parsed.data.timezone) {
-    const { data: current } = await client
-      .from('ultaura_schedules')
-      .select('days_of_week, time_of_day, timezone')
-      .eq('id', scheduleId)
-      .single();
-
-    const daysOfWeek = parsed.data.daysOfWeek || current?.days_of_week || [];
-    const timeOfDay = parsed.data.timeOfDay || current?.time_of_day || '18:00';
-    const timezone = parsed.data.timezone || current?.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+    const daysOfWeek = parsed.data.daysOfWeek || schedule.days_of_week || [];
+    const timeOfDay = parsed.data.timeOfDay || schedule.time_of_day || '18:00';
+    const timezone = parsed.data.timezone || schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE;
 
     try {
       const next = getNextRunAt(timeOfDay, timezone, daysOfWeek);
@@ -298,6 +473,8 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
   nextRunAt: string;
   timeOfDay: string;
   daysOfWeek: number[];
+  isOneTime: boolean;
+  rescheduledFrom?: string | null;
 }[]> {
   const client = getSupabaseServerComponentClient();
 
@@ -309,10 +486,14 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
       next_run_at,
       time_of_day,
       days_of_week,
+      timezone,
+      is_one_time,
       enabled,
       ultaura_lines!inner (
         display_name,
-        short_id
+        short_id,
+        vacation_ranges,
+        timezone
       )
     `)
     .eq('account_id', accountId)
@@ -325,15 +506,73 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
     return [];
   }
 
-  return (schedules || []).map((schedule) => ({
-    scheduleId: schedule.id,
-    lineId: schedule.line_id,
-    lineShortId: (schedule.ultaura_lines as { short_id: string }).short_id,
-    displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
-    nextRunAt: schedule.next_run_at!,
-    timeOfDay: schedule.time_of_day,
-    daysOfWeek: schedule.days_of_week,
-  }));
+  const scheduleList = schedules || [];
+  if (scheduleList.length === 0) return [];
+
+  const scheduleIds = scheduleList.map((schedule) => schedule.id);
+  const oneTimeScheduleIds = scheduleList
+    .filter((schedule) => schedule.is_one_time || schedule.days_of_week.length === 0)
+    .map((schedule) => schedule.id);
+  const rescheduleSourceMap = await getRescheduleSourceMap(client, oneTimeScheduleIds);
+
+  const { data: exceptions } = await client
+    .from('ultaura_schedule_exceptions')
+    .select('schedule_id, exception_date, exception_type')
+    .in('schedule_id', scheduleIds)
+    .in('exception_type', ['skip', 'reschedule']);
+
+  const exceptionMap = new Map<string, Set<string>>();
+  (exceptions || []).forEach((exception) => {
+    const key = exception.schedule_id;
+    const set = exceptionMap.get(key) ?? new Set<string>();
+    set.add(exception.exception_date);
+    exceptionMap.set(key, set);
+  });
+
+  return scheduleList
+    .filter((schedule) => {
+      if (!schedule.next_run_at) return false;
+      const line = schedule.ultaura_lines as { vacation_ranges?: Array<{ start: string; end: string }>; timezone?: string };
+      const timezone = schedule.timezone || line?.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+      const localDate = DateTime.fromISO(schedule.next_run_at).setZone(timezone).toISODate();
+      if (!localDate) return false;
+
+      const ranges = line?.vacation_ranges || [];
+      const isOnVacation = ranges.some((range) => localDate >= range.start && localDate <= range.end);
+      if (isOnVacation) return false;
+
+      const exceptionsForSchedule = exceptionMap.get(schedule.id);
+      if (exceptionsForSchedule?.has(localDate)) {
+        return false;
+      }
+
+      return true;
+    })
+    .map((schedule) => {
+      const line = schedule.ultaura_lines as { short_id: string; display_name: string; timezone?: string };
+      const timezone = schedule.timezone || line?.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+      const isOneTime = schedule.is_one_time || schedule.days_of_week.length === 0;
+      const rescheduleSource = isOneTime ? rescheduleSourceMap.get(schedule.id) : null;
+      const rescheduledFrom = rescheduleSource
+        ? formatRescheduledFrom(
+          rescheduleSource.exceptionDate,
+          rescheduleSource.originalTimeOfDay,
+          timezone
+        )
+        : null;
+
+      return {
+        scheduleId: schedule.id,
+        lineId: schedule.line_id,
+        lineShortId: line.short_id,
+        displayName: line.display_name,
+        nextRunAt: schedule.next_run_at!,
+        timeOfDay: schedule.time_of_day,
+        daysOfWeek: schedule.days_of_week,
+        isOneTime,
+        rescheduledFrom,
+      };
+    });
 }
 
 export async function getAllSchedules(accountId: string): Promise<{
@@ -345,6 +584,8 @@ export async function getAllSchedules(accountId: string): Promise<{
   nextRunAt: string | null;
   timeOfDay: string;
   daysOfWeek: number[];
+  isOneTime: boolean;
+  rescheduledFrom?: string | null;
 }[]> {
   const client = getSupabaseServerComponentClient();
 
@@ -357,6 +598,8 @@ export async function getAllSchedules(accountId: string): Promise<{
       next_run_at,
       time_of_day,
       days_of_week,
+      timezone,
+      is_one_time,
       ultaura_lines!inner (
         display_name,
         short_id
@@ -370,14 +613,36 @@ export async function getAllSchedules(accountId: string): Promise<{
     return [];
   }
 
-  return (schedules || []).map((schedule) => ({
-    scheduleId: schedule.id,
-    lineId: schedule.line_id,
-    lineShortId: (schedule.ultaura_lines as { short_id: string }).short_id,
-    displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
-    enabled: schedule.enabled,
-    nextRunAt: schedule.next_run_at,
-    timeOfDay: schedule.time_of_day,
-    daysOfWeek: schedule.days_of_week,
-  }));
+  const scheduleList = schedules || [];
+  if (scheduleList.length === 0) return [];
+
+  const oneTimeScheduleIds = scheduleList
+    .filter((schedule) => schedule.is_one_time || schedule.days_of_week.length === 0)
+    .map((schedule) => schedule.id);
+  const rescheduleSourceMap = await getRescheduleSourceMap(client, oneTimeScheduleIds);
+
+  return scheduleList.map((schedule) => {
+    const isOneTime = schedule.is_one_time || schedule.days_of_week.length === 0;
+    const rescheduleSource = isOneTime ? rescheduleSourceMap.get(schedule.id) : null;
+    const rescheduledFrom = rescheduleSource
+      ? formatRescheduledFrom(
+        rescheduleSource.exceptionDate,
+        rescheduleSource.originalTimeOfDay,
+        schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE
+      )
+      : null;
+
+    return {
+      scheduleId: schedule.id,
+      lineId: schedule.line_id,
+      lineShortId: (schedule.ultaura_lines as { short_id: string }).short_id,
+      displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
+      enabled: schedule.enabled,
+      nextRunAt: schedule.next_run_at,
+      timeOfDay: schedule.time_of_day,
+      daysOfWeek: schedule.days_of_week,
+      isOneTime,
+      rescheduledFrom,
+    };
+  });
 }

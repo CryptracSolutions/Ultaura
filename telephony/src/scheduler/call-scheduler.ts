@@ -4,7 +4,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DateTime } from 'luxon';
-import { getSupabaseClient, ScheduleRow, ReminderRow } from '../utils/supabase.js';
+import { getSupabaseClient, ScheduleRow, ReminderRow, LineRow } from '../utils/supabase.js';
 import { logger } from '../utils/logger.js';
 import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
@@ -59,6 +59,13 @@ function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
     logger.error({ error, reminderId: reminder.id, timezone }, 'Failed to calculate next reminder occurrence');
     return null;
   }
+}
+
+function isDateWithinVacation(dateIso: string, line: LineRow): boolean {
+  const localDate = DateTime.fromISO(dateIso).setZone(line.timezone).toISODate();
+  if (!localDate) return false;
+  const ranges = line.vacation_ranges || [];
+  return ranges.some((range) => localDate >= range.start && localDate <= range.end);
 }
 
 /**
@@ -341,6 +348,20 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
 
   const { line, account } = lineWithAccount;
 
+  // Check if line is on vacation for this occurrence
+  if (schedule.next_run_at && isDateWithinVacation(schedule.next_run_at, line)) {
+    logger.info({ scheduleId: schedule.id, lineId: schedule.line_id }, 'Line on vacation, suppressing call');
+    const nextRun = calculateNextRun(schedule);
+    await completeScheduleWithResult(schedule, 'suppressed_vacation', nextRun, true);
+    if (nextRun) {
+      await supabase
+        .from('ultaura_lines')
+        .update({ next_scheduled_call_at: nextRun })
+        .eq('id', schedule.line_id);
+    }
+    return;
+  }
+
   // Check if line is opted out
   if (line.do_not_call) {
     logger.info({ scheduleId: schedule.id }, 'Line opted out, skipping');
@@ -361,6 +382,67 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
     logger.info({ scheduleId: schedule.id, reason: accessCheck.reason }, 'Access denied, skipping');
     await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule), false);
     return;
+  }
+
+  const localDate = schedule.next_run_at
+    ? DateTime.fromISO(schedule.next_run_at).setZone(schedule.timezone).toISODate()
+    : null;
+
+  if (localDate) {
+    const { data: exception } = await supabase
+      .from('ultaura_schedule_exceptions')
+      .select('*')
+      .eq('schedule_id', schedule.id)
+      .eq('exception_date', localDate)
+      .eq('exception_type', 'snooze')
+      .maybeSingle();
+
+    if (exception?.new_datetime) {
+      const snoozeTime = DateTime.fromISO(exception.new_datetime);
+      if (DateTime.utc() < snoozeTime) {
+        const { error: updateError } = await supabase
+          .from('ultaura_schedules')
+          .update({
+            next_run_at: exception.new_datetime,
+            retry_count: 0,
+            processing_claimed_by: null,
+            processing_claimed_at: null,
+          })
+          .eq('id', schedule.id)
+          .eq('processing_claimed_by', WORKER_ID);
+
+        if (updateError) {
+          logger.error({ error: updateError, scheduleId: schedule.id }, 'Failed to apply snooze exception');
+        } else {
+          await supabase
+            .from('ultaura_lines')
+            .update({ next_scheduled_call_at: exception.new_datetime })
+            .eq('id', schedule.line_id);
+        }
+        return;
+      }
+    }
+
+    const { data: blockException } = await supabase
+      .from('ultaura_schedule_exceptions')
+      .select('exception_type')
+      .eq('schedule_id', schedule.id)
+      .eq('exception_date', localDate)
+      .in('exception_type', ['skip', 'reschedule'])
+      .maybeSingle();
+
+    if (blockException) {
+      logger.info({ scheduleId: schedule.id, exceptionType: blockException.exception_type }, 'Schedule exception blocked call');
+      const nextRun = calculateNextRun(schedule);
+      await completeScheduleWithResult(schedule, 'skipped', nextRun, true);
+      if (nextRun) {
+        await supabase
+          .from('ultaura_lines')
+          .update({ next_scheduled_call_at: nextRun })
+          .eq('id', schedule.line_id);
+      }
+      return;
+    }
   }
 
   // Initiate the call
@@ -442,7 +524,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
  */
 async function completeScheduleWithResult(
   schedule: ScheduleRow,
-  result: 'success' | 'missed' | 'suppressed_quiet_hours' | 'failed',
+  result: 'success' | 'missed' | 'suppressed_quiet_hours' | 'skipped' | 'suppressed_vacation' | 'failed',
   nextRunAt: string | null,
   resetRetryCount: boolean
 ): Promise<void> {
@@ -558,6 +640,87 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
   if (line.do_not_call) {
     logger.info({ reminderId: reminder.id }, 'Line opted out, marking reminder missed');
     await handleReminderFailure(supabase, reminder, 'missed');
+    return;
+  }
+
+  if (isDateWithinVacation(reminder.due_at, line)) {
+    logger.info({ reminderId: reminder.id, lineId: reminder.line_id }, 'Line on vacation, skipping reminder');
+
+    if (reminder.is_recurring) {
+      const nextDueAt = calculateNextReminderOccurrence(reminder);
+
+      if (nextDueAt && (!reminder.ends_at || new Date(nextDueAt) <= new Date(reminder.ends_at))) {
+        await supabase
+          .from('ultaura_reminders')
+          .update({
+            due_at: nextDueAt,
+            status: 'scheduled',
+            occurrence_count: (reminder.occurrence_count || 0) + 1,
+            current_snooze_count: 0,
+            snoozed_until: null,
+            original_due_at: null,
+          })
+          .eq('id', reminder.id);
+
+        await supabase.from('ultaura_reminder_events').insert({
+          account_id: reminder.account_id,
+          reminder_id: reminder.id,
+          line_id: reminder.line_id,
+          event_type: 'skipped',
+          triggered_by: 'system',
+          metadata: { reason: 'vacation', nextDueAt },
+        });
+
+        await releaseReminderClaim(reminder.id);
+        return;
+      }
+
+      await supabase
+        .from('ultaura_reminders')
+        .update({
+          status: 'missed',
+          occurrence_count: (reminder.occurrence_count || 0) + 1,
+          last_delivery_status: 'no_answer',
+          current_snooze_count: 0,
+          snoozed_until: null,
+          original_due_at: null,
+        })
+        .eq('id', reminder.id);
+
+      await supabase.from('ultaura_reminder_events').insert({
+        account_id: reminder.account_id,
+        reminder_id: reminder.id,
+        line_id: reminder.line_id,
+        event_type: 'skipped',
+        triggered_by: 'system',
+        metadata: { reason: 'vacation' },
+      });
+
+      await releaseReminderClaim(reminder.id);
+      return;
+    }
+
+    await supabase
+      .from('ultaura_reminders')
+      .update({
+        status: 'missed',
+        last_delivery_status: 'no_answer',
+        current_snooze_count: 0,
+        snoozed_until: null,
+        original_due_at: null,
+      })
+      .eq('id', reminder.id);
+
+    await supabase.from('ultaura_reminder_events').insert({
+      account_id: reminder.account_id,
+      reminder_id: reminder.id,
+      line_id: reminder.line_id,
+      event_type: 'skipped',
+      triggered_by: 'system',
+      metadata: { reason: 'vacation' },
+    });
+
+    await releaseReminderClaim(reminder.id);
     return;
   }
 

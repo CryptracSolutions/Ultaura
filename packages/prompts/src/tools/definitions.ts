@@ -462,6 +462,60 @@ For recurring reminders, parse natural language like:
   },
   {
     type: 'function',
+    name: 'skip_schedule',
+    description: 'Skip the next scheduled call (or a specific schedule if provided).',
+    parameters: {
+      type: 'object',
+      properties: {
+        schedule_id: {
+          type: 'string',
+          description: 'Optional schedule ID to skip. If omitted, skip the next upcoming schedule.',
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    name: 'snooze_schedule',
+    description: 'Snooze the next scheduled call by a number of minutes.',
+    parameters: {
+      type: 'object',
+      properties: {
+        schedule_id: {
+          type: 'string',
+          description: 'Optional schedule ID to snooze. If omitted, snooze the next upcoming schedule.',
+        },
+        snooze_minutes: {
+          type: 'integer',
+          minimum: 5,
+          maximum: 1440,
+          description: 'Number of minutes to snooze (5-1440).',
+        },
+      },
+      required: ['snooze_minutes'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'reschedule_schedule',
+    description: 'Move a scheduled call to a new date/time (one-time change).',
+    parameters: {
+      type: 'object',
+      properties: {
+        schedule_id: {
+          type: 'string',
+          description: 'Optional schedule ID to move. If omitted, move the next upcoming schedule.',
+        },
+        new_datetime_local: {
+          type: 'string',
+          description: 'New datetime in ISO 8601, in the user’s local time (e.g., 2025-12-27T14:00:00).',
+        },
+      },
+      required: ['new_datetime_local'],
+    },
+  },
+  {
+    type: 'function',
     name: 'choose_overage_action',
     description: 'Record the user decision when asked about overage charges or trial expiration',
     parameters: {

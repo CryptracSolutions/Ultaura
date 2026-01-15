@@ -34,6 +34,9 @@ import { adjustAccessibilityRouter } from './adjust-accessibility.js';
 import { storeMilestoneRouter } from './store-milestone.js';
 import { markMilestoneCelebratedRouter } from './mark-milestone-celebrated.js';
 import { logHealthMentionRouter } from './log-health-mention.js';
+import { skipScheduleRouter } from './skip-schedule.js';
+import { snoozeScheduleRouter } from './snooze-schedule.js';
+import { rescheduleScheduleRouter } from './reschedule-schedule.js';
 // Reminder management tools
 import { listRemindersRouter } from './list-reminders.js';
 import { editReminderRouter } from './edit-reminder.js';
@@ -49,6 +52,9 @@ toolsRouter.use(requireInternalSecret);
 
 toolsRouter.use('/set_reminder', setReminderRouter);
 toolsRouter.use('/schedule_call', scheduleCallRouter);
+toolsRouter.use('/skip_schedule', skipScheduleRouter);
+toolsRouter.use('/snooze_schedule', snoozeScheduleRouter);
+toolsRouter.use('/reschedule_schedule', rescheduleScheduleRouter);
 toolsRouter.use('/opt_out', optOutRouter);
 toolsRouter.use('/forget_memory', forgetMemoryRouter);
 toolsRouter.use('/mark_private', markPrivateRouter);

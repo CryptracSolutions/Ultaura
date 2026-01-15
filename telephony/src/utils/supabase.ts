@@ -86,6 +86,9 @@ export interface LineRow {
   filler_word_patience: 'high' | 'normal' | 'low' | null;
   silence_tolerance_ms: number | null;
   crosstalk_recovery_mode: 'immediate' | 'patient' | 'very_patient' | null;
+  allow_voice_reminder_control: boolean;
+  allow_voice_schedule_control: boolean;
+  vacation_ranges: Array<{ start: string; end: string }>;
 }
 
 export interface CallSessionRow {
@@ -129,8 +132,9 @@ export interface ScheduleRow {
   next_run_at: string | null;
   retry_policy: { max_retries: number; retry_window_minutes: number };
   last_run_at: string | null;
-  last_result: 'success' | 'missed' | 'suppressed_quiet_hours' | 'failed' | null;
+  last_result: 'success' | 'missed' | 'suppressed_quiet_hours' | 'skipped' | 'suppressed_vacation' | 'failed' | null;
   retry_count: number;
+  is_one_time: boolean;
 }
 
 export interface MemoryRow {
