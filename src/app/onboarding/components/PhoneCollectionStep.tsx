@@ -86,20 +86,18 @@ const PhoneCollectionStep: React.FCC<{
       </div>
 
       <div className={'flex flex-1 flex-col space-y-2'}>
-        <TextField>
-          <TextField.Label>
-            <Trans i18nKey={'onboarding:phoneCollectionLabel'} />
-            <TextField.Input
-              data-cy={'self-phone-input'}
-              required
-              name={'phone'}
-              type={'tel'}
-              value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
-              placeholder={t('phoneCollectionPlaceholder')}
-            />
-          </TextField.Label>
-        </TextField>
+        <label className="text-sm font-medium text-foreground">
+          <Trans i18nKey={'onboarding:phoneCollectionLabel'} />
+        </label>
+        <TextField.Input
+          data-cy={'self-phone-input'}
+          required
+          name={'phone'}
+          type={'tel'}
+          value={phoneNumber}
+          onChange={(event) => setPhoneNumber(event.target.value)}
+          placeholder={t('phoneCollectionPlaceholder')}
+        />
         <p className="text-xs text-muted-foreground">
           <Trans i18nKey={'onboarding:phoneCollectionHelper'} />
         </p>

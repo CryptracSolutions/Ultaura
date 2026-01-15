@@ -101,19 +101,17 @@ const BirthdayStep: React.FCC<{
         </div>
 
         <div className="space-y-2">
-          <TextField>
-            <TextField.Label>
-              <Trans i18nKey={'onboarding:birthdayDayLabel'} />
-              <TextField.Input
-                type={'number'}
-                min={1}
-                max={31}
-                value={day}
-                onChange={(event) => setDay(event.target.value)}
-                placeholder={t('birthdayDayPlaceholder')}
-              />
-            </TextField.Label>
-          </TextField>
+          <label className="text-sm font-medium text-foreground">
+            <Trans i18nKey={'onboarding:birthdayDayLabel'} />
+          </label>
+          <TextField.Input
+            type={'number'}
+            min={1}
+            max={31}
+            value={day}
+            onChange={(event) => setDay(event.target.value)}
+            placeholder={t('birthdayDayPlaceholder')}
+          />
         </div>
       </div>
 

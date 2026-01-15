@@ -52,18 +52,15 @@ const OrganizationInfoStep: React.FCC<{
       </div>
 
       <div className={'flex flex-1 flex-col space-y-2'}>
-        <TextField>
-          <TextField.Label>
-            <Trans i18nKey={'onboarding:organizationNameLabel'} />
-
-            <TextField.Input
-              data-cy={'organization-name-input'}
-              required
-              name={'organization'}
-              placeholder={t('organizationNamePlaceholder')}
-            />
-          </TextField.Label>
-        </TextField>
+        <label className="text-sm font-medium text-foreground">
+          <Trans i18nKey={'onboarding:organizationNameLabel'} />
+        </label>
+        <TextField.Input
+          data-cy={'organization-name-input'}
+          required
+          name={'organization'}
+          placeholder={t('organizationNamePlaceholder')}
+        />
       </div>
 
       <div className={'flex flex-col space-y-3'}>

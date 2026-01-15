@@ -86,32 +86,32 @@ const LovedOneSetupStep: React.FCC<{
       </div>
 
       <div className="flex flex-1 flex-col space-y-6">
-        <TextField>
-          <TextField.Label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
             <Trans i18nKey={'onboarding:lovedOneNameLabel'} />
-            <TextField.Input
-              required
-              name={'lovedOneName'}
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder={t('lovedOneNamePlaceholder')}
-            />
-          </TextField.Label>
-        </TextField>
+          </label>
+          <TextField.Input
+            required
+            name={'lovedOneName'}
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            placeholder={t('lovedOneNamePlaceholder')}
+          />
+        </div>
 
-        <TextField>
-          <TextField.Label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
             <Trans i18nKey={'onboarding:lovedOnePhoneLabel'} />
-            <TextField.Input
-              required
-              name={'lovedOnePhone'}
-              type={'tel'}
-              value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
-              placeholder={t('phoneCollectionPlaceholder')}
-            />
-          </TextField.Label>
-        </TextField>
+          </label>
+          <TextField.Input
+            required
+            name={'lovedOnePhone'}
+            type={'tel'}
+            value={phoneNumber}
+            onChange={(event) => setPhoneNumber(event.target.value)}
+            placeholder={t('phoneCollectionPlaceholder')}
+          />
+        </div>
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">
