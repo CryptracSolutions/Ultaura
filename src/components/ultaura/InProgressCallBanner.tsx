@@ -14,7 +14,7 @@ interface ActiveCall extends Pick<
   lineName: string | null;
 }
 
-const ACTIVE_STATUSES: Array<CallSessionRow['status']> = ['in_progress'];
+const ACTIVE_STATUSES: Array<CallSessionRow['status']> = ['ringing', 'in_progress'];
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -129,9 +129,11 @@ export function InProgressCallBanner({ accountId }: { accountId: string }) {
 
   if (!activeCall) return null;
 
-  const statusLabel = activeCall.connected_at
-    ? `Connected ${formatDuration(durationSeconds)}`
-    : 'In progress';
+  const statusLabel = activeCall.status === 'ringing'
+    ? 'Calling...'
+    : activeCall.connected_at
+      ? `Connected ${formatDuration(durationSeconds)}`
+      : 'Connecting...';
 
   const lineLabel = activeCall.lineName ?? 'Line';
 

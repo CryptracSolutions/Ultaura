@@ -3165,34 +3165,34 @@ export type Database = {
           account_id: string
           call_session_id: string | null
           created_at: string
-          event_type: string
+          event_type: Database["public"]["Enums"]["ultaura_schedule_event_type"]
           id: string
           line_id: string
           metadata: Json | null
           schedule_id: string
-          triggered_by: string
+          triggered_by: Database["public"]["Enums"]["ultaura_schedule_triggered_by"]
         }
         Insert: {
           account_id: string
           call_session_id?: string | null
           created_at?: string
-          event_type: string
+          event_type: Database["public"]["Enums"]["ultaura_schedule_event_type"]
           id?: string
           line_id: string
           metadata?: Json | null
           schedule_id: string
-          triggered_by: string
+          triggered_by: Database["public"]["Enums"]["ultaura_schedule_triggered_by"]
         }
         Update: {
           account_id?: string
           call_session_id?: string | null
           created_at?: string
-          event_type?: string
+          event_type?: Database["public"]["Enums"]["ultaura_schedule_event_type"]
           id?: string
           line_id?: string
           metadata?: Json | null
           schedule_id?: string
-          triggered_by?: string
+          triggered_by?: Database["public"]["Enums"]["ultaura_schedule_triggered_by"]
         }
         Relationships: [
           {
@@ -3232,8 +3232,7 @@ export type Database = {
           created_at: string
           created_by: string
           exception_date: string
-          exception_type:
-            | Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          exception_type: Database["public"]["Enums"]["ultaura_schedule_exception_type"]
           id: string
           line_id: string
           metadata: Json | null
@@ -3247,8 +3246,7 @@ export type Database = {
           created_at?: string
           created_by: string
           exception_date: string
-          exception_type:
-            | Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          exception_type: Database["public"]["Enums"]["ultaura_schedule_exception_type"]
           id?: string
           line_id: string
           metadata?: Json | null
@@ -3262,8 +3260,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           exception_date?: string
-          exception_type?:
-            | Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          exception_type?: Database["public"]["Enums"]["ultaura_schedule_exception_type"]
           id?: string
           line_id?: string
           metadata?: Json | null
@@ -4032,6 +4029,7 @@ export type Database = {
           days_of_week: number[]
           enabled: boolean
           id: string
+          is_one_time: boolean
           last_result:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -4134,6 +4132,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_line_on_vacation: { Args: { p_line_id: string }; Returns: boolean }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }
         Returns: boolean
@@ -4351,14 +4350,24 @@ export type Database = {
         | "COGNITIVE_DECLINE"
         | "GENERAL_CONCERN"
       ultaura_safety_tier: "low" | "medium" | "high"
+      ultaura_schedule_event_type:
+        | "created"
+        | "edited"
+        | "enabled"
+        | "disabled"
+        | "exception_added"
+        | "exception_removed"
+        | "vacation_started"
+        | "vacation_ended"
+      ultaura_schedule_exception_type: "skip" | "snooze" | "reschedule"
       ultaura_schedule_result:
         | "success"
         | "missed"
         | "suppressed_quiet_hours"
+        | "failed"
         | "skipped"
         | "suppressed_vacation"
-        | "failed"
-      ultaura_schedule_exception_type: "skip" | "snooze" | "reschedule"
+      ultaura_schedule_triggered_by: "dashboard" | "voice" | "system"
       ultaura_voice_consent_status: "pending" | "granted" | "denied"
     }
     CompositeTypes: {
@@ -5197,15 +5206,26 @@ export const Constants = {
         "GENERAL_CONCERN",
       ],
       ultaura_safety_tier: ["low", "medium", "high"],
+      ultaura_schedule_event_type: [
+        "created",
+        "edited",
+        "enabled",
+        "disabled",
+        "exception_added",
+        "exception_removed",
+        "vacation_started",
+        "vacation_ended",
+      ],
+      ultaura_schedule_exception_type: ["skip", "snooze", "reschedule"],
       ultaura_schedule_result: [
         "success",
         "missed",
         "suppressed_quiet_hours",
+        "failed",
         "skipped",
         "suppressed_vacation",
-        "failed",
       ],
-      ultaura_schedule_exception_type: ["skip", "snooze", "reschedule"],
+      ultaura_schedule_triggered_by: ["dashboard", "voice", "system"],
       ultaura_voice_consent_status: ["pending", "granted", "denied"],
     },
   },
@@ -5215,3 +5235,4 @@ export const Constants = {
     },
   },
 } as const
+

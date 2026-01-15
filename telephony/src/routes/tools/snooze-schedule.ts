@@ -10,31 +10,15 @@ import {
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
+import {
+  getScheduleForTool,
+  normalizeTimeOfDay,
+  updateLineNextScheduledCallAt,
+} from '../../utils/schedule-helpers.js';
 
 export const snoozeScheduleRouter = Router();
 
-function normalizeTimeOfDay(timeOfDay: string): string {
-  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
-  return match ? match[1] : timeOfDay;
-}
-
-async function updateLineNextScheduledCallAt(lineId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { data: nextSchedule } = await supabase
-    .from('ultaura_schedules')
-    .select('next_run_at')
-    .eq('line_id', lineId)
-    .eq('enabled', true)
-    .not('next_run_at', 'is', null)
-    .order('next_run_at', { ascending: true })
-    .limit(1)
-    .single();
-
-  await supabase
-    .from('ultaura_lines')
-    .update({ next_scheduled_call_at: nextSchedule?.next_run_at ?? null })
-    .eq('id', lineId);
-}
+ 
 
 snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
   try {
@@ -105,22 +89,11 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    let scheduleQuery = supabase
-      .from('ultaura_schedules')
-      .select('*')
-      .eq('line_id', lineId)
-      .eq('enabled', true);
-
-    if (scheduleId) {
-      scheduleQuery = scheduleQuery.eq('id', scheduleId);
-    } else {
-      scheduleQuery = scheduleQuery
-        .not('next_run_at', 'is', null)
-        .order('next_run_at', { ascending: true })
-        .limit(1);
-    }
-
-    const { data: schedule, error: scheduleError } = await scheduleQuery.maybeSingle();
+    const { schedule, error: scheduleError } = await getScheduleForTool({
+      lineId,
+      scheduleId,
+      supabase,
+    });
 
     if (scheduleError || !schedule || !schedule.next_run_at) {
       await recordFailure(scheduleError?.code);

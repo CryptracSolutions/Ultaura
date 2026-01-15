@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getLogger from '~/core/logger';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
+import type { Json } from '~/database.types';
 import { getLine } from './lines';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logScheduleEvent } from './schedule-events';
@@ -15,6 +16,19 @@ const logger = getLogger();
 export interface VacationRange {
   start: string;
   end: string;
+}
+
+export function parseVacationRanges(value: unknown): VacationRange[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((range) => {
+      if (!range || typeof range !== 'object') return null;
+      const start = (range as { start?: unknown }).start;
+      const end = (range as { end?: unknown }).end;
+      if (typeof start !== 'string' || typeof end !== 'string') return null;
+      return { start, end };
+    })
+    .filter((range): range is VacationRange => Boolean(range));
 }
 
 function isRangeOverlap(a: VacationRange, b: VacationRange): boolean {
@@ -28,7 +42,7 @@ function getTodayInTimezone(timezone: string): string | null {
 export async function getVacationRanges(lineId: string): Promise<VacationRange[]> {
   const line = await getLine(lineId);
   if (!line) return [];
-  return (line.vacation_ranges as VacationRange[]) || [];
+  return parseVacationRanges(line.vacation_ranges);
 }
 
 export async function isLineOnVacation(lineId: string): Promise<boolean> {
@@ -38,7 +52,7 @@ export async function isLineOnVacation(lineId: string): Promise<boolean> {
   const today = getTodayInTimezone(line.timezone);
   if (!today) return false;
 
-  const ranges = (line.vacation_ranges as VacationRange[]) || [];
+  const ranges = parseVacationRanges(line.vacation_ranges);
   return ranges.some((range) => today >= range.start && today <= range.end);
 }
 
@@ -71,7 +85,7 @@ const addVacationRangeWithTrial = withTrialCheck(async (
     };
   }
 
-  const existing = (line.vacation_ranges as VacationRange[]) || [];
+  const existing = parseVacationRanges(line.vacation_ranges);
   const overlaps = existing.some((range) => isRangeOverlap(range, input.range));
   if (overlaps) {
     return {
@@ -84,7 +98,7 @@ const addVacationRangeWithTrial = withTrialCheck(async (
 
   const { error: updateError } = await client
     .from('ultaura_lines')
-    .update({ vacation_ranges: updated })
+    .update({ vacation_ranges: updated as unknown as Json })
     .eq('id', line.id);
 
   if (updateError) {
@@ -158,7 +172,7 @@ const removeVacationRangeWithTrial = withTrialCheck(async (
     };
   }
 
-  const ranges = (line.vacation_ranges as VacationRange[]) || [];
+  const ranges = parseVacationRanges(line.vacation_ranges);
   const target = ranges.find((range) => range.start === input.start);
   if (!target) {
     return {
@@ -168,6 +182,7 @@ const removeVacationRangeWithTrial = withTrialCheck(async (
   }
 
   const today = getTodayInTimezone(line.timezone);
+  // Allow removing active or upcoming ranges to end vacation early; only block fully past ranges.
   if (today && target.end < today) {
     return {
       success: false,
@@ -179,7 +194,7 @@ const removeVacationRangeWithTrial = withTrialCheck(async (
 
   const { error: updateError } = await client
     .from('ultaura_lines')
-    .update({ vacation_ranges: updated })
+    .update({ vacation_ranges: updated as unknown as Json })
     .eq('id', line.id);
 
   if (updateError) {

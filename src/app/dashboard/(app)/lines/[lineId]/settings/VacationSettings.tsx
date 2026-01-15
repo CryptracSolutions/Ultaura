@@ -6,12 +6,8 @@ import { DateTime } from 'luxon';
 import { Palmtree, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { LineRow } from '~/lib/ultaura/types';
+import type { VacationRange } from '~/lib/ultaura/vacation';
 import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
-
-interface VacationRange {
-  start: string;
-  end: string;
-}
 
 export function VacationSettings({
   line,
@@ -22,7 +18,9 @@ export function VacationSettings({
 }) {
   const router = useRouter();
   const [ranges, setRanges] = useState<VacationRange[]>(
-    (line.vacation_ranges as VacationRange[]) || []
+    Array.isArray(line.vacation_ranges)
+      ? (line.vacation_ranges as unknown as VacationRange[])
+      : []
   );
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');

@@ -18,6 +18,7 @@ import { localToUtc, getNextReminderOccurrence } from './timezone';
 import { getLine } from './lines';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logReminderEvent } from './reminder-events';
+import { parseVacationRanges } from './vacation';
 import type { ReminderRow, UltauraAccountRow } from './types';
 
 const logger = getLogger();
@@ -946,11 +947,11 @@ export async function getUpcomingReminders(accountId: string): Promise<{
 
   return (reminders || [])
     .filter((reminder) => {
-      const line = reminder.ultaura_lines as { vacation_ranges?: Array<{ start: string; end: string }>; timezone?: string };
+      const line = reminder.ultaura_lines as { vacation_ranges?: unknown; timezone?: string };
       const timezone = line?.timezone || reminder.timezone;
       const localDate = DateTime.fromISO(reminder.due_at).setZone(timezone).toISODate();
       if (!localDate) return false;
-      const ranges = line?.vacation_ranges || [];
+      const ranges = parseVacationRanges(line?.vacation_ranges);
       const isOnVacation = ranges.some((range) => localDate >= range.start && localDate <= range.end);
       return !isOnVacation;
     })

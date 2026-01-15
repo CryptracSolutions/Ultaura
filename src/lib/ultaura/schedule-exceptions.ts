@@ -10,7 +10,9 @@ import {
   ErrorCodes,
   type ActionResult,
 } from '@ultaura/schemas';
+import type { Json } from '~/database.types';
 import { getNextOccurrence, localToUtc } from './timezone';
+import { normalizeTimeOfDay } from './schedule-helpers';
 import { getLine } from './lines';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logScheduleEvent } from './schedule-events';
@@ -18,11 +20,6 @@ import type { ScheduleExceptionRow, ScheduleRow, UltauraAccountRow } from './typ
 
 const logger = getLogger();
 const OFFSET_REGEX = /[zZ]|[+-]\d{2}:\d{2}$/;
-
-function normalizeTimeOfDay(timeOfDay: string): string {
-  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
-  return match ? match[1] : timeOfDay;
-}
 
 function parseInputDateTime(value: string, timezone: string): Date {
   if (OFFSET_REGEX.test(value)) {
@@ -118,6 +115,25 @@ export async function getScheduleExceptions(scheduleId: string): Promise<Schedul
   }
 
   return data || [];
+}
+
+export async function getScheduleException(
+  exceptionId: string
+): Promise<ScheduleExceptionRow | null> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_schedule_exceptions')
+    .select('*')
+    .eq('id', exceptionId)
+    .single();
+
+  if (error) {
+    logger.error({ error }, 'Failed to get schedule exception');
+    return null;
+  }
+
+  return data || null;
 }
 
 export async function getUpcomingExceptions(lineId: string): Promise<ScheduleExceptionRow[]> {
@@ -376,7 +392,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
       new_datetime: exceptionNewDatetime,
       reschedule_schedule_id: rescheduleScheduleId,
       created_by: 'dashboard',
-      metadata,
+      metadata: metadata as Json,
     })
     .select('id')
     .single();
@@ -443,7 +459,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
     });
   }
 
-  const targetShortId = lineShortId || line.short_id;
+  const targetShortId = input.lineShortId || line.short_id;
   revalidatePath(`/dashboard/lines/${targetShortId}/schedule`, 'page');
   revalidatePath(`/dashboard/lines/${targetShortId}`, 'page');
   revalidatePath('/dashboard', 'page');

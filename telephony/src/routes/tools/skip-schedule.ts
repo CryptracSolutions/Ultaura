@@ -10,57 +10,16 @@ import {
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
-import { getNextOccurrence } from '../../utils/timezone.js';
+import {
+  calculateNextRun,
+  getScheduleForTool,
+  normalizeTimeOfDay,
+  updateLineNextScheduledCallAt,
+} from '../../utils/schedule-helpers.js';
 
 export const skipScheduleRouter = Router();
 
-function normalizeTimeOfDay(timeOfDay: string): string {
-  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
-  return match ? match[1] : timeOfDay;
-}
-
-function calculateNextRun(schedule: {
-  days_of_week: number[];
-  time_of_day: string;
-  timezone: string;
-  next_run_at: string | null;
-}): string | null {
-  const { days_of_week, time_of_day, timezone, next_run_at } = schedule;
-  if (!days_of_week || days_of_week.length === 0) {
-    return null;
-  }
-
-  try {
-    const next = getNextOccurrence({
-      timeOfDay: time_of_day,
-      timezone,
-      daysOfWeek: days_of_week,
-      afterDate: next_run_at ? new Date(next_run_at) : undefined,
-    });
-    return next.toISOString();
-  } catch (error) {
-    logger.error({ error }, 'Failed to calculate next occurrence');
-    return null;
-  }
-}
-
-async function updateLineNextScheduledCallAt(lineId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  const { data: nextSchedule } = await supabase
-    .from('ultaura_schedules')
-    .select('next_run_at')
-    .eq('line_id', lineId)
-    .eq('enabled', true)
-    .not('next_run_at', 'is', null)
-    .order('next_run_at', { ascending: true })
-    .limit(1)
-    .single();
-
-  await supabase
-    .from('ultaura_lines')
-    .update({ next_scheduled_call_at: nextSchedule?.next_run_at ?? null })
-    .eq('id', lineId);
-}
+ 
 
 skipScheduleRouter.post('/', async (req: Request, res: Response) => {
   try {
@@ -121,22 +80,11 @@ skipScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    let scheduleQuery = supabase
-      .from('ultaura_schedules')
-      .select('*')
-      .eq('line_id', lineId)
-      .eq('enabled', true);
-
-    if (scheduleId) {
-      scheduleQuery = scheduleQuery.eq('id', scheduleId);
-    } else {
-      scheduleQuery = scheduleQuery
-        .not('next_run_at', 'is', null)
-        .order('next_run_at', { ascending: true })
-        .limit(1);
-    }
-
-    const { data: schedule, error: scheduleError } = await scheduleQuery.maybeSingle();
+    const { schedule, error: scheduleError } = await getScheduleForTool({
+      lineId,
+      scheduleId,
+      supabase,
+    });
 
     if (scheduleError || !schedule || !schedule.next_run_at) {
       await recordFailure(scheduleError?.code);

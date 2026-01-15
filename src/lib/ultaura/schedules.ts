@@ -12,9 +12,11 @@ import {
   type ActionResult,
 } from '@ultaura/schemas';
 import { DAYS_OF_WEEK, TELEPHONY, formatTime } from './constants';
+import { extractOriginalTimeOfDay, normalizeTimeOfDay } from './schedule-helpers';
 import { getNextOccurrence } from './timezone';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logScheduleEvent } from './schedule-events';
+import { parseVacationRanges } from './vacation';
 import type { ScheduleRow, UltauraAccountRow } from './types';
 
 const logger = getLogger();
@@ -77,11 +79,6 @@ async function updateLineNextScheduledCallAt(lineId: string): Promise<void> {
     .from('ultaura_lines')
     .update({ next_scheduled_call_at: nextSchedule?.next_run_at ?? null })
     .eq('id', lineId);
-}
-
-function normalizeTimeOfDay(timeOfDay: string): string {
-  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
-  return match ? match[1] : timeOfDay;
 }
 
 function formatDays(days: number[]): string {
@@ -152,12 +149,6 @@ function buildEditMetadata(prev: ScheduleRow, updates: Record<string, unknown>):
     changes,
     summary: summaryParts.length > 0 ? `Changed ${summaryParts.join('; ')}` : 'Schedule updated',
   };
-}
-
-function extractOriginalTimeOfDay(metadata: unknown): string | null {
-  if (!metadata || typeof metadata !== 'object') return null;
-  const value = (metadata as Record<string, unknown>).original_time_of_day;
-  return typeof value === 'string' ? value : null;
 }
 
 function formatRescheduledFrom(
@@ -532,12 +523,15 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
   return scheduleList
     .filter((schedule) => {
       if (!schedule.next_run_at) return false;
-      const line = schedule.ultaura_lines as { vacation_ranges?: Array<{ start: string; end: string }>; timezone?: string };
+      const line = schedule.ultaura_lines as {
+        vacation_ranges?: unknown;
+        timezone?: string;
+      };
       const timezone = schedule.timezone || line?.timezone || TELEPHONY.DEFAULT_TIMEZONE;
       const localDate = DateTime.fromISO(schedule.next_run_at).setZone(timezone).toISODate();
       if (!localDate) return false;
 
-      const ranges = line?.vacation_ranges || [];
+      const ranges = parseVacationRanges(line?.vacation_ranges);
       const isOnVacation = ranges.some((range) => localDate >= range.start && localDate <= range.end);
       if (isOnVacation) return false;
 

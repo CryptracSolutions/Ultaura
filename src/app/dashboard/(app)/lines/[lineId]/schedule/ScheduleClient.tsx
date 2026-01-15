@@ -13,6 +13,7 @@ import type { LineRow, ScheduleRow, ScheduleExceptionRow } from '~/lib/ultaura/t
 import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { createScheduleException, deleteScheduleException } from '~/lib/ultaura/schedule-exceptions';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
+import { extractOriginalTimeOfDay, normalizeTimeOfDay } from '~/lib/ultaura/schedule-helpers';
 
 interface ScheduleClientProps {
   line: LineRow;
@@ -21,17 +22,6 @@ interface ScheduleClientProps {
   disabled?: boolean;
 }
 
-function normalizeTimeOfDay(timeOfDay: string): string {
-  // Our UI time picker uses HH:MM values, but DB values may come back as HH:MM:SS
-  const match = timeOfDay.match(/^(\d{2}:\d{2})/);
-  return match ? match[1] : timeOfDay;
-}
-
-function extractOriginalTimeOfDay(metadata: unknown): string | null {
-  if (!metadata || typeof metadata !== 'object') return null;
-  const value = (metadata as Record<string, unknown>).original_time_of_day;
-  return typeof value === 'string' ? value : null;
-}
 
 export function ScheduleClient({ line, schedules, exceptions, disabled = false }: ScheduleClientProps) {
   const router = useRouter();
@@ -100,7 +90,8 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
     if (candidate <= now) {
       candidate = candidate.plus({ days: 1 });
     }
-    return candidate;
+    const isTomorrow = candidate.startOf('day') > now.startOf('day');
+    return { datetime: candidate, isTomorrow };
   }, [exceptionType, line.timezone, snoozeTime]);
 
   const rescheduleSourceMap = useMemo(() => {
@@ -1265,7 +1256,8 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                 </p>
                 {snoozePreview && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Call will be scheduled for {snoozePreview.toLocaleString(DateTime.DATETIME_MED)}.
+                    Call will be scheduled for {snoozePreview.datetime.toLocaleString(DateTime.DATETIME_MED)}
+                    {snoozePreview.isTomorrow ? ' (tomorrow)' : ''}.
                   </p>
                 )}
               </div>

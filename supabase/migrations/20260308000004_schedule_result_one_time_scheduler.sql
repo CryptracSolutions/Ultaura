@@ -79,6 +79,7 @@ BEGIN
       AND s.next_run_at IS NOT NULL
       AND s.next_run_at <= v_now
       AND s.processing_claimed_by IS NULL
+      AND NOT is_line_on_vacation(s.line_id)
       AND NOT EXISTS (
         SELECT 1 FROM ultaura_schedule_exceptions se
         WHERE se.schedule_id = s.id
