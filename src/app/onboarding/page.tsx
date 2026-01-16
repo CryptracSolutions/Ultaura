@@ -5,6 +5,7 @@ import OnboardingContainer from './components/OnboardingContainer';
 import requireSession from '~/lib/user/require-session';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import { getUserDataById } from '~/lib/server/queries';
+import { getOrganizationsByUserId } from '~/lib/organizations/database/queries';
 import { withI18n } from '~/i18n/with-i18n';
 import configuration from '~/configuration';
 import I18nProvider from '~/i18n/I18nProvider';
@@ -44,11 +45,26 @@ async function loadData() {
     return payload;
   }
 
+  const hasOrganization = await userHasOrganization(client, user.id);
+
   // if the user has already been onboarded
+  // and they are a member of an organization
   // we redirect the user to the app home page
-  if (userData.onboarded) {
+  if (userData.onboarded && hasOrganization) {
     redirect(configuration.paths.appHome);
   }
 
   return payload;
+}
+
+async function userHasOrganization(
+  client: ReturnType<typeof getSupabaseServerComponentClient>,
+  userId: string,
+) {
+  try {
+    const { data } = await getOrganizationsByUserId(client, userId);
+    return Boolean(data?.length);
+  } catch {
+    return false;
+  }
 }

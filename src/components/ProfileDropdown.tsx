@@ -33,7 +33,8 @@ const ProfileDropdown: React.FCC<{
   signOutRequested: () => unknown;
   displayName?: boolean;
   className?: string;
-}> = ({ userSession, signOutRequested, displayName, className }) => {
+  accountName?: string;
+}> = ({ userSession, signOutRequested, displayName, className, accountName }) => {
   const { data: user } = useUser();
 
   const signedInAsLabel = useMemo(() => {
@@ -43,7 +44,7 @@ const ProfileDropdown: React.FCC<{
     return email ?? phone;
   }, [userSession]);
 
-  const userDisplayName = userSession?.data?.displayName;
+  const displayLabel = accountName || userSession?.data?.displayName;
 
   const isSuperAdmin = useMemo(() => {
     return user?.app_metadata.role === GlobalRole.SuperAdmin;
@@ -68,7 +69,7 @@ const ProfileDropdown: React.FCC<{
 
         <If condition={displayName}>
           <div className={'flex flex-col text-center w-full truncate'}>
-            <span className={'text-sm truncate'}>{userDisplayName}</span>
+            <span className={'text-sm truncate'}>{displayLabel}</span>
 
             <span
               className={'text-xs text-gray-500 dark:text-gray-400 truncate'}

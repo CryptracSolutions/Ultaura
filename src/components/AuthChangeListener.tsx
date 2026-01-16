@@ -2,6 +2,7 @@
 
 import { useCallback, useContext, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 import isBrowser from '~/core/generic/is-browser';
 import useSupabase from '~/core/hooks/use-supabase';
@@ -18,21 +19,52 @@ const AuthRedirectListener: React.FCC<{
   useEffect(() => {
     // keep this running for the whole session
     // unless the component was unmounted, for example, on log-outs
-    const listener = client.auth.onAuthStateChange((_, user) => {
-      // log user out if user is falsy
-      // and if the consumer provided a route to redirect the user
-      const shouldLogOut = !user && whenSignedOut;
+    const listener = client.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        const sessionUser = session?.user;
 
-      if (shouldLogOut) {
-        return redirectUserAway(whenSignedOut);
-      }
+        // log user out if user is falsy
+        // and if the consumer provided a route to redirect the user
+        const shouldLogOut = !sessionUser && whenSignedOut;
 
-      // server and client are out of sync.
-      // We need to recall active loaders after actions complete
-      if (!user) {
-        setUserSession(undefined);
-      }
-    });
+        if (shouldLogOut) {
+          redirectUserAway(whenSignedOut);
+        }
+
+        if (!sessionUser) {
+          setUserSession(undefined);
+          return;
+        }
+
+        setUserSession((prev) => {
+          const prevUserId = prev?.auth?.user?.id;
+          const nextAuth = {
+            user: {
+              id: sessionUser.id,
+              email: sessionUser.email,
+              phone: sessionUser.phone,
+            },
+          };
+
+          if (prevUserId === sessionUser.id) {
+            return {
+              ...prev,
+              auth: nextAuth,
+            };
+          }
+
+          return {
+            auth: nextAuth,
+            data: prev?.data?.id === sessionUser.id ? prev?.data : undefined,
+            role: prev?.data?.id === sessionUser.id ? prev?.role : undefined,
+          };
+        });
+
+        if (event === 'SIGNED_IN') {
+          router.refresh();
+        }
+      },
+    );
 
     // destroy listener on un-mounts
     return () => listener.data.subscription.unsubscribe();

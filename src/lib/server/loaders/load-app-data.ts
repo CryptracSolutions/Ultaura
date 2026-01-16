@@ -77,10 +77,10 @@ const loadAppData = cache(async (organizationUid: string) => {
           name: 'loadAppData',
           userId,
         },
-        `User is not a member of any organization. Redirecting to home...`,
+        `User is not a member of any organization. Redirecting to home page...`,
       );
 
-      return redirect(configuration.paths.appHome);
+      return redirectToHomePage();
     }
 
     const csrfToken = getCsrfToken();
@@ -181,10 +181,10 @@ export const loadAppDataForUser = cache(async () => {
           name: 'loadAppDataForUser',
           userId,
         },
-        `User is not a member of any organization. Redirecting to home...`,
+        `User is not a member of any organization. Redirecting to onboarding...`,
       );
 
-      return redirect(configuration.paths.appHome);
+      return redirectToOnboarding();
     }
 
     // Use the first (and should be only) organization
@@ -196,10 +196,10 @@ export const loadAppDataForUser = cache(async () => {
           name: 'loadAppDataForUser',
           userId,
         },
-        `Organization not found. Redirecting to home...`,
+        `Organization not found. Redirecting to onboarding...`,
       );
 
-      return redirect(configuration.paths.appHome);
+      return redirectToOnboarding();
     }
 
     const csrfToken = getCsrfToken();

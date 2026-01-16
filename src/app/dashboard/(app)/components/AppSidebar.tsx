@@ -109,6 +109,7 @@ function CollapsibleButton({
 function ProfileDropdownContainer(props: { collapsed: boolean }) {
   const userSession = useUserSession();
   const signOut = useSignOut();
+  const organization = useCurrentOrganization();
 
   return (
     <div className={props.collapsed ? '' : 'w-full'}>
@@ -119,6 +120,7 @@ function ProfileDropdownContainer(props: { collapsed: boolean }) {
         className={'w-full'}
         userSession={userSession}
         signOutRequested={signOut}
+        accountName={organization?.name}
       />
 
       <AppSidebarFooterMenu />
