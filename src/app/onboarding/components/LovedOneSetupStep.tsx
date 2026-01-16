@@ -132,6 +132,10 @@ const LovedOneSetupStep: React.FCC<{
         </div>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+        <p className="text-xs text-muted-foreground">
+          <Trans i18nKey={'onboarding:lovedOneHelper'} />
+        </p>
       </div>
 
       <div className={'flex flex-col space-y-3'}>

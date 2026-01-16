@@ -8,7 +8,6 @@ import SubHeading from '~/core/ui/SubHeading';
 import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
-import TextField from '~/core/ui/TextField';
 
 export interface BirthdayStepData {
   birthday: { month: number; day: number } | null;
@@ -40,6 +39,11 @@ const BirthdayStep: React.FCC<{
 
   const monthOptions = useMemo(
     () => MONTHS.map((label, index) => ({ value: String(index + 1), label })),
+    []
+  );
+
+  const dayOptions = useMemo(
+    () => Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
     []
   );
 
@@ -104,14 +108,18 @@ const BirthdayStep: React.FCC<{
           <label className="text-sm font-medium text-foreground">
             <Trans i18nKey={'onboarding:birthdayDayLabel'} />
           </label>
-          <TextField.Input
-            type={'number'}
-            min={1}
-            max={31}
-            value={day}
-            onChange={(event) => setDay(event.target.value)}
-            placeholder={t('birthdayDayPlaceholder')}
-          />
+          <Select value={day} onValueChange={setDay}>
+            <SelectTrigger>
+              <SelectValue placeholder={t('birthdayDayPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              {dayOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import Alert from '~/core/ui/Alert';
 import Trans from '~/core/ui/Trans';
 import Spinner from '~/core/ui/Spinner';
 import Heading from '~/core/ui/Heading';
+import { CheckCircle } from 'lucide-react';
 
 import useApiRequest from '~/core/hooks/use-api';
 import configuration from '~/configuration';
@@ -105,9 +106,11 @@ function SuccessState(props: { returnUrl: string }) {
     >
       <div
         className={
-          'flex flex-col space-y-8 items-center justify-center text-center'
+          'flex flex-col space-y-6 items-center justify-center text-center'
         }
       >
+        <CheckCircle className="h-12 w-12 text-primary" />
+
         <Heading type={3}>
           <span className={'font-semibold'}>
             <Trans i18nKey={'onboarding:successStepHeading'} />
