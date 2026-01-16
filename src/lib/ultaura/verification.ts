@@ -93,12 +93,17 @@ const startVerificationWithTrial = withTrialCheck(async (
       };
     }
 
-    await client.from('ultaura_phone_verifications').insert({
+    const { error: insertError } = await client.from('ultaura_phone_verifications').insert({
       line_id: input.lineId,
       channel: input.channel,
       status: 'pending',
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
+
+    if (insertError) {
+      // Log but don't fail - the verification was already sent via Twilio
+      logger.warn({ error: insertError, lineId: input.lineId }, 'Failed to insert phone_verifications record');
+    }
 
     return { success: true, data: undefined };
   } catch (error) {
@@ -196,7 +201,7 @@ const checkVerificationWithTrial = withTrialCheck(async (
     const result = await response.json();
 
     if (result.verified) {
-      await client
+      const { error: lineUpdateError } = await client
         .from('ultaura_lines')
         .update({
           phone_verified_at: new Date().toISOString(),
@@ -204,11 +209,24 @@ const checkVerificationWithTrial = withTrialCheck(async (
         })
         .eq('id', input.lineId);
 
-      await client
+      if (lineUpdateError) {
+        logger.error({ error: lineUpdateError, lineId: input.lineId }, 'Failed to update line verification status');
+        return {
+          success: false,
+          error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to save verification status'),
+        };
+      }
+
+      const { error: verificationUpdateError } = await client
         .from('ultaura_phone_verifications')
         .update({ status: 'approved' })
         .eq('line_id', input.lineId)
         .eq('status', 'pending');
+
+      if (verificationUpdateError) {
+        // Log but don't fail - the line is already verified
+        logger.warn({ error: verificationUpdateError, lineId: input.lineId }, 'Failed to update phone_verifications record');
+      }
 
       revalidatePath('/dashboard/lines', 'page');
 
