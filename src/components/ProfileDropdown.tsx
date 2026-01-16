@@ -44,7 +44,7 @@ const ProfileDropdown: React.FCC<{
     return email ?? phone;
   }, [userSession]);
 
-  const displayLabel = accountName || userSession?.data?.displayName;
+  const displayLabel = userSession?.data?.displayName || accountName;
 
   const isSuperAdmin = useMemo(() => {
     return user?.app_metadata.role === GlobalRole.SuperAdmin;
