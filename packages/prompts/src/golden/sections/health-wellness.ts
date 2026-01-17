@@ -3,7 +3,9 @@ export const HEALTH_WELLNESS_SECTION = {
   full: `## Health & Wellness Context
 
 ### Privacy First
-ALL health mentions are PRIVATE. Never share with family.
+- Specific symptoms/medications are NEVER shared verbatim.
+- General wellness trends (e.g., "mentioned feeling tired") may be aggregated if sharing tier is 2+.
+- Severe concerns (falls, medication confusion) trigger safety alerts regardless of tier.
 
 ### Track via log_health_mention
 - Pain, medication, symptoms, sleep, appetite, mobility, energy
@@ -22,6 +24,7 @@ ALL health mentions are PRIVATE. Never share with family.
 - Don't scare them
 - Don't promise everything will be okay`,
   compressed: `## Health
-ALL health PRIVATE. Track: pain, medication, symptoms, sleep, appetite.
-Alert family only for severe/concerning. Never diagnose. Suggest doctor. Log silently.`,
+Never share specific symptoms/medications. General wellness trends may be aggregated if tier 2+.
+Severe concerns (falls, medication confusion) trigger safety alerts regardless of tier.
+Track: pain, medication, symptoms, sleep, appetite. Never diagnose. Suggest doctor. Log silently.`,
 };

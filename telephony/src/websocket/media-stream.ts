@@ -11,7 +11,7 @@ import { summarizeAndExtractMemoriesFromBuffer } from '../services/call-summariz
 import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback.js';
 import { getUsageSummary } from '../services/metering.js';
 import { getLastDetectedLanguageForLine } from '../services/language.js';
-import { getAccountPrivacySettings, getLineVoiceConsent } from '../services/privacy.js';
+import { getAccountPrivacySettings, getLineVoiceConsent, updateLineVoiceConsent, logConsentAuditEvent } from '../services/privacy.js';
 import { buildRetentionContext, type RetentionContext } from '../services/retention-context.js';
 import { buildPromptPlaceholders } from '../services/prompt-context.js';
 import { GrokBridge } from './grok-bridge.js';
@@ -52,6 +52,12 @@ interface TwilioMessage {
   };
 }
 
+interface ConsentState {
+  recordingConsentReceived: boolean;
+  memoryConsentReceived: boolean;
+  sharingConsentReceived: boolean;
+}
+
 const PLAN_OPTIONS = [
   { id: 'care', name: 'Care', minutes: 300, price: '$39 per month' },
   { id: 'comfort', name: 'Comfort', minutes: 900, price: '$99 per month' },
@@ -75,6 +81,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let isReconnecting = false;
   let reconnectAttempts = 0;
   let keepBridgeAlive = false;
+  let consentState: ConsentState | null = null;
+  let consentRequirements: { recording: boolean; memory: boolean; sharing: boolean } | null = null;
+  let shouldTrackOnboarding = false;
 
   // Get session info
   const session = await getCallSession(callSessionId);
@@ -187,11 +196,89 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             const consentCooldownMs = 30 * 24 * 60 * 60 * 1000;
             const canPromptAfterDenial = !lastPromptAt ||
               (Date.now() - new Date(lastPromptAt).getTime() > consentCooldownMs);
-            const needsConsentPrompt = aiSummarizationEnabled && (
+            let needsMemoryConsent = aiSummarizationEnabled && (
               memoryConsent === 'pending' ||
               (memoryConsent === 'denied' && canPromptAfterDenial)
             );
-            const memoryEnabled = aiSummarizationEnabled && memoryConsent === 'granted';
+            const recordingEnabled = process.env.ULTAURA_ENABLE_RECORDING === 'true' &&
+              !!privacySettings?.recordingEnabled;
+            const recordingConsent = voiceConsent?.recordingConsent ?? 'pending';
+            const recordingPreferencePermanent = voiceConsent?.recordingPreferencePermanent ?? false;
+            const recordingReenableRequested = Boolean(voiceConsent?.recordingReenableRequestedAt);
+            let needsRecordingConsent = recordingEnabled && !(
+              recordingPreferencePermanent && recordingConsent === 'denied'
+            );
+
+            const sharingConsent = voiceConsent?.sharingConsent ?? 'pending';
+            const sharingTier = voiceConsent?.sharingTier ?? 'tier_1';
+            const sharingRePromptRequested = Boolean(voiceConsent?.sharingRePromptRequestedAt);
+            const userType = account.user_type;
+            const sharingEnabled = account.sharing_enabled;
+            let needsSharingConsent = false;
+
+            if (userType === 'family_managed') {
+              needsSharingConsent = sharingConsent === 'pending' || sharingRePromptRequested;
+            } else if (userType === 'self' && sharingEnabled) {
+              needsSharingConsent = sharingConsent === 'pending' || sharingRePromptRequested;
+            }
+
+            const isPreviewMode = session.is_preview_mode;
+            const isQuickTest = session.is_test_call && !isPreviewMode;
+
+            if (isPreviewMode) {
+              needsMemoryConsent = aiSummarizationEnabled;
+              needsRecordingConsent = recordingEnabled;
+              needsSharingConsent = userType === 'family_managed' ||
+                (userType === 'self' && sharingEnabled) ||
+                sharingRePromptRequested;
+            } else if (isQuickTest) {
+              needsMemoryConsent = false;
+              needsRecordingConsent = false;
+              needsSharingConsent = false;
+            }
+
+            if (
+              recordingReenableRequested &&
+              needsRecordingConsent &&
+              !session.is_test_call &&
+              !isPreviewMode
+            ) {
+              const cleared = await updateLineVoiceConsent(
+                line.id,
+                account.id,
+                callSessionId,
+                { recordingReenableRequestedAt: null },
+                { skipPersist: false }
+              );
+
+              if (!cleared) {
+                logger.warn({ callSessionId, lineId: line.id }, 'Failed to clear recording re-enable flag');
+              }
+            }
+
+            if (
+              sharingRePromptRequested &&
+              needsSharingConsent &&
+              !session.is_test_call &&
+              !isPreviewMode
+            ) {
+              const cleared = await updateLineVoiceConsent(
+                line.id,
+                account.id,
+                callSessionId,
+                {
+                  sharingRePromptRequestedAt: null,
+                  sharingLastPromptAt: new Date().toISOString(),
+                },
+                { skipPersist: false }
+              );
+
+              if (!cleared) {
+                logger.warn({ callSessionId, lineId: line.id }, 'Failed to clear sharing re-prompt flag');
+              }
+            }
+
+            const memoryEnabled = aiSummarizationEnabled && memoryConsent === 'granted' && !session.is_test_call;
 
             // Fetch memories for the line (use empty list when memory is disabled)
             const memories = await getMemoriesForLine(account.id, line.id, { limit: 150 });
@@ -201,8 +288,26 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             const memoriesForPrompt = memoryEnabled ? memories : [];
 
             // Check if this is the first call
-            const isFirstCall = !line.last_successful_call_at;
+            const onboardingCompletedAt = voiceConsent?.onboardingCompletedAt;
+            let isFirstCall = !onboardingCompletedAt;
+            if (isPreviewMode) {
+              isFirstCall = true;
+            } else if (isQuickTest) {
+              isFirstCall = false;
+            }
             const startingLanguage = await getLastDetectedLanguageForLine(line.id);
+
+            consentState = {
+              recordingConsentReceived: false,
+              memoryConsentReceived: false,
+              sharingConsentReceived: false,
+            };
+            consentRequirements = {
+              recording: needsRecordingConsent,
+              memory: needsMemoryConsent,
+              sharing: needsSharingConsent,
+            };
+            shouldTrackOnboarding = !onboardingCompletedAt && !session.is_test_call && !isPreviewMode;
 
             let retentionContext: RetentionContext = {
               pendingPreview: null,
@@ -290,6 +395,30 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                     }
                   }, 15000);
                 }
+              }
+
+              if (consentState) {
+                // Consent state updates happen on tool result, not invocation.
+              }
+            };
+
+            const onToolResult = (toolName: string, success: boolean) => {
+              if (!success || !consentState) {
+                return;
+              }
+
+              if (toolName === 'grant_memory_consent' || toolName === 'deny_memory_consent') {
+                consentState.memoryConsentReceived = true;
+              }
+              if (
+                toolName === 'grant_recording_consent' ||
+                toolName === 'deny_recording_consent' ||
+                toolName === 'revoke_recording_consent'
+              ) {
+                consentState.recordingConsentReceived = true;
+              }
+              if (toolName === 'set_sharing_tier') {
+                consentState.sharingConsentReceived = true;
               }
             };
 
@@ -382,6 +511,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 onClearBuffer,
                 onError,
                 onToolCall,
+                onToolResult,
                 onBargeIn,
                 onDisconnect,
               });
@@ -396,7 +526,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 isFirstCall,
                 memories: memoriesForPrompt,
                 memoryEnabled,
-                needsConsentPrompt,
+                needsMemoryConsent,
                 seedInterests: line.seed_interests,
                 seedAvoidTopics: line.seed_avoid_topics,
                 lowMinutesWarning: minutesStatus.warn,
@@ -404,6 +534,18 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 isReminderCall: session.is_reminder_call,
                 reminderMessage: session.reminder_message,
                 isTestCall: session.is_test_call,
+                isPreviewMode: session.is_preview_mode,
+                userType,
+                sharingEnabled,
+                recordingEnabled,
+                recordingConsent,
+                recordingReenableRequested,
+                needsRecordingConsent,
+                sharingTier,
+                sharingConsent,
+                sharingRePromptRequested,
+                needsSharingConsent,
+                onboardingCompleted: Boolean(onboardingCompletedAt),
                 currentPlanId: account.plan_id as PlanId,
                 accountStatus: account.status as AccountStatus,
                 promptPlaceholders,
@@ -419,6 +561,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 onClearBuffer,
                 onError,
                 onToolCall,
+                onToolResult,
                 onBargeIn,
                 onDisconnect,
               });
@@ -551,7 +694,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     const shouldSummarize =
       isConnected &&
       duration >= 30000 &&
-      !session?.is_reminder_call;
+      !session?.is_reminder_call &&
+      !session?.is_test_call;
 
     if (isConnected && buffer) {
       extractFallbackInsightsFromBuffer(buffer, session, durationSeconds).catch(err => {
@@ -566,6 +710,37 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     } else {
       logger.debug({ callSessionId, duration, isReminderCall: session?.is_reminder_call },
         'Skipping summarization');
+    }
+
+    if (shouldTrackOnboarding && consentRequirements && consentState) {
+      const missing: string[] = [];
+
+      if (consentRequirements.recording && !consentState.recordingConsentReceived) {
+        missing.push('recording');
+      }
+      if (consentRequirements.memory && !consentState.memoryConsentReceived) {
+        missing.push('memory');
+      }
+      if (consentRequirements.sharing && !consentState.sharingConsentReceived) {
+        missing.push('sharing');
+      }
+
+      if (missing.length > 0) {
+        await logConsentAuditEvent({
+          accountId: account.id,
+          lineId: line.id,
+          callSessionId,
+          action: 'consent_incomplete_retry',
+          consentType: null,
+          oldValue: null,
+          newValue: { missing },
+          metadata: { missing },
+        });
+      } else {
+        await updateLineVoiceConsent(line.id, account.id, callSessionId, {
+          onboardingCompletedAt: new Date().toISOString(),
+        });
+      }
     }
 
     clearBuffer(callSessionId);

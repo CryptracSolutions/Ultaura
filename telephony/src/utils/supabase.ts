@@ -118,6 +118,7 @@ export interface CallSessionRow {
   reminder_message: string | null;
   scheduler_idempotency_key: string | null;
   is_test_call: boolean;
+  is_preview_mode: boolean;
 }
 
 export interface ScheduleRow {

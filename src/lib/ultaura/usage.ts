@@ -162,7 +162,7 @@ export async function getLineActivity(accountId: string): Promise<LineActivity[]
 
 const initiateTestCallWithTrial = withTrialCheck(async (
   _account: UltauraAccountRow,
-  input: { lineId: string }
+  input: { lineId: string; isPreviewMode?: boolean }
 ): Promise<ActionResult<void>> => {
   const line = await getSupabaseServerComponentClient()
     .from('ultaura_lines')
@@ -189,6 +189,7 @@ const initiateTestCallWithTrial = withTrialCheck(async (
       body: JSON.stringify({
         lineId: input.lineId,
         reason: 'test',
+        isPreviewMode: input.isPreviewMode ?? false,
       }),
     });
 
@@ -210,7 +211,10 @@ const initiateTestCallWithTrial = withTrialCheck(async (
   }
 });
 
-export async function initiateTestCall(lineId: string): Promise<ActionResult<void>> {
+export async function initiateTestCall(
+  lineId: string,
+  options?: { isPreviewMode?: boolean }
+): Promise<ActionResult<void>> {
   const line = await getSupabaseServerComponentClient()
     .from('ultaura_lines')
     .select('account_id')
@@ -232,5 +236,5 @@ export async function initiateTestCall(lineId: string): Promise<ActionResult<voi
     };
   }
 
-  return initiateTestCallWithTrial(account, { lineId });
+  return initiateTestCallWithTrial(account, { lineId, isPreviewMode: options?.isPreviewMode });
 }

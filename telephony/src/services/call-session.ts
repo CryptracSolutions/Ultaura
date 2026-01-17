@@ -168,6 +168,8 @@ export async function createCallSession(options: {
   reminderMessage?: string;
   // Test call flag
   isTestCall?: boolean;
+  // Preview flow flag for test calls
+  isPreviewMode?: boolean;
   // Scheduler idempotency key for preventing duplicate scheduled calls
   schedulerIdempotencyKey?: string;
 }): Promise<CallSessionRow | null> {
@@ -190,6 +192,7 @@ export async function createCallSession(options: {
       reminder_id: options.reminderId || null,
       reminder_message: options.reminderMessage || null,
       is_test_call: options.isTestCall || false,
+      is_preview_mode: options.isPreviewMode || false,
       scheduler_idempotency_key: options.schedulerIdempotencyKey || null,
     })
     .select()

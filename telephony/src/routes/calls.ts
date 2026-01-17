@@ -15,7 +15,14 @@ callsRouter.use(requireInternalSecret);
 // Initiate an outbound call
 callsRouter.post('/outbound', async (req: Request, res: Response) => {
   try {
-    const { lineId, reason, reminderId, reminderMessage, schedulerIdempotencyKey } = req.body;
+    const {
+      lineId,
+      reason,
+      reminderId,
+      reminderMessage,
+      schedulerIdempotencyKey,
+      isPreviewMode,
+    } = req.body;
 
     if (!lineId) {
       res.status(400).json({ error: 'Missing lineId' });
@@ -24,8 +31,16 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
 
     const isReminderCall = reason === 'reminder' && !!reminderMessage;
     const isTestCall = reason === 'test';
+    const previewMode = Boolean(isPreviewMode) && isTestCall;
 
-    logger.info({ lineId, reason, isReminderCall, schedulerIdempotencyKey }, 'Outbound call request');
+    logger.info({
+      lineId,
+      reason,
+      isReminderCall,
+      isTestCall,
+      isPreviewMode: previewMode,
+      schedulerIdempotencyKey,
+    }, 'Outbound call request');
 
     // Get line info
     const lineWithAccount = await getLineById(lineId);
@@ -70,6 +85,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       reminderId: isReminderCall ? reminderId : undefined,
       reminderMessage: isReminderCall ? reminderMessage : undefined,
       schedulerIdempotencyKey,
+      isPreviewMode: previewMode,
     });
 
     if (!session) {
@@ -126,7 +142,7 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
   req.body.reason = 'test';
 
   // Call the outbound handler logic directly
-  const { lineId } = req.body;
+  const { lineId, isPreviewMode } = req.body;
 
   if (!lineId) {
     res.status(400).json({ error: 'Missing lineId' });
@@ -160,6 +176,7 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
     twilioFrom: process.env.TWILIO_PHONE_NUMBER,
     twilioTo: line.phone_e164,
     isTestCall: true,
+    isPreviewMode: Boolean(isPreviewMode),
   });
 
   if (!session) {

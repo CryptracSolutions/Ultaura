@@ -77,27 +77,18 @@ export function generateStreamTwiML(
   options?: {
     includeDisclosure?: boolean;
     disclosureLanguage?: string;
-    recordCall?: boolean;
-    recordingStatusCallback?: string;
   }
 ): string {
   const streamUrl = `${websocketUrl}?callSessionId=${callSessionId}`;
   const includeDisclosure = options?.includeDisclosure ?? false;
-  const recordCall = options?.recordCall ?? false;
-  const recordingStatusCallback = options?.recordingStatusCallback;
 
   const disclosure = includeDisclosure
     ? buildRecordingDisclosure(options?.disclosureLanguage)
     : '';
 
-  const recordAttribute = recordCall ? ' record="record-from-answer"' : '';
-  const recordingCallback = recordCall && recordingStatusCallback
-    ? ` recordingStatusCallback="${recordingStatusCallback}" recordingStatusCallbackEvent="completed"`
-    : '';
-
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-${disclosure}  <Connect${recordAttribute}${recordingCallback}>
+${disclosure}  <Connect>
     <Stream url="${streamUrl}">
       <Parameter name="callSessionId" value="${callSessionId}" />
     </Stream>
@@ -152,6 +143,45 @@ export function generateHangupTwiML(): string {
 <Response>
   <Hangup />
 </Response>`;
+}
+
+export async function startRecordingForCall(options: {
+  callSid: string;
+  recordingStatusCallback?: string;
+}): Promise<string | null> {
+  const client = getTwilioClient();
+  try {
+    const recording = await client.calls(options.callSid).recordings.create({
+      recordingStatusCallback: options.recordingStatusCallback,
+      recordingStatusCallbackEvent: options.recordingStatusCallback ? ['completed'] : undefined,
+    });
+    return recording.sid || null;
+  } catch (error) {
+    logger.error({ error, callSid: options.callSid }, 'Failed to start call recording');
+    return null;
+  }
+}
+
+export async function stopRecordingForCall(recordingSid: string): Promise<boolean> {
+  const client = getTwilioClient();
+  try {
+    await client.recordings(recordingSid).update({ status: 'stopped' });
+    return true;
+  } catch (error) {
+    logger.error({ error, recordingSid }, 'Failed to stop call recording');
+    return false;
+  }
+}
+
+export async function pauseRecordingForCall(recordingSid: string): Promise<boolean> {
+  const client = getTwilioClient();
+  try {
+    await client.recordings(recordingSid).update({ status: 'paused' });
+    return true;
+  } catch (error) {
+    logger.error({ error, recordingSid }, 'Failed to pause call recording');
+    return false;
+  }
 }
 
 // Generate TwiML for hold message

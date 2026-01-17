@@ -1,11 +1,17 @@
 export type RetentionPeriod = '30_days' | '90_days' | '365_days' | 'indefinite';
 export type VoiceConsentStatus = 'pending' | 'granted' | 'denied';
+export type SharingTier = 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4';
 export type ConsentAuditAction =
   | 'granted'
   | 'revoked'
   | 'updated'
   | 'voice_consent_given'
   | 'voice_consent_denied'
+  | 'recording_consent_updated'
+  | 'sharing_consent_updated'
+  | 'sharing_enabled_by_self_user'
+  | 'onboarding_completed'
+  | 'consent_incomplete_retry'
   | 'memory_hard_deleted'
   | 'retention_changed'
   | 'recording_toggled'
@@ -36,6 +42,18 @@ export interface LineVoiceConsent {
   memoryConsentAt: string | null;
   memoryConsentCallSessionId: string | null;
   lastConsentPromptAt: string | null;
+  recordingConsent: VoiceConsentStatus;
+  recordingConsentAt: string | null;
+  recordingConsentCallSessionId: string | null;
+  recordingPreferencePermanent: boolean;
+  recordingReenableRequestedAt: string | null;
+  sharingConsent: VoiceConsentStatus;
+  sharingTier: SharingTier;
+  sharingConsentAt: string | null;
+  sharingConsentCallSessionId: string | null;
+  sharingLastPromptAt: string | null;
+  sharingRePromptRequestedAt: string | null;
+  onboardingCompletedAt: string | null;
 }
 
 export interface ConsentAuditEntry {

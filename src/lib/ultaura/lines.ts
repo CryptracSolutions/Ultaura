@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
 import {
   CreateLineInputSchema,
@@ -77,7 +78,15 @@ const createLineWithTrial = withTrialCheck(async (
     };
   }
 
-  const { displayName, phoneE164, timezone, voicemailBehavior, seedInterests, seedAvoidTopics } = parsed.data;
+  const {
+    displayName,
+    phoneE164,
+    timezone,
+    voicemailBehavior,
+    seedInterests,
+    seedAvoidTopics,
+    defaultSharingTier,
+  } = parsed.data;
 
   const existingLines = await getLines(account.id);
   const planId = account.status === 'trial'
@@ -154,6 +163,21 @@ const createLineWithTrial = withTrialCheck(async (
       success: false,
       error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to create line'),
     };
+  }
+
+  if (defaultSharingTier && account.user_type === 'family_managed') {
+    const adminClient = getSupabaseServerActionClient({ admin: true });
+    const { error: consentError } = await adminClient
+      .from('ultaura_line_voice_consent')
+      .update({
+        sharing_tier: defaultSharingTier,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('line_id', line.id);
+
+    if (consentError) {
+      logger.error({ error: consentError, lineId: line.id }, 'Failed to set default sharing tier');
+    }
   }
 
   revalidatePath('/dashboard/lines', 'page');

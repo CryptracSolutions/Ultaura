@@ -3,6 +3,7 @@ import { IANAZone } from 'luxon';
 
 export const LineStatusSchema = z.enum(['active', 'paused', 'disabled']);
 export const VoicemailBehaviorSchema = z.enum(['none', 'brief', 'detailed']);
+export const SharingTierSchema = z.enum(['tier_1', 'tier_2', 'tier_3', 'tier_4']);
 
 const PHONE_E164_REGEX = /^\+1[2-9]\d{9}$/;
 
@@ -20,6 +21,7 @@ export const CreateLineInputSchema = z.object({
   voicemailBehavior: VoicemailBehaviorSchema.optional().default('brief'),
   seedInterests: z.array(z.string()).optional(),
   seedAvoidTopics: z.array(z.string()).optional(),
+  defaultSharingTier: SharingTierSchema.optional(),
 });
 
 export type CreateLineInput = z.infer<typeof CreateLineInputSchema>;

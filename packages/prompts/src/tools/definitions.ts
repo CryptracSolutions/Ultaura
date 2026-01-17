@@ -717,6 +717,72 @@ Do NOT confirm the update verbally - just update silently and continue unless th
   },
   {
     type: 'function',
+    name: 'grant_recording_consent',
+    description: 'Call when the senior agrees to recording for this call.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'deny_recording_consent',
+    description: 'Call when the senior declines recording for this call.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'revoke_recording_consent',
+    description: 'Call when the senior revokes recording consent mid-call.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'set_recording_preference_permanent',
+    description: 'Set whether to stop asking about recording on future calls.',
+    parameters: {
+      type: 'object',
+      properties: {
+        never_ask: {
+          type: 'boolean',
+          description: 'True to stop asking about recording on future calls',
+        },
+      },
+      required: ['never_ask'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'set_sharing_tier',
+    description: 'Update family sharing tier and consent level.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tier: {
+          type: 'string',
+          enum: ['tier_1', 'tier_2', 'tier_3', 'tier_4'],
+          description: 'Family sharing tier to apply',
+        },
+        consent: {
+          type: 'string',
+          enum: ['granted', 'denied'],
+          description: 'Use denied for a full decline',
+        },
+      },
+      required: ['tier'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_sharing_tier',
+    description: 'Get the current family sharing tier for explanation.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'enable_family_sharing',
+    description: 'Self user requests enabling family sharing.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
     name: 'exclude_memory_topic',
     description: `Exclude a category of memories from storage. Call when the senior clearly indicates they don't want certain topics remembered.
 

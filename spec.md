@@ -887,3 +887,353 @@ COMMENT ON COLUMN ultaura_line_voice_consent.onboarding_completed_at IS 'Timesta
     - [ ] Note in audit log for potential account type review
     - [ ] Do NOT change `user_type` automatically during call (requires dashboard action)
     - [ ] Inform payer via dashboard notification: "[Name] mentioned they set up the service themselves. You may want to review account settings."
+
+
+  ### Questions and Responses exchanged during preparation for implementation
+  1. Recording start/stop
+
+  Current state: Recording uses TwiML attribute record="record-from-answer" on <Connect>, which starts recording automatically when the call connects (before any consent is obtained).
+
+  Recommendation: Switch to API-based recording that starts only after grant_recording_consent is called:
+
+  // After grant_recording_consent tool is called:
+  await twilioClient.calls(callSid).recordings.create({
+    recordingStatusCallback: `${publicUrl}/twilio/recording-status`,
+    recordingStatusCallbackEvent: ['completed']
+  });
+
+  // To stop mid-call after deny/revoke:
+  await twilioClient.recordings(recordingSid).update({ status: 'stopped' });
+
+  This ensures we never record before consent. The recording_sid is already stored in ultaura_call_sessions.
+
+  ---
+  2. Preview call flag
+
+  Recommendation: Add a database column is_preview_mode BOOLEAN DEFAULT FALSE to ultaura_call_sessions.
+
+  Rationale:
+  - Audit trail: You can query which calls were previews
+  - Consent tools need to know not to persist
+  - Avoids memory leak concerns with in-memory maps
+  - Recording status callback needs to know to handle differently
+  - Consistent with existing patterns (session data is in DB)
+
+  ---
+  3. Default tier conflict
+
+  Recommendation: The spec already says "Senior's voice choice ALWAYS overrides the dashboard default tier."
+
+  Implementation flow:
+  1. Payer selects default tier in AddLineModal → stored in ultaura_line_voice_consent.sharing_tier as initial value
+  2. On first call, if senior says YES → keep the payer's default tier (don't force tier_2)
+  3. If senior says NO → set to tier_1
+  4. If senior later uses voice commands to change → that tier wins
+
+  Change the spec: Remove "If YES set tier_2" and instead say "If YES, honor the payer-selected default tier."
+
+  ---
+  4. Sharing re-prompt cooldown
+
+  Recommendation: Reuse the existing pattern - use a dedicated column sharing_last_prompt_at TIMESTAMPTZ.
+
+  Rationale:
+  - sharing_consent_at records when consent was given/denied
+  - You need a separate timestamp for when the last re-prompt was made (which could be a re-prompt after decline)
+  - Matches the existing last_consent_prompt_at pattern for memory consent
+
+  ---
+  5. Recording re-enable
+
+  Recommendation: When payer clicks "Re-enable":
+  1. Set recording_consent = 'pending' (not 'granted' - senior must consent)
+  2. Set recording_preference_permanent = false
+  3. Add a column recording_reenable_requested_at TIMESTAMPTZ
+  4. On next call, if recording_consent = 'pending' AND recording_reenable_requested_at IS NOT NULL, prompt with: "Your family enabled recording again - would you like me to record our calls?"
+  5. Clear recording_reenable_requested_at after prompting
+
+  This respects senior autonomy while allowing family to request reconsideration.
+
+  ---
+  6. Memory consent re-ask
+
+  Current state: 30-day cooldown after denial, using last_consent_prompt_at.
+
+  Recommendation: Keep the 30-day re-ask after denial. Rationale:
+  - Seniors may change their mind over time
+  - Matches the existing proven pattern
+  - The spec's onboarding flow handles the initial ask; the 30-day is for follow-up
+  - Don't remove it - memory personalization is a core value proposition
+
+  ---
+  7. Consent incomplete state
+
+  Recommendation: Use onboarding_completed_at + audit log only. Don't add a separate column.
+
+  Logic:
+  - If onboarding_completed_at IS NULL after a call ends → treat next call as first call for consent purposes
+  - Log consent_incomplete_retry to audit log
+  - The in-memory ConsentState tracks during the call; DB state is checked at call start
+
+  This avoids adding yet another status column and uses existing infrastructure.
+
+  ---
+  8. Weekly summary for self + sharing
+
+  Recommendation: Generate two separate versions:
+
+  1. Self recipient (when self user or family_managed payer): Full summary - all data they're entitled to see
+  2. Family recipients (when sharing enabled): Tier-clamped + sharing_enabled_at-clamped
+
+  The existing shareStartUtc logic already clamps data for self users who enabled sharing later. Extend this to also apply tier filtering for family recipients.
+
+  Self users viewing their own insights page = full access to their own data (no tier restriction).
+
+  ---
+  9. Insights gating
+
+  Recommendation: For family-managed accounts on the insights page:
+  Sharing Status: tier_1 (basic)
+  Behavior: Show call stats only. Other sections show
+    "Detailed insights require a higher sharing
+     level. [Name] controls this setting."
+  ────────────────────────────────────────
+  Sharing Status: tier_2+
+  Behavior: Show sections appropriate to tier
+  ────────────────────────────────────────
+  Sharing Status: Denied/pending
+  Behavior: Same as tier_1
+  Don't hide the page entirely - always show call stats (completion/missed) since that's tier_1 baseline. Use visual indicators for unavailable sections rather than hiding them completely (better UX, less confusion).
+
+  ---
+  10. Tier data scope
+
+  Current state: Weekly summaries include mood, topics, concerns, call stats, but NOT safety alerts or usage/billing data.
+
+  Recommendation: Add to weekly summary:
+  - Safety alerts: Pull from ultaura_safety_events table (already exists)
+  - Usage/billing: Add minutesUsed, minutesRemaining, overageAmount from minute ledger
+
+  Format suggestion:
+  interface WeeklySummaryData {
+    // Add:
+    safetyEvents: Array<{
+      severity: 'low' | 'medium' | 'high';
+      timestamp: string;
+      actionTaken: string;
+    }>;
+    usageSummary: {
+      minutesUsed: number;
+      minutesRemaining: number;
+      overageMinutes: number;
+      overageCost: number;
+    };
+  }
+
+  Include safety events (high tier only) and usage in all tiers.
+
+  ---
+  11. Prompt conflicts
+
+  Current prompts say:
+  - Privacy policy: "family cannot see transcripts" / "only basic call information (time, duration) is visible"
+  - Health-wellness: "ALL health mentions are PRIVATE. Never share with family."
+
+  Recommendation: Update prompts to be tier-aware:
+
+  Privacy policy update:
+  Based on {userName}'s sharing preferences, family may receive:
+  - Tier 1: Call stats only (when answered, duration)
+  - Tier 2: + General mood and wellness trends (no specifics)
+  - Tier 3: + Topic categories discussed (no content)
+  - Tier 4: + Mild concern observations
+
+  Regardless of tier, NEVER share:
+  - Exact words or quotes from conversations
+  - Specific health symptoms or medication names
+  - Topics {userName} marked as private
+
+  Health-wellness update:
+  Health mentions are handled carefully:
+  - Specific symptoms/medications are NEVER shared verbatim
+  - General wellness trends (e.g., "mentioned feeling tired") may be aggregated if tier 2+
+  - Severe concerns (falls, medication confusion) trigger safety alerts regardless of tier
+
+  ---
+  12. Self user enabling sharing
+
+  Recommendation: When enabled by voice:
+  1. Set sharing_consent = 'pending' (not granted yet)
+  2. Set sharing_enabled = true on account
+  3. Immediately ask for tier preference in same call
+  4. Only after tier is chosen → set sharing_consent = 'granted' + sharing_tier = chosen_tier
+  5. Summaries suppressed until:
+    - sharing_consent = 'granted'
+    - AND family contact is added via dashboard
+
+  This ensures explicit tier consent, not just a blanket "yes."
+
+  ---
+  13. Dashboard location
+
+  Recommendation: Reuse the existing Privacy Center UI at /src/app/dashboard/(app)/privacy/PrivacyCenterClient.tsx.
+
+  It already has:
+  - Family Sharing Section (for self users)
+  - Family Recipients Section (invite up to 5 family members)
+  - Toggle controls
+
+  Add the tier selector and consent status display to this existing UI rather than duplicating in line settings. Line settings can link to Privacy Center for sharing management.
+
+  ---
+  14. Weekly summary default
+
+  Current state: weekly_summary_enabled defaults to true in ultaura_notification_preferences.
+
+  Recommendation:
+  - Change default to false for new self-user accounts (they have no one to send to)
+  - Keep true for family_managed accounts
+  - Don't backfill existing accounts - they may have already configured preferences
+
+  Implementation:
+  -- In account creation logic, not migration
+  INSERT INTO ultaura_notification_preferences (account_id, weekly_summary_enabled, ...)
+  VALUES (
+    new_account_id,
+    CASE WHEN user_type = 'family_managed' THEN true ELSE false END,
+    ...
+  );
+
+  ---
+  15. Emergency boundary on later calls
+
+  Recommendation: Prompt-only guidance is correct. No tool/logic trigger required.
+
+  The existing safety policy handles distress detection separately. The emergency boundary disclaimer is conversational guidance for Ultaura to mention 911 when:
+  - Distress keywords detected (already triggers safety-event tool)
+  - User asks for medical/emergency help
+
+  No new tool needed - just update the prompt to include this as situational guidance. The safety-event tool already handles the automated alerting path.
+
+  ---
+  16. Preview mode recordings
+
+  Recommendation: Skip recording entirely for preview/test calls.
+
+  Rationale:
+  - Preview calls are for the payer to experience the flow, not the senior
+  - Recording the payer's voice serves no purpose and creates unnecessary data
+  - Consent obtained in preview mode isn't persisted anyway, so recording would lack valid consent
+  - Avoids complexity of auto-delete logic and Twilio costs
+  - Simpler implementation: when is_preview_mode = true, don't initiate recording regardless of account settings
+
+  Implementation:
+  const shouldRecord = recordingEnabled &&
+    recordingConsent === 'granted' &&
+    !isPreviewMode;  // <-- Skip for previews
+
+  ---
+  17. Privacy Center tier selector
+
+  Recommendation: Read-only display of senior's current tier, with a "Request Change" button.
+
+  Rationale:
+  - The spec explicitly states "Senior's voice choice ALWAYS overrides"
+  - Allowing payer to directly edit undermines senior autonomy
+  - Creates trust issues if senior discovers family changed their settings
+  - Consistent with the recording re-enable pattern (request, not force)
+
+  UI design:
+  Family Sharing Level
+  ────────────────────
+  Current: Wellness Check (Tier 2)
+  Set by: Mom during call on Jan 15
+
+  [Request Change]
+
+  ℹ️ Mom controls this setting. Clicking "Request Change"
+  will prompt her on the next call to review sharing options.
+
+  When clicked:
+  1. Set sharing_reprompt_requested_at = now() on ultaura_line_voice_consent
+  2. On next call, if this flag is set, Ultaura says: "Your family asked if you'd like to adjust what I share with them. Would you like to share more, less, or keep things as they are?"
+  3. Clear the flag after prompting
+
+  Exception: Payer CAN set the initial default in AddLineModal before the first call (when sharing_consent = 'pending'). After senior has made their choice, it becomes read-only.
+
+  ---
+  18. Detailed line insights (/dashboard/lines/[lineId]/insights)
+
+  Recommendation: Allow access with tier-filtered content, don't block or redirect.
+
+  Rationale:
+  - Per-line insights are useful when managing multiple lines (Family plan with 4 lines)
+  - Redirecting to /dashboard/insights loses context of which line you're viewing
+  - Blocking entirely is poor UX and creates confusion
+  - Tier filtering is already needed for the main insights page anyway - reuse the same logic
+
+  Tier-based section visibility:
+  Section: Call Stats (answered/missed/duration)
+  tier_1: ✓
+  tier_2: ✓
+  tier_3: ✓
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Call Activity Chart
+  tier_1: ✓
+  tier_2: ✓
+  tier_3: ✓
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Safety Alerts History
+  tier_1: ✓
+  tier_2: ✓
+  tier_3: ✓
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Mood Summary
+  tier_1: —
+  tier_2: ✓
+  tier_3: ✓
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Mood Trend Chart
+  tier_1: —
+  tier_2: ✓
+  tier_3: ✓
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Engagement Metrics
+  tier_1: —
+  tier_2: ✓
+  tier_3: ✓
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Topics Chart
+  tier_1: —
+  tier_2: —
+  tier_3: ✓
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Concerns List
+  tier_1: —
+  tier_2: —
+  tier_3: —
+  tier_4: ✓
+  ────────────────────────────────────────
+  Section: Follow-up Recommendations
+  tier_1: —
+  tier_2: —
+  tier_3: —
+  tier_4: ✓
+  For unavailable sections, show a subtle message:
+  Mood Trends
+  ───────────
+  This section requires Wellness Check sharing level or higher.
+  [Name] controls sharing preferences during calls.
+
+  This approach:
+  - Respects senior's tier choice
+  - Gives payer visibility into what's available at each tier (encourages conversation with senior)
+  - Consistent experience across both insights routes
+  - Single filtering implementation reused in both places

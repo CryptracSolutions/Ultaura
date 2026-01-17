@@ -135,7 +135,7 @@ interface GrokBridgeOptions {
   isFirstCall: boolean;
   memories: Memory[];
   memoryEnabled: boolean;
-  needsConsentPrompt: boolean;
+  needsMemoryConsent: boolean;
   seedInterests: string[] | null;
   seedAvoidTopics: string[] | null;
   lowMinutesWarning: boolean;
@@ -144,6 +144,18 @@ interface GrokBridgeOptions {
   isReminderCall: boolean;
   reminderMessage: string | null;
   isTestCall: boolean;
+  isPreviewMode: boolean;
+  userType: 'self' | 'family_managed';
+  sharingEnabled: boolean;
+  recordingEnabled: boolean;
+  recordingConsent: 'pending' | 'granted' | 'denied';
+  recordingReenableRequested: boolean;
+  needsRecordingConsent: boolean;
+  sharingTier: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4';
+  sharingConsent: 'pending' | 'granted' | 'denied';
+  sharingRePromptRequested: boolean;
+  needsSharingConsent: boolean;
+  onboardingCompleted: boolean;
   canReceiveInboundCalls: boolean;
   pendingCallPreview?: CallPreview | null;
   segmentPreferences?: string | null;
@@ -160,6 +172,7 @@ interface GrokBridgeOptions {
   onClearBuffer: () => void;
   onError: (error: Error) => void;
   onToolCall: (toolName: string, args: Record<string, unknown>) => void;
+  onToolResult?: (toolName: string, success: boolean) => void;
   onBargeIn?: () => void;
   onDisconnect?: (type: 'error' | 'close', detail: string) => void;
 }
@@ -339,6 +352,17 @@ export class GrokBridge {
       isReminderCall,
       reminderMessage,
       isTestCall,
+      isPreviewMode,
+      userType,
+      sharingEnabled,
+      recordingEnabled,
+      recordingConsent,
+      needsRecordingConsent,
+      recordingReenableRequested,
+      sharingTier,
+      sharingConsent,
+      needsSharingConsent,
+      onboardingCompleted,
       canReceiveInboundCalls,
       timezone,
       currentPlanId,
@@ -356,8 +380,9 @@ export class GrokBridge {
         startingLanguage,
       });
 
-      if (this.options.needsConsentPrompt) {
-        prompt += `\n\n${this.getConsentPromptSection()}`;
+      const consentSections = this.getConsentPromptSections();
+      if (consentSections.length > 0) {
+        prompt += `\n\n${consentSections.join('\n\n')}`;
       }
 
       return prompt;
@@ -369,6 +394,7 @@ export class GrokBridge {
       memories,
       memoryEnabled,
       isFirstCall,
+      isPreviewMode,
       timezone,
       seedInterests,
       seedAvoidTopics,
@@ -377,6 +403,15 @@ export class GrokBridge {
       currentPlanId,
       accountStatus,
       isTestCall,
+      userType,
+      sharingEnabled,
+      recordingEnabled,
+      recordingConsent,
+      needsRecordingConsent,
+      sharingTier,
+      sharingConsent,
+      needsSharingConsent,
+      onboardingCompleted,
       canReceiveInboundCalls,
       placeholders,
     });
@@ -388,8 +423,9 @@ export class GrokBridge {
       }
     }
 
-    if (this.options.needsConsentPrompt) {
-      prompt += `\n\n${this.getConsentPromptSection()}`;
+    const consentSections = this.getConsentPromptSections();
+    if (consentSections.length > 0) {
+      prompt += `\n\n${consentSections.join('\n\n')}`;
     }
 
     if (this.options.pendingCallPreview) {
@@ -427,8 +463,55 @@ At the START of this call:
     return prompt;
   }
 
-  private getConsentPromptSection(): string {
-    return `## First Call Memory Consent\n\nAt the START of this call, you MUST ask for permission to remember things:\n\n\"Before we get started, I'd like to ask - would it be okay if I remember things you tell me?\nThis helps me personalize our conversations. You can say yes or no.\"\n\nBased on their response:\n- If they say YES or agree: Call the grant_memory_consent tool\n- If they say NO or decline: Call the deny_memory_consent tool\n\nDo NOT store any memories until you receive explicit consent.`;
+  private getConsentPromptSections(): string[] {
+    const sections: string[] = [];
+
+    if (this.options.needsRecordingConsent) {
+      sections.push(this.getRecordingConsentSection());
+    }
+
+    if (this.options.needsMemoryConsent) {
+      sections.push(this.getMemoryConsentSection());
+    }
+
+    if (this.options.needsSharingConsent) {
+      sections.push(this.getSharingConsentSection());
+    }
+
+    return sections;
+  }
+
+  private getRecordingConsentSection(): string {
+    const safeName = sanitizePromptSnippet(this.options.userName || 'there');
+    const prompt = this.options.recordingReenableRequested
+      ? 'Your family enabled recording again - would you like me to record our calls?'
+      : this.options.isFirstCall
+        ? 'This call is being recorded - is that okay with you?'
+        : `Hi ${safeName}, it's Ultaura. Okay if I record today?`;
+
+    return `## Recording Consent\nAsk at the START of the call:\n"${prompt}"\n\nIf the response is unclear, ask up to 2 times:\n"I didn't catch that - is it okay if I record?"\n\nIf YES: call grant_recording_consent.\nIf NO: call deny_recording_consent, then ask:\n"Would you like me to stop asking about recording on future calls?"\n- If YES: call set_recording_preference_permanent with never_ask=true.\n- If NO: call set_recording_preference_permanent with never_ask=false.\n\nIf the user revokes mid-call ("stop recording"), call revoke_recording_consent, then ask the permanent preference question again.`;
+  }
+
+  private getMemoryConsentSection(): string {
+    return `## Memory Consent\nNear the END of the call, ask:\n"Can I remember things about you to personalize our calls?"\n\nIf YES: call grant_memory_consent.\nIf NO: call deny_memory_consent.\nIf unclear, ask up to 2 times, then say:\n"No problem, we can skip that for now. Just let me know if you'd like to discuss it later."`;
+  }
+
+  private getSharingConsentSection(): string {
+    const tierDescription =
+      this.options.sharingTier === 'tier_4'
+        ? 'Complete Visibility'
+        : this.options.sharingTier === 'tier_3'
+          ? 'Full Summary'
+          : this.options.sharingTier === 'tier_2'
+            ? 'Wellness Check'
+            : 'Basic Updates & Safety';
+    const currentConsent = this.options.sharingConsent === 'denied' ? 'denied' : 'granted';
+
+    if (this.options.sharingRePromptRequested) {
+      return `## Family Sharing Preference Check\nOnly ask near the END of the call when prompted.\n\nAsk: "Your family asked if you'd like to adjust what I share with them. Would you like to share more, less, or keep things as they are?"\n- If they want to keep the current settings: call set_sharing_tier with tier="${this.options.sharingTier}" and consent="${currentConsent}".\n- If they want to share more or less: ask which level they prefer, then call set_sharing_tier with the chosen tier and consent="granted".\n- If they want to stop sharing entirely: call set_sharing_tier with tier="tier_1" and consent="denied".\n\nIf asked "what do you share": call get_sharing_tier and explain the current level.\nIf unclear, ask up to 2 times, then say:\n"No problem, we can skip that for now. Just let me know if you'd like to discuss it later."`;
+    }
+
+    return `## Family Sharing Consent\nOnly ask near the END of the call when needed.\n\nIf userType is family_managed:\nAsk: "Your family set this up because they care about you. I can send them a short weekly note—just that we talked and how you're doing overall. Nothing specific about what we discuss. Is that okay with you?"\n- If YES: call set_sharing_tier with tier="${this.options.sharingTier}" and consent="granted" (current default: ${tierDescription}).\n- If NO: call set_sharing_tier with tier="tier_1" and consent="denied".\n\nIf userType is self and they request sharing:\n- Call enable_family_sharing, then ask for tier preference.\n- After they choose, call set_sharing_tier with consent="granted".\n\nIf they say "share more/less" or "don't share with my family": call set_sharing_tier with the requested tier, and use consent="denied" for a full decline.\nIf asked "what do you share": call get_sharing_tier and explain the current level.\nIf unclear, ask up to 2 times, then say:\n"No problem, we can skip that for now. Just let me know if you'd like to discuss it later."`;
   }
 
   private getVadThreshold(): number {
@@ -448,6 +531,24 @@ At the START of this call:
   private getSilenceDurationMs(): number {
     return this.options.silenceToleranceMs ?? VAD_SILENCE_DURATION_MS;
   }
+
+  private refreshSessionInstructions(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const memoriesForPrompt = this.options.memoryEnabled ? this.options.memories : [];
+    const tools = this.getActiveTools();
+
+    this.sendMessage({
+      type: 'session.update',
+      session: {
+        instructions: this.buildSystemPrompt({ memories: memoriesForPrompt }),
+        tools,
+      },
+    });
+  }
+
   private async refreshMemoryContext(reason: string): Promise<void> {
     try {
       const memories = await getMemoriesForLine(
@@ -530,7 +631,19 @@ At the START of this call:
         return this.options.memoryEnabled;
       }
       if (tool.name === 'grant_memory_consent' || tool.name === 'deny_memory_consent') {
-        return this.options.needsConsentPrompt;
+        return this.options.needsMemoryConsent;
+      }
+      if (tool.name === 'grant_recording_consent' || tool.name === 'deny_recording_consent') {
+        return this.options.needsRecordingConsent;
+      }
+      if (tool.name === 'revoke_recording_consent' || tool.name === 'set_recording_preference_permanent') {
+        return this.options.recordingEnabled;
+      }
+      if (tool.name === 'set_sharing_tier' || tool.name === 'get_sharing_tier') {
+        return this.options.userType === 'family_managed' || this.options.sharingEnabled;
+      }
+      if (tool.name === 'enable_family_sharing') {
+        return this.options.userType === 'self' && !this.options.sharingEnabled;
       }
       if ((this.options.isReminderCall || this.options.isTestCall) && retentionTools.has(tool.name)) {
         return false;
@@ -909,8 +1022,9 @@ At the START of this call:
           });
 
           const parsed = this.parseToolResponse(raw, 'grant_memory_consent');
+          this.options.onToolResult?.('grant_memory_consent', parsed?.success === true);
           if (parsed?.success) {
-            this.options.needsConsentPrompt = false;
+            this.options.needsMemoryConsent = false;
             this.options.memoryEnabled = true;
             markConsentGranted(this.options.callSessionId);
             void this.refreshMemoryContext('grant_memory_consent');
@@ -927,10 +1041,133 @@ At the START of this call:
           });
 
           const parsed = this.parseToolResponse(raw, 'deny_memory_consent');
+          this.options.onToolResult?.('deny_memory_consent', parsed?.success === true);
           if (parsed?.success) {
-            this.options.needsConsentPrompt = false;
+            this.options.needsMemoryConsent = false;
             this.options.memoryEnabled = false;
             void this.refreshMemoryContext('deny_memory_consent');
+          }
+
+          result = raw;
+          break;
+        }
+
+        case 'grant_recording_consent': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/grant_recording_consent`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'grant_recording_consent');
+          this.options.onToolResult?.('grant_recording_consent', parsed?.success === true);
+          if (parsed?.success) {
+            this.options.needsRecordingConsent = false;
+            this.options.recordingConsent = 'granted';
+            this.refreshSessionInstructions();
+          }
+
+          result = raw;
+          break;
+        }
+
+        case 'deny_recording_consent': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/deny_recording_consent`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'deny_recording_consent');
+          this.options.onToolResult?.('deny_recording_consent', parsed?.success === true);
+          if (parsed?.success) {
+            this.options.needsRecordingConsent = false;
+            this.options.recordingConsent = 'denied';
+            this.refreshSessionInstructions();
+          }
+
+          result = raw;
+          break;
+        }
+
+        case 'revoke_recording_consent': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/revoke_recording_consent`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'revoke_recording_consent');
+          this.options.onToolResult?.('revoke_recording_consent', parsed?.success === true);
+          if (parsed?.success) {
+            this.options.needsRecordingConsent = false;
+            this.options.recordingConsent = 'denied';
+            this.refreshSessionInstructions();
+          }
+
+          result = raw;
+          break;
+        }
+
+        case 'set_recording_preference_permanent': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/set_recording_preference_permanent`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            never_ask: args.never_ask === true,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'set_recording_preference_permanent');
+          this.options.onToolResult?.('set_recording_preference_permanent', parsed?.success === true);
+          if (parsed?.success) {
+            this.refreshSessionInstructions();
+          }
+
+          result = raw;
+          break;
+        }
+
+        case 'set_sharing_tier': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/set_sharing_tier`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            tier: args.tier,
+            consent: args.consent,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'set_sharing_tier');
+          this.options.onToolResult?.('set_sharing_tier', parsed?.success === true);
+          if (parsed?.success) {
+            const consent = args.consent === 'denied' ? 'denied' : 'granted';
+            const tier = consent === 'denied' ? 'tier_1' : args.tier;
+            if (tier) {
+              this.options.sharingTier = tier;
+            }
+            this.options.sharingConsent = consent;
+            this.options.sharingRePromptRequested = false;
+            this.options.needsSharingConsent = false;
+            this.refreshSessionInstructions();
+          }
+
+          result = raw;
+          break;
+        }
+
+        case 'get_sharing_tier':
+          result = await this.callToolEndpoint(`${baseUrl}/tools/get_sharing_tier`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+          break;
+
+        case 'enable_family_sharing': {
+          const raw = await this.callToolEndpoint(`${baseUrl}/tools/enable_family_sharing`, {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+          });
+
+          const parsed = this.parseToolResponse(raw, 'enable_family_sharing');
+          this.options.onToolResult?.('enable_family_sharing', parsed?.success === true);
+          if (parsed?.success) {
+            this.options.sharingEnabled = true;
+            this.options.needsSharingConsent = true;
+            this.refreshSessionInstructions();
           }
 
           result = raw;
@@ -1489,7 +1726,7 @@ At the START of this call:
   }
 
   public updateCallbacks(
-    callbacks: Partial<Pick<GrokBridgeOptions, 'onAudioReceived' | 'onClearBuffer' | 'onError' | 'onToolCall' | 'onBargeIn' | 'onDisconnect'>>
+    callbacks: Partial<Pick<GrokBridgeOptions, 'onAudioReceived' | 'onClearBuffer' | 'onError' | 'onToolCall' | 'onToolResult' | 'onBargeIn' | 'onDisconnect'>>
   ): void {
     this.options = { ...this.options, ...callbacks };
   }

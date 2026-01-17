@@ -6,7 +6,7 @@ import { X, Phone, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
 import { US_TIMEZONES } from '~/lib/ultaura/constants';
 import { acknowledgeVendorDisclosure } from '~/lib/ultaura/privacy';
-import type { UserType } from '~/lib/ultaura/types';
+import type { SharingTier, UserType } from '~/lib/ultaura/types';
 import {
   Select,
   SelectTrigger,
@@ -14,6 +14,7 @@ import {
   SelectContent,
   SelectItem,
 } from '~/core/ui/Select';
+import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 
 const MAX_INTEREST_TOPICS = 5;
 
@@ -73,6 +74,7 @@ export function AddLineModal({
   const [disclosure, setDisclosure] = useState(false);
   const [consent, setConsent] = useState(false);
   const [vendorAcknowledged, setVendorAcknowledged] = useState(vendorAlreadyAcknowledged);
+  const [defaultSharingTier, setDefaultSharingTier] = useState<SharingTier>('tier_2');
 
   useEffect(() => {
     if (isOpen) {
@@ -134,6 +136,7 @@ export function AddLineModal({
         timezone,
         seedInterests: combinedTopics.length ? combinedTopics : undefined,
         seedAvoidTopics: avoidTopics ? avoidTopics.split(',').map(s => s.trim()) : undefined,
+        defaultSharingTier: isSelfUser ? undefined : defaultSharingTier,
       });
 
       if (!result.success) {
@@ -330,6 +333,54 @@ export function AddLineModal({
                       className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring resize-none"
                     />
                   </div>
+
+                  {userType === 'family_managed' ? (
+                    <div className="space-y-2 pt-4 border-t border-border">
+                      <label className="block text-sm font-medium text-foreground">
+                        Default Family Sharing Level
+                      </label>
+                      <p className="text-xs text-muted-foreground">
+                        {displayName || 'They'} can change this during their first call.
+                      </p>
+                      <RadioGroup
+                        value={defaultSharingTier}
+                        onValueChange={(value) => setDefaultSharingTier(value as SharingTier)}
+                      >
+                        <RadioGroupItemLabel>
+                          <RadioGroupItem value="tier_1" />
+                          <div>
+                            <div className="font-medium text-foreground text-sm">Basic Updates & Safety</div>
+                            <div className="text-xs text-muted-foreground">Call stats, safety alerts, usage.</div>
+                          </div>
+                        </RadioGroupItemLabel>
+                        <RadioGroupItemLabel>
+                          <RadioGroupItem value="tier_2" />
+                          <div>
+                            <div className="font-medium text-foreground text-sm">Wellness Check (Recommended)</div>
+                            <div className="text-xs text-muted-foreground">Adds mood and engagement trends.</div>
+                          </div>
+                        </RadioGroupItemLabel>
+                        <RadioGroupItemLabel>
+                          <RadioGroupItem value="tier_3" />
+                          <div>
+                            <div className="font-medium text-foreground text-sm">Full Summary</div>
+                            <div className="text-xs text-muted-foreground">Adds topic categories.</div>
+                          </div>
+                        </RadioGroupItemLabel>
+                        <RadioGroupItemLabel>
+                          <RadioGroupItem value="tier_4" />
+                          <div>
+                            <div className="font-medium text-foreground text-sm">Complete Visibility</div>
+                            <div className="text-xs text-muted-foreground">Adds mild concerns and follow-up notes.</div>
+                          </div>
+                        </RadioGroupItemLabel>
+                      </RadioGroup>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground pt-4 border-t border-border">
+                      You can enable family sharing later from the Privacy Center if you want to share updates.
+                    </div>
+                  )}
 
                   {/* Disclosures */}
                   <div className="space-y-4 pt-4 border-t border-border">

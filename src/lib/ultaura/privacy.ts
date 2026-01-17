@@ -270,6 +270,30 @@ export async function getLineVoiceConsent(
     return null;
   }
 
+  return mapLineVoiceConsentRow(data);
+}
+
+export async function getLineVoiceConsents(
+  accountId: string
+): Promise<LineVoiceConsent[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_line_voice_consent')
+    .select('*')
+    .eq('account_id', accountId);
+
+  if (error) {
+    logger.error({ error, accountId }, 'Failed to get line voice consents');
+    return [];
+  }
+
+  return (data || []).map((row) => mapLineVoiceConsentRow(row));
+}
+
+function mapLineVoiceConsentRow(
+  data: Database['public']['Tables']['ultaura_line_voice_consent']['Row']
+): LineVoiceConsent {
   return {
     id: data.id,
     lineId: data.line_id,
@@ -280,7 +304,196 @@ export async function getLineVoiceConsent(
     memoryConsentAt: data.memory_consent_at,
     memoryConsentCallSessionId: data.memory_consent_call_session_id,
     lastConsentPromptAt: data.last_consent_prompt_at,
+    recordingConsent: data.recording_consent,
+    recordingConsentAt: data.recording_consent_at,
+    recordingConsentCallSessionId: data.recording_consent_call_session_id,
+    recordingPreferencePermanent: data.recording_preference_permanent,
+    recordingReenableRequestedAt: data.recording_reenable_requested_at,
+    sharingConsent: data.sharing_consent,
+    sharingTier: data.sharing_tier as LineVoiceConsent['sharingTier'],
+    sharingConsentAt: data.sharing_consent_at,
+    sharingConsentCallSessionId: data.sharing_consent_call_session_id,
+    sharingLastPromptAt: data.sharing_last_prompt_at,
+    sharingRePromptRequestedAt: data.sharing_reprompt_requested_at,
+    onboardingCompletedAt: data.onboarding_completed_at,
   };
+}
+
+export async function requestRecordingReenable(
+  lineId: string
+): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const headersList = await headers();
+
+  const actorUserId = await getAuthenticatedUserId();
+  if (!actorUserId) {
+    return { success: false, error: 'User not authenticated' };
+  }
+
+  const { data: line, error: lineError } = await client
+    .from('ultaura_lines')
+    .select('id, account_id')
+    .eq('id', lineId)
+    .single();
+
+  if (lineError || !line) {
+    return { success: false, error: 'Line not found' };
+  }
+
+  const { data: account, error: accountError } = await client
+    .from('ultaura_accounts')
+    .select('user_type')
+    .eq('id', line.account_id)
+    .single();
+
+  if (accountError || !account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  if (account.user_type !== 'family_managed') {
+    return { success: false, error: 'Sharing changes are managed by the senior' };
+  }
+
+  const { data: consent, error: consentError } = await adminClient
+    .from('ultaura_line_voice_consent')
+    .select('recording_consent, recording_preference_permanent')
+    .eq('line_id', lineId)
+    .single();
+
+  if (consentError || !consent) {
+    logger.error({ error: consentError, lineId }, 'Failed to load recording consent for re-enable');
+    return { success: false, error: 'Consent record not found' };
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await adminClient
+    .from('ultaura_line_voice_consent')
+    .update({
+      recording_consent: 'pending',
+      recording_consent_at: null,
+      recording_consent_call_session_id: null,
+      recording_preference_permanent: false,
+      recording_reenable_requested_at: now,
+      updated_at: now,
+    })
+    .eq('line_id', lineId);
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to request recording re-enable');
+    return { success: false, error: 'Failed to update recording consent' };
+  }
+
+  await logConsentAudit({
+    accountId: line.account_id,
+    lineId,
+    actorUserId,
+    actorType: 'payer',
+    action: 'recording_consent_updated',
+    consentType: 'recording',
+    oldValue: {
+      consent: consent.recording_consent,
+      permanent: consent.recording_preference_permanent,
+    },
+    newValue: {
+      consent: 'pending',
+      permanent: false,
+      recording_reenable_requested_at: now,
+    },
+    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
+    userAgent: headersList.get('user-agent') || null,
+  }, adminClient);
+
+  revalidatePath('/dashboard/privacy', 'page');
+
+  return { success: true };
+}
+
+export async function requestSharingRePrompt(
+  lineId: string
+): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const headersList = await headers();
+
+  const actorUserId = await getAuthenticatedUserId();
+  if (!actorUserId) {
+    return { success: false, error: 'User not authenticated' };
+  }
+
+  const { data: line, error: lineError } = await client
+    .from('ultaura_lines')
+    .select('id, account_id')
+    .eq('id', lineId)
+    .single();
+
+  if (lineError || !line) {
+    return { success: false, error: 'Line not found' };
+  }
+
+  const { data: consent, error: consentError } = await adminClient
+    .from('ultaura_line_voice_consent')
+    .select('sharing_consent, sharing_tier, sharing_last_prompt_at, sharing_reprompt_requested_at')
+    .eq('line_id', lineId)
+    .single();
+
+  if (consentError || !consent) {
+    logger.error({ error: consentError, lineId }, 'Failed to load sharing consent for re-prompt');
+    return { success: false, error: 'Consent record not found' };
+  }
+
+  const lastPromptAt = consent.sharing_last_prompt_at;
+  if (consent.sharing_reprompt_requested_at) {
+    return { success: false, error: 'Sharing change already requested' };
+  }
+  if (consent.sharing_consent === 'pending') {
+    return { success: false, error: 'Sharing preference has not been set yet' };
+  }
+  if (lastPromptAt) {
+    const lastPromptMs = new Date(lastPromptAt).getTime();
+    const cooldownMs = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - lastPromptMs < cooldownMs) {
+      return { success: false, error: 'Sharing re-prompt is limited to once every 30 days' };
+    }
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await adminClient
+    .from('ultaura_line_voice_consent')
+    .update({
+      sharing_reprompt_requested_at: now,
+      updated_at: now,
+    })
+    .eq('line_id', lineId);
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to request sharing re-prompt');
+    return { success: false, error: 'Failed to update sharing consent' };
+  }
+
+  await logConsentAudit({
+    accountId: line.account_id,
+    lineId,
+    actorUserId,
+    actorType: 'payer',
+    action: 'sharing_consent_updated',
+    consentType: 'data_sharing',
+    oldValue: {
+      consent: consent.sharing_consent,
+      tier: consent.sharing_tier,
+    },
+    newValue: {
+      consent: consent.sharing_consent,
+      tier: consent.sharing_tier,
+      sharing_reprompt_requested_at: now,
+    },
+    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
+    userAgent: headersList.get('user-agent') || null,
+  }, adminClient);
+
+  revalidatePath('/dashboard/privacy', 'page');
+
+  return { success: true };
 }
 
 // ============================================

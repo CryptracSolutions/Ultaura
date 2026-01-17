@@ -8,6 +8,7 @@ import type {
 } from './memory.js';
 import type { SafetyCategory, SafetyTier } from './safety.js';
 import type { TopicCode, ConcernCode, FollowUpReasonCode } from './insights.js';
+import type { SharingTier } from './privacy.js';
 
 export interface GrokTool {
   type: 'web_search' | 'function';
@@ -129,6 +130,25 @@ export interface UpdateMemoryArgs {
 export type GrantMemoryConsentArgs = Record<string, never>;
 
 export type DenyMemoryConsentArgs = Record<string, never>;
+
+export type GrantRecordingConsentArgs = Record<string, never>;
+
+export type DenyRecordingConsentArgs = Record<string, never>;
+
+export type RevokeRecordingConsentArgs = Record<string, never>;
+
+export interface SetRecordingPreferencePermanentArgs {
+  never_ask: boolean;
+}
+
+export interface SetSharingTierArgs {
+  tier: SharingTier;
+  consent?: 'granted' | 'denied';
+}
+
+export type GetSharingTierArgs = Record<string, never>;
+
+export type EnableFamilySharingArgs = Record<string, never>;
 
 export interface MarkPrivateArgs {
   what_to_keep_private: string;
@@ -310,6 +330,13 @@ export type ToolCallArgs =
   | { name: 'update_memory'; args: UpdateMemoryArgs }
   | { name: 'grant_memory_consent'; args: GrantMemoryConsentArgs }
   | { name: 'deny_memory_consent'; args: DenyMemoryConsentArgs }
+  | { name: 'grant_recording_consent'; args: GrantRecordingConsentArgs }
+  | { name: 'deny_recording_consent'; args: DenyRecordingConsentArgs }
+  | { name: 'revoke_recording_consent'; args: RevokeRecordingConsentArgs }
+  | { name: 'set_recording_preference_permanent'; args: SetRecordingPreferencePermanentArgs }
+  | { name: 'set_sharing_tier'; args: SetSharingTierArgs }
+  | { name: 'get_sharing_tier'; args: GetSharingTierArgs }
+  | { name: 'enable_family_sharing'; args: EnableFamilySharingArgs }
   | { name: 'mark_private'; args: MarkPrivateArgs }
   | { name: 'exclude_memory_topic'; args: ExcludeMemoryTopicArgs }
   | { name: 'include_memory_topic'; args: IncludeMemoryTopicArgs }

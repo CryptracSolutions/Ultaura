@@ -3,6 +3,7 @@ import type { InsightsDashboard } from '~/lib/ultaura/types';
 
 interface InsightsSummaryProps {
   summary: InsightsDashboard['summary'];
+  showMood?: boolean;
 }
 
 function formatDelta(value: number | null, unit = ''): string | null {
@@ -23,7 +24,7 @@ function StatRow({ label, value, delta }: { label: string; value: React.ReactNod
   );
 }
 
-export function InsightsSummary({ summary }: InsightsSummaryProps): React.ReactElement {
+export function InsightsSummary({ summary, showMood = true }: InsightsSummaryProps): React.ReactElement {
   const durationDisplay = summary.avgDurationMinutes === null ? '-' : `${summary.avgDurationMinutes}m`;
   const notablePatterns = [summary.moodShiftNote, summary.socialNeedNote].filter(Boolean) as string[];
 
@@ -46,7 +47,7 @@ export function InsightsSummary({ summary }: InsightsSummaryProps): React.ReactE
           value={durationDisplay}
           delta={formatDelta(summary.durationDeltaMinutes, 'm')}
         />
-        <StatRow label="Mood" value={summary.moodSummary || 'No insights yet'} />
+        {showMood && <StatRow label="Mood" value={summary.moodSummary || 'No insights yet'} />}
       </div>
 
       {notablePatterns.length > 0 && (

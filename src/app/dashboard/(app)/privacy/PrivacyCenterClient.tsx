@@ -31,6 +31,7 @@ import type {
   ConsentAuditEntry,
   DataExportRequest,
   LineRow,
+  LineVoiceConsent,
   NotificationRecipient,
   RetentionPeriod,
   UltauraAccountRow,
@@ -40,6 +41,8 @@ import {
   getDataExportRequests,
   requestAccountDataDeletion,
   requestDataExport,
+  requestRecordingReenable,
+  requestSharingRePrompt,
   updatePrivacySettings,
 } from '~/lib/ultaura/privacy';
 import {
@@ -53,6 +56,7 @@ interface PrivacyCenterClientProps {
   account: UltauraAccountRow;
   privacySettings: AccountPrivacySettings | null;
   lines: LineRow[];
+  lineVoiceConsents: LineVoiceConsent[];
   auditLog: ConsentAuditEntry[];
   exportRequests: DataExportRequest[];
   notificationRecipients: NotificationRecipient[];
@@ -87,10 +91,25 @@ const RETENTION_OPTIONS: Array<{
 
 const DEFAULT_RETENTION: RetentionPeriod = '90_days';
 
+const SHARING_TIER_LABELS: Record<string, string> = {
+  tier_1: 'Basic Updates & Safety',
+  tier_2: 'Wellness Check',
+  tier_3: 'Full Summary',
+  tier_4: 'Complete Visibility',
+};
+
+function formatShortDate(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export function PrivacyCenterClient({
   account,
   privacySettings,
   lines,
+  lineVoiceConsents,
   auditLog,
   exportRequests,
   notificationRecipients,
@@ -134,10 +153,16 @@ export function PrivacyCenterClient({
     relationship?: string;
     addAsTrustedContact: boolean;
   } | null>(null);
+  const [recordingRequestLineId, setRecordingRequestLineId] = useState<string | null>(null);
+  const [sharingRequestLineId, setSharingRequestLineId] = useState<string | null>(null);
 
   const lineCount = lines.length;
   const exportInProgress = exports.some(
     (request) => request.status === 'pending' || request.status === 'processing'
+  );
+  const lineConsentById = useMemo(
+    () => new Map(lineVoiceConsents.map((consent) => [consent.lineId, consent])),
+    [lineVoiceConsents]
   );
 
   const retentionDescription = useMemo(() => {
@@ -268,6 +293,40 @@ export function PrivacyCenterClient({
       toast.error('Failed to update sharing');
     } finally {
       setIsSharingUpdating(false);
+    }
+  };
+
+  const handleRecordingReenable = async (lineId: string) => {
+    setRecordingRequestLineId(lineId);
+    try {
+      const result = await requestRecordingReenable(lineId);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to request recording re-enable');
+        return;
+      }
+      toast.success('Recording re-enable requested');
+      router.refresh();
+    } catch {
+      toast.error('Failed to request recording re-enable');
+    } finally {
+      setRecordingRequestLineId(null);
+    }
+  };
+
+  const handleSharingRePrompt = async (lineId: string) => {
+    setSharingRequestLineId(lineId);
+    try {
+      const result = await requestSharingRePrompt(lineId);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to request sharing change');
+        return;
+      }
+      toast.success('Sharing change requested');
+      router.refresh();
+    } catch {
+      toast.error('Failed to request sharing change');
+    } finally {
+      setSharingRequestLineId(null);
     }
   };
 
@@ -444,6 +503,119 @@ export function PrivacyCenterClient({
           </SectionBody>
         </Section>
       )}
+
+      <Section>
+        <SectionHeader
+          title={
+            <div className="flex items-center gap-2">
+              <Mic className="h-4 w-4 text-muted-foreground" />
+              Consent Status
+            </div>
+          }
+          description="Review recording and family sharing preferences for each line."
+        />
+        <SectionBody className="gap-4">
+          {lines.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Add a line to view consent status.</p>
+          ) : (
+            lines.map((line) => {
+              const consent = lineConsentById.get(line.id);
+              const recordingConsent = consent?.recordingConsent ?? 'pending';
+              const recordingPreferencePermanent = consent?.recordingPreferencePermanent ?? false;
+              const recordingReenableRequestedAt = consent?.recordingReenableRequestedAt ?? null;
+              const recordingConsentAt = formatShortDate(consent?.recordingConsentAt);
+              const recordingStatus = recordingConsent === 'granted'
+                ? 'Approved'
+                : recordingConsent === 'denied'
+                  ? (recordingPreferencePermanent ? `Declined by ${line.display_name}` : 'Ask each call')
+                  : 'Awaiting consent';
+              const recordingNote = recordingReenableRequestedAt
+                ? `Re-enable requested on ${formatShortDate(recordingReenableRequestedAt) ?? 'recently'}`
+                : recordingConsentAt
+                  ? `Set on ${recordingConsentAt}`
+                  : null;
+              const canRequestRecording = recordingConsent === 'denied' && recordingPreferencePermanent;
+
+              const sharingConsent = consent?.sharingConsent ?? 'pending';
+              const sharingTier = consent?.sharingTier ?? 'tier_1';
+              const sharingConsentAt = formatShortDate(consent?.sharingConsentAt);
+              const sharingRePromptRequestedAt = consent?.sharingRePromptRequestedAt ?? null;
+              const sharingStatus = sharingConsent === 'granted'
+                ? SHARING_TIER_LABELS[sharingTier]
+                : sharingConsent === 'denied'
+                  ? `${SHARING_TIER_LABELS.tier_1} (declined)`
+                  : 'Awaiting preference';
+              const sharingNote = sharingRePromptRequestedAt
+                ? `Change requested on ${formatShortDate(sharingRePromptRequestedAt) ?? 'recently'}`
+                : sharingConsentAt
+                  ? `Set by ${line.display_name} on ${sharingConsentAt}`
+                  : null;
+              const canRequestSharing = account.user_type === 'family_managed' && sharingConsent !== 'pending';
+
+              return (
+                <div
+                  key={line.id}
+                  className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{line.display_name}</div>
+                      <div className="text-xs text-muted-foreground">{line.phone_e164}</div>
+                    </div>
+                  </div>
+
+                  <div className={`grid gap-4 ${account.user_type === 'family_managed' ? 'md:grid-cols-2' : ''}`}>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Recording</div>
+                      <div className="text-sm text-foreground">{recordingStatus}</div>
+                      {recordingNote ? (
+                        <div className="text-xs text-muted-foreground mt-1">{recordingNote}</div>
+                      ) : null}
+                    </div>
+                    {account.user_type === 'family_managed' ? (
+                      <div>
+                        <div className="text-xs text-muted-foreground">Family Sharing Level</div>
+                        <div className="text-sm text-foreground">{sharingStatus}</div>
+                        {sharingNote ? (
+                          <div className="text-xs text-muted-foreground mt-1">{sharingNote}</div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {canRequestRecording ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleRecordingReenable(line.id)}
+                        disabled={recordingReenableRequestedAt !== null || recordingRequestLineId === line.id}
+                      >
+                        {recordingReenableRequestedAt ? 'Re-enable requested' : 'Re-enable recording'}
+                      </Button>
+                    ) : null}
+                    {canRequestSharing ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleSharingRePrompt(line.id)}
+                        disabled={sharingRePromptRequestedAt !== null || sharingRequestLineId === line.id}
+                      >
+                        {sharingRePromptRequestedAt ? 'Change requested' : 'Request change'}
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {account.user_type === 'family_managed' ? (
+                    <div className="text-xs text-muted-foreground">
+                      {line.display_name} controls sharing preferences during calls. Requesting a change will prompt
+                      them on the next call.
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </SectionBody>
+      </Section>
 
       {canManageRecipients && (
         <Section>

@@ -37,9 +37,28 @@ voiceConsentRouter.post('/grant_memory_consent', async (req: Request, res: Respo
       return;
     }
 
-    await updateLineVoiceConsent(lineId, session.account_id, callSessionId, {
-      memoryConsent: 'granted',
-    });
+    const skipPersist = session.is_test_call || session.is_preview_mode;
+    const auditMetadata = skipPersist
+      ? { is_test_call: true, is_preview_mode: session.is_preview_mode }
+      : null;
+
+    const updated = await updateLineVoiceConsent(
+      lineId,
+      session.account_id,
+      callSessionId,
+      { memoryConsent: 'granted' },
+      { skipPersist, auditMetadata }
+    );
+
+    if (!updated && !skipPersist) {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'grant_memory_consent',
+        success: false,
+        errorCode: 'db_write_failed',
+      }, { skipDebugLog: true });
+      res.status(500).json({ success: false, error: 'Failed to record consent' });
+      return;
+    }
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
@@ -91,9 +110,28 @@ voiceConsentRouter.post('/deny_memory_consent', async (req: Request, res: Respon
       return;
     }
 
-    await updateLineVoiceConsent(lineId, session.account_id, callSessionId, {
-      memoryConsent: 'denied',
-    });
+    const skipPersist = session.is_test_call || session.is_preview_mode;
+    const auditMetadata = skipPersist
+      ? { is_test_call: true, is_preview_mode: session.is_preview_mode }
+      : null;
+
+    const updated = await updateLineVoiceConsent(
+      lineId,
+      session.account_id,
+      callSessionId,
+      { memoryConsent: 'denied' },
+      { skipPersist, auditMetadata }
+    );
+
+    if (!updated && !skipPersist) {
+      await recordCallEvent(callSessionId, 'tool_call', {
+        tool: 'deny_memory_consent',
+        success: false,
+        errorCode: 'db_write_failed',
+      }, { skipDebugLog: true });
+      res.status(500).json({ success: false, error: 'Failed to record consent' });
+      return;
+    }
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {

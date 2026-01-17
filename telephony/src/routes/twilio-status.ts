@@ -197,6 +197,12 @@ twilioStatusRouter.post('/recording-status', async (req: Request, res: Response)
       return;
     }
 
+    if (session.is_test_call || session.is_preview_mode) {
+      logger.info({ callSid: CallSid, sessionId: session.id }, 'Ignoring recording callback for test/preview call');
+      res.sendStatus(200);
+      return;
+    }
+
     await updateCallSessionRecording(session.id, RecordingSid);
     res.sendStatus(200);
   } catch (error) {

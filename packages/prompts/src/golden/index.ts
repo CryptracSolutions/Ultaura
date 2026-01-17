@@ -17,6 +17,8 @@ export { SAFETY_POLICY_SECTION } from './sections/safety-policy.js';
 export { TOOL_POLICY_SECTION } from './sections/tool-policy.js';
 export { MEMORY_POLICY_SECTION } from './sections/memory-policy.js';
 export { PRIVACY_POLICY_SECTION } from './sections/privacy-policy.js';
+export { RECORDING_CONSENT_SECTION } from './sections/recording-consent.js';
+export { FAMILY_SHARING_CONSENT_SECTION } from './sections/family-sharing-consent.js';
 export { LANGUAGE_POLICY_SECTION } from './sections/language-policy.js';
 export { ONBOARDING_SECTION } from './sections/onboarding.js';
 export { PLANS_PRICING_SECTION } from './sections/plans-pricing.js';

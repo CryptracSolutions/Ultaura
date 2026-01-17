@@ -8,6 +8,7 @@ import { getOrCreateAccountDEK } from './account-encryption.js';
 import { getInternalApiSecret } from '../utils/env.js';
 import { logger } from '../utils/logger.js';
 import { getBaselineWindow, isCallAnswered } from './baseline.js';
+import { getUsageSummary } from './metering.js';
 
 type CallSessionSummaryRow = Pick<
   CallSessionRow,
@@ -31,6 +32,18 @@ export interface WeeklySummaryData {
   weekStartDate: string;
   weekEndDate: string;
   timezone: string;
+  sharingTier?: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4' | null;
+  safetyEvents: Array<{
+    severity: 'low' | 'medium' | 'high';
+    timestamp: string;
+    actionTaken: string | null;
+  }>;
+  usageSummary: {
+    minutesUsed: number;
+    minutesRemaining: number;
+    overageMinutes: number;
+    overageCost: number;
+  };
   scheduledCalls: number;
   answeredCalls: number;
   missedCalls: number;
@@ -141,6 +154,8 @@ const FOLLOW_UP_LABELS: Record<FollowUpReasonCode, string> = {
   missed_routine: 'Missed routine / schedule confusion',
 };
 
+const OVERAGE_RATE_CENTS = 15;
+
 function mapWeekday(day: string): number {
   switch (day) {
     case 'monday':
@@ -193,6 +208,48 @@ function clampStartUtc(startUtc: string, shareStartUtc?: string | null): string 
   const shareStart = DateTime.fromISO(shareStartUtc);
 
   return shareStart > start ? shareStartUtc : startUtc;
+}
+
+async function fetchSafetyEvents(options: {
+  lineId: string;
+  startUtc: string;
+  endUtc: string;
+}): Promise<WeeklySummaryData['safetyEvents']> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('ultaura_safety_events')
+    .select('tier, action_taken, created_at')
+    .eq('line_id', options.lineId)
+    .eq('tier', 'high')
+    .gte('created_at', options.startUtc)
+    .lt('created_at', options.endUtc)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error({ error, lineId: options.lineId }, 'Failed to fetch safety events for weekly summary');
+    return [];
+  }
+
+  return (data || []).map((row) => ({
+    severity: row.tier as 'low' | 'medium' | 'high',
+    timestamp: row.created_at,
+    actionTaken: row.action_taken ?? null,
+  }));
+}
+
+async function buildUsageSummary(accountId: string): Promise<WeeklySummaryData['usageSummary']> {
+  const usage = await getUsageSummary(accountId);
+  const minutesUsed = usage?.minutesUsed ?? 0;
+  const minutesRemaining = usage?.minutesRemaining ?? 0;
+  const overageMinutes = usage?.overageMinutes ?? 0;
+  const overageCost = Number(((overageMinutes * OVERAGE_RATE_CENTS) / 100).toFixed(2));
+
+  return {
+    minutesUsed,
+    minutesRemaining,
+    overageMinutes,
+    overageCost,
+  };
 }
 
 function buildWeeklySummaryAAD(accountId: string, lineId: string, weekStartDate: string): Buffer {
@@ -517,7 +574,10 @@ async function updateLineLastSummary(lineId: string, sentAt: string): Promise<vo
   }
 }
 
-async function sendWeeklySummaryEmail(summary: WeeklySummaryData): Promise<boolean> {
+async function sendWeeklySummaryEmail(payload: {
+  summary: WeeklySummaryData;
+  sharingSummary?: WeeklySummaryData | null;
+}): Promise<boolean> {
   const url = `${getAppBaseUrl()}/api/telephony/weekly-summary`;
 
   try {
@@ -527,7 +587,7 @@ async function sendWeeklySummaryEmail(summary: WeeklySummaryData): Promise<boole
         'Content-Type': 'application/json',
         'X-Webhook-Secret': getInternalApiSecret(),
       },
-      body: JSON.stringify(summary),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -564,12 +624,20 @@ export async function getNotificationPreferences(
     return existing as NotificationPreferencesRow;
   }
 
+  const { data: account } = await supabase
+    .from('ultaura_accounts')
+    .select('user_type')
+    .eq('id', accountId)
+    .maybeSingle();
+
+  const defaultWeeklySummaryEnabled = account?.user_type === 'family_managed';
+
   const { data: created, error: insertError } = await supabase
     .from('ultaura_notification_preferences')
     .insert({
       account_id: accountId,
       line_id: lineId,
-      weekly_summary_enabled: true,
+      weekly_summary_enabled: defaultWeeklySummaryEnabled,
       weekly_summary_format: 'email',
       weekly_summary_day: 'sunday',
       weekly_summary_time: '18:00',
@@ -599,7 +667,7 @@ export async function getNotificationPreferences(
 
     logger.error({ error: insertError, accountId, lineId }, 'Failed to create notification preferences');
     return {
-      weekly_summary_enabled: true,
+      weekly_summary_enabled: defaultWeeklySummaryEnabled,
       weekly_summary_format: 'email',
       weekly_summary_day: 'sunday',
       weekly_summary_time: '18:00',
@@ -676,10 +744,12 @@ async function aggregateWeeklySummary(options: {
   preferences: NotificationPreferencesRow;
   privacy: InsightPrivacyRow | null;
   window: ReturnType<typeof getBaselineWindow>;
+  usageSummary: WeeklySummaryData['usageSummary'];
   shareStartUtc?: string | null;
 }): Promise<WeeklySummaryData> {
   const { line, account, privacy, window } = options;
   const shareStartUtc = options.shareStartUtc ?? null;
+  const usageSummary = options.usageSummary;
   const weekStartDate = window.weekStart.toISODate();
   if (!weekStartDate) {
     throw new Error('Failed to compute week start date.');
@@ -702,26 +772,36 @@ async function aggregateWeeklySummary(options: {
     throw new Error('Failed to compute weekly summary window.');
   }
 
+  const clampedWeekStartUtc = clampStartUtc(weekStartUtc, shareStartUtc);
+  const clampedPriorWeekStartUtc = clampStartUtc(priorWeekStartUtc, shareStartUtc);
+  const clampedInsightStartUtc = clampStartUtc(insightWindowStartUtc, shareStartUtc);
+
   const [
     insightEntries,
     currentSessions,
     priorSessions,
+    safetyEvents,
   ] = await Promise.all([
     decryptInsightsForWindow({
       lineId: line.id,
       accountId: account.id,
-      startUtc: clampStartUtc(insightWindowStartUtc, shareStartUtc),
+      startUtc: clampedInsightStartUtc,
       endUtc: weekEndUtc,
     }),
     fetchCallSessions({
       lineId: line.id,
-      startUtc: clampStartUtc(weekStartUtc, shareStartUtc),
+      startUtc: clampedWeekStartUtc,
       endUtc: weekEndUtc,
     }),
     fetchCallSessions({
       lineId: line.id,
-      startUtc: clampStartUtc(priorWeekStartUtc, shareStartUtc),
+      startUtc: clampedPriorWeekStartUtc,
       endUtc: weekStartUtc,
+    }),
+    fetchSafetyEvents({
+      lineId: line.id,
+      startUtc: clampedWeekStartUtc,
+      endUtc: weekEndUtc,
     }),
   ]);
 
@@ -915,6 +995,8 @@ async function aggregateWeeklySummary(options: {
     weekStartDate,
     weekEndDate,
     timezone: line.timezone,
+    safetyEvents,
+    usageSummary,
     scheduledCalls,
     answeredCalls,
     missedCalls,
@@ -939,6 +1021,29 @@ async function aggregateWeeklySummary(options: {
       : null,
     dashboardUrl,
     settingsUrl,
+  };
+}
+
+function applySharingTier(
+  summary: WeeklySummaryData,
+  tier: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4'
+): WeeklySummaryData {
+  const allowsMood = tier !== 'tier_1';
+  const allowsTopics = tier === 'tier_3' || tier === 'tier_4';
+  const allowsConcerns = tier === 'tier_4';
+
+  return {
+    ...summary,
+    sharingTier: tier,
+    engagementNote: allowsMood ? summary.engagementNote : null,
+    moodSummary: allowsMood ? summary.moodSummary : null,
+    moodShiftNote: allowsMood ? summary.moodShiftNote : null,
+    moodDistribution: allowsMood ? summary.moodDistribution : null,
+    topTopics: allowsTopics ? summary.topTopics : [],
+    concerns: allowsConcerns ? summary.concerns : [],
+    needsFollowUp: allowsConcerns ? summary.needsFollowUp : false,
+    followUpReasons: allowsConcerns ? summary.followUpReasons : [],
+    socialNeedNote: allowsConcerns ? summary.socialNeedNote : null,
   };
 }
 
@@ -998,31 +1103,63 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
     return;
   }
 
-  let summary: WeeklySummaryData;
+  const { data: voiceConsent } = await supabase
+    .from('ultaura_line_voice_consent')
+    .select('sharing_consent, sharing_tier')
+    .eq('line_id', line.id)
+    .maybeSingle();
+
+  const sharingConsent = voiceConsent?.sharing_consent ?? 'pending';
+  const sharingTier = (voiceConsent?.sharing_tier ?? 'tier_1') as
+    | 'tier_1'
+    | 'tier_2'
+    | 'tier_3'
+    | 'tier_4';
+  const effectiveTier = sharingConsent === 'granted' ? sharingTier : 'tier_1';
+
   const shareStartUtc =
     account.user_type === 'self' && account.sharing_enabled && account.sharing_enabled_at
       ? DateTime.fromISO(account.sharing_enabled_at).toUTC().toISO()
       : null;
 
+  const usageSummary = await buildUsageSummary(account.id);
+
+  let summaryFull: WeeklySummaryData;
+  let summaryForSharing: WeeklySummaryData;
+
   try {
-    summary = await aggregateWeeklySummary({
+    summaryFull = await aggregateWeeklySummary({
       line,
       account,
       preferences,
       privacy,
       window,
-      shareStartUtc,
+      usageSummary,
+      shareStartUtc: null,
     });
+    summaryForSharing = shareStartUtc
+      ? await aggregateWeeklySummary({
+        line,
+        account,
+        preferences,
+        privacy,
+        window,
+        usageSummary,
+        shareStartUtc,
+      })
+      : summaryFull;
   } catch (error) {
     logger.error({ error, lineId: line.id }, 'Failed to aggregate weekly summary');
     return;
   }
 
+  const sharingSummary = applySharingTier(summaryForSharing, effectiveTier);
+
   const summaryId = await storeWeeklySummary({
     lineId: line.id,
     accountId: line.account_id,
-    weekStartDate: summary.weekStartDate,
-    summary,
+    weekStartDate: summaryFull.weekStartDate,
+    summary: summaryFull,
   });
 
   if (!summaryId) {
@@ -1030,7 +1167,10 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
   }
 
   const sentAt = lineTime.toISO() || new Date().toISOString();
-  const emailOk = await sendWeeklySummaryEmail(summary);
+  const emailOk = await sendWeeklySummaryEmail({
+    summary: summaryFull,
+    sharingSummary,
+  });
 
   if (!emailOk) {
     return;

@@ -12,7 +12,9 @@ import type {
   PrivacyScope,
   SafetyCategory,
   SafetyTier,
+  SharingTier,
   TopicCode,
+  VoiceConsentStatus,
 } from '@ultaura/types';
 import type { Database } from '~/database.types';
 import type { RetentionInsights } from './types/retention';
@@ -34,6 +36,7 @@ export type {
   SafetyActionTaken,
   SafetyCategory,
   SafetyTier,
+  SharingTier,
   TopicCode,
   LineVoiceConsent,
   VoiceConsentStatus,
@@ -660,6 +663,18 @@ export interface WeeklySummaryData {
   weekStartDate: string;
   weekEndDate: string;
   timezone: string;
+  sharingTier?: SharingTier | null;
+  safetyEvents: Array<{
+    severity: 'low' | 'medium' | 'high';
+    timestamp: string;
+    actionTaken: string | null;
+  }>;
+  usageSummary: {
+    minutesUsed: number;
+    minutesRemaining: number;
+    overageMinutes: number;
+    overageCost: number;
+  };
   scheduledCalls: number;
   answeredCalls: number;
   missedCalls: number;
@@ -703,6 +718,9 @@ export interface InsightsDashboard {
   lineName: string;
   timezone: string;
   status: LineStatus;
+  userType: UserType;
+  sharingConsent: VoiceConsentStatus;
+  sharingTier: SharingTier;
   insightsEnabled: boolean;
   isPaused: boolean;
   pausedReason: string | null;

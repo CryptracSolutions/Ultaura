@@ -4,9 +4,20 @@ import type { ConversationHighlightsData } from '~/lib/ultaura/types';
 interface ConversationHighlightsProps {
   data: ConversationHighlightsData;
   timezone: string;
+  showMood?: boolean;
+  showTopics?: boolean;
+  showMemoryKeys?: boolean;
+  showMilestones?: boolean;
 }
 
-export function ConversationHighlights({ data, timezone }: ConversationHighlightsProps) {
+export function ConversationHighlights({
+  data,
+  timezone,
+  showMood = true,
+  showTopics = true,
+  showMemoryKeys = true,
+  showMilestones = true,
+}: ConversationHighlightsProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="flex items-center justify-between">
@@ -24,32 +35,40 @@ export function ConversationHighlights({ data, timezone }: ConversationHighlight
               <div key={highlight.callSessionId} className="rounded-lg border border-border/60 bg-muted/20 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-foreground">{dateLabel}</p>
-                  <span className="text-xs text-muted-foreground">
-                    Mood: {highlight.mood ?? 'unknown'}
-                  </span>
+                  {showMood ? (
+                    <span className="text-xs text-muted-foreground">
+                      Mood: {highlight.mood ?? 'unknown'}
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="mt-3 space-y-2 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Topics discussed</p>
-                    <p className="text-sm text-foreground">
-                      {highlight.topics.length ? highlight.topics.join(', ') : 'General conversation'}
-                    </p>
-                  </div>
+                  {showTopics ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Topics discussed</p>
+                      <p className="text-sm text-foreground">
+                        {highlight.topics.length ? highlight.topics.join(', ') : 'General conversation'}
+                      </p>
+                    </div>
+                  ) : null}
 
-                  <div>
-                    <p className="text-xs text-muted-foreground">New memories (keys only)</p>
-                    <p className="text-sm text-foreground">
-                      {highlight.newMemoryKeys.length ? highlight.newMemoryKeys.join(', ') : 'No new memories'}
-                    </p>
-                  </div>
+                  {showMemoryKeys ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground">New memories (keys only)</p>
+                      <p className="text-sm text-foreground">
+                        {highlight.newMemoryKeys.length ? highlight.newMemoryKeys.join(', ') : 'No new memories'}
+                      </p>
+                    </div>
+                  ) : null}
 
-                  <div>
-                    <p className="text-xs text-muted-foreground">Milestones mentioned</p>
-                    <p className="text-sm text-foreground">
-                      {highlight.milestones.length ? highlight.milestones.join(', ') : 'None mentioned'}
-                    </p>
-                  </div>
+                  {showMilestones ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Milestones mentioned</p>
+                      <p className="text-sm text-foreground">
+                        {highlight.milestones.length ? highlight.milestones.join(', ') : 'None mentioned'}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );

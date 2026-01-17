@@ -33,6 +33,13 @@ const STATUS_LABELS: Record<LineStatus, string> = {
   disabled: 'Disabled',
 };
 
+const SHARING_TIER_LABELS: Record<string, string> = {
+  tier_1: 'Basic Updates & Safety',
+  tier_2: 'Wellness Check',
+  tier_3: 'Full Summary',
+  tier_4: 'Complete Visibility',
+};
+
 export function InsightsPageClient({
   lines,
   selectedLineId,
@@ -78,7 +85,17 @@ export function InsightsPageClient({
   };
 
   const callActivityDates = dashboard ? dashboard.callActivity.map((entry) => entry.date) : [];
-  const showEngagement = Boolean(dashboard?.summary.engagementNote);
+  const isFamilyManaged = dashboard?.userType === 'family_managed';
+  const effectiveTier = isFamilyManaged
+    ? (dashboard?.sharingConsent === 'granted' ? dashboard?.sharingTier : 'tier_1')
+    : null;
+  const allowMood = !isFamilyManaged || effectiveTier !== 'tier_1';
+  const allowTopics = !isFamilyManaged || effectiveTier === 'tier_3' || effectiveTier === 'tier_4';
+  const allowConcerns = !isFamilyManaged || effectiveTier === 'tier_4';
+  const showEngagement = allowMood && Boolean(dashboard?.summary.engagementNote);
+  const showLimitedNotice = isFamilyManaged && effectiveTier === 'tier_1';
+  const sharingStatusLabel = effectiveTier ? SHARING_TIER_LABELS[effectiveTier] : null;
+  const canViewDetailedInsights = dashboard?.userType === 'self';
 
   return (
     <div className="space-y-6">
@@ -100,7 +117,7 @@ export function InsightsPageClient({
         </div>
         <div className="flex flex-col items-start gap-1 text-sm text-muted-foreground sm:items-end">
           <span>Last 30 days</span>
-          {selectedLine?.short_id ? (
+          {canViewDetailedInsights && selectedLine?.short_id ? (
             <Link
               href={`/dashboard/lines/${selectedLine.short_id}/insights`}
               className="text-xs text-primary hover:underline"
@@ -142,33 +159,56 @@ export function InsightsPageClient({
             </p>
           </div>
 
+          {isFamilyManaged && sharingStatusLabel && (
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <div className="text-sm font-medium text-foreground">Sharing level</div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {sharingStatusLabel}
+                {dashboard?.sharingConsent !== 'granted'
+                  ? ` (not enabled by ${dashboard.lineName})`
+                  : ''}
+              </p>
+            </div>
+          )}
+
           <div className="grid gap-6 lg:grid-cols-2">
-            <InsightsSummary summary={dashboard.summary} />
+            <InsightsSummary summary={dashboard.summary} showMood={allowMood} />
             <CallMetrics activity={dashboard.callActivity} />
           </div>
 
           <RetentionInsightsCard retention={dashboard.retention} />
 
-          <div className={showEngagement ? 'grid gap-6 lg:grid-cols-2' : 'grid gap-6'}>
-            {showEngagement && (
-              <div className="rounded-xl border border-border bg-card p-6">
-                <h3 className="text-sm font-semibold text-foreground">Engagement Trend</h3>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Engagement has been {dashboard.summary.engagementNote}.
-                </p>
-              </div>
-            )}
-            <MoodTrend
-              moodTrend={dashboard.moodTrend}
-              dateRange={callActivityDates}
-              timezone={dashboard.timezone}
-              className={showEngagement ? undefined : 'lg:col-span-2'}
-            />
-          </div>
+          {allowMood && (
+            <div className={showEngagement ? 'grid gap-6 lg:grid-cols-2' : 'grid gap-6'}>
+              {showEngagement && (
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <h3 className="text-sm font-semibold text-foreground">Engagement Trend</h3>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Engagement has been {dashboard.summary.engagementNote}.
+                  </p>
+                </div>
+              )}
+              <MoodTrend
+                moodTrend={dashboard.moodTrend}
+                dateRange={callActivityDates}
+                timezone={dashboard.timezone}
+                className={showEngagement ? undefined : 'lg:col-span-2'}
+              />
+            </div>
+          )}
 
-          <TopicsChart topics={dashboard.topics} />
+          {showLimitedNotice && (
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <p className="text-sm text-muted-foreground">
+                Detailed insights require {SHARING_TIER_LABELS.tier_2} sharing level or higher.{' '}
+                {dashboard.lineName} controls sharing preferences during calls.
+              </p>
+            </div>
+          )}
 
-          <ConcernsList concerns={dashboard.concerns} />
+          {allowTopics && <TopicsChart topics={dashboard.topics} />}
+
+          {allowConcerns && <ConcernsList concerns={dashboard.concerns} />}
 
           <div className="rounded-xl border border-border bg-card p-6">
             <h2 className="font-semibold text-foreground mb-6">Call History</h2>

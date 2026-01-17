@@ -38,6 +38,8 @@ const AuthRedirectListener: React.FCC<{
 
         setUserSession((prev) => {
           const prevUserId = prev?.auth?.user?.id;
+          const prevData = prev?.data;
+          const prevRole = prev?.role;
           const nextAuth = {
             user: {
               id: sessionUser.id,
@@ -48,15 +50,17 @@ const AuthRedirectListener: React.FCC<{
 
           if (prevUserId === sessionUser.id) {
             return {
-              ...prev,
               auth: nextAuth,
+              data: prevData,
+              role: prevRole,
             };
           }
 
+          const shouldReuse = prevData?.id === sessionUser.id;
           return {
             auth: nextAuth,
-            data: prev?.data?.id === sessionUser.id ? prev?.data : undefined,
-            role: prev?.data?.id === sessionUser.id ? prev?.role : undefined,
+            data: shouldReuse ? prevData : undefined,
+            role: shouldReuse ? prevRole : undefined,
           };
         });
 

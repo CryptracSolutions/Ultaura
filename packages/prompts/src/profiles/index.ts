@@ -30,6 +30,8 @@ import { INSIGHTS_SECTION } from '../golden/sections/insights.js';
 import { RETENTION_POLICY_SECTION, INBOUND_REMINDER_SECTION } from '../golden/sections/retention-policy.js';
 import { WEB_SEARCH_POLICY_SECTION } from '../golden/sections/web-search-policy.js';
 import { SEGMENTS_POLICY_SECTION } from '../golden/sections/segments-policy.js';
+import { RECORDING_CONSENT_SECTION } from '../golden/sections/recording-consent.js';
+import { FAMILY_SHARING_CONSENT_SECTION } from '../golden/sections/family-sharing-consent.js';
 import { sanitizeForPrompt, sanitizeKey } from '../utils/sanitize.js';
 
 export type PromptProfile = 'voice_realtime' | 'admin_preview';
@@ -45,6 +47,7 @@ export interface CompanionPromptParams {
   memories: Memory[];
   isFirstCall: boolean;
   memoryEnabled?: boolean;
+  isPreviewMode?: boolean;
   timezone?: string;
   seedInterests?: string[] | null;
   seedAvoidTopics?: string[] | null;
@@ -54,6 +57,15 @@ export interface CompanionPromptParams {
   accountStatus?: AccountStatus;
   canReceiveInboundCalls?: boolean;
   isTestCall?: boolean;
+  userType?: 'self' | 'family_managed';
+  sharingEnabled?: boolean;
+  recordingEnabled?: boolean;
+  recordingConsent?: 'pending' | 'granted' | 'denied';
+  needsRecordingConsent?: boolean;
+  sharingTier?: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4';
+  sharingConsent?: 'pending' | 'granted' | 'denied';
+  needsSharingConsent?: boolean;
+  onboardingCompleted?: boolean;
   placeholders?: Record<string, string>;
 }
 
@@ -147,6 +159,14 @@ export function compilePrompt(
     sections.push(selectSection(ONBOARDING_SECTION, compressed));
   }
 
+  if (params.needsRecordingConsent && params.recordingEnabled) {
+    sections.push(selectSection(RECORDING_CONSENT_SECTION, compressed));
+  }
+
+  if (params.needsSharingConsent && params.userType === 'family_managed') {
+    sections.push(selectSection(FAMILY_SHARING_CONSENT_SECTION, compressed));
+  }
+
   if (params.lowMinutesWarning && params.minutesRemaining !== undefined) {
     sections.push(
       compressed
@@ -214,6 +234,7 @@ function applyPlaceholders(prompt: string, params: CompanionPromptParams): strin
   const replacements: Record<string, string> = {
     userName: params.userName,
     timezone: params.timezone || 'America/Los_Angeles',
+    sharingTier: params.sharingTier || '',
     ...(params.placeholders ?? {}),
   };
 

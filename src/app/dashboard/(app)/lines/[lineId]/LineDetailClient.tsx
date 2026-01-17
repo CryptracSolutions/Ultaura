@@ -36,6 +36,7 @@ import { initiateTestCall } from '~/lib/ultaura/usage';
 import { formatTime } from '~/lib/ultaura/constants';
 import { CallActivityList } from './components/CallActivityList';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 
 const MAX_INTEREST_TOPICS = 5;
 
@@ -159,6 +160,7 @@ export function LineDetailClient({
   const [topicCustom, setTopicCustom] = useState('');
   const [avoidTopicsText, setAvoidTopicsText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [testCallMode, setTestCallMode] = useState<'quick' | 'preview'>('quick');
 
   const normalizeTopic = (topic: string) => topic.trim();
 
@@ -275,7 +277,7 @@ export function LineDetailClient({
     setIsTestCalling(true);
     setError(null);
     try {
-      const result = await initiateTestCall(line.id);
+      const result = await initiateTestCall(line.id, { isPreviewMode: testCallMode === 'preview' });
       if (!result.success) {
         setError(result.error.message || 'Failed to initiate test call');
       }
@@ -397,6 +399,36 @@ export function LineDetailClient({
           {error}
         </div>
       )}
+
+      <div className="mb-6 rounded-xl border border-border bg-card p-6">
+        <div className="text-sm font-semibold text-foreground mb-2">Test Call Options</div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Choose how much of the experience to preview.
+        </p>
+        <RadioGroup
+          value={testCallMode}
+          onValueChange={(value) => setTestCallMode(value as 'quick' | 'preview')}
+        >
+          <RadioGroupItemLabel>
+            <RadioGroupItem value="quick" />
+            <div>
+              <div className="text-sm font-medium text-foreground">Quick Test</div>
+              <div className="text-xs text-muted-foreground">
+                Test audio and connection only. No disclosures.
+              </div>
+            </div>
+          </RadioGroupItemLabel>
+          <RadioGroupItemLabel>
+            <RadioGroupItem value="preview" />
+            <div>
+              <div className="text-sm font-medium text-foreground">Preview Full Experience</div>
+              <div className="text-xs text-muted-foreground">
+                Hear the complete first-call flow including disclosures.
+              </div>
+            </div>
+          </RadioGroupItemLabel>
+        </RadioGroup>
+      </div>
 
       {/* Settings Card */}
       <div className={`${CARD_CLASS} mb-6`}>

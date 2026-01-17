@@ -8,6 +8,8 @@ import type {
   ConcernCode,
   FollowUpReasonCode,
   MemoryType,
+  SharingTier,
+  VoiceConsentStatus,
   TopicCode,
 } from '@ultaura/types';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
@@ -459,10 +461,18 @@ export async function getNotificationPreferences(
     return existing as NotificationPreferencesRow;
   }
 
+  const { data: account } = await client
+    .from('ultaura_accounts')
+    .select('user_type')
+    .eq('id', accountId)
+    .maybeSingle();
+
+  const defaultWeeklySummaryEnabled = account?.user_type === 'family_managed';
+
   const defaultPrefs = {
     account_id: accountId,
     line_id: lineId,
-    weekly_summary_enabled: true,
+    weekly_summary_enabled: defaultWeeklySummaryEnabled,
     weekly_summary_format: 'email' as const,
     weekly_summary_day: 'sunday' as const,
     weekly_summary_time: '18:00',
@@ -705,7 +715,16 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     throw new Error('Failed to compute insights dashboard window');
   }
 
-  const [sessions, insightsRows, baseline, previewRows, segmentRows, storyArcs] = await Promise.all([
+  const [
+    sessions,
+    insightsRows,
+    baseline,
+    previewRows,
+    segmentRows,
+    storyArcs,
+    accountRow,
+    voiceConsent,
+  ] = await Promise.all([
     client
       .from('ultaura_call_sessions')
       .select('*')
@@ -738,6 +757,16 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
       .select('*')
       .eq('line_id', lineId)
       .eq('status', 'active'),
+    client
+      .from('ultaura_accounts')
+      .select('user_type, sharing_enabled')
+      .eq('id', line.account_id)
+      .maybeSingle(),
+    client
+      .from('ultaura_line_voice_consent')
+      .select('sharing_consent, sharing_tier')
+      .eq('line_id', lineId)
+      .maybeSingle(),
   ]);
 
   if (sessions.error) {
@@ -761,6 +790,26 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   if (storyArcs.error) {
     logger.error({ error: storyArcs.error, lineId }, 'Failed to fetch story arcs for dashboard');
   }
+
+  if (accountRow.error) {
+    logger.error({ error: accountRow.error, lineId }, 'Failed to fetch account for dashboard');
+  }
+
+  if (voiceConsent.error) {
+    logger.error({ error: voiceConsent.error, lineId }, 'Failed to fetch sharing consent for dashboard');
+  }
+
+  const userType = (accountRow.data?.user_type ?? 'family_managed') as 'self' | 'family_managed';
+  const sharingConsent = (voiceConsent.data?.sharing_consent ?? 'pending') as VoiceConsentStatus;
+  const sharingTier = (voiceConsent.data?.sharing_tier ?? 'tier_1') as SharingTier;
+  const isFamilyManaged = userType === 'family_managed';
+  const effectiveTier = isFamilyManaged
+    ? (sharingConsent === 'granted' ? sharingTier : 'tier_1')
+    : 'tier_4';
+  const allowMood = !isFamilyManaged || effectiveTier !== 'tier_1';
+  const allowTopics = !isFamilyManaged || effectiveTier === 'tier_3' || effectiveTier === 'tier_4';
+  const allowConcerns = !isFamilyManaged || effectiveTier === 'tier_4';
+  const allowRetention = !isFamilyManaged || effectiveTier === 'tier_3' || effectiveTier === 'tier_4';
 
   const sessionList = (sessions.data || []) as CallSessionRow[];
   const insightsList = insightsRows.data || [];
@@ -1102,55 +1151,66 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
       : 0,
   }));
 
+  const retention = allowRetention
+    ? {
+        retentionFeatures: {
+          callPreviewEnabled: previewList.length > 0,
+          segmentsEnabled: segmentList.length > 0,
+          favoriteSegments,
+          activeStoryArcs: activeStoryArcSummaries,
+        },
+        engagementMetrics: {
+          callPreviewFollowThrough,
+          segmentCompletionRate,
+          preferredSegmentType,
+          averageSegmentDuration,
+        },
+        inboundMetrics: {
+          inboundCallCount,
+          inboundCallTrend,
+        },
+      }
+    : undefined;
+
+  const filteredCallHistory = allowMood
+    ? callHistory
+    : callHistory.map((session) => ({ ...session, mood_overall: null }));
+
   return {
     lineId: line.id,
     lineShortId: line.short_id,
     lineName: line.display_name,
     timezone: line.timezone,
     status: line.status,
+    userType,
+    sharingConsent,
+    sharingTier,
     insightsEnabled: privacy?.insights_enabled ?? true,
     isPaused: privacy?.is_paused ?? false,
     pausedReason: privacy?.paused_reason ?? null,
     privateTopicCodes: (privacy?.private_topic_codes as string[]) || [],
-    retention: {
-      retentionFeatures: {
-        callPreviewEnabled: previewList.length > 0,
-        segmentsEnabled: segmentList.length > 0,
-        favoriteSegments,
-        activeStoryArcs: activeStoryArcSummaries,
-      },
-      engagementMetrics: {
-        callPreviewFollowThrough,
-        segmentCompletionRate,
-        preferredSegmentType,
-        averageSegmentDuration,
-      },
-      inboundMetrics: {
-        inboundCallCount,
-        inboundCallTrend,
-      },
-    },
+    retention,
     summary: {
       scheduledCalls,
       answeredCalls,
       answeredDelta,
       avgDurationMinutes,
       durationDeltaMinutes,
-      moodSummary,
-      moodShiftNote,
-      engagementNote,
+      moodSummary: allowMood ? moodSummary : null,
+      moodShiftNote: allowMood ? moodShiftNote : null,
+      engagementNote: allowMood ? engagementNote : null,
       showMissedCallsWarning,
       missedCalls,
       inboundCalls: inboundCallsWeek,
-      needsFollowUp,
-      followUpReasons,
-      socialNeedNote,
+      needsFollowUp: allowConcerns ? needsFollowUp : false,
+      followUpReasons: allowConcerns ? followUpReasons : [],
+      socialNeedNote: allowConcerns ? socialNeedNote : null,
     },
-    moodTrend,
-    topics,
-    concerns,
+    moodTrend: allowMood ? moodTrend : [],
+    topics: allowTopics ? topics : [],
+    concerns: allowConcerns ? concerns : [],
     callActivity,
-    callHistory,
+    callHistory: filteredCallHistory,
   };
 }
 
@@ -1309,6 +1369,42 @@ export async function getMoodCalendar(
   }
 
   return { month: monthStart.toFormat('yyyy-MM'), days };
+}
+
+export async function getSafetyEvents(
+  lineId: string,
+  options?: { limit?: number; includeAllTiers?: boolean }
+): Promise<Array<{ id: string; occurredAt: string; severity: 'low' | 'medium' | 'high'; actionTaken: string | null }>> {
+  const line = await getAuthorizedLine(lineId);
+  if (!line) {
+    return [];
+  }
+
+  const client = await getAdminClient();
+  const limit = options?.limit ?? 10;
+  let query = client
+    .from('ultaura_safety_events')
+    .select('id, tier, action_taken, created_at')
+    .eq('line_id', lineId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (!options?.includeAllTiers) {
+    query = query.eq('tier', 'high');
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to fetch safety events');
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    occurredAt: row.created_at,
+    severity: row.tier as 'low' | 'medium' | 'high',
+    actionTaken: row.action_taken ?? null,
+  }));
 }
 
 export async function getConversationHighlights(

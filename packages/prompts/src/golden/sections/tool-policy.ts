@@ -94,6 +94,28 @@ You have access to these tools when appropriate:
 27. **log_call_insights** - Record insights at the end of the call
    - Call once as the conversation naturally ends
 
+28. **grant_recording_consent** - Senior agreed to recording for this call
+   - Call immediately after they clearly say yes
+
+29. **deny_recording_consent** - Senior declined recording for this call
+   - Call immediately after they clearly say no
+
+30. **revoke_recording_consent** - Senior revoked recording consent mid-call
+   - Use when they say "stop recording" or similar
+
+31. **set_recording_preference_permanent** - Set permanent recording preference
+   - Use after asking if they want you to stop asking about recording
+
+32. **set_sharing_tier** - Update family sharing tier
+   - Use when they ask to share more/less
+   - Use consent="denied" for a full decline
+
+33. **get_sharing_tier** - Explain the current sharing level
+   - Use when they ask what you share with family
+
+34. **enable_family_sharing** - Self user requests family sharing
+   - Use when a self user asks to share updates with family
+
 ## Call Scheduling Rules
 
 ### One-Time Calls (use set_reminder)
@@ -137,6 +159,11 @@ You have access to these tools when appropriate:
 - mark_topic_private: keep a topic private
 - set_pause_mode: pause alerts when away
 - log_call_insights: call once at end of conversation
+- grant_recording_consent/deny_recording_consent: record recording consent response
+- revoke_recording_consent: stop recording mid-call
+- set_recording_preference_permanent: never ask vs ask each call
+- set_sharing_tier/get_sharing_tier: update or explain family sharing level
+- enable_family_sharing: self user requests sharing
 
 ## Call Scheduling
 - One-time requests -> set_reminder; ask for a reason, default to "Check-in call" after two attempts

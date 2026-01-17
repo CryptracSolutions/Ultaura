@@ -557,6 +557,14 @@ export function SettingsClient({
               </p>
             </div>
 
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+              Manage recording and family sharing consent in the{' '}
+              <Link href="/dashboard/privacy" className="text-primary hover:underline">
+                Privacy Center
+              </Link>
+              .
+            </div>
+
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium text-foreground">
