@@ -66,6 +66,7 @@ const baseSession: CallSessionRow = {
   reminder_message: null,
   scheduler_idempotency_key: null,
   is_test_call: false,
+  is_preview_mode: false,
 };
 
 const basePreviewBody = {

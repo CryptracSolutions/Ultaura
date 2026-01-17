@@ -358,7 +358,6 @@ export class GrokBridge {
       recordingEnabled,
       recordingConsent,
       needsRecordingConsent,
-      recordingReenableRequested,
       sharingTier,
       sharingConsent,
       needsSharingConsent,

@@ -177,13 +177,25 @@ recordingConsentRouter.post('/deny_recording_consent', async (req: Request, res:
     }
 
     if (!session.is_test_call && !session.is_preview_mode && session.recording_sid) {
-      const stopped = await stopRecordingForCall(session.recording_sid);
-      if (!stopped) {
+      if (!session.twilio_call_sid) {
+        logger.warn({ callSessionId }, 'Missing Twilio call SID; queueing recording deletion');
         await queueRecordingDeletion({
           accountId: session.account_id,
           callSessionId,
           recordingSid: session.recording_sid,
         });
+      } else {
+        const stopped = await stopRecordingForCall({
+          callSid: session.twilio_call_sid,
+          recordingSid: session.recording_sid,
+        });
+        if (!stopped) {
+          await queueRecordingDeletion({
+            accountId: session.account_id,
+            callSessionId,
+            recordingSid: session.recording_sid,
+          });
+        }
       }
     }
 
@@ -260,13 +272,25 @@ recordingConsentRouter.post('/revoke_recording_consent', async (req: Request, re
     }
 
     if (!session.is_test_call && !session.is_preview_mode && session.recording_sid) {
-      const stopped = await stopRecordingForCall(session.recording_sid);
-      if (!stopped) {
+      if (!session.twilio_call_sid) {
+        logger.warn({ callSessionId }, 'Missing Twilio call SID; queueing recording deletion');
         await queueRecordingDeletion({
           accountId: session.account_id,
           callSessionId,
           recordingSid: session.recording_sid,
         });
+      } else {
+        const stopped = await stopRecordingForCall({
+          callSid: session.twilio_call_sid,
+          recordingSid: session.recording_sid,
+        });
+        if (!stopped) {
+          await queueRecordingDeletion({
+            accountId: session.account_id,
+            callSessionId,
+            recordingSid: session.recording_sid,
+          });
+        }
       }
     }
 

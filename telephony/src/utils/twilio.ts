@@ -162,24 +162,36 @@ export async function startRecordingForCall(options: {
   }
 }
 
-export async function stopRecordingForCall(recordingSid: string): Promise<boolean> {
+export async function stopRecordingForCall(options: {
+  callSid: string;
+  recordingSid: string;
+}): Promise<boolean> {
   const client = getTwilioClient();
   try {
-    await client.recordings(recordingSid).update({ status: 'stopped' });
+    await client
+      .calls(options.callSid)
+      .recordings(options.recordingSid)
+      .update({ status: 'stopped' });
     return true;
   } catch (error) {
-    logger.error({ error, recordingSid }, 'Failed to stop call recording');
+    logger.error({ error, recordingSid: options.recordingSid }, 'Failed to stop call recording');
     return false;
   }
 }
 
-export async function pauseRecordingForCall(recordingSid: string): Promise<boolean> {
+export async function pauseRecordingForCall(options: {
+  callSid: string;
+  recordingSid: string;
+}): Promise<boolean> {
   const client = getTwilioClient();
   try {
-    await client.recordings(recordingSid).update({ status: 'paused' });
+    await client
+      .calls(options.callSid)
+      .recordings(options.recordingSid)
+      .update({ status: 'paused' });
     return true;
   } catch (error) {
-    logger.error({ error, recordingSid }, 'Failed to pause call recording');
+    logger.error({ error, recordingSid: options.recordingSid }, 'Failed to pause call recording');
     return false;
   }
 }
