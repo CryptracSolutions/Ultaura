@@ -1235,7 +1235,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                   value={exceptionDate}
                   onChange={(e) => setExceptionDate(e.target.value)}
                   min={DateTime.now().setZone(line.timezone).toISODate() ?? undefined}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
             )}
@@ -1249,7 +1249,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                   type="time"
                   value={snoozeTime}
                   onChange={(e) => setSnoozeTime(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
                   Snoozes the next call. If the time is earlier than now, we’ll schedule for tomorrow.
@@ -1273,7 +1273,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                   value={rescheduleDateTime}
                   onChange={(e) => setRescheduleDateTime(e.target.value)}
                   min={DateTime.now().setZone(line.timezone).toFormat("yyyy-MM-dd'T'HH:mm")}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
             )}

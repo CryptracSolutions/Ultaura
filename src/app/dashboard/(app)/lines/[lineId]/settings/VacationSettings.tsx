@@ -104,7 +104,7 @@ export function VacationSettings({
             onChange={(e) => setStartDate(e.target.value)}
             min={today ?? undefined}
             disabled={disabled || isSaving}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <div>
@@ -115,7 +115,7 @@ export function VacationSettings({
             onChange={(e) => setEndDate(e.target.value)}
             min={startDate || today || undefined}
             disabled={disabled || isSaving}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <button

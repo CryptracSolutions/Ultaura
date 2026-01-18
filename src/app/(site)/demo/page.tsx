@@ -293,7 +293,7 @@ export default function DemoPage() {
                             className={
                               'w-full rounded-xl border bg-background px-4 py-3 text-foreground' +
                               ' placeholder:text-muted-foreground focus:outline-none focus:ring-2' +
-                              ' focus:ring-primary/50 resize-none transition-colors' +
+                              ' focus:ring-ring resize-none transition-colors' +
                               (selectedPreset
                                 ? ' border-primary/30 bg-primary/5'
                                 : ' border-border')

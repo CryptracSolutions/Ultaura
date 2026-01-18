@@ -205,7 +205,7 @@ export function AddLineModal({
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder={isSelfUser ? 'e.g., My phone' : 'e.g., Mom, Dad, Carmen'}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       required
                     />
                     <p className="text-xs text-muted-foreground">
@@ -227,7 +227,7 @@ export function AddLineModal({
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="(555) 123-4567"
-                        className="w-full pl-10 pr-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="w-full pl-10 pr-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         required
                       />
                     </div>
@@ -306,7 +306,7 @@ export function AddLineModal({
                         onChange={(e) => setCustomTopics(e.target.value)}
                         placeholder="e.g., baseball, baking, church"
                         disabled={customDisabled}
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                       />
                       {customDisabled ? (
                         <p className="text-xs text-muted-foreground">
@@ -330,7 +330,7 @@ export function AddLineModal({
                       onChange={(e) => setAvoidTopics(e.target.value)}
                       placeholder="e.g., politics, health issues..."
                       rows={2}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
                     />
                   </div>
 
@@ -390,7 +390,7 @@ export function AddLineModal({
                         checked={isVendorAcknowledged}
                         onChange={(e) => setVendorAcknowledged(e.target.checked)}
                         disabled={vendorAlreadyAcknowledged}
-                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       />
                       <span className="text-sm text-foreground">
                         I understand that Ultaura uses xAI and Twilio to power voice conversations.
@@ -411,7 +411,7 @@ export function AddLineModal({
                         type="checkbox"
                         checked={disclosure}
                         onChange={(e) => setDisclosure(e.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       />
                       <span className="text-sm text-foreground">
                         I understand Ultaura is an AI voice companion and is not a medical or mental health service.
@@ -423,7 +423,7 @@ export function AddLineModal({
                         type="checkbox"
                         checked={consent}
                         onChange={(e) => setConsent(e.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       />
                       <span className="text-sm text-foreground">
                         I understand Ultaura may call this phone number on the schedule I set. The recipient can stop calls anytime by pressing 9.

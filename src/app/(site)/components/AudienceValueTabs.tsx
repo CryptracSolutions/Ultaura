@@ -162,7 +162,7 @@ export function AudienceValueTabs() {
                       id={`audience-tab-${audience.id}`}
                       onClick={() => setActive(audience.id)}
                       className={classNames(
-                        'rounded-xl px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+                        'rounded-xl px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         selected
                           ? 'text-primary'
                           : 'text-muted-foreground hover:text-foreground',
@@ -388,5 +388,4 @@ export function AudienceValueTabs() {
     </section>
   );
 }
-
 

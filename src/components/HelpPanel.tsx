@@ -121,7 +121,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               className={classNames(
                 'p-4 h-14 w-full outline-none resize-none text-sm bg-sidebar',
                 'text-foreground placeholder:text-sidebar-foreground/60',
-                'pr-12 focus:ring-2 focus:ring-primary/20 transition-all'
+                'pr-12 focus:ring-2 focus:ring-ring transition-all'
               )}
               placeholder="Ask a question..."
             />

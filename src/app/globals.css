@@ -129,7 +129,7 @@
   /* Border, Input, Ring */
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.75 0.12 180.426);
+  --ring: oklch(0.696 0.119 180.426);
 
   /* Chart Colors */
   --chart-1: oklch(0.75 0.12 180.426);
