@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 import {
@@ -20,18 +20,31 @@ const MobileNavigationDropdown: React.FC<{
   links: Array<{
     path: string;
     label: string;
-  }>;
-}> = ({ links }) => {
+}>;
+  currentLabel?: string;
+  onNavigate?: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    link: { path: string; label: string }
+  ) => void;
+}> = ({ links, currentLabel, onNavigate }) => {
   const path = usePathname();
+  const [open, setOpen] = useState(false);
 
   const currentPathName = useMemo(() => {
-    return Object.values(links).find((link) => link.path === path)?.label;
-  }, [links, path]);
+    if (currentLabel) {
+      return currentLabel;
+    }
+
+    return (
+      Object.values(links).find((link) => link.path === path)?.label ??
+      links[0]?.label
+    );
+  }, [currentLabel, links, path]);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant={'secondary'} block>
+        <Button variant={'secondary'} block type="button">
           <span
             className={'flex w-full items-center justify-between space-x-2'}
           >
@@ -56,6 +69,10 @@ const MobileNavigationDropdown: React.FC<{
               <Link
                 className={'flex h-12 w-full items-center'}
                 href={link.path}
+                onClick={(event) => {
+                  onNavigate?.(event, link);
+                  setOpen(false);
+                }}
               >
                 <Trans i18nKey={link.label} defaults={link.label} />
               </Link>

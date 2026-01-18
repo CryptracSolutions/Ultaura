@@ -53,7 +53,7 @@ export default async function LineSettingsPage({ params }: PageProps) {
     <>
       <AppHeader
         title={`Settings for ${line.display_name}`}
-        description="Manage line preferences and information"
+        description="Manage calling availability, insights, and accessibility for this line"
       >
         {isTrialActive && trialInfo ? (
           <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />

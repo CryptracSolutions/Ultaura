@@ -25,7 +25,10 @@ export default async function PrivacyCenterPage() {
   if (!organizationId) {
     return (
       <>
-        <AppHeader title="Privacy Center" description="Manage recording, memory, and data exports" />
+        <AppHeader
+          title="Privacy Center"
+          description="Manage consent, sharing, recording, and data exports"
+        />
         <PageBody>
           <div className="py-8">
             <p className="text-muted-foreground">Organization not found.</p>
@@ -40,7 +43,10 @@ export default async function PrivacyCenterPage() {
   if (!account) {
     return (
       <>
-        <AppHeader title="Privacy Center" description="Manage recording, memory, and data exports" />
+        <AppHeader
+          title="Privacy Center"
+          description="Manage consent, sharing, recording, and data exports"
+        />
         <PageBody>
           <div className="py-8">
             <div className="max-w-lg rounded-xl border border-border bg-card p-6">
@@ -74,7 +80,10 @@ export default async function PrivacyCenterPage() {
 
   return (
     <>
-      <AppHeader title="Privacy Center" description="Manage recording, memory, and data exports" />
+      <AppHeader
+        title="Privacy Center"
+        description="Manage consent, sharing, recording, and data exports"
+      />
       <PageBody>
         <PrivacyCenterClient
           account={account}

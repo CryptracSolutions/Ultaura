@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useContext } from 'react';
+import type { MouseEventHandler } from 'react';
 
 import classNames from 'clsx';
 import { cva } from 'cva';
@@ -24,6 +25,7 @@ const NavigationMenuItem: React.FCC<{
   shallow?: boolean;
   scroll?: boolean;
   className?: string;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 }> = ({
   link,
   disabled,
@@ -31,6 +33,7 @@ const NavigationMenuItem: React.FCC<{
   scroll,
   depth,
   active: activeOverride,
+  onClick,
   ...props
 }) => {
   const pathName = usePathname() ?? '';
@@ -58,6 +61,7 @@ const NavigationMenuItem: React.FCC<{
         href={disabled ? '' : link.path}
         shallow={shallow ?? active}
         scroll={scroll}
+        onClick={onClick}
       >
         <Trans i18nKey={label} defaults={label} />
       </Link>

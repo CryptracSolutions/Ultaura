@@ -20,6 +20,7 @@ interface ConfirmationDialogProps {
   cancelLabel?: string;
   variant?: 'destructive' | 'default';
   onConfirm: () => void | Promise<void>;
+  onCancel?: () => void;
 }
 
 export function ConfirmationDialog({
@@ -31,6 +32,7 @@ export function ConfirmationDialog({
   cancelLabel = 'Cancel',
   variant = 'destructive',
   onConfirm,
+  onCancel,
 }: ConfirmationDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -49,9 +51,10 @@ export function ConfirmationDialog({
 
   const handleCancel = useCallback(() => {
     if (!isLoading) {
+      onCancel?.();
       onOpenChange(false);
     }
-  }, [isLoading, onOpenChange]);
+  }, [isLoading, onCancel, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={isLoading ? undefined : onOpenChange}>

@@ -60,6 +60,7 @@ export function AccordionTrigger({
 
   return (
     <button
+      type="button"
       onClick={() => setOpenItem(isOpen ? null : value!)}
       className={cn(
         'flex w-full items-center justify-between p-6 text-left font-semibold text-foreground transition-all hover:bg-muted/50',
@@ -97,5 +98,4 @@ export function AccordionContent({
     </div>
   );
 }
-
 

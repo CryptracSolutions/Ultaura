@@ -1,30 +1,27 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { Palmtree, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { VacationRange } from '~/lib/ultaura/vacation-utils';
-import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
 
 export function VacationSettings({
   line,
+  ranges,
+  onRangesChange,
   disabled = false,
+  showHeader = true,
 }: {
   line: LineRow;
+  ranges: VacationRange[];
+  onRangesChange: (ranges: VacationRange[]) => void;
   disabled?: boolean;
+  showHeader?: boolean;
 }) {
-  const router = useRouter();
-  const [ranges, setRanges] = useState<VacationRange[]>(
-    Array.isArray(line.vacation_ranges)
-      ? (line.vacation_ranges as unknown as VacationRange[])
-      : []
-  );
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
   const today = useMemo(() => {
     return DateTime.now().setZone(line.timezone).toISODate();
@@ -42,7 +39,7 @@ export function VacationSettings({
     return 'upcoming';
   };
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     if (disabled) return;
     if (!startDate || !endDate) {
       toast.error('Select a start and end date');
@@ -53,47 +50,40 @@ export function VacationSettings({
       return;
     }
 
-    setIsSaving(true);
-    const result = await addVacationRange(line.id, { start: startDate, end: endDate });
-    setIsSaving(false);
-
-    if (!result.success) {
-      toast.error(result.error.message || 'Failed to add vacation');
+    const overlaps = ranges.some(
+      (range) => range.start <= endDate && range.end >= startDate
+    );
+    if (overlaps) {
+      toast.error('Vacation range overlaps an existing range');
       return;
     }
 
-    setRanges((prev) => [...prev, { start: startDate, end: endDate }]);
+    const updated = [...ranges, { start: startDate, end: endDate }].sort((a, b) =>
+      a.start.localeCompare(b.start)
+    );
+    onRangesChange(updated);
     setStartDate('');
     setEndDate('');
-    toast.success('Vacation range added');
-    router.refresh();
   };
 
-  const handleRemove = async (range: VacationRange) => {
+  const handleRemove = (range: VacationRange) => {
     if (disabled) return;
-    setIsSaving(true);
-    const result = await removeVacationRange(line.id, range.start);
-    setIsSaving(false);
-
-    if (!result.success) {
-      toast.error(result.error.message || 'Failed to remove vacation');
-      return;
-    }
-
-    setRanges((prev) => prev.filter((r) => r.start !== range.start));
-    toast.success('Vacation range removed');
-    router.refresh();
+    onRangesChange(ranges.filter((r) => r.start !== range.start));
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <Palmtree className="w-4 h-4 text-muted-foreground" />
-        Vacation Mode
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Pause all scheduled calls and reminders during vacations. Dates are based on {line.timezone}.
-      </p>
+      {showHeader ? (
+        <>
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Palmtree className="w-4 h-4 text-muted-foreground" />
+            Vacation Mode
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Pause all scheduled calls and reminders during vacations. Dates are based on {line.timezone}.
+          </p>
+        </>
+      ) : null}
 
       <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-end">
         <div>
@@ -103,7 +93,7 @@ export function VacationSettings({
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             min={today ?? undefined}
-            disabled={disabled || isSaving}
+            disabled={disabled}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
@@ -114,14 +104,14 @@ export function VacationSettings({
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             min={startDate || today || undefined}
-            disabled={disabled || isSaving}
+            disabled={disabled}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <button
           type="button"
           onClick={handleAdd}
-          disabled={disabled || isSaving}
+          disabled={disabled}
           className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           Add Vacation
@@ -159,7 +149,7 @@ export function VacationSettings({
                 <button
                   type="button"
                   onClick={() => handleRemove(range)}
-                  disabled={disabled || isSaving || status === 'past'}
+                  disabled={disabled || status === 'past'}
                   className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-destructive disabled:opacity-50"
                   title={status === 'past' ? 'Past vacations cannot be removed' : 'Remove vacation'}
                 >
