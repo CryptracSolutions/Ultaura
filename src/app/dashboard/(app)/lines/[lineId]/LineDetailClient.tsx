@@ -535,7 +535,7 @@ export function LineDetailClient({
                   onChange={(e) => setTopicCustom(e.target.value)}
                   placeholder="e.g., baseball, baking, church"
                   disabled={customDisabled || isReadOnly}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                 />
                 {customDisabled ? (
                   <p className="text-xs text-muted-foreground">
@@ -560,7 +560,7 @@ export function LineDetailClient({
                 placeholder="e.g., politics, health issues..."
                 rows={2}
                 disabled={isReadOnly}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring resize-none disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground">
                 Separate topics with commas.

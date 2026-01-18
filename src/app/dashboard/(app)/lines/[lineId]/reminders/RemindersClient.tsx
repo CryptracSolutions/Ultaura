@@ -434,7 +434,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 placeholder="e.g., Time to take your afternoon medication"
                 rows={3}
                 maxLength={500}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {message.length}/500 characters
@@ -451,7 +451,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   min={today}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
 
@@ -463,7 +463,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
             </div>
@@ -506,7 +506,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         max={365}
                         value={interval}
                         onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
-                        className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       />
                     </div>
                   )}
@@ -549,7 +549,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         max={31}
                         value={dayOfMonth}
                         onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
-                        className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       />
                     </div>
                   )}
@@ -569,7 +569,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         min={date || today}
-                        className="mt-2 w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="mt-2 w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       />
                     )}
                   </div>
@@ -920,7 +920,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 rows={3}
                 maxLength={500}
                 disabled={isEditSubmitting}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {editMessage.length}/500 characters
@@ -938,7 +938,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                   onChange={(e) => setEditDate(e.target.value)}
                   min={today}
                   disabled={isEditSubmitting}
-                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                 />
               </div>
 
@@ -951,7 +951,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                   value={editTime}
                   onChange={(e) => setEditTime(e.target.value)}
                   disabled={isEditSubmitting}
-                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                 />
               </div>
             </div>

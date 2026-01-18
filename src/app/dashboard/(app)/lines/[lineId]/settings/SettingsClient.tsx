@@ -512,7 +512,7 @@ export function SettingsClient({
                     }
                   }}
                   disabled={disabled}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   1.0 is normal pace.
@@ -536,7 +536,7 @@ export function SettingsClient({
                     }
                   }}
                   disabled={disabled}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   How many recent calls Ultaura can reference.
@@ -637,7 +637,7 @@ export function SettingsClient({
                     onChange={(e) => setPausedReason(e.target.value)}
                     placeholder="e.g., Traveling this week"
                     disabled={disabled}
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                   />
                 </div>
               )}
