@@ -1,3 +1,17 @@
+/**
+ * SECURITY NOTE: This module provides data redaction utilities to prevent
+ * sensitive information (PII, PHI, conversation content) from being logged
+ * to debug tables or external systems.
+ *
+ * The summarizeArgs() function creates a safe summary of tool arguments
+ * that preserves debugging value (key names, types, sizes) without exposing
+ * actual values. This is critical because tool arguments may contain:
+ * - Health information (medications, conditions)
+ * - Memory content (personal stories, relationships)
+ * - Mood/cognitive observations
+ * - Reminder messages
+ * - Relationship details
+ */
 const PHONE_MASK = '*';
 
 export function redactPhone(phone: string | null | undefined): string {
@@ -65,6 +79,17 @@ const SENSITIVE_KEYS = new Set([
   'private_topics',
   'confidence_overall',
   'topic_code',
+  'message',
+  'content',
+  'text',
+  'summary',
+  'narrative',
+  'args',
+  'context',
+  'response_given',
+  'observation',
+  'notes',
+  'description',
 ]);
 
 const PHONE_KEYS = new Set([
@@ -87,6 +112,97 @@ const API_KEY_KEYS = new Set([
 
 export function redactSensitive<T>(value: T): T {
   return redactValue(value, new WeakSet()) as T;
+}
+
+/**
+ * Creates a safe summary of tool arguments for debug logging.
+ *
+ * SECURITY: This function prevents sensitive data leakage by only exposing:
+ * - Argument key names
+ * - Data types (string, number, boolean, array, object, null, undefined)
+ * - Approximate byte sizes for strings and arrays
+ * - One level deep for nested objects (shown as 'object' type with total size)
+ *
+ * Example output:
+ * {
+ *   memoryType: { type: 'string', size: 12 },
+ *   key: { type: 'string', size: 8 },
+ *   value: { type: 'string', size: 156 },
+ *   metadata: { type: 'object', size: 423 }
+ * }
+ *
+ * @param args - The raw tool arguments to summarize
+ * @returns A safe summary object suitable for debug logging
+ */
+export function summarizeArgs(
+  args: Record<string, unknown>
+): Record<string, { type: string; size?: number }> {
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) {
+    const invalidType = Array.isArray(args)
+      ? 'array'
+      : args === null
+        ? 'null'
+        : typeof args;
+    return { _invalid: { type: invalidType } };
+  }
+
+  const summary: Record<string, { type: string; size?: number }> = {};
+
+  for (const [key, value] of Object.entries(args)) {
+    summary[key] = summarizeValue(value);
+  }
+
+  return summary;
+}
+
+/**
+ * Summarizes a single value, returning its type and approximate size.
+ * For nested objects, only goes one level deep.
+ */
+function summarizeValue(value: unknown): { type: string; size?: number } {
+  if (value === null) {
+    return { type: 'null' };
+  }
+
+  if (value === undefined) {
+    return { type: 'undefined' };
+  }
+
+  if (typeof value === 'string') {
+    return { type: 'string', size: Buffer.byteLength(value, 'utf8') };
+  }
+
+  if (typeof value === 'number') {
+    return { type: 'number' };
+  }
+
+  if (typeof value === 'boolean') {
+    return { type: 'boolean' };
+  }
+
+  if (Array.isArray(value)) {
+    const size = estimateSize(value);
+    return { type: 'array', size };
+  }
+
+  if (typeof value === 'object') {
+    const size = estimateSize(value);
+    return { type: 'object', size };
+  }
+
+  return { type: typeof value };
+}
+
+/**
+ * Estimates the byte size of a value by JSON stringifying it.
+ * Returns 0 if estimation fails (e.g., circular references).
+ */
+function estimateSize(value: unknown): number {
+  try {
+    return Buffer.byteLength(JSON.stringify(value), 'utf8');
+  } catch {
+    return 0;
+  }
 }
 
 function redactValue(value: unknown, seen: WeakSet<object>): unknown {

@@ -16,7 +16,7 @@ import { buildRetentionContext, type RetentionContext } from '../services/retent
 import { buildPromptPlaceholders } from '../services/prompt-context.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
-import { redactSensitive } from '../utils/redact.js';
+import { redactSensitive, summarizeArgs } from '../utils/redact.js';
 import { registerGrokBridge, unregisterGrokBridge, getGrokBridge } from './grok-bridge-registry.js';
 import { getFallbackMessage } from '../utils/fallback-messages.js';
 import {
@@ -374,7 +374,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               await recordDebugEvent(
                 callSessionId,
                 'tool_call',
-                { tool: toolName, args },
+                { tool: toolName, argsSummary: summarizeArgs(args) },
                 {
                   line_id: line.id,
                   phone_number_last4: phoneLast4,

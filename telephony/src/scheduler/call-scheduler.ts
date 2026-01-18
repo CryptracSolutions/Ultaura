@@ -19,7 +19,9 @@ const HEARTBEAT_INTERVAL_MS = 20_000; // 20 seconds
 const CLAIM_TTL_SECONDS = 120;
 const BATCH_SIZE = 10;
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const DEBUG_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+// SECURITY: Short retention period to minimize exposure window for debug data.
+// Debug logs may contain operational metadata that could be sensitive.
+const DEBUG_LOG_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 
 // Worker identity (unique per instance)
 const WORKER_ID = `${process.env.HOSTNAME || 'local'}-${uuidv4().slice(0, 8)}`;

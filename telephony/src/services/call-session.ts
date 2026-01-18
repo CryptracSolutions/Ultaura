@@ -543,7 +543,18 @@ export async function cancelCallSession(sessionId: string): Promise<void> {
   clearInsightState(sessionId);
 }
 
-// Record a call event
+/**
+ * Records a call event to the ultaura_call_events table.
+ *
+ * SECURITY: By default, debug logging is disabled (skipDebugLog: true) to prevent
+ * accidental leakage of sensitive data. Debug events should only be recorded
+ * when explicitly needed and after ensuring the payload is properly sanitized.
+ *
+ * @param sessionId - The call session ID
+ * @param type - The event type (dtmf, tool_call, state_change, error, safety_tier)
+ * @param payload - Optional event payload (will be sanitized before storage)
+ * @param options.skipDebugLog - Skip recording to debug_logs table (default: true)
+ */
 export async function recordCallEvent(
   sessionId: string,
   type: CallEventType,
@@ -588,7 +599,9 @@ export async function recordCallEvent(
     logger.error({ error, sessionId, type }, 'Failed to record call event');
   }
 
-  if (!options?.skipDebugLog) {
+  // SECURITY: Default to skipping debug logs to prevent accidental sensitive data leakage.
+  // Only record to debug_logs if explicitly opted in with skipDebugLog: false.
+  if (options?.skipDebugLog === false) {
     await recordDebugEvent(sessionId, type, payload);
   }
 }

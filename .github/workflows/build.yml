@@ -32,6 +32,21 @@ jobs:
       - name: 🔬 Lint
         run: npm run lint
 
+  sensitive-logs-check:
+    name: Sensitive Logs Check
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check for sensitive data logging
+        run: |
+          chmod +x scripts/check-sensitive-logs.sh
+          ./scripts/check-sensitive-logs.sh telephony/src
+
   typecheck:
     name: ʦ TypeScript
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
