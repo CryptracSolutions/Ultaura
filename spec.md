@@ -804,3 +804,119 @@ After implementing all fixes, verify each with these tests:
 | 2.5.5 | Target Size | Day buttons increased to 44px |
 | 4.1.2 | Name, Role, Value | Icon button aria-labels (15+ buttons) |
 | 4.1.3 | Status Messages | AlertBanner aria-live |
+
+
+## Responses to Questions
+  1. Target Files for Contacts and Verify
+
+  Answer: The correct paths are:
+  - /src/app/dashboard/(app)/lines/[lineId]/contacts/ContactsClient.tsx
+  - /src/app/dashboard/(app)/lines/[lineId]/verify/VerifyPhoneClient.tsx
+
+  The spec incorrectly showed a /components/ subdirectory. Apply fixes to these actual file paths.
+
+  ---
+  2. DashboardUpcomingTabs - NavigationItem and aria-current
+
+  Answer: Skip this fix entirely.
+
+  Rationale:
+  - NavigationItem does NOT forward aria-current and the rest props aren't spread to the Link
+  - Wrapping in a div breaks ul > li semantics (invalid HTML)
+  - Reimplementing locally creates maintenance burden
+  - Modifying core violates the stated constraint
+
+  Why it's acceptable to skip: This component uses URL-based navigation (?tab=calls / ?tab=reminders). Screen readers already announce page changes via the URL/document title. The active prop visually indicates the current tab. This is a nice-to-have, not a critical accessibility failure. If you want to address it later, do so in a separate PR that allows core changes.
+
+  ---
+  3. Mood Indicators - Icons vs Dots, Coloring
+
+  Answer: Icons should replace the dots, and icons should be colored with mood colors.
+
+  Rationale:
+  - Replacing (not adding alongside) keeps the UI clean and compact - the dots are very small (2x2px), so adding icons next to them would look cluttered
+  - Colored icons maintain the existing visual language while adding shape differentiation
+  - The color provides quick recognition for sighted users; the shape provides differentiation for colorblind users
+  - Icons inherit the semantic meaning of colors (green smile = positive, red frown = low)
+
+  Implementation:
+  const Icon = MOOD_ICONS[mood];
+  return (
+    <Icon 
+      className={`h-3 w-3 ${MOOD_COLORS[mood]}`} 
+      aria-hidden="true" 
+    />
+  );
+
+  ---
+  4. RemindersClient - Checkbox Label Association
+
+  Answer: Leave the wrapper pattern unchanged.
+
+  Rationale:
+  - The current pattern (<label><Checkbox /><span>text</span></label>) is valid HTML and accessible
+  - When a form control is nested inside a <label>, implicit association occurs per HTML spec
+  - This pattern is used consistently in the file (lines 472-477 and 557-563)
+  - Changing to explicit id/htmlFor adds code without meaningful accessibility improvement
+  - Minimizing changes reduces regression risk
+
+  ---
+  5. UpdateProfileForm - ImageUploader Alt Text
+
+  Answer: Treat the avatar as decorative. No change needed.
+
+  Rationale:
+  - In the profile settings context, the avatar is decorative:
+    - The user's display name is shown separately in a text field
+    - The heading "Profile Picture" with subheading already describes the image's purpose
+    - The user is viewing their own image that they uploaded
+  - Empty alt="" is correct for decorative images per WCAG
+  - Changing ImageUploader would require modifying /core/ui/ (violates constraint)
+  - If avatars are used elsewhere to identify different users (e.g., comments, team lists), that would be a separate concern requiring a different approach
+
+  ---
+  6. OrganizationsSelector - Keyboard Behavior Verification
+
+  I cannot run browser tests, but based on Radix UI documentation, SelectTrigger with asChild should forward keyboard events to the child element. The component pattern looks correct.
+
+  Recommended verification steps:
+  1. Tab to the organization selector - should receive visible focus
+  2. Press Enter or Space - dropdown should open
+  3. Arrow keys should navigate options
+  4. Enter should select, Escape should close
+
+  If it fails: Add explicit keyboard handling since we can't modify the core component. The fix would add tabIndex={0} and onKeyDown to the div.
+
+  ---
+  7. TopicsChart Contrast
+
+  Answer: The contrast likely FAILS 4.5:1. Switching to text-foreground is acceptable.
+
+  Analysis:
+  - --primary: oklch(0.696 0.119 180.426) ≈ teal with 69.6% lightness
+  - bg-primary/10 on #f8f8f7: very light teal wash ≈ #f4f7f7
+  - Estimated contrast ratio: 2.5:1 to 3.2:1 (fails 4.5:1 requirement)
+  - --foreground: oklch(0.147 0.004 49.25) - very dark, will easily exceed 4.5:1
+
+  Fix:
+  // Before
+  className="... text-primary"
+  // After
+  className="... text-foreground"
+
+  ---
+  8. Spacing Standardization Scope
+
+  Answer: Standardize only generic nested cards. Keep special styling for semantic callouts and empty states.
+
+  Standardize to p-4 rounded-lg border-border/60 bg-muted/20:
+  - Nested list item cards (currently inconsistent: some use border-border/70, others border-border/60)
+  - General info cards within main containers
+
+  Keep special styling (do NOT standardize):
+  - Warning callouts: border-warning/30 bg-warning/10 - semantic for warnings
+  - Urgent/destructive alerts: border-destructive/20 bg-destructive/5 - semantic for urgency
+  - Dashed empty states: border-dashed border-border - visual pattern for "nothing here yet"
+  - Calendar empty cells: border-dashed border-border/60 - placeholder pattern for grid
+
+  Specific fix: Change border-border/70 to border-border/60 in WellnessAlertsList.tsx (line 93) for consistency with other nested items.

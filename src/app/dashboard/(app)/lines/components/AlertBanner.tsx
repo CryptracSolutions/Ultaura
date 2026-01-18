@@ -61,7 +61,10 @@ export function AlertBanner({
   const colors = colorMap[type];
 
   return (
-    <div className={`${colors.bg} border ${colors.border} rounded-lg p-4 flex items-start gap-3`}>
+    <div
+      className={`${colors.bg} border ${colors.border} rounded-lg p-4 flex items-start gap-3`}
+      aria-live="polite"
+    >
       <Icon className={`w-5 h-5 ${colors.text} flex-shrink-0 mt-0.5`} />
       <div className="flex-1">
         <p className="font-medium text-foreground">{title}</p>
@@ -88,6 +91,7 @@ export function AlertBanner({
         <button
           onClick={() => setIsDismissed(true)}
           className="flex-shrink-0 p-1 rounded hover:bg-foreground/5 transition-colors"
+          aria-label="Dismiss alert"
         >
           <X className="w-4 h-4 text-muted-foreground" />
         </button>

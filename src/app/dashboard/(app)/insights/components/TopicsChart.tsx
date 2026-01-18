@@ -16,7 +16,7 @@ export function TopicsChart({ topics }: TopicsChartProps) {
           {topics.map((topic) => (
             <span
               key={topic.code}
-              className="inline-flex items-center rounded-full border border-primary/10 bg-primary/10 px-3 py-1 text-xs text-primary"
+              className="inline-flex items-center rounded-full border border-primary/10 bg-primary/10 px-3 py-1 text-xs text-foreground"
             >
               {topic.label}
             </span>

@@ -424,10 +424,11 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label htmlFor="reminder-message" className="block text-sm font-medium text-foreground mb-2">
                 Reminder Message
               </label>
               <textarea
+                id="reminder-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="e.g., Time to take your afternoon medication"
@@ -524,7 +525,8 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                                 prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i]
                               );
                             }}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                            aria-pressed={selectedDays.includes(i)}
+                            className={`min-w-[44px] min-h-[44px] px-3 py-2 rounded-full text-sm font-medium transition-colors ${
                               selectedDays.includes(i)
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -682,6 +684,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                       onClick={() => openEditModal(reminder)}
                       className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                       title="Edit reminder"
+                      aria-label="Edit reminder"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -693,6 +696,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         disabled={resumingId === reminder.id}
                         className="p-2 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
                         title="Resume reminder"
+                        aria-label="Resume reminder"
                       >
                         {resumingId === reminder.id ? (
                           <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -706,6 +710,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         disabled={pausingId === reminder.id}
                         className="p-2 rounded-lg text-muted-foreground hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors disabled:opacity-50"
                         title="Pause reminder"
+                        aria-label="Pause reminder"
                       >
                         {pausingId === reminder.id ? (
                           <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -728,6 +733,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                             disabled={snoozingId === reminder.id}
                             className="p-2 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
                             title="Snooze reminder"
+                            aria-label="Snooze reminder"
                           >
                             {snoozingId === reminder.id ? (
                               <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -764,6 +770,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         disabled={skippingId === reminder.id}
                         className="p-2 rounded-lg text-muted-foreground hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
                         title="Skip next occurrence"
+                        aria-label="Skip next occurrence"
                       >
                         {skippingId === reminder.id ? (
                           <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -779,6 +786,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                       disabled={cancelingId === reminder.id}
                       className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                       title={reminder.is_recurring ? "Cancel entire series" : "Cancel reminder"}
+                      aria-label={reminder.is_recurring ? "Cancel entire series" : "Cancel reminder"}
                     >
                       {cancelingId === reminder.id ? (
                         <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -902,10 +910,11 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
           <form onSubmit={handleEditSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label htmlFor="edit-reminder-message" className="block text-sm font-medium text-foreground mb-2">
                 Message
               </label>
               <textarea
+                id="edit-reminder-message"
                 value={editMessage}
                 onChange={(e) => setEditMessage(e.target.value)}
                 rows={3}

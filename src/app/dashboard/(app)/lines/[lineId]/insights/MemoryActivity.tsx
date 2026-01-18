@@ -21,7 +21,7 @@ export function MemoryActivity({ data, timezone }: MemoryActivityProps) {
           {data.items.map((item) => {
             const dateLabel = DateTime.fromISO(item.createdAt).setZone(timezone).toFormat('MMM d, yyyy');
             return (
-              <div key={item.memoryId} className="rounded-lg border border-border/60 bg-muted/20 p-3">
+              <div key={item.memoryId} className="rounded-lg border border-border/60 bg-muted/20 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-foreground">{item.key}</p>
                   <span className="text-xs text-muted-foreground">{dateLabel}</span>

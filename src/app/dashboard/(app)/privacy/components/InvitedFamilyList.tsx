@@ -59,6 +59,7 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
                     size="sm"
                     onClick={() => onRemove(recipient.id)}
                     disabled={disabled}
+                    aria-label={`Remove ${recipient.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

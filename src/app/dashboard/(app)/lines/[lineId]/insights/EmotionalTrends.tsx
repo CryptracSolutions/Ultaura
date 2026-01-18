@@ -1,4 +1,6 @@
 import { DateTime } from 'luxon';
+import { Smile, Meh, Frown, AlertCircle, CloudRain, Flame } from 'lucide-react';
+import type { ElementType } from 'react';
 import type { EmotionalTrendsData, MoodSnapshotMood } from '~/lib/ultaura/types';
 
 interface EmotionalTrendsProps {
@@ -7,12 +9,21 @@ interface EmotionalTrendsProps {
 }
 
 const MOOD_COLORS: Record<MoodSnapshotMood, string> = {
-  positive: 'bg-success',
-  neutral: 'bg-muted-foreground/50',
-  low: 'bg-destructive',
-  anxious: 'bg-amber-400',
-  sad: 'bg-blue-400',
-  frustrated: 'bg-rose-400',
+  positive: 'text-success',
+  neutral: 'text-muted-foreground',
+  low: 'text-destructive',
+  anxious: 'text-amber-500',
+  sad: 'text-blue-500',
+  frustrated: 'text-rose-500',
+};
+
+const MOOD_ICONS: Record<MoodSnapshotMood, ElementType> = {
+  positive: Smile,
+  neutral: Meh,
+  low: Frown,
+  anxious: AlertCircle,
+  sad: CloudRain,
+  frustrated: Flame,
 };
 
 const MOOD_LABELS: Record<MoodSnapshotMood, string> = {
@@ -64,13 +75,19 @@ export function EmotionalTrends({ data, timezone }: EmotionalTrendsProps) {
 
               return (
                 <div key={date} className="flex-1 min-w-[4px] flex flex-col items-center justify-end gap-1">
-                  {dots.map((mood, index) => (
-                    <span
-                      key={`${date}-${index}`}
-                      className={`h-2 w-2 rounded-full ${MOOD_COLORS[mood]}`}
-                      title={MOOD_LABELS[mood]}
-                    />
-                  ))}
+                  {dots.map((mood, index) => {
+                    const Icon = MOOD_ICONS[mood];
+                    return (
+                      <span
+                        key={`${date}-${index}`}
+                        title={MOOD_LABELS[mood]}
+                        role="img"
+                        aria-label={MOOD_LABELS[mood]}
+                      >
+                        <Icon className={`h-3 w-3 ${MOOD_COLORS[mood]}`} aria-hidden="true" />
+                      </span>
+                    );
+                  })}
                   {extraCount > 0 ? (
                     <span className="text-[10px] text-muted-foreground">+{extraCount}</span>
                   ) : null}
@@ -80,25 +97,29 @@ export function EmotionalTrends({ data, timezone }: EmotionalTrendsProps) {
           </div>
 
           <div className="mt-5 space-y-3">
-            {Object.entries(data.distribution).map(([mood, count]) => (
-              <div key={mood} className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className={`h-2 w-2 rounded-full ${MOOD_COLORS[mood as MoodSnapshotMood]}`} />
-                <span className="w-20 text-foreground">{MOOD_LABELS[mood as MoodSnapshotMood]}</span>
-                <span>{count}</span>
-                <span>({formatCount(count, totalCount)})</span>
-              </div>
-            ))}
+            {Object.entries(data.distribution).map(([mood, count]) => {
+              const moodKey = mood as MoodSnapshotMood;
+              const Icon = MOOD_ICONS[moodKey];
+              return (
+                <div key={mood} className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <Icon className={`h-3 w-3 ${MOOD_COLORS[moodKey]}`} aria-hidden="true" />
+                  <span className="w-20 text-foreground">{MOOD_LABELS[moodKey]}</span>
+                  <span>{count}</span>
+                  <span>({formatCount(count, totalCount)})</span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
               <p className="text-xs text-muted-foreground">Energy levels</p>
               <p className="mt-1 text-sm text-foreground">
                 High: {data.energyLevels.high ?? 0}, Normal: {data.energyLevels.normal ?? 0},
                 Low: {data.energyLevels.low ?? 0}, Very low: {data.energyLevels.very_low ?? 0}
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
               <p className="text-xs text-muted-foreground">Mood trajectory</p>
               <p className="mt-1 text-sm text-foreground">
                 Improved: {data.trajectories.improved ?? 0}, Stable: {data.trajectories.stable ?? 0},

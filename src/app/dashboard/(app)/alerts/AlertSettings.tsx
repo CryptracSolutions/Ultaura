@@ -88,7 +88,7 @@ function AlertSettingsCard({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+    <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-4">
       <div>
         <p className="text-sm font-semibold text-foreground">{line.display_name}</p>
         <p className="text-xs text-muted-foreground">Deliver wellness alerts for this line.</p>

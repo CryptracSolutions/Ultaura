@@ -122,26 +122,44 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddContact} className="space-y-4">
-              <Input
-                placeholder="Name"
-                value={newContact.name}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, name: e.target.value })}
-                required
-              />
-              <Input
-                placeholder="Phone Number"
-                type="tel"
-                value={newContact.phone}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, phone: e.target.value })}
-                required
-              />
-              <Input
-                placeholder="Relationship (optional)"
-                value={newContact.relationship}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setNewContact({ ...newContact, relationship: e.target.value })
-                }
-              />
+              <div>
+                <label htmlFor="contact-name" className="block text-sm font-medium text-foreground mb-1">
+                  Name
+                </label>
+                <Input
+                  id="contact-name"
+                  placeholder="e.g., John Smith"
+                  value={newContact.name}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-phone" className="block text-sm font-medium text-foreground mb-1">
+                  Phone Number
+                </label>
+                <Input
+                  id="contact-phone"
+                  placeholder="e.g., (555) 123-4567"
+                  type="tel"
+                  value={newContact.phone}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, phone: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-relationship" className="block text-sm font-medium text-foreground mb-1">
+                  Relationship <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <Input
+                  id="contact-relationship"
+                  placeholder="e.g., Son, Daughter, Caregiver"
+                  value={newContact.relationship}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setNewContact({ ...newContact, relationship: e.target.value })
+                  }
+                />
+              </div>
               <div className="space-y-2">
                 <div className="flex items-start gap-2">
                   <Checkbox
@@ -197,6 +215,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 size="icon"
                 onClick={() => handleRemoveContact(contact.id)}
                 disabled={disabled}
+                aria-label={`Remove ${contact.name}`}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

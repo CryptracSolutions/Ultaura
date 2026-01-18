@@ -1,4 +1,6 @@
 import { DateTime } from 'luxon';
+import { Smile, Meh, Frown } from 'lucide-react';
+import type { ElementType } from 'react';
 import type { InsightsDashboard, InsightMood } from '~/lib/ultaura/types';
 
 interface MoodTrendProps {
@@ -9,9 +11,15 @@ interface MoodTrendProps {
 }
 
 const MOOD_COLORS: Record<InsightMood, string> = {
-  positive: 'bg-success',
-  neutral: 'bg-muted-foreground/50',
-  low: 'bg-destructive',
+  positive: 'text-success',
+  neutral: 'text-muted-foreground',
+  low: 'text-destructive',
+};
+
+const MOOD_ICONS: Record<InsightMood, ElementType> = {
+  positive: Smile,
+  neutral: Meh,
+  low: Frown,
 };
 
 const MOOD_LABELS: Record<InsightMood, string> = {
@@ -52,13 +60,20 @@ export function MoodTrend({ moodTrend, dateRange, timezone, className }: MoodTre
               key={date}
               className="flex-1 min-w-[4px] flex flex-col items-center justify-end gap-1"
             >
-              {dots.map((mood, index) => (
-                <span
-                  key={`${date}-${index}`}
-                  className={`h-2 w-2 rounded-full ${MOOD_COLORS[mood]}`}
-                  title={`Mood: ${MOOD_LABELS[mood]}`}
-                />
-              ))}
+              {dots.map((mood, index) => {
+                const Icon = MOOD_ICONS[mood];
+                return (
+                  <span
+                    key={`${date}-${index}`}
+                    className="inline-flex items-center"
+                    title={`Mood: ${MOOD_LABELS[mood]}`}
+                    role="img"
+                    aria-label={MOOD_LABELS[mood]}
+                  >
+                    <Icon className={`h-3 w-3 ${MOOD_COLORS[mood]}`} aria-hidden="true" />
+                  </span>
+                );
+              })}
               {extraCount > 0 ? (
                 <span className="text-[10px] text-muted-foreground">+{extraCount}</span>
               ) : null}
@@ -69,15 +84,15 @@ export function MoodTrend({ moodTrend, dateRange, timezone, className }: MoodTre
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
-          <span className={`h-2 w-2 rounded-full ${MOOD_COLORS.positive}`} />
+          <Smile className={`h-3 w-3 ${MOOD_COLORS.positive}`} aria-hidden="true" />
           Positive
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className={`h-2 w-2 rounded-full ${MOOD_COLORS.neutral}`} />
+          <Meh className={`h-3 w-3 ${MOOD_COLORS.neutral}`} aria-hidden="true" />
           Neutral
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className={`h-2 w-2 rounded-full ${MOOD_COLORS.low}`} />
+          <Frown className={`h-3 w-3 ${MOOD_COLORS.low}`} aria-hidden="true" />
           Low
         </span>
       </div>

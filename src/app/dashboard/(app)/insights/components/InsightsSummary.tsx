@@ -51,7 +51,7 @@ export function InsightsSummary({ summary, showMood = true }: InsightsSummaryPro
       </div>
 
       {notablePatterns.length > 0 && (
-        <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+        <div className="mt-4 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm">
           <div className="font-medium text-foreground">Notable patterns</div>
           <div className="text-muted-foreground mt-1 space-y-1">
             {notablePatterns.map((note, index) => (
@@ -74,7 +74,7 @@ export function InsightsSummary({ summary, showMood = true }: InsightsSummaryPro
       )}
 
       {summary.needsFollowUp && (
-        <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+        <div className="mt-4 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm">
           <div className="font-medium text-foreground">Follow-up suggested</div>
           <div className="text-muted-foreground mt-1">{summary.followUpReasons.join(', ')}</div>
         </div>

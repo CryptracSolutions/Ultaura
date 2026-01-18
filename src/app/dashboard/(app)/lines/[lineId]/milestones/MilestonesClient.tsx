@@ -191,8 +191,11 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">Title</label>
+              <label htmlFor="milestone-title" className="text-xs text-muted-foreground block mb-1">
+                Title
+              </label>
               <Input
+                id="milestone-title"
                 value={formState.title}
                 onChange={(event) =>
                   setFormState((prev) => ({ ...prev, title: event.target.value }))
@@ -203,14 +206,16 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Type</label>
+              <label htmlFor="milestone-type" className="text-xs text-muted-foreground block mb-1">
+                Type
+              </label>
               <Select
                 value={formState.milestoneType}
                 onValueChange={(value) =>
                   setFormState((prev) => ({ ...prev, milestoneType: value }))
                 }
               >
-                <SelectTrigger className="w-full py-2.5">
+                <SelectTrigger id="milestone-type" className="w-full py-2.5">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -224,8 +229,11 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Related person</label>
+              <label htmlFor="milestone-person" className="text-xs text-muted-foreground block mb-1">
+                Related person
+              </label>
               <Input
+                id="milestone-person"
                 value={formState.relatedPersonName}
                 onChange={(event) =>
                   setFormState((prev) => ({ ...prev, relatedPersonName: event.target.value }))
@@ -237,14 +245,16 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Month</label>
+              <label htmlFor="milestone-month" className="text-xs text-muted-foreground block mb-1">
+                Month
+              </label>
               <Select
                 value={String(formState.dateMonth)}
                 onValueChange={(value) =>
                   setFormState((prev) => ({ ...prev, dateMonth: Number(value) }))
                 }
               >
-                <SelectTrigger className="w-full py-2.5">
+                <SelectTrigger id="milestone-month" className="w-full py-2.5">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -258,8 +268,11 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Day</label>
+              <label htmlFor="milestone-day" className="text-xs text-muted-foreground block mb-1">
+                Day
+              </label>
               <Input
+                id="milestone-day"
                 type="number"
                 min={1}
                 max={31}
@@ -272,8 +285,11 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Year (optional)</label>
+              <label htmlFor="milestone-year" className="text-xs text-muted-foreground block mb-1">
+                Year (optional)
+              </label>
               <Input
+                id="milestone-year"
                 type="number"
                 min={1900}
                 max={2100}
@@ -292,12 +308,18 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
 
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 p-4">
             <div>
-              <p className="text-sm font-medium text-foreground">Recurring yearly</p>
+              <label
+                htmlFor="milestone-recurring"
+                className="text-sm font-medium text-foreground cursor-pointer"
+              >
+                Recurring yearly
+              </label>
               <p className="text-xs text-muted-foreground">
                 Turn off for one-time achievements or memorials.
               </p>
             </div>
             <Switch
+              id="milestone-recurring"
               checked={formState.isRecurring}
               onCheckedChange={(checked) =>
                 setFormState((prev) => ({ ...prev, isRecurring: checked }))

@@ -31,23 +31,23 @@ export function RetentionInsightsCard({ retention }: RetentionInsightsCardProps)
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
           <div className="text-xs text-muted-foreground">Preview follow-through</div>
           <div className="text-lg font-semibold text-foreground">
             {engagementMetrics.callPreviewFollowThrough}%
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
           <div className="text-xs text-muted-foreground">Segment completion</div>
           <div className="text-lg font-semibold text-foreground">
             {engagementMetrics.segmentCompletionRate}%
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
           <div className="text-xs text-muted-foreground">Preferred segment</div>
           <div className="text-sm font-semibold text-foreground capitalize">{preferredSegment}</div>
         </div>
-        <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
           <div className="text-xs text-muted-foreground">Avg segment duration</div>
           <div className="text-sm font-semibold text-foreground">
             {engagementMetrics.averageSegmentDuration
@@ -77,7 +77,7 @@ export function RetentionInsightsCard({ retention }: RetentionInsightsCardProps)
         {retentionFeatures.activeStoryArcs.length ? (
           <div className="mt-2 space-y-2">
             {retentionFeatures.activeStoryArcs.map((arc) => (
-              <div key={arc.id} className="rounded-lg border border-border bg-muted/40 p-3">
+              <div key={arc.id} className="rounded-lg border border-border/60 bg-muted/20 p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium text-foreground">{arc.title}</div>
                   <div className="text-xs text-muted-foreground">{arc.progress}%</div>

@@ -106,7 +106,7 @@ function SafetyAlertsCard({
               .toFormat('MMM d, yyyy');
             const actionLabel = formatSafetyAction(event.actionTaken);
             return (
-              <div key={event.id} className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm">
+              <div key={event.id} className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-foreground">{dateLabel}</span>
                   <span className="text-xs text-muted-foreground capitalize">

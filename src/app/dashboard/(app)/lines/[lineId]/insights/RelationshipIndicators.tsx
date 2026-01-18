@@ -30,7 +30,7 @@ export function RelationshipIndicators({ data, timezone }: RelationshipIndicator
               : 'Not recent';
 
             return (
-              <div key={indicator.name} className="rounded-lg border border-border/60 bg-muted/20 p-3">
+              <div key={indicator.name} className="rounded-lg border border-border/60 bg-muted/20 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium text-foreground">{indicator.name}</p>

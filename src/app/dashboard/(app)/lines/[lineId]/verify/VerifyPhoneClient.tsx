@@ -159,9 +159,10 @@ export function VerifyPhoneClient({
         <button
           onClick={() => setStep('choose')}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          aria-label="Go back to channel selection"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back
+          <span>Back</span>
         </button>
 
         <div className="text-center mb-8">
@@ -187,6 +188,7 @@ export function VerifyPhoneClient({
               type="text"
               inputMode="numeric"
               maxLength={1}
+              aria-label={`Digit ${index + 1} of 6`}
               value={digit}
               onChange={(e) => handleCodeChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}

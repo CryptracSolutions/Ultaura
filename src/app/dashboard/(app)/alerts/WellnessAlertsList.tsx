@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { ElementType } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { toast } from 'sonner';
-import { CheckCircle, AlertTriangle, BellRing } from 'lucide-react';
+import { CheckCircle, AlertTriangle, AlertCircle, BellRing, Info } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, WellnessAlert } from '~/lib/ultaura/types';
@@ -20,6 +21,12 @@ const SEVERITY_STYLES: Record<WellnessAlert['severity'], string> = {
   info: 'bg-primary/10 text-primary',
   warning: 'bg-amber-500/10 text-amber-600',
   urgent: 'bg-destructive/10 text-destructive',
+};
+
+const SEVERITY_ICONS: Record<WellnessAlert['severity'], ElementType> = {
+  info: Info,
+  warning: AlertTriangle,
+  urgent: AlertCircle,
 };
 
 function formatAlertDate(value: string): string {
@@ -64,7 +71,7 @@ export function WellnessAlertsList({ alerts, lines, disabled = false }: Wellness
         </div>
         <div className="min-w-[180px]">
           <Select value={selectedLineId} onValueChange={setSelectedLineId}>
-            <SelectTrigger className="w-full py-2.5">
+            <SelectTrigger className="w-full py-2.5" aria-label="Filter by line">
               <SelectValue placeholder="All lines" />
             </SelectTrigger>
             <SelectContent>
@@ -87,17 +94,19 @@ export function WellnessAlertsList({ alerts, lines, disabled = false }: Wellness
         <div className="space-y-3">
           {filteredAlerts.map((alert) => {
             const acknowledged = Boolean(alert.acknowledgedAt);
+            const SeverityIcon = SEVERITY_ICONS[alert.severity];
             return (
               <div
                 key={alert.id}
-                className="rounded-lg border border-border/70 bg-muted/20 p-4"
+                className="rounded-lg border border-border/60 bg-muted/20 p-4"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${SEVERITY_STYLES[alert.severity]}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${SEVERITY_STYLES[alert.severity]}`}
                       >
+                        <SeverityIcon className="h-3 w-3" aria-hidden="true" />
                         {alert.severity}
                       </span>
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">

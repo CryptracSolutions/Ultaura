@@ -27,7 +27,7 @@ export function Relationships({ relationships, timezone }: RelationshipsProps) {
           {relationships.map((relationship) => (
             <div
               key={relationship.id}
-              className="rounded-lg border border-border/60 bg-muted/20 p-3"
+              className="rounded-lg border border-border/60 bg-muted/20 p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>

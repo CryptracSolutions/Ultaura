@@ -1,4 +1,6 @@
 import { DateTime } from 'luxon';
+import { Smile, Meh, Frown, AlertCircle, CloudRain, Flame } from 'lucide-react';
+import type { ElementType } from 'react';
 import type { MoodCalendarData, MoodSnapshotMood } from '~/lib/ultaura/types';
 
 interface MoodCalendarProps {
@@ -7,12 +9,21 @@ interface MoodCalendarProps {
 }
 
 const MOOD_COLORS: Record<MoodSnapshotMood, string> = {
-  positive: 'bg-success/80',
-  neutral: 'bg-muted-foreground/40',
-  low: 'bg-destructive/80',
-  anxious: 'bg-amber-400/80',
-  sad: 'bg-blue-400/80',
-  frustrated: 'bg-rose-400/80',
+  positive: 'text-success',
+  neutral: 'text-muted-foreground',
+  low: 'text-destructive',
+  anxious: 'text-amber-500',
+  sad: 'text-blue-500',
+  frustrated: 'text-rose-500',
+};
+
+const MOOD_ICONS: Record<MoodSnapshotMood, ElementType> = {
+  positive: Smile,
+  neutral: Meh,
+  low: Frown,
+  anxious: AlertCircle,
+  sad: CloudRain,
+  frustrated: Flame,
 };
 
 const MOOD_LABELS: Record<MoodSnapshotMood, string> = {
@@ -59,6 +70,7 @@ export function MoodCalendar({ data, timezone }: MoodCalendarProps) {
 
           const date = monthStart.set({ day }).toISODate();
           const mood = date ? moodMap.get(date) ?? null : null;
+          const Icon = mood ? MOOD_ICONS[mood] : null;
 
           return (
             <div
@@ -68,8 +80,10 @@ export function MoodCalendar({ data, timezone }: MoodCalendarProps) {
             >
               <div className="flex flex-col items-center gap-1">
                 <span className="text-foreground">{day}</span>
-                {mood ? (
-                  <span className={`h-2 w-6 rounded-full ${MOOD_COLORS[mood]}`} />
+                {mood && Icon ? (
+                  <span role="img" aria-label={MOOD_LABELS[mood]}>
+                    <Icon className={`h-3 w-3 ${MOOD_COLORS[mood]}`} aria-hidden="true" />
+                  </span>
                 ) : null}
               </div>
             </div>
@@ -78,12 +92,16 @@ export function MoodCalendar({ data, timezone }: MoodCalendarProps) {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        {Object.entries(MOOD_LABELS).map(([mood, label]) => (
-          <span key={mood} className="inline-flex items-center gap-1">
-            <span className={`h-2 w-2 rounded-full ${MOOD_COLORS[mood as MoodSnapshotMood]}`} />
-            {label}
-          </span>
-        ))}
+        {Object.entries(MOOD_LABELS).map(([mood, label]) => {
+          const moodKey = mood as MoodSnapshotMood;
+          const Icon = MOOD_ICONS[moodKey];
+          return (
+            <span key={mood} className="inline-flex items-center gap-1">
+              <Icon className={`h-3 w-3 ${MOOD_COLORS[moodKey]}`} aria-hidden="true" />
+              {label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
