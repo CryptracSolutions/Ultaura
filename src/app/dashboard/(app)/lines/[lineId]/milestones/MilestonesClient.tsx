@@ -89,12 +89,22 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
   };
 
   const openEditForm = (milestone: MilestoneRow) => {
+    const yearValue =
+      typeof milestone.date_year === 'number'
+        ? milestone.date_year
+        : milestone.date_year
+          ? Number(milestone.date_year)
+          : '';
+    const safeYear: MilestoneFormState['dateYear'] =
+      typeof yearValue === 'number' && Number.isFinite(yearValue)
+        ? yearValue
+        : '';
     const nextState = {
       title: milestone.title,
       milestoneType: milestone.milestone_type,
       dateMonth: milestone.date_month,
       dateDay: milestone.date_day,
-      dateYear: milestone.date_year ?? '',
+      dateYear: safeYear,
       relatedPersonName: milestone.related_person_name ?? '',
       isRecurring: milestone.is_recurring ?? true,
     };

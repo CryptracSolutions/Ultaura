@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { MouseEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -400,7 +400,7 @@ export function SettingsClient({
   const currentHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 
   const handleInternalNavigation = (
-    event: MouseEvent<HTMLAnchorElement>,
+    event: ReactMouseEvent<HTMLAnchorElement>,
     href: string,
     options: { scroll?: boolean } = {}
   ) => {
@@ -414,7 +414,7 @@ export function SettingsClient({
   };
 
   const handleExitNavigation = (
-    event: MouseEvent<HTMLAnchorElement>,
+    event: ReactMouseEvent<HTMLAnchorElement>,
     href: string,
     options: { scroll?: boolean } = {}
   ) => {
@@ -1220,7 +1220,7 @@ function LineSettingsSidebarNav({
   sections: LineSettingsSectionConfig[];
   activeSection: LineSettingsSectionConfig;
   onNavigate: (
-    event: MouseEvent<HTMLAnchorElement>,
+    event: ReactMouseEvent<HTMLAnchorElement>,
     href: string,
     options?: { scroll?: boolean }
   ) => void;
