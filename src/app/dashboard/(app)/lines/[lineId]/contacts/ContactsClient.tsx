@@ -5,6 +5,8 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Checkbox } from '~/core/ui/Checkbox';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Phone, Trash2, Plus } from 'lucide-react';
 import {
   getTrustedContacts,
@@ -55,6 +57,23 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
     }
   }, [isAdding]);
 
+  const resetAddForm = () => {
+    setNewContact({ name: '', phone: '', relationship: '' });
+    setConsentAcknowledged(false);
+    setIsAdding(false);
+  };
+
+  const hasChanges =
+    isAdding &&
+    (newContact.name.trim() !== '' ||
+      newContact.phone.trim() !== '' ||
+      newContact.relationship.trim() !== '' ||
+      consentAcknowledged);
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: hasChanges,
+    onDiscard: resetAddForm,
+  });
+
   async function handleAddContact(e: React.FormEvent) {
     e.preventDefault();
     if (disabled) return;
@@ -72,9 +91,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
       }
 
       toast.success('Trusted contact added');
-      setNewContact({ name: '', phone: '', relationship: '' });
-      setConsentAcknowledged(false);
-      setIsAdding(false);
+      resetAddForm();
       loadContacts();
     } catch (error) {
       console.error(error);
@@ -181,12 +198,9 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setIsAdding(false);
-                    setConsentAcknowledged(false);
-                  }}
+                  onClick={resetAddForm}
                 >
-                  Cancel
+                  Discard changes
                 </Button>
               </div>
             </form>
@@ -229,6 +243,17 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
           </p>
         )}
       </div>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 }

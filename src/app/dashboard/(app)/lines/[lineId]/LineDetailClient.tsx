@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -36,6 +36,7 @@ import { initiateTestCall } from '~/lib/ultaura/usage';
 import { formatTime } from '~/lib/ultaura/constants';
 import { CallActivityList } from './components/CallActivityList';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 
 const MAX_INTEREST_TOPICS = 5;
@@ -159,6 +160,15 @@ export function LineDetailClient({
   const [topicChips, setTopicChips] = useState<string[]>([]);
   const [topicCustom, setTopicCustom] = useState('');
   const [avoidTopicsText, setAvoidTopicsText] = useState('');
+  const [initialTopics, setInitialTopics] = useState<{
+    chips: string[];
+    custom: string;
+    avoid: string;
+  }>({
+    chips: [],
+    custom: '',
+    avoid: '',
+  });
   const [error, setError] = useState<string | null>(null);
   const [testCallMode, setTestCallMode] = useState<'quick' | 'preview'>('quick');
 
@@ -187,6 +197,12 @@ export function LineDetailClient({
 
     return result;
   };
+
+  const normalizeTopicList = (topics: string[]) =>
+    dedupeTopics(topics)
+      .map((topic) => normalizeTopic(topic).toLowerCase())
+      .sort()
+      .join('|');
 
   const combinedTopics = dedupeTopics([...topicChips, ...parseTopics(topicCustom)]).slice(
     0,
@@ -298,18 +314,43 @@ export function LineDetailClient({
     const selected = interests.filter((t) => curatedSet.has(t));
     const custom = interests.filter((t) => !curatedSet.has(t));
 
-    setTopicChips(dedupeTopics(selected).slice(0, MAX_INTEREST_TOPICS));
-    setTopicCustom(custom.join(', '));
-    setAvoidTopicsText(avoid.join(', '));
+    const initialState = {
+      chips: dedupeTopics(selected).slice(0, MAX_INTEREST_TOPICS),
+      custom: custom.join(', '),
+      avoid: avoid.join(', '),
+    };
+
+    setInitialTopics(initialState);
+    setTopicChips(initialState.chips);
+    setTopicCustom(initialState.custom);
+    setAvoidTopicsText(initialState.avoid);
     setIsEditingTopics(true);
     setError(null);
   };
 
-  const cancelEditingTopics = () => {
+  const resetTopics = useCallback(() => {
+    setTopicChips(initialTopics.chips);
+    setTopicCustom(initialTopics.custom);
+    setAvoidTopicsText(initialTopics.avoid);
     setIsEditingTopics(false);
     setIsSavingTopics(false);
     setError(null);
-  };
+  }, [initialTopics.avoid, initialTopics.chips, initialTopics.custom]);
+
+  const initialCombinedTopics = dedupeTopics([
+    ...initialTopics.chips,
+    ...parseTopics(initialTopics.custom),
+  ]).slice(0, MAX_INTEREST_TOPICS);
+  const hasTopicChanges =
+    isEditingTopics &&
+    (normalizeTopicList(combinedTopics) !== normalizeTopicList(initialCombinedTopics) ||
+      normalizeTopicList(parseTopics(avoidTopicsText)) !==
+        normalizeTopicList(parseTopics(initialTopics.avoid)));
+  const shouldWarnOnNavigate = hasTopicChanges && !isSavingTopics;
+  const { dialogProps: topicDialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: resetTopics,
+  });
 
   const toggleTopic = (topic: string) => {
     if (isReadOnly) return;
@@ -571,12 +612,12 @@ export function LineDetailClient({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end pt-4 border-t border-border">
               <button
                 type="button"
-                onClick={cancelEditingTopics}
+                onClick={resetTopics}
                 disabled={isSavingTopics}
                 className={`${BTN_OUTLINE_CLASS} w-full sm:w-auto`}
               >
                 <X className="w-4 h-4" />
-                Cancel
+                Discard changes
               </button>
               <button
                 type="button"
@@ -754,6 +795,17 @@ export function LineDetailClient({
         confirmLabel="Delete"
         variant="destructive"
         onConfirm={handleDelete}
+      />
+
+      <ConfirmationDialog
+        open={topicDialogProps.open}
+        onOpenChange={topicDialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={topicDialogProps.onConfirm}
       />
     </div>
   );

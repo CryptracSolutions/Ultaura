@@ -8,7 +8,6 @@ import {
   Archive,
   ClipboardList,
   Download,
-  Info,
   LayoutDashboard,
   Mic,
   Share2,
@@ -20,7 +19,6 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import classNames from 'clsx';
 
-import Alert from '~/core/ui/Alert';
 import Button from '~/core/ui/Button';
 import { Switch } from '~/core/ui/Switch';
 import { Checkbox } from '~/core/ui/Checkbox';
@@ -31,6 +29,7 @@ import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/core/ui/Accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
@@ -111,13 +110,11 @@ const AUDIT_PAGE_SIZE = 10;
 
 type PrivacyTabValue = 'overview' | 'consent' | 'data' | 'family';
 type PrivacySectionValue =
-  | 'vendor'
   | 'summary'
   | 'consent-status'
   | 'privacy-controls'
   | 'retention'
   | 'export'
-  | 'delete'
   | 'audit'
   | 'recipients'
   | 'sharing';
@@ -137,8 +134,7 @@ const PRIVACY_TABS: Array<{ value: PrivacyTabValue; label: string }> = [
 
 const PRIVACY_SECTIONS: Record<PrivacyTabValue, PrivacySectionConfig[]> = {
   overview: [
-    { value: 'vendor', label: 'Vendor Information', icon: Info },
-    { value: 'summary', label: 'Quick Settings Summary', icon: LayoutDashboard },
+    { value: 'summary', label: 'Privacy Settings', icon: LayoutDashboard },
   ],
   consent: [
     { value: 'consent-status', label: 'Consent Status', icon: Mic },
@@ -147,7 +143,6 @@ const PRIVACY_SECTIONS: Record<PrivacyTabValue, PrivacySectionConfig[]> = {
   data: [
     { value: 'retention', label: 'Data Retention', icon: Archive },
     { value: 'export', label: 'Export Data', icon: Download },
-    { value: 'delete', label: 'Delete Privacy Data', icon: Trash2 },
     { value: 'audit', label: 'Audit Log', icon: ClipboardList },
   ],
   family: [
@@ -183,14 +178,28 @@ export function PrivacyCenterClient({
 }: PrivacyCenterClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const initialRecordingEnabled = privacySettings?.recordingEnabled ?? false;
+  const initialAiSummarizationEnabled =
+    privacySettings?.aiSummarizationEnabled ?? true;
+  const initialRetentionPeriod =
+    privacySettings?.retentionPeriod ?? DEFAULT_RETENTION;
+  const initialSharingEnabled = account.sharing_enabled ?? true;
+
+  const [initialSettings, setInitialSettings] = useState(() => ({
+    recordingEnabled: initialRecordingEnabled,
+    aiSummarizationEnabled: initialAiSummarizationEnabled,
+    retentionPeriod: initialRetentionPeriod,
+    sharingEnabled: initialSharingEnabled,
+  }));
+
   const [recordingEnabled, setRecordingEnabled] = useState(
-    privacySettings?.recordingEnabled ?? false
+    initialRecordingEnabled
   );
   const [aiSummarizationEnabled, setAiSummarizationEnabled] = useState(
-    privacySettings?.aiSummarizationEnabled ?? true
+    initialAiSummarizationEnabled
   );
   const [retentionPeriod, setRetentionPeriod] = useState<RetentionPeriod>(
-    privacySettings?.retentionPeriod ?? DEFAULT_RETENTION
+    initialRetentionPeriod
   );
 
   const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
@@ -202,11 +211,12 @@ export function PrivacyCenterClient({
     notificationRecipients
   );
 
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isSharingUpdating, setIsSharingUpdating] = useState(false);
-  const [sharingEnabled, setSharingEnabled] = useState(account.sharing_enabled ?? true);
+  const [sharingEnabled, setSharingEnabled] = useState(initialSharingEnabled);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
@@ -227,6 +237,25 @@ export function PrivacyCenterClient({
   const [auditActorFilter, setAuditActorFilter] = useState<'all' | ConsentAuditEntry['actorType']>('all');
   const [auditSearch, setAuditSearch] = useState('');
   const [auditPage, setAuditPage] = useState(1);
+
+  useEffect(() => {
+    const nextSettings = {
+      recordingEnabled: initialRecordingEnabled,
+      aiSummarizationEnabled: initialAiSummarizationEnabled,
+      retentionPeriod: initialRetentionPeriod,
+      sharingEnabled: initialSharingEnabled,
+    };
+    setInitialSettings(nextSettings);
+    setRecordingEnabled(nextSettings.recordingEnabled);
+    setAiSummarizationEnabled(nextSettings.aiSummarizationEnabled);
+    setRetentionPeriod(nextSettings.retentionPeriod);
+    setSharingEnabled(nextSettings.sharingEnabled);
+  }, [
+    initialRecordingEnabled,
+    initialAiSummarizationEnabled,
+    initialRetentionPeriod,
+    initialSharingEnabled,
+  ]);
 
   const lineCount = lines.length;
   const exportInProgress = exports.some(
@@ -251,6 +280,28 @@ export function PrivacyCenterClient({
   const activeSection =
     sectionsForTab.find((section) => section.value === sectionParam) ??
     sectionsForTab[0];
+  const resetFormState = () => {
+    setRecordingEnabled(initialSettings.recordingEnabled);
+    setAiSummarizationEnabled(initialSettings.aiSummarizationEnabled);
+    setRetentionPeriod(initialSettings.retentionPeriod);
+    setSharingEnabled(initialSettings.sharingEnabled);
+    setError(null);
+    if (!initialSettings.sharingEnabled && activeTab.value === 'family') {
+      router.replace(buildPrivacyUrl('overview', PRIVACY_SECTIONS.overview[0].value), {
+        scroll: false,
+      });
+    }
+  };
+  const hasChanges =
+    recordingEnabled !== initialSettings.recordingEnabled ||
+    aiSummarizationEnabled !== initialSettings.aiSummarizationEnabled ||
+    retentionPeriod !== initialSettings.retentionPeriod ||
+    sharingEnabled !== initialSettings.sharingEnabled;
+  const shouldWarnOnNavigate = hasChanges && !isSaving;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: resetFormState,
+  });
   const retentionOption = useMemo(() => {
     return RETENTION_OPTIONS.find((option) => option.value === retentionPeriod);
   }, [retentionPeriod]);
@@ -342,73 +393,16 @@ export function PrivacyCenterClient({
     }
   }, [auditPage, auditTotalPages]);
 
-  const handleRecordingToggle = async (checked: boolean) => {
-    const previous = recordingEnabled;
+  const handleRecordingToggle = (checked: boolean) => {
     setRecordingEnabled(checked);
-    setIsUpdating(true);
-    try {
-      const result = await updatePrivacySettings(account.id, {
-        recordingEnabled: checked,
-      });
-
-      if (!result.success) {
-        setRecordingEnabled(previous);
-        toast.error(result.error || 'Failed to update recording setting');
-      } else {
-        toast.success(`Recording ${checked ? 'enabled' : 'disabled'}`);
-      }
-    } catch {
-      setRecordingEnabled(previous);
-      toast.error('Failed to update recording setting');
-    } finally {
-      setIsUpdating(false);
-    }
   };
 
-  const handleSummarizationToggle = async (checked: boolean) => {
-    const previous = aiSummarizationEnabled;
+  const handleSummarizationToggle = (checked: boolean) => {
     setAiSummarizationEnabled(checked);
-    setIsUpdating(true);
-    try {
-      const result = await updatePrivacySettings(account.id, {
-        aiSummarizationEnabled: checked,
-      });
-
-      if (!result.success) {
-        setAiSummarizationEnabled(previous);
-        toast.error(result.error || 'Failed to update AI summarization setting');
-      } else {
-        toast.success(`AI memory ${checked ? 'enabled' : 'disabled'}`);
-      }
-    } catch {
-      setAiSummarizationEnabled(previous);
-      toast.error('Failed to update AI summarization setting');
-    } finally {
-      setIsUpdating(false);
-    }
   };
 
-  const handleRetentionChange = async (value: RetentionPeriod) => {
-    const previous = retentionPeriod;
+  const handleRetentionChange = (value: RetentionPeriod) => {
     setRetentionPeriod(value);
-    setIsUpdating(true);
-    try {
-      const result = await updatePrivacySettings(account.id, {
-        retentionPeriod: value,
-      });
-
-      if (!result.success) {
-        setRetentionPeriod(previous);
-        toast.error(result.error || 'Failed to update retention period');
-      } else {
-        toast.success('Retention period updated');
-      }
-    } catch {
-      setRetentionPeriod(previous);
-      toast.error('Failed to update retention period');
-    } finally {
-      setIsUpdating(false);
-    }
   };
 
   const handleExportRequest = async () => {
@@ -445,28 +439,12 @@ export function PrivacyCenterClient({
     toast.success('Deletion requested. Privacy data will be removed shortly.');
   };
 
-  const handleSharingToggle = async (nextEnabled: boolean) => {
-    const previous = sharingEnabled;
+  const handleSharingToggle = (nextEnabled: boolean) => {
     setSharingEnabled(nextEnabled);
-    setIsSharingUpdating(true);
-    try {
-      const result = await updateAccountSharing(account.id, nextEnabled);
-      if (!result.success) {
-        setSharingEnabled(previous);
-        toast.error(result.error.message || 'Failed to update sharing');
-      } else {
-        toast.success(nextEnabled ? 'Family sharing enabled' : 'Family sharing disabled');
-        if (!nextEnabled && activeTab.value === 'family') {
-          router.replace(buildPrivacyUrl('overview', PRIVACY_SECTIONS.overview[0].value), {
-            scroll: false,
-          });
-        }
-      }
-    } catch {
-      setSharingEnabled(previous);
-      toast.error('Failed to update sharing');
-    } finally {
-      setIsSharingUpdating(false);
+    if (!nextEnabled && activeTab.value === 'family') {
+      router.replace(buildPrivacyUrl('overview', PRIVACY_SECTIONS.overview[0].value), {
+        scroll: false,
+      });
     }
   };
 
@@ -630,30 +608,79 @@ export function PrivacyCenterClient({
     }
   };
 
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!hasChanges) return;
+
+    setIsSaving(true);
+    setError(null);
+
+    let hasError = false;
+    let savedSomething = false;
+
+    try {
+      const privacyHasChanges =
+        recordingEnabled !== initialSettings.recordingEnabled ||
+        aiSummarizationEnabled !== initialSettings.aiSummarizationEnabled ||
+        retentionPeriod !== initialSettings.retentionPeriod;
+
+      if (privacyHasChanges) {
+        const result = await updatePrivacySettings(account.id, {
+          recordingEnabled,
+          aiSummarizationEnabled,
+          retentionPeriod,
+        });
+
+        if (!result.success) {
+          const message = result.error || 'Failed to update privacy settings';
+          setError(message);
+          toast.error(message);
+          hasError = true;
+        } else {
+          savedSomething = true;
+          setInitialSettings((prev) => ({
+            ...prev,
+            recordingEnabled,
+            aiSummarizationEnabled,
+            retentionPeriod,
+          }));
+        }
+      }
+
+      const sharingHasChanges =
+        sharingEnabled !== initialSettings.sharingEnabled;
+      if (sharingHasChanges) {
+        const result = await updateAccountSharing(account.id, sharingEnabled);
+        if (!result.success) {
+          const message = result.error.message || 'Failed to update sharing';
+          setError(message);
+          toast.error(message);
+          hasError = true;
+        } else {
+          savedSomething = true;
+          setInitialSettings((prev) => ({
+            ...prev,
+            sharingEnabled,
+          }));
+        }
+      }
+
+      if (!hasError && savedSomething) {
+        toast.success('Privacy settings saved');
+        router.refresh();
+      }
+    } catch {
+      const message = 'An unexpected error occurred';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const activeContent = (() => {
     switch (activeTab.value) {
       case 'overview': {
-        if (activeSection.value === 'vendor') {
-          return (
-            <Alert type="info">
-              <Alert.Heading>Vendor disclosure</Alert.Heading>
-              <p>
-                Ultaura uses xAI and Twilio to power voice conversations. Audio is processed in
-                real-time by these services.{' '}
-                <a
-                  href="/privacy"
-                  className="text-primary hover:underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Learn more in our Privacy Policy
-                </a>
-                .
-              </p>
-            </Alert>
-          );
-        }
-
         return (
           <>
             <Section>
@@ -767,7 +794,11 @@ export function PrivacyCenterClient({
                     When enabled, you can invite family members to receive weekly summaries and
                     wellness alerts. Only data after you enable sharing will be shared.
                   </p>
-                  <Button onClick={() => handleSharingToggle(true)} disabled={isSharingUpdating}>
+                  <Button
+                    type="button"
+                    onClick={() => handleSharingToggle(true)}
+                    disabled={isSaving || isSharingUpdating}
+                  >
                     Enable family sharing
                   </Button>
                 </SectionBody>
@@ -890,6 +921,7 @@ export function PrivacyCenterClient({
                         <div className="flex flex-wrap gap-2">
                           {canRequestRecording ? (
                             <Button
+                              type="button"
                               variant="outline"
                               onClick={() => handleRecordingReenable(line.id)}
                               disabled={
@@ -904,6 +936,7 @@ export function PrivacyCenterClient({
                           ) : null}
                           {canRequestSharing ? (
                             <Button
+                              type="button"
                               variant="outline"
                               onClick={() => handleSharingRePrompt(line.id)}
                               disabled={
@@ -959,7 +992,7 @@ export function PrivacyCenterClient({
                 <Switch
                   checked={recordingEnabled}
                   onCheckedChange={handleRecordingToggle}
-                  disabled={isUpdating}
+                  disabled={isSaving}
                 />
               </div>
 
@@ -976,7 +1009,7 @@ export function PrivacyCenterClient({
                 <Switch
                   checked={aiSummarizationEnabled}
                   onCheckedChange={handleSummarizationToggle}
-                  disabled={isUpdating}
+                  disabled={isSaving}
                 />
               </div>
             </SectionBody>
@@ -1017,7 +1050,7 @@ export function PrivacyCenterClient({
                         value={retentionPeriod}
                         onValueChange={(value) => handleRetentionChange(value as RetentionPeriod)}
                         className="gap-3"
-                        disabled={isUpdating}
+                        disabled={isSaving}
                       >
                         {RETENTION_OPTIONS.map((option) => (
                           <RadioGroupItemLabel key={option.value}>
@@ -1036,6 +1069,24 @@ export function PrivacyCenterClient({
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+
+                <div className="border-t border-border/60 pt-6">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
+                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    Delete privacy data
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Permanently delete AI-generated memories, call insights, and recorded audio.
+                    Call session metadata and user-created reminders are preserved.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    Delete privacy data
+                  </Button>
+                </div>
               </SectionBody>
             </Section>
           );
@@ -1073,7 +1124,11 @@ export function PrivacyCenterClient({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
-                  <Button onClick={handleExportRequest} disabled={isExporting || exportInProgress}>
+                  <Button
+                    type="button"
+                    onClick={handleExportRequest}
+                    disabled={isExporting || exportInProgress}
+                  >
                     {isExporting
                       ? 'Requesting...'
                       : exportInProgress
@@ -1183,41 +1238,6 @@ export function PrivacyCenterClient({
                 ) : (
                   <p className="text-sm text-muted-foreground">No export requests yet.</p>
                 )}
-              </SectionBody>
-            </Section>
-          );
-        }
-
-        if (activeSection.value === 'delete') {
-          return (
-            <Section>
-              <SectionHeader
-                title={
-                  <div className="flex items-center gap-2">
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    Delete privacy data
-                  </div>
-                }
-                description="Remove memories, call insights, and recordings for this account."
-              />
-              <SectionBody className="gap-4">
-                <p className="text-sm text-muted-foreground">
-                  Permanently delete AI-generated memories, call insights, and recorded audio.
-                </p>
-                <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-                  Delete privacy data
-                </Button>
-
-                <Accordion>
-                  <AccordionItem value="delete-advanced">
-                    <AccordionTrigger>Advanced deletion details</AccordionTrigger>
-                    <AccordionContent>
-                      This will permanently delete AI-generated memories, call insights, and any
-                      recorded audio. Call session metadata and user-created reminders are
-                      preserved.
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
               </SectionBody>
             </Section>
           );
@@ -1335,6 +1355,7 @@ export function PrivacyCenterClient({
                     </p>
                     <div className="flex items-center gap-2">
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => setAuditPage(Math.max(1, auditPageSafe - 1))}
@@ -1346,6 +1367,7 @@ export function PrivacyCenterClient({
                         Page {auditPageSafe} of {auditTotalPages}
                       </span>
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => setAuditPage(Math.min(auditTotalPages, auditPageSafe + 1))}
@@ -1431,7 +1453,7 @@ export function PrivacyCenterClient({
                 </label>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button onClick={() => handleInvite(false)} disabled={isInviting}>
+                  <Button type="button" onClick={() => handleInvite(false)} disabled={isInviting}>
                     {isInviting ? 'Sending...' : 'Send invite'}
                   </Button>
                   <p className="text-xs text-muted-foreground">
@@ -1476,7 +1498,7 @@ export function PrivacyCenterClient({
                         <Switch
                           checked={sharingEnabled}
                           onCheckedChange={handleSharingToggle}
-                          disabled={isSharingUpdating}
+                          disabled={isSaving || isSharingUpdating}
                         />
                       </div>
                       {sharingEnabled ? (
@@ -1513,7 +1535,7 @@ export function PrivacyCenterClient({
                     <p className="text-sm text-muted-foreground">
                       Your existing settings and data will be preserved.
                     </p>
-                    <Button onClick={handleUpgrade} disabled={isSharingUpdating}>
+                    <Button type="button" onClick={handleUpgrade} disabled={isSharingUpdating}>
                       Upgrade to Family Mode
                     </Button>
                   </SectionBody>
@@ -1532,31 +1554,57 @@ export function PrivacyCenterClient({
 
   return (
     <div className="flex flex-col gap-6 pb-24">
-      <NavigationMenu bordered>
-        {privacyTabs.map((tab) => (
-          <NavigationItem
-            key={tab.value}
-            className={'flex-1 lg:flex-none'}
-            active={tab.value === activeTab.value}
-            scroll={false}
-            link={{
-              path: buildPrivacyUrl(tab.value, PRIVACY_SECTIONS[tab.value][0].value),
-              label: tab.label,
-            }}
-          />
-        ))}
-      </NavigationMenu>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <NavigationMenu bordered>
+          {privacyTabs.map((tab) => (
+            <NavigationItem
+              key={tab.value}
+              className={'flex-1 lg:flex-none'}
+              active={tab.value === activeTab.value}
+              scroll={false}
+              link={{
+                path: buildPrivacyUrl(tab.value, PRIVACY_SECTIONS[tab.value][0].value),
+                label: tab.label,
+              }}
+            />
+          ))}
+        </NavigationMenu>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-        <PrivacySidebarNav
-          tab={activeTab.value}
-          sections={sectionsForTab}
-          activeSection={activeSection}
-        />
-        <div className="flex w-full flex-col gap-6 lg:max-w-4xl">
-          {activeContent}
+        {error && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+          <PrivacySidebarNav
+            tab={activeTab.value}
+            sections={sectionsForTab}
+            activeSection={activeSection}
+          />
+          <div className="flex w-full flex-col gap-6 lg:max-w-4xl">
+            {activeContent}
+          </div>
         </div>
-      </div>
+
+        <div className="mt-6 flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={resetFormState}
+            disabled={isSaving || !hasChanges}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-input px-4 py-2 text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Discard changes
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving || !hasChanges}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
 
       <ConfirmationDialog
         open={reinviteDialogOpen}
@@ -1575,6 +1623,17 @@ export function PrivacyCenterClient({
         confirmLabel="Delete data"
         variant="destructive"
         onConfirm={handleDataDeletion}
+      />
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
       />
     </div>
   );

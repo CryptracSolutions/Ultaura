@@ -24,9 +24,13 @@ const AVATARS_BUCKET = 'avatars';
 function UpdateProfileForm({
   session,
   onUpdateProfileData,
+  onDirtyChange,
+  onRegisterReset,
 }: {
   session: UserSession;
   onUpdateProfileData: (user: Partial<UserData>) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onRegisterReset?: (handler: () => void) => void;
 }) {
   const updateProfileMutation = useUpdateProfileMutation();
   const { t } = useTranslation();
@@ -37,7 +41,7 @@ function UpdateProfileForm({
   const user = session.auth?.user;
   const email = user?.email ?? '';
 
-  const { register, handleSubmit, reset } = useForm({
+  const { register, handleSubmit, reset, formState } = useForm({
     defaultValues: {
       displayName: currentDisplayName,
     },
@@ -70,11 +74,23 @@ function UpdateProfileForm({
     minLength: 2,
   });
 
-  useEffect(() => {
+  const resetForm = useCallback(() => {
     reset({
       displayName: currentDisplayName ?? '',
     });
-  }, [currentDisplayName, currentPhotoURL, reset]);
+  }, [currentDisplayName, reset]);
+
+  useEffect(() => {
+    onDirtyChange?.(formState.isDirty);
+  }, [formState.isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    onRegisterReset?.(resetForm);
+  }, [onRegisterReset, resetForm]);
+
+  useEffect(() => {
+    resetForm();
+  }, [currentDisplayName, currentPhotoURL, resetForm]);
 
   return (
     <div className={'flex flex-col space-y-8'}>
@@ -126,10 +142,20 @@ function UpdateProfileForm({
           </div>
         </TextField>
 
-        <div>
+        <div className={'flex flex-col gap-3 md:flex-row'}>
+          <Button
+            type={'button'}
+            variant={'outline'}
+            className={'w-full md:w-auto'}
+            onClick={resetForm}
+            disabled={!formState.isDirty || updateProfileMutation.isMutating}
+          >
+            Discard changes
+          </Button>
           <Button
             className={'w-full md:w-auto'}
             loading={updateProfileMutation.isMutating}
+            disabled={!formState.isDirty || updateProfileMutation.isMutating}
           >
             <Trans i18nKey={'profile:updateProfileSubmitLabel'} />
           </Button>

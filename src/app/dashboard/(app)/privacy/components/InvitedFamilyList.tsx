@@ -55,6 +55,7 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => onRemove(recipient.id)}

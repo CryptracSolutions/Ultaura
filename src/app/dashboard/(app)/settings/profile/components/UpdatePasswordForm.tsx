@@ -16,6 +16,8 @@ import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
 
 import configuration from '~/configuration';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 const UpdatePasswordForm = ({ user }: { user: User }) => {
   const { t } = useTranslation();
@@ -105,6 +107,16 @@ const UpdatePasswordForm = ({ user }: { user: User }) => {
   );
 
   const { isMutating, data } = updateUserMutation;
+  const hasChanges = formState.isDirty;
+  const shouldWarnOnNavigate = hasChanges && !isMutating;
+  const resetForm = useCallback(() => {
+    reset();
+    setNeedsReauthentication(false);
+  }, [reset]);
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: resetForm,
+  });
 
   return (
     <form
@@ -169,11 +181,37 @@ const UpdatePasswordForm = ({ user }: { user: User }) => {
         </TextField>
 
         <div>
-          <Button className={'w-full md:w-auto'} loading={isMutating}>
-            <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
-          </Button>
+          <div className={'flex flex-col gap-3 md:flex-row'}>
+            <Button
+              type={'button'}
+              variant={'outline'}
+              className={'w-full md:w-auto'}
+              onClick={resetForm}
+              disabled={!hasChanges || isMutating}
+            >
+              Discard changes
+            </Button>
+            <Button
+              className={'w-full md:w-auto'}
+              loading={isMutating}
+              disabled={!hasChanges || isMutating}
+            >
+              <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
+            </Button>
+          </div>
         </div>
       </div>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </form>
   );
 };

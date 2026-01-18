@@ -9,6 +9,7 @@ import { Input } from '~/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 import { createMilestone, updateMilestone, deleteMilestone } from '~/lib/ultaura/milestones';
 import { MilestoneCalendar } from './MilestoneCalendar';
@@ -69,23 +70,26 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<MilestoneRow | null>(null);
   const [formState, setFormState] = useState<MilestoneFormState>(DEFAULT_FORM_STATE);
+  const [initialFormState, setInitialFormState] =
+    useState<MilestoneFormState>(DEFAULT_FORM_STATE);
   const [milestoneToDelete, setMilestoneToDelete] = useState<MilestoneRow | null>(null);
 
   const resetForm = () => {
     setFormState(DEFAULT_FORM_STATE);
+    setInitialFormState(DEFAULT_FORM_STATE);
     setEditingMilestone(null);
     setShowForm(false);
   };
 
   const openAddForm = () => {
     setFormState(DEFAULT_FORM_STATE);
+    setInitialFormState(DEFAULT_FORM_STATE);
     setEditingMilestone(null);
     setShowForm(true);
   };
 
   const openEditForm = (milestone: MilestoneRow) => {
-    setEditingMilestone(milestone);
-    setFormState({
+    const nextState = {
       title: milestone.title,
       milestoneType: milestone.milestone_type,
       dateMonth: milestone.date_month,
@@ -93,9 +97,28 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
       dateYear: milestone.date_year ?? '',
       relatedPersonName: milestone.related_person_name ?? '',
       isRecurring: milestone.is_recurring ?? true,
-    });
+    };
+
+    setEditingMilestone(milestone);
+    setFormState(nextState);
+    setInitialFormState(nextState);
     setShowForm(true);
   };
+
+  const hasChanges =
+    showForm &&
+    (formState.title !== initialFormState.title ||
+      formState.milestoneType !== initialFormState.milestoneType ||
+      formState.dateMonth !== initialFormState.dateMonth ||
+      formState.dateDay !== initialFormState.dateDay ||
+      formState.dateYear !== initialFormState.dateYear ||
+      formState.relatedPersonName !== initialFormState.relatedPersonName ||
+      formState.isRecurring !== initialFormState.isRecurring);
+  const shouldWarnOnNavigate = hasChanges && !isSubmitting;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: resetForm,
+  });
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -332,7 +355,7 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
               {editingMilestone ? 'Save changes' : 'Add milestone'}
             </Button>
             <Button type="button" variant="outline" onClick={resetForm}>
-              Cancel
+              Discard changes
             </Button>
           </div>
         </form>
@@ -356,6 +379,17 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         confirmLabel="Delete"
         variant="destructive"
         onConfirm={handleDelete}
+      />
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
       />
     </div>
   );

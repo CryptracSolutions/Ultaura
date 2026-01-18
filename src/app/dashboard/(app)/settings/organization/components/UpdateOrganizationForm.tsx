@@ -16,6 +16,8 @@ import ImageUploader from '~/core/ui/ImageUploader';
 
 import useSupabase from '~/core/hooks/use-supabase';
 import type Organization from '~/lib/organizations/types/organization';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 
 const UpdateOrganizationForm = () => {
   const { organization, setOrganization } = useContext(OrganizationContext);
@@ -25,10 +27,21 @@ const UpdateOrganizationForm = () => {
   const currentOrganizationName = organization?.name ?? '';
   const organizationId = organization?.id as number;
 
-  const { register, handleSubmit, reset } = useForm({
+  const { register, handleSubmit, reset, formState } = useForm({
     defaultValues: {
       name: currentOrganizationName,
     },
+  });
+  const hasChanges = formState.isDirty;
+  const shouldWarnOnNavigate = hasChanges && !updateOrganizationMutation.isMutating;
+  const resetForm = useCallback(() => {
+    reset({
+      name: currentOrganizationName,
+    });
+  }, [currentOrganizationName, reset]);
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: resetForm,
   });
 
   const updateOrganizationData = useCallback(
@@ -109,16 +122,37 @@ const UpdateOrganizationForm = () => {
           </TextField.Label>
         </TextField>
 
-        <div>
+        <div className={'flex flex-col gap-3 md:flex-row'}>
+          <Button
+            type={'button'}
+            variant={'outline'}
+            className={'w-full md:w-auto'}
+            onClick={resetForm}
+            disabled={!hasChanges || updateOrganizationMutation.isMutating}
+          >
+            Discard changes
+          </Button>
           <Button
             className={'w-full md:w-auto'}
             data-cy={'update-organization-submit-button'}
             loading={updateOrganizationMutation.isMutating}
+            disabled={!hasChanges || updateOrganizationMutation.isMutating}
           >
             <Trans i18nKey={'organization:updateOrganizationSubmitLabel'} />
           </Button>
         </div>
       </form>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 };

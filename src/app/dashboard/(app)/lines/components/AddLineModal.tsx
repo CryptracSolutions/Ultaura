@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Phone, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
 import { US_TIMEZONES } from '~/lib/ultaura/constants';
 import { acknowledgeVendorDisclosure } from '~/lib/ultaura/privacy';
 import type { SharingTier, UserType } from '~/lib/ultaura/types';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import {
   Select,
   SelectTrigger,
@@ -76,11 +78,52 @@ export function AddLineModal({
   const [vendorAcknowledged, setVendorAcknowledged] = useState(vendorAlreadyAcknowledged);
   const [defaultSharingTier, setDefaultSharingTier] = useState<SharingTier>('tier_2');
 
+  const resetFormState = useCallback(() => {
+    setStep(1);
+    setDisplayName('');
+    setPhoneNumber('');
+    setTimezone('America/Los_Angeles');
+    setSelectedTopics([]);
+    setCustomTopics('');
+    setAvoidTopics('');
+    setDisclosure(false);
+    setConsent(false);
+    setVendorAcknowledged(vendorAlreadyAcknowledged);
+    setDefaultSharingTier('tier_2');
+    setError(null);
+    setIsLoading(false);
+  }, [vendorAlreadyAcknowledged]);
+
+  const discardAndClose = useCallback(() => {
+    resetFormState();
+    onClose();
+  }, [onClose, resetFormState]);
+
+  const hasChanges =
+    displayName.trim() !== '' ||
+    phoneNumber.trim() !== '' ||
+    timezone !== 'America/Los_Angeles' ||
+    selectedTopics.length > 0 ||
+    customTopics.trim() !== '' ||
+    avoidTopics.trim() !== '' ||
+    disclosure ||
+    consent ||
+    (!vendorAlreadyAcknowledged && vendorAcknowledged) ||
+    (userType === 'family_managed' && defaultSharingTier !== 'tier_2') ||
+    step !== 1;
+  const shouldWarnOnNavigate = isOpen && hasChanges && !isLoading;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: discardAndClose,
+  });
+
   useEffect(() => {
-    if (isOpen) {
-      setVendorAcknowledged(vendorAlreadyAcknowledged);
+    if (!isOpen) {
+      resetFormState();
+      return;
     }
-  }, [isOpen, vendorAlreadyAcknowledged]);
+    setVendorAcknowledged(vendorAlreadyAcknowledged);
+  }, [isOpen, resetFormState, vendorAlreadyAcknowledged]);
 
   if (!isOpen) return null;
 
@@ -165,7 +208,7 @@ export function AddLineModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-background/80"
-        onClick={onClose}
+        onClick={discardAndClose}
       />
 
       {/* Modal */}
@@ -177,7 +220,7 @@ export function AddLineModal({
               {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
             </h2>
             <button
-              onClick={onClose}
+              onClick={discardAndClose}
               className="p-2 rounded-md hover:bg-muted transition-colors"
             >
               <X className="w-5 h-5 text-muted-foreground" />
@@ -451,10 +494,10 @@ export function AddLineModal({
                 <>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={discardAndClose}
                     className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Cancel
+                    Discard changes
                   </button>
                   <button
                     type="button"
@@ -487,6 +530,17 @@ export function AddLineModal({
           </form>
         </div>
       </div>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 }

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, Clock, Check, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '~/core/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import type { LineRow, ScheduleRow } from '~/lib/ultaura/types';
 import { updateSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
@@ -33,6 +35,12 @@ export function EditScheduleClient({
   const [enabled, setEnabled] = useState(schedule.enabled);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resetFormState = useCallback(() => {
+    setSelectedDays(schedule.days_of_week);
+    setSelectedTime(normalizeTimeOfDay(schedule.time_of_day));
+    setEnabled(schedule.enabled);
+    setError(null);
+  }, [schedule.days_of_week, schedule.enabled, schedule.time_of_day]);
 
   const toggleDay = (day: number) => {
     if (disabled) return;
@@ -48,6 +56,11 @@ export function EditScheduleClient({
     enabled !== schedule.enabled ||
     selectedTime !== normalizeTimeOfDay(schedule.time_of_day) ||
     JSON.stringify(selectedDays.sort()) !== JSON.stringify(schedule.days_of_week.sort());
+  const shouldWarnOnNavigate = hasChanges && !isLoading;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: resetFormState,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,12 +221,14 @@ export function EditScheduleClient({
 
             {/* Submit */}
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href={`/dashboard/lines/${line.short_id}`}
-                className="w-full sm:flex-1 py-3 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
+              <button
+                type="button"
+                onClick={resetFormState}
+                disabled={disabled || isLoading || !hasChanges}
+                className="w-full sm:flex-1 py-3 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
-              </Link>
+                Discard changes
+              </button>
               <button
                 type="submit"
                 disabled={disabled || isLoading || !hasChanges}
@@ -232,6 +247,17 @@ export function EditScheduleClient({
           </form>
         </CardContent>
       </Card>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 }

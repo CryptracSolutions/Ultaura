@@ -13,6 +13,8 @@ import Alert from '~/core/ui/Alert';
 import Trans from '~/core/ui/Trans';
 
 import useUpdateUserMutation from '~/core/hooks/use-update-user-mutation';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 import configuration from '~/configuration';
 
@@ -43,11 +45,17 @@ const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
 
   const currentEmail = user?.email as string;
 
-  const { register, handleSubmit, reset } = useForm({
+  const { register, handleSubmit, reset, formState } = useForm({
     defaultValues: {
       email: '',
       repeatEmail: '',
     },
+  });
+  const hasChanges = formState.isDirty;
+  const shouldWarnOnNavigate = hasChanges && !updateUserMutation.isMutating;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: () => reset(),
   });
 
   const onSubmit = useCallback(
@@ -134,14 +142,37 @@ const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
         </TextField>
 
         <div>
-          <Button
-            className={'w-full md:w-auto'}
-            loading={updateUserMutation.isMutating}
-          >
-            <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
-          </Button>
+          <div className={'flex flex-col gap-3 md:flex-row'}>
+            <Button
+              type={'button'}
+              variant={'outline'}
+              className={'w-full md:w-auto'}
+              onClick={() => reset()}
+              disabled={!hasChanges || updateUserMutation.isMutating}
+            >
+              Discard changes
+            </Button>
+            <Button
+              className={'w-full md:w-auto'}
+              loading={updateUserMutation.isMutating}
+              disabled={!hasChanges || updateUserMutation.isMutating}
+            >
+              <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
+            </Button>
+          </div>
         </div>
       </div>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </form>
   );
 };

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { DateTime } from 'luxon';
 import { ArrowLeft, Clock, Check, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow, ScheduleExceptionRow } from '~/lib/ultaura/types';
@@ -29,8 +30,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   const searchParams = useSearchParams();
   const handledEditIdRef = useRef<string | null>(null);
   const editLoadSeqRef = useRef(0);
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Weekdays
-  const [selectedTime, setSelectedTime] = useState('09:00');
+  const exceptionInitializedRef = useRef(false);
+  const defaultCreateDays = [1, 2, 3, 4, 5];
+  const defaultCreateTime = '09:00';
+  const [selectedDays, setSelectedDays] = useState<number[]>(defaultCreateDays); // Weekdays
+  const [selectedTime, setSelectedTime] = useState(defaultCreateTime);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -46,6 +50,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   const [editEnabled, setEditEnabled] = useState(true);
   const [isEditLoading, setIsEditLoading] = useState(false);
   const [isEditSaving, setIsEditSaving] = useState(false);
+  const [initialEditState, setInitialEditState] = useState<{
+    days: number[];
+    time: string;
+    enabled: boolean;
+  } | null>(null);
 
   const [showExceptionModal, setShowExceptionModal] = useState(false);
   const [exceptionType, setExceptionType] = useState<'skip' | 'snooze' | 'reschedule'>('skip');
@@ -56,6 +65,15 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   const [exceptionError, setExceptionError] = useState<string | null>(null);
   const [exceptionLoading, setExceptionLoading] = useState(false);
   const [exceptionToDelete, setExceptionToDelete] = useState<ScheduleExceptionRow | null>(null);
+  const [initialExceptionState, setInitialExceptionState] = useState<{
+    exceptionType: 'skip' | 'snooze' | 'reschedule';
+    exceptionScheduleId: string;
+    exceptionDate: string;
+    snoozeTime: string;
+    rescheduleDateTime: string;
+  } | null>(null);
+
+  const normalizeDays = (days: number[]) => days.slice().sort((a, b) => a - b).join(',');
 
   const recurringSchedules = useMemo(
     () => schedules.filter((schedule) => !schedule.is_one_time && schedule.days_of_week.length > 0),
@@ -133,6 +151,16 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
 
     setShowCreate(false);
     setEditingSchedule(schedule);
+    setInitialEditState(null);
+    const normalizedTime = normalizeTimeOfDay(schedule.time_of_day);
+    setEditSelectedDays(schedule.days_of_week);
+    setEditSelectedTime(normalizedTime);
+    setEditEnabled(schedule.enabled);
+    setInitialEditState({
+      days: schedule.days_of_week,
+      time: normalizedTime,
+      enabled: schedule.enabled,
+    });
     setIsEditLoading(true);
 
     const requestSeq = ++editLoadSeqRef.current;
@@ -149,8 +177,14 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
 
       setEditingSchedule(latest);
       setEditSelectedDays(latest.days_of_week);
-      setEditSelectedTime(normalizeTimeOfDay(latest.time_of_day));
+      const latestTime = normalizeTimeOfDay(latest.time_of_day);
+      setEditSelectedTime(latestTime);
       setEditEnabled(latest.enabled);
+      setInitialEditState({
+        days: latest.days_of_week,
+        time: latestTime,
+        enabled: latest.enabled,
+      });
     } catch {
       if (editLoadSeqRef.current !== requestSeq) return;
       toast.error('Failed to load schedule');
@@ -279,6 +313,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
       if (result.success) {
         toast.success('Schedule created');
         setShowCreate(false);
+        resetCreateForm();
         router.refresh();
       } else {
         setError(result.error.message || 'Failed to create schedule');
@@ -291,10 +326,71 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   };
 
   const resetCreateForm = () => {
-    setSelectedDays([1, 2, 3, 4, 5]);
-    setSelectedTime('09:00');
+    setSelectedDays(defaultCreateDays);
+    setSelectedTime(defaultCreateTime);
     setError(null);
   };
+
+  const discardCreateChanges = () => {
+    resetCreateForm();
+    setShowCreate(false);
+  };
+
+  const discardEditChanges = () => {
+    if (initialEditState) {
+      setEditSelectedDays(initialEditState.days);
+      setEditSelectedTime(initialEditState.time);
+      setEditEnabled(initialEditState.enabled);
+    }
+    setEditingSchedule(null);
+    setInitialEditState(null);
+    setIsEditLoading(false);
+    setIsEditSaving(false);
+  };
+
+  const discardExceptionChanges = () => {
+    if (initialExceptionState) {
+      setExceptionType(initialExceptionState.exceptionType);
+      setExceptionScheduleId(initialExceptionState.exceptionScheduleId);
+      setExceptionDate(initialExceptionState.exceptionDate);
+      setSnoozeTime(initialExceptionState.snoozeTime);
+      setRescheduleDateTime(initialExceptionState.rescheduleDateTime);
+    }
+    setShowExceptionModal(false);
+    setExceptionError(null);
+    setExceptionLoading(false);
+    exceptionInitializedRef.current = false;
+    setInitialExceptionState(null);
+  };
+
+  const hasCreateChanges =
+    normalizeDays(selectedDays) !== normalizeDays(defaultCreateDays) ||
+    selectedTime !== defaultCreateTime;
+  const hasEditChanges =
+    Boolean(editingSchedule && initialEditState) &&
+    (normalizeDays(editSelectedDays) !== normalizeDays(initialEditState!.days) ||
+      editSelectedTime !== initialEditState!.time ||
+      editEnabled !== initialEditState!.enabled);
+  const hasExceptionChanges =
+    Boolean(showExceptionModal && initialExceptionState) &&
+    (exceptionType !== initialExceptionState!.exceptionType ||
+      exceptionScheduleId !== initialExceptionState!.exceptionScheduleId ||
+      exceptionDate !== initialExceptionState!.exceptionDate ||
+      snoozeTime !== initialExceptionState!.snoozeTime ||
+      rescheduleDateTime !== initialExceptionState!.rescheduleDateTime);
+  const shouldWarnOnNavigate =
+    (hasCreateChanges || hasEditChanges || hasExceptionChanges) &&
+    !isLoading &&
+    !isEditSaving &&
+    !exceptionLoading;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: () => {
+      discardCreateChanges();
+      discardEditChanges();
+      discardExceptionChanges();
+    },
+  });
 
   const handleToggleEnabled = async (schedule: ScheduleRow) => {
     if (disabled) return;
@@ -434,6 +530,8 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
       toast.error('No upcoming schedules to edit');
       return;
     }
+    exceptionInitializedRef.current = false;
+    setInitialExceptionState(null);
     setExceptionError(null);
     setExceptionType('skip');
     setExceptionScheduleId('');
@@ -533,6 +631,32 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
       setExceptionLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!showExceptionModal) {
+      exceptionInitializedRef.current = false;
+      setInitialExceptionState(null);
+      return;
+    }
+    if (exceptionInitializedRef.current) return;
+    if (!exceptionScheduleId) return;
+
+    setInitialExceptionState({
+      exceptionType,
+      exceptionScheduleId,
+      exceptionDate,
+      snoozeTime,
+      rescheduleDateTime,
+    });
+    exceptionInitializedRef.current = true;
+  }, [
+    exceptionDate,
+    exceptionScheduleId,
+    exceptionType,
+    rescheduleDateTime,
+    showExceptionModal,
+    snoozeTime,
+  ]);
 
   const handleExceptionDelete = async () => {
     if (!exceptionToDelete) return;
@@ -716,13 +840,10 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={() => {
-                  setShowCreate(false);
-                  resetCreateForm();
-                }}
+                onClick={discardCreateChanges}
                 className="w-full sm:flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
               >
-                Cancel
+                Discard changes
               </button>
               <button
                 type="submit"
@@ -1016,9 +1137,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         open={editingSchedule !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setEditingSchedule(null);
-            setIsEditLoading(false);
-            setIsEditSaving(false);
+            discardEditChanges();
           }
         }}
       >
@@ -1036,7 +1155,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
 
             <button
               type="button"
-              onClick={() => setEditingSchedule(null)}
+              onClick={discardEditChanges}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
@@ -1117,11 +1236,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setEditingSchedule(null)}
+                onClick={discardEditChanges}
                 disabled={disabled || isEditLoading || isEditSaving}
                 className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
               >
-                Cancel
+                Discard changes
               </button>
               <button
                 type="submit"
@@ -1154,9 +1273,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         open={showExceptionModal}
         onOpenChange={(open) => {
           if (!open) {
-            setShowExceptionModal(false);
-            setExceptionError(null);
-            setExceptionLoading(false);
+            discardExceptionChanges();
           }
         }}
       >
@@ -1174,7 +1291,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
 
             <button
               type="button"
-              onClick={() => setShowExceptionModal(false)}
+              onClick={discardExceptionChanges}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
@@ -1281,11 +1398,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setShowExceptionModal(false)}
+                onClick={discardExceptionChanges}
                 className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
                 disabled={exceptionLoading}
               >
-                Cancel
+                Discard changes
               </button>
               <button
                 type="submit"
@@ -1305,6 +1422,17 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 }

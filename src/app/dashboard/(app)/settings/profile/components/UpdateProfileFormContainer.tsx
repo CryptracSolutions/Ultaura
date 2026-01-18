@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useContext } from 'react';
+import { useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import UserSessionContext from '~/core/session/contexts/user-session';
 import useUserSession from '~/core/hooks/use-user-session';
@@ -12,6 +12,8 @@ import UpdatePhoneNumberForm from '../components/UpdatePhoneNumberForm';
 import SettingsTile from '../../components/SettingsTile';
 import UpdateProfileForm from '../components/UpdateProfileForm';
 import ProfileDangerZone from '../components/ProfileDangerZone';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 
 import { refreshSessionAction } from '../actions';
 
@@ -23,6 +25,8 @@ const allowPhoneNumberUpdate = configuration.auth.providers.phoneNumber;
 function UpdateProfileFormContainer() {
   const { userSession, setUserSession } = useContext(UserSessionContext);
   const session = useUserSession();
+  const resetHandlers = useRef<{ profile?: () => void; phone?: () => void }>({});
+  const [dirtyState, setDirtyState] = useState({ profile: false, phone: false });
 
   const onUpdateProfileData = useCallback(
     async (data: Partial<UserData>) => {
@@ -43,6 +47,29 @@ function UpdateProfileFormContainer() {
     [setUserSession, userSession],
   );
 
+  const hasChanges = useMemo(
+    () => Object.values(dirtyState).some(Boolean),
+    [dirtyState]
+  );
+
+  const registerReset = useCallback((key: 'profile' | 'phone', handler: () => void) => {
+    resetHandlers.current[key] = handler;
+  }, []);
+
+  const updateDirtyState = useCallback((key: 'profile' | 'phone', dirty: boolean) => {
+    setDirtyState((prev) => (prev[key] === dirty ? prev : { ...prev, [key]: dirty }));
+  }, []);
+
+  const discardAllChanges = useCallback(() => {
+    Object.values(resetHandlers.current).forEach((handler) => handler?.());
+  }, []);
+
+  const shouldWarnOnNavigate = hasChanges;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: discardAllChanges,
+  });
+
   if (!session) {
     return null;
   }
@@ -56,6 +83,8 @@ function UpdateProfileFormContainer() {
         <UpdateProfileForm
           session={session}
           onUpdateProfileData={onUpdateProfileData}
+          onDirtyChange={(dirty) => updateDirtyState('profile', dirty)}
+          onRegisterReset={(handler) => registerReset('profile', handler)}
         />
       </SettingsTile>
 
@@ -69,6 +98,8 @@ function UpdateProfileFormContainer() {
             onUpdate={async () => {
               await refreshSessionAction();
             }}
+            onDirtyChange={(dirty) => updateDirtyState('phone', dirty)}
+            onRegisterReset={(handler) => registerReset('phone', handler)}
           />
         </SettingsTile>
       </If>
@@ -81,6 +112,17 @@ function UpdateProfileFormContainer() {
           <ProfileDangerZone />
         </SettingsTile>
       </If>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 }

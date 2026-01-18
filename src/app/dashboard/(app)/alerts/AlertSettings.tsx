@@ -1,11 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Bell, Brain, Activity } from 'lucide-react';
 import { Switch } from '~/core/ui/Switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import Button from '~/core/ui/Button';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import type { LineRow, NotificationPreferencesRow } from '~/lib/ultaura/types';
 import { updateNotificationPreferences } from '~/lib/ultaura/insights';
 
@@ -40,10 +42,14 @@ function buildDefaults(preferences: NotificationPreferencesRow | null) {
 function AlertSettingsCard({
   line,
   preferences,
+  onDirtyChange,
+  onRegisterReset,
   disabled = false,
 }: {
   line: LineRow;
   preferences: NotificationPreferencesRow | null;
+  onDirtyChange?: (dirty: boolean) => void;
+  onRegisterReset?: (handler: () => void) => void;
   disabled?: boolean;
 }) {
   const defaults = useMemo(() => buildDefaults(preferences), [preferences]);
@@ -59,6 +65,21 @@ function AlertSettingsCard({
     moodDropAlerts !== savedDefaults.moodDropAlerts ||
     cognitiveConcernAlerts !== savedDefaults.cognitiveConcernAlerts ||
     deliveryMethod !== savedDefaults.deliveryMethod;
+
+  const resetForm = useCallback(() => {
+    setHealthMentionAlerts(savedDefaults.healthMentionAlerts);
+    setMoodDropAlerts(savedDefaults.moodDropAlerts);
+    setCognitiveConcernAlerts(savedDefaults.cognitiveConcernAlerts);
+    setDeliveryMethod(savedDefaults.deliveryMethod);
+  }, [savedDefaults]);
+
+  useEffect(() => {
+    onDirtyChange?.(hasChanges);
+  }, [hasChanges, onDirtyChange]);
+
+  useEffect(() => {
+    onRegisterReset?.(resetForm);
+  }, [onRegisterReset, resetForm]);
 
   const handleSave = async () => {
     if (disabled || !hasChanges) return;
@@ -162,20 +183,54 @@ function AlertSettingsCard({
         <p className="text-xs text-muted-foreground mt-1">SMS and push options are coming soon.</p>
       </div>
 
-      <Button
-        variant="outline"
-        size="small"
-        onClick={handleSave}
-        disabled={disabled || !hasChanges}
-        loading={isSaving}
-      >
-        Save changes
-      </Button>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          variant="outline"
+          size="small"
+          onClick={resetForm}
+          disabled={disabled || !hasChanges || isSaving}
+        >
+          Discard changes
+        </Button>
+        <Button
+          variant="outline"
+          size="small"
+          onClick={handleSave}
+          disabled={disabled || !hasChanges}
+          loading={isSaving}
+        >
+          Save changes
+        </Button>
+      </div>
     </div>
   );
 }
 
 export function AlertSettings({ settings, disabled = false }: AlertSettingsProps) {
+  const resetHandlers = useRef<Record<string, () => void>>({});
+  const [dirtyMap, setDirtyMap] = useState<Record<string, boolean>>({});
+
+  const registerReset = useCallback((lineId: string, handler: () => void) => {
+    resetHandlers.current[lineId] = handler;
+  }, []);
+
+  const updateDirty = useCallback((lineId: string, dirty: boolean) => {
+    setDirtyMap((prev) => (prev[lineId] === dirty ? prev : { ...prev, [lineId]: dirty }));
+  }, []);
+
+  const discardAllChanges = useCallback(() => {
+    Object.values(resetHandlers.current).forEach((handler) => handler?.());
+  }, []);
+
+  const hasChanges = useMemo(
+    () => Object.values(dirtyMap).some(Boolean),
+    [dirtyMap]
+  );
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: hasChanges,
+    onDiscard: discardAllChanges,
+  });
+
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
       <div>
@@ -195,10 +250,23 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
               line={entry.line}
               preferences={entry.preferences}
               disabled={disabled}
+              onDirtyChange={(dirty) => updateDirty(entry.line.id, dirty)}
+              onRegisterReset={(handler) => registerReset(entry.line.id, handler)}
             />
           ))}
         </div>
       )}
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 }

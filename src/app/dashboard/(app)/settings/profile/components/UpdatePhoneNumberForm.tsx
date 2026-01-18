@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useMutation from 'swr/mutation';
 import { toast } from 'sonner';
@@ -20,24 +20,43 @@ import configuration from '~/configuration';
 interface UpdatePhoneNumberFormProps {
   session: UserSession;
   onUpdate: (phoneNumber: Maybe<string>) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onRegisterReset?: (handler: () => void) => void;
 }
 
 function UpdatePhoneNumberForm({
   session,
   onUpdate,
+  onDirtyChange,
+  onRegisterReset,
 }: UpdatePhoneNumberFormProps) {
   const { trigger, isMutating } = useUpdatePhoneNumber();
   const { t } = useTranslation();
   const currentPhoneNumber = session.auth?.user?.phone ?? '';
+  const [phoneNumber, setPhoneNumber] = useState(currentPhoneNumber);
+  const hasChanges = phoneNumber !== currentPhoneNumber;
+
+  const resetForm = useCallback(() => {
+    setPhoneNumber(currentPhoneNumber);
+  }, [currentPhoneNumber]);
+
+  useEffect(() => {
+    resetForm();
+  }, [currentPhoneNumber, resetForm]);
+
+  useEffect(() => {
+    onDirtyChange?.(hasChanges);
+  }, [hasChanges, onDirtyChange]);
+
+  useEffect(() => {
+    onRegisterReset?.(resetForm);
+  }, [onRegisterReset, resetForm]);
 
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-
-        const form = event.currentTarget;
-        const formData = new FormData(form);
-        const phoneNumber = formData.get('phoneNumber') as string;
+        if (!hasChanges) return;
 
         const promise = trigger(phoneNumber).then(() => {
           onUpdate(phoneNumber);
@@ -58,7 +77,8 @@ function UpdatePhoneNumberForm({
 
             <TextField.Input
               name={'phoneNumber'}
-              defaultValue={currentPhoneNumber}
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(event.target.value)}
             />
           </TextField.Label>
 
@@ -76,8 +96,17 @@ function UpdatePhoneNumberForm({
           </If>
         </TextField>
 
-        <div>
-          <Button loading={isMutating}>
+        <div className={'flex flex-col gap-3 md:flex-row'}>
+          <Button
+            type={'button'}
+            variant={'outline'}
+            className={'w-full md:w-auto'}
+            onClick={resetForm}
+            disabled={!hasChanges || isMutating}
+          >
+            Discard changes
+          </Button>
+          <Button loading={isMutating} disabled={!hasChanges || isMutating}>
             <Trans i18nKey={'profile:updatePhoneNumber'} />
           </Button>
         </div>

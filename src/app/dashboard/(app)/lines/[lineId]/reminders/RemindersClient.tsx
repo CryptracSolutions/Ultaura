@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   DropdownMenu,
@@ -109,6 +110,11 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [initialEditState, setInitialEditState] = useState<{
+    message: string;
+    date: string;
+    time: string;
+  } | null>(null);
 
   // Form state
   const [message, setMessage] = useState('');
@@ -123,6 +129,63 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [hasEndDate, setHasEndDate] = useState(false);
   const [endDate, setEndDate] = useState('');
+
+  const resetCreateForm = () => {
+    setMessage('');
+    setDate('');
+    setTime('09:00');
+    setIsRecurring(false);
+    setFrequency('daily');
+    setInterval(1);
+    setSelectedDays([]);
+    setDayOfMonth(1);
+    setHasEndDate(false);
+    setEndDate('');
+    setError(null);
+  };
+
+  const discardCreateChanges = () => {
+    resetCreateForm();
+    setShowForm(false);
+  };
+
+  const discardEditChanges = () => {
+    if (initialEditState) {
+      setEditMessage(initialEditState.message);
+      setEditDate(initialEditState.date);
+      setEditTime(initialEditState.time);
+    }
+    setEditingReminder(null);
+    setInitialEditState(null);
+    setIsEditSubmitting(false);
+  };
+
+  const hasCreateChanges =
+    message.trim() !== '' ||
+    date !== '' ||
+    time !== '09:00' ||
+    isRecurring ||
+    (isRecurring &&
+      (frequency !== 'daily' ||
+        interval !== 1 ||
+        selectedDays.length > 0 ||
+        dayOfMonth !== 1 ||
+        hasEndDate ||
+        endDate !== ''));
+  const hasEditChanges =
+    Boolean(editingReminder && initialEditState) &&
+    (editMessage.trim() !== initialEditState!.message ||
+      editDate !== initialEditState!.date ||
+      editTime !== initialEditState!.time);
+  const shouldWarnOnNavigate =
+    (hasCreateChanges || hasEditChanges) && !isSubmitting && !isEditSubmitting;
+  const { dialogProps } = useLeavePageGuard({
+    isDirty: shouldWarnOnNavigate,
+    onDiscard: () => {
+      discardCreateChanges();
+      discardEditChanges();
+    },
+  });
 
   const formatPhone = (e164: string) => {
     const digits = e164.replace(/\D/g, '');
@@ -187,16 +250,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     if (result.success) {
       toast.success('Reminder created');
       setShowForm(false);
-      setMessage('');
-      setDate('');
-      setTime('09:00');
-      setIsRecurring(false);
-      setFrequency('daily');
-      setInterval(1);
-      setSelectedDays([]);
-      setDayOfMonth(1);
-      setHasEndDate(false);
-      setEndDate('');
+      resetCreateForm();
       router.refresh();
     } else {
       setError(result.error.message || 'Failed to create reminder');
@@ -299,10 +353,17 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     setEditMessage(reminder.message);
     // Parse the due_at to get date and time in local format
     const dueDate = new Date(reminder.due_at);
-    setEditDate(dueDate.toISOString().split('T')[0]);
+    const initialDate = dueDate.toISOString().split('T')[0];
+    setEditDate(initialDate);
     const hours = dueDate.getHours().toString().padStart(2, '0');
     const minutes = dueDate.getMinutes().toString().padStart(2, '0');
-    setEditTime(`${hours}:${minutes}`);
+    const initialTime = `${hours}:${minutes}`;
+    setEditTime(initialTime);
+    setInitialEditState({
+      message: reminder.message,
+      date: initialDate,
+      time: initialTime,
+    });
   }, [disabled]);
 
   // Allow deep-linking into the edit modal (e.g. from the global reminders list)
@@ -362,6 +423,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     if (result.success) {
       toast.success('Reminder updated');
       setEditingReminder(null);
+      setInitialEditState(null);
       router.refresh();
     } else {
       toast.error(result.error.message || 'Failed to update reminder');
@@ -588,23 +650,10 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
             <div className="flex flex-col gap-3 pt-2 sm:flex-row">
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setMessage('');
-                  setDate('');
-                  setTime('09:00');
-                  setIsRecurring(false);
-                  setFrequency('daily');
-                  setInterval(1);
-                  setSelectedDays([]);
-                  setDayOfMonth(1);
-                  setHasEndDate(false);
-                  setEndDate('');
-                  setError(null);
-                }}
+                onClick={discardCreateChanges}
                 className="w-full sm:flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
               >
-                Cancel
+                Discard changes
               </button>
               <button
                 type="submit"
@@ -882,7 +931,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       <Dialog
         open={editingReminder !== null}
         onOpenChange={(open) => {
-          if (!open) setEditingReminder(null);
+          if (!open) discardEditChanges();
         }}
       >
         <DialogContent
@@ -899,7 +948,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
             <button
               type="button"
-              onClick={() => setEditingReminder(null)}
+              onClick={discardEditChanges}
               disabled={isEditSubmitting}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
               aria-label="Close"
@@ -959,11 +1008,11 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setEditingReminder(null)}
+                onClick={discardEditChanges}
                 disabled={isEditSubmitting}
                 className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
               >
-                Cancel
+                Discard changes
               </button>
               <button
                 type="submit"
@@ -985,6 +1034,17 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationDialog
+        open={dialogProps.open}
+        onOpenChange={dialogProps.onOpenChange}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={dialogProps.onConfirm}
+      />
     </div>
   );
 }
