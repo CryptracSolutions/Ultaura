@@ -211,7 +211,7 @@ export async function validateWebSocketConnection(
   const tokenCheck = validateStreamToken(token, callSessionId);
 
   const hasExisting = hasActiveConnection(callSessionId);
-  const connectionCapCheck = {
+  const connectionCapCheck: SecurityValidationResult['connectionCapCheck'] = {
     allowed: !hasExisting,
     reason: hasExisting ? 'duplicate' : 'first',
   };
