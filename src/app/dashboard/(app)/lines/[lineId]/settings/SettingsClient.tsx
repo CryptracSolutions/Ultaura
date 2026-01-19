@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft,
   Globe,
+  Languages,
   Clock,
   Bell,
   Voicemail,
@@ -31,12 +32,13 @@ import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { LineRow, VoicemailBehavior, InsightPrivacyRow, NotificationPreferencesRow, AccessibilitySettingsRow } from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/lines';
-import { INSIGHTS, US_TIMEZONES, TIME_OPTIONS, WEEKDAY_OPTIONS } from '~/lib/ultaura/constants';
+import { INSIGHTS, LANGUAGE_OPTIONS, US_TIMEZONES, TIME_OPTIONS, WEEKDAY_OPTIONS } from '~/lib/ultaura/constants';
 import { setPauseMode, updateInsightPrivacy, updateNotificationPreferences } from '~/lib/ultaura/insights';
 import { updateAccessibilitySettings } from '~/lib/ultaura/accessibility';
 import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
 import { parseVacationRanges, type VacationRange } from '~/lib/ultaura/vacation-utils';
 import { VacationSettings } from './VacationSettings';
+import { getLanguageDisplayName } from '~/lib/ultaura/language';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -48,6 +50,7 @@ interface SettingsClientProps {
 
 type LineSettingsTabValue = 'calling' | 'insights' | 'accessibility';
 type LineSettingsSectionValue =
+  | 'language'
   | 'timezone'
   | 'quiet-hours'
   | 'voicemail'
@@ -73,6 +76,7 @@ const LINE_SETTINGS_TABS: Array<{ value: LineSettingsTabValue; label: string }> 
 
 const LINE_SETTINGS_SECTIONS: Record<LineSettingsTabValue, LineSettingsSectionConfig[]> = {
   calling: [
+    { value: 'language', label: 'Language', icon: Languages },
     { value: 'timezone', label: 'Timezone', icon: Globe },
     { value: 'quiet-hours', label: 'Quiet Hours', icon: Clock },
     { value: 'voicemail', label: 'Voicemail', icon: Voicemail },
@@ -125,6 +129,9 @@ export function SettingsClient({
   const [timezone, setTimezone] = useState(line.timezone);
   const [quietHoursStart, setQuietHoursStart] = useState(line.quiet_hours_start);
   const [quietHoursEnd, setQuietHoursEnd] = useState(line.quiet_hours_end);
+  const [preferredLanguage, setPreferredLanguage] = useState<string | null>(
+    line.preferred_language_iso ?? null
+  );
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
     line.allow_voice_reminder_control ?? true
   );
@@ -225,6 +232,7 @@ export function SettingsClient({
     setTimezone(line.timezone);
     setQuietHoursStart(line.quiet_hours_start);
     setQuietHoursEnd(line.quiet_hours_end);
+    setPreferredLanguage(line.preferred_language_iso ?? null);
     setAllowVoiceReminderControl(line.allow_voice_reminder_control ?? true);
     setAllowVoiceScheduleControl(line.allow_voice_schedule_control ?? true);
     setInboundAllowed(line.inbound_allowed ?? true);
@@ -263,6 +271,7 @@ export function SettingsClient({
           allowVoiceScheduleControl,
           inboundAllowed,
           voicemailBehavior,
+          preferredLanguageIso: preferredLanguage,
         });
 
         if (!result.success) {
@@ -351,6 +360,7 @@ export function SettingsClient({
     timezone !== line.timezone ||
     quietHoursStart !== line.quiet_hours_start ||
     quietHoursEnd !== line.quiet_hours_end ||
+    preferredLanguage !== (line.preferred_language_iso ?? null) ||
     allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
     allowVoiceScheduleControl !== (line.allow_voice_schedule_control ?? true) ||
     inboundAllowed !== (line.inbound_allowed ?? true) ||
@@ -504,6 +514,74 @@ export function SettingsClient({
     switch (activeTab.value) {
       case 'calling': {
         switch (activeSection.value) {
+          case 'language': {
+            const selectedOption = LANGUAGE_OPTIONS.find(
+              (option) => option.value === preferredLanguage
+            );
+            const selectedLabel = selectedOption?.label ??
+              (preferredLanguage ? getLanguageDisplayName(preferredLanguage) : 'Auto-detect');
+            const showUnsupported = preferredLanguage !== null && !selectedOption;
+
+            return (
+              <Section>
+                <SectionHeader
+                  title={
+                    <div className="flex items-center gap-2">
+                      <Languages className="h-4 w-4 text-muted-foreground" />
+                      Language Preference
+                    </div>
+                  }
+                  description="Set the language for calls with this line."
+                />
+                <SectionBody className="gap-4">
+                  <Select
+                    value={preferredLanguage ?? 'auto'}
+                    onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
+                    disabled={disabled}
+                  >
+                    <SelectTrigger className="w-full py-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {showUnsupported && preferredLanguage ? (
+                        <SelectItem value={preferredLanguage} disabled>
+                          {selectedLabel}
+                        </SelectItem>
+                      ) : null}
+                      {LANGUAGE_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.value ?? 'auto'}
+                          value={option.value ?? 'auto'}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+                    {preferredLanguage === null ? (
+                      <>
+                        <p className="font-medium text-foreground">Auto-detect mode</p>
+                        <p className="mt-1">
+                          Ultaura will use a bilingual greeting on the first call and detect{' '}
+                          {line.display_name}&apos;s preferred language from their response.
+                          Once detected, the language will be saved automatically.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-foreground">{selectedLabel}</p>
+                        <p className="mt-1">
+                          Ultaura will start all calls in {selectedLabel}.
+                          {line.display_name} can still switch languages during calls.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </SectionBody>
+              </Section>
+            );
+          }
           case 'timezone':
             return (
               <Section>

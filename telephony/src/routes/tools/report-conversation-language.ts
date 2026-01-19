@@ -3,6 +3,7 @@ import { normalizeLanguageCode } from '@ultaura/prompts';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getGrokBridge } from '../../websocket/grok-bridge-registry.js';
+import { persistLanguageToLine } from '../../services/language.js';
 
 export const reportConversationLanguageRouter = Router();
 
@@ -47,6 +48,14 @@ reportConversationLanguageRouter.post('/', async (req: Request, res: Response) =
       grokBridge.setDetectedLanguage(normalizedCode);
     } else {
       logger.warn({ callSessionId }, 'Grok bridge not found for language report');
+    }
+
+    const persisted = await persistLanguageToLine(session.line_id, rawCode);
+    if (persisted) {
+      logger.info(
+        { callSessionId, lineId: session.line_id, languageCode: normalizedCode },
+        'Language persisted to line'
+      );
     }
 
     await incrementToolInvocations(callSessionId);

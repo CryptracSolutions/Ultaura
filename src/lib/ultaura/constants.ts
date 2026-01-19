@@ -178,6 +178,25 @@ export const GROK = {
 export type GrokVoice = typeof GROK.VOICES[number];
 
 // ============================================
+// LANGUAGE OPTIONS
+// ============================================
+
+export const LANGUAGE_OPTIONS = [
+  { value: null, label: 'Auto-detect', description: 'Detects language from first conversation' },
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Spanish (Español)' },
+  { value: 'fr', label: 'French (Français)' },
+  { value: 'de', label: 'German (Deutsch)' },
+  { value: 'it', label: 'Italian (Italiano)' },
+  { value: 'pt', label: 'Portuguese (Português)' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'ko', label: 'Korean' },
+  { value: 'zh', label: 'Chinese' },
+] as const;
+
+export type LanguageOption = typeof LANGUAGE_OPTIONS[number];
+
+// ============================================
 // INSIGHTS
 // ============================================
 

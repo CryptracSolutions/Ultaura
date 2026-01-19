@@ -1827,6 +1827,8 @@ export type Database = {
           optimal_call_time_source: string | null
           phone_e164: string
           phone_verified_at: string | null
+          preferred_language_bcp47: string | null
+          preferred_language_iso: string | null
           quiet_hours_end: string
           quiet_hours_start: string
           seed_avoid_topics: string[] | null
@@ -1866,6 +1868,8 @@ export type Database = {
           optimal_call_time_source?: string | null
           phone_e164: string
           phone_verified_at?: string | null
+          preferred_language_bcp47?: string | null
+          preferred_language_iso?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
           seed_avoid_topics?: string[] | null
@@ -1905,6 +1909,8 @@ export type Database = {
           optimal_call_time_source?: string | null
           phone_e164?: string
           phone_verified_at?: string | null
+          preferred_language_bcp47?: string | null
+          preferred_language_iso?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
           seed_avoid_topics?: string[] | null

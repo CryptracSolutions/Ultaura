@@ -83,6 +83,7 @@ const createLineWithTrial = withTrialCheck(async (
     phoneE164,
     timezone,
     voicemailBehavior,
+    preferredLanguageIso,
     seedInterests,
     seedAvoidTopics,
     defaultSharingTier,
@@ -153,6 +154,8 @@ const createLineWithTrial = withTrialCheck(async (
       seed_interests: seedInterests || null,
       seed_avoid_topics: seedAvoidTopics || null,
       voicemail_behavior: voicemailBehavior,
+      preferred_language_iso: preferredLanguageIso ?? null,
+      preferred_language_bcp47: preferredLanguageIso ?? null,
     })
     .select('id, short_id')
     .single();
@@ -283,6 +286,10 @@ export async function updateLine(
   if (parsed.data.allowVoiceReminderControl !== undefined) updates.allow_voice_reminder_control = parsed.data.allowVoiceReminderControl;
   if (parsed.data.allowVoiceScheduleControl !== undefined) updates.allow_voice_schedule_control = parsed.data.allowVoiceScheduleControl;
   if (parsed.data.voicemailBehavior !== undefined) updates.voicemail_behavior = parsed.data.voicemailBehavior;
+  if (parsed.data.preferredLanguageIso !== undefined) {
+    updates.preferred_language_iso = parsed.data.preferredLanguageIso;
+    updates.preferred_language_bcp47 = parsed.data.preferredLanguageIso;
+  }
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
   if (parsed.data.birthYear !== undefined) updates.birth_year = parsed.data.birthYear;
   if (parsed.data.formativeDecade !== undefined) updates.formative_decade = parsed.data.formativeDecade;

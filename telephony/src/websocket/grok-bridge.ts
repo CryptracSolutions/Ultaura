@@ -132,6 +132,7 @@ interface GrokBridgeOptions {
   userName: string;
   timezone: string;
   startingLanguage?: string;
+  isLanguageAutoDetect?: boolean;
   isFirstCall: boolean;
   memories: Memory[];
   memoryEnabled: boolean;
@@ -390,6 +391,7 @@ export class GrokBridge {
     let prompt = compilePrompt('voice_realtime', {
       userName,
       startingLanguage,
+      isLanguageAutoDetect: this.options.isLanguageAutoDetect,
       memories,
       memoryEnabled,
       isFirstCall,

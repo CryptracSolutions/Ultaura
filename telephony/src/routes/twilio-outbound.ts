@@ -5,7 +5,7 @@ import { logger } from '../server.js';
 import type { CallAnsweredBy } from '../services/call-session.js';
 import { getCallSession, updateCallSession, updateCallStatus } from '../services/call-session.js';
 import { getLineById, checkLineAccess, isInQuietHours } from '../services/line-lookup.js';
-import { getLastDetectedLanguageForLine } from '../services/language.js';
+import { getStartingLanguageForLine } from '../services/language.js';
 import { generateStreamTwiML, generateMessageTwiML, generateHangupTwiML, validateTwilioSignature } from '../utils/twilio.js';
 import { getWebsocketUrl } from '../utils/env.js';
 import { getVoicemailMessage } from '../utils/voicemail-messages.js';
@@ -149,7 +149,8 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
       return;
     }
 
-    const startingLanguage = await getLastDetectedLanguageForLine(line.id);
+    const languageResult = await getStartingLanguageForLine(line.id);
+    const startingLanguage = languageResult.language;
 
     if (isMachine) {
       logger.info({ callSessionId, answeredBy }, 'Answering machine detected');
@@ -163,6 +164,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
       const message = getVoicemailMessage({
         name: line.display_name,
         language: startingLanguage,
+        preferredLanguageIso: line.preferred_language_iso ?? null,
         behavior: voicemailBehavior,
         isReminderCall: session.is_reminder_call,
         reminderMessage: session.reminder_message,

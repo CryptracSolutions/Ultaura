@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Phone, Clock } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
-import { US_TIMEZONES } from '~/lib/ultaura/constants';
+import { LANGUAGE_OPTIONS, US_TIMEZONES } from '~/lib/ultaura/constants';
 import { acknowledgeVendorDisclosure } from '~/lib/ultaura/privacy';
 import type { SharingTier, UserType } from '~/lib/ultaura/types';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -70,6 +70,7 @@ export function AddLineModal({
   const [displayName, setDisplayName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [timezone, setTimezone] = useState('America/Los_Angeles');
+  const [preferredLanguage, setPreferredLanguage] = useState<string | null>(null);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [customTopics, setCustomTopics] = useState('');
   const [avoidTopics, setAvoidTopics] = useState('');
@@ -83,6 +84,7 @@ export function AddLineModal({
     setDisplayName('');
     setPhoneNumber('');
     setTimezone('America/Los_Angeles');
+    setPreferredLanguage(null);
     setSelectedTopics([]);
     setCustomTopics('');
     setAvoidTopics('');
@@ -103,6 +105,7 @@ export function AddLineModal({
     displayName.trim() !== '' ||
     phoneNumber.trim() !== '' ||
     timezone !== 'America/Los_Angeles' ||
+    preferredLanguage !== null ||
     selectedTopics.length > 0 ||
     customTopics.trim() !== '' ||
     avoidTopics.trim() !== '' ||
@@ -177,6 +180,7 @@ export function AddLineModal({
         displayName,
         phoneE164,
         timezone,
+        preferredLanguageIso: preferredLanguage,
         seedInterests: combinedTopics.length ? combinedTopics : undefined,
         seedAvoidTopics: avoidTopics ? avoidTopics.split(',').map(s => s.trim()) : undefined,
         defaultSharingTier: isSelfUser ? undefined : defaultSharingTier,
@@ -285,21 +289,51 @@ export function AddLineModal({
                       <Clock className="inline w-4 h-4 mr-1" />
                       Timezone
                     </label>
-                    <Select value={timezone} onValueChange={(value) => setTimezone(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
+                  <Select value={timezone} onValueChange={(value) => setTimezone(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
                         {US_TIMEZONES.map((tz) => (
                           <SelectItem key={tz.value} value={tz.value}>
                             {tz.label}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Language Preference */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground">
+                    Language Preference (optional)
+                  </label>
+                  <Select
+                    value={preferredLanguage ?? 'auto'}
+                    onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auto-detect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGE_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.value ?? 'auto'}
+                          value={option.value ?? 'auto'}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {preferredLanguage === null
+                      ? 'Ultaura will use a bilingual greeting and detect language from the first conversation.'
+                      : `Ultaura will start conversations in ${LANGUAGE_OPTIONS.find((option) => option.value === preferredLanguage)?.label}.`}
+                  </p>
+                </div>
+              </>
+            )}
 
               {step === 2 && (
                 <>

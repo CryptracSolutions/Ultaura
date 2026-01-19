@@ -101,6 +101,37 @@ export type CallAnsweredBy =
   | 'fax'
   | 'unknown';
 export type VoicemailBehavior = 'none' | 'brief' | 'detailed';
+export type SupportedLanguageIso =
+  | 'en'
+  | 'es'
+  | 'fr'
+  | 'de'
+  | 'it'
+  | 'pt'
+  | 'ja'
+  | 'ko'
+  | 'zh'
+  | 'nl'
+  | 'ru'
+  | 'ar'
+  | 'hi'
+  | 'tr'
+  | 'pl'
+  | 'sv'
+  | 'da'
+  | 'no'
+  | 'fi'
+  | 'cs'
+  | 'th'
+  | 'vi'
+  | 'id'
+  | 'ms'
+  | 'tl'
+  | 'uk'
+  | 'el'
+  | 'he'
+  | 'ro'
+  | 'hu';
 export type VerificationChannel = 'sms' | 'call';
 export type VerificationStatus = 'pending' | 'approved' | 'canceled' | 'expired';
 export type UserType = 'self' | 'family_managed';
@@ -190,6 +221,8 @@ export interface Line {
   allowVoiceReminderControl: boolean;
   allowVoiceScheduleControl: boolean;
   voicemailBehavior: VoicemailBehavior;
+  preferredLanguageBcp47: string | null;
+  preferredLanguageIso: string | null;
   vacationRanges?: Array<{ start: string; end: string }>;
   birthYear?: number | null;
   birthDecade?: number | null;
@@ -210,6 +243,7 @@ export interface CreateLineInput {
   displayName: string;
   phoneE164: string;
   timezone?: string;
+  preferredLanguageIso?: SupportedLanguageIso | null;
   seedInterests?: string[];
   seedAvoidTopics?: string[];
 }
@@ -221,6 +255,7 @@ export interface UpdateLineInput {
   quietHoursEnd?: string;
   doNotCall?: boolean;
   inboundAllowed?: boolean;
+  preferredLanguageIso?: SupportedLanguageIso | null;
   seedInterests?: string[];
   seedAvoidTopics?: string[];
   allowVoiceReminderControl?: boolean;

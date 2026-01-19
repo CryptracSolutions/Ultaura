@@ -44,6 +44,7 @@ interface PromptSection {
 export interface CompanionPromptParams {
   userName: string;
   startingLanguage?: string;
+  isLanguageAutoDetect?: boolean;
   memories: Memory[];
   isFirstCall: boolean;
   memoryEnabled?: boolean;
@@ -176,7 +177,12 @@ export function compilePrompt(
   }
 
   sections.push(selectSection(RECENT_CALLS_SECTION, compressed));
-  sections.push(formatLanguageSection(params.startingLanguage ?? 'en', compressed));
+  sections.push(formatLanguageSection(
+    params.startingLanguage ?? 'en',
+    compressed,
+    params.isLanguageAutoDetect ?? false,
+    params.isFirstCall ?? false
+  ));
   sections.push(formatTimezoneSection(params.timezone));
 
   if (!compressed) {
@@ -217,13 +223,52 @@ function formatPlansSection(planId: PlanId, status: AccountStatus, compressed: b
     .replace(/\{accountStatusLabel\}/g, statusLabel);
 }
 
-function formatLanguageSection(startingLanguage: string, compressed: boolean): string {
+function formatLanguageSection(
+  startingLanguage: string,
+  compressed: boolean,
+  isAutoDetect: boolean = false,
+  isFirstCall: boolean = false
+): string {
   const languageName = getLanguageName(startingLanguage);
+
+  if (isAutoDetect && isFirstCall) {
+    return compressed
+      ? `## Language
+Start with bilingual greeting: "Hello! \u00a1Hola! Nice to finally speak with you, {userName}! I'm Ultaura, your AI companion."
+CRITICAL: Call report_conversation_language immediately after the user's first response.
+Adapt to whatever language they respond in. Stay bilingual until language is confirmed.
+If they switch languages later, call report_conversation_language again.`
+      : `## Language - Auto-Detection Mode
+This is a FIRST CALL with language auto-detection enabled.
+
+### Opening Greeting
+Use this bilingual greeting: "Hello! \u00a1Hola! Nice to finally speak with you, {userName}! I'm Ultaura, your AI companion."
+
+### Language Detection (CRITICAL)
+- Listen carefully to {userName}'s FIRST response
+- IMMEDIATELY call report_conversation_language with the detected ISO 639-1 code
+- This MUST happen after their first verbal response, before continuing conversation
+- Supported codes: en, es, fr, de, it, pt, ja, ko, zh, nl, ru, ar, hi, tr, pl, sv, da, no, fi, cs, th, vi, id, ms, tl, uk, el, he, ro, hu
+
+### After Detection
+- Continue entirely in the detected language
+- Do NOT repeat the bilingual greeting
+- Proceed with normal conversation flow
+- If they switch languages later, call report_conversation_language again and continue in the new language
+
+### If Detection Fails
+- If you cannot determine the language, continue in English
+- Retry detection on their next response`;
+  }
+
   const baseInstruction = startingLanguage === 'en' ? 'Start in English.' : `Start in ${languageName}.`;
   const switchBehavior = compressed
     ? 'Respond in whatever language the user speaks. Switch naturally mid-conversation if they change languages.'
     : 'If the user speaks another language, switch to match them naturally.';
-  return `## Language\n${baseInstruction} ${switchBehavior} When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.`;
+  const detectionInstruction =
+    'When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code. If they switch languages later, call it again.';
+
+  return `## Language\n${baseInstruction} ${switchBehavior} ${detectionInstruction}`;
 }
 
 function formatTimezoneSection(timezone?: string): string {

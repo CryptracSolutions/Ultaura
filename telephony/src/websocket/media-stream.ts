@@ -10,7 +10,7 @@ import { createBuffer, clearBuffer, getBuffer } from '../services/ephemeral-buff
 import { summarizeAndExtractMemoriesFromBuffer } from '../services/call-summarization.js';
 import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback.js';
 import { getUsageSummary } from '../services/metering.js';
-import { getLastDetectedLanguageForLine } from '../services/language.js';
+import { getStartingLanguageForLine } from '../services/language.js';
 import { getAccountPrivacySettings, getLineVoiceConsent, updateLineVoiceConsent, logConsentAuditEvent } from '../services/privacy.js';
 import { buildRetentionContext, type RetentionContext } from '../services/retention-context.js';
 import { buildPromptPlaceholders } from '../services/prompt-context.js';
@@ -297,7 +297,9 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             } else if (isQuickTest) {
               isFirstCall = false;
             }
-            const startingLanguage = await getLastDetectedLanguageForLine(line.id);
+            const languageResult = await getStartingLanguageForLine(line.id);
+            const startingLanguage = languageResult.language;
+            const isLanguageAutoDetect = languageResult.isAutoDetect;
 
             consentState = {
               recordingConsentReceived: false,
@@ -532,6 +534,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 userName: line.display_name,
                 timezone: line.timezone,
                 startingLanguage,
+                isLanguageAutoDetect,
                 isFirstCall,
                 memories: memoriesForPrompt,
                 memoryEnabled,

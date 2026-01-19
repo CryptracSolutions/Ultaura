@@ -59,6 +59,8 @@ export interface LineRow {
   display_name: string;
   phone_e164: string;
   phone_verified_at: string | null;
+  preferred_language_bcp47: string | null;
+  preferred_language_iso: string | null;
   status: 'active' | 'paused' | 'disabled';
   timezone: string;
   quiet_hours_start: string;

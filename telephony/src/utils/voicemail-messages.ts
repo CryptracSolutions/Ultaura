@@ -76,12 +76,21 @@ const VOICEMAIL_TEMPLATES: Record<string, VoicemailTemplates> = {
 export function getVoicemailMessage(options: {
   name: string;
   language: string;
+  preferredLanguageIso: string | null;
   behavior: VoicemailBehavior;
   isReminderCall: boolean;
   reminderMessage?: string | null;
 }): string {
-  const { name, language, behavior, isReminderCall, reminderMessage } = options;
-  const normalized = normalizeLanguageCode(language);
+  const { name, language, preferredLanguageIso, behavior, isReminderCall, reminderMessage } = options;
+
+  let effectiveLanguage = language;
+  if (preferredLanguageIso === null) {
+    effectiveLanguage = 'en';
+  } else if (preferredLanguageIso && VOICEMAIL_TEMPLATES[preferredLanguageIso]) {
+    effectiveLanguage = preferredLanguageIso;
+  }
+
+  const normalized = normalizeLanguageCode(effectiveLanguage);
   const templates = VOICEMAIL_TEMPLATES[normalized] ?? VOICEMAIL_TEMPLATES.en;
 
   if (behavior === 'detailed' && isReminderCall && reminderMessage) {
