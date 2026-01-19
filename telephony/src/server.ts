@@ -80,11 +80,12 @@ app.use((req, res, next) => {
 // Enhanced health check
 app.get('/health', async (_req, res) => {
   if (shuttingDown) {
-    return res.status(503).json({
+    res.status(503).json({
       status: 'draining',
       timestamp: new Date().toISOString(),
       activeCallCount: getActiveCallCount(),
     });
+    return;
   }
 
   const health: {
