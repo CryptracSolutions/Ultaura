@@ -82,6 +82,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let isReconnecting = false;
   let reconnectAttempts = 0;
   let keepBridgeAlive = false;
+  let startingLanguage = 'en';
+  let isLanguageAutoDetect = false;
   let consentState: ConsentState | null = null;
   let consentRequirements: { recording: boolean; memory: boolean; sharing: boolean } | null = null;
   let shouldTrackOnboarding = false;
@@ -298,8 +300,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               isFirstCall = false;
             }
             const languageResult = await getStartingLanguageForLine(line.id);
-            const startingLanguage = languageResult.language;
-            const isLanguageAutoDetect = languageResult.isAutoDetect;
+            startingLanguage = languageResult.language;
+            isLanguageAutoDetect = languageResult.isAutoDetect;
 
             consentState = {
               recordingConsentReceived: false,
@@ -621,6 +623,11 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             logger.error({ error, callSessionId }, 'Failed to initialize Grok bridge');
             unregisterGrokBridge(callSessionId);
 
+            const fallbackLanguage = grokBridge?.getDetectedLanguage() ?? startingLanguage;
+            const failedMessage = getFallbackMessage(fallbackLanguage, 'retry_failed');
+            await playFallbackTTS(callSid, failedMessage, fallbackLanguage, { hangup: true });
+            await sleep(FALLBACK_TTS_WAIT_MS);
+
             // Send fallback message via Twilio TTS
             // We can't easily send TTS through the WebSocket, so we need to close and let Twilio handle it
             // Update session to reflect the error
@@ -779,6 +786,11 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     if (keepBridgeAlive) {
       return;
     }
+
+    const fallbackLanguage = grokBridge?.getDetectedLanguage() ?? startingLanguage;
+    const failedMessage = getFallbackMessage(fallbackLanguage, 'retry_failed');
+    await playFallbackTTS(callSid, failedMessage, fallbackLanguage, { hangup: true });
+    await sleep(FALLBACK_TTS_WAIT_MS);
 
     if (grokBridge) {
       grokBridge.close();
