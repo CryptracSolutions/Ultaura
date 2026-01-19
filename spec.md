@@ -1,1024 +1,1937 @@
-# Specification: Improved Multilingual First-Call UX for Ultaura
+# Multilingual Trust & Safety Backstop Improvements - Technical Specification
+
+## Table of Contents
+1. [Objective and Scope](#1-objective-and-scope)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Technical Requirements](#3-technical-requirements)
+4. [Implementation Details](#4-implementation-details)
+5. [File Changes](#5-file-changes)
+6. [Database Changes](#6-database-changes)
+7. [Testing Strategy](#7-testing-strategy)
+8. [Edge Cases and Error Handling](#8-edge-cases-and-error-handling)
+9. [Observability](#9-observability)
+10. [Assumptions](#10-assumptions)
+
+---
 
 ## 1. Objective and Scope
 
-### Problem Statement
-Ultaura's current language handling has a critical weakness: the first-call experience always defaults to English because language is only detected reactively during calls via an LLM tool call (`report_conversation_language`). This causes high churn for non-English speaking seniors who may be confused or disconnected before they understand they can speak their native language.
+### 1.1 Objective
+Expand Ultaura's trust & safety “backstop” so it is robust for multilingual calls: treat keywords/heuristics as *soft signals*, add periodic safety sweeps when language is unknown/non‑EN/ES, and gate trusted-contact SMS behind a fast second-pass verifier to reduce false positives.
 
-### Goals
-1. Allow family members to pre-set a language preference during line creation or in settings
-2. Implement bilingual greeting for first calls when language is unknown (auto-detect mode)
-3. Automatically lock in detected language after first successful detection
-4. Support language changes during calls with persistence to future calls
-5. Use appropriate language for voicemail messages
+### 1.2 Scope
 
-### Supported Languages
-- Auto-detect (default - represented as NULL)
-- English (en)
-- Spanish (es)
-- French (fr)
-- German (de)
-- Italian (it)
-- Portuguese (pt)
-- Japanese (ja)
-- Korean (ko)
-- Chinese (zh)
+**In Scope:**
+- Expand keyword coverage to 10 languages: EN, ES, ZH (Chinese), TL (Tagalog), VI (Vietnamese), FR (French), AR (Arabic), KO (Korean), HI (Hindi), UR (Urdu)
+- Implement lightweight heuristic patterns for detecting safety concerns
+- Add Spanish exclusion patterns (narrow, idiom-focused) to reduce false positives
+- Build async safety classifier with in-process job queue
+- Implement periodic safety sweeps for **unknown/undetected** and **non-EN/ES** languages
+- Add second-pass verification using OpenAI Moderation API
+- Gate trusted-contact SMS notifications behind verification
+- Add Prometheus metrics for observability
+- Extend safety event signals with new fields
 
-### Out of Scope
-- Regional variants (es-MX vs es-ES) - will store BCP-47 but normalize to ISO 639-1 for behavior
-- Adding new voicemail message translations beyond existing languages
-- SMS language preferences
+**Out of Scope:**
+- Adding keyword exclusions for non-EN/ES languages (keywords are soft signals)
+- Separate worker processes or Redis-based job queues
+- Real-time blocking of Grok responses
+- Changes to the Grok model prompts or tool definitions
 
----
-
-## 2. Technical Architecture
-
-### Data Flow
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              LINE CREATION                                   │
-│                                                                             │
-│  Dashboard: AddLineModal.tsx                                                │
-│       │                                                                     │
-│       ▼                                                                     │
-│  Server Action: createLine() in lines.ts                                    │
-│       │                                                                     │
-│       ▼                                                                     │
-│  Database: ultaura_lines.preferred_language_bcp47 / preferred_language_iso  │
-│                    (NULL = auto-detect mode)                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CALL INITIATION                                 │
-│                                                                             │
-│  media-stream.ts: handleMediaStreamConnection()                             │
-│       │                                                                     │
-│       ▼                                                                     │
-│  language.ts: getStartingLanguageForLine()                                  │
-│       │                                                                     │
-│       ├── IF preferred_language_iso IS NOT NULL:                            │
-│       │       Return { language: iso, isAutoDetect: false }                 │
-│       │                                                                     │
-│       └── ELSE (auto-detect mode):                                          │
-│               Return { language: 'en', isAutoDetect: true }                 │
-│       │                                                                     │
-│       ▼                                                                     │
-│  grok-bridge.ts: Pass startingLanguage and isAutoDetect to compilePrompt()  │
-│       │                                                                     │
-│       ▼                                                                     │
-│  profiles/index.ts: formatLanguageSection()                                 │
-│       │                                                                     │
-│       ├── IF isAutoDetect AND isFirstCall:                                  │
-│       │       Use bilingual greeting instructions                           │
-│       │                                                                     │
-│       └── ELSE:                                                             │
-│               Start in specified language                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           LANGUAGE DETECTION                                 │
-│                                                                             │
-│  Grok AI: Detects language from senior's first response                     │
-│       │                                                                     │
-│       ▼                                                                     │
-│  Tool Call: report_conversation_language({ language_code: 'es' })           │
-│       │                                                                     │
-│       ▼                                                                     │
-│  report-conversation-language.ts: Handle tool call                          │
-│       │                                                                     │
-│       ├── Update call_session.language_detected                             │
-│       │                                                                     │
-│       └── IF line.preferred_language_iso IS NULL (auto-detect mode):        │
-│               Persist language to ultaura_lines table                       │
-│               (locks language for future calls)                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Key Components
-
-| Component | Role |
-|-----------|------|
-| `ultaura_lines` table | Stores `preferred_language_bcp47` and `preferred_language_iso` |
-| `language.ts` service | Determines starting language for calls |
-| `media-stream.ts` | Passes language context to Grok bridge |
-| `grok-bridge.ts` | Configures prompt with language instructions |
-| `formatLanguageSection()` | Generates language instructions in prompt |
-| `report-conversation-language.ts` | Handles language detection and persistence |
-| `voicemail-messages.ts` | Selects voicemail language |
-| Dashboard UI | Language selection in line creation/settings |
+### 1.3 Success Criteria
+- Safety keyword detection works across all 10 supported languages
+- False positive SMS notifications reduced via second-pass verification
+- Periodic sweeps catch safety concerns in languages without keyword coverage
+- System operates within latency budgets (1s moderation, 3s classifier)
+- Feature can be toggled via environment variable
 
 ---
 
-## 3. Database Changes
+## 2. Architecture Overview
 
-### Migration: Add Language Columns to ultaura_lines
+### 2.1 High-Level Flow
 
-**File**: `supabase/migrations/20260320000001_add_language_preference.sql`
-
-```sql
--- Add language preference columns to ultaura_lines
--- preferred_language_bcp47: Full BCP-47 tag (e.g., 'es-MX', 'zh-Hans')
--- preferred_language_iso: Normalized ISO 639-1 code (e.g., 'es', 'zh')
--- When BOTH are NULL = auto-detect mode (bilingual greeting on first call)
-
-ALTER TABLE ultaura_lines
-  ADD COLUMN IF NOT EXISTS preferred_language_bcp47 TEXT,
-  ADD COLUMN IF NOT EXISTS preferred_language_iso TEXT;
-
--- Add constraint to ensure ISO code is valid if provided
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'ultaura_lines_preferred_language_iso_check'
-  ) THEN
-    ALTER TABLE ultaura_lines
-      ADD CONSTRAINT ultaura_lines_preferred_language_iso_check
-      CHECK (
-        preferred_language_iso IS NULL
-        OR preferred_language_iso IN ('en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh')
-      );
-  END IF;
-END $$;
-
--- Add index for querying by language (useful for analytics)
-CREATE INDEX IF NOT EXISTS idx_ultaura_lines_preferred_language_iso
-  ON ultaura_lines(preferred_language_iso)
-  WHERE preferred_language_iso IS NOT NULL;
-
--- Comment on columns
-COMMENT ON COLUMN ultaura_lines.preferred_language_bcp47 IS 'Full BCP-47 language tag (e.g., es-MX). NULL means auto-detect mode.';
-COMMENT ON COLUMN ultaura_lines.preferred_language_iso IS 'ISO 639-1 language code (e.g., es). NULL means auto-detect mode. Derived from BCP-47 tag.';
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              PRIMARY DETECTION                                   │
+│  ┌─────────────┐    ┌──────────────────┐    ┌─────────────────────┐            │
+│  │  Grok Model │───▶│ log_safety_concern│───▶│  Record Safety Event│            │
+│  │  (realtime) │    │     (tool)       │    │  (zero extra latency)│            │
+│  └─────────────┘    └──────────────────┘    └─────────────────────┘            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ If high tier
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         ASYNC SAFETY CLASSIFIER                                  │
+│                                                                                  │
+│  Triggers:                                                                       │
+│  1. Model reports high tier ──────────────────────────────┐                     │
+│  2. Soft signals (expanded keywords, heuristics) ─────────┤                     │
+│  3. Periodic sweeps (60-120s for non-EN/ES) ──────────────┤                     │
+│                                                            ▼                     │
+│  ┌────────────────┐    ┌─────────────────────┐    ┌───────────────────┐        │
+│  │  In-Process    │───▶│  OpenAI Moderation  │───▶│  LLM Rubric Pass  │        │
+│  │  Job Queue     │    │  API (1s timeout)   │    │  (3s timeout)     │        │
+│  └────────────────┘    └─────────────────────┘    └───────────────────┘        │
+│                                                            │                     │
+│                                                            ▼                     │
+│                                    If high tier ──▶ Second-Pass Verifier        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        SECOND-PASS VERIFICATION                                  │
+│  ┌──────────────────────────────────────────────────────────────────────┐       │
+│  │  OpenAI Moderation API verifier                                       │       │
+│  │  Input: flagged utterance + preceding assistant turn + context window │       │
+│  └──────────────────────────────────────────────────────────────────────┘       │
+│                              │                                                   │
+│            ┌─────────────────┼─────────────────┐                                │
+│            ▼                 ▼                 ▼                                │
+│      ┌──────────┐      ┌──────────┐      ┌──────────┐                          │
+│      │ Confirms │      │  Clears  │      │ Uncertain│                          │
+│      │          │      │          │      │          │                          │
+│      │ Send SMS │      │Block SMS │      │Hold SMS  │                          │
+│      │notification│    │Log event │      │Escalate? │                          │
+│      └──────────┘      └──────────┘      └──────────┘                          │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Rollback Migration
+### 2.2 Component Responsibilities
 
-**File**: `supabase/migrations/20260320000001_add_language_preference_rollback.sql` (keep separate for documentation)
-
-```sql
--- Rollback: Remove language preference columns
-ALTER TABLE ultaura_lines
-  DROP CONSTRAINT IF EXISTS ultaura_lines_preferred_language_iso_check;
-
-DROP INDEX IF EXISTS idx_ultaura_lines_preferred_language_iso;
-
-ALTER TABLE ultaura_lines
-  DROP COLUMN IF EXISTS preferred_language_bcp47,
-  DROP COLUMN IF EXISTS preferred_language_iso;
-```
+| Component | Responsibility |
+|-----------|----------------|
+| `safety-keywords.ts` (new) | Refactored keyword matching logic, testable module |
+| `safety-heuristics.ts` (new) | Lightweight pattern-based heuristic detection |
+| `safety-classifier.ts` (new) | Async classifier job queue and LLM rubric runner |
+| `safety-verifier.ts` (new) | OpenAI Moderation API verification |
+| `safety-metrics.ts` (new) | Prometheus metric definitions and helpers |
+| `grok-bridge.ts` (modified) | Integrate triggers, extract keyword scan logic |
+| `safety-event.ts` (modified) | Add verifier gate before SMS notification |
+| `keywords.ts` (modified) | Expand to 10 languages |
+| `exclusions.ts` (modified) | Add Spanish exclusion patterns |
 
 ---
 
-## 4. API Changes
+## 3. Technical Requirements
 
-### 4.1 Zod Schema Updates
+### 3.1 Supported Languages
 
-**File**: `packages/schemas/src/line.ts`
+| ISO Code | Language | Keyword Support | Exclusion Support |
+|----------|----------|-----------------|-------------------|
+| en | English | Yes (existing) | Yes (existing) |
+| es | Spanish | Yes (expanded) | Yes (new) |
+| zh | Chinese (Simplified) | Yes (new) | No |
+| tl | Tagalog/Filipino | Yes (new) | No |
+| vi | Vietnamese | Yes (new) | No |
+| fr | French | Yes (new) | No |
+| ar | Arabic | Yes (new) | No |
+| ko | Korean | Yes (new) | No |
+| hi | Hindi | Yes (new) | No |
+| ur | Urdu | Yes (new) | No |
 
-Add to `CreateLineInputSchema`:
-```typescript
-preferredLanguageIso: z.enum(['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh']).nullable().optional(),
-```
+### 3.2 Soft Signal Triggers
 
-Add to `UpdateLineInputSchema`:
-```typescript
-preferredLanguageIso: z.enum(['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh']).nullable().optional(),
-```
+Soft signals trigger the async classifier but do NOT directly escalate:
 
-### 4.2 TypeScript Type Updates
+1. **Expanded keywords** in any of the 10 supported languages
+2. **Heuristic patterns** (language-independent):
+   - Repeated negation/hopelessness patterns
+   - "Goodbye" + permanence constructions
+   - "Can't go on"-style patterns
+   - "Hurt myself" intent patterns
+3. **Spanish exclusion patterns** reduce unnecessary classifier calls
 
-**File**: `src/lib/ultaura/types.ts`
+### 3.3 Periodic Sweep Configuration
 
-Add to `Line` interface:
-```typescript
-preferredLanguageBcp47: string | null;
-preferredLanguageIso: string | null;
-```
+| Language Type | Sweep Interval | Context Window |
+|---------------|----------------|----------------|
+| Unknown/undetected (before report_conversation_language) | 60–90 seconds | 6-12 turns, 1-2k chars |
+| EN/ES (after language confirmed) | No sweeps by default (keyword coverage sufficient) | N/A |
+| Other supported (ZH, TL, VI, FR, AR, KO, HI, UR) | 120 seconds | 6-12 turns, 1-2k chars |
+| Unsupported languages | 60 seconds | 6-12 turns, 1-2k chars |
 
-Add to `CreateLineInput` interface:
-```typescript
-preferredLanguageIso?: string | null;
-```
+### 3.4 Timeout and Retry Policy
 
-Add to `UpdateLineInput` interface:
-```typescript
-preferredLanguageIso?: string | null;
-```
+| Operation | Timeout | Retry |
+|-----------|---------|-------|
+| OpenAI Moderation API | 1s strict | No retry, fail fast |
+| LLM Rubric Classifier | 3s | 1 retry on network error only |
+| Overall classifier job | 5s total | Job marked failed after timeout |
 
-Add new type:
-```typescript
-export type SupportedLanguageIso = 'en' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ja' | 'ko' | 'zh';
-```
+### 3.5 Concurrency Limits
 
-### 4.3 Server Action Updates
-
-**File**: `src/lib/ultaura/lines.ts`
-
-Update `createLine()` to handle new field:
-```typescript
-// In createLineWithTrial function, after parsing input:
-const {
-  // ... existing fields
-  preferredLanguageIso,
-} = parsed.data;
-
-// In the insert object:
-preferred_language_iso: preferredLanguageIso ?? null,
-preferred_language_bcp47: preferredLanguageIso ?? null, // For now, BCP-47 = ISO
-```
-
-Update `updateLine()` to handle new field:
-```typescript
-// In the updates mapping:
-if (parsed.data.preferredLanguageIso !== undefined) {
-  updates.preferred_language_iso = parsed.data.preferredLanguageIso;
-  updates.preferred_language_bcp47 = parsed.data.preferredLanguageIso;
-}
-```
-
-### 4.4 Constants Update
-
-**File**: `src/lib/ultaura/constants.ts`
-
-Add language options:
-```typescript
-// ============================================
-// LANGUAGE OPTIONS
-// ============================================
-
-export const LANGUAGE_OPTIONS = [
-  { value: null, label: 'Auto-detect', description: 'Detects language from first conversation' },
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish (Español)' },
-  { value: 'fr', label: 'French (Français)' },
-  { value: 'de', label: 'German (Deutsch)' },
-  { value: 'it', label: 'Italian (Italiano)' },
-  { value: 'pt', label: 'Portuguese (Português)' },
-  { value: 'ja', label: 'Japanese (日本語)' },
-  { value: 'ko', label: 'Korean (한국어)' },
-  { value: 'zh', label: 'Chinese (中文)' },
-] as const;
-
-export type LanguageOption = typeof LANGUAGE_OPTIONS[number];
-```
+- **Per-callSessionId**: At most 1 pending sweep job + 1 pending verify job
+- **Global concurrency**: Maximum 3 concurrent classifier jobs per pod
+- **Job queue size**: Bounded to 50 jobs (oldest dropped if full)
 
 ---
 
-## 5. Telephony Changes
+## 4. Implementation Details
 
-### 5.1 Language Service Update
+### 4.1 Keyword Expansion Structure
 
-**File**: `telephony/src/services/language.ts`
-
-Replace existing function with:
 ```typescript
-import { normalizeLanguageCode } from '@ultaura/prompts';
-import { logger } from '../server.js';
-import { getSupabaseClient } from '../utils/supabase.js';
+// packages/prompts/src/safety/keywords.ts
 
-export interface StartingLanguageResult {
-  language: string;
-  isAutoDetect: boolean;
+export interface LanguageKeywords {
+  high: readonly string[];
+  medium: readonly string[];
+  low: readonly string[];
 }
 
-export async function getStartingLanguageForLine(lineId: string): Promise<StartingLanguageResult> {
-  try {
-    const supabase = getSupabaseClient();
-
-    // First check line's preferred language
-    const { data: line, error: lineError } = await supabase
-      .from('ultaura_lines')
-      .select('preferred_language_iso')
-      .eq('id', lineId)
-      .single();
-
-    if (lineError) {
-      logger.error({ error: lineError, lineId }, 'Failed to get line language preference');
-      return { language: 'en', isAutoDetect: true };
-    }
-
-    // If preferred language is set, use it (language is "locked")
-    if (line?.preferred_language_iso) {
-      return {
-        language: normalizeLanguageCode(line.preferred_language_iso),
-        isAutoDetect: false
-      };
-    }
-
-    // Auto-detect mode: Return English as default but flag as auto-detect
-    return { language: 'en', isAutoDetect: true };
-  } catch (error) {
-    logger.error({ error, lineId }, 'Exception getting starting language for line');
-    return { language: 'en', isAutoDetect: true };
-  }
-}
-
-export async function persistLanguageToLine(
-  lineId: string,
-  languageCode: string
-): Promise<boolean> {
-  try {
-    const supabase = getSupabaseClient();
-    const normalizedCode = normalizeLanguageCode(languageCode);
-
-    const { error } = await supabase
-      .from('ultaura_lines')
-      .update({
-        preferred_language_iso: normalizedCode,
-        preferred_language_bcp47: languageCode, // Store original BCP-47 tag
-      })
-      .eq('id', lineId);
-
-    if (error) {
-      logger.error({ error, lineId, languageCode }, 'Failed to persist language to line');
-      return false;
-    }
-
-    logger.info({ lineId, languageCode: normalizedCode }, 'Language persisted to line');
-    return true;
-  } catch (error) {
-    logger.error({ error, lineId, languageCode }, 'Exception persisting language to line');
-    return false;
-  }
-}
-
-// Keep for backward compatibility, but prefer getStartingLanguageForLine
-export async function getLastDetectedLanguageForLine(lineId: string): Promise<string> {
-  const result = await getStartingLanguageForLine(lineId);
-  return result.language;
-}
-```
-
-### 5.2 Report Conversation Language Tool Update
-
-**File**: `telephony/src/routes/tools/report-conversation-language.ts`
-
-Update to persist language for auto-detect lines:
-```typescript
-import { Router, Request, Response } from 'express';
-import { normalizeLanguageCode } from '@ultaura/prompts';
-import { logger } from '../../server.js';
-import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
-import { getGrokBridge } from '../../websocket/grok-bridge-registry.js';
-import { persistLanguageToLine } from '../../services/language.js';
-import { getSupabaseClient } from '../../utils/supabase.js';
-
-export const reportConversationLanguageRouter = Router();
-
-reportConversationLanguageRouter.post('/', async (req: Request, res: Response) => {
-  try {
-    const { callSessionId, languageCode, language_code } = req.body as {
-      callSessionId?: string;
-      languageCode?: string;
-      language_code?: string;
-    };
-
-    if (!callSessionId) {
-      res.status(400).json({ success: false, error: 'Missing required fields' });
-      return;
-    }
-
-    const session = await getCallSession(callSessionId);
-    if (!session) {
-      res.status(404).json({ success: false, error: 'Call session not found' });
-      return;
-    }
-
-    const rawCode = languageCode || language_code;
-    const recordFailure = async (errorCode?: string) => {
-      await recordCallEvent(callSessionId, 'tool_call', {
-        tool: 'report_conversation_language',
-        success: false,
-        errorCode,
-      }, { skipDebugLog: true });
-    };
-
-    if (!rawCode) {
-      await recordFailure('missing_language_code');
-      res.status(400).json({ success: false, error: 'Missing required fields' });
-      return;
-    }
-
-    const normalizedCode = normalizeLanguageCode(rawCode);
-    const grokBridge = getGrokBridge(callSessionId);
-
-    if (grokBridge) {
-      grokBridge.setDetectedLanguage(normalizedCode);
-    } else {
-      logger.warn({ callSessionId }, 'Grok bridge not found for language report');
-    }
-
-    // Check if line is in auto-detect mode and persist language
-    const supabase = getSupabaseClient();
-    const { data: line } = await supabase
-      .from('ultaura_lines')
-      .select('preferred_language_iso')
-      .eq('id', session.line_id)
-      .single();
-
-    if (line && line.preferred_language_iso === null) {
-      // Line is in auto-detect mode - lock in the detected language
-      const persisted = await persistLanguageToLine(session.line_id, normalizedCode);
-      if (persisted) {
-        logger.info(
-          { callSessionId, lineId: session.line_id, languageCode: normalizedCode },
-          'Auto-detected language persisted to line'
-        );
-      }
-    }
-
-    await incrementToolInvocations(callSessionId);
-    await recordCallEvent(callSessionId, 'tool_call', {
-      tool: 'report_conversation_language',
-      success: true,
-      languageCode: normalizedCode,
-    }, { skipDebugLog: true });
-
-    res.json({
-      success: true,
-      languageCode: normalizedCode,
-      message: `Language detected: ${normalizedCode}`,
-    });
-  } catch (error) {
-    logger.error({ error }, 'Error reporting conversation language');
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-```
-
-### 5.3 Media Stream Update
-
-**File**: `telephony/src/websocket/media-stream.ts`
-
-Update the `handleMediaStreamConnection` function to pass `isAutoDetect` flag:
-
-In the section where `getLastDetectedLanguageForLine` is called (around line 300), change to:
-```typescript
-// Replace:
-// const startingLanguage = await getLastDetectedLanguageForLine(line.id);
-
-// With:
-import { getStartingLanguageForLine } from '../services/language.js';
-
-const languageResult = await getStartingLanguageForLine(line.id);
-const startingLanguage = languageResult.language;
-const isLanguageAutoDetect = languageResult.isAutoDetect;
-```
-
-Then pass `isLanguageAutoDetect` to the `GrokBridge` constructor:
-```typescript
-grokBridge = new GrokBridge({
-  // ... existing options
-  startingLanguage,
-  isLanguageAutoDetect, // New field
-  isFirstCall,
-  // ...
-});
-```
-
-### 5.4 Grok Bridge Update
-
-**File**: `telephony/src/websocket/grok-bridge.ts`
-
-Add to `GrokBridgeOptions` interface:
-```typescript
-isLanguageAutoDetect?: boolean;
-```
-
-Pass this to `compilePrompt`:
-```typescript
-const systemPrompt = compilePrompt('voice_realtime', {
-  // ... existing params
-  startingLanguage: this.options.startingLanguage,
-  isLanguageAutoDetect: this.options.isLanguageAutoDetect,
-  isFirstCall: this.options.isFirstCall,
-  // ...
-});
-```
-
-### 5.5 Prompt Compilation Updates
-
-**File**: `packages/prompts/src/profiles/index.ts`
-
-Update `CompanionPromptParams` interface:
-```typescript
-export interface CompanionPromptParams {
-  // ... existing fields
-  startingLanguage?: string;
-  isLanguageAutoDetect?: boolean;
-  // ...
-}
-```
-
-Update `formatLanguageSection` function:
-```typescript
-function formatLanguageSection(
-  startingLanguage: string,
-  compressed: boolean,
-  isAutoDetect: boolean = false,
-  isFirstCall: boolean = false
-): string {
-  const languageName = getLanguageName(startingLanguage);
-
-  // Auto-detect mode on first call: bilingual greeting
-  if (isAutoDetect && isFirstCall) {
-    const bilingual = compressed
-      ? `## Language
-Start with bilingual greeting: "Hello! ¡Hola! Nice to finally speak with you, {userName}! I'm Ultaura, your AI companion."
-CRITICAL: Call report_conversation_language IMMEDIATELY after user's first response.
-Adapt to whatever language they respond in. Stay bilingual until language is confirmed.`
-      : `## Language - Auto-Detection Mode
-This is a FIRST CALL with language auto-detection enabled.
-
-### Opening Greeting
-Use this bilingual greeting: "Hello! ¡Hola! Nice to finally speak with you, {userName}! I'm Ultaura, your AI companion."
-
-### Language Detection (CRITICAL)
-- Listen carefully to {userName}'s FIRST response
-- IMMEDIATELY call report_conversation_language with the detected ISO 639-1 code
-- This MUST happen after their first verbal response, before continuing conversation
-- Supported codes: en, es, fr, de, it, pt, ja, ko, zh
-
-### After Detection
-- Continue entirely in the detected language
-- Do NOT repeat the bilingual greeting
-- Proceed with normal conversation flow
-
-### If Detection Fails
-- If you cannot determine the language, continue in English
-- Retry detection on their next response`;
-
-    return bilingual;
-  }
-
-  // Fixed language mode or subsequent auto-detect calls
-  const baseInstruction = startingLanguage === 'en'
-    ? 'Start in English.'
-    : `Start in ${languageName}.`;
-
-  const switchBehavior = compressed
-    ? 'Respond in whatever language the user speaks. Switch naturally mid-conversation if they change languages.'
-    : 'If the user speaks another language, switch to match them naturally.';
-
-  const detectionInstruction = 'When you detect what language the user is speaking, call report_conversation_language with the ISO 639-1 code.';
-
-  return `## Language\n${baseInstruction} ${switchBehavior} ${detectionInstruction}`;
-}
-```
-
-Update the call site in `compilePrompt`:
-```typescript
-sections.push(formatLanguageSection(
-  params.startingLanguage ?? 'en',
-  compressed,
-  params.isLanguageAutoDetect ?? false,
-  params.isFirstCall ?? false
-));
-```
-
-### 5.6 Voicemail Message Updates
-
-**File**: `telephony/src/utils/voicemail-messages.ts`
-
-Update `getVoicemailMessage` to accept line language preference:
-```typescript
-export function getVoicemailMessage(options: {
-  name: string;
-  language: string;
-  preferredLanguageIso: string | null; // Add this
-  behavior: VoicemailBehavior;
-  isReminderCall: boolean;
-  reminderMessage?: string | null;
-}): string {
-  const { name, language, preferredLanguageIso, behavior, isReminderCall, reminderMessage } = options;
-
-  // If line has no preferred language (auto-detect, never detected), use English
-  // Otherwise use the preferred language if supported, or fall back to detected/English
-  let effectiveLanguage = language;
-  if (preferredLanguageIso === null) {
-    effectiveLanguage = 'en'; // Auto-detect lines with no detection yet use English
-  } else if (preferredLanguageIso && VOICEMAIL_TEMPLATES[preferredLanguageIso]) {
-    effectiveLanguage = preferredLanguageIso;
-  }
-
-  const normalized = normalizeLanguageCode(effectiveLanguage);
-  const templates = VOICEMAIL_TEMPLATES[normalized] ?? VOICEMAIL_TEMPLATES.en;
-
-  if (behavior === 'detailed' && isReminderCall && reminderMessage) {
-    return templates.reminderDetailed(name, reminderMessage);
-  }
-
-  return behavior === 'detailed' ? templates.detailed(name) : templates.brief(name);
-}
-```
-
-Update callers of `getVoicemailMessage` to pass the new field (in `twilio-outbound.ts` or wherever voicemail is triggered).
-
----
-
-## 6. UI Changes
-
-### 6.1 Add Line Modal
-
-**File**: `src/app/dashboard/(app)/lines/components/AddLineModal.tsx`
-
-Add language preference dropdown to Step 1 (after Timezone):
-
-```tsx
-// Add import
-import { LANGUAGE_OPTIONS } from '~/lib/ultaura/constants';
-
-// Add state
-const [preferredLanguage, setPreferredLanguage] = useState<string | null>(null);
-
-// Add to resetFormState
-setPreferredLanguage(null);
-
-// Add to hasChanges calculation
-|| preferredLanguage !== null
-
-// Add UI after Timezone section in Step 1:
-{/* Language Preference */}
-<div className="space-y-2">
-  <label className="block text-sm font-medium text-foreground">
-    Language Preference (optional)
-  </label>
-  <Select
-    value={preferredLanguage ?? 'auto'}
-    onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
-  >
-    <SelectTrigger>
-      <SelectValue placeholder="Auto-detect" />
-    </SelectTrigger>
-    <SelectContent>
-      {LANGUAGE_OPTIONS.map((option) => (
-        <SelectItem
-          key={option.value ?? 'auto'}
-          value={option.value ?? 'auto'}
-        >
-          {option.label}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-  <p className="text-xs text-muted-foreground">
-    {preferredLanguage === null
-      ? 'Ultaura will use a bilingual greeting and detect language from the first conversation.'
-      : `Ultaura will start conversations in ${LANGUAGE_OPTIONS.find(o => o.value === preferredLanguage)?.label}.`}
-  </p>
-</div>
-
-// Update createLine call:
-const result = await createLine({
-  accountId,
-  displayName,
-  phoneE164,
-  timezone,
-  preferredLanguageIso: preferredLanguage, // Add this
-  seedInterests: combinedTopics.length ? combinedTopics : undefined,
-  seedAvoidTopics: avoidTopics ? avoidTopics.split(',').map(s => s.trim()) : undefined,
-  defaultSharingTier: isSelfUser ? undefined : defaultSharingTier,
-});
-```
-
-### 6.2 Line Settings Page
-
-**File**: `src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx`
-
-Add language setting to the "Calling & Availability" tab:
-
-Add to imports:
-```tsx
-import { LANGUAGE_OPTIONS } from '~/lib/ultaura/constants';
-import { Languages } from 'lucide-react';
-```
-
-Add to section configs:
-```tsx
-const LINE_SETTINGS_SECTIONS: Record<LineSettingsTabValue, LineSettingsSectionConfig[]> = {
-  calling: [
-    { value: 'language', label: 'Language', icon: Languages }, // Add this
-    { value: 'timezone', label: 'Timezone', icon: Globe },
-    // ... rest
-  ],
-  // ...
+export const SAFETY_KEYWORDS_BY_LANGUAGE: Record<string, LanguageKeywords> = {
+  en: { /* existing English keywords */ },
+  es: { /* expanded Spanish keywords */ },
+  zh: {
+    high: [
+      '自杀', '想死', '不想活', '结束生命', '自残',
+      '伤害自己', '活着没意思', '不如死了',
+    ],
+    medium: [
+      '绝望', '放弃', '没有希望', '活不下去',
+      '没有意义', '太累了',
+    ],
+    low: [
+      '孤独', '寂寞', '没人关心', '一个人',
+    ],
+  },
+  tl: {
+    high: [
+      'pagpapakamatay', 'gusto kong mamatay', 'tapusin ang buhay',
+      'saktan ang sarili', 'pumatay', 'ayaw ko nang mabuhay',
+    ],
+    medium: [
+      'walang pag-asa', 'sumuko', 'hindi na kaya',
+      'pagod na ako sa lahat',
+    ],
+    low: [
+      'malungkot', 'nag-iisa', 'walang nagmamahal',
+    ],
+  },
+  vi: {
+    high: [
+      'tự tử', 'muốn chết', 'kết thúc cuộc sống',
+      'tự hại', 'không muốn sống',
+    ],
+    medium: [
+      'tuyệt vọng', 'bỏ cuộc', 'không còn hy vọng',
+      'chịu không nổi',
+    ],
+    low: [
+      'cô đơn', 'một mình', 'không ai quan tâm',
+    ],
+  },
+  fr: {
+    high: [
+      'suicide', 'me tuer', 'en finir', 'mourir',
+      'me faire du mal', 'ne plus vivre',
+    ],
+    medium: [
+      'sans espoir', 'abandonner', 'plus la peine',
+      'n\'en peux plus',
+    ],
+    low: [
+      'seul', 'seule', 'personne ne m\'aime', 'isolé',
+    ],
+  },
+  ar: {
+    high: [
+      'انتحار', 'أريد الموت', 'إنهاء حياتي',
+      'أؤذي نفسي', 'لا أريد أن أعيش',
+    ],
+    medium: [
+      'يائس', 'استسلام', 'لا أمل', 'لا أستطيع المتابعة',
+    ],
+    low: [
+      'وحيد', 'لا أحد يهتم', 'منعزل',
+    ],
+  },
+  ko: {
+    high: [
+      '자살', '죽고 싶어', '삶을 끝내고', '자해',
+      '살고 싶지 않아',
+    ],
+    medium: [
+      '절망', '포기', '희망이 없어', '더 이상 못하겠어',
+    ],
+    low: [
+      '외로워', '혼자', '아무도 신경 안 써',
+    ],
+  },
+  hi: {
+    high: [
+      'आत्महत्या', 'मरना चाहता हूं', 'जीवन समाप्त',
+      'खुद को नुकसान', 'जीना नहीं चाहता',
+    ],
+    medium: [
+      'निराशा', 'हार मान', 'कोई उम्मीद नहीं',
+      'सहन नहीं होता',
+    ],
+    low: [
+      'अकेला', 'कोई परवाह नहीं करता', 'तन्हा',
+    ],
+  },
+  ur: {
+    high: [
+      'خودکشی', 'مرنا چاہتا ہوں', 'زندگی ختم',
+      'خود کو نقصان', 'جینا نہیں چاہتا',
+    ],
+    medium: [
+      'مایوسی', 'ہار ماننا', 'کوئی امید نہیں',
+      'برداشت نہیں ہوتا',
+    ],
+    low: [
+      'اکیلا', 'کوئی پرواہ نہیں کرتا', 'تنہا',
+    ],
+  },
+};
+
+// Flattened for backward compatibility
+export const SAFETY_KEYWORDS: Record<SafetyTier, readonly string[]> = {
+  high: Object.values(SAFETY_KEYWORDS_BY_LANGUAGE).flatMap(lang => lang.high),
+  medium: Object.values(SAFETY_KEYWORDS_BY_LANGUAGE).flatMap(lang => lang.medium),
+  low: Object.values(SAFETY_KEYWORDS_BY_LANGUAGE).flatMap(lang => lang.low),
 };
 ```
 
-Add state:
-```tsx
-const [preferredLanguage, setPreferredLanguage] = useState<string | null>(
-  line.preferred_language_iso ?? null
-);
+### 4.2 Spanish Exclusion Patterns
+
+```typescript
+// packages/prompts/src/safety/exclusions.ts
+
+export const SAFETY_EXCLUSION_PATTERNS_EN = [
+  // Common English false positives
+  'killing time',
+  'kill for a',
+  'killing it',
+  'drop dead gorgeous',
+  'to die for',
+  'dying to',
+  'dead tired',
+  'dead serious',
+  'bored to death',
+  'scared to death',
+  // Non-safety "hurt" contexts
+  'hurt feelings',
+  'hurt my back',
+  'hurt my knee',
+  'hurt my leg',
+  'hurt my arm',
+  // Context exclusions (talking about others/media)
+  'movie about',
+  'book about',
+  'article about',
+  'news about',
+  'show about',
+  'heard about someone',
+  'my friend',
+  'my neighbor',
+  'their friend',
+  'his friend',
+  'her friend',
+] as const;
+
+export const SAFETY_EXCLUSION_PATTERNS_ES = [
+  // Narrow, idiom-focused exclusions to reduce obvious false positives.
+  // Avoid excluding ambiguous threat phrases like "me mata" / "me vas a matar"
+  // because they can also be literal (PHYSICAL_DANGER).
+  'me muero de risa',
+  'me muero de hambre',
+  'me muero de sed',
+  'me muero de frío',
+  'me muero de calor',
+  'me muero de sueño',
+  'me muero de vergüenza',
+  'morir de risa',
+  'matando el tiempo',
+] as const;
+
+// Backwards compatibility export used by existing keyword scanner (EN-only today).
+export const SAFETY_EXCLUSION_PATTERNS = [
+  ...SAFETY_EXCLUSION_PATTERNS_EN,
+  ...SAFETY_EXCLUSION_PATTERNS_ES,
+] as const;
 ```
 
-Add to `resetFormState`:
-```tsx
-setPreferredLanguage(line.preferred_language_iso ?? null);
+### 4.3 Safety Heuristics Module
+
+```typescript
+// telephony/src/services/safety-heuristics.ts
+
+export interface HeuristicMatch {
+  pattern: string;
+  confidence: number;
+  category: 'negation_hopelessness' | 'goodbye_permanence' | 'cant_go_on' | 'self_harm_intent';
+}
+
+export interface HeuristicResult {
+  triggered: boolean;
+  matches: HeuristicMatch[];
+  totalConfidence: number;
+}
+
+const HEURISTIC_PATTERNS: Array<{
+  pattern: RegExp;
+  category: HeuristicMatch['category'];
+  confidence: number;
+  minMatches?: number;
+}> = [
+  // Repeated negation/hopelessness (requires 2+ occurrences in context)
+  {
+    pattern: /\b(no\s+point|nothing\s+matters?|doesn'?t\s+matter|never\s+get\s+better|always\s+(be\s+)?this\s+way)\b/gi,
+    category: 'negation_hopelessness',
+    confidence: 0.6,
+    minMatches: 2,
+  },
+  // Goodbye + permanence constructions
+  {
+    pattern: /\b(goodbye|farewell|adios|final\s+goodbye|last\s+time|won'?t\s+see\s+you|before\s+i\s+go)\b.*\b(forever|final|last|end|never\s+again)\b/gi,
+    category: 'goodbye_permanence',
+    confidence: 0.7,
+  },
+  // "Can't go on" style patterns
+  {
+    pattern: /\b(can'?t\s+(go\s+on|take\s+(it\s+)?any\s*more|do\s+this\s+anymore|keep\s+(going|living))|too\s+much\s+to\s+bear|unbearable)\b/gi,
+    category: 'cant_go_on',
+    confidence: 0.65,
+  },
+  // Self-harm intent patterns
+  {
+    pattern: /\b(want\s+to\s+(hurt|harm|cut|end)|going\s+to\s+(hurt|harm)|thinking\s+(about|of)\s+(hurting|harming))\s*(myself|my\s+life)?\b/gi,
+    category: 'self_harm_intent',
+    confidence: 0.8,
+  },
+];
+
+export function detectHeuristics(text: string): HeuristicResult {
+  const matches: HeuristicMatch[] = [];
+  const normalizedText = text.toLowerCase();
+
+  for (const { pattern, category, confidence, minMatches = 1 } of HEURISTIC_PATTERNS) {
+    const patternMatches = normalizedText.match(pattern) || [];
+    if (patternMatches.length >= minMatches) {
+      matches.push({
+        pattern: patternMatches[0],
+        confidence,
+        category,
+      });
+    }
+  }
+
+  const totalConfidence = matches.length > 0
+    ? Math.min(1, matches.reduce((sum, m) => sum + m.confidence, 0) / matches.length)
+    : 0;
+
+  return {
+    triggered: matches.length > 0,
+    matches,
+    totalConfidence,
+  };
+}
 ```
 
-Add to `hasLineChanges`:
-```tsx
-|| preferredLanguage !== (line.preferred_language_iso ?? null)
+### 4.4 Async Safety Classifier
+
+```typescript
+// telephony/src/services/safety-classifier.ts
+
+import type { SafetyCategory, SafetyTier } from '@ultaura/types';
+import type { TurnSummary } from './ephemeral-buffer.js';
+import { logger } from '../server.js';
+import { runModerationCheck, runLLMClassifier } from './safety-verifier.js';
+import { incrementClassifierRuns, incrementClassifierTriggers, observeClassifierLatency } from './safety-metrics.js';
+
+export interface ClassifierJob {
+  id: string;
+  callSessionId: string;
+  lineId: string;
+  languageCode: string;
+  reason: 'high_verify' | 'periodic_sweep' | 'soft_signal';
+  contextWindow: ContextWindow;
+  enqueuedAt: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+}
+
+export interface ContextWindow {
+  turns: TurnSummary[];
+  totalChars: number;
+  totalTurns: number;
+  windowStartMs: number;
+  windowEndMs: number;
+}
+
+export interface ClassifierResult {
+  category: SafetyCategory;
+  tier: SafetyTier | null;
+  confidence: number;
+  actionTaken: 'none' | 'suggested_988' | 'suggested_911';
+  signals: {
+    imminent_risk: boolean;
+    has_plan_or_means: boolean;
+    rationale_codes: string[];
+  };
+}
+
+const MAX_QUEUE_SIZE = 50;
+const MAX_CONCURRENT_JOBS = 3;
+const CONTEXT_WINDOW_MAX_TURNS = 12;
+const CONTEXT_WINDOW_MAX_CHARS = 2000;
+const CONTEXT_WINDOW_DURATION_MS = 120_000; // 2 minutes
+
+// In-memory job queue
+const jobQueue: Map<string, ClassifierJob> = new Map();
+const pendingJobs: Map<string, Set<string>> = new Map(); // callSessionId -> jobIds
+let activeJobCount = 0;
+
+function removeJob(jobId: string): void {
+  const job = jobQueue.get(jobId);
+  jobQueue.delete(jobId);
+  if (!job) return;
+  const sessionJobs = pendingJobs.get(job.callSessionId);
+  if (sessionJobs) {
+    sessionJobs.delete(jobId);
+    if (sessionJobs.size === 0) pendingJobs.delete(job.callSessionId);
+  }
+}
+
+export function buildContextWindow(
+  turns: TurnSummary[],
+  maxTurns: number = CONTEXT_WINDOW_MAX_TURNS,
+  maxChars: number = CONTEXT_WINDOW_MAX_CHARS,
+  windowDurationMs: number = CONTEXT_WINDOW_DURATION_MS
+): ContextWindow {
+  const now = Date.now();
+  const cutoffTime = now - windowDurationMs;
+
+  // Filter to recent turns
+  const recentTurns = turns.filter(t => t.timestamp >= cutoffTime);
+
+  // Take last N turns
+  const windowTurns = recentTurns.slice(-maxTurns);
+
+  // Truncate to max chars
+  let totalChars = 0;
+  const truncatedTurns: TurnSummary[] = [];
+
+  for (let i = windowTurns.length - 1; i >= 0 && totalChars < maxChars; i--) {
+    const turn = windowTurns[i];
+    const turnChars = turn.summary.length;
+    if (totalChars + turnChars <= maxChars) {
+      truncatedTurns.unshift(turn);
+      totalChars += turnChars;
+    } else {
+      // Truncate this turn to fit
+      const remaining = maxChars - totalChars;
+      truncatedTurns.unshift({
+        ...turn,
+        summary: turn.summary.slice(0, remaining),
+      });
+      totalChars = maxChars;
+      break;
+    }
+  }
+
+  return {
+    turns: truncatedTurns,
+    totalChars,
+    totalTurns: truncatedTurns.length,
+    windowStartMs: truncatedTurns[0]?.timestamp ?? now,
+    windowEndMs: truncatedTurns[truncatedTurns.length - 1]?.timestamp ?? now,
+  };
+}
+
+export function enqueueClassifierJob(
+  callSessionId: string,
+  lineId: string,
+  languageCode: string,
+  reason: ClassifierJob['reason'],
+  contextWindow: ContextWindow
+): string | null {
+  // Dedupe: check if same reason job already pending OR processing for this session
+  const sessionJobs = pendingJobs.get(callSessionId) || new Set();
+  const existingJob = Array.from(sessionJobs).find(id => {
+    const job = jobQueue.get(id);
+    return job?.reason === reason && (job?.status === 'pending' || job?.status === 'processing');
+  });
+
+  if (existingJob) {
+    logger.debug({ callSessionId, reason }, 'Deduplicated classifier job');
+    return existingJob;
+  }
+
+  // Check queue size
+  if (jobQueue.size >= MAX_QUEUE_SIZE) {
+    // Drop oldest job
+    const oldestId = Array.from(jobQueue.keys())[0];
+    if (oldestId) {
+      removeJob(oldestId);
+      logger.warn({ droppedJobId: oldestId }, 'Dropped oldest classifier job due to queue full');
+    }
+  }
+
+  const jobId = `${callSessionId}-${reason}-${Date.now()}`;
+  const job: ClassifierJob = {
+    id: jobId,
+    callSessionId,
+    lineId,
+    languageCode,
+    reason,
+    contextWindow,
+    enqueuedAt: Date.now(),
+    status: 'pending',
+  };
+
+  jobQueue.set(jobId, job);
+  sessionJobs.add(jobId);
+  pendingJobs.set(callSessionId, sessionJobs);
+
+  // Classifier job trigger metrics (low-cardinality labels only)
+  incrementClassifierTriggers(reason);
+
+  // Process async (fire and forget)
+  processNextJob().catch(err => {
+    logger.error({ error: err }, 'Error processing classifier job');
+  });
+
+  return jobId;
+}
+
+async function processNextJob(): Promise<void> {
+  if (activeJobCount >= MAX_CONCURRENT_JOBS) {
+    return;
+  }
+
+  // Find next pending job
+  const nextJob = Array.from(jobQueue.values()).find(j => j.status === 'pending');
+  if (!nextJob) {
+    return;
+  }
+
+  nextJob.status = 'processing';
+  activeJobCount++;
+
+  const startTime = Date.now();
+
+  try {
+    const result = await runClassifier(nextJob);
+
+    nextJob.status = 'completed';
+    observeClassifierLatency(nextJob.reason, Date.now() - startTime);
+    incrementClassifierRuns(nextJob.reason, 'ok');
+
+    // Handle result
+    if (result && result.tier === 'high') {
+      // Trigger second-pass verification
+      await handleHighTierResult(nextJob, result);
+    }
+  } catch (error) {
+    nextJob.status = 'failed';
+    incrementClassifierRuns(nextJob.reason, error instanceof Error && error.message.includes('timeout') ? 'timeout' : 'error');
+    logger.error({ error, jobId: nextJob.id }, 'Classifier job failed');
+  } finally {
+    activeJobCount--;
+
+    // Clean up
+    jobQueue.delete(nextJob.id);
+    const sessionJobs = pendingJobs.get(nextJob.callSessionId);
+    if (sessionJobs) {
+      sessionJobs.delete(nextJob.id);
+      if (sessionJobs.size === 0) {
+        pendingJobs.delete(nextJob.callSessionId);
+      }
+    }
+
+    // Process next job
+    processNextJob().catch(err => {
+      logger.error({ error: err }, 'Error processing next classifier job');
+    });
+  }
+}
+
+async function runClassifier(job: ClassifierJob): Promise<ClassifierResult | null> {
+  const contextText = job.contextWindow.turns
+    .map(t => `${t.speaker}: ${t.summary}`)
+    .join('\n');
+
+  // Step 1: Run OpenAI Moderation API (cheap gate for periodic sweeps)
+  const moderationResult = await runModerationCheck(contextText, job.languageCode);
+
+  // For periodic sweeps, use moderation as the gate to control cost.
+  // For soft signals (keywords/heuristics) and high_verify jobs, DO NOT gate on moderation
+  // because many genuine concerns (hopelessness, passive ideation) will not be "flagged".
+  if (job.reason === 'periodic_sweep' && !moderationResult.flagged) return null;
+
+  // Step 2: Run LLM rubric classifier
+  return runLLMClassifier(contextText, job.languageCode, moderationResult);
+}
+
+async function handleHighTierResult(job: ClassifierJob, result: ClassifierResult): Promise<void> {
+  // This will be handled by safety-event.ts verifier gate
+  logger.info({
+    callSessionId: job.callSessionId,
+    category: result.category,
+    confidence: result.confidence,
+    imminentRisk: result.signals.imminent_risk,
+  }, 'High tier result from async classifier');
+}
+
+export function clearJobsForSession(callSessionId: string): void {
+  const sessionJobs = pendingJobs.get(callSessionId);
+  if (sessionJobs) {
+    for (const jobId of sessionJobs) {
+      jobQueue.delete(jobId);
+    }
+    pendingJobs.delete(callSessionId);
+  }
+}
 ```
 
-Add to `handleSubmit` updates object:
-```tsx
-preferredLanguageIso: preferredLanguage,
+### 4.5 Safety Verifier Module
+
+```typescript
+// telephony/src/services/safety-verifier.ts
+
+import type { SafetyCategory, SafetyTier } from '@ultaura/types';
+import { logger } from '../server.js';
+import { incrementVerifierDisagreements, observeVerifierLatency } from './safety-metrics.js';
+import { SAFETY_CLASSIFIER_RUBRIC_PROMPT } from './safety-rubric.js';
+
+const MODERATION_TIMEOUT_MS = 1000;
+const LLM_CLASSIFIER_TIMEOUT_MS = 3000;
+const LLM_CLASSIFIER_MAX_RETRIES = 1;
+
+export interface ModerationResult {
+  available: boolean;
+  flagged: boolean;
+  categories: {
+    selfHarm: boolean;
+    selfHarmIntent: boolean;
+    selfHarmInstructions: boolean;
+    violence: boolean;
+  };
+  scores: Record<string, number>;
+}
+
+export interface VerifierResult {
+  decision: 'confirm' | 'clear' | 'uncertain';
+  confidence: number;
+  latencyMs: number;
+}
+
+export async function runModerationCheck(
+  text: string,
+  languageCode: string
+): Promise<ModerationResult> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    logger.warn('OpenAI API key not configured for moderation');
+    return {
+      available: false,
+      flagged: false,
+      categories: { selfHarm: false, selfHarmIntent: false, selfHarmInstructions: false, violence: false },
+      scores: {},
+    };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), MODERATION_TIMEOUT_MS);
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/moderations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ input: text }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      logger.error({ status: response.status }, 'Moderation API error');
+      return {
+        available: true,
+        flagged: false,
+        categories: { selfHarm: false, selfHarmIntent: false, selfHarmInstructions: false, violence: false },
+        scores: {},
+      };
+    }
+
+    const data = await response.json();
+    const result = data.results?.[0];
+
+    if (!result) {
+      return {
+        available: true,
+        flagged: false,
+        categories: { selfHarm: false, selfHarmIntent: false, selfHarmInstructions: false, violence: false },
+        scores: {},
+      };
+    }
+
+    return {
+      available: true,
+      flagged: result.flagged,
+      categories: {
+        selfHarm: result.categories['self-harm'] ?? false,
+        selfHarmIntent: result.categories['self-harm/intent'] ?? false,
+        selfHarmInstructions: result.categories['self-harm/instructions'] ?? false,
+        violence: result.categories.violence ?? false,
+      },
+      scores: result.category_scores ?? {},
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      logger.warn('Moderation API timeout');
+    } else {
+      logger.error({ error }, 'Moderation API failed');
+    }
+    return {
+      available: true,
+      flagged: false,
+      categories: { selfHarm: false, selfHarmIntent: false, selfHarmInstructions: false, violence: false },
+      scores: {},
+    };
+  }
+}
+
+export async function runLLMClassifier(
+  contextText: string,
+  languageCode: string,
+  moderationResult: ModerationResult
+): Promise<import('./safety-classifier.js').ClassifierResult | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    logger.warn('OpenAI API key not configured for classifier');
+    return null;
+  }
+
+  // Single source of truth for the rubric prompt (do not duplicate across modules).
+  const systemPrompt = SAFETY_CLASSIFIER_RUBRIC_PROMPT;
+  const userPrompt = `Language: ${languageCode}\nModeration flags: ${JSON.stringify(moderationResult.categories)}\n\nContext:\n${contextText}`;
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= LLM_CLASSIFIER_MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), LLM_CLASSIFIER_TIMEOUT_MS);
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.ULTAURA_SAFETY_CLASSIFIER_MODEL || 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
+          max_tokens: 200,
+          temperature: 0,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`LLM API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        return null;
+      }
+
+      return parseClassifierResponse(content);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (lastError.name === 'AbortError') {
+        logger.warn({ attempt }, 'LLM classifier timeout');
+      } else if (attempt < LLM_CLASSIFIER_MAX_RETRIES) {
+        logger.warn({ attempt, error: lastError }, 'LLM classifier failed, retrying');
+        continue;
+      }
+    }
+  }
+
+  logger.error({ error: lastError }, 'LLM classifier failed after retries');
+  return null;
+}
+
+function parseClassifierResponse(content: string): import('./safety-classifier.js').ClassifierResult | null {
+  try {
+    const parsed = JSON.parse(content);
+
+    // Validate required fields
+    if (!parsed.category || typeof parsed.confidence !== 'number') {
+      return null;
+    }
+
+    return {
+      category: parsed.category as SafetyCategory,
+      tier: parsed.tier as SafetyTier | null,
+      confidence: Math.max(0, Math.min(1, parsed.confidence)),
+      actionTaken: parsed.actionTaken || 'none',
+      signals: {
+        imminent_risk: parsed.signals?.imminent_risk ?? false,
+        has_plan_or_means: parsed.signals?.has_plan_or_means ?? false,
+        rationale_codes: parsed.signals?.rationale_codes ?? [],
+      },
+    };
+  } catch (error) {
+    // SECURITY: never log model output if it might include user content.
+    logger.error({ error }, 'Failed to parse classifier response');
+    return null;
+  }
+}
+
+export async function verifyHighTierEvent(
+  contextWindowText: string,
+  languageCode: string,
+  source: 'model' | 'keyword_backstop' | 'sweep'
+): Promise<VerifierResult> {
+  const startTime = Date.now();
+
+  // Verifier uses the same capped sliding window as sweeps (6–12 turns / <=2k chars).
+  const moderationResult = await runModerationCheck(contextWindowText, languageCode);
+  const latencyMs = Date.now() - startTime;
+
+  observeVerifierLatency(latencyMs);
+
+  // Decision logic
+  let decision: VerifierResult['decision'];
+  let confidence: number;
+
+  // Hard gate: if verifier is unavailable, block SMS (uncertain) rather than failing open.
+  if (!moderationResult.available) {
+    decision = 'uncertain';
+    confidence = 0;
+    incrementVerifierDisagreements(source, decision);
+    return { decision, confidence, latencyMs };
+  }
+
+  if (moderationResult.categories.selfHarmIntent || moderationResult.categories.selfHarm) {
+    decision = 'confirm';
+    confidence = Math.max(
+      moderationResult.scores['self-harm/intent'] ?? 0,
+      moderationResult.scores['self-harm'] ?? 0
+    );
+  } else if (moderationResult.flagged && moderationResult.categories.violence) {
+    decision = 'uncertain';
+    confidence = moderationResult.scores.violence ?? 0.5;
+  } else if (!moderationResult.flagged) {
+    decision = 'clear';
+    confidence = 1 - (moderationResult.scores['self-harm'] ?? 0);
+  } else {
+    decision = 'uncertain';
+    confidence = 0.5;
+  }
+
+  if (decision !== 'confirm') {
+    incrementVerifierDisagreements(source, decision);
+  }
+
+  return { decision, confidence, latencyMs };
+}
 ```
 
-Add section content in the switch statement:
-```tsx
-case 'language':
-  return (
-    <Section>
-      <SectionHeader
-        title={
-          <div className="flex items-center gap-2">
-            <Languages className="h-4 w-4 text-muted-foreground" />
-            Language Preference
-          </div>
+```typescript
+// telephony/src/services/safety-rubric.ts
+// Single source of truth for the rubric prompt used by the LLM classifier.
+
+export const SAFETY_CLASSIFIER_RUBRIC_PROMPT = `You are a safety classifier for a senior companion service. Analyze the conversation context and output a JSON assessment.
+
+Categories:
+- SUICIDAL_IDEATION: Explicit thoughts of suicide or wanting to die
+- SELF_HARM: Intent to hurt oneself physically
+- HOPELESSNESS: Persistent despair, feeling life is not worth living
+- ISOLATION_DISTRESS: Severe loneliness affecting wellbeing
+- PHYSICAL_DANGER: Threat from others or environment
+- MEDICAL_EMERGENCY: Acute medical crisis
+- ABUSE_CONCERN: Signs of elder abuse
+- COGNITIVE_DECLINE: Memory or confusion concerns
+- GENERAL_CONCERN: Other safety concerns (requires tier)
+
+Output JSON format:
+{
+  "category": "<CATEGORY>",
+  "tier": "low" | "medium" | "high" | null,
+  "confidence": 0.0-1.0,
+  "actionTaken": "none" | "suggested_988" | "suggested_911",
+  "signals": {
+    "imminent_risk": boolean,
+    "has_plan_or_means": boolean,
+    "rationale_codes": ["explicit_intent", "timeframe_immediate", "plan_stated", "means_mentioned", "passive_ideation", "hopelessness_pattern"]
+  }
+}
+
+Rules:
+- tier is only required for GENERAL_CONCERN
+- imminent_risk=true for: stated intent + near-term timeframe, ongoing act, medical emergency
+- has_plan_or_means=true for: specific plan mentioned, access to means
+- suggested_911 when imminent_risk=true OR ongoing act OR medical emergency
+- suggested_988 for high-tier suicidal/self-harm without clear immediacy
+- Be conservative: only flag genuine safety concerns, not normal sadness.`;
+```
+
+### 4.6 Safety Metrics Module
+
+```typescript
+// telephony/src/services/safety-metrics.ts
+
+import { Counter, Histogram, Registry } from 'prom-client';
+import { registry } from '../utils/metrics.js';
+
+// Counters
+export const safetyClassifierRunsTotal = new Counter({
+  name: 'ultaura_safety_classifier_runs_total',
+  help: 'Total safety classifier runs',
+  labelNames: ['reason', 'result'],
+  registers: [registry],
+});
+
+export const safetyClassifierTriggersTotal = new Counter({
+  name: 'ultaura_safety_classifier_triggers_total',
+  help: 'Total safety classifier triggers',
+  labelNames: ['source', 'tier'],
+  registers: [registry],
+});
+
+export const safetyVerifierDisagreementsTotal = new Counter({
+  name: 'ultaura_safety_verifier_disagreements_total',
+  help: 'Total verifier disagreements with initial assessment',
+  labelNames: ['source', 'initial_tier', 'verifier'],
+  registers: [registry],
+});
+
+export const safetyNotificationsBlockedTotal = new Counter({
+  name: 'ultaura_safety_notifications_blocked_total',
+  help: 'Total safety notifications blocked',
+  labelNames: ['reason'],
+  registers: [registry],
+});
+
+export const safetyNotificationsSentTotal = new Counter({
+  name: 'ultaura_safety_notifications_sent_total',
+  help: 'Total safety notifications sent',
+  labelNames: ['channel', 'tier'],
+  registers: [registry],
+});
+
+// Histograms
+export const safetyClassifierLatencyMs = new Histogram({
+  name: 'ultaura_safety_classifier_latency_ms',
+  help: 'Safety classifier latency in milliseconds',
+  labelNames: ['reason'],
+  buckets: [100, 250, 500, 1000, 2000, 3000, 5000],
+  registers: [registry],
+});
+
+export const safetyVerifierLatencyMs = new Histogram({
+  name: 'ultaura_safety_verifier_latency_ms',
+  help: 'Safety verifier latency in milliseconds',
+  buckets: [50, 100, 250, 500, 1000, 1500],
+  registers: [registry],
+});
+
+// Helper functions
+export function incrementClassifierRuns(
+  reason: 'high_verify' | 'periodic_sweep' | 'soft_signal',
+  result: 'ok' | 'error' | 'timeout'
+): void {
+  safetyClassifierRunsTotal.inc({ reason, result });
+}
+
+// Keep labels low-cardinality: sources map to a small fixed set.
+export function incrementClassifierTriggers(reason: 'high_verify' | 'periodic_sweep' | 'soft_signal'): void {
+  const source = reason === 'periodic_sweep' ? 'sweep' : reason === 'high_verify' ? 'model' : 'heuristic';
+  safetyClassifierTriggersTotal.inc({ source, tier: 'high' });
+}
+
+export function incrementVerifierDisagreements(
+  source: 'model' | 'keyword_backstop' | 'sweep',
+  verifier: 'clear' | 'confirm' | 'uncertain'
+): void {
+  safetyVerifierDisagreementsTotal.inc({ source, initial_tier: 'high', verifier });
+}
+
+export function incrementNotificationsBlocked(
+  reason: 'verifier_clear' | 'uncertain' | 'rate_limited' | 'no_consent'
+): void {
+  safetyNotificationsBlockedTotal.inc({ reason });
+}
+
+export function incrementNotificationsSent(
+  channel: 'sms',
+  tier: 'high'
+): void {
+  safetyNotificationsSentTotal.inc({ channel, tier });
+}
+
+export function observeClassifierLatency(
+  reason: 'high_verify' | 'periodic_sweep' | 'soft_signal',
+  latencyMs: number
+): void {
+  safetyClassifierLatencyMs.observe({ reason }, latencyMs);
+}
+
+export function observeVerifierLatency(latencyMs: number): void {
+  safetyVerifierLatencyMs.observe(latencyMs);
+}
+```
+
+### 4.7 Refactored Keyword Scanner Module
+
+```typescript
+// telephony/src/services/safety-keywords.ts
+
+import type { SafetyCategory, SafetyMatch, SafetyTier } from '@ultaura/types';
+import { SAFETY_KEYWORDS_BY_LANGUAGE, KEYWORD_CATEGORIES } from '@ultaura/prompts/safety';
+import { SAFETY_EXCLUSION_PATTERNS_EN, SAFETY_EXCLUSION_PATTERNS_ES } from '@ultaura/prompts/safety';
+
+export interface KeywordScanResult {
+  matches: SafetyMatch[];
+  languageHint: string | null;
+  exclusionsApplied: string[];
+}
+
+export function scanForSafetyKeywords(
+  transcript: string,
+  detectedLanguage: string | null,
+  alreadyTriggeredTiers: Set<SafetyTier>
+): KeywordScanResult {
+  const text = transcript.toLowerCase().trim();
+  const matches: SafetyMatch[] = [];
+  const exclusionsApplied: string[] = [];
+  let languageHint: string | null = null;
+
+  // Determine which languages to scan.
+  // - Always include EN and ES for code-switching.
+  // - If language is unknown, add script-based fallbacks (so we don't scan every language blindly).
+  const baseFallbacks = ['en', 'es'];
+  const scriptHints: string[] = [];
+  if (!detectedLanguage) {
+    if (/\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}/u.test(transcript)) scriptHints.push('zh');
+    if (/\p{Script=Hangul}/u.test(transcript)) scriptHints.push('ko');
+    if (/\p{Script=Arabic}/u.test(transcript)) scriptHints.push('ar', 'ur');
+    if (/\p{Script=Devanagari}/u.test(transcript)) scriptHints.push('hi');
+  }
+  const languagesToScan = detectedLanguage
+    ? Array.from(new Set([detectedLanguage, ...baseFallbacks]))
+    : Array.from(new Set([...baseFallbacks, ...scriptHints]));
+
+  for (const tier of ['high', 'medium', 'low'] as const) {
+    if (alreadyTriggeredTiers.has(tier)) {
+      continue;
+    }
+
+    let matchedTier = false;
+
+    for (const langCode of languagesToScan) {
+      const langKeywords = SAFETY_KEYWORDS_BY_LANGUAGE[langCode];
+      if (!langKeywords) continue;
+
+      const keywords = langKeywords[tier];
+
+      for (const keyword of keywords) {
+        const keywordMatch = findKeywordMatch(text, keyword);
+
+        if (keywordMatch) {
+          // Check exclusions
+          const exclusionPatterns = langCode === 'es'
+            ? [...SAFETY_EXCLUSION_PATTERNS_EN, ...SAFETY_EXCLUSION_PATTERNS_ES]
+            : SAFETY_EXCLUSION_PATTERNS_EN;
+
+          // If an exclusion overlaps, keep scanning for another occurrence of the same keyword.
+          let currentMatch = keywordMatch;
+          while (currentMatch) {
+            const exclusion = isExcludedAtPosition(text, currentMatch.start, currentMatch.end, exclusionPatterns);
+            if (!exclusion) {
+              matches.push({ tier, matchedKeyword: keyword });
+              languageHint = langCode;
+              matchedTier = true;
+              break;
+            }
+            exclusionsApplied.push(exclusion);
+            currentMatch = findKeywordMatch(text, keyword, currentMatch.end);
+          }
+
+          if (matchedTier) break;
         }
-        description="Set the language for calls with this line."
-      />
-      <SectionBody className="gap-4">
-        <Select
-          value={preferredLanguage ?? 'auto'}
-          onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
-          disabled={disabled}
-        >
-          <SelectTrigger className="w-full py-3">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {LANGUAGE_OPTIONS.map((option) => (
-              <SelectItem
-                key={option.value ?? 'auto'}
-                value={option.value ?? 'auto'}
-              >
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
-          {preferredLanguage === null ? (
-            <>
-              <p className="font-medium text-foreground">Auto-detect mode</p>
-              <p className="mt-1">
-                Ultaura will use a bilingual greeting on the first call and detect
-                {line.display_name}&apos;s preferred language from their response.
-                Once detected, the language will be saved automatically.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="font-medium text-foreground">
-                {LANGUAGE_OPTIONS.find(o => o.value === preferredLanguage)?.label}
-              </p>
-              <p className="mt-1">
-                Ultaura will start all calls in {LANGUAGE_OPTIONS.find(o => o.value === preferredLanguage)?.label}.
-                {line.display_name} can still switch languages during calls.
-              </p>
-            </>
-          )}
-        </div>
-      </SectionBody>
-    </Section>
-  );
+      }
+
+      if (matchedTier) break;
+    }
+  }
+
+  return { matches, languageHint, exclusionsApplied };
+}
+
+export function findKeywordMatch(
+  text: string,
+  keyword: string,
+  fromIndex = 0
+): { start: number; end: number } | null {
+  const normalizedText = text.toLowerCase();
+  const normalizedKeyword = keyword.toLowerCase();
+
+  // For non-ASCII keywords (CJK, Arabic, Devanagari, etc.), word boundaries are unreliable.
+  // Use substring matching. These are *soft signals* and are always verified downstream.
+  const isAsciiKeyword = /^[\x00-\x7F]+$/.test(normalizedKeyword);
+  if (!isAsciiKeyword) {
+    const idx = normalizedText.indexOf(normalizedKeyword, fromIndex);
+    return idx === -1 ? null : { start: idx, end: idx + normalizedKeyword.length };
+  }
+
+  // For ASCII/Latin keywords, use Unicode-safe "letter boundaries" instead of \b.
+  const escaped = normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(?<!\\p{L})${escaped}(?!\\p{L})`, 'giu');
+  regex.lastIndex = fromIndex;
+  const match = regex.exec(normalizedText);
+  return match ? { start: match.index, end: match.index + match[0].length } : null;
+}
+
+export function isExcludedAtPosition(
+  text: string,
+  keywordStart: number,
+  keywordEnd: number,
+  exclusionPatterns: readonly string[]
+): string | null {
+  for (const pattern of exclusionPatterns) {
+    const normalizedText = text.toLowerCase();
+    const normalizedPattern = pattern.toLowerCase();
+
+    const isAsciiPattern = /^[\x00-\x7F]+$/.test(normalizedPattern);
+    if (!isAsciiPattern) {
+      const idx = normalizedText.indexOf(normalizedPattern);
+      if (idx !== -1) {
+        const exclStart = idx;
+        const exclEnd = idx + normalizedPattern.length;
+        if (keywordStart < exclEnd && keywordEnd > exclStart) return pattern;
+      }
+      continue;
+    }
+
+    const escaped = normalizedPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(?<!\\p{L})${escaped}(?!\\p{L})`, 'giu');
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(normalizedText)) !== null) {
+      const exclStart = match.index;
+      const exclEnd = match.index + match[0].length;
+      if (keywordStart < exclEnd && keywordEnd > exclStart) return pattern;
+    }
+  }
+
+  return null;
+}
+
+export function getCategoryForKeyword(keyword: string): SafetyCategory {
+  return KEYWORD_CATEGORIES[keyword] || 'GENERAL_CONCERN';
+}
 ```
 
 ---
 
-## 7. Implementation Steps
+## 5. File Changes
 
-### Phase 1: Database and Types (Day 1)
+### 5.1 New Files to Create
 
-1. **Create migration file**
-   - File: `supabase/migrations/20260320000001_add_language_preference.sql`
-   - Add `preferred_language_bcp47` and `preferred_language_iso` columns
-   - Add constraint and index
+| File Path | Purpose |
+|-----------|---------|
+| `telephony/src/services/safety-classifier.ts` | Async classifier job queue and runner |
+| `telephony/src/services/safety-verifier.ts` | OpenAI Moderation API verification |
+| `telephony/src/services/safety-heuristics.ts` | Lightweight pattern-based heuristics |
+| `telephony/src/services/safety-metrics.ts` | Prometheus metrics for safety system |
+| `telephony/src/services/safety-keywords.ts` | Refactored keyword matching (extracted from grok-bridge.ts) |
+| `telephony/src/services/safety-rubric.ts` | LLM classifier rubric prompt (single source of truth) |
+| `telephony/src/__tests__/safety-keywords.test.ts` | Keyword unit tests |
+| `telephony/src/__tests__/safety-heuristics.test.ts` | Heuristics unit tests |
+| `telephony/src/__tests__/safety-verifier.test.ts` | Verifier unit tests |
+| `supabase/migrations/YYYYMMDDHHMMSS_add_safety_verifier_fields.sql` | Database migration |
 
-2. **Regenerate database types**
-   - Run: `npx supabase gen types typescript --local > src/database.types.ts`
+### 5.2 Files to Modify
 
-3. **Update Zod schemas**
-   - File: `packages/schemas/src/line.ts`
-   - Add `preferredLanguageIso` to both schemas
+| File Path | Changes |
+|-----------|---------|
+| `packages/prompts/src/safety/keywords.ts` | Expand to 10 languages with `SAFETY_KEYWORDS_BY_LANGUAGE` structure |
+| `packages/prompts/src/safety/exclusions.ts` | Add `SAFETY_EXCLUSION_PATTERNS_EN` + `SAFETY_EXCLUSION_PATTERNS_ES` (keep combined export for backwards compatibility) |
+| `packages/prompts/src/safety/index.ts` | Export new structures |
+| `packages/types/src/safety.ts` | Add `SafetySignals` interface with new fields |
+| `telephony/src/websocket/grok-bridge.ts` | Extract keyword logic, integrate async classifier triggers |
+| `telephony/src/routes/tools/safety-event.ts` | Add verifier gate before SMS notification |
+| `telephony/src/services/call-session.ts` | Update `recordSafetyEvent` to return inserted id; add helper to update signals for verifier outcome |
+| `telephony/src/utils/env-validator.ts` | Validate new safety feature flags/models |
+| `.env.ultaura.example` | Document new safety flags |
 
-4. **Update TypeScript types**
-   - File: `src/lib/ultaura/types.ts`
-   - Add fields to interfaces
+### 5.3 Detailed Changes for safety-event.ts
 
-5. **Add constants**
-   - File: `src/lib/ultaura/constants.ts`
-   - Add `LANGUAGE_OPTIONS` array
+```typescript
+// telephony/src/routes/tools/safety-event.ts - Key modifications
 
-### Phase 2: Server Actions (Day 1)
+import { verifyHighTierEvent } from '../../services/safety-verifier.js';
+import { incrementNotificationsBlocked, incrementNotificationsSent } from '../../services/safety-metrics.js';
+import { getBuffer } from '../../services/ephemeral-buffer.js';
+import { getGrokBridge } from '../../websocket/grok-bridge-registry.js';
 
-6. **Update lines.ts**
-   - File: `src/lib/ultaura/lines.ts`
-   - Update `createLine()` to handle `preferredLanguageIso`
-   - Update `updateLine()` to handle `preferredLanguageIso`
+// Inside the POST handler, modify the high-tier notification logic:
 
-### Phase 3: Telephony Services (Day 2)
+// Record the safety event once (existing behavior), but capture its id so we can update signals later.
+// IMPORTANT: this requires updating recordSafetyEvent(...) to return the inserted row id.
+const safetyEventId = await recordSafetyEvent({
+  accountId,
+  lineId,
+  callSessionId,
+  tier: effectiveTier,
+  category,
+  confidence: effectiveConfidence,
+  signals: { source: sourceValue },
+  actionTaken,
+});
 
-7. **Update language service**
-   - File: `telephony/src/services/language.ts`
-   - Implement `getStartingLanguageForLine()` returning `{ language, isAutoDetect }`
-   - Implement `persistLanguageToLine()`
-   - Keep `getLastDetectedLanguageForLine()` for backward compatibility
+// For high-tier events, DO NOT block the tool response on external API calls.
+// Run verifier + (maybe) SMS in the background, and update the existing safety event row.
+if (effectiveTier === 'high') {
+  logger.warn({ callSessionId, lineId, tier: effectiveTier, category, actionTaken }, 'HIGH SAFETY TIER EVENT');
 
-8. **Update report-conversation-language tool**
-   - File: `telephony/src/routes/tools/report-conversation-language.ts`
-   - Add logic to persist language for auto-detect lines
+  void (async () => {
+    const buffer = getBuffer(callSessionId);
+    const grokBridge = getGrokBridge(callSessionId);
+    const languageCode = grokBridge?.getDetectedLanguage() ?? null;
 
-9. **Update media-stream.ts**
-   - File: `telephony/src/websocket/media-stream.ts`
-   - Change to use `getStartingLanguageForLine()`
-   - Pass `isLanguageAutoDetect` to GrokBridge
+    // Build a capped sliding window from the ephemeral buffer (no transcripts persisted).
+    const turns = buffer?.turns ?? [];
+    const contextWindowText = turns
+      .slice(-12)
+      .map((t) => `${t.speaker}: ${t.summary}`)
+      .join('\n')
+      .slice(0, 2000);
 
-10. **Update grok-bridge.ts**
-    - File: `telephony/src/websocket/grok-bridge.ts`
-    - Add `isLanguageAutoDetect` to options interface
-    - Pass to `compilePrompt()`
+    const verifierResult = await verifyHighTierEvent(
+      contextWindowText,
+      (languageCode ?? 'unknown'),
+      sourceValue
+    );
 
-### Phase 4: Prompt Updates (Day 2)
+    await updateSafetyEventSignals(safetyEventId, {
+      verifier_result: verifierResult.decision,
+      verifier_latency_ms: verifierResult.latencyMs,
+      context_window_stats: {
+        turns: turns.length,
+        chars: turns.reduce((sum, t) => sum + t.summary.length, 0),
+      },
+    });
 
-11. **Update prompt profiles**
-    - File: `packages/prompts/src/profiles/index.ts`
-    - Update `CompanionPromptParams` interface
-    - Update `formatLanguageSection()` with bilingual greeting logic
-    - Update `compilePrompt()` call site
+    // IMPORTANT: verifier is a hard gate for SMS. Fail-closed: clear/uncertain => do not notify.
+    if (verifierResult.decision === 'confirm') {
+      incrementNotificationsSent('sms', 'high');
+      await notifyTrustedContacts(accountId, callSessionId, lineId, effectiveTier, actionTaken);
+    } else {
+      const blockReason = verifierResult.decision === 'clear' ? 'verifier_clear' : 'uncertain';
+      incrementNotificationsBlocked(blockReason);
+    }
+  })().catch((error) => {
+    // Verifier errors should block notification, not fail open.
+    incrementNotificationsBlocked('uncertain');
+    logger.error({ error, callSessionId, lineId }, 'Safety verifier background task failed');
+  });
+}
+```
 
-12. **Update reminder prompt builder**
-    - File: `packages/prompts/src/builders/reminder.ts`
-    - Update to handle auto-detect mode if applicable
+### 5.4 Detailed Changes for grok-bridge.ts
 
-### Phase 5: Voicemail Updates (Day 3)
+```typescript
+// Key changes to telephony/src/websocket/grok-bridge.ts
 
-13. **Update voicemail messages**
-    - File: `telephony/src/utils/voicemail-messages.ts`
-    - Update `getVoicemailMessage()` to accept `preferredLanguageIso`
-    - Update all callers to pass the new field
+// Add imports
+import { scanForSafetyKeywords, getCategoryForKeyword } from '../services/safety-keywords.js';
+import { detectHeuristics } from '../services/safety-heuristics.js';
+import { enqueueClassifierJob, buildContextWindow, clearJobsForSession } from '../services/safety-classifier.js';
+import { getBuffer } from '../services/ephemeral-buffer.js';
 
-### Phase 6: Dashboard UI (Day 3)
+// Add periodic sweep timer property
+private periodicSweepTimer: NodeJS.Timeout | null = null;
+private lastSweepTime = 0;
 
-14. **Update AddLineModal**
-    - File: `src/app/dashboard/(app)/lines/components/AddLineModal.tsx`
-    - Add language preference dropdown to Step 1
+// Replace scanForSafetyKeywords method with call to extracted module
+private handleTranscriptSafety(transcript: string): void {
+  // Use extracted keyword scanner
+  const scanResult = scanForSafetyKeywords(
+    transcript,
+    this.detectedLanguage,
+    this.safetyState.triggeredTiers
+  );
 
-15. **Update SettingsClient**
-    - File: `src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx`
-    - Add language section to "Calling & Availability" tab
+  if (scanResult.matches.length > 0) {
+    this.handleSafetyBackstop(scanResult.matches).catch((err) => {
+      logger.error({ error: err }, 'Safety backstop handling failed');
+    });
+  }
 
-### Phase 7: Testing and Verification (Day 4)
+  // Check heuristics (soft signal)
+  const heuristicResult = detectHeuristics(transcript);
+  if (heuristicResult.triggered && heuristicResult.totalConfidence >= 0.6) {
+    this.enqueueClassifierForSoftSignal();
+  }
+}
 
-16. **Manual testing**
-    - Test line creation with various language preferences
-    - Test first call auto-detect flow
-    - Test language persistence after detection
-    - Test language change during call
-    - Test voicemail in different languages
-    - Test settings update
+private enqueueClassifierForSoftSignal(): void {
+  const buffer = getBuffer(this.options.callSessionId);
+  if (!buffer) return;
 
-17. **Edge case testing**
-    - Test unsupported language detection (should store and use)
-    - Test repeated detection failures
-    - Test family override scenario
+  const contextWindow = buildContextWindow(buffer.turns);
+
+  enqueueClassifierJob(
+    this.options.callSessionId,
+    this.options.lineId,
+    this.detectedLanguage ?? 'en',
+    'soft_signal',
+    contextWindow
+  );
+}
+
+// Add periodic sweep logic
+private startPeriodicSweeps(): void {
+  const language = this.detectedLanguage; // may be null until report_conversation_language
+  const isUndetected = !language;
+  const isEnOrEs = language === 'en' || language === 'es';
+
+  // Sweep for unknown/undetected (early-call gap) and for non-EN/ES.
+  if (!isUndetected && isEnOrEs) return;
+
+  const isSupported = language ? ['zh', 'tl', 'vi', 'fr', 'ar', 'ko', 'hi', 'ur'].includes(language) : false;
+  const intervalMs = isUndetected ? 90_000 : (isSupported ? 120_000 : 60_000);
+
+  this.periodicSweepTimer = setInterval(() => {
+    this.runPeriodicSweep();
+  }, intervalMs);
+}
+
+private stopPeriodicSweeps(): void {
+  if (this.periodicSweepTimer) {
+    clearInterval(this.periodicSweepTimer);
+    this.periodicSweepTimer = null;
+  }
+}
+
+private runPeriodicSweep(): void {
+  const now = Date.now();
+  if (now - this.lastSweepTime < 30_000) {
+    return; // Debounce
+  }
+
+  this.lastSweepTime = now;
+
+  const buffer = getBuffer(this.options.callSessionId);
+  if (!buffer || buffer.turns.length < 3) {
+    return;
+  }
+
+  const contextWindow = buildContextWindow(buffer.turns);
+
+  enqueueClassifierJob(
+    this.options.callSessionId,
+    this.options.lineId,
+    this.detectedLanguage ?? 'en',
+    'periodic_sweep',
+    contextWindow
+  );
+}
+
+// Update close() method
+close(): void {
+  this.stopPeriodicSweeps();
+  clearJobsForSession(this.options.callSessionId);
+
+  if (this.ws) {
+    this.suppressDisconnect = true;
+    this.ws.close();
+    this.ws = null;
+  }
+  this.isConnected = false;
+}
+
+// Update setDetectedLanguage to start sweeps when language changes
+public setDetectedLanguage(code: string): void {
+  const previousLanguage = this.detectedLanguage;
+  this.detectedLanguage = code;
+
+  // Start/restart periodic sweeps based on new language
+  if (previousLanguage !== code) {
+    this.stopPeriodicSweeps();
+    this.startPeriodicSweeps();
+  }
+}
+```
 
 ---
 
-## 8. Testing Plan
+## 6. Database Changes
 
-### Unit Tests
+### 6.1 Migration: Add Safety Verifier Indexes/Documentation
 
-1. **Language Service Tests**
-   - `getStartingLanguageForLine()` returns correct result for:
-     - Line with `preferred_language_iso` set
-     - Line with `preferred_language_iso` = NULL (auto-detect)
-   - `persistLanguageToLine()` correctly updates both columns
+```sql
+-- supabase/migrations/YYYYMMDDHHMMSS_add_safety_verifier_fields.sql
 
-2. **Schema Validation Tests**
-   - Valid ISO codes are accepted
-   - Invalid codes are rejected
-   - NULL is accepted (auto-detect)
+-- Extend ultaura_safety_events.signals JSONB to include new fields
+-- Note: JSONB columns are schema-less, so no ALTER required for the column itself.
+-- This migration adds documentation and indexes for querying verifier outcomes.
 
-### Integration Tests
+COMMENT ON COLUMN ultaura_safety_events.signals IS 'Extended signals including:
+  - source: "model" | "keyword_backstop" | "sweep"
+  - verifier_result: "confirm" | "clear" | "uncertain" (null if not verified)
+  - verifier_latency_ms: number (null if not verified)
+  - imminent_risk: boolean (null if not assessed)
+  - has_plan_or_means: boolean (null if not assessed)
+  - rationale_codes: string[] (empty if not assessed)
+  - context_window_stats: { turns: number, chars: number } (null if not captured)
+';
 
-3. **Line Creation Flow**
-   - Create line with language preference set
-   - Create line without language preference (auto-detect)
-   - Verify database state after creation
+-- Add index for verifier disagreement queries
+CREATE INDEX IF NOT EXISTS idx_ultaura_safety_events_verifier_result
+ON ultaura_safety_events((signals->>'verifier_result'), created_at DESC)
+WHERE signals->>'verifier_result' IS NOT NULL;
 
-4. **Call Flow Tests**
-   - First call with auto-detect: verify bilingual greeting instruction in prompt
-   - First call with fixed language: verify single-language instruction
-   - Subsequent call: verify language from line table is used
+-- Add index for high-tier events needing analysis
+CREATE INDEX IF NOT EXISTS idx_ultaura_safety_events_high_tier_unverified
+ON ultaura_safety_events(created_at DESC)
+WHERE tier = 'high' AND (signals->>'verifier_result') IS NULL;
+```
 
-5. **Language Detection Persistence**
-   - Simulate `report_conversation_language` tool call
-   - Verify language is persisted to line for auto-detect lines
-   - Verify language is NOT persisted for fixed-language lines (no override)
+### 6.2 Extended Signals Type Definition
 
-### Manual QA Checklist
+```typescript
+// packages/types/src/safety.ts - Add to existing file
 
-- [ ] Create new line with "Auto-detect" - verify bilingual greeting on first call
-- [ ] Create new line with "Spanish" - verify Spanish greeting on first call
-- [ ] Complete first call with auto-detect line - verify language persists
-- [ ] Make second call to previously auto-detected line - verify language is used
-- [ ] Change language in settings - verify next call uses new language
-- [ ] Test voicemail message language selection
-- [ ] Test language switch during call (senior speaks different language)
-- [ ] Test UI shows correct state (auto-detect vs fixed)
-
----
-
-## 9. Rollback Plan
-
-### Immediate Rollback (Database)
-
-If issues are discovered after deployment:
-
-1. **Run rollback migration**
-   ```sql
-   ALTER TABLE ultaura_lines
-     DROP CONSTRAINT IF EXISTS ultaura_lines_preferred_language_iso_check;
-
-   DROP INDEX IF EXISTS idx_ultaura_lines_preferred_language_iso;
-
-   ALTER TABLE ultaura_lines
-     DROP COLUMN IF EXISTS preferred_language_bcp47,
-     DROP COLUMN IF EXISTS preferred_language_iso;
-   ```
-
-2. **Revert code changes**
-   - Revert to previous version of all modified files
-   - The system will fall back to the existing `getLastDetectedLanguageForLine()` behavior
-
-### Partial Rollback (Code Only)
-
-If database is fine but code has issues:
-
-1. **Revert prompt changes** - Remove bilingual greeting logic from `formatLanguageSection()`
-2. **Revert tool handler** - Remove persistence logic from `report-conversation-language.ts`
-3. **Revert UI** - Remove language dropdowns from AddLineModal and SettingsClient
-
-The database columns will remain but be unused, causing no harm.
-
-### Monitoring During Rollout
-
-- Monitor for increased call failures or disconnections
-- Watch for reports of confused users (unexpected language)
-- Check `ultaura_call_events` for `report_conversation_language` tool errors
-- Monitor `ultaura_lines` for unexpected language values
+export interface SafetySignals {
+  source: 'model' | 'keyword_backstop' | 'sweep';
+  verifier_result?: 'confirm' | 'clear' | 'uncertain';
+  verifier_latency_ms?: number;
+  imminent_risk?: boolean;
+  has_plan_or_means?: boolean;
+  rationale_codes?: string[];
+  context_window_stats?: {
+    turns: number;
+    chars: number;
+  };
+}
+```
 
 ---
 
-## 10. Future Enhancements (Out of Scope)
+## 7. Testing Strategy
 
-1. **Regional variants**: Support es-MX vs es-ES with different formality/vocabulary
-2. **Voice selection by language**: Auto-select Grok voice based on language
-3. **SMS language**: Extend language preference to SMS notifications
-4. **Language analytics**: Dashboard showing language distribution across lines
-5. **Family notification language**: Send weekly summaries in senior's language
+### 7.1 Unit Tests for Keywords
+
+```typescript
+// telephony/src/__tests__/safety-keywords.test.ts
+
+import { describe, it, expect } from 'vitest';
+import { scanForSafetyKeywords, findKeywordMatch, isExcludedAtPosition } from '../services/safety-keywords.js';
+
+describe('scanForSafetyKeywords', () => {
+  describe('English keywords', () => {
+    it('detects high-tier suicide keywords', () => {
+      const result = scanForSafetyKeywords('I want to kill myself', 'en', new Set());
+      expect(result.matches).toHaveLength(1);
+      expect(result.matches[0].tier).toBe('high');
+      expect(result.matches[0].matchedKeyword).toBe('kill myself');
+    });
+
+    it('applies exclusion patterns', () => {
+      const result = scanForSafetyKeywords('I am killing time waiting', 'en', new Set());
+      expect(result.matches).toHaveLength(0);
+      expect(result.exclusionsApplied).toContain('killing time');
+    });
+  });
+
+  describe('Spanish keywords', () => {
+    it('detects high-tier Spanish keywords', () => {
+      const result = scanForSafetyKeywords('quiero morir', 'es', new Set());
+      expect(result.matches).toHaveLength(1);
+      expect(result.matches[0].tier).toBe('high');
+    });
+
+    it('applies Spanish exclusion patterns', () => {
+      const result = scanForSafetyKeywords('me muero de risa', 'es', new Set());
+      expect(result.matches).toHaveLength(0);
+      expect(result.exclusionsApplied).toContain('me muero de risa');
+    });
+  });
+
+  describe('Chinese keywords', () => {
+    it('detects high-tier Chinese keywords', () => {
+      const result = scanForSafetyKeywords('我想自杀', 'zh', new Set());
+      expect(result.matches).toHaveLength(1);
+      expect(result.matches[0].tier).toBe('high');
+    });
+  });
+
+  describe('Code-switching', () => {
+    it('detects English keywords even when language is set to Spanish', () => {
+      const result = scanForSafetyKeywords('I want to kill myself', 'es', new Set());
+      expect(result.matches).toHaveLength(1);
+    });
+  });
+
+  describe('Already triggered tiers', () => {
+    it('skips already triggered tiers', () => {
+      const result = scanForSafetyKeywords('I want to kill myself', 'en', new Set(['high']));
+      expect(result.matches).toHaveLength(0);
+    });
+  });
+});
+
+describe('findKeywordMatch', () => {
+  it('finds exact word boundaries', () => {
+    expect(findKeywordMatch('I feel hopeless today', 'hopeless')).toEqual({ start: 7, end: 15 });
+    expect(findKeywordMatch('hopelessly lost', 'hopeless')).toBeNull(); // Not word boundary
+  });
+});
+
+describe('isExcludedAtPosition', () => {
+  it('returns exclusion pattern when match overlaps', () => {
+    const result = isExcludedAtPosition('killing time', 0, 7, ['killing time']);
+    expect(result).toBe('killing time');
+  });
+
+  it('returns null when no exclusion matches', () => {
+    const result = isExcludedAtPosition('kill myself', 0, 4, ['killing time']);
+    expect(result).toBeNull();
+  });
+});
+```
+
+### 7.2 Unit Tests for Heuristics
+
+```typescript
+// telephony/src/__tests__/safety-heuristics.test.ts
+
+import { describe, it, expect } from 'vitest';
+import { detectHeuristics } from '../services/safety-heuristics.js';
+
+describe('detectHeuristics', () => {
+  it('detects "cant go on" patterns', () => {
+    const result = detectHeuristics("I can't go on like this anymore");
+    expect(result.triggered).toBe(true);
+    expect(result.matches.some(m => m.category === 'cant_go_on')).toBe(true);
+  });
+
+  it('detects goodbye + permanence patterns', () => {
+    const result = detectHeuristics('This is my final goodbye, you won\'t see me again');
+    expect(result.triggered).toBe(true);
+    expect(result.matches.some(m => m.category === 'goodbye_permanence')).toBe(true);
+  });
+
+  it('detects self-harm intent patterns', () => {
+    const result = detectHeuristics('I am thinking about hurting myself');
+    expect(result.triggered).toBe(true);
+    expect(result.matches.some(m => m.category === 'self_harm_intent')).toBe(true);
+  });
+
+  it('requires multiple negation patterns for hopelessness', () => {
+    const singleNegation = detectHeuristics('Nothing matters');
+    expect(singleNegation.triggered).toBe(false);
+
+    const multipleNegation = detectHeuristics('Nothing matters. It will never get better.');
+    expect(multipleNegation.triggered).toBe(true);
+  });
+
+  it('returns false for normal conversation', () => {
+    const result = detectHeuristics('I had a nice day today, went for a walk');
+    expect(result.triggered).toBe(false);
+    expect(result.matches).toHaveLength(0);
+  });
+});
+```
+
+### 7.3 Unit Tests for Verifier
+
+```typescript
+// telephony/src/__tests__/safety-verifier.test.ts
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { verifyHighTierEvent, runModerationCheck } from '../services/safety-verifier.js';
+
+describe('verifyHighTierEvent', () => {
+  beforeEach(() => {
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('returns confirm when moderation flags self-harm', async () => {
+    // Mock fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        results: [{
+          flagged: true,
+          categories: { 'self-harm': true, 'self-harm/intent': true },
+          category_scores: { 'self-harm': 0.9, 'self-harm/intent': 0.85 },
+        }],
+      }),
+    });
+
+    const result = await verifyHighTierEvent(
+      'I want to kill myself',
+      'Are you okay?',
+      'en',
+      'model'
+    );
+
+    expect(result.decision).toBe('confirm');
+    expect(result.confidence).toBeGreaterThan(0.8);
+  });
+
+  it('returns clear when moderation does not flag', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        results: [{
+          flagged: false,
+          categories: {},
+          category_scores: { 'self-harm': 0.01 },
+        }],
+      }),
+    });
+
+    const result = await verifyHighTierEvent(
+      'I feel a bit sad today',
+      'Tell me more',
+      'en',
+      'keyword_backstop'
+    );
+
+    expect(result.decision).toBe('clear');
+  });
+
+  it('handles timeout gracefully', async () => {
+    global.fetch = vi.fn().mockImplementation(() =>
+      new Promise((_, reject) => setTimeout(() => reject(new Error('AbortError')), 2000))
+    );
+
+    const result = await runModerationCheck('test', 'en');
+    expect(result.flagged).toBe(false);
+  });
+});
+```
+
+### 7.4 Integration Test for Safety Event Route
+
+```typescript
+// telephony/src/__tests__/safety-event.integration.test.ts
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+describe('POST /tools/safety_event', () => {
+  it('blocks SMS notification when verifier clears high-tier event', async () => {
+    // Mock verifier to return 'clear'
+    vi.mock('../services/safety-verifier.js', () => ({
+      verifyHighTierEvent: vi.fn().mockResolvedValue({
+        decision: 'clear',
+        confidence: 0.95,
+        latencyMs: 150,
+      }),
+    }));
+
+    // ... test implementation
+  });
+
+  it('sends SMS notification when verifier confirms high-tier event', async () => {
+    // Mock verifier to return 'confirm'
+    vi.mock('../services/safety-verifier.js', () => ({
+      verifyHighTierEvent: vi.fn().mockResolvedValue({
+        decision: 'confirm',
+        confidence: 0.9,
+        latencyMs: 200,
+      }),
+    }));
+
+    // ... test implementation
+  });
+});
+```
 
 ---
 
-## 11. Summary of Key Decisions
+## 8. Edge Cases and Error Handling
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Language selection in setup | Optional during line creation | Keep setup flow simple while allowing upfront configuration |
-| Bilingual greeting languages | English + Spanish only | Covers largest US non-English demographic; keeps greeting concise |
-| Detection mechanism | LLM with forced early detection | Simpler than external service; stricter prompting addresses reliability |
-| Persistence behavior | Remember but stay flexible | Start in detected language but adapt if senior switches |
-| Mid-call language change | Always allowed, persists | Seniors should always be able to communicate in their preferred language |
-| Dashboard dropdown | Single dropdown with "Auto-detect" first | Clean UX; auto-detect as NULL simplifies logic |
-| Detection failure fallback | Continue in English | Safest fallback for US market |
-| Unsupported language | Store and use, fallback messages in English | Don't limit AI capabilities; gracefully degrade for system messages |
-| Storage format | Both BCP-47 and ISO 639-1 columns | Future-proof while keeping queries simple |
-| Migration approach | All existing lines get auto-detect (NULL) | Clean slate; no complex backfill |
-| Rollout | Full rollout immediately | Feature is low-risk and addresses critical churn issue |
-| Voicemail for auto-detect | English until language detected | Consistent experience; no bilingual voicemail complexity |
+### 8.1 API Failures
+
+| Scenario | Handling |
+|----------|----------|
+| OpenAI Moderation API timeout (1s) | Fail fast, treat verifier as 'uncertain' for SMS gating, log warning |
+| OpenAI Moderation API error | Fail fast, treat verifier as 'uncertain' for SMS gating, log error |
+| LLM Classifier timeout (3s) | Retry once on network error only |
+| LLM Classifier returns invalid JSON | Log error, return null result |
+| OpenAI API key not configured | Log warning, block SMS notifications (fail-closed), keep on-call user guidance unaffected |
+
+### 8.2 Job Queue Edge Cases
+
+| Scenario | Handling |
+|----------|----------|
+| Queue full (50 jobs) | Drop oldest job, log warning |
+| Same-reason job already pending | Deduplicate, return existing job ID |
+| Pod restart mid-job | Jobs lost (ephemeral), acceptable |
+| Call ends with pending jobs | Clear all jobs for session |
+
+### 8.3 Language Detection Edge Cases
+
+| Scenario | Handling |
+|----------|----------|
+| Language not yet detected | Start periodic sweeps; keyword scan uses EN/ES + script-based hints (Han/Hangul/Arabic/Devanagari) |
+| Language changes mid-call | Restart periodic sweep timer with new interval |
+| Code-switching detected | Always scan English + Spanish keywords regardless of detected language |
+| Unsupported language | Use 60s sweep interval, rely on model + English fallback |
+
+### 8.4 Verifier Decision Edge Cases
+
+| Scenario | Handling |
+|----------|----------|
+| Verifier returns 'uncertain' | Hold notification, do NOT send SMS |
+| Multiple independent high signals | If 2+ from different sources, consider second LLM pass |
+| Verifier confirms but SMS rate-limited | Increment blocked counter with 'rate_limited' reason |
+| No trusted contacts configured | Skip notification step, still log event |
 
 ---
 
-## 12. Critical Files Reference
+## 9. Observability
 
-| File | Purpose | Changes |
-|------|---------|---------|
-| `supabase/migrations/20260320000001_add_language_preference.sql` | Database migration | New file |
-| `packages/schemas/src/line.ts` | Zod validation | Add `preferredLanguageIso` field |
-| `src/lib/ultaura/types.ts` | TypeScript types | Add language fields to interfaces |
-| `src/lib/ultaura/constants.ts` | Constants | Add `LANGUAGE_OPTIONS` array |
-| `src/lib/ultaura/lines.ts` | Server actions | Handle language in create/update |
-| `telephony/src/services/language.ts` | Language service | New `getStartingLanguageForLine()`, `persistLanguageToLine()` |
-| `telephony/src/routes/tools/report-conversation-language.ts` | Tool handler | Add persistence logic for auto-detect |
-| `telephony/src/websocket/media-stream.ts` | WebSocket handler | Pass `isLanguageAutoDetect` to bridge |
-| `telephony/src/websocket/grok-bridge.ts` | Grok connection | Add `isLanguageAutoDetect` option |
-| `packages/prompts/src/profiles/index.ts` | Prompt compilation | Update `formatLanguageSection()` |
-| `telephony/src/utils/voicemail-messages.ts` | Voicemail messages | Accept `preferredLanguageIso` param |
-| `src/app/dashboard/(app)/lines/components/AddLineModal.tsx` | Line creation UI | Add language dropdown |
-| `src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx` | Line settings UI | Add language section |
+### 9.1 Prometheus Metrics Summary
+
+**Counters:**
+- `ultaura_safety_classifier_runs_total{reason, result}`
+- `ultaura_safety_classifier_triggers_total{source, tier}`
+- `ultaura_safety_verifier_disagreements_total{source, initial_tier, verifier}`
+- `ultaura_safety_notifications_blocked_total{reason}`
+- `ultaura_safety_notifications_sent_total{channel, tier}`
+
+**Histograms:**
+- `ultaura_safety_classifier_latency_ms{reason}`
+- `ultaura_safety_verifier_latency_ms`
+
+### 9.2 Structured Logging
+
+All safety-related logs include:
+- `callSessionId`
+- `lineId`
+- `language_code`
+- `trigger_reason`
+- `context_window_stats` (turns, chars)
+- `latency_ms`
+
+**Never logged:**
+- Raw transcript text
+- Full conversation content
+- PII or identifying information
+- Any model output that might contain user text (e.g., raw JSON response on parse failures)
+
+### 9.3 Database Event Storage
+
+The `ultaura_safety_events.signals` JSONB column stores:
+- Verifier decision and latency
+- Context window statistics
+- Rationale codes (not free text)
+- Imminent risk and plan/means flags
+
+---
+
+## 10. Assumptions
+
+### 10.1 Technical Assumptions
+
+1. **OpenAI API availability**: The OpenAI Moderation API is expected to be highly available with <1% error rate
+2. **Latency budgets**: 1s for moderation, 3s for classifier are acceptable for async processing
+3. **Memory constraints**: 50-job queue and 3 concurrent jobs fit within pod memory limits
+4. **Ephemeral job loss**: Acceptable that jobs are lost on pod restart (safety events still logged)
+
+### 10.2 Business Assumptions
+
+1. **Keyword coverage**: The provided multilingual keywords are clinically appropriate (should be reviewed by safety experts)
+2. **Exclusion patterns**: Spanish exclusions reduce false positives significantly for common expressions
+3. **Verifier threshold**: OpenAI Moderation API self-harm flags are reliable for gating SMS notifications
+4. **Feature flag**: Operators will enable `ULTAURA_MULTILINGUAL_SAFETY_ENABLED` after validating in staging
+
+### 10.3 Dependencies
+
+1. **Environment variables**:
+   - `ULTAURA_MULTILINGUAL_SAFETY_ENABLED` (global kill switch)
+   - `ULTAURA_SAFETY_SWEEPS_ENABLED` (optional, default true when safety enabled)
+   - `ULTAURA_SAFETY_CLASSIFIER_MODEL` (optional override)
+2. **OpenAI API key**: `OPENAI_API_KEY` must be configured (already required for embeddings)
+3. **Existing safety infrastructure**: Relies on existing `ultaura_safety_events` table and `notifyTrustedContacts` function
+
+---
+
+## 11. Critical Files Reference
+
+These are the key files an implementing agent needs to understand:
+
+| File | Purpose |
+|------|---------|
+| `packages/prompts/src/safety/keywords.ts` | Core file to modify: expand keywords to 10 languages |
+| `packages/prompts/src/safety/exclusions.ts` | Add Spanish exclusion patterns |
+| `packages/types/src/safety.ts` | Type definitions: add SafetySignals interface |
+| `telephony/src/websocket/grok-bridge.ts` | Core integration: extract keyword scanning, add triggers |
+| `telephony/src/routes/tools/safety-event.ts` | Critical: add verifier gate before SMS notification |
+| `telephony/src/services/ephemeral-buffer.ts` | Reference for context window building |
+| `telephony/src/services/safety-state.ts` | Safety state tracking per session |
+| `telephony/src/utils/metrics.ts` | Existing Prometheus metrics pattern |
+
+---
+
+## 12. Implementation Order
+
+Recommended implementation sequence:
+
+1. **Phase 1: Foundation**
+   - Create `safety-metrics.ts` (metrics infrastructure)
+   - Create `safety-keywords.ts` (extract from grok-bridge.ts)
+   - Add unit tests for keyword scanning
+
+2. **Phase 2: Keyword Expansion**
+   - Expand `keywords.ts` to 10 languages
+   - Add Spanish exclusions to `exclusions.ts`
+   - Update exports in `index.ts`
+   - Add multilingual keyword tests
+
+3. **Phase 3: Heuristics**
+   - Create `safety-heuristics.ts`
+   - Add heuristics unit tests
+   - Integrate with grok-bridge.ts
+
+4. **Phase 4: Verifier**
+   - Create `safety-verifier.ts`
+   - Add verifier unit tests
+   - Integrate with safety-event.ts
+
+5. **Phase 5: Classifier**
+   - Create `safety-classifier.ts`
+   - Add periodic sweep logic to grok-bridge.ts
+   - Integration testing
+
+6. **Phase 6: Database & Types**
+   - Create migration for new indexes/comments
+   - Update SafetySignals type
+   - End-to-end testing
+
+7. **Phase 7: Feature Flag & Rollout**
+   - Add `ULTAURA_MULTILINGUAL_SAFETY_ENABLED` checks
+   - Documentation updates
+   - Staging validation
