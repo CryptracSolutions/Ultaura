@@ -423,6 +423,9 @@ GET  /health                 - Health check with service status
 POST /internal/sms           - Internal SMS sending
 POST /internal/recordings    - Recording management
 POST /internal/exports       - Data export generation
+GET  /internal/scheduler-status - Scheduler lease status
+GET  /internal/active-calls  - Active call sessions on this pod
+GET  /internal/metrics       - Prometheus metrics (protected)
 ```
 
 **Grok Tool Endpoints** (45 tools in `/tools/*`):
@@ -509,6 +512,14 @@ The telephony backend includes 33 service modules:
 | `topic-exclusions.ts` | Topic filtering enforcement |
 | `weekly-summary.ts` | Weekly summary generation |
 | `wellness-alerts.ts` | Wellness alert triggering |
+
+## Operations Notes
+
+- WebSocket media streams require sticky sessions; ingress should hash on the `callSessionId` query param.
+- Scheduler leases include: `schedules`, `reminders`, `weekly-summaries`, `recording-deletions`, `embeddings`, `decay-job`.
+- Telephony pods drain active WebSocket calls on SIGTERM/SIGINT (30s max) before exit.
+- Internal ops endpoints (require `X-Webhook-Secret`): `/internal/scheduler-status`, `/internal/active-calls`, `/internal/metrics`.
+- Prometheus scraping should hit `/internal/metrics` with `X-Webhook-Secret` via ServiceMonitor `httpHeaders` + Secret.
 
 ## Security
 

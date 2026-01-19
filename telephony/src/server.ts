@@ -22,13 +22,16 @@ import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
 import { internalRecordingsRouter } from './routes/internal/recordings.js';
 import { internalExportsRouter } from './routes/internal/exports.js';
+import { internalOpsRouter } from './routes/internal/ops.js';
 import { validateWebSocketConnection, unregisterConnection } from './services/ws-security.js';
 import testRoutes from './routes/test.js';
+import { getActiveCallCount, getActiveCallSessionIds } from './services/active-calls.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
 import { validateTimezoneSupport } from './utils/timezone.js';
 import { logger } from './utils/logger.js';
 import { validateEnvVariables } from './utils/env-validator.js';
+import { callDrainWaitDuration } from './utils/metrics.js';
 
 // Re-export logger for use by other modules
 export { logger };
@@ -38,6 +41,7 @@ validateEnvVariables();
 
 // Create Express app
 const app = express();
+let shuttingDown = false;
 
 app.set('trust proxy', 1);
 
@@ -75,6 +79,14 @@ app.use((req, res, next) => {
 
 // Enhanced health check
 app.get('/health', async (_req, res) => {
+  if (shuttingDown) {
+    return res.status(503).json({
+      status: 'draining',
+      timestamp: new Date().toISOString(),
+      activeCallCount: getActiveCallCount(),
+    });
+  }
+
   const health: {
     status: 'healthy' | 'degraded' | 'unhealthy';
     timestamp: string;
@@ -135,6 +147,7 @@ app.use('/verify', verifyRouter);
 app.use('/internal', internalSmsRouter);
 app.use('/internal', internalRecordingsRouter);
 app.use('/internal', internalExportsRouter);
+app.use('/internal', internalOpsRouter);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/test', testRoutes);
 }
@@ -193,6 +206,8 @@ wss.on('error', (error) => {
 
 // Start server
 const PORT = process.env.PORT || 3001;
+const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 30_000;
+const DRAIN_CHECK_INTERVAL_MS = 1_000;
 
 const REQUIRED_TIMEZONES = [
   'America/New_York',
@@ -223,31 +238,70 @@ server.listen(PORT, () => {
   startMemoryDecayJob();
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  logger.info({ signal, activeCallCount: getActiveCallCount() }, 'Shutdown signal received, starting graceful shutdown');
+
   stopScheduler();
   stopWeeklySummaryScheduler();
   stopRecordingDeletionScheduler();
   stopEmbeddingJob();
   stopMemoryDecayJob();
+
+  const startTime = Date.now();
+  let waited = false;
+
+  while (getActiveCallCount() > 0) {
+    waited = true;
+    const elapsed = Date.now() - startTime;
+
+    if (elapsed >= GRACEFUL_SHUTDOWN_TIMEOUT_MS) {
+      logger.warn({
+        remainingCalls: getActiveCallCount(),
+        callSessionIds: getActiveCallSessionIds(),
+      }, 'Graceful shutdown timeout - forcing closure');
+      break;
+    }
+
+    logger.info({
+      activeCallCount: getActiveCallCount(),
+      elapsedMs: elapsed,
+      remainingMs: GRACEFUL_SHUTDOWN_TIMEOUT_MS - elapsed,
+    }, 'Waiting for active calls to drain');
+
+    await sleep(DRAIN_CHECK_INTERVAL_MS);
+  }
+
+  if (waited) {
+    const waitSeconds = (Date.now() - startTime) / 1000;
+    callDrainWaitDuration.observe(waitSeconds);
+  }
+
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
   });
+
+  setTimeout(() => {
+    logger.error('Forced exit after server.close timeout');
+    process.exit(1);
+  }, 5000);
+}
+
+process.on('SIGTERM', () => {
+  void gracefulShutdown('SIGTERM');
 });
 
 process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  stopScheduler();
-  stopWeeklySummaryScheduler();
-  stopRecordingDeletionScheduler();
-  stopEmbeddingJob();
-  stopMemoryDecayJob();
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
+  void gracefulShutdown('SIGINT');
 });
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export { app, server };

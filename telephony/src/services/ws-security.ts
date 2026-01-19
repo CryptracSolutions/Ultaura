@@ -1,6 +1,7 @@
 import { IncomingMessage } from 'http';
 import { WebSocket } from 'ws';
 import { logger } from '../utils/logger.js';
+import { activeWebSocketConnections } from '../utils/metrics.js';
 import { validateStreamToken } from './stream-token.js';
 import { sendSecurityAlert } from './ws-security-alerts.js';
 
@@ -33,11 +34,20 @@ interface SecurityValidationResult {
 const activeConnections = new Map<string, WebSocket>();
 const CONNECTION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
+function updateActiveConnectionMetrics(): void {
+  activeWebSocketConnections.set(activeConnections.size);
+}
+
 const cleanupTimer = setInterval(() => {
+  let removed = false;
   for (const [callSessionId, ws] of activeConnections.entries()) {
     if (ws.readyState !== WebSocket.OPEN) {
       activeConnections.delete(callSessionId);
+      removed = true;
     }
+  }
+  if (removed) {
+    updateActiveConnectionMetrics();
   }
 }, CONNECTION_CLEANUP_INTERVAL_MS);
 
@@ -144,6 +154,7 @@ export function registerConnection(callSessionId: string, ws: WebSocket): boolea
   }
 
   activeConnections.set(callSessionId, ws);
+  updateActiveConnectionMetrics();
   return true;
 }
 
@@ -154,6 +165,7 @@ export function unregisterConnection(callSessionId: string, ws: WebSocket): void
   }
 
   activeConnections.delete(callSessionId);
+  updateActiveConnectionMetrics();
 }
 
 function hasActiveConnection(callSessionId: string): boolean {
@@ -167,6 +179,7 @@ function hasActiveConnection(callSessionId: string): boolean {
   }
 
   activeConnections.delete(callSessionId);
+  updateActiveConnectionMetrics();
   return false;
 }
 

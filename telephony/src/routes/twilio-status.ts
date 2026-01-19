@@ -156,6 +156,19 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
           }, 'Twilio call error');
         }
 
+        if (session.status === 'in_progress' && !session.end_reason) {
+          logger.warn({
+            sessionId: session.id,
+            callSid: CallSid,
+            status: CallStatus,
+          }, 'Call ended unexpectedly while in progress');
+          await completeCallSession(session.id, {
+            endReason: 'error',
+            endedAt: Timestamp || new Date().toISOString(),
+          });
+          break;
+        }
+
         await failCallSession(session.id, endReason);
         break;
       }

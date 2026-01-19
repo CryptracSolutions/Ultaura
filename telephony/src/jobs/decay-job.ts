@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getSupabaseClient } from '../utils/supabase.js';
 import { logger } from '../utils/logger.js';
 import { applyMemoryDecayForAllLines } from '../services/memory-decay.js';
+import { activeLeases, leaseAcquisitions, leaseHoldDuration } from '../utils/metrics.js';
 
 const DECAY_CRON = process.env.ULTAURA_DECAY_CRON || '0 3 * * *';
 const MEMORY_DECAY_ENABLED = process.env.ULTAURA_MEMORY_DECAY_ENABLED !== 'false';
@@ -22,17 +23,25 @@ async function withLease(task: () => Promise<void>): Promise<void> {
   });
 
   if (error) {
+    leaseAcquisitions.labels(LEASE_ID, WORKER_ID, 'error').inc();
     logger.error({ error }, 'Failed to acquire decay job lease');
     return;
   }
 
   if (!acquired) {
+    leaseAcquisitions.labels(LEASE_ID, WORKER_ID, 'held').inc();
     return;
   }
+
+  leaseAcquisitions.labels(LEASE_ID, WORKER_ID, 'acquired').inc();
+  activeLeases.labels(LEASE_ID).set(1);
+  const leaseStart = Date.now();
 
   try {
     await task();
   } finally {
+    activeLeases.labels(LEASE_ID).set(0);
+    leaseHoldDuration.labels(LEASE_ID).observe((Date.now() - leaseStart) / 1000);
     await supabase.rpc('release_scheduler_lease', {
       p_lease_id: LEASE_ID,
       p_worker_id: WORKER_ID,

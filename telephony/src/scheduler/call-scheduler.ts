@@ -11,6 +11,7 @@ import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-l
 import { recalculateBaselinesForAllLines } from '../services/baseline.js';
 import { runPersonaAnalyzerForAllLines } from '../services/persona-analyzer.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
+import { activeLeases, leaseAcquisitions, leaseHoldDuration } from '../utils/metrics.js';
 
 // Configuration
 const POLL_INTERVAL_MS = 30_000; // 30 seconds
@@ -226,14 +227,20 @@ async function processWithLease(
   );
 
   if (leaseError) {
+    leaseAcquisitions.labels(leaseId, WORKER_ID, 'error').inc();
     logger.error({ error: leaseError, leaseId }, 'Failed to acquire lease');
     return;
   }
 
   if (!acquired) {
+    leaseAcquisitions.labels(leaseId, WORKER_ID, 'held').inc();
     logger.debug({ leaseId, workerId: WORKER_ID }, 'Lease held by another worker');
     return;
   }
+
+  leaseAcquisitions.labels(leaseId, WORKER_ID, 'acquired').inc();
+  activeLeases.labels(leaseId).set(1);
+  const leaseStart = Date.now();
 
   logger.debug({ leaseId, workerId: WORKER_ID }, 'Acquired scheduler lease');
 
@@ -261,6 +268,9 @@ async function processWithLease(
     clearInterval(heartbeat);
     heartbeatIntervals = heartbeatIntervals.filter(h => h !== heartbeat);
 
+    activeLeases.labels(leaseId).set(0);
+    leaseHoldDuration.labels(leaseId).observe((Date.now() - leaseStart) / 1000);
+
     // Release lease
     const { error: releaseError } = await supabase.rpc('release_scheduler_lease', {
       p_lease_id: leaseId,
@@ -285,6 +295,9 @@ async function releaseAllLeases(): Promise<void> {
     supabase.rpc('release_scheduler_lease', { p_lease_id: 'schedules', p_worker_id: WORKER_ID }),
     supabase.rpc('release_scheduler_lease', { p_lease_id: 'reminders', p_worker_id: WORKER_ID }),
   ]);
+
+  activeLeases.labels('schedules').set(0);
+  activeLeases.labels('reminders').set(0);
 }
 
 /**

@@ -14,6 +14,7 @@ import { getLastDetectedLanguageForLine } from '../services/language.js';
 import { getAccountPrivacySettings, getLineVoiceConsent, updateLineVoiceConsent, logConsentAuditEvent } from '../services/privacy.js';
 import { buildRetentionContext, type RetentionContext } from '../services/retention-context.js';
 import { buildPromptPlaceholders } from '../services/prompt-context.js';
+import { registerActiveCall, unregisterActiveCall } from '../services/active-calls.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
 import { redactSensitive, summarizeArgs } from '../utils/redact.js';
@@ -180,6 +181,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
           streamSid = message.start?.streamSid || null;
           callSid = message.start?.callSid || null;
           logger.info({ callSessionId, streamSid }, 'Twilio stream started');
+          registerActiveCall(callSessionId);
 
           // Initialize Grok bridge
           try {
@@ -481,6 +483,13 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               }
 
               logger.error({ callSessionId }, 'Grok reconnection failed, ending call');
+              logger.error({
+                event: 'call_pod_failure',
+                callSessionId,
+                reconnectAttempts,
+                podName: process.env.HOSTNAME,
+                timestamp: new Date().toISOString(),
+              }, 'Call ended due to pod failure');
 
               const failedMessage = getFallbackMessage(detectedLanguage, 'retry_failed');
               await playFallbackTTS(callSid, failedMessage, detectedLanguage, { hangup: true });
@@ -683,6 +692,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
       return;
     }
 
+    unregisterActiveCall(callSessionId);
     unregisterGrokBridge(callSessionId);
 
     const duration = connectedAt
