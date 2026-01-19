@@ -12,6 +12,14 @@ const RECOMMENDED_ACTIONS: Record<string, string> = {
     'An IP address has been rate-limited. If this is a legitimate user, they can retry after the cooldown window.',
   enumeration:
     'Potential phone number enumeration detected. Review the source IP. Consider adding it to a blocklist if malicious.',
+  ws_security_non_twilio_ip:
+    'WebSocket connection attempted from a non-Twilio IP. In audit mode, review logs for the source IP. If legitimate, add it to TWILIO_MEDIA_IP_ALLOWLIST. If malicious, no action needed when enforce mode is enabled.',
+  ws_security_duplicate_connection:
+    'Multiple WebSocket connections attempted for the same call session. This could indicate a replay attack or Twilio reconnection. Review call logs and escalate if the pattern persists.',
+  ws_security_invalid_token:
+    'WebSocket connection with an invalid token signature from a Twilio IP range. Verify token generation and validation, and check for clock skew.',
+  ws_security_expired_token:
+    'WebSocket connection with an expired token. Usually indicates network delays or clock skew. If frequent, consider increasing token lifetime.',
 };
 
 function formatAnomalyType(type: string): string {

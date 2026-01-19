@@ -22,6 +22,7 @@ import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
 import { internalRecordingsRouter } from './routes/internal/recordings.js';
 import { internalExportsRouter } from './routes/internal/exports.js';
+import { validateWebSocketConnection, unregisterConnection } from './services/ws-security.js';
 import testRoutes from './routes/test.js';
 import { getSupabaseClient } from './utils/supabase.js';
 import { getTwilioClient } from './utils/twilio.js';
@@ -154,18 +155,36 @@ const wss = new WebSocketServer({
 });
 
 // Handle WebSocket connections
-wss.on('connection', (ws, req) => {
-  const url = new URL(req.url || '', `http://${req.headers.host}`);
-  const callSessionId = url.searchParams.get('callSessionId');
+wss.on('connection', async (ws, req) => {
+  try {
+    const url = new URL(req.url || '', `http://${req.headers.host ?? 'localhost'}`);
+    const callSessionId = url.searchParams.get('callSessionId');
+    const token = url.searchParams.get('token');
 
-  if (!callSessionId) {
-    logger.error('WebSocket connection without callSessionId');
-    ws.close(1008, 'Missing callSessionId');
-    return;
+    if (!callSessionId) {
+      logger.error('WebSocket connection without callSessionId');
+      ws.close(1008, 'Connection rejected');
+      return;
+    }
+
+    const validation = await validateWebSocketConnection(req, callSessionId, token, ws);
+
+    if (!validation.allowed) {
+      logger.warn({ callSessionId }, 'WebSocket connection rejected by security');
+      ws.close(1008, 'Connection rejected');
+      return;
+    }
+
+    ws.on('close', () => {
+      unregisterConnection(callSessionId, ws);
+    });
+
+    logger.info({ callSessionId }, 'WebSocket connection established');
+    handleMediaStreamConnection(ws, callSessionId);
+  } catch (error) {
+    logger.error({ error }, 'WebSocket connection error');
+    ws.close(1011, 'Internal error');
   }
-
-  logger.info({ callSessionId }, 'WebSocket connection established');
-  handleMediaStreamConnection(ws, callSessionId);
 });
 
 wss.on('error', (error) => {

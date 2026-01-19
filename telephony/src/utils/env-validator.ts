@@ -14,6 +14,11 @@ const ULTAURA_ENV_VARS: EnvVariable[] = [
   { name: 'ULTAURA_BACKEND_URL', required: true, format: 'url' },
   { name: 'ULTAURA_PUBLIC_URL', required: true, format: 'url' },
   { name: 'ULTAURA_WEBSOCKET_URL', required: true, format: 'wss' },
+  { name: 'ULTAURA_STREAM_TOKEN_SECRET', required: true, format: 'min32' },
+  { name: 'ULTAURA_STREAM_TOKEN_SECRET_PREVIOUS', required: false, format: 'min32' },
+  { name: 'ULTAURA_WS_SECURITY_MODE', required: false },
+  { name: 'TWILIO_MEDIA_IP_ALLOWLIST', required: false },
+  { name: 'TWILIO_MEDIA_IP_ALLOW_UNKNOWN', required: false, format: 'boolean' },
 
   // Required - External Services
   { name: 'XAI_API_KEY', required: true },

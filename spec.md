@@ -1,741 +1,1333 @@
-# Specification: Fix Sensitive Data Leaks in Debug Logging System
+# WebSocket Security Specification for `/twilio/media` Endpoint
 
-## Objective
+## 1. Objective and Scope
 
-Fix sensitive data leaks in the Ultaura telephony backend's debug logging system by:
-1. Preventing raw tool arguments from being logged to `ultaura_debug_logs` table
-2. Changing defaults to prevent accidental sensitive data logging
-3. Adding CI guardrails to prevent future regressions
-4. Reducing retention period for debug logs
+### 1.1 Objective
 
-## Scope
+Secure the `/twilio/media` WebSocket endpoint against unauthorized access, preventing:
+- Audio injection into active calls
+- Eavesdropping on conversations
+- Cost abuse through unauthorized usage
+- Session hijacking via ID guessing
 
-This specification covers changes to the telephony backend (`/telephony/`) only. The changes are security-focused and do not affect the call flow, tool functionality, or user-facing features.
+### 1.2 In Scope
 
----
+- Stream token authentication (HMAC-based)
+- IP allowlisting for Twilio Media Streams
+- Per-call connection cap (single connection per session)
+- Audit mode for gradual rollout
+- Security event logging and alerting
+- Both inbound and outbound call flows
 
-## Technical Requirements
+### 1.3 Out of Scope
 
-### Requirement 1: Redact Tool Arguments in Debug Logs
-
-**Problem**: In `/telephony/src/websocket/media-stream.ts` (lines 367-386), the `onToolCall` handler logs raw tool arguments to `recordDebugEvent()`:
-
-```typescript
-// Current problematic code (line 374-386):
-await recordDebugEvent(
-  callSessionId,
-  'tool_call',
-  { tool: toolName, args },  // <-- RAW ARGS LEAKED
-  {
-    line_id: line.id,
-    phone_number_last4: phoneLast4,
-  },
-  {
-    accountId: account.id,
-    toolName,
-  }
-);
-```
-
-Meanwhile, console logging on line 371 correctly uses `redactSensitive(args)`.
-
-**Sensitive data exposed**: Tool arguments contain health mentions, memories, mood/cognitive data, relationship details, reminder messages, and other PII/PHI.
-
-**Solution**: Create a `summarizeArgs()` utility function that generates a safe summary of arguments without exposing actual values.
-
-### Requirement 2: Change `skipDebugLog` Default to `true`
-
-**Problem**: In `/telephony/src/services/call-session.ts` (lines 591-593), `recordCallEvent()` calls `recordDebugEvent()` by default unless `skipDebugLog: true` is passed.
-
-**Current behavior**:
-- All 45 tool handlers already pass `{ skipDebugLog: true }` - GOOD
-- But the default is `false`, meaning new code or forgotten flags could leak data
-
-**Solution**: Change the default to `true` so debug logging must be explicitly opted-in.
-
-### Requirement 3: Reduce Debug Log Retention
-
-**Problem**: In `/telephony/src/scheduler/call-scheduler.ts` (lines 21-22, 146-168), debug logs are retained for 7 days:
-
-```typescript
-const DEBUG_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;  // 7 days
-```
-
-**Solution**: Reduce retention to 3 days to minimize exposure window for any leaked data.
-
-### Requirement 4: Add CI Guardrails
-
-**Problem**: No automated checks exist to prevent developers from accidentally logging sensitive data.
-
-**Solution**: Create a shell script that scans for dangerous patterns and add it to the CI workflow.
+- Changes to HTTP webhook authentication (already uses Twilio signature validation)
+- Modifications to Grok bridge or xAI integration
+- Database schema changes
+- Client-side changes (Twilio manages the WebSocket client)
+- mTLS or client certificate authentication
 
 ---
 
-## Implementation Details
+## 2. Threat Model
 
-### File 1: `/telephony/src/utils/redact.ts`
+### 2.1 Threats Addressed
 
-**Changes**:
-1. Add new `summarizeArgs()` function
-2. Add inline documentation explaining security rationale
-3. Expand `SENSITIVE_KEYS` list
+| Threat | Risk Level | Mitigation |
+|--------|------------|------------|
+| Session ID enumeration/guessing | High | HMAC token with expiry |
+| Replay attacks | Medium | 5-minute token expiry |
+| Non-Twilio connections | High | IP allowlisting |
+| Multiple connections hijacking | Medium | Per-call connection cap |
+| Key compromise | Medium | Dual-key rotation support |
 
-**Add at top of file (after existing imports)**:
-```typescript
-/**
- * SECURITY NOTE: This module provides data redaction utilities to prevent
- * sensitive information (PII, PHI, conversation content) from being logged
- * to debug tables or external systems.
- *
- * The summarizeArgs() function creates a safe summary of tool arguments
- * that preserves debugging value (key names, types, sizes) without exposing
- * actual values. This is critical because tool arguments may contain:
- * - Health information (medications, conditions)
- * - Memory content (personal stories, relationships)
- * - Mood/cognitive observations
- * - Reminder messages
- * - Relationship details
- */
+### 2.2 Attack Vectors
+
+1. **Brute-force session ID guessing**: Attacker attempts random UUIDs
+2. **Session ID leakage**: Attacker obtains valid session ID from logs/network
+3. **Man-in-the-middle**: Attacker intercepts and replays connection
+4. **Parallel connection hijacking**: Attacker connects while legitimate call in progress
+5. **Non-Twilio source**: Attacker connects from unauthorized IP
+
+### 2.3 Trust Boundaries
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        UNTRUSTED ZONE                           │
+│   ┌─────────────┐                      ┌─────────────────────┐ │
+│   │  Attacker   │                      │  Unknown IP Source  │ │
+│   └─────────────┘                      └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    WebSocket Connection
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     VALIDATION LAYER                            │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐│
+│   │ Token Auth  │  │ IP Check    │  │ Connection Cap Check    ││
+│   └─────────────┘  └─────────────┘  └─────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       TRUSTED ZONE                              │
+│   ┌─────────────────────┐      ┌────────────────────────────┐  │
+│   │  Twilio Media       │      │  Grok Bridge / Call Logic  │  │
+│   └─────────────────────┘      └────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Add new SENSITIVE_KEYS** (expand existing Set on lines 47-68):
-```typescript
-const SENSITIVE_KEYS = new Set([
-  // Existing keys...
-  'transcript',
-  'transcripts',
-  'memory',
-  'memories',
-  'value',
-  'new_value',
-  'what_to_forget',
-  'what_to_keep_private',
-  'clarification',
-  'mood_overall',
-  'mood_intensity',
-  'engagement_score',
-  'social_need_level',
-  'topics',
-  'concerns',
-  'needs_follow_up',
-  'follow_up_reasons',
-  'private_topics',
-  'confidence_overall',
-  'topic_code',
-  // NEW keys to add:
-  'message',
-  'content',
-  'text',
-  'summary',
-  'narrative',
-  'args',
-  'context',
-  'response_given',
-  'observation',
-  'notes',
-  'description',
-]);
+---
+
+## 3. Technical Requirements
+
+### 3.1 Stream Token Authentication
+
+| Requirement | Description |
+|-------------|-------------|
+| Algorithm | HMAC-SHA256 |
+| Payload | `callSessionId` + expiry timestamp (Unix seconds) |
+| Lifetime | 5 minutes from generation |
+| Delivery | Query parameter (`token`) |
+| Key rotation | Support current + previous secret validation |
+
+### 3.2 IP Allowlisting
+
+| Requirement | Description |
+|-------------|-------------|
+| Default behavior | Block connections from non-Twilio IPs |
+| Twilio ranges | Hardcoded in source, overridable via env var |
+| Development bypass | Allow all IPs when `TWILIO_MEDIA_IP_ALLOW_UNKNOWN=true` |
+| Validation | Check against CIDR ranges |
+
+### 3.3 Per-Call Connection Cap
+
+| Requirement | Description |
+|-------------|-------------|
+| Maximum connections | 1 per callSessionId |
+| Conflict resolution | First connection wins |
+| Tracking | In-memory Map (extend grok-bridge-registry pattern) |
+| Cleanup | Remove on connection close |
+
+### 3.4 Rollout Mode
+
+| Requirement | Description |
+|-------------|-------------|
+| Modes | `audit` (log only) or `enforce` (reject) |
+| Default | `audit` |
+| Configuration | `ULTAURA_WS_SECURITY_MODE` env var |
+| Mixed signals | Follow mode (e.g., bad token + good IP = mode determines action) |
+
+---
+
+## 4. Architecture
+
+### 4.1 Component Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         TwiML Generation                             │
+│  ┌─────────────────────┐              ┌─────────────────────┐        │
+│  │ twilio-inbound.ts   │              │ twilio-outbound.ts  │        │
+│  │ generateStreamTwiML │              │ generateStreamTwiML │        │
+│  └──────────┬──────────┘              └──────────┬──────────┘        │
+│             │                                    │                   │
+│             └────────────────┬───────────────────┘                   │
+│                              ▼                                       │
+│                    ┌─────────────────┐                               │
+│                    │ stream-token.ts │  (NEW)                        │
+│                    │ generateToken() │                               │
+│                    └─────────────────┘                               │
+└──────────────────────────────────────────────────────────────────────┘
+                               │
+                    WebSocket URL with token
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                      WebSocket Security Layer                        │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                         server.ts                              │  │
+│  │                    wss.on('connection')                        │  │
+│  │                              │                                 │  │
+│  │    ┌─────────────────────────┼─────────────────────────┐       │  │
+│  │    ▼                         ▼                         ▼       │  │
+│  │ ┌──────────┐         ┌──────────────┐         ┌─────────────┐ │  │
+│  │ │validateIP│         │validateToken │         │checkConnCap │ │  │
+│  │ └──────────┘         └──────────────┘         └─────────────┘ │  │
+│  │    │                         │                         │       │  │
+│  │    └─────────────────────────┴─────────────────────────┘       │  │
+│  │                              │                                 │  │
+│  │                              ▼                                 │  │
+│  │                    ┌─────────────────┐                         │  │
+│  │                    │ ws-security.ts  │ (NEW)                   │  │
+│  │                    │ validateWsConn  │                         │  │
+│  │                    └─────────────────┘                         │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                              │                                       │
+│                              ▼                                       │
+│                    handleMediaStreamConnection()                     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-**Add new `summarizeArgs()` function** (add after `redactSensitive()` function, around line 137):
+### 4.2 Validation Flow
+
+```
+Connection Request
+       │
+       ▼
+┌──────────────────┐
+│ Extract IP from  │
+│ req.socket       │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐     ┌─────────────────┐
+│ Check IP against │────▶│ Log IP result   │
+│ allowlist        │     │ (pass/fail/dev) │
+└────────┬─────────┘     └─────────────────┘
+         │
+         ▼
+┌──────────────────┐     ┌─────────────────┐
+│ Extract & verify │────▶│ Log token result│
+│ HMAC token       │     │ (valid/expired/ │
+└────────┬─────────┘     │  invalid/missing│
+         │               └─────────────────┘
+         ▼
+┌──────────────────┐     ┌─────────────────┐
+│ Check connection │────▶│ Log cap result  │
+│ cap for session  │     │ (first/dup)     │
+└────────┬─────────┘     └─────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Security Mode?   │
+├──────────────────┤
+│ AUDIT: Log+Allow │
+│ ENFORCE: Reject  │
+└────────┬─────────┘
+         │
+         ▼
+   Continue/Reject
+```
+
+---
+
+## 5. Implementation Details
+
+### 5.1 New Files to Create
+
+#### `telephony/src/services/stream-token.ts`
+
 ```typescript
-/**
- * Creates a safe summary of tool arguments for debug logging.
- *
- * SECURITY: This function prevents sensitive data leakage by only exposing:
- * - Argument key names
- * - Data types (string, number, boolean, array, object, null, undefined)
- * - Approximate byte sizes for strings and arrays
- * - One level deep for nested objects (shown as 'object' type with total size)
- *
- * Example output:
- * {
- *   memoryType: { type: 'string', size: 12 },
- *   key: { type: 'string', size: 8 },
- *   value: { type: 'string', size: 156 },
- *   metadata: { type: 'object', size: 423 }
- * }
- *
- * @param args - The raw tool arguments to summarize
- * @returns A safe summary object suitable for debug logging
- */
-export function summarizeArgs(
-  args: Record<string, unknown>
-): Record<string, { type: string; size?: number }> {
-  const summary: Record<string, { type: string; size?: number }> = {};
+import crypto from 'crypto';
+import { logger } from '../server.js';
 
-  for (const [key, value] of Object.entries(args)) {
-    summary[key] = summarizeValue(value);
-  }
-
-  return summary;
+interface TokenPayload {
+  callSessionId: string;
+  exp: number; // Unix timestamp (seconds)
 }
 
-/**
- * Summarizes a single value, returning its type and approximate size.
- * For nested objects, only goes one level deep.
- */
-function summarizeValue(value: unknown): { type: string; size?: number } {
-  if (value === null) {
-    return { type: 'null' };
-  }
-
-  if (value === undefined) {
-    return { type: 'undefined' };
-  }
-
-  if (typeof value === 'string') {
-    return { type: 'string', size: Buffer.byteLength(value, 'utf8') };
-  }
-
-  if (typeof value === 'number') {
-    return { type: 'number' };
-  }
-
-  if (typeof value === 'boolean') {
-    return { type: 'boolean' };
-  }
-
-  if (Array.isArray(value)) {
-    // Calculate total size of array contents
-    const size = estimateSize(value);
-    return { type: 'array', size };
-  }
-
-  if (typeof value === 'object') {
-    // For objects, just report total size (one level deep only)
-    const size = estimateSize(value);
-    return { type: 'object', size };
-  }
-
-  return { type: typeof value };
+interface TokenValidationResult {
+  valid: boolean;
+  reason: 'valid' | 'expired' | 'invalid_signature' | 'malformed' | 'missing';
+  callSessionId?: string;
 }
 
-/**
- * Estimates the byte size of a value by JSON stringifying it.
- * Returns 0 if estimation fails (e.g., circular references).
- */
-function estimateSize(value: unknown): number {
-  try {
-    return Buffer.byteLength(JSON.stringify(value), 'utf8');
-  } catch {
-    return 0;
+const TOKEN_LIFETIME_SECONDS = 300; // 5 minutes
+
+function getSecrets(): { current: string; previous: string | null } {
+  const current = process.env.ULTAURA_STREAM_TOKEN_SECRET;
+  const previous = process.env.ULTAURA_STREAM_TOKEN_SECRET_PREVIOUS || null;
+
+  if (!current) {
+    throw new Error('ULTAURA_STREAM_TOKEN_SECRET is required');
   }
+
+  return { current, previous };
+}
+
+function createHmac(payload: string, secret: string): string {
+  return crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('base64url');
+}
+
+export function generateStreamToken(callSessionId: string): string {
+  const { current } = getSecrets();
+  const exp = Math.floor(Date.now() / 1000) + TOKEN_LIFETIME_SECONDS;
+  const payload = `${callSessionId}.${exp}`;
+  const signature = createHmac(payload, current);
+  return `${payload}.${signature}`;
+}
+
+export function validateStreamToken(
+  token: string | null,
+  expectedCallSessionId: string
+): TokenValidationResult {
+  if (!token) {
+    return { valid: false, reason: 'missing' };
+  }
+
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    return { valid: false, reason: 'malformed' };
+  }
+
+  const [callSessionId, expStr, signature] = parts;
+  const exp = parseInt(expStr, 10);
+
+  if (isNaN(exp)) {
+    return { valid: false, reason: 'malformed' };
+  }
+
+  if (callSessionId !== expectedCallSessionId) {
+    return { valid: false, reason: 'invalid_signature' };
+  }
+
+  // Check expiry
+  const now = Math.floor(Date.now() / 1000);
+  if (now > exp) {
+    return { valid: false, reason: 'expired', callSessionId };
+  }
+
+  // Verify signature with current key
+  const { current, previous } = getSecrets();
+  const payload = `${callSessionId}.${expStr}`;
+  const expectedSig = createHmac(payload, current);
+
+  if (crypto.timingSafeEqual(
+    Buffer.from(signature, 'base64url'),
+    Buffer.from(expectedSig, 'base64url')
+  )) {
+    return { valid: true, reason: 'valid', callSessionId };
+  }
+
+  // Try previous key for rotation support
+  if (previous) {
+    const previousSig = createHmac(payload, previous);
+    if (crypto.timingSafeEqual(
+      Buffer.from(signature, 'base64url'),
+      Buffer.from(previousSig, 'base64url')
+    )) {
+      logger.info({ callSessionId }, 'Token validated with previous secret');
+      return { valid: true, reason: 'valid', callSessionId };
+    }
+  }
+
+  return { valid: false, reason: 'invalid_signature', callSessionId };
 }
 ```
 
-### File 2: `/telephony/src/websocket/media-stream.ts`
+#### `telephony/src/services/ws-security.ts`
 
-**Changes**: Update the `onToolCall` handler (lines 374-386) to use `summarizeArgs()` instead of raw `args`.
-
-**Current code (lines 374-386)**:
 ```typescript
-await recordDebugEvent(
-  callSessionId,
-  'tool_call',
-  { tool: toolName, args },
-  {
-    line_id: line.id,
-    phone_number_last4: phoneLast4,
-  },
-  {
-    accountId: account.id,
-    toolName,
+import { IncomingMessage } from 'http';
+import { WebSocket } from 'ws';
+import { logger } from '../server.js';
+import { validateStreamToken } from './stream-token.js';
+import { sendSecurityAlert } from './ws-security-alerts.js';
+
+// Twilio Media Streams IP ranges (as of 2024)
+// Source: https://www.twilio.com/docs/sip-trunking/ip-addresses
+const DEFAULT_TWILIO_IP_RANGES = [
+  // Global Media IP Gateway
+  '168.86.128.0/18',
+  // Legacy Media Streams ranges (may still be active)
+  '34.203.254.0/24',
+  '3.235.111.128/25',
+];
+
+interface IpCheckResult {
+  allowed: boolean;
+  reason: 'twilio' | 'override' | 'development' | 'unknown';
+  ip: string;
+}
+
+interface SecurityValidationResult {
+  allowed: boolean;
+  ipCheck: IpCheckResult;
+  tokenCheck: {
+    valid: boolean;
+    reason: string;
+  };
+  connectionCapCheck: {
+    allowed: boolean;
+    reason: 'first' | 'duplicate';
+  };
+  mode: 'audit' | 'enforce';
+}
+
+// In-memory connection tracking
+const activeConnections = new Map<string, WebSocket>();
+
+function getSecurityMode(): 'audit' | 'enforce' {
+  const mode = process.env.ULTAURA_WS_SECURITY_MODE?.toLowerCase();
+  return mode === 'enforce' ? 'enforce' : 'audit';
+}
+
+function parseCIDR(cidr: string): { network: bigint; mask: bigint } | null {
+  const [ip, prefixStr] = cidr.split('/');
+  const prefix = parseInt(prefixStr, 10);
+
+  if (isNaN(prefix) || prefix < 0 || prefix > 32) return null;
+
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) {
+    return null;
   }
-);
-```
 
-**Updated code**:
-```typescript
-import { redactSensitive, summarizeArgs } from '../utils/redact.js';
+  const network = BigInt(
+    (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]
+  );
+  const mask = BigInt(0xFFFFFFFF << (32 - prefix)) & BigInt(0xFFFFFFFF);
 
-// ... in onToolCall handler ...
+  return { network: network & mask, mask };
+}
 
-await recordDebugEvent(
-  callSessionId,
-  'tool_call',
-  { tool: toolName, argsSummary: summarizeArgs(args) },
-  {
-    line_id: line.id,
-    phone_number_last4: phoneLast4,
-  },
-  {
-    accountId: account.id,
-    toolName,
+function ipToBigInt(ip: string): bigint | null {
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) {
+    return null;
   }
-);
+  return BigInt(
+    (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]
+  );
+}
+
+function isIpInCIDR(ip: string, cidr: string): boolean {
+  const ipNum = ipToBigInt(ip);
+  const range = parseCIDR(cidr);
+
+  if (ipNum === null || range === null) return false;
+
+  return (ipNum & range.mask) === range.network;
+}
+
+function getTwilioIpRanges(): string[] {
+  const override = process.env.TWILIO_MEDIA_IP_ALLOWLIST;
+  if (override) {
+    return override.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return DEFAULT_TWILIO_IP_RANGES;
+}
+
+function checkIpAllowlist(ip: string): IpCheckResult {
+  // Development bypass
+  if (process.env.TWILIO_MEDIA_IP_ALLOW_UNKNOWN === 'true') {
+    return { allowed: true, reason: 'development', ip };
+  }
+
+  const ranges = getTwilioIpRanges();
+  const isOverride = !!process.env.TWILIO_MEDIA_IP_ALLOWLIST;
+
+  for (const range of ranges) {
+    if (isIpInCIDR(ip, range)) {
+      return {
+        allowed: true,
+        reason: isOverride ? 'override' : 'twilio',
+        ip
+      };
+    }
+  }
+
+  return { allowed: false, reason: 'unknown', ip };
+}
+
+function extractClientIp(req: IncomingMessage): string {
+  // Check for forwarded headers (behind proxy/load balancer)
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    return first.trim();
+  }
+
+  // Direct connection
+  const remoteAddr = req.socket.remoteAddress || 'unknown';
+  // Strip IPv6 prefix if present
+  return remoteAddr.replace(/^::ffff:/, '');
+}
+
+export function registerConnection(callSessionId: string, ws: WebSocket): boolean {
+  if (activeConnections.has(callSessionId)) {
+    return false; // Duplicate
+  }
+  activeConnections.set(callSessionId, ws);
+  return true;
+}
+
+export function unregisterConnection(callSessionId: string): void {
+  activeConnections.delete(callSessionId);
+}
+
+export function hasActiveConnection(callSessionId: string): boolean {
+  const existing = activeConnections.get(callSessionId);
+  if (!existing) return false;
+
+  // Check if the connection is still open
+  if (existing.readyState === WebSocket.OPEN) {
+    return true;
+  }
+
+  // Clean up stale entry
+  activeConnections.delete(callSessionId);
+  return false;
+}
+
+export async function validateWebSocketConnection(
+  req: IncomingMessage,
+  callSessionId: string,
+  token: string | null
+): Promise<SecurityValidationResult> {
+  const mode = getSecurityMode();
+  const clientIp = extractClientIp(req);
+
+  // 1. IP Check
+  const ipCheck = checkIpAllowlist(clientIp);
+
+  // 2. Token Check
+  const tokenCheck = validateStreamToken(token, callSessionId);
+
+  // 3. Connection Cap Check
+  const hasExisting = hasActiveConnection(callSessionId);
+  const connectionCapCheck = {
+    allowed: !hasExisting,
+    reason: hasExisting ? 'duplicate' as const : 'first' as const,
+  };
+
+  // Determine overall result
+  const allChecksPass =
+    ipCheck.allowed &&
+    tokenCheck.valid &&
+    connectionCapCheck.allowed;
+
+  const result: SecurityValidationResult = {
+    allowed: mode === 'audit' ? true : allChecksPass,
+    ipCheck,
+    tokenCheck: {
+      valid: tokenCheck.valid,
+      reason: tokenCheck.reason,
+    },
+    connectionCapCheck,
+    mode,
+  };
+
+  // Log security event
+  logSecurityEvent(callSessionId, result);
+
+  // Send alerts for high-severity events
+  if (!ipCheck.allowed || connectionCapCheck.reason === 'duplicate') {
+    await sendSecurityAlert(callSessionId, result);
+  }
+
+  return result;
+}
+
+function logSecurityEvent(
+  callSessionId: string,
+  result: SecurityValidationResult
+): void {
+  const level = result.allowed ? 'info' : 'warn';
+  const eventType = result.allowed ? 'ws_security_pass' : 'ws_security_fail';
+
+  logger[level]({
+    event: eventType,
+    callSessionId,
+    mode: result.mode,
+    ip: {
+      address: result.ipCheck.ip,
+      allowed: result.ipCheck.allowed,
+      reason: result.ipCheck.reason,
+    },
+    token: {
+      valid: result.tokenCheck.valid,
+      reason: result.tokenCheck.reason,
+    },
+    connectionCap: {
+      allowed: result.connectionCapCheck.allowed,
+      reason: result.connectionCapCheck.reason,
+    },
+  }, `WebSocket security ${eventType}`);
+}
 ```
 
-**Import change** (line 19): Add `summarizeArgs` to the existing import:
+#### `telephony/src/services/ws-security-alerts.ts`
+
 ```typescript
-// Before:
-import { redactSensitive } from '../utils/redact.js';
+import { logger } from '../server.js';
+import { getInternalApiSecret } from '../utils/env.js';
 
-// After:
-import { redactSensitive, summarizeArgs } from '../utils/redact.js';
-```
+export type SecurityEventType =
+  | 'non_twilio_ip'
+  | 'duplicate_connection'
+  | 'invalid_token'
+  | 'expired_token';
 
-### File 3: `/telephony/src/services/call-session.ts`
+interface SecurityAlertPayload {
+  eventType: SecurityEventType;
+  callSessionId: string;
+  details: Record<string, unknown>;
+  timestamp: string;
+  severity: 'high' | 'medium' | 'low';
+}
 
-**Changes**:
-1. Change `skipDebugLog` default to `true`
-2. Add inline documentation explaining the security rationale
-
-**Current code (lines 547-551)**:
-```typescript
-export async function recordCallEvent(
-  sessionId: string,
-  type: CallEventType,
-  payload?: Record<string, unknown>,
-  options?: { skipDebugLog?: boolean }
+export async function sendSecurityAlert(
+  callSessionId: string,
+  result: {
+    ipCheck: { allowed: boolean; reason: string; ip: string };
+    tokenCheck: { valid: boolean; reason: string };
+    connectionCapCheck: { allowed: boolean; reason: string };
+    mode: string;
+  }
 ): Promise<void> {
-```
+  const events: SecurityAlertPayload[] = [];
 
-**Updated code**:
-```typescript
-/**
- * Records a call event to the ultaura_call_events table.
- *
- * SECURITY: By default, debug logging is disabled (skipDebugLog: true) to prevent
- * accidental leakage of sensitive data. Debug events should only be recorded
- * when explicitly needed and after ensuring the payload is properly sanitized.
- *
- * @param sessionId - The call session ID
- * @param type - The event type (dtmf, tool_call, state_change, error, safety_tier)
- * @param payload - Optional event payload (will be sanitized before storage)
- * @param options.skipDebugLog - Skip recording to debug_logs table (default: true)
- */
-export async function recordCallEvent(
-  sessionId: string,
-  type: CallEventType,
-  payload?: Record<string, unknown>,
-  options?: { skipDebugLog?: boolean }
-): Promise<void> {
-```
+  if (!result.ipCheck.allowed) {
+    events.push({
+      eventType: 'non_twilio_ip',
+      callSessionId,
+      details: {
+        ip: result.ipCheck.ip,
+        reason: result.ipCheck.reason,
+      },
+      timestamp: new Date().toISOString(),
+      severity: 'high',
+    });
+  }
 
-**Current code (lines 591-593)**:
-```typescript
-if (!options?.skipDebugLog) {
-  await recordDebugEvent(sessionId, type, payload);
-}
-```
+  if (result.connectionCapCheck.reason === 'duplicate') {
+    events.push({
+      eventType: 'duplicate_connection',
+      callSessionId,
+      details: {},
+      timestamp: new Date().toISOString(),
+      severity: 'high',
+    });
+  }
 
-**Updated code**:
-```typescript
-// SECURITY: Default to skipping debug logs to prevent accidental sensitive data leakage.
-// Only record to debug_logs if explicitly opted in with skipDebugLog: false.
-if (options?.skipDebugLog === false) {
-  await recordDebugEvent(sessionId, type, payload);
-}
-```
+  if (!result.tokenCheck.valid && result.tokenCheck.reason === 'expired') {
+    events.push({
+      eventType: 'expired_token',
+      callSessionId,
+      details: { reason: result.tokenCheck.reason },
+      timestamp: new Date().toISOString(),
+      severity: 'medium',
+    });
+  }
 
-### File 4: `/telephony/src/scheduler/call-scheduler.ts`
+  if (!result.tokenCheck.valid &&
+      result.tokenCheck.reason !== 'expired' &&
+      result.tokenCheck.reason !== 'missing') {
+    events.push({
+      eventType: 'invalid_token',
+      callSessionId,
+      details: { reason: result.tokenCheck.reason },
+      timestamp: new Date().toISOString(),
+      severity: 'high',
+    });
+  }
 
-**Changes**: Reduce debug log retention from 7 days to 3 days.
+  // Send alerts via existing anomaly alerts endpoint
+  const appBaseUrl = process.env.ULTAURA_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'http://localhost:3000';
+  const alertsUrl = `${appBaseUrl.replace(/\/$/, '')}/api/telephony/alerts`;
 
-**Current code (line 22)**:
-```typescript
-const DEBUG_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-```
-
-**Updated code**:
-```typescript
-// SECURITY: Short retention period to minimize exposure window for debug data.
-// Debug logs may contain operational metadata that could be sensitive.
-const DEBUG_LOG_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
-```
-
-### File 5: `/scripts/check-sensitive-logs.sh` (NEW FILE)
-
-**Create this new file**:
-```bash
-#!/usr/bin/env bash
-#
-# check-sensitive-logs.sh
-#
-# SECURITY: This script checks for potentially dangerous logging patterns
-# that could leak sensitive data (PII, PHI, conversation content) to logs.
-#
-# Patterns checked:
-# 1. Direct logging of 'args' to recordDebugEvent without summarization
-# 2. Logging sensitive keys without redaction
-# 3. skipDebugLog: false (explicit opt-in to debug logging should be reviewed)
-#
-# Exit codes:
-# 0 - No issues found
-# 1 - Potential sensitive data logging detected
-
-set -euo pipefail
-
-TELEPHONY_DIR="${1:-telephony/src}"
-FOUND_ISSUES=0
-
-echo "Checking for sensitive data logging patterns in $TELEPHONY_DIR..."
-echo ""
-
-# Pattern 1: Check for raw 'args' being passed to recordDebugEvent
-# This catches: recordDebugEvent(..., { ...args }) or recordDebugEvent(..., { args: args })
-# But should NOT flag: { argsSummary: summarizeArgs(args) }
-echo "=== Checking for raw args in recordDebugEvent ==="
-if grep -rn 'recordDebugEvent.*\bargs\b' "$TELEPHONY_DIR" | grep -v 'argsSummary' | grep -v 'summarizeArgs' | grep -v '\.test\.ts'; then
-  echo "ERROR: Found recordDebugEvent calls with potentially raw 'args'"
-  echo "       Use summarizeArgs(args) to create a safe summary instead."
-  FOUND_ISSUES=1
-else
-  echo "OK: No raw args in recordDebugEvent"
-fi
-echo ""
-
-# Pattern 2: Check for sensitive fields being logged without redaction
-# These are fields that commonly contain PII/PHI
-SENSITIVE_FIELDS="message|content|text|summary|narrative|transcript|memory|memories|value|context|response_given|observation"
-
-echo "=== Checking for sensitive fields in console.log/logger calls ==="
-if grep -rn "logger\.\(info\|debug\|warn\)\s*(" "$TELEPHONY_DIR" | grep -E "\b($SENSITIVE_FIELDS)\b" | grep -v 'redact' | grep -v '\.test\.ts' | head -20; then
-  echo ""
-  echo "WARNING: Found logger calls that may include sensitive fields."
-  echo "         Ensure these are properly redacted using redactSensitive()."
-  # This is a warning, not a blocking error - review needed
-fi
-echo ""
-
-# Pattern 3: Check for explicit skipDebugLog: false
-# This is intentional opt-in, but should be reviewed
-echo "=== Checking for explicit debug log opt-in (skipDebugLog: false) ==="
-OPTINS=$(grep -rn 'skipDebugLog:\s*false' "$TELEPHONY_DIR" 2>/dev/null | grep -v '\.test\.ts' || true)
-if [ -n "$OPTINS" ]; then
-  echo "INFO: Found explicit skipDebugLog: false (requires review):"
-  echo "$OPTINS"
-  echo ""
-  echo "       These locations explicitly enable debug logging."
-  echo "       Ensure payloads are properly sanitized."
-  # Not blocking, but should be audited
-fi
-echo ""
-
-# Pattern 4: Check for new tool handlers without skipDebugLog
-echo "=== Checking for recordCallEvent without skipDebugLog ==="
-if grep -rn "recordCallEvent(" "$TELEPHONY_DIR/routes/tools" 2>/dev/null | grep -v 'skipDebugLog' | grep -v '\.test\.ts' | head -10; then
-  echo ""
-  echo "WARNING: Found recordCallEvent calls without skipDebugLog option."
-  echo "         The default is now skipDebugLog: true, but explicit is better."
-fi
-echo ""
-
-if [ $FOUND_ISSUES -eq 1 ]; then
-  echo "=============================================="
-  echo "FAILED: Sensitive data logging issues detected"
-  echo "=============================================="
-  exit 1
-fi
-
-echo "=============================================="
-echo "PASSED: No sensitive data logging issues found"
-echo "=============================================="
-exit 0
-```
-
-### File 6: `/.github/workflows/build.yml`
-
-**Changes**: Add a new job for the sensitive logging check.
-
-**Add after the existing `lint` job (around line 34)**:
-```yaml
-  sensitive-logs-check:
-    name: Sensitive Logs Check
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Check for sensitive data logging
-        run: |
-          chmod +x scripts/check-sensitive-logs.sh
-          ./scripts/check-sensitive-logs.sh telephony/src
-```
-
-### File 7: `/telephony/src/utils/__tests__/redact.test.ts` (NEW FILE)
-
-**Create this new test file**:
-```typescript
-import { describe, it, expect } from 'vitest';
-import { summarizeArgs, redactSensitive } from '../redact.js';
-
-describe('summarizeArgs', () => {
-  it('should summarize string arguments with byte size', () => {
-    const args = {
-      key: 'preferred_name',
-      value: 'This is a longer string value',
-    };
-
-    const summary = summarizeArgs(args);
-
-    expect(summary.key).toEqual({ type: 'string', size: 14 });
-    expect(summary.value).toEqual({ type: 'string', size: 30 });
-  });
-
-  it('should summarize number arguments without size', () => {
-    const args = {
-      confidence: 0.95,
-      count: 42,
-    };
-
-    const summary = summarizeArgs(args);
-
-    expect(summary.confidence).toEqual({ type: 'number' });
-    expect(summary.count).toEqual({ type: 'number' });
-  });
-
-  it('should summarize boolean arguments', () => {
-    const args = {
-      isRecurring: true,
-      suggestReminder: false,
-    };
-
-    const summary = summarizeArgs(args);
-
-    expect(summary.isRecurring).toEqual({ type: 'boolean' });
-    expect(summary.suggestReminder).toEqual({ type: 'boolean' });
-  });
-
-  it('should summarize arrays with total size', () => {
-    const args = {
-      topics: ['health', 'family', 'hobbies'],
-      items: [1, 2, 3, 4, 5],
-    };
-
-    const summary = summarizeArgs(args);
-
-    expect(summary.topics.type).toBe('array');
-    expect(summary.topics.size).toBeGreaterThan(0);
-    expect(summary.items.type).toBe('array');
-    expect(summary.items.size).toBeGreaterThan(0);
-  });
-
-  it('should summarize nested objects with total size (one level deep)', () => {
-    const args = {
-      metadata: {
-        source: 'conversation',
-        nested: {
-          deep: 'value',
+  for (const event of events) {
+    try {
+      const response = await fetch(alertsUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Secret': getInternalApiSecret(),
         },
-      },
-    };
+        body: JSON.stringify({
+          anomalyType: `ws_security_${event.eventType}`,
+          source: callSessionId,
+          sourceType: 'session',
+          details: {
+            ...event.details,
+            mode: result.mode,
+          },
+          timestamp: event.timestamp,
+          severity: event.severity,
+        }),
+      });
 
-    const summary = summarizeArgs(args);
+      if (!response.ok) {
+        logger.error({
+          status: response.status,
+          eventType: event.eventType
+        }, 'Failed to send WS security alert');
+      }
+    } catch (error) {
+      logger.error({ error, eventType: event.eventType },
+        'Error sending WS security alert');
+    }
+  }
+}
+```
 
-    expect(summary.metadata.type).toBe('object');
-    expect(summary.metadata.size).toBeGreaterThan(0);
-    // Should NOT expose nested structure
-    expect(summary).not.toHaveProperty('metadata.nested');
+### 5.2 Files to Modify
+
+#### `telephony/src/server.ts` (lines 150-169)
+
+Replace the WebSocket connection handler:
+
+```typescript
+import {
+  validateWebSocketConnection,
+  registerConnection,
+  unregisterConnection
+} from './services/ws-security.js';
+
+// ... existing code ...
+
+// Handle WebSocket connections
+wss.on('connection', async (ws, req) => {
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const callSessionId = url.searchParams.get('callSessionId');
+  const token = url.searchParams.get('token');
+
+  if (!callSessionId) {
+    logger.error('WebSocket connection without callSessionId');
+    ws.close(1008, 'Connection rejected');
+    return;
+  }
+
+  // Validate security
+  const validation = await validateWebSocketConnection(req, callSessionId, token);
+
+  if (!validation.allowed) {
+    logger.warn({ callSessionId }, 'WebSocket connection rejected by security');
+    ws.close(1008, 'Connection rejected');
+    return;
+  }
+
+  // Register connection for cap tracking
+  if (!registerConnection(callSessionId, ws)) {
+    logger.warn({ callSessionId }, 'Duplicate connection rejected');
+    ws.close(1008, 'Connection rejected');
+    return;
+  }
+
+  // Clean up on close
+  ws.on('close', () => {
+    unregisterConnection(callSessionId);
   });
 
-  it('should handle null and undefined values', () => {
-    const args = {
-      nullValue: null,
-      undefinedValue: undefined,
-    };
+  logger.info({ callSessionId }, 'WebSocket connection established');
+  handleMediaStreamConnection(ws, callSessionId);
+});
+```
 
-    const summary = summarizeArgs(args);
+#### `telephony/src/utils/twilio.ts` (lines 73-97)
 
-    expect(summary.nullValue).toEqual({ type: 'null' });
-    expect(summary.undefinedValue).toEqual({ type: 'undefined' });
+Update `generateStreamTwiML` to include token:
+
+```typescript
+import { generateStreamToken } from '../services/stream-token.js';
+
+// Update function signature and implementation
+export function generateStreamTwiML(
+  callSessionId: string,
+  websocketUrl: string,
+  options?: {
+    includeDisclosure?: boolean;
+    disclosureLanguage?: string;
+  }
+): string {
+  const token = generateStreamToken(callSessionId);
+  const streamUrl = `${websocketUrl}?callSessionId=${callSessionId}&token=${token}`;
+  const includeDisclosure = options?.includeDisclosure ?? false;
+
+  const disclosure = includeDisclosure
+    ? buildRecordingDisclosure(options?.disclosureLanguage)
+    : '';
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+${disclosure}  <Connect>
+    <Stream url="${streamUrl}">
+      <Parameter name="callSessionId" value="${callSessionId}" />
+    </Stream>
+  </Connect>
+</Response>`;
+}
+```
+
+#### `telephony/src/utils/env-validator.ts`
+
+Add new environment variables to validation:
+
+```typescript
+const ULTAURA_ENV_VARS: EnvVariable[] = [
+  // ... existing variables ...
+
+  // WebSocket Security (new)
+  { name: 'ULTAURA_STREAM_TOKEN_SECRET', required: true, format: 'min32' },
+  { name: 'ULTAURA_STREAM_TOKEN_SECRET_PREVIOUS', required: false, format: 'min32' },
+  { name: 'ULTAURA_WS_SECURITY_MODE', required: false }, // audit|enforce
+  { name: 'TWILIO_MEDIA_IP_ALLOWLIST', required: false }, // comma-separated CIDRs
+  { name: 'TWILIO_MEDIA_IP_ALLOW_UNKNOWN', required: false, format: 'boolean' },
+];
+```
+
+---
+
+## 6. Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ULTAURA_STREAM_TOKEN_SECRET` | Yes | - | HMAC secret for token signing. Min 32 chars. Generate with `openssl rand -hex 32` |
+| `ULTAURA_STREAM_TOKEN_SECRET_PREVIOUS` | No | - | Previous secret for key rotation. Same format as above |
+| `ULTAURA_WS_SECURITY_MODE` | No | `audit` | Security mode: `audit` (log only) or `enforce` (reject) |
+| `TWILIO_MEDIA_IP_ALLOWLIST` | No | Built-in | Comma-separated CIDR ranges to override default Twilio IPs |
+| `TWILIO_MEDIA_IP_ALLOW_UNKNOWN` | No | `false` | Set to `true` to allow any IP (development only) |
+
+### Example `.env` additions:
+
+```bash
+# WebSocket Security (Required)
+ULTAURA_STREAM_TOKEN_SECRET=your-32-char-minimum-secret-here-generate-with-openssl
+
+# Optional: Previous secret during key rotation
+# ULTAURA_STREAM_TOKEN_SECRET_PREVIOUS=old-secret-during-rotation
+
+# Security mode: audit (default, log only) or enforce (reject invalid)
+ULTAURA_WS_SECURITY_MODE=audit
+
+# Development only: allow any IP
+# TWILIO_MEDIA_IP_ALLOW_UNKNOWN=true
+
+# Optional: Override Twilio IP ranges
+# TWILIO_MEDIA_IP_ALLOWLIST=168.86.128.0/18,34.203.254.0/24
+```
+
+---
+
+## 7. Token Format
+
+### 7.1 Token Structure
+
+```
+{callSessionId}.{expiryTimestamp}.{signature}
+```
+
+- **callSessionId**: UUID from call session
+- **expiryTimestamp**: Unix timestamp (seconds) when token expires
+- **signature**: Base64URL-encoded HMAC-SHA256 of `{callSessionId}.{expiryTimestamp}`
+
+### 7.2 Example Token
+
+```
+550e8400-e29b-41d4-a716-446655440000.1705600000.kGxP2r8vN_mYJkzH9q5bL0X3wRt6cKdF1uSe4pVoZnA
+```
+
+### 7.3 Generation Algorithm
+
+```typescript
+function generateStreamToken(callSessionId: string): string {
+  const secret = process.env.ULTAURA_STREAM_TOKEN_SECRET;
+  const exp = Math.floor(Date.now() / 1000) + 300; // 5 minutes
+  const payload = `${callSessionId}.${exp}`;
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('base64url');
+  return `${payload}.${signature}`;
+}
+```
+
+### 7.4 Validation Algorithm
+
+```typescript
+function validateStreamToken(token: string, expectedSessionId: string): boolean {
+  const [sessionId, expStr, signature] = token.split('.');
+
+  // 1. Check session ID matches
+  if (sessionId !== expectedSessionId) return false;
+
+  // 2. Check expiry
+  const exp = parseInt(expStr, 10);
+  if (Date.now() / 1000 > exp) return false;
+
+  // 3. Verify signature (try current key, then previous)
+  const payload = `${sessionId}.${expStr}`;
+  const expectedSig = hmac(payload, currentSecret);
+
+  if (timingSafeEqual(signature, expectedSig)) return true;
+  if (previousSecret) {
+    return timingSafeEqual(signature, hmac(payload, previousSecret));
+  }
+
+  return false;
+}
+```
+
+---
+
+## 8. Twilio IP Ranges
+
+### 8.1 Current Known Ranges
+
+Based on Twilio documentation (as of January 2025):
+
+| Range | Purpose | Notes |
+|-------|---------|-------|
+| `168.86.128.0/18` | Global Media IP Gateway | Primary range for voice media |
+| `34.203.254.0/24` | Legacy US Media Streams | May still be active |
+| `3.235.111.128/25` | Legacy US Media Streams | May still be active |
+
+### 8.2 Update Procedure
+
+1. **Monitor Twilio changelog**: https://www.twilio.com/en-us/changelog
+2. **Subscribe to Twilio status**: https://status.twilio.com
+3. **Update process**:
+   - Add new ranges to `DEFAULT_TWILIO_IP_RANGES` array
+   - Deploy with `ULTAURA_WS_SECURITY_MODE=audit`
+   - Monitor logs for false positives
+   - Switch to `enforce` after verification
+   - Remove deprecated ranges after grace period
+
+### 8.3 Important Note
+
+Twilio has moved to using dynamic AWS IPs for Media Streams. The official guidance is:
+
+> "Configure your firewall rules to allow secure websocket connections (TCP port 443) to your websocket servers from any public IP address."
+
+The IP allowlisting in this spec is a **defense-in-depth** measure, not a primary security control. The HMAC token is the primary authentication mechanism.
+
+---
+
+## 9. Error Handling
+
+### 9.1 WebSocket Close Codes
+
+| Code | Reason | When Used |
+|------|--------|-----------|
+| `1008` | Policy Violation | All security rejections (generic) |
+| `1011` | Internal Error | Server-side failures |
+
+### 9.2 Generic Error Messages
+
+All rejections use the same message to avoid information leakage:
+
+```typescript
+ws.close(1008, 'Connection rejected');
+```
+
+### 9.3 Server-Side Logging
+
+Detailed information is logged server-side:
+
+```typescript
+logger.warn({
+  event: 'ws_security_fail',
+  callSessionId,
+  mode: 'enforce',
+  ip: {
+    address: '203.0.113.50',
+    allowed: false,
+    reason: 'unknown',
+  },
+  token: {
+    valid: false,
+    reason: 'expired',
+  },
+  connectionCap: {
+    allowed: true,
+    reason: 'first',
+  },
+}, 'WebSocket security ws_security_fail');
+```
+
+### 9.4 Alert Severity Levels
+
+| Event | Severity | Alert Triggered |
+|-------|----------|-----------------|
+| Non-Twilio IP | High | Yes |
+| Duplicate connection | High | Yes |
+| Invalid token signature | High | Yes |
+| Expired token | Medium | Yes |
+| Missing token | Low | No (audit mode only) |
+| Malformed token | Medium | Yes |
+
+---
+
+## 10. Migration Plan
+
+### Phase 1: Preparation (Week 1)
+
+1. **Generate secrets**
+   ```bash
+   openssl rand -hex 32  # ULTAURA_STREAM_TOKEN_SECRET
+   ```
+
+2. **Update environment files**
+   - Add `ULTAURA_STREAM_TOKEN_SECRET`
+   - Set `ULTAURA_WS_SECURITY_MODE=audit`
+   - Set `TWILIO_MEDIA_IP_ALLOW_UNKNOWN=true` (temporarily)
+
+3. **Deploy token generation code**
+   - New files: `stream-token.ts`, `ws-security.ts`, `ws-security-alerts.ts`
+   - Update `twilio.ts` to include token in TwiML
+
+4. **Verify token appears in WebSocket URLs**
+   - Check TwiML output in logs
+   - Confirm format: `wss://...?callSessionId=...&token=...`
+
+### Phase 2: Audit Mode (Week 2)
+
+1. **Enable IP checking in audit mode**
+   ```bash
+   ULTAURA_WS_SECURITY_MODE=audit
+   TWILIO_MEDIA_IP_ALLOW_UNKNOWN=false
+   ```
+
+2. **Monitor logs for 1 week**
+   - Look for `ws_security_fail` events
+   - Identify any legitimate Twilio IPs not in allowlist
+   - Update `TWILIO_MEDIA_IP_ALLOWLIST` if needed
+
+3. **Review alerts**
+   - Check for false positives
+   - Tune alerting thresholds if needed
+
+### Phase 3: Soft Enforcement (Week 3)
+
+1. **Enable enforcement for token only**
+   - Keep IP in audit mode initially
+   - Token failures will reject
+
+2. **Monitor for issues**
+   - Check call success rates
+   - Review any token-related failures
+
+### Phase 4: Full Enforcement (Week 4)
+
+1. **Enable full enforcement**
+   ```bash
+   ULTAURA_WS_SECURITY_MODE=enforce
+   ```
+
+2. **Monitor closely for 48 hours**
+   - Watch for increased call failures
+   - Be ready to roll back
+
+3. **Declare success**
+   - Document any IP ranges added
+   - Update runbooks
+
+---
+
+## 11. Testing Strategy
+
+### 11.1 Test Matrix
+
+| Scenario | Token | IP | Connection | Mode | Expected Result |
+|----------|-------|-----|------------|------|-----------------|
+| Valid connection | Valid | Twilio | First | Enforce | Allow |
+| Valid connection | Valid | Twilio | First | Audit | Allow |
+| Expired token | Expired | Twilio | First | Enforce | Reject |
+| Expired token | Expired | Twilio | First | Audit | Allow + Log |
+| Invalid signature | Invalid | Twilio | First | Enforce | Reject |
+| Missing token | Missing | Twilio | First | Enforce | Reject |
+| Non-Twilio IP | Valid | Non-Twilio | First | Enforce | Reject |
+| Non-Twilio IP | Valid | Non-Twilio | First | Audit | Allow + Log + Alert |
+| Dev bypass | Valid | Any | First | Enforce + Dev | Allow |
+| Duplicate connection | Valid | Twilio | Second | Enforce | Reject |
+| Previous key rotation | PrevKey | Twilio | First | Enforce | Allow |
+
+### 11.2 Mock Helpers
+
+#### `telephony/src/__tests__/helpers/ws-security-mocks.ts`
+
+```typescript
+import crypto from 'crypto';
+import { IncomingMessage } from 'http';
+import { generateStreamToken } from '../../services/stream-token.js';
+
+// Generate a valid token for testing
+export function createValidToken(callSessionId: string): string {
+  return generateStreamToken(callSessionId);
+}
+
+// Generate an expired token
+export function createExpiredToken(callSessionId: string): string {
+  const exp = Math.floor(Date.now() / 1000) - 60; // 1 minute ago
+  const payload = `${callSessionId}.${exp}`;
+  const signature = crypto
+    .createHmac('sha256', process.env.ULTAURA_STREAM_TOKEN_SECRET!)
+    .update(payload)
+    .digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+// Generate a token with wrong signature
+export function createInvalidToken(callSessionId: string): string {
+  const exp = Math.floor(Date.now() / 1000) + 300;
+  return `${callSessionId}.${exp}.invalidSignature123`;
+}
+
+// Mock Twilio IP
+export function createTwilioIpRequest(): Partial<IncomingMessage> {
+  return {
+    socket: { remoteAddress: '168.86.128.1' } as any,
+    headers: {},
+  };
+}
+
+// Mock non-Twilio IP
+export function createNonTwilioIpRequest(): Partial<IncomingMessage> {
+  return {
+    socket: { remoteAddress: '203.0.113.50' } as any,
+    headers: {},
+  };
+}
+
+// Mock with X-Forwarded-For
+export function createProxiedRequest(ip: string): Partial<IncomingMessage> {
+  return {
+    socket: { remoteAddress: '127.0.0.1' } as any,
+    headers: { 'x-forwarded-for': ip },
+  };
+}
+
+// Time manipulation helper
+export function withFrozenTime<T>(
+  timestamp: number,
+  fn: () => T
+): T {
+  const realDateNow = Date.now;
+  Date.now = () => timestamp;
+  try {
+    return fn();
+  } finally {
+    Date.now = realDateNow;
+  }
+}
+```
+
+### 11.3 Unit Tests
+
+#### `telephony/src/services/__tests__/stream-token.test.ts`
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { generateStreamToken, validateStreamToken } from '../stream-token.js';
+
+describe('stream-token', () => {
+  beforeEach(() => {
+    vi.stubEnv('ULTAURA_STREAM_TOKEN_SECRET', 'test-secret-at-least-32-characters');
   });
 
-  it('should handle empty objects', () => {
-    const args = {};
+  describe('generateStreamToken', () => {
+    it('generates a token with correct format', () => {
+      const token = generateStreamToken('test-session-id');
+      const parts = token.split('.');
+      expect(parts).toHaveLength(3);
+      expect(parts[0]).toBe('test-session-id');
+    });
 
-    const summary = summarizeArgs(args);
-
-    expect(summary).toEqual({});
+    it('sets expiry 5 minutes in the future', () => {
+      const token = generateStreamToken('test-session-id');
+      const [, expStr] = token.split('.');
+      const exp = parseInt(expStr, 10);
+      const now = Math.floor(Date.now() / 1000);
+      expect(exp - now).toBeCloseTo(300, -1); // Within 10 seconds
+    });
   });
 
-  it('should not expose actual string values', () => {
-    const sensitiveArgs = {
-      message: 'Take your heart medication at 9am',
-      value: 'My daughter Sarah lives in Boston',
-      context: 'User mentioned feeling lonely today',
-    };
+  describe('validateStreamToken', () => {
+    it('validates a fresh token', () => {
+      const token = generateStreamToken('test-session-id');
+      const result = validateStreamToken(token, 'test-session-id');
+      expect(result.valid).toBe(true);
+      expect(result.reason).toBe('valid');
+    });
 
-    const summary = summarizeArgs(sensitiveArgs);
+    it('rejects expired token', () => {
+      vi.useFakeTimers();
+      const token = generateStreamToken('test-session-id');
+      vi.advanceTimersByTime(6 * 60 * 1000); // 6 minutes
+      const result = validateStreamToken(token, 'test-session-id');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toBe('expired');
+      vi.useRealTimers();
+    });
 
-    // Verify no actual values are in the summary
-    const summaryStr = JSON.stringify(summary);
-    expect(summaryStr).not.toContain('medication');
-    expect(summaryStr).not.toContain('Sarah');
-    expect(summaryStr).not.toContain('Boston');
-    expect(summaryStr).not.toContain('lonely');
-  });
+    it('rejects token for wrong session', () => {
+      const token = generateStreamToken('test-session-id');
+      const result = validateStreamToken(token, 'different-session');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toBe('invalid_signature');
+    });
 
-  it('should handle large nested objects efficiently', () => {
-    const largeArgs = {
-      memories: Array(100).fill({ key: 'test', value: 'x'.repeat(100) }),
-      metadata: {
-        nested1: { nested2: { nested3: 'deep' } },
-      },
-    };
+    it('accepts token signed with previous key', () => {
+      vi.stubEnv('ULTAURA_STREAM_TOKEN_SECRET_PREVIOUS', 'test-secret-at-least-32-characters');
+      vi.stubEnv('ULTAURA_STREAM_TOKEN_SECRET', 'new-secret-at-least-32-characters-long');
 
-    const summary = summarizeArgs(largeArgs);
-
-    expect(summary.memories.type).toBe('array');
-    expect(summary.memories.size).toBeGreaterThan(1000); // Should capture total size
-    expect(summary.metadata.type).toBe('object');
-  });
-
-  it('should handle unicode strings correctly', () => {
-    const args = {
-      name: '日本語テキスト',
-      emoji: '😀🎉👋',
-    };
-
-    const summary = summarizeArgs(args);
-
-    // UTF-8 byte sizes should be accurate
-    expect(summary.name.type).toBe('string');
-    expect(summary.name.size).toBe(Buffer.byteLength('日本語テキスト', 'utf8'));
-    expect(summary.emoji.type).toBe('string');
-    expect(summary.emoji.size).toBe(Buffer.byteLength('😀🎉👋', 'utf8'));
-  });
-
-  it('should handle circular reference gracefully', () => {
-    const obj: Record<string, unknown> = { a: 1 };
-    obj.self = obj; // Circular reference
-
-    const args = { circular: obj };
-    const summary = summarizeArgs(args);
-
-    // Should not throw, and should return size of 0 for unparseable
-    expect(summary.circular.type).toBe('object');
-    expect(summary.circular.size).toBe(0);
+      // Generate with old key (simulated)
+      const oldToken = generateStreamToken('test-session-id');
+      // ... validate with new key setup
+    });
   });
 });
+```
 
-describe('redactSensitive', () => {
-  it('should redact sensitive keys from SENSITIVE_KEYS set', () => {
-    const data = {
-      id: '123',
-      message: 'This is sensitive',
-      content: 'Also sensitive',
-      text: 'And this too',
-    };
+### 11.4 Integration Tests
 
-    const redacted = redactSensitive(data);
+```typescript
+describe('WebSocket security integration', () => {
+  it('allows valid Twilio connection', async () => {
+    const session = await createTestCallSession();
+    const token = generateStreamToken(session.id);
 
-    expect(redacted.id).toBe('123');
-    expect(redacted.message).toBe('[REDACTED]');
-    expect(redacted.content).toBe('[REDACTED]');
-    expect(redacted.text).toBe('[REDACTED]');
+    const ws = new WebSocket(
+      `wss://localhost:3001/twilio/media?callSessionId=${session.id}&token=${token}`
+    );
+
+    await expect(wsConnected(ws)).resolves.toBe(true);
+    ws.close();
   });
 
-  it('should redact nested sensitive keys', () => {
-    const data = {
-      outer: {
-        message: 'Nested sensitive',
-        safe: 'This is fine',
-      },
-    };
+  it('rejects connection from non-Twilio IP in enforce mode', async () => {
+    vi.stubEnv('ULTAURA_WS_SECURITY_MODE', 'enforce');
+    vi.stubEnv('TWILIO_MEDIA_IP_ALLOW_UNKNOWN', 'false');
 
-    const redacted = redactSensitive(data);
-
-    expect(redacted.outer.message).toBe('[REDACTED]');
-    expect(redacted.outer.safe).toBe('This is fine');
+    // This test requires mocking the IP check
+    // ...
   });
 });
 ```
 
 ---
 
-## Dependencies and Integrations
+## 12. Rollback Plan
 
-### Dependencies
-- No new npm dependencies required
-- Uses existing `vitest` for testing
-- Uses existing `Buffer` from Node.js (already available)
+### 12.1 Immediate Rollback (< 5 minutes)
 
-### Integration Points
-1. **media-stream.ts** imports `summarizeArgs` from `redact.ts`
-2. **CI workflow** runs the new `check-sensitive-logs.sh` script
-3. **call-scheduler.ts** cleanup job continues to run with new 3-day retention
+If calls are failing after deployment:
 
----
+```bash
+# Option 1: Disable all enforcement
+export ULTAURA_WS_SECURITY_MODE=audit
+export TWILIO_MEDIA_IP_ALLOW_UNKNOWN=true
 
-## Edge Cases and Error Handling
+# Restart telephony server
+pm2 restart telephony
+# or
+docker-compose restart telephony
+```
 
-### Edge Case 1: Circular References
-The `summarizeArgs()` function handles circular references in objects by catching JSON.stringify errors and returning size of 0.
+### 12.2 Quick IP Fix
 
-### Edge Case 2: Very Large Arguments
-The function handles large arguments efficiently by only computing sizes without copying values.
+If specific Twilio IPs are blocked:
 
-### Edge Case 3: Missing or Invalid Arguments
-- `null` and `undefined` values are handled explicitly with their type names
-- Empty objects return empty summaries
-- Non-object values at the top level are handled by the type checks
+```bash
+# Add missing ranges
+export TWILIO_MEDIA_IP_ALLOWLIST="168.86.128.0/18,34.203.254.0/24,3.235.111.128/25,NEW.RANGE.HERE/24"
 
-### Error Handling
-- `estimateSize()` catches all exceptions from JSON.stringify and returns 0
-- The function never throws - it always returns a valid summary object
+# Restart
+pm2 restart telephony
+```
 
----
+### 12.3 Complete Rollback
 
-## Testing Considerations
+If the feature needs to be fully reverted:
 
-### Unit Tests
-1. Run existing tests to ensure no regression: `cd telephony && npm test`
-2. Run new redact tests: `cd telephony && npm test src/utils/__tests__/redact.test.ts`
+1. Revert the code changes in `server.ts` WebSocket handler
+2. Revert `generateStreamTwiML` in `twilio.ts`
+3. Keep new files but they won't be called
+4. Deploy reverted code
 
-### Manual Testing
-1. Start telephony server in dev mode
-2. Make a test call
-3. Check `ultaura_debug_logs` table to verify:
-   - Tool call events contain `argsSummary` not raw `args`
-   - Summary shows types and sizes, not values
+### 12.4 Monitoring During Rollback
 
-### CI Verification
-1. Push changes to a branch
-2. Verify the "Sensitive Logs Check" job passes
-3. Intentionally break the check (add raw `args` to recordDebugEvent) and verify it fails
+After rollback, monitor:
+- Call success rates return to normal
+- No more `ws_security_fail` events with rejections
+- Alerts stop firing
 
 ---
 
-## Assumptions
+## 13. Future Considerations
 
-1. **Existing skipDebugLog usage is correct**: All 45 tool handlers already use `skipDebugLog: true`, which is verified by grep showing 124 occurrences across 48 files.
+### 13.1 Explicitly Deferred
 
-2. **No external consumers of recordCallEvent rely on debug logging**: Changing the default to `true` should not break any functionality since debug logging is only for internal debugging.
+1. **mTLS/Client certificates**: More complex to implement, requires Twilio support
+2. **Redis-backed connection tracking**: Current in-memory Map is sufficient for single-instance deployment
+3. **Per-account connection limits**: Not needed for current threat model
+4. **WebSocket message-level authentication**: Token at connection time is sufficient
+5. **Rate limiting on WebSocket connections**: Covered by existing IP rate limiting
 
-3. **Retention reduction is acceptable**: Reducing from 7 to 3 days should be sufficient for debugging purposes while reducing exposure window.
+### 13.2 Potential Future Enhancements
 
-4. **Existing data will age out naturally**: The 3-day retention cleanup will naturally purge any previously leaked data within 3 days.
+1. **Dynamic Twilio IP fetching**: Query Twilio API for current IP ranges
+2. **Token refresh mechanism**: Extend token during long calls
+3. **Distributed connection tracking**: Use Redis for multi-instance deployments
+4. **Metrics and dashboards**: Add Prometheus metrics for security events
 
-5. **CI runners have bash available**: The check script uses bash and common Unix tools (grep).
+### 13.3 Dependencies on External Changes
 
----
-
-## Files to Modify (Summary)
-
-| File | Action | Description |
-|------|--------|-------------|
-| `/telephony/src/utils/redact.ts` | Modify | Add `summarizeArgs()` function and expand `SENSITIVE_KEYS` |
-| `/telephony/src/websocket/media-stream.ts` | Modify | Fix `onToolCall` handler to use `summarizeArgs()` |
-| `/telephony/src/services/call-session.ts` | Modify | Change `skipDebugLog` default to `true` |
-| `/telephony/src/scheduler/call-scheduler.ts` | Modify | Reduce retention from 7 to 3 days |
-| `/scripts/check-sensitive-logs.sh` | Create | New CI check script |
-| `/.github/workflows/build.yml` | Modify | Add sensitive logs check job |
-| `/telephony/src/utils/__tests__/redact.test.ts` | Create | Unit tests for `summarizeArgs()` |
+- Twilio IP range updates: Monitor changelog
+- AWS IP range changes: Twilio manages this
 
 ---
 
-## Implementation Order
+## Appendix A: WebSocket Close Codes Reference
 
-1. Add `summarizeArgs()` function to `redact.ts` with expanded `SENSITIVE_KEYS`
-2. Update import in `media-stream.ts` and fix `onToolCall` handler
-3. Change `skipDebugLog` default in `call-session.ts`
-4. Reduce retention in `call-scheduler.ts`
-5. Create CI check script
-6. Update CI workflow
-7. Add unit tests
-8. Test manually and via CI
+| Code | Name | Description |
+|------|------|-------------|
+| 1000 | Normal Closure | Clean close |
+| 1001 | Going Away | Server shutting down |
+| 1008 | Policy Violation | Security rejection |
+| 1011 | Internal Error | Server error |
+
+## Appendix B: CIDR Calculation Examples
+
+```
+168.86.128.0/18
+Network: 168.86.128.0
+Broadcast: 168.86.191.255
+Usable IPs: 168.86.128.1 - 168.86.191.254
+Total IPs: 16,384
+```
+
+## Appendix C: Changelog Entry Template
+
+```markdown
+## [Date] WebSocket Security Enhancement
+
+### Added
+- HMAC-SHA256 token authentication for `/twilio/media` WebSocket
+- Twilio IP allowlisting with configurable overrides
+- Per-call connection cap (single connection per session)
+- Audit mode for gradual rollout
+- Security event logging and alerting
+
+### Environment Variables
+- `ULTAURA_STREAM_TOKEN_SECRET` (required): Token signing secret
+- `ULTAURA_WS_SECURITY_MODE` (optional): `audit` or `enforce`
+- `TWILIO_MEDIA_IP_ALLOWLIST` (optional): Override IP ranges
+- `TWILIO_MEDIA_IP_ALLOW_UNKNOWN` (optional): Development bypass
+```
+
+---
+
+## Critical Files for Implementation
+
+Files most critical for implementing this plan:
+
+1. **`telephony/src/server.ts`** (lines 150-169) - Core WebSocket handler that needs security validation added
+2. **`telephony/src/utils/twilio.ts`** (lines 73-97) - TwiML generation that needs token parameter added to WebSocket URL
+3. **`telephony/src/websocket/grok-bridge-registry.ts`** - Pattern to follow for in-memory connection tracking
+4. **`telephony/src/services/anomaly-alerts.ts`** - Pattern to follow for security alerting integration
+5. **`telephony/src/utils/env-validator.ts`** - Environment variable validation that needs new security variables added
+
+---
+
+**Document Version**: 1.0
+**Last Updated**: 2026-01-18
+**Author**: Claude (Planning Agent)

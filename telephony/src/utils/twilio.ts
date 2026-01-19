@@ -3,6 +3,7 @@
 import Twilio from 'twilio';
 import { normalizeLanguageCode } from '@ultaura/prompts';
 import { logger } from '../server.js';
+import { generateStreamToken } from '../services/stream-token.js';
 import { redactPhone } from './redact.js';
 import { getSupabaseClient } from './supabase.js';
 
@@ -79,7 +80,8 @@ export function generateStreamTwiML(
     disclosureLanguage?: string;
   }
 ): string {
-  const streamUrl = `${websocketUrl}?callSessionId=${callSessionId}`;
+  const token = generateStreamToken(callSessionId);
+  const streamUrl = `${websocketUrl}?callSessionId=${callSessionId}&token=${token}`;
   const includeDisclosure = options?.includeDisclosure ?? false;
 
   const disclosure = includeDisclosure
