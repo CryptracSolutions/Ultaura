@@ -505,6 +505,7 @@ The telephony backend includes 33 service modules:
 
 ## Operations Notes
 
+- See `telephony/OBSERVABILITY.md` for logging, metrics, and tracing details.
 - WebSocket media streams require sticky sessions; ingress should hash on the `callSessionId` query param.
 - Scheduler leases include: `schedules`, `reminders`, `weekly-summaries`, `recording-deletions`, `embeddings`, `decay-job`.
 - Telephony pods drain active WebSocket calls on SIGTERM/SIGINT (30s max) before exit.
