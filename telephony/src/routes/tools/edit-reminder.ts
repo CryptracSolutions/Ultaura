@@ -10,6 +10,8 @@ import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
+import { encryptReminderMessage } from '../../utils/reminder-crypto.js';
+import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const editReminderRouter = Router();
 
@@ -90,13 +92,19 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
+    if (!await enforceSessionLineMatch({ session, lineId, recordFailure })) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const effectiveLineId = session.line_id;
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
     const { data: line, error: lineError } = await supabase
       .from('ultaura_lines')
       .select('allow_voice_reminder_control, timezone')
-      .eq('id', lineId)
+      .eq('id', effectiveLineId)
       .single();
 
     if (lineError || !line) {
@@ -120,7 +128,8 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       .from('ultaura_reminders')
       .select('*')
       .eq('id', reminderId)
-      .eq('line_id', lineId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id)
       .single();
 
     if (reminderError || !reminder) {
@@ -148,7 +157,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     const oldValues: Record<string, unknown> = {};
     const changes: string[] = [];
 
-    if (newMessage && newMessage.trim() !== reminder.message) {
+    if (newMessage && newMessage.trim()) {
       if (newMessage.length > 500) {
         await recordFailure();
         res.json({
@@ -158,8 +167,22 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         });
         return;
       }
-      oldValues.message = reminder.message;
-      updates.message = newMessage.trim();
+      const trimmedMessage = newMessage.trim();
+      const encryptedMessage = await encryptReminderMessage(
+        reminder.account_id,
+        reminder.line_id,
+        reminder.id,
+        trimmedMessage
+      );
+      updates.message = trimmedMessage;
+      updates.message_ciphertext = encryptedMessage.ciphertext;
+      updates.message_iv = encryptedMessage.iv;
+      updates.message_tag = encryptedMessage.tag;
+      updates.message_alg = encryptedMessage.alg;
+      updates.message_kid = encryptedMessage.kid;
+      oldValues.messageChanged = true;
+      oldValues.oldMessageLength = reminder.message?.length ?? null;
+      oldValues.newMessageLength = trimmedMessage.length;
       changes.push('message');
     }
 
@@ -232,7 +255,9 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     const { error: updateError } = await supabase
       .from('ultaura_reminders')
       .update(updates)
-      .eq('id', reminderId);
+      .eq('id', reminderId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id);
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to edit reminder');
@@ -242,14 +267,22 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     // Log the event
+    const safeUpdates = { ...updates } as Record<string, unknown>;
+    delete safeUpdates.message;
+    delete safeUpdates.message_ciphertext;
+    delete safeUpdates.message_iv;
+    delete safeUpdates.message_tag;
+    delete safeUpdates.message_alg;
+    delete safeUpdates.message_kid;
+
     await supabase.from('ultaura_reminder_events').insert({
       account_id: session.account_id,
       reminder_id: reminderId,
-      line_id: lineId,
+      line_id: effectiveLineId,
       event_type: 'edited',
       triggered_by: 'voice',
       call_session_id: callSessionId,
-      metadata: { oldValues, newValues: updates },
+      metadata: { oldValues, newValues: safeUpdates },
     });
 
     await incrementToolInvocations(callSessionId);
@@ -261,25 +294,17 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
 
     // Build response message
     const changesStr = changes.join(' and ');
-    const finalMessage = updates.message || reminder.message;
 
     let timeInfo = '';
     if (updates.due_at) {
-      const newDate = new Date(updates.due_at as string);
-      timeInfo = ` It's now set for ${newDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      })} at ${newDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      })}.`;
+      const tz = timezone || line.timezone || reminder.timezone;
+      const scheduleInfo = formatReminderSchedule(updates.due_at as string, tz);
+      timeInfo = ` It's now set for ${scheduleInfo}.`;
     }
 
     res.json({
       success: true,
-      message: `I've updated the ${changesStr} for your reminder.${timeInfo} The reminder now says "${finalMessage}". Is there anything else?`,
+      message: `I've updated the ${changesStr} for your reminder.${timeInfo} Is there anything else?`,
     });
   } catch (error) {
     logger.error({ error }, 'Error editing reminder');

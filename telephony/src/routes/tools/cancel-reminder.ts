@@ -4,6 +4,7 @@ import { Router, Request, Response } from 'express';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
+import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const cancelReminderRouter = Router();
 
@@ -36,13 +37,19 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
+    if (!await enforceSessionLineMatch({ session, lineId, recordFailure })) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const effectiveLineId = session.line_id;
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
     const { data: line, error: lineError } = await supabase
       .from('ultaura_lines')
-      .select('allow_voice_reminder_control')
-      .eq('id', lineId)
+      .select('allow_voice_reminder_control, timezone')
+      .eq('id', effectiveLineId)
       .single();
 
     if (lineError || !line) {
@@ -65,7 +72,8 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       .from('ultaura_reminders')
       .select('*')
       .eq('id', reminderId)
-      .eq('line_id', lineId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id)
       .single();
 
     if (reminderError || !reminder) {
@@ -90,7 +98,9 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
     const { error: updateError } = await supabase
       .from('ultaura_reminders')
       .update({ status: 'canceled' })
-      .eq('id', reminderId);
+      .eq('id', reminderId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id);
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to cancel reminder');
@@ -103,7 +113,7 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
     await supabase.from('ultaura_reminder_events').insert({
       account_id: session.account_id,
       reminder_id: reminderId,
-      line_id: lineId,
+      line_id: effectiveLineId,
       event_type: 'canceled',
       triggered_by: 'voice',
       call_session_id: callSessionId,
@@ -119,10 +129,14 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
     const seriesNote = reminder.is_recurring
       ? ' The entire recurring series has been canceled.'
       : '';
+    const scheduleInfo = formatReminderSchedule(
+      reminder.due_at,
+      reminder.timezone || line.timezone || 'UTC'
+    );
 
     res.json({
       success: true,
-      message: `I've canceled your reminder "${reminder.message}".${seriesNote} Is there anything else you'd like me to do?`,
+      message: `I've canceled that reminder scheduled for ${scheduleInfo}.${seriesNote} Is there anything else you'd like me to do?`,
     });
   } catch (error) {
     logger.error({ error }, 'Error canceling reminder');

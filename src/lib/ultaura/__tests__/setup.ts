@@ -15,6 +15,7 @@ if (!serviceRoleKey) {
 
 process.env.ULTAURA_INTERNAL_API_SECRET ||= 'test-secret';
 process.env.ULTAURA_BACKEND_URL ||= 'http://localhost:3001';
+process.env.ULTAURA_ENCRYPTION_KEY ||= '0000000000000000000000000000000000000000000000000000000000000000';
 
 export const testServiceRoleClient = createClient(supabaseUrl, serviceRoleKey, {
   auth: {

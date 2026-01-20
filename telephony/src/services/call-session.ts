@@ -165,7 +165,6 @@ export async function createCallSession(options: {
   // Reminder call fields
   isReminderCall?: boolean;
   reminderId?: string;
-  reminderMessage?: string;
   // Test call flag
   isTestCall?: boolean;
   // Preview flow flag for test calls
@@ -190,7 +189,6 @@ export async function createCallSession(options: {
       twilio_to: options.twilioTo,
       is_reminder_call: options.isReminderCall || false,
       reminder_id: options.reminderId || null,
-      reminder_message: options.reminderMessage || null,
       is_test_call: options.isTestCall || false,
       is_preview_mode: options.isPreviewMode || false,
       scheduler_idempotency_key: options.schedulerIdempotencyKey || null,

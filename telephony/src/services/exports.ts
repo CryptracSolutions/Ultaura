@@ -2,6 +2,8 @@ import JSZip from 'jszip';
 import { logger } from '../utils/logger.js';
 import { getSupabaseClient } from '../utils/supabase.js';
 import { fetchDecryptedMemories } from '../utils/encryption.js';
+import { buildReminderMessageAAD, decryptReminderMessageWithDek } from '../utils/reminder-crypto.js';
+import { getMemoryDEK } from './line-encryption.js';
 
 const EXPORT_VERSION = '1.0';
 const EXPORT_BUCKET = 'ultaura-exports';
@@ -117,7 +119,8 @@ export async function processExportRequest(
 
     let reminders: Array<{
       lineId: string;
-      title: string;
+      title: string | null;
+      title_decryption_failed: boolean;
       recurrence: string | null;
       nextOccurrence: string | null;
       status: string;
@@ -126,7 +129,7 @@ export async function processExportRequest(
     if (request.include_reminders) {
       const { data: reminderRows, error: remindersError } = await supabase
         .from('ultaura_reminders')
-        .select('line_id, message, rrule, due_at, status, created_at')
+        .select('id, line_id, account_id, message, message_ciphertext, message_iv, message_tag, rrule, due_at, status, created_at')
         .eq('account_id', request.account_id);
 
       if (remindersError) {
@@ -135,18 +138,55 @@ export async function processExportRequest(
 
       const reminderCutoffMs = Date.now() - 90 * 24 * 60 * 60 * 1000;
 
-      reminders = (reminderRows || [])
-        .filter((reminder) =>
-          reminder.status === 'scheduled' ||
-          (reminder.created_at && new Date(reminder.created_at).getTime() >= reminderCutoffMs)
-        )
-        .map((reminder) => ({
+      const dekCache = new Map<string, Buffer>();
+      const filteredReminders = (reminderRows || []).filter((reminder) =>
+        reminder.status === 'scheduled' ||
+        (reminder.created_at && new Date(reminder.created_at).getTime() >= reminderCutoffMs)
+      );
+
+      reminders = [];
+      for (const reminder of filteredReminders) {
+        let title: string | null = null;
+        let titleDecryptionFailed = false;
+
+        if (reminder.message_ciphertext && reminder.message_iv && reminder.message_tag) {
+          try {
+            let dek = dekCache.get(reminder.line_id);
+            if (!dek) {
+              dek = await getMemoryDEK(supabase, reminder.account_id, reminder.line_id);
+              dekCache.set(reminder.line_id, dek);
+            }
+            const aad = buildReminderMessageAAD(
+              reminder.account_id,
+              reminder.line_id,
+              reminder.id
+            );
+            title = decryptReminderMessageWithDek(
+              dek,
+              {
+                ciphertext: reminder.message_ciphertext,
+                iv: reminder.message_iv,
+                tag: reminder.message_tag,
+              },
+              aad
+            );
+          } catch {
+            title = null;
+            titleDecryptionFailed = true;
+          }
+        } else {
+          title = reminder.message ?? null;
+        }
+
+        reminders.push({
           lineId: reminder.line_id,
-          title: reminder.message,
+          title,
+          title_decryption_failed: titleDecryptionFailed,
           recurrence: reminder.rrule ?? null,
           nextOccurrence: reminder.due_at ?? null,
           status: reminder.status,
-        }));
+        });
+      }
     }
 
     let memories: Array<{
@@ -345,6 +385,7 @@ async function buildCsvZip(exportData: {
   zip.file('reminders.csv', toCsv(exportData.reminders, [
     'lineId',
     'title',
+    'title_decryption_failed',
     'recurrence',
     'nextOccurrence',
     'status',

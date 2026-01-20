@@ -82,7 +82,13 @@ function formatEventDetails(event: ReminderEventRow): string | null {
       const changes: string[] = [];
       if (meta.oldValues && typeof meta.oldValues === 'object') {
         const oldVals = meta.oldValues as Record<string, unknown>;
-        if (oldVals.message !== undefined) changes.push('message');
+        const messageChanged = meta.messageChanged ||
+          meta.oldMessageLength !== undefined ||
+          meta.newMessageLength !== undefined ||
+          oldVals.messageChanged !== undefined ||
+          oldVals.oldMessageLength !== undefined ||
+          oldVals.newMessageLength !== undefined;
+        if (messageChanged) changes.push('message');
         if (oldVals.dueAt !== undefined) changes.push('time');
         if (oldVals.isRecurring !== undefined) changes.push('recurrence');
       }

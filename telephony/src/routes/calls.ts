@@ -19,7 +19,6 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       lineId,
       reason,
       reminderId,
-      reminderMessage,
       schedulerIdempotencyKey,
       isPreviewMode,
     } = req.body;
@@ -29,7 +28,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       return;
     }
 
-    const isReminderCall = reason === 'reminder' && !!reminderMessage;
+    const isReminderCall = reason === 'reminder' && !!reminderId;
     const isTestCall = reason === 'test';
     const previewMode = Boolean(isPreviewMode) && isTestCall;
 
@@ -83,7 +82,6 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       isReminderCall,
       isTestCall,
       reminderId: isReminderCall ? reminderId : undefined,
-      reminderMessage: isReminderCall ? reminderMessage : undefined,
       schedulerIdempotencyKey,
       isPreviewMode: previewMode,
     });

@@ -2,16 +2,20 @@
 
 import { Router, Request, Response } from 'express';
 import { DateTime } from 'luxon';
+import crypto from 'crypto';
 import {
   SetReminderInputSchema,
   type SetReminderInput,
 } from '@ultaura/schemas/telephony';
+import { ErrorCodes } from '@ultaura/schemas';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getLineById } from '../../services/line-lookup.js';
 import { RATE_LIMITS } from '../../services/rate-limit-config.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
+import { encryptReminderMessage } from '../../utils/reminder-crypto.js';
+import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const setReminderRouter = Router();
 
@@ -143,7 +147,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       callSessionId,
       lineId,
       dueAtLocal,
-      message,
+      messageLength: typeof message === 'string' ? message.length : null,
       isRecurring,
       frequency,
     }, 'Set reminder request');
@@ -163,14 +167,35 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
-    const lineWithAccount = await getLineById(lineId);
+    if (!await enforceSessionLineMatch({ session, lineId, recordFailure })) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const effectiveLineId = session.line_id;
+    const lineWithAccount = await getLineById(effectiveLineId);
     if (!lineWithAccount) {
       await recordFailure();
       res.status(404).json({ error: 'Line not found' });
       return;
     }
 
-    const { line } = lineWithAccount;
+    const { line, account } = lineWithAccount;
+    if (line.account_id !== session.account_id || account.id !== session.account_id) {
+      await recordFailure('unauthorized');
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+    if (!line.allow_voice_reminder_control) {
+      await recordFailure('unauthorized');
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
+      });
+      return;
+    }
+
     const defaultTimezone = process.env.ULTAURA_DEFAULT_TIMEZONE || 'America/Los_Angeles';
     const tz = timezone || line.timezone || defaultTimezone;
 
@@ -179,7 +204,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     if (!finalMessage) {
       finalMessage = 'Check-in call';
       messageDefaulted = true;
-      logger.info({ callSessionId, lineId }, 'Reminder message defaulted to "Check-in call"');
+      logger.info({ callSessionId, lineId }, 'Reminder message defaulted');
     }
 
     try {
@@ -292,14 +317,28 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     // Create the reminder
+    const reminderId = crypto.randomUUID();
+    const encryptedMessage = await encryptReminderMessage(
+      session.account_id,
+      effectiveLineId,
+      reminderId,
+      finalMessage.slice(0, 500)
+    );
+
     const { data: reminder, error } = await supabase
       .from('ultaura_reminders')
       .insert({
+        id: reminderId,
         account_id: session.account_id,
-        line_id: lineId,
+        line_id: effectiveLineId,
         due_at: dueAt.toISOString(),
         timezone: tz,
         message: finalMessage.slice(0, 500), // Limit message length
+        message_ciphertext: encryptedMessage.ciphertext,
+        message_iv: encryptedMessage.iv,
+        message_tag: encryptedMessage.tag,
+        message_alg: encryptedMessage.alg,
+        message_kid: encryptedMessage.kid,
         delivery_method: 'outbound_call',
         status: 'scheduled',
         privacy_scope: privacyScope,
@@ -324,10 +363,10 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
         errorDetails: error.details,
         insertData: {
           account_id: session.account_id,
-          line_id: lineId,
+          line_id: effectiveLineId,
           due_at: dueAt.toISOString(),
           timezone: tz,
-          message: finalMessage.slice(0, 50) + '...', // Truncate for logging
+          messageLength: finalMessage.length,
           created_by_call_session_id: callSessionId,
         },
       }, 'Failed to create reminder');
@@ -348,20 +387,21 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     logger.info({ reminderId: reminder.id, dueAt: reminder.due_at }, 'Reminder created');
 
     // Build response message
-    let responseMessage = `Reminder set for ${dueAt.toLocaleString()}`;
+    const scheduleInfo = formatReminderSchedule(dueAt, tz);
+    let responseMessage = `Reminder set for ${scheduleInfo}`;
     if (isRecurring && rrule) {
       if (frequency === 'daily') {
         responseMessage = intervalDays && intervalDays > 1
-          ? `Recurring reminder set: every ${intervalDays} days starting ${dueAt.toLocaleString()}`
-          : `Recurring reminder set: daily starting ${dueAt.toLocaleString()}`;
+          ? `Recurring reminder set: every ${intervalDays} days starting ${scheduleInfo}`
+          : `Recurring reminder set: daily starting ${scheduleInfo}`;
       } else if (frequency === 'weekly') {
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const days = daysOfWeekVal?.map(d => dayNames[d]).join(', ') || '';
-        responseMessage = `Recurring reminder set: every ${days} starting ${dueAt.toLocaleString()}`;
+        responseMessage = `Recurring reminder set: every ${days} starting ${scheduleInfo}`;
       } else if (frequency === 'monthly') {
-        responseMessage = `Recurring reminder set: monthly on day ${dayOfMonthVal} starting ${dueAt.toLocaleString()}`;
+        responseMessage = `Recurring reminder set: monthly on day ${dayOfMonthVal} starting ${scheduleInfo}`;
       } else if (frequency === 'custom') {
-        responseMessage = `Recurring reminder set: every ${intervalDays} days starting ${dueAt.toLocaleString()}`;
+        responseMessage = `Recurring reminder set: every ${intervalDays} days starting ${scheduleInfo}`;
       }
     }
 

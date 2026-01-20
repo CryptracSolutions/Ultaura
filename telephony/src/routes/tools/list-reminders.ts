@@ -4,6 +4,9 @@ import { Router, Request, Response } from 'express';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
+import { getMemoryDEK } from '../../services/line-encryption.js';
+import { decryptReminderMessagesWithDek } from '../../utils/reminder-crypto.js';
+import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const listRemindersRouter = Router();
 
@@ -35,13 +38,18 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
+    if (!await enforceSessionLineMatch({ session, lineId, recordFailure })) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
     const { data: line, error: lineError } = await supabase
       .from('ultaura_lines')
-      .select('allow_voice_reminder_control, display_name')
-      .eq('id', lineId)
+      .select('allow_voice_reminder_control, display_name, timezone')
+      .eq('id', session.line_id)
       .single();
 
     if (lineError || !line) {
@@ -51,11 +59,21 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    if (!line.allow_voice_reminder_control) {
+      await recordFailure('unauthorized');
+      res.json({
+        success: false,
+        message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
+      });
+      return;
+    }
+
     // Get upcoming reminders
     const { data: reminders, error } = await supabase
       .from('ultaura_reminders')
-      .select('id, message, due_at, is_recurring, is_paused, current_snooze_count')
-      .eq('line_id', lineId)
+      .select('id, message, message_ciphertext, message_iv, message_tag, due_at, timezone, is_recurring, is_paused, current_snooze_count')
+      .eq('line_id', session.line_id)
+      .eq('account_id', session.account_id)
       .eq('status', 'scheduled')
       .order('due_at', { ascending: true })
       .limit(10);
@@ -83,19 +101,40 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    let decryptedMessages = reminders.map((reminder) => ({
+      id: reminder.id,
+      message: reminder.message ?? null,
+      decryptFailed: false,
+    }));
+
+    if (reminders.some((reminder) => reminder.message_ciphertext)) {
+      try {
+        const dek = await getMemoryDEK(supabase, session.account_id, session.line_id);
+        decryptedMessages = decryptReminderMessagesWithDek(
+          dek,
+          session.account_id,
+          session.line_id,
+          reminders
+        );
+      } catch (decryptError) {
+        logger.error({ error: decryptError, lineId: session.line_id }, 'Failed to decrypt reminder messages');
+        decryptedMessages = reminders.map((reminder) => ({
+          id: reminder.id,
+          message: reminder.message_ciphertext ? null : reminder.message ?? null,
+          decryptFailed: Boolean(reminder.message_ciphertext),
+        }));
+      }
+    }
+
+    const messageLookup = new Map(
+      decryptedMessages.map((entry) => [entry.id, entry])
+    );
+
     // Format reminders for voice response
     const formattedReminders = reminders.map((r, i) => {
-      const dueDate = new Date(r.due_at);
-      const dateStr = dueDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      });
-      const timeStr = dueDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
+      const resolved = messageLookup.get(r.id);
+      const resolvedMessage = resolved?.message ?? 'a reminder';
+      const schedule = formatReminderSchedule(r.due_at, r.timezone || line.timezone || 'UTC');
 
       let status = '';
       if (r.is_paused) {
@@ -107,8 +146,8 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
       return {
         id: r.id,
         index: i + 1,
-        message: r.message,
-        dateTime: `${dateStr} at ${timeStr}`,
+        message: resolvedMessage,
+        dateTime: schedule,
         isRecurring: r.is_recurring,
         isPaused: r.is_paused,
         status,

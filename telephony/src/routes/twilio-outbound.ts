@@ -167,7 +167,6 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
         preferredLanguageIso: line.preferred_language_iso ?? null,
         behavior: voicemailBehavior,
         isReminderCall: session.is_reminder_call,
-        reminderMessage: session.reminder_message,
       });
 
       res.type('text/xml').send(generateMessageTwiML(message, startingLanguage));

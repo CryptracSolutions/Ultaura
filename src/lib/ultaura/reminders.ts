@@ -1,8 +1,11 @@
 'use server';
 
+import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import { revalidatePath } from 'next/cache';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
 import {
   CreateReminderInputSchema,
@@ -20,10 +23,130 @@ import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logReminderEvent } from './reminder-events';
 import { parseVacationRanges } from './vacation-utils';
 import type { ReminderRow, UltauraAccountRow } from './types';
+import { decryptReminderMessagesForLine, encryptReminderMessage } from './reminder-crypto';
 
 const logger = getLogger();
 
 const OFFSET_REGEX = /[zZ]|[+-]\d{2}:\d{2}$/;
+const DECRYPTION_PLACEHOLDER = '[Unable to decrypt reminder]';
+
+type ReminderRowWithEncryption = ReminderRow & {
+  message_ciphertext?: string | null;
+  message_iv?: string | null;
+  message_tag?: string | null;
+  message_alg?: string | null;
+  message_kid?: string | null;
+};
+
+function stripEncryptedFields(reminder: ReminderRowWithEncryption): ReminderRow {
+  const {
+    message_ciphertext: _ciphertext,
+    message_iv: _iv,
+    message_tag: _tag,
+    message_alg: _alg,
+    message_kid: _kid,
+    ...safe
+  } = reminder as ReminderRowWithEncryption & Record<string, unknown>;
+
+  return safe as ReminderRow;
+}
+
+function resolveDecryptedMessage(
+  fallback: string | null,
+  info?: { message: string | null; decryptFailed: boolean }
+): string {
+  if (info?.message) {
+    return info.message;
+  }
+  if (info?.decryptFailed) {
+    return DECRYPTION_PLACEHOLDER;
+  }
+  return fallback ?? DECRYPTION_PLACEHOLDER;
+}
+
+async function decryptReminderRowsForLine(
+  adminClient: SupabaseClient,
+  reminders: ReminderRowWithEncryption[],
+  lineCreatedAt?: string | null
+): Promise<ReminderRow[]> {
+  if (reminders.length === 0) return [];
+
+  const accountId = reminders[0].account_id;
+  const lineId = reminders[0].line_id;
+  const messageMap = new Map<string, { message: string | null; decryptFailed: boolean }>();
+
+  try {
+    const decrypted = await decryptReminderMessagesForLine(
+      adminClient,
+      accountId,
+      lineId,
+      reminders,
+      lineCreatedAt
+    );
+    for (const entry of decrypted) {
+      messageMap.set(entry.id, entry);
+    }
+  } catch (error) {
+    logger.error({ error, lineId }, 'Failed to decrypt reminders');
+    for (const reminder of reminders) {
+      messageMap.set(reminder.id, {
+        message: reminder.message_ciphertext ? null : reminder.message ?? null,
+        decryptFailed: Boolean(reminder.message_ciphertext),
+      });
+    }
+  }
+
+  return reminders.map((reminder) => {
+    const info = messageMap.get(reminder.id);
+    const safeReminder = stripEncryptedFields(reminder);
+    safeReminder.message = resolveDecryptedMessage(reminder.message ?? null, info);
+    return safeReminder;
+  });
+}
+
+async function decryptReminderMessagesByLine(
+  adminClient: SupabaseClient,
+  reminders: ReminderRowWithEncryption[],
+  lineCreatedAtById: Map<string, string | null>
+): Promise<Map<string, { message: string | null; decryptFailed: boolean }>> {
+  const grouped = new Map<string, ReminderRowWithEncryption[]>();
+
+  for (const reminder of reminders) {
+    const list = grouped.get(reminder.line_id) ?? [];
+    list.push(reminder);
+    grouped.set(reminder.line_id, list);
+  }
+
+  const messageMap = new Map<string, { message: string | null; decryptFailed: boolean }>();
+
+  for (const [lineId, lineReminders] of Array.from(grouped.entries())) {
+    if (lineReminders.length === 0) continue;
+    const accountId = lineReminders[0].account_id;
+    const lineCreatedAt = lineCreatedAtById.get(lineId) ?? null;
+    try {
+      const decrypted = await decryptReminderMessagesForLine(
+        adminClient,
+        accountId,
+        lineId,
+        lineReminders,
+        lineCreatedAt
+      );
+      for (const entry of decrypted) {
+        messageMap.set(entry.id, entry);
+      }
+    } catch (error) {
+      logger.error({ error, lineId }, 'Failed to decrypt reminder batch');
+      for (const reminder of lineReminders) {
+        messageMap.set(reminder.id, {
+          message: reminder.message_ciphertext ? null : reminder.message ?? null,
+          decryptFailed: Boolean(reminder.message_ciphertext),
+        });
+      }
+    }
+  }
+
+  return messageMap;
+}
 
 function parseInputDateTime(value: string, timezone: string): Date {
   if (OFFSET_REGEX.test(value)) {
@@ -44,6 +167,12 @@ function getLocalTimeOfDay(utcDate: Date, timezone: string): string {
 
 export async function getReminders(lineId: string): Promise<ReminderRow[]> {
   const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
+
+  const line = await getLine(lineId);
+  if (!line) {
+    return [];
+  }
 
   const { data, error } = await client
     .from('ultaura_reminders')
@@ -56,11 +185,13 @@ export async function getReminders(lineId: string): Promise<ReminderRow[]> {
     return [];
   }
 
-  return data || [];
+  const reminders = (data || []) as ReminderRowWithEncryption[];
+  return decryptReminderRowsForLine(adminClient, reminders, line.created_at);
 }
 
 export async function getReminder(reminderId: string): Promise<ReminderRow | null> {
   const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
 
   const { data, error } = await client
     .from('ultaura_reminders')
@@ -73,7 +204,14 @@ export async function getReminder(reminderId: string): Promise<ReminderRow | nul
     return null;
   }
 
-  return data;
+  const reminder = data as ReminderRowWithEncryption;
+  const line = await getLine(reminder.line_id);
+  if (!line) {
+    return null;
+  }
+
+  const decrypted = await decryptReminderRowsForLine(adminClient, [reminder], line.created_at);
+  return decrypted[0] ?? null;
 }
 
 const createReminderWithTrial = withTrialCheck(async (
@@ -187,15 +325,42 @@ const createReminderWithTrial = withTrialCheck(async (
   }
 
   const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
+  const reminderId = crypto.randomUUID();
+  const trimmedMessage = parsed.data.message.trim();
+
+  let encryptedMessage;
+  try {
+    encryptedMessage = await encryptReminderMessage(
+      adminClient,
+      account.id,
+      parsed.data.lineId,
+      reminderId,
+      trimmedMessage,
+      line.created_at
+    );
+  } catch (error) {
+    logger.error({ error }, 'Failed to encrypt reminder message');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to encrypt reminder'),
+    };
+  }
 
   const { data: reminder, error } = await client
     .from('ultaura_reminders')
     .insert({
+      id: reminderId,
       account_id: account.id,
       line_id: parsed.data.lineId,
       due_at: dueAtUtc.toISOString(),
       timezone,
-      message: parsed.data.message.trim(),
+      message: trimmedMessage,
+      message_ciphertext: encryptedMessage.ciphertext as unknown as string,
+      message_iv: encryptedMessage.iv as unknown as string,
+      message_tag: encryptedMessage.tag as unknown as string,
+      message_alg: encryptedMessage.alg,
+      message_kid: encryptedMessage.kid,
       delivery_method: 'outbound_call',
       status: 'scheduled',
       privacy_scope: 'line_only',
@@ -221,7 +386,10 @@ const createReminderWithTrial = withTrialCheck(async (
   revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
   revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
-  return { success: true, data: reminder };
+  const safeReminder = stripEncryptedFields(reminder as ReminderRowWithEncryption);
+  safeReminder.message = trimmedMessage;
+
+  return { success: true, data: safeReminder };
 });
 
 export async function createReminder(input: unknown): Promise<ActionResult<ReminderRow>> {
@@ -692,6 +860,14 @@ export async function editReminder(
     };
   }
 
+  const line = await getLine(reminder.line_id);
+  if (!line) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Line not found'),
+    };
+  }
+
   const account = await getUltauraAccountById(reminder.account_id);
   if (!account) {
     return {
@@ -713,16 +889,44 @@ export async function editReminder(
 
     const updates: Record<string, unknown> = {};
     const oldValues: Record<string, unknown> = {};
+    const newValues: Record<string, unknown> = {};
+    const metadata: Record<string, unknown> = { oldValues, newValues };
+    const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
 
-    if (inputData.updates.message !== undefined && inputData.updates.message !== inputData.reminder.message) {
+    if (inputData.updates.message !== undefined) {
       if (!inputData.updates.message.trim()) {
         return {
           success: false,
           error: createError(ErrorCodes.INVALID_INPUT, 'Message cannot be empty'),
         };
       }
-      oldValues.message = inputData.reminder.message;
-      updates.message = inputData.updates.message.trim();
+      const trimmedMessage = inputData.updates.message.trim();
+      let encryptedMessage;
+      try {
+        encryptedMessage = await encryptReminderMessage(
+          adminClient,
+          inputData.reminder.account_id,
+          inputData.reminder.line_id,
+          inputData.reminder.id,
+          trimmedMessage,
+          line.created_at
+        );
+      } catch (error) {
+        logger.error({ error }, 'Failed to encrypt reminder message');
+        return {
+          success: false,
+          error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to encrypt reminder'),
+        };
+      }
+      updates.message = trimmedMessage;
+      updates.message_ciphertext = encryptedMessage.ciphertext;
+      updates.message_iv = encryptedMessage.iv;
+      updates.message_tag = encryptedMessage.tag;
+      updates.message_alg = encryptedMessage.alg;
+      updates.message_kid = encryptedMessage.kid;
+      metadata.messageChanged = true;
+      metadata.oldMessageLength = inputData.reminder.message?.length ?? null;
+      metadata.newMessageLength = trimmedMessage.length;
     }
 
     if (inputData.updates.dueAt !== undefined) {
@@ -745,6 +949,7 @@ export async function editReminder(
 
       oldValues.dueAt = inputData.reminder.due_at;
       updates.due_at = dueAtUtc.toISOString();
+      newValues.dueAt = updates.due_at;
 
       if (inputData.reminder.is_recurring) {
         updates.time_of_day = getLocalTimeOfDay(dueAtUtc, inputData.reminder.timezone);
@@ -762,8 +967,11 @@ export async function editReminder(
         updates.days_of_week = null;
         updates.day_of_month = null;
         updates.ends_at = null;
+        newValues.isRecurring = false;
+        newValues.rrule = null;
       } else {
         updates.is_recurring = true;
+        newValues.isRecurring = true;
 
         const { frequency, interval = 1, daysOfWeek, dayOfMonth, endsAt } = inputData.updates.recurrence;
         let rrule = '';
@@ -801,14 +1009,17 @@ export async function editReminder(
         }
 
         updates.rrule = rrule;
+        newValues.rrule = rrule;
 
         if (endsAt !== undefined) {
           if (endsAt === null) {
             updates.ends_at = null;
+            newValues.endsAt = null;
           } else {
             try {
               const endsAtUtc = parseInputDateTime(endsAt, inputData.reminder.timezone);
               updates.ends_at = endsAtUtc.toISOString();
+              newValues.endsAt = updates.ends_at;
             } catch (error) {
               return {
                 success: false,
@@ -846,7 +1057,7 @@ export async function editReminder(
       lineId: inputData.reminder.line_id,
       eventType: 'edited',
       triggeredBy: 'dashboard',
-      metadata: { oldValues, newValues: updates },
+      metadata,
     });
 
     revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
@@ -877,6 +1088,11 @@ export async function getPendingReminderCount(lineId: string): Promise<number> {
 
 export async function getNextReminder(lineId: string): Promise<ReminderRow | null> {
   const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
+  const line = await getLine(lineId);
+  if (!line) {
+    return null;
+  }
 
   const { data, error } = await client
     .from('ultaura_reminders')
@@ -895,7 +1111,12 @@ export async function getNextReminder(lineId: string): Promise<ReminderRow | nul
     return null;
   }
 
-  return data;
+  const reminders = await decryptReminderRowsForLine(
+    adminClient,
+    [data as ReminderRowWithEncryption],
+    line.created_at
+  );
+  return reminders[0] ?? null;
 }
 
 export async function getUpcomingReminders(accountId: string): Promise<{
@@ -913,6 +1134,7 @@ export async function getUpcomingReminders(accountId: string): Promise<{
   dayOfMonth: number | null;
 }[]> {
   const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
 
   const { data: reminders, error } = await client
     .from('ultaura_reminders')
@@ -920,6 +1142,9 @@ export async function getUpcomingReminders(accountId: string): Promise<{
       id,
       line_id,
       message,
+      message_ciphertext,
+      message_iv,
+      message_tag,
       due_at,
       timezone,
       is_recurring,
@@ -931,7 +1156,8 @@ export async function getUpcomingReminders(accountId: string): Promise<{
         display_name,
         short_id,
         vacation_ranges,
-        timezone
+        timezone,
+        created_at
       )
     `)
     .eq('account_id', accountId)
@@ -945,7 +1171,11 @@ export async function getUpcomingReminders(accountId: string): Promise<{
     return [];
   }
 
-  return (reminders || [])
+  const reminderRows = (reminders || []) as Array<ReminderRowWithEncryption & {
+    ultaura_lines?: { display_name: string; short_id: string; vacation_ranges?: unknown; timezone?: string; created_at?: string | null };
+  }>;
+
+  const filtered = reminderRows
     .filter((reminder) => {
       const line = reminder.ultaura_lines as { vacation_ranges?: unknown; timezone?: string };
       const timezone = line?.timezone || reminder.timezone;
@@ -954,13 +1184,22 @@ export async function getUpcomingReminders(accountId: string): Promise<{
       const ranges = parseVacationRanges(line?.vacation_ranges);
       const isOnVacation = ranges.some((range) => localDate >= range.start && localDate <= range.end);
       return !isOnVacation;
-    })
-    .map((reminder) => ({
+    });
+
+  const lineCreatedAtById = new Map<string, string | null>();
+  for (const reminder of filtered) {
+    const lineCreatedAt = reminder.ultaura_lines?.created_at ?? null;
+    lineCreatedAtById.set(reminder.line_id, lineCreatedAt);
+  }
+
+  const messageMap = await decryptReminderMessagesByLine(adminClient, filtered, lineCreatedAtById);
+
+  return filtered.map((reminder) => ({
       reminderId: reminder.id,
       lineId: reminder.line_id,
       lineShortId: (reminder.ultaura_lines as { short_id: string }).short_id,
       displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
-      message: reminder.message,
+      message: resolveDecryptedMessage(reminder.message ?? null, messageMap.get(reminder.id)),
       dueAt: reminder.due_at,
       timezone: reminder.timezone,
       isRecurring: reminder.is_recurring,
@@ -987,6 +1226,7 @@ export async function getAllReminders(accountId: string): Promise<{
   dayOfMonth: number | null;
 }[]> {
   const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
 
   const { data: reminders, error } = await client
     .from('ultaura_reminders')
@@ -994,6 +1234,9 @@ export async function getAllReminders(accountId: string): Promise<{
       id,
       line_id,
       message,
+      message_ciphertext,
+      message_iv,
+      message_tag,
       due_at,
       timezone,
       status,
@@ -1004,7 +1247,8 @@ export async function getAllReminders(accountId: string): Promise<{
       day_of_month,
       ultaura_lines!inner (
         display_name,
-        short_id
+        short_id,
+        created_at
       )
     `)
     .eq('account_id', accountId)
@@ -1015,12 +1259,24 @@ export async function getAllReminders(accountId: string): Promise<{
     return [];
   }
 
-  return (reminders || []).map((reminder) => ({
+  const reminderRows = (reminders || []) as Array<ReminderRowWithEncryption & {
+    ultaura_lines?: { display_name: string; short_id: string; created_at?: string | null };
+  }>;
+
+  const lineCreatedAtById = new Map<string, string | null>();
+  for (const reminder of reminderRows) {
+    const lineCreatedAt = reminder.ultaura_lines?.created_at ?? null;
+    lineCreatedAtById.set(reminder.line_id, lineCreatedAt);
+  }
+
+  const messageMap = await decryptReminderMessagesByLine(adminClient, reminderRows, lineCreatedAtById);
+
+  return reminderRows.map((reminder) => ({
     reminderId: reminder.id,
     lineId: reminder.line_id,
     lineShortId: (reminder.ultaura_lines as { short_id: string }).short_id,
     displayName: (reminder.ultaura_lines as { display_name: string }).display_name,
-    message: reminder.message,
+    message: resolveDecryptedMessage(reminder.message ?? null, messageMap.get(reminder.id)),
     dueAt: reminder.due_at,
     timezone: reminder.timezone,
     status: reminder.status as 'scheduled' | 'sent' | 'missed' | 'canceled',

@@ -11,6 +11,7 @@ import { summarizeAndExtractMemoriesFromBuffer } from '../services/call-summariz
 import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback.js';
 import { getUsageSummary } from '../services/metering.js';
 import { getStartingLanguageForLine } from '../services/language.js';
+import { getMemoryDEK } from '../services/line-encryption.js';
 import { getAccountPrivacySettings, getLineVoiceConsent, updateLineVoiceConsent, logConsentAuditEvent } from '../services/privacy.js';
 import { buildRetentionContext, type RetentionContext } from '../services/retention-context.js';
 import { buildPromptPlaceholders } from '../services/prompt-context.js';
@@ -18,6 +19,8 @@ import { registerActiveCall, unregisterActiveCall } from '../services/active-cal
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
 import { redactSensitive, summarizeArgs } from '../utils/redact.js';
+import { buildReminderMessageAAD, decryptReminderMessageWithDek } from '../utils/reminder-crypto.js';
+import { getSupabaseClient } from '../utils/supabase.js';
 import { registerGrokBridge, unregisterGrokBridge, getGrokBridge } from './grok-bridge-registry.js';
 import { getFallbackMessage } from '../utils/fallback-messages.js';
 import {
@@ -106,6 +109,46 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
   const { line, account } = lineWithAccount;
   const isPayg = account.plan_id === 'payg';
+  let reminderMessage: string | null = null;
+
+  if (session.is_reminder_call && session.reminder_id) {
+    const supabase = getSupabaseClient();
+    const { data: reminder, error: reminderError } = await supabase
+      .from('ultaura_reminders')
+      .select('id, message, message_ciphertext, message_iv, message_tag')
+      .eq('id', session.reminder_id)
+      .eq('line_id', session.line_id)
+      .eq('account_id', session.account_id)
+      .single();
+
+    if (reminderError) {
+      logger.error({ error: reminderError, reminderId: session.reminder_id }, 'Failed to load reminder message');
+    } else if (reminder) {
+      if (reminder.message_ciphertext && reminder.message_iv && reminder.message_tag) {
+        try {
+          const dek = await getMemoryDEK(supabase, account.id, line.id);
+          const aad = buildReminderMessageAAD(account.id, line.id, reminder.id);
+          reminderMessage = decryptReminderMessageWithDek(
+            dek,
+            {
+              ciphertext: reminder.message_ciphertext,
+              iv: reminder.message_iv,
+              tag: reminder.message_tag,
+            },
+            aad
+          );
+        } catch (decryptError) {
+          logger.error({ error: decryptError, reminderId: reminder.id }, 'Failed to decrypt reminder message');
+        }
+      } else if (reminder.message) {
+        reminderMessage = reminder.message;
+      }
+    }
+
+    if (reminderMessage && reminderMessage.trim().length === 0) {
+      reminderMessage = null;
+    }
+  }
 
   const formatPlanOptions = () =>
     PLAN_OPTIONS.map((option) =>
@@ -546,7 +589,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                 lowMinutesWarning: minutesStatus.warn,
                 minutesRemaining,
                 isReminderCall: session.is_reminder_call,
-                reminderMessage: session.reminder_message,
+                reminderMessage,
                 isTestCall: session.is_test_call,
                 isPreviewMode: session.is_preview_mode,
                 userType,

@@ -761,7 +761,6 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
         lineId: reminder.line_id,
         reason: 'reminder',
         reminderId: reminder.id,
-        reminderMessage: reminder.message,
         schedulerIdempotencyKey: idempotencyKey,
       }),
     });

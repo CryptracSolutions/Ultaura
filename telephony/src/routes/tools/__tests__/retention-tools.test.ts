@@ -63,7 +63,6 @@ const baseSession: CallSessionRow = {
   cost_estimate_cents_model: null,
   is_reminder_call: false,
   reminder_id: null,
-  reminder_message: null,
   scheduler_idempotency_key: null,
   is_test_call: false,
   is_preview_mode: false,

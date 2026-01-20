@@ -3058,6 +3058,11 @@ export type Database = {
           last_delivery_status: string | null
           line_id: string
           message: string
+          message_alg: string | null
+          message_ciphertext: string | null
+          message_iv: string | null
+          message_kid: string | null
+          message_tag: string | null
           occurrence_count: number
           original_due_at: string | null
           paused_at: string | null
@@ -3087,6 +3092,11 @@ export type Database = {
           last_delivery_status?: string | null
           line_id: string
           message: string
+          message_alg?: string | null
+          message_ciphertext?: string | null
+          message_iv?: string | null
+          message_kid?: string | null
+          message_tag?: string | null
           occurrence_count?: number
           original_due_at?: string | null
           paused_at?: string | null
@@ -3116,6 +3126,11 @@ export type Database = {
           last_delivery_status?: string | null
           line_id?: string
           message?: string
+          message_alg?: string | null
+          message_ciphertext?: string | null
+          message_iv?: string | null
+          message_kid?: string | null
+          message_tag?: string | null
           occurrence_count?: number
           original_due_at?: string | null
           paused_at?: string | null
@@ -4057,6 +4072,11 @@ export type Database = {
           last_delivery_status: string | null
           line_id: string
           message: string
+          message_alg: string | null
+          message_ciphertext: string | null
+          message_iv: string | null
+          message_kid: string | null
+          message_tag: string | null
           occurrence_count: number
           original_due_at: string | null
           paused_at: string | null

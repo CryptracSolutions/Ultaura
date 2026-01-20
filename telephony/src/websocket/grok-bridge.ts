@@ -395,12 +395,29 @@ export class GrokBridge {
     const placeholders = this.options.promptPlaceholders;
 
     // Use dedicated short prompt for reminder calls
-    if (isReminderCall && reminderMessage) {
-      let prompt = buildReminderPrompt({
-        userName,
-        reminderMessage,
-        startingLanguage,
-      });
+    if (isReminderCall) {
+      if (reminderMessage) {
+        let prompt = buildReminderPrompt({
+          userName,
+          reminderMessage,
+          startingLanguage,
+        });
+
+        const consentSections = this.getConsentPromptSections();
+        if (consentSections.length > 0) {
+          prompt += `\n\n${consentSections.join('\n\n')}`;
+        }
+
+        return prompt;
+      }
+
+      let prompt = 'SYSTEM: This is a reminder call, but the reminder details are unavailable. ' +
+        'Apologize briefly, then offer to list upcoming reminders or let them tell you what the reminder is about. ' +
+        'Keep it brief and friendly.';
+
+      if (startingLanguage) {
+        prompt += `\n\nStart in ${startingLanguage}.`;
+      }
 
       const consentSections = this.getConsentPromptSections();
       if (consentSections.length > 0) {

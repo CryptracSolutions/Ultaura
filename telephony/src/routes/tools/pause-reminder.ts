@@ -4,6 +4,7 @@ import { Router, Request, Response } from 'express';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
+import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const pauseReminderRouter = Router();
 
@@ -36,13 +37,19 @@ pauseReminderRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
+    if (!await enforceSessionLineMatch({ session, lineId, recordFailure })) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const effectiveLineId = session.line_id;
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
     const { data: line, error: lineError } = await supabase
       .from('ultaura_lines')
-      .select('allow_voice_reminder_control')
-      .eq('id', lineId)
+      .select('allow_voice_reminder_control, timezone')
+      .eq('id', effectiveLineId)
       .single();
 
     if (lineError || !line) {
@@ -65,7 +72,8 @@ pauseReminderRouter.post('/', async (req: Request, res: Response) => {
       .from('ultaura_reminders')
       .select('*')
       .eq('id', reminderId)
-      .eq('line_id', lineId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id)
       .single();
 
     if (reminderError || !reminder) {
@@ -102,7 +110,9 @@ pauseReminderRouter.post('/', async (req: Request, res: Response) => {
         is_paused: true,
         paused_at: new Date().toISOString(),
       })
-      .eq('id', reminderId);
+      .eq('id', reminderId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id);
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to pause reminder');
@@ -115,7 +125,7 @@ pauseReminderRouter.post('/', async (req: Request, res: Response) => {
     await supabase.from('ultaura_reminder_events').insert({
       account_id: session.account_id,
       reminder_id: reminderId,
-      line_id: lineId,
+      line_id: effectiveLineId,
       event_type: 'paused',
       triggered_by: 'voice',
       call_session_id: callSessionId,
@@ -128,9 +138,14 @@ pauseReminderRouter.post('/', async (req: Request, res: Response) => {
       reminderId,
     }, { skipDebugLog: true });
 
+    const scheduleInfo = formatReminderSchedule(
+      reminder.due_at,
+      reminder.timezone || line.timezone || 'UTC'
+    );
+
     res.json({
       success: true,
-      message: `I've paused your reminder "${reminder.message}". It won't fire until you resume it. Would you like me to do anything else?`,
+      message: `I've paused that reminder scheduled for ${scheduleInfo}. It won't fire until you resume it. Would you like me to do anything else?`,
     });
   } catch (error) {
     logger.error({ error }, 'Error pausing reminder');

@@ -117,7 +117,6 @@ export interface CallSessionRow {
   // Reminder call fields
   is_reminder_call: boolean;
   reminder_id: string | null;
-  reminder_message: string | null;
   scheduler_idempotency_key: string | null;
   is_test_call: boolean;
   is_preview_mode: boolean;
@@ -194,7 +193,12 @@ export interface ReminderRow {
   created_at: string;
   due_at: string;
   timezone: string;
-  message: string;
+  message: string | null;
+  message_ciphertext: Uint8Array | null;
+  message_iv: Uint8Array | null;
+  message_tag: Uint8Array | null;
+  message_alg: string | null;
+  message_kid: string | null;
   delivery_method: string;
   status: 'scheduled' | 'sent' | 'missed' | 'canceled';
   privacy_scope: 'line_only' | 'shareable_with_payer';
@@ -208,6 +212,16 @@ export interface ReminderRow {
   time_of_day: string | null;
   ends_at: string | null;
   occurrence_count: number;
+  // Pause/snooze fields
+  is_paused: boolean;
+  paused_at: string | null;
+  snoozed_until: string | null;
+  original_due_at: string | null;
+  current_snooze_count: number;
+  last_delivery_status: 'completed' | 'no_answer' | 'failed' | null;
+  // Scheduler claim fields
+  processing_claimed_at: string | null;
+  processing_claimed_by: string | null;
 }
 
 export interface AccountCryptoKeyRow {

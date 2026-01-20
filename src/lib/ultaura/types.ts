@@ -340,7 +340,6 @@ export interface CallSession {
   isTestCall: boolean;
   isReminderCall: boolean;
   reminderId: string | null;
-  reminderMessage: string | null;
 }
 
 export interface CallEvent {

@@ -9,6 +9,7 @@ import {
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
+import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const snoozeReminderRouter = Router();
 
@@ -57,13 +58,19 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
+    if (!await enforceSessionLineMatch({ session, lineId, recordFailure })) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const effectiveLineId = session.line_id;
     const supabase = getSupabaseClient();
 
     // Check if voice reminder control is allowed
     const { data: line, error: lineError } = await supabase
       .from('ultaura_lines')
-      .select('allow_voice_reminder_control')
-      .eq('id', lineId)
+      .select('allow_voice_reminder_control, timezone')
+      .eq('id', effectiveLineId)
       .single();
 
     if (lineError || !line) {
@@ -105,7 +112,8 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       .from('ultaura_reminders')
       .select('*')
       .eq('id', targetReminderId)
-      .eq('line_id', lineId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id)
       .single();
 
     if (reminderError || !reminder) {
@@ -163,7 +171,9 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
         snoozed_until: newDueAt.toISOString(),
         current_snooze_count: reminder.current_snooze_count + 1,
       })
-      .eq('id', targetReminderId);
+      .eq('id', targetReminderId)
+      .eq('line_id', effectiveLineId)
+      .eq('account_id', session.account_id);
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to snooze reminder');
@@ -176,7 +186,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
     await supabase.from('ultaura_reminder_events').insert({
       account_id: session.account_id,
       reminder_id: targetReminderId,
-      line_id: lineId,
+      line_id: effectiveLineId,
       event_type: 'snoozed',
       triggered_by: 'voice',
       call_session_id: callSessionId,
@@ -196,16 +206,8 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       snoozeMinutes,
     }, { skipDebugLog: true });
 
-    // Build response message
-    let snoozeDuration: string;
-    if (snoozeMinutes === 1440) {
-      snoozeDuration = 'until tomorrow';
-    } else if (snoozeMinutes >= 60) {
-      snoozeDuration = `for ${snoozeMinutes / 60} hour${snoozeMinutes > 60 ? 's' : ''}`;
-    } else {
-      snoozeDuration = `for ${snoozeMinutes} minutes`;
-    }
-
+    const timezone = reminder.timezone || line.timezone || 'UTC';
+    const scheduleInfo = formatReminderSchedule(newDueAt, timezone);
     const remainingSnoozes = MAX_SNOOZE_COUNT - (reminder.current_snooze_count + 1);
     const snoozeNote = remainingSnoozes > 0
       ? ` You can snooze ${remainingSnoozes} more time${remainingSnoozes > 1 ? 's' : ''}.`
@@ -215,7 +217,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       success: true,
       newDueAt: newDueAt.toISOString(),
       snoozeCount: reminder.current_snooze_count + 1,
-      message: `Okay, I've snoozed your reminder ${snoozeDuration}.${snoozeNote} Is there anything else?`,
+      message: `Okay, I've snoozed that reminder until ${scheduleInfo}.${snoozeNote} Is there anything else?`,
     });
   } catch (error) {
     logger.error({ error }, 'Error snoozing reminder');
