@@ -232,6 +232,7 @@ ALTER TABLE ultaura_debug_logs DROP COLUMN payload;
 
 **SECURITY REQUIREMENT**: This module must NEVER log decrypted payloads or any payload content.
 Only log IDs, error codes/types, and metadata. This is a hard requirement for HIPAA-adjacent hygiene.
+Also avoid logging raw crypto buffers (`ciphertext`, `iv`, `tag`) and avoid logging raw error objects if they might contain request/context dumps; prefer logging `error.message`, `error.name`, and stable IDs.
 
 ```typescript
 import crypto from 'crypto';
@@ -308,12 +309,14 @@ export async function decryptDebugPayload(
   encrypted: { ciphertext: Uint8Array; iv: Uint8Array; tag: Uint8Array }
 ): Promise<Record<string, unknown> | null> {
   try {
-    // For decryption, we need the DEK to exist - if it doesn't, we can't decrypt
+    // NOTE: Prefer a "get existing DEK" read to avoid side effects (creating DEKs)
+    // during admin/debug browsing. If `getOrCreateAccountDEK()` is used, ensure
+    // this decrypt path is not called in hot paths and accept the side effect.
     const dek = await getOrCreateAccountDEK(supabase, accountId);
     const aad = buildDebugLogAAD(accountId, callSessionId, debugLogId);
     return decryptDebugPayloadWithDek(dek, encrypted, aad);
   } catch (err) {
-    logger.error({ error: err, accountId, debugLogId }, 'Failed to decrypt debug payload');
+    logger.error({ accountId, debugLogId }, 'Failed to decrypt debug payload');
     return null;  // Graceful failure for decrypt
   }
 }
@@ -1036,6 +1039,16 @@ describe('buildPayloadSummary', () => {
 - Log encryption failures to Sentry/observability
 - Track `payload_ciphertext IS NULL WHERE account_id IS NOT NULL` as backfill metric
 - Alert if encryption failure rate exceeds threshold
+
+### Logging Guardrails (Implementation-Time Checklist)
+- Never write plaintext payload values (or decrypted payload) to application logs.
+- Never log `payload_ciphertext`, `payload_iv`, `payload_tag`, or any derived buffers.
+- Prefer logging only stable identifiers (`debugLogId`, `callSessionId`, `accountId`, `event_type`, `tool_name`) and minimal error info (`error.name`/`error.message`).
+- Treat `metadata` as potentially sensitive; keep it minimal (e.g., `line_id`, `phone_number_last4`) and avoid free-form user content.
+
+### Key Side-Effects
+- Avoid creating encryption keys as a side effect of *reading* debug logs. The Next.js decrypt helper already reads an existing wrapped DEK and returns `null` if missing.
+- If you keep a telephony `decryptDebugPayload()` helper, do not use it in production read paths unless it is guaranteed not to create DEKs (or you explicitly accept the side effect).
 
 ### Environment Variables
 ```bash
