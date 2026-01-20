@@ -49,7 +49,34 @@ const columns: Array<ColumnDef<DebugLogRow>> = [
   {
     header: 'Payload',
     id: 'payload',
-    cell: ({ row }) => renderJsonCell(row.original.payload),
+    cell: ({ row }) => {
+      const {
+        payload,
+        payload_summary,
+        payload_encrypted,
+        payload_decrypt_failed,
+      } = row.original;
+
+      if (payload_decrypt_failed) {
+        return (
+          <div className="text-destructive text-xs">
+            [Unable to decrypt]
+            {payload_summary ? (
+              <div className="mt-1">{renderJsonCell(payload_summary)}</div>
+            ) : null}
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          {payload_encrypted ? (
+            <span className="mr-2 text-xs text-muted-foreground">[Encrypted]</span>
+          ) : null}
+          {renderJsonCell(payload)}
+        </div>
+      );
+    },
   },
   {
     header: 'Metadata',

@@ -27,6 +27,7 @@ export default async function DebugLogsPage({ searchParams }: DebugLogsPageProps
   const page = getPageFromQueryParams(searchParams.page);
   const perPage = 50;
   const offset = (page - 1) * perPage;
+  const retentionDays = resolveRetentionDays();
 
   const { data, count } = await getDebugLogs({
     startDate: searchParams.startDate,
@@ -48,7 +49,7 @@ export default async function DebugLogsPage({ searchParams }: DebugLogsPageProps
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">
           <div className="text-sm text-muted-foreground">
-            Admin-only view of full call event payloads. Logs auto-delete after 7 days.
+            Admin-only view of full call event payloads. Logs auto-delete after {retentionDays} day{retentionDays !== 1 ? 's' : ''}.
           </div>
 
           <DebugLogFilters currentFilters={searchParams} />
@@ -63,4 +64,17 @@ export default async function DebugLogsPage({ searchParams }: DebugLogsPageProps
       </PageBody>
     </div>
   );
+}
+
+function resolveRetentionDays() {
+  const rawValue = process.env.DEBUG_LOG_RETENTION_DAYS;
+  const parsed = rawValue ? Number.parseInt(rawValue, 10) : NaN;
+  const fallback = 3;
+  const maxDays = 30;
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed > maxDays ? maxDays : parsed;
 }

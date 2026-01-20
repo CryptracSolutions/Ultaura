@@ -4,9 +4,12 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 
 import GlobalRole from '~/core/session/types/global-role';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
+import getLogger from '~/core/logger';
 import requireSession from '~/lib/user/require-session';
 import type { Database } from '~/database.types';
 import type { DebugLog } from './admin-types';
+import { decodeBytea } from './bytea';
+import { decryptDebugPayload } from './debug-log-decrypt';
 
 type Filters = {
   startDate?: string;
@@ -20,6 +23,44 @@ type Filters = {
 };
 
 type AdminUser = Pick<User, 'email' | 'app_metadata'>;
+
+type DebugLogRow = Database['public']['Tables']['ultaura_debug_logs']['Row'];
+
+const logger = getLogger();
+
+function stripCipherFields(log: DebugLogRow) {
+  const {
+    payload_ciphertext: _ciphertext,
+    payload_iv: _iv,
+    payload_tag: _tag,
+    payload_alg: _alg,
+    payload_kid: _kid,
+    ...rest
+  } = log;
+
+  return rest;
+}
+
+function coerceJsonObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function normalizeLogFields(log: ReturnType<typeof stripCipherFields>) {
+  const payloadSummary = coerceJsonObject(log.payload_summary);
+  const metadata = coerceJsonObject(log.metadata);
+  const payload = coerceJsonObject(log.payload) ?? {};
+
+  return {
+    ...log,
+    payload_summary: payloadSummary,
+    metadata,
+    payload,
+  };
+}
 
 function isUserAdmin(user: AdminUser) {
   const email = user.email ?? '';
@@ -92,5 +133,70 @@ export async function getDebugLogs(
     throw error;
   }
 
-  return { data: (data as DebugLog[]) || [], count: count || 0 };
+  const decryptedLogs = await Promise.all(
+    ((data as DebugLogRow[]) || []).map(async (log) => {
+      const hasCiphertextFields = Boolean(
+        log.payload_ciphertext || log.payload_iv || log.payload_tag
+      );
+      const ciphertext = decodeBytea(log.payload_ciphertext);
+      const iv = decodeBytea(log.payload_iv);
+      const tag = decodeBytea(log.payload_tag);
+      const hasEncryptedPayload = Boolean(ciphertext && iv && tag);
+
+      if (hasCiphertextFields && !hasEncryptedPayload) {
+        logger.warn({
+          debugLogId: log.id,
+          accountId: log.account_id,
+        }, 'Invalid debug log ciphertext format');
+
+        const rest = normalizeLogFields(stripCipherFields(log));
+        return {
+          ...rest,
+          payload: { _error: 'Unable to decrypt debug payload' },
+          payload_encrypted: true,
+          payload_decrypt_failed: true,
+        };
+      }
+
+      if (hasEncryptedPayload && log.account_id && ciphertext && iv && tag) {
+        const decrypted = await decryptDebugPayload(
+          adminClient,
+          log.account_id,
+          log.call_session_id,
+          log.id,
+          {
+            ciphertext,
+            iv,
+            tag,
+          }
+        );
+
+        if (decrypted) {
+          const rest = normalizeLogFields(stripCipherFields(log));
+          return {
+            ...rest,
+            payload: decrypted,
+            payload_encrypted: true,
+          };
+        }
+
+        const rest = normalizeLogFields(stripCipherFields(log));
+        return {
+          ...rest,
+          payload: { _error: 'Unable to decrypt debug payload' },
+          payload_encrypted: true,
+          payload_decrypt_failed: true,
+        };
+      }
+
+      const rest = normalizeLogFields(stripCipherFields(log));
+      return {
+        ...rest,
+        payload_encrypted: hasEncryptedPayload,
+        payload_decrypt_failed: hasEncryptedPayload,
+      };
+    })
+  );
+
+  return { data: decryptedLogs, count: count || 0 };
 }

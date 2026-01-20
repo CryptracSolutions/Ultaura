@@ -1,6 +1,7 @@
 // Call session service
 // Manages call session lifecycle
 
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getSupabaseClient, CallSessionRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
@@ -12,6 +13,8 @@ import { updateInsightsDuration } from './insights.js';
 import { checkMissedCallAlert } from './weekly-summary.js';
 import { processWellnessAlertsForCall } from './wellness-alerts.js';
 import { sanitizePayload, getStrippedFieldsInfo, CallEventType } from '../utils/event-sanitizer.js';
+import { encryptDebugPayload } from '../utils/debug-log-crypto.js';
+import { buildPayloadSummary } from '../utils/payload-summary.js';
 
 export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
 export type CallDirection = 'inbound' | 'outbound';
@@ -632,17 +635,67 @@ export async function recordDebugEvent(
     }
   }
 
-  const { error } = await supabase.from('ultaura_debug_logs').insert({
+  const debugLogId = crypto.randomUUID();
+  const payloadSummary = buildPayloadSummary(payload);
+
+  let encrypted: {
+    ciphertext: Buffer;
+    iv: Buffer;
+    tag: Buffer;
+    alg: string;
+    kid: string;
+  } | null = null;
+
+  if (accountId) {
+    try {
+      encrypted = await encryptDebugPayload(supabase, accountId, sessionId, debugLogId, payload);
+    } catch (error) {
+      const err = error as Error;
+      logger.error({
+        accountId,
+        sessionId,
+        debugLogId,
+        eventType,
+        errorName: err?.name,
+        errorMessage: err?.message,
+      }, 'Failed to encrypt debug payload');
+    }
+  }
+
+  const safePayload = {
+    _encrypted: encrypted !== null,
+    summary: payloadSummary,
+  };
+
+  const insertRow: Record<string, unknown> = {
+    id: debugLogId,
     call_session_id: sessionId,
     account_id: accountId,
     event_type: eventType,
     tool_name: toolName,
-    payload,
+    payload: safePayload,
+    payload_summary: payloadSummary,
     metadata: metadata || null,
-  });
+  };
+
+  if (encrypted) {
+    insertRow.payload_ciphertext = encrypted.ciphertext;
+    insertRow.payload_iv = encrypted.iv;
+    insertRow.payload_tag = encrypted.tag;
+    insertRow.payload_alg = encrypted.alg;
+    insertRow.payload_kid = encrypted.kid;
+  }
+
+  const { error } = await supabase.from('ultaura_debug_logs').insert(insertRow);
 
   if (error) {
-    logger.error({ error, sessionId, eventType }, 'Failed to record debug event');
+    logger.error({
+      sessionId,
+      eventType,
+      debugLogId,
+      errorCode: (error as { code?: string }).code,
+      errorMessage: error.message,
+    }, 'Failed to record debug event');
   }
 }
 

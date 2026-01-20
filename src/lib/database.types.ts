@@ -673,6 +673,12 @@ export type Database = {
           id: string
           metadata: Json | null
           payload: Json
+          payload_alg: string | null
+          payload_ciphertext: string | null
+          payload_iv: string | null
+          payload_kid: string | null
+          payload_summary: Json | null
+          payload_tag: string | null
           tool_name: string | null
         }
         Insert: {
@@ -683,6 +689,12 @@ export type Database = {
           id?: string
           metadata?: Json | null
           payload: Json
+          payload_alg?: string | null
+          payload_ciphertext?: string | null
+          payload_iv?: string | null
+          payload_kid?: string | null
+          payload_summary?: Json | null
+          payload_tag?: string | null
           tool_name?: string | null
         }
         Update: {
@@ -693,6 +705,12 @@ export type Database = {
           id?: string
           metadata?: Json | null
           payload?: Json
+          payload_alg?: string | null
+          payload_ciphertext?: string | null
+          payload_iv?: string | null
+          payload_kid?: string | null
+          payload_summary?: Json | null
+          payload_tag?: string | null
           tool_name?: string | null
         }
         Relationships: [

@@ -22,7 +22,37 @@ const BATCH_SIZE = 10;
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 // SECURITY: Short retention period to minimize exposure window for debug data.
 // Debug logs may contain operational metadata that could be sensitive.
-const DEBUG_LOG_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
+const DEFAULT_DEBUG_LOG_RETENTION_DAYS = 3;
+const MAX_DEBUG_LOG_RETENTION_DAYS = 30;
+
+function resolveDebugLogRetentionDays(): number {
+  const rawValue = process.env.DEBUG_LOG_RETENTION_DAYS;
+  if (!rawValue) {
+    return DEFAULT_DEBUG_LOG_RETENTION_DAYS;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    logger.warn({
+      rawValue,
+      defaultDays: DEFAULT_DEBUG_LOG_RETENTION_DAYS,
+    }, 'Invalid DEBUG_LOG_RETENTION_DAYS; falling back to default');
+    return DEFAULT_DEBUG_LOG_RETENTION_DAYS;
+  }
+
+  if (parsed > MAX_DEBUG_LOG_RETENTION_DAYS) {
+    logger.warn({
+      rawValue,
+      maxDays: MAX_DEBUG_LOG_RETENTION_DAYS,
+    }, 'DEBUG_LOG_RETENTION_DAYS exceeds max; clamping');
+    return MAX_DEBUG_LOG_RETENTION_DAYS;
+  }
+
+  return parsed;
+}
+
+const DEBUG_LOG_RETENTION_DAYS = resolveDebugLogRetentionDays();
+const DEBUG_LOG_RETENTION_MS = DEBUG_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
 // Worker identity (unique per instance)
 const WORKER_ID = `${process.env.HOSTNAME || 'local'}-${uuidv4().slice(0, 8)}`;

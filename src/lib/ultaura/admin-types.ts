@@ -6,5 +6,8 @@ export interface DebugLog {
   event_type: string;
   tool_name: string | null;
   payload: Record<string, unknown>;
+  payload_summary: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
+  payload_encrypted?: boolean;
+  payload_decrypt_failed?: boolean;
 }
