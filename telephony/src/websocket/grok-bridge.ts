@@ -3,6 +3,8 @@
 
 import { WebSocket } from 'ws';
 import { DateTime } from 'luxon';
+import { trace, type Attributes, type Span } from '@opentelemetry/api';
+import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
 import { compilePrompt, buildReminderPrompt, GROK_TOOLS } from '@ultaura/prompts';
 import type {
   AccountStatus,
@@ -14,7 +16,7 @@ import type {
   SafetyTier,
 } from '@ultaura/types';
 import { SAFETY_CATEGORY_TIERS } from '@ultaura/types';
-import { logger } from '../server.js';
+import { logger } from '../utils/logger.js';
 import { addTurn, getBuffer, markConsentGranted, TurnSummary } from '../services/ephemeral-buffer.js';
 import { recordCallEvent } from '../services/call-session.js';
 import { getMemoriesForLine, markMemoriesAccessed } from '../services/memory.js';
@@ -32,6 +34,9 @@ import {
   VAD_SILENCE_DURATION_MS,
   VAD_THRESHOLD,
 } from '../utils/constants.js';
+import { runWithLogContext, type LogContext } from '../observability/log-context.js';
+import { runWithSpan, startSpan, SpanKind, SpanStatusCode, withSpan } from '../observability/tracing.js';
+import { voiceToolCallsTotal, voiceToolErrorsTotal } from '../utils/metrics.js';
 
 const GROK_REALTIME_URL = process.env.XAI_REALTIME_URL || 'wss://api.x.ai/v1/realtime';
 const ROUTINE_TIME_WINDOW_MINUTES = 120;
@@ -143,6 +148,8 @@ function buildRoutinePromptSection(memories: Memory[], timezone?: string): strin
 
 interface GrokBridgeOptions {
   callSessionId: string;
+  twilioCallSid?: string | null;
+  twilioStreamSid?: string | null;
   lineId: string;
   accountId: string;
   userName: string;
@@ -246,6 +253,8 @@ interface GrokMessage {
 export class GrokBridge {
   private ws: WebSocket | null = null;
   private options: GrokBridgeOptions;
+  private logContext: LogContext;
+  private sessionSpan: Span | undefined;
   private isConnected = false;
   private isGeneratingAudio = false;
   private hasEverConnected = false;
@@ -257,11 +266,54 @@ export class GrokBridge {
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
+    this.logContext = {
+      callSessionId: options.callSessionId,
+      twilioCallSid: options.twilioCallSid ?? undefined,
+      twilioStreamSid: options.twilioStreamSid ?? undefined,
+    };
     this.safetyState = getOrCreateSafetyState(options.callSessionId);
     if (options.startingLanguage && options.isLanguageAutoDetect === false) {
       this.detectedLanguage = options.startingLanguage;
     }
     this.startPeriodicSweeps();
+  }
+
+  private runWithContext<T>(fn: () => T): T {
+    return runWithLogContext(this.logContext, () => runWithSpan(this.sessionSpan, fn));
+  }
+
+  private applyCorrelationAttributes(span: Span): void {
+    span.setAttribute('callSessionId', this.options.callSessionId);
+    if (this.options.twilioCallSid) {
+      span.setAttribute('twilioCallSid', this.options.twilioCallSid);
+    }
+    if (this.options.twilioStreamSid) {
+      span.setAttribute('twilioStreamSid', this.options.twilioStreamSid);
+    }
+  }
+
+  public updateTwilioContext(values: { twilioCallSid?: string | null; twilioStreamSid?: string | null }): void {
+    if (values.twilioCallSid) {
+      this.options.twilioCallSid = values.twilioCallSid;
+      this.logContext.twilioCallSid = values.twilioCallSid;
+    }
+    if (values.twilioStreamSid) {
+      this.options.twilioStreamSid = values.twilioStreamSid;
+      this.logContext.twilioStreamSid = values.twilioStreamSid;
+    }
+
+    if (this.sessionSpan) {
+      this.applyCorrelationAttributes(this.sessionSpan);
+    }
+  }
+
+  private endSessionSpan(reason: string): void {
+    if (!this.sessionSpan) {
+      return;
+    }
+    this.sessionSpan.addEvent('grok.session.end', { reason });
+    this.sessionSpan.end();
+    this.sessionSpan = undefined;
   }
 
   // Connect to Grok Realtime API
@@ -272,64 +324,100 @@ export class GrokBridge {
       throw new Error('Missing XAI_API_KEY environment variable');
     }
 
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const timeout = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        reject(new Error('Grok connection timeout'));
-      }, timeoutMs);
+    const connectAttributes: Attributes = {
+      callSessionId: this.options.callSessionId,
+      'grok.realtime.url': GROK_REALTIME_URL,
+    };
+    if (this.options.twilioCallSid) {
+      connectAttributes.twilioCallSid = this.options.twilioCallSid;
+    }
+    if (this.options.twilioStreamSid) {
+      connectAttributes.twilioStreamSid = this.options.twilioStreamSid;
+    }
 
-      this.ws = new WebSocket(GROK_REALTIME_URL, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-      });
-
-      this.ws.on('open', () => {
-        logger.info({ callSessionId: this.options.callSessionId }, 'Connected to Grok Realtime');
-        this.isConnected = true;
-        this.hasEverConnected = true;
-        this.sendSessionConfig();
-        if (!settled) {
+    return withSpan('grok.realtime.connect', { kind: SpanKind.CLIENT, attributes: connectAttributes }, () =>
+      new Promise((resolve, reject) => {
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return;
           settled = true;
-          clearTimeout(timeout);
-          resolve();
-        }
-      });
+          reject(new Error('Grok connection timeout'));
+        }, timeoutMs);
 
-      this.ws.on('message', (data: Buffer) => {
-        this.handleGrokMessage(data);
-      });
+        this.ws = new WebSocket(GROK_REALTIME_URL, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+          },
+        });
 
-      this.ws.on('error', (error) => {
-        logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok WebSocket error');
-        this.options.onError(error);
-        if (this.hasEverConnected && !this.suppressDisconnect) {
-          this.triggerRecovery('error', error.message);
-        }
-        if (!settled) {
-          settled = true;
-          clearTimeout(timeout);
-          reject(error);
-        }
-      });
+        this.ws.on('open', () => {
+          this.runWithContext(() => {
+            logger.info({ callSessionId: this.options.callSessionId }, 'Connected to Grok Realtime');
+          });
+          this.isConnected = true;
+          this.hasEverConnected = true;
+          this.sessionSpan = startSpan('grok.realtime.session', {
+            kind: SpanKind.CLIENT,
+            attributes: {
+              callSessionId: this.options.callSessionId,
+              'grok.realtime.url': GROK_REALTIME_URL,
+            },
+          });
+          if (this.sessionSpan) {
+            this.applyCorrelationAttributes(this.sessionSpan);
+          }
+          this.sendSessionConfig();
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
 
-      this.ws.on('close', (code, reason) => {
-        const reasonStr = reason.toString();
-        logger.info({
-          callSessionId: this.options.callSessionId,
-          code,
-          reason: reasonStr,
-        }, 'Grok WebSocket closed');
-        const wasConnected = this.isConnected;
-        this.isConnected = false;
-        if (wasConnected && !this.suppressDisconnect) {
-          this.triggerRecovery('close', `${code}: ${reasonStr}`);
-        }
-        this.suppressDisconnect = false;
-      });
-    });
+        this.ws.on('message', (data: Buffer) => {
+          this.runWithContext(() => {
+            this.handleGrokMessage(data);
+          });
+        });
+
+        this.ws.on('error', (error) => {
+          this.runWithContext(() => {
+            logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok WebSocket error');
+            this.sessionSpan?.addEvent('grok.error', {
+              message: error.message,
+            });
+            this.options.onError(error);
+          });
+          if (this.hasEverConnected && !this.suppressDisconnect) {
+            this.triggerRecovery('error', error.message);
+          }
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeout);
+            reject(error);
+          }
+        });
+
+        this.ws.on('close', (code, reason) => {
+          const reasonStr = reason.toString();
+          this.runWithContext(() => {
+            logger.info({
+              callSessionId: this.options.callSessionId,
+              code,
+              reason: reasonStr,
+            }, 'Grok WebSocket closed');
+            this.sessionSpan?.addEvent('grok.close', { code, reason: reasonStr });
+          });
+          const wasConnected = this.isConnected;
+          this.isConnected = false;
+          if (wasConnected && !this.suppressDisconnect) {
+            this.triggerRecovery('close', `${code}: ${reasonStr}`);
+          }
+          this.suppressDisconnect = false;
+          this.endSessionSpan('close');
+        });
+      })
+    );
   }
 
   // Send session configuration
@@ -359,7 +447,9 @@ export class GrokBridge {
     };
 
     this.ws.send(JSON.stringify(sessionConfig));
-    logger.info({ callSessionId: this.options.callSessionId }, 'Sent Grok session config');
+    this.runWithContext(() => {
+      logger.info({ callSessionId: this.options.callSessionId }, 'Sent Grok session config');
+    });
   }
 
   // Build the system prompt
@@ -590,41 +680,43 @@ At the START of this call:
   }
 
   private async refreshMemoryContext(reason: string): Promise<void> {
-    try {
-      const memories = await getMemoriesForLine(
-        this.options.accountId,
-        this.options.lineId,
-        { limit: 150 }
-      );
-      if (this.options.memoryEnabled && memories.length > 0) {
-        await markMemoriesAccessed(memories.map((memory) => memory.id));
+    return this.runWithContext(async () => {
+      try {
+        const memories = await getMemoriesForLine(
+          this.options.accountId,
+          this.options.lineId,
+          { limit: 150 }
+        );
+        if (this.options.memoryEnabled && memories.length > 0) {
+          await markMemoriesAccessed(memories.map((memory) => memory.id));
+        }
+        const memoriesForPrompt = this.options.memoryEnabled ? memories : [];
+        const tools = this.getActiveTools();
+
+        this.sendMessage({
+          type: 'session.update',
+          session: {
+            instructions: this.buildSystemPrompt({ memories: memoriesForPrompt }),
+            tools,
+          },
+        });
+
+        this.options.memories = memoriesForPrompt;
+        logger.debug({ lineId: this.options.lineId }, 'Memory context refreshed');
+      } catch (error) {
+        logger.warn({
+          error,
+          callSessionId: this.options.callSessionId,
+          reason,
+        }, 'Failed to refresh memory context, continuing without refresh');
+        void recordCallEvent(
+          this.options.callSessionId,
+          'error',
+          { errorType: 'memory_refresh_failed', reason },
+          { skipDebugLog: true }
+        );
       }
-      const memoriesForPrompt = this.options.memoryEnabled ? memories : [];
-      const tools = this.getActiveTools();
-
-      this.sendMessage({
-        type: 'session.update',
-        session: {
-          instructions: this.buildSystemPrompt({ memories: memoriesForPrompt }),
-          tools,
-        },
-      });
-
-      this.options.memories = memoriesForPrompt;
-      logger.debug({ lineId: this.options.lineId }, 'Memory context refreshed');
-    } catch (error) {
-      logger.warn({
-        error,
-        callSessionId: this.options.callSessionId,
-        reason,
-      }, 'Failed to refresh memory context, continuing without refresh');
-      void recordCallEvent(
-        this.options.callSessionId,
-        'error',
-        { errorType: 'memory_refresh_failed', reason },
-        { skipDebugLog: true }
-      );
-    }
+    });
   }
 
   private parseToolResponse(
@@ -973,612 +1065,634 @@ At the START of this call:
 
   // Handle tool calls from Grok
   private async handleToolCall(callId: string, name: string, argsJson: string): Promise<void> {
-    logger.info({ callId, name, callSessionId: this.options.callSessionId }, 'Grok tool call');
+    return this.runWithContext(() => withSpan(
+      `grok.tool.${name}`,
+      {
+        kind: SpanKind.INTERNAL,
+        attributes: {
+          callSessionId: this.options.callSessionId,
+          toolName: name,
+        },
+      },
+      async (span) => {
+        if (span) {
+          this.applyCorrelationAttributes(span);
+          span.setAttribute('toolName', name);
+        }
 
-    try {
-      const args = JSON.parse(argsJson);
-      this.options.onToolCall(name, args);
+        voiceToolCallsTotal.inc({ toolName: name });
+        logger.info({ callId, toolName: name, callSessionId: this.options.callSessionId }, 'Grok tool call');
 
-      // Make the tool call to our backend
-      const baseUrl = getBackendUrl();
-      let result: string;
+        try {
+          const args = JSON.parse(argsJson);
+          this.options.onToolCall(name, args);
 
-      switch (name) {
-        case 'set_reminder':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/set_reminder`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            dueAtLocal: args.due_at_local,
-            timezone: this.options.timezone,
-            message: args.message,
-            // Recurrence fields
-            isRecurring: args.is_recurring || false,
-            frequency: args.frequency,
-            interval: args.interval,
-            daysOfWeek: args.days_of_week,
-            dayOfMonth: args.day_of_month,
-            endsAtLocal: args.ends_at_local,
-          });
-          break;
+          // Make the tool call to our backend
+          const baseUrl = getBackendUrl();
+          let result: string;
 
-        case 'schedule_call':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/schedule_call`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            mode: args.mode,
-            daysOfWeek: args.days_of_week,
-            timeLocal: args.time_local,
-          });
-          break;
-        case 'skip_schedule':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/skip_schedule`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            scheduleId: args.schedule_id,
-          });
-          break;
-        case 'snooze_schedule':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/snooze_schedule`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            scheduleId: args.schedule_id,
-            snoozeMinutes: args.snooze_minutes,
-          });
-          break;
-        case 'reschedule_schedule':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/reschedule_schedule`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            scheduleId: args.schedule_id,
-            newDatetime: args.new_datetime_local,
-          });
-          break;
+          switch (name) {
+            case 'set_reminder':
+              result = await this.callToolEndpoint(`${baseUrl}/tools/set_reminder`, {
+                callSessionId: this.options.callSessionId,
+                lineId: this.options.lineId,
+                dueAtLocal: args.due_at_local,
+                timezone: this.options.timezone,
+                message: args.message,
+                // Recurrence fields
+                isRecurring: args.is_recurring || false,
+                frequency: args.frequency,
+                interval: args.interval,
+                daysOfWeek: args.days_of_week,
+                dayOfMonth: args.day_of_month,
+                endsAtLocal: args.ends_at_local,
+              });
+              break;
+  
+            case 'schedule_call':
+              result = await this.callToolEndpoint(`${baseUrl}/tools/schedule_call`, {
+                callSessionId: this.options.callSessionId,
+                lineId: this.options.lineId,
+                mode: args.mode,
+                daysOfWeek: args.days_of_week,
+                timeLocal: args.time_local,
+              });
+              break;
+            case 'skip_schedule':
+              result = await this.callToolEndpoint(`${baseUrl}/tools/skip_schedule`, {
+                callSessionId: this.options.callSessionId,
+                lineId: this.options.lineId,
+                scheduleId: args.schedule_id,
+              });
+              break;
+            case 'snooze_schedule':
+              result = await this.callToolEndpoint(`${baseUrl}/tools/snooze_schedule`, {
+                callSessionId: this.options.callSessionId,
+                lineId: this.options.lineId,
+                scheduleId: args.schedule_id,
+                snoozeMinutes: args.snooze_minutes,
+              });
+              break;
+            case 'reschedule_schedule':
+              result = await this.callToolEndpoint(`${baseUrl}/tools/reschedule_schedule`, {
+                callSessionId: this.options.callSessionId,
+                lineId: this.options.lineId,
+                scheduleId: args.schedule_id,
+                newDatetime: args.new_datetime_local,
+              });
+              break;
+  
+            case 'choose_overage_action':
+              result = await this.callToolEndpoint(`${baseUrl}/tools/overage_action`, {
+                callSessionId: this.options.callSessionId,
+                action: args.action,
+                planId: args.plan_id,
+              });
+              break;
+  
+            case 'request_opt_out': {
+              const confirmed = args.confirmed;
+              if (confirmed) {
+                result = await this.callToolEndpoint(`${baseUrl}/tools/opt_out`, {
+                  callSessionId: this.options.callSessionId,
+                  lineId: this.options.lineId,
+                  source: 'voice',
+                });
+              } else {
+                result = JSON.stringify({
+                  success: true,
+                  message: 'Ask the user to confirm they want to stop receiving calls.'
+                });
+              }
+              break;
+          }
 
-        case 'choose_overage_action':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/overage_action`, {
-            callSessionId: this.options.callSessionId,
-            action: args.action,
-            planId: args.plan_id,
-          });
-          break;
-
-        case 'request_opt_out': {
-          const confirmed = args.confirmed;
-          if (confirmed) {
-            result = await this.callToolEndpoint(`${baseUrl}/tools/opt_out`, {
+          case 'forget_memory':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/forget_memory`, {
               callSessionId: this.options.callSessionId,
               lineId: this.options.lineId,
-              source: 'voice',
+              whatToForget: args.what_to_forget,
+              permanent: args.permanent === true,
+              confirmed: args.confirmed === true,
+              clarification: args.clarification,
             });
-          } else {
-            result = JSON.stringify({
-              success: true,
-              message: 'Ask the user to confirm they want to stop receiving calls.'
-            });
-          }
-          break;
-        }
+            break;
 
-        case 'forget_memory':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/forget_memory`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            whatToForget: args.what_to_forget,
-            permanent: args.permanent === true,
-            confirmed: args.confirmed === true,
-            clarification: args.clarification,
-          });
-          break;
-
-        case 'store_memory':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/store_memory`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            memoryType: args.memory_type,
-            key: args.key,
-            value: args.value,
-            confidence: args.confidence || 1.0,
-            suggestReminder: args.suggest_reminder || false,
-            expectedEndDate: args.expected_end_date,
-            routineLevel: args.routine_level,
-          });
-          // Refresh context after storing
-          void this.refreshMemoryContext('store_memory');
-          break;
-
-        case 'update_memory':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/update_memory`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            existingKey: args.existing_key,
-            newValue: args.new_value,
-            memoryType: args.memory_type,
-            confidence: args.confidence || 1.0,
-            confirmed: args.confirmed === true,
-            clarification: args.clarification,
-          });
-          void this.refreshMemoryContext('update_memory');
-          break;
-
-        case 'grant_memory_consent': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/grant_memory_consent`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'grant_memory_consent');
-          this.options.onToolResult?.('grant_memory_consent', parsed?.success === true);
-          if (parsed?.success) {
-            this.options.needsMemoryConsent = false;
-            this.options.memoryEnabled = true;
-            markConsentGranted(this.options.callSessionId);
-            void this.refreshMemoryContext('grant_memory_consent');
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'deny_memory_consent': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/deny_memory_consent`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'deny_memory_consent');
-          this.options.onToolResult?.('deny_memory_consent', parsed?.success === true);
-          if (parsed?.success) {
-            this.options.needsMemoryConsent = false;
-            this.options.memoryEnabled = false;
-            void this.refreshMemoryContext('deny_memory_consent');
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'grant_recording_consent': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/grant_recording_consent`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'grant_recording_consent');
-          this.options.onToolResult?.('grant_recording_consent', parsed?.success === true);
-          if (parsed?.success) {
-            this.options.needsRecordingConsent = false;
-            this.options.recordingConsent = 'granted';
-            this.refreshSessionInstructions();
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'deny_recording_consent': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/deny_recording_consent`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'deny_recording_consent');
-          this.options.onToolResult?.('deny_recording_consent', parsed?.success === true);
-          if (parsed?.success) {
-            this.options.needsRecordingConsent = false;
-            this.options.recordingConsent = 'denied';
-            this.refreshSessionInstructions();
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'revoke_recording_consent': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/revoke_recording_consent`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'revoke_recording_consent');
-          this.options.onToolResult?.('revoke_recording_consent', parsed?.success === true);
-          if (parsed?.success) {
-            this.options.needsRecordingConsent = false;
-            this.options.recordingConsent = 'denied';
-            this.refreshSessionInstructions();
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'set_recording_preference_permanent': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/set_recording_preference_permanent`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            never_ask: args.never_ask === true,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'set_recording_preference_permanent');
-          this.options.onToolResult?.('set_recording_preference_permanent', parsed?.success === true);
-          if (parsed?.success) {
-            this.refreshSessionInstructions();
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'set_sharing_tier': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/set_sharing_tier`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            tier: args.tier,
-            consent: args.consent,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'set_sharing_tier');
-          this.options.onToolResult?.('set_sharing_tier', parsed?.success === true);
-          if (parsed?.success) {
-            const consent = args.consent === 'denied' ? 'denied' : 'granted';
-            const tier = consent === 'denied' ? 'tier_1' : args.tier;
-            if (tier) {
-              this.options.sharingTier = tier;
-            }
-            this.options.sharingConsent = consent;
-            this.options.sharingRePromptRequested = false;
-            this.options.needsSharingConsent = false;
-            this.refreshSessionInstructions();
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'get_sharing_tier':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/get_sharing_tier`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-          break;
-
-        case 'enable_family_sharing': {
-          const raw = await this.callToolEndpoint(`${baseUrl}/tools/enable_family_sharing`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-
-          const parsed = this.parseToolResponse(raw, 'enable_family_sharing');
-          this.options.onToolResult?.('enable_family_sharing', parsed?.success === true);
-          if (parsed?.success) {
-            this.options.sharingEnabled = true;
-            this.options.needsSharingConsent = true;
-            this.refreshSessionInstructions();
-          }
-
-          result = raw;
-          break;
-        }
-
-        case 'mark_private':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_private`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            whatToKeepPrivate: args.what_to_keep_private,
-            confirmed: args.confirmed === true,
-            clarification: args.clarification,
-          });
-          break;
-
-        case 'exclude_memory_topic':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/exclude_topic`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            category: args.category,
-          });
-          void this.refreshMemoryContext('exclude_memory_topic');
-          break;
-
-        case 'include_memory_topic':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/include_topic`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            category: args.category,
-          });
-          void this.refreshMemoryContext('include_memory_topic');
-          break;
-
-        case 'list_topic_exclusions':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/list_topic_exclusions`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-          break;
-
-        case 'review_memories':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/review_memories`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            category: args.category,
-          });
-          break;
-
-        case 'mark_topic_private':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_topic_private`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            topic_code: args.topic_code,
-          });
-          break;
-
-        case 'set_pause_mode':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/set_pause_mode`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            enabled: args.enabled,
-            reason: args.reason,
-          });
-          break;
-
-        case 'log_call_insights':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/log_call_insights`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            ...args,
-          });
-          break;
-
-        case 'log_safety_concern':
-          {
-            const category = args.category as SafetyCategory;
-            const effectiveTier = category === 'GENERAL_CONCERN'
-              ? (args.tier as SafetyTier | undefined)
-              : SAFETY_CATEGORY_TIERS[category];
-            if (effectiveTier) {
-              this.markTierTriggeredByModel(effectiveTier);
-            }
-            result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
+          case 'store_memory':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/store_memory`, {
               callSessionId: this.options.callSessionId,
               lineId: this.options.lineId,
-              category,
-              tier: effectiveTier,
-              confidence: args.confidence,
-              actionTaken: args.action_taken,
-              source: 'model',
+              memoryType: args.memory_type,
+              key: args.key,
+              value: args.value,
+              confidence: args.confidence || 1.0,
+              suggestReminder: args.suggest_reminder || false,
+              expectedEndDate: args.expected_end_date,
+              routineLevel: args.routine_level,
             });
+            // Refresh context after storing
+            void this.refreshMemoryContext('store_memory');
+            break;
+
+          case 'update_memory':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/update_memory`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              existingKey: args.existing_key,
+              newValue: args.new_value,
+              memoryType: args.memory_type,
+              confidence: args.confidence || 1.0,
+              confirmed: args.confirmed === true,
+              clarification: args.clarification,
+            });
+            void this.refreshMemoryContext('update_memory');
+            break;
+
+          case 'grant_memory_consent': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/grant_memory_consent`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
+
+            const parsed = this.parseToolResponse(raw, 'grant_memory_consent');
+            this.options.onToolResult?.('grant_memory_consent', parsed?.success === true);
+            if (parsed?.success) {
+              this.options.needsMemoryConsent = false;
+              this.options.memoryEnabled = true;
+              markConsentGranted(this.options.callSessionId);
+              void this.refreshMemoryContext('grant_memory_consent');
+            }
+
+            result = raw;
+            break;
           }
-          break;
 
-        case 'report_conversation_language':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/report_conversation_language`, {
-            callSessionId: this.options.callSessionId,
-            languageCode: args.language_code,
-          });
-          break;
+          case 'deny_memory_consent': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/deny_memory_consent`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
 
-        // Reminder management tools
-        case 'list_reminders':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/list_reminders`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-          });
-          break;
+            const parsed = this.parseToolResponse(raw, 'deny_memory_consent');
+            this.options.onToolResult?.('deny_memory_consent', parsed?.success === true);
+            if (parsed?.success) {
+              this.options.needsMemoryConsent = false;
+              this.options.memoryEnabled = false;
+              void this.refreshMemoryContext('deny_memory_consent');
+            }
 
-        case 'edit_reminder':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/edit_reminder`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            reminderId: args.reminder_id,
-            newMessage: args.new_message,
-            newTimeLocal: args.new_time_local,
-            timezone: this.options.timezone,
-          });
-          break;
+            result = raw;
+            break;
+          }
 
-        case 'pause_reminder':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/pause_reminder`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            reminderId: args.reminder_id,
-          });
-          break;
+          case 'grant_recording_consent': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/grant_recording_consent`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
 
-        case 'resume_reminder':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/resume_reminder`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            reminderId: args.reminder_id,
-          });
-          break;
+            const parsed = this.parseToolResponse(raw, 'grant_recording_consent');
+            this.options.onToolResult?.('grant_recording_consent', parsed?.success === true);
+            if (parsed?.success) {
+              this.options.needsRecordingConsent = false;
+              this.options.recordingConsent = 'granted';
+              this.refreshSessionInstructions();
+            }
 
-        case 'snooze_reminder':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/snooze_reminder`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            reminderId: args.reminder_id,
-            snoozeMinutes: args.snooze_minutes,
-          });
-          break;
+            result = raw;
+            break;
+          }
 
-        case 'cancel_reminder':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/cancel_reminder`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            reminderId: args.reminder_id,
-          });
-          break;
+          case 'deny_recording_consent': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/deny_recording_consent`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
 
-        case 'request_upgrade':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/request_upgrade`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            planId: args.plan_id,
-            sendLink: args.send_link,
-          });
-          break;
+            const parsed = this.parseToolResponse(raw, 'deny_recording_consent');
+            this.options.onToolResult?.('deny_recording_consent', parsed?.success === true);
+            if (parsed?.success) {
+              this.options.needsRecordingConsent = false;
+              this.options.recordingConsent = 'denied';
+              this.refreshSessionInstructions();
+            }
 
-        case 'store_call_preview':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/store_call_preview`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            topicType: args.topic_type,
-            topicKey: args.topic_key,
-            topicDisplay: args.topic_display,
-            segmentType: args.segment_type,
-            segmentContext: args.segment_context,
-          });
-          break;
+            result = raw;
+            break;
+          }
 
-        case 'mark_preview_outcome':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_preview_outcome`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            outcome: args.outcome,
-            previewId: args.preview_id || this.options.pendingCallPreview?.id,
-          });
-          break;
+          case 'revoke_recording_consent': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/revoke_recording_consent`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
 
-        case 'log_segment_engagement':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/log_segment_engagement`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            segmentType: args.segment_type,
-            segmentDomain: args.segment_domain,
-            segmentContext: args.segment_context,
-            engagementSignals: args.engagement_signals,
-            durationSeconds: args.duration_seconds,
-            completed: args.completed,
-            seniorResponse: args.senior_response,
-            storyArcId: args.story_arc_id,
-            chapterCompleted: args.chapter_completed,
-          });
-          break;
+            const parsed = this.parseToolResponse(raw, 'revoke_recording_consent');
+            this.options.onToolResult?.('revoke_recording_consent', parsed?.success === true);
+            if (parsed?.success) {
+              this.options.needsRecordingConsent = false;
+              this.options.recordingConsent = 'denied';
+              this.refreshSessionInstructions();
+            }
 
-        case 'manage_story_arc':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/manage_story_arc`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            action: args.action,
-            storyArcId: args.story_arc_id,
-            storyType: args.story_type,
-            title: args.title,
-            description: args.description,
-            totalChapters: args.total_chapters,
-            chapterCompleted: args.chapter_completed,
-            storyState: args.story_state,
-          });
-          break;
-        case 'store_life_chapter':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/store_life_chapter`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            chapter_type: args.chapter_type,
-            title: args.title,
-            era_start_year: args.era_start_year,
-            era_end_year: args.era_end_year,
-            narrative_summary: args.narrative_summary,
-            key_people: args.key_people,
-            emotional_tone: args.emotional_tone,
-          });
-          break;
-        case 'store_milestone':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/store_milestone`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            milestone_type: args.milestone_type,
-            title: args.title,
-            date_month: args.date_month,
-            date_day: args.date_day,
-            date_year: args.date_year,
-            related_person_name: args.related_person_name,
-            is_recurring: args.is_recurring,
-          });
-          break;
-        case 'mark_milestone_celebrated':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_milestone_celebrated`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            milestone_id: args.milestone_id,
-            milestone_title: args.milestone_title,
-          });
-          break;
-        case 'update_relationship':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/update_relationship`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            name: args.name,
-            updates: args.updates,
-          });
-          break;
-        case 'mark_relationship_deceased':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/mark_relationship_deceased`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            name: args.name,
-            passed_at: args.passed_at,
-            grief_sensitivity: args.grief_sensitivity,
-          });
-          break;
-        case 'log_mood_snapshot':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/log_mood_snapshot`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            mood_start: args.mood_start,
-            mood_mid: args.mood_mid,
-            mood_end: args.mood_end,
-            mood_trajectory: args.mood_trajectory,
-            techniques_used: args.techniques_used,
-            energy_level: args.energy_level,
-          });
-          break;
-        case 'log_cognitive_observation':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/log_cognitive_observation`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            observation_type: args.observation_type,
-            severity: args.severity,
-            context: args.context,
-            response_given: args.response_given,
-          });
-          break;
-        case 'adjust_accessibility':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/adjust_accessibility`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            setting: args.setting,
-            value: args.value,
-            source: args.source,
-          });
-          break;
-        case 'update_content_preference':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/update_content_preference`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            content_type: args.content_type,
-            preference_change: args.preference_change,
-            specific_update: args.specific_update,
-          });
-          break;
-        case 'log_health_mention':
-          result = await this.callToolEndpoint(`${baseUrl}/tools/log_health_mention`, {
-            callSessionId: this.options.callSessionId,
-            lineId: this.options.lineId,
-            category: args.category,
-            summary: args.summary,
-            severity: args.severity,
-          });
-          break;
+            result = raw;
+            break;
+          }
 
-        default:
-          result = JSON.stringify({ error: `Unknown tool: ${name}` });
+          case 'set_recording_preference_permanent': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/set_recording_preference_permanent`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              never_ask: args.never_ask === true,
+            });
+
+            const parsed = this.parseToolResponse(raw, 'set_recording_preference_permanent');
+            this.options.onToolResult?.('set_recording_preference_permanent', parsed?.success === true);
+            if (parsed?.success) {
+              this.refreshSessionInstructions();
+            }
+
+            result = raw;
+            break;
+          }
+
+          case 'set_sharing_tier': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/set_sharing_tier`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              tier: args.tier,
+              consent: args.consent,
+            });
+
+            const parsed = this.parseToolResponse(raw, 'set_sharing_tier');
+            this.options.onToolResult?.('set_sharing_tier', parsed?.success === true);
+            if (parsed?.success) {
+              const consent = args.consent === 'denied' ? 'denied' : 'granted';
+              const tier = consent === 'denied' ? 'tier_1' : args.tier;
+              if (tier) {
+                this.options.sharingTier = tier;
+              }
+              this.options.sharingConsent = consent;
+              this.options.sharingRePromptRequested = false;
+              this.options.needsSharingConsent = false;
+              this.refreshSessionInstructions();
+            }
+
+            result = raw;
+            break;
+          }
+
+          case 'get_sharing_tier':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/get_sharing_tier`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
+            break;
+
+          case 'enable_family_sharing': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/enable_family_sharing`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
+
+            const parsed = this.parseToolResponse(raw, 'enable_family_sharing');
+            this.options.onToolResult?.('enable_family_sharing', parsed?.success === true);
+            if (parsed?.success) {
+              this.options.sharingEnabled = true;
+              this.options.needsSharingConsent = true;
+              this.refreshSessionInstructions();
+            }
+
+            result = raw;
+            break;
+          }
+
+          case 'mark_private':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/mark_private`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              whatToKeepPrivate: args.what_to_keep_private,
+              confirmed: args.confirmed === true,
+              clarification: args.clarification,
+            });
+            break;
+
+          case 'exclude_memory_topic':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/exclude_topic`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              category: args.category,
+            });
+            void this.refreshMemoryContext('exclude_memory_topic');
+            break;
+
+          case 'include_memory_topic':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/include_topic`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              category: args.category,
+            });
+            void this.refreshMemoryContext('include_memory_topic');
+            break;
+
+          case 'list_topic_exclusions':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/list_topic_exclusions`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
+            break;
+
+          case 'review_memories':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/review_memories`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              category: args.category,
+            });
+            break;
+
+          case 'mark_topic_private':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/mark_topic_private`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              topic_code: args.topic_code,
+            });
+            break;
+
+          case 'set_pause_mode':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/set_pause_mode`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              enabled: args.enabled,
+              reason: args.reason,
+            });
+            break;
+
+          case 'log_call_insights':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/log_call_insights`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              ...args,
+            });
+            break;
+
+          case 'log_safety_concern':
+            {
+              const category = args.category as SafetyCategory;
+              const effectiveTier = category === 'GENERAL_CONCERN'
+                ? (args.tier as SafetyTier | undefined)
+                : SAFETY_CATEGORY_TIERS[category];
+              if (effectiveTier) {
+                this.markTierTriggeredByModel(effectiveTier);
+              }
+              result = await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
+                callSessionId: this.options.callSessionId,
+                lineId: this.options.lineId,
+                category,
+                tier: effectiveTier,
+                confidence: args.confidence,
+                actionTaken: args.action_taken,
+                source: 'model',
+              });
+            }
+            break;
+
+          case 'report_conversation_language':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/report_conversation_language`, {
+              callSessionId: this.options.callSessionId,
+              languageCode: args.language_code,
+            });
+            break;
+
+          // Reminder management tools
+          case 'list_reminders':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/list_reminders`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+            });
+            break;
+
+          case 'edit_reminder':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/edit_reminder`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              reminderId: args.reminder_id,
+              newMessage: args.new_message,
+              newTimeLocal: args.new_time_local,
+              timezone: this.options.timezone,
+            });
+            break;
+
+          case 'pause_reminder':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/pause_reminder`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              reminderId: args.reminder_id,
+            });
+            break;
+
+          case 'resume_reminder':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/resume_reminder`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              reminderId: args.reminder_id,
+            });
+            break;
+
+          case 'snooze_reminder':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/snooze_reminder`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              reminderId: args.reminder_id,
+              snoozeMinutes: args.snooze_minutes,
+            });
+            break;
+
+          case 'cancel_reminder':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/cancel_reminder`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              reminderId: args.reminder_id,
+            });
+            break;
+
+          case 'request_upgrade':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/request_upgrade`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              planId: args.plan_id,
+              sendLink: args.send_link,
+            });
+            break;
+
+          case 'store_call_preview':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/store_call_preview`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              topicType: args.topic_type,
+              topicKey: args.topic_key,
+              topicDisplay: args.topic_display,
+              segmentType: args.segment_type,
+              segmentContext: args.segment_context,
+            });
+            break;
+
+          case 'mark_preview_outcome':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/mark_preview_outcome`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              outcome: args.outcome,
+              previewId: args.preview_id || this.options.pendingCallPreview?.id,
+            });
+            break;
+
+          case 'log_segment_engagement':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/log_segment_engagement`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              segmentType: args.segment_type,
+              segmentDomain: args.segment_domain,
+              segmentContext: args.segment_context,
+              engagementSignals: args.engagement_signals,
+              durationSeconds: args.duration_seconds,
+              completed: args.completed,
+              seniorResponse: args.senior_response,
+              storyArcId: args.story_arc_id,
+              chapterCompleted: args.chapter_completed,
+            });
+            break;
+
+          case 'manage_story_arc':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/manage_story_arc`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              action: args.action,
+              storyArcId: args.story_arc_id,
+              storyType: args.story_type,
+              title: args.title,
+              description: args.description,
+              totalChapters: args.total_chapters,
+              chapterCompleted: args.chapter_completed,
+              storyState: args.story_state,
+            });
+            break;
+          case 'store_life_chapter':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/store_life_chapter`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              chapter_type: args.chapter_type,
+              title: args.title,
+              era_start_year: args.era_start_year,
+              era_end_year: args.era_end_year,
+              narrative_summary: args.narrative_summary,
+              key_people: args.key_people,
+              emotional_tone: args.emotional_tone,
+            });
+            break;
+          case 'store_milestone':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/store_milestone`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              milestone_type: args.milestone_type,
+              title: args.title,
+              date_month: args.date_month,
+              date_day: args.date_day,
+              date_year: args.date_year,
+              related_person_name: args.related_person_name,
+              is_recurring: args.is_recurring,
+            });
+            break;
+          case 'mark_milestone_celebrated':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/mark_milestone_celebrated`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              milestone_id: args.milestone_id,
+              milestone_title: args.milestone_title,
+            });
+            break;
+          case 'update_relationship':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/update_relationship`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              name: args.name,
+              updates: args.updates,
+            });
+            break;
+          case 'mark_relationship_deceased':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/mark_relationship_deceased`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              name: args.name,
+              passed_at: args.passed_at,
+              grief_sensitivity: args.grief_sensitivity,
+            });
+            break;
+          case 'log_mood_snapshot':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/log_mood_snapshot`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              mood_start: args.mood_start,
+              mood_mid: args.mood_mid,
+              mood_end: args.mood_end,
+              mood_trajectory: args.mood_trajectory,
+              techniques_used: args.techniques_used,
+              energy_level: args.energy_level,
+            });
+            break;
+          case 'log_cognitive_observation':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/log_cognitive_observation`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              observation_type: args.observation_type,
+              severity: args.severity,
+              context: args.context,
+              response_given: args.response_given,
+            });
+            break;
+          case 'adjust_accessibility':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/adjust_accessibility`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              setting: args.setting,
+              value: args.value,
+              source: args.source,
+            });
+            break;
+          case 'update_content_preference':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/update_content_preference`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              content_type: args.content_type,
+              preference_change: args.preference_change,
+              specific_update: args.specific_update,
+            });
+            break;
+          case 'log_health_mention':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/log_health_mention`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              category: args.category,
+              summary: args.summary,
+              severity: args.severity,
+            });
+            break;
+
+            default:
+              result = JSON.stringify({ error: `Unknown tool: ${name}` });
+        }
+
+        // Send the result back to Grok
+        this.sendToolResult(callId, result);
+        } catch (error) {
+          if (!(error as { toolErrorCounted?: boolean }).toolErrorCounted) {
+            voiceToolErrorsTotal.inc({ toolName: name });
+          }
+          span?.recordException(error as Error);
+          span?.setStatus({ code: SpanStatusCode.ERROR });
+          logger.error({ error, toolName: name, callSessionId: this.options.callSessionId }, 'Tool call error');
+          this.sendToolResult(callId, JSON.stringify({ error: 'Tool execution failed' }));
+        }
       }
-
-      // Send the result back to Grok
-      this.sendToolResult(callId, result);
-
-    } catch (error) {
-      logger.error({ error, name, callSessionId: this.options.callSessionId }, 'Tool call error');
-      this.sendToolResult(callId, JSON.stringify({ error: 'Tool execution failed' }));
-    }
+    ));
   }
 
   private extractUserTurn(transcription: string): TurnSummary {
@@ -1624,15 +1738,50 @@ At the START of this call:
   // Call a tool endpoint
   private async callToolEndpoint(url: string, body: Record<string, unknown>): Promise<string> {
     const start = Date.now();
-    const toolName = url.split('/').pop();
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Webhook-Secret': getInternalApiSecret(),
-      },
-      body: JSON.stringify(body),
-    });
+    const toolName = url.split('/').pop() || 'unknown';
+    const span = trace.getActiveSpan();
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Secret': getInternalApiSecret(),
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      voiceToolErrorsTotal.inc({ toolName });
+      span?.recordException(error as Error);
+      span?.setStatus({ code: SpanStatusCode.ERROR });
+      const wrappedError = error instanceof Error ? error : new Error('Tool endpoint request failed');
+      (wrappedError as { toolErrorCounted?: boolean }).toolErrorCounted = true;
+      throw wrappedError;
+    }
+
+    span?.setAttribute(SemanticAttributes.HTTP_STATUS_CODE, response.status);
+
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch (error) {
+      voiceToolErrorsTotal.inc({ toolName });
+      span?.recordException(error as Error);
+      span?.setStatus({ code: SpanStatusCode.ERROR });
+      const wrappedError = error instanceof Error ? error : new Error('Tool response parse error');
+      (wrappedError as { toolErrorCounted?: boolean }).toolErrorCounted = true;
+      throw wrappedError;
+    }
+
+    const hasSuccessFlag = typeof data === 'object' && data !== null && 'success' in data;
+    const successValue = hasSuccessFlag ? (data as { success?: boolean }).success : undefined;
+    const hasError = typeof data === 'object' && data !== null && 'error' in data;
+    const isFailure = !response.ok || successValue === false || hasError;
+    if (isFailure) {
+      voiceToolErrorsTotal.inc({ toolName });
+      span?.setStatus({ code: SpanStatusCode.ERROR });
+    }
 
     logger.debug({
       method: 'POST',
@@ -1642,7 +1791,6 @@ At the START of this call:
       durationMs: Date.now() - start,
     }, 'Tool endpoint response');
 
-    const data = await response.json();
     return JSON.stringify(data);
   }
 
@@ -1825,7 +1973,9 @@ At the START of this call:
 
     this.ws.send(JSON.stringify({ type: 'response.cancel' }));
     this.isGeneratingAudio = false;
-    logger.debug({ callSessionId: this.options.callSessionId }, 'Canceled Grok response due to barge-in');
+    this.runWithContext(() => {
+      logger.debug({ callSessionId: this.options.callSessionId }, 'Canceled Grok response due to barge-in');
+    });
   }
 
   public async reconnect(): Promise<boolean> {
@@ -1835,6 +1985,7 @@ At the START of this call:
         this.ws.removeAllListeners();
         this.ws.close();
         this.ws = null;
+        this.endSessionSpan('reconnect');
       }
 
       this.isConnected = false;
@@ -1842,7 +1993,9 @@ At the START of this call:
       await this.connect(GROK_RECONNECT_TIMEOUT_MS);
       return true;
     } catch (error) {
-      logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok reconnection failed');
+      this.runWithContext(() => {
+        logger.error({ error, callSessionId: this.options.callSessionId }, 'Grok reconnection failed');
+      });
       return false;
     }
   }
@@ -1877,6 +2030,7 @@ At the START of this call:
       this.ws.close();
       this.ws = null;
     }
+    this.endSessionSpan('client_close');
     this.isConnected = false;
   }
 }

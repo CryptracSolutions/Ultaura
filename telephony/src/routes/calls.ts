@@ -116,7 +116,12 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
         callSessionId: session.id,
       });
 
-      logger.info({ sessionId: session.id, callSid, lineId, isReminderCall }, 'Outbound call initiated');
+      logger.info({
+        callSessionId: session.id,
+        twilioCallSid: callSid,
+        lineId,
+        isReminderCall,
+      }, 'Outbound call initiated');
 
       res.json({
         success: true,
@@ -124,7 +129,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
         callSid,
       });
     } catch (error) {
-      logger.error({ error, sessionId: session.id }, 'Failed to initiate Twilio call');
+      logger.error({ error, callSessionId: session.id }, 'Failed to initiate Twilio call');
       await failCallSession(session.id, 'error');
       res.status(500).json({ error: 'Failed to initiate call' });
     }
@@ -193,11 +198,16 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
       callSessionId: session.id,
     });
 
-    logger.info({ sessionId: session.id, callSid, lineId, reason: 'test' }, 'Test call initiated');
+    logger.info({
+      callSessionId: session.id,
+      twilioCallSid: callSid,
+      lineId,
+      reason: 'test',
+    }, 'Test call initiated');
 
     res.json({ success: true, sessionId: session.id, callSid });
   } catch (error) {
-    logger.error({ error, sessionId: session.id }, 'Failed to initiate test call');
+    logger.error({ error, callSessionId: session.id }, 'Failed to initiate test call');
     await failCallSession(session.id, 'error');
     res.status(500).json({ error: 'Failed to initiate test call' });
   }

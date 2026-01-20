@@ -1,6 +1,7 @@
 // Twilio status callback webhook handler
 
 import { Router, Request, Response } from 'express';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { logger } from '../server.js';
 import {
   getCallSessionByTwilioSid,
@@ -10,6 +11,9 @@ import {
   updateCallSessionRecording,
 } from '../services/call-session.js';
 import { validateTwilioSignature } from '../utils/twilio.js';
+import { updateLogContext } from '../observability/log-context.js';
+// Auto-instrumented HTTP spans; use active span for correlation.
+import { recordVoiceDisconnect } from '../utils/metrics.js';
 
 export const twilioStatusRouter = Router();
 
@@ -87,9 +91,13 @@ function getEndReason(twilioStatus: string): 'hangup' | 'no_answer' | 'busy' | '
 
 // Handle Twilio status callbacks
 twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
+  const { CallSid } = req.body;
+  const span = trace.getActiveSpan();
+  if (span && typeof CallSid === 'string') {
+    span.setAttribute('twilioCallSid', CallSid);
+  }
   try {
     const {
-      CallSid,
       CallStatus,
       CallDuration,
       Direction,
@@ -99,7 +107,7 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
     } = req.body;
 
     logger.info({
-      callSid: CallSid,
+      twilioCallSid: CallSid,
       status: CallStatus,
       duration: CallDuration,
       direction: Direction,
@@ -111,15 +119,19 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
 
     if (!session) {
       // This might happen for calls we didn't create (e.g., test calls)
-      logger.info({ callSid: CallSid }, 'No session found for Twilio SID');
+      logger.info({ twilioCallSid: CallSid }, 'No session found for Twilio SID');
       res.sendStatus(200);
       return;
     }
 
+    updateLogContext({ callSessionId: session.id, twilioCallSid: CallSid });
+    span?.setAttribute('callSessionId', session.id);
+    logger.info({ callSessionId: session.id, twilioCallSid: CallSid }, 'Resolved call session for Twilio status');
+
     const internalStatus = mapTwilioStatus(CallStatus);
 
     if (!internalStatus) {
-      logger.warn({ callSid: CallSid, status: CallStatus }, 'Unknown Twilio status');
+      logger.warn({ twilioCallSid: CallSid, status: CallStatus }, 'Unknown Twilio status');
       res.sendStatus(200);
       return;
     }
@@ -142,6 +154,7 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
           endReason,
           endedAt: Timestamp || new Date().toISOString(),
         });
+        recordVoiceDisconnect(session.id, 'twilio_completed');
         break;
       }
 
@@ -150,7 +163,7 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
 
         if (ErrorCode || ErrorMessage) {
           logger.error({
-            sessionId: session.id,
+            callSessionId: session.id,
             errorCode: ErrorCode,
             errorMessage: ErrorMessage,
           }, 'Twilio call error');
@@ -158,18 +171,20 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
 
         if (session.status === 'in_progress' && !session.end_reason) {
           logger.warn({
-            sessionId: session.id,
-            callSid: CallSid,
+            callSessionId: session.id,
+            twilioCallSid: CallSid,
             status: CallStatus,
           }, 'Call ended unexpectedly while in progress');
           await completeCallSession(session.id, {
             endReason: 'error',
             endedAt: Timestamp || new Date().toISOString(),
           });
+          recordVoiceDisconnect(session.id, 'twilio_failed');
           break;
         }
 
         await failCallSession(session.id, endReason);
+        recordVoiceDisconnect(session.id, 'twilio_failed');
         break;
       }
 
@@ -177,11 +192,14 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
         await updateCallStatus(session.id, 'canceled', {
           endedAt: Timestamp || new Date().toISOString(),
         });
+        recordVoiceDisconnect(session.id, 'twilio_failed');
         break;
     }
 
     res.sendStatus(200);
   } catch (error) {
+    span?.recordException(error as Error);
+    span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling status callback');
     res.sendStatus(500);
   }
@@ -189,11 +207,16 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
 
 // Handle Twilio recording status callbacks
 twilioStatusRouter.post('/recording-status', async (req: Request, res: Response) => {
+  const { CallSid } = req.body;
+  const span = trace.getActiveSpan();
+  if (span && typeof CallSid === 'string') {
+    span.setAttribute('twilioCallSid', CallSid);
+  }
   try {
-    const { RecordingSid, RecordingStatus, CallSid } = req.body;
+    const { RecordingSid, RecordingStatus } = req.body;
 
     logger.info({
-      callSid: CallSid,
+      twilioCallSid: CallSid,
       recordingSid: RecordingSid,
       status: RecordingStatus,
     }, 'Twilio recording status callback');
@@ -205,13 +228,16 @@ twilioStatusRouter.post('/recording-status', async (req: Request, res: Response)
 
     const session = await getCallSessionByTwilioSid(CallSid);
     if (!session) {
-      logger.info({ callSid: CallSid }, 'No session found for recording callback');
+      logger.info({ twilioCallSid: CallSid }, 'No session found for recording callback');
       res.sendStatus(200);
       return;
     }
 
+    updateLogContext({ callSessionId: session.id, twilioCallSid: CallSid });
+    span?.setAttribute('callSessionId', session.id);
+
     if (session.is_test_call || session.is_preview_mode) {
-      logger.info({ callSid: CallSid, sessionId: session.id }, 'Ignoring recording callback for test/preview call');
+      logger.info({ twilioCallSid: CallSid, callSessionId: session.id }, 'Ignoring recording callback for test/preview call');
       res.sendStatus(200);
       return;
     }
@@ -219,6 +245,8 @@ twilioStatusRouter.post('/recording-status', async (req: Request, res: Response)
     await updateCallSessionRecording(session.id, RecordingSid);
     res.sendStatus(200);
   } catch (error) {
+    span?.recordException(error as Error);
+    span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling recording status callback');
     res.sendStatus(500);
   }

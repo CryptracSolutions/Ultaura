@@ -60,5 +60,93 @@ export const recordingDeletionsProcessed = new Counter({
   registers: [registry],
 });
 
+// Voice product metrics
+export const voiceTimeToFirstAudioMs = new Histogram({
+  name: 'ultaura_voice_time_to_first_audio_ms',
+  help: 'Time from Twilio media stream start to first Grok audio chunk (ms)',
+  labelNames: ['direction', 'isReminderCall'],
+  buckets: [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 8000, 12000],
+  registers: [registry],
+});
+
+export const voiceBargeInTotal = new Counter({
+  name: 'ultaura_voice_barge_in_total',
+  help: 'Total number of barge-in events during calls',
+  registers: [registry],
+});
+
+export type VoiceDisconnectReason =
+  | 'ws_close'
+  | 'twilio_failed'
+  | 'twilio_completed'
+  | 'grok_error'
+  | 'grok_close'
+  | 'pod_failure'
+  | 'other';
+
+export const voiceDisconnectTotal = new Counter({
+  name: 'ultaura_voice_disconnect_total',
+  help: 'Total number of call disconnects (deduped per call session)',
+  labelNames: ['reason'],
+  registers: [registry],
+});
+
+export const voiceToolCallsTotal = new Counter({
+  name: 'ultaura_voice_tool_calls_total',
+  help: 'Total Grok tool calls by tool name',
+  labelNames: ['toolName'],
+  registers: [registry],
+});
+
+export const voiceToolErrorsTotal = new Counter({
+  name: 'ultaura_voice_tool_errors_total',
+  help: 'Total Grok tool call failures by tool name',
+  labelNames: ['toolName'],
+  registers: [registry],
+});
+
+// Scheduler outcome metrics
+export const scheduleOutcomesTotal = new Counter({
+  name: 'ultaura_scheduler_schedule_outcomes_total',
+  help: 'Total schedule processing outcomes',
+  labelNames: ['outcome'],
+  registers: [registry],
+});
+
+export const reminderOutcomesTotal = new Counter({
+  name: 'ultaura_scheduler_reminder_outcomes_total',
+  help: 'Total reminder processing outcomes',
+  labelNames: ['outcome'],
+  registers: [registry],
+});
+
 activeWebSocketConnections.set(0);
 activeCalls.set(0);
+
+const VOICE_DISCONNECT_TTL_MS = 6 * 60 * 60 * 1000;
+const voiceDisconnectRegistry = new Map<string, number>();
+
+function pruneVoiceDisconnectRegistry(now: number): void {
+  for (const [sessionId, timestamp] of voiceDisconnectRegistry.entries()) {
+    if (now - timestamp > VOICE_DISCONNECT_TTL_MS) {
+      voiceDisconnectRegistry.delete(sessionId);
+    }
+  }
+}
+
+export function recordVoiceDisconnect(callSessionId: string, reason: VoiceDisconnectReason): boolean {
+  if (!callSessionId) {
+    return false;
+  }
+
+  const now = Date.now();
+  pruneVoiceDisconnectRegistry(now);
+
+  if (voiceDisconnectRegistry.has(callSessionId)) {
+    return false;
+  }
+
+  voiceDisconnectRegistry.set(callSessionId, now);
+  voiceDisconnectTotal.inc({ reason });
+  return true;
+}

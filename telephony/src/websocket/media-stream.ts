@@ -2,6 +2,7 @@
 // Bridges Twilio audio to xAI Grok Voice Agent
 
 import { WebSocket } from 'ws';
+import type { Span } from '@opentelemetry/api';
 import { logger } from '../server.js';
 import { getCallSession, updateCallStatus, completeCallSession, recordCallEvent, recordDebugEvent } from '../services/call-session.js';
 import { getLineById, recordOptOut } from '../services/line-lookup.js';
@@ -30,6 +31,9 @@ import {
 } from '../utils/constants.js';
 import { getTwilioClient, getVoiceConfigForLanguage, getVoiceForLanguage, generateStreamTwiML } from '../utils/twilio.js';
 import { getWebsocketUrl } from '../utils/env.js';
+import { runWithLogContext, updateLogContext, withLogContext, type LogContext } from '../observability/log-context.js';
+import { runWithSpan, startSpan, SpanKind } from '../observability/tracing.js';
+import { recordVoiceDisconnect, voiceBargeInTotal, voiceTimeToFirstAudioMs } from '../utils/metrics.js';
 
 interface TwilioMessage {
   event: 'connected' | 'start' | 'media' | 'dtmf' | 'stop' | 'mark';
@@ -70,11 +74,30 @@ const PLAN_OPTIONS = [
 ];
 
 // Handle a new Twilio Media Stream connection
-export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: string): Promise<void> {
-  logger.info({ callSessionId }, 'Media stream connection started');
+export async function handleMediaStreamConnection(
+  ws: WebSocket,
+  callSessionId: string,
+  options: { span?: Span; logContext?: LogContext } = {}
+): Promise<void> {
+  const logContext: LogContext = options.logContext ?? { callSessionId };
+  const wsSpan = options.span ?? startSpan('twilio.media_stream.session', {
+    kind: SpanKind.SERVER,
+    attributes: { callSessionId },
+  });
+  wsSpan?.setAttribute('callSessionId', callSessionId);
 
-  let streamSid: string | null = null;
-  let callSid: string | null = null;
+  const withContext = <T extends (...args: any[]) => any>(fn: T): T =>
+    withLogContext(
+      logContext,
+      ((...args: Parameters<T>) => runWithSpan(wsSpan, () => fn(...args))) as T
+    );
+
+  runWithLogContext(logContext, () => runWithSpan(wsSpan, () => {
+    logger.info({ callSessionId }, 'Media stream connection started');
+  }));
+
+  let twilioStreamSid: string | null = null;
+  let twilioCallSid: string | null = null;
   let grokBridge: GrokBridge | null = null;
   let isConnected = false;
   let connectedAt: string | null = null;
@@ -90,12 +113,15 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   let consentState: ConsentState | null = null;
   let consentRequirements: { recording: boolean; memory: boolean; sharing: boolean } | null = null;
   let shouldTrackOnboarding = false;
+  let streamStartedAtMs: number | null = null;
+  let firstAudioSent = false;
 
   // Get session info
   const session = await getCallSession(callSessionId);
   if (!session) {
     logger.error({ callSessionId }, 'Session not found for media stream');
     ws.close(1008, 'Session not found');
+    wsSpan?.end();
     return;
   }
 
@@ -104,6 +130,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   if (!lineWithAccount) {
     logger.error({ callSessionId }, 'Line not found for session');
     ws.close(1008, 'Line not found');
+    wsSpan?.end();
     return;
   }
 
@@ -209,7 +236,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
   };
 
   // Handle messages from Twilio
-  ws.on('message', async (data: Buffer) => {
+  ws.on('message', withContext(async (data: Buffer) => {
     try {
       const message: TwilioMessage = JSON.parse(data.toString());
 
@@ -223,9 +250,24 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
           break;
 
         case 'start':
-          streamSid = message.start?.streamSid || null;
-          callSid = message.start?.callSid || null;
-          logger.info({ callSessionId, streamSid }, 'Twilio stream started');
+          twilioStreamSid = message.start?.streamSid || null;
+          twilioCallSid = message.start?.callSid || null;
+          streamStartedAtMs = Date.now();
+          firstAudioSent = false;
+
+          if (twilioCallSid) {
+            logContext.twilioCallSid = twilioCallSid;
+            updateLogContext({ twilioCallSid });
+            wsSpan?.setAttribute('twilioCallSid', twilioCallSid);
+          }
+
+          if (twilioStreamSid) {
+            logContext.twilioStreamSid = twilioStreamSid;
+            updateLogContext({ twilioStreamSid });
+            wsSpan?.setAttribute('twilioStreamSid', twilioStreamSid);
+          }
+
+          logger.info({ callSessionId, twilioCallSid, twilioStreamSid }, 'Twilio stream started');
           registerActiveCall(callSessionId);
 
           // Initialize Grok bridge
@@ -389,11 +431,25 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               account.status !== 'trial' && !isPayg && minutesRemaining <= 0 && !session.is_reminder_call;
 
             const onAudioReceived = (audioBase64: string) => {
+              if (streamStartedAtMs !== null && !firstAudioSent) {
+                firstAudioSent = true;
+                const latencyMs = Date.now() - streamStartedAtMs;
+                const direction = session.direction === 'inbound' ? 'inbound' : 'outbound';
+                const isReminderCall = session.is_reminder_call ? 'true' : 'false';
+                voiceTimeToFirstAudioMs.observe({ direction, isReminderCall }, latencyMs);
+                wsSpan?.setAttribute('voice.first_audio.latency_ms', latencyMs);
+                wsSpan?.addEvent('voice.first_audio', {
+                  latency_ms: latencyMs,
+                  direction,
+                  is_reminder_call: isReminderCall,
+                });
+              }
+
               // Send audio back to Twilio
-              if (ws.readyState === WebSocket.OPEN && streamSid) {
+              if (ws.readyState === WebSocket.OPEN && twilioStreamSid) {
                 ws.send(JSON.stringify({
                   event: 'media',
-                  streamSid,
+                  streamSid: twilioStreamSid,
                   media: { payload: audioBase64 },
                 }));
               }
@@ -401,10 +457,10 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
             const onClearBuffer = () => {
               // Clear Twilio's buffer (for barge-in)
-              if (ws.readyState === WebSocket.OPEN && streamSid) {
+              if (ws.readyState === WebSocket.OPEN && twilioStreamSid) {
                 ws.send(JSON.stringify({
                   event: 'clear',
-                  streamSid,
+                  streamSid: twilioStreamSid,
                 }));
               }
             };
@@ -472,6 +528,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             };
 
             const onBargeIn = () => {
+              voiceBargeInTotal.inc();
               recordCallEvent(callSessionId, 'state_change', {
                 event: 'barge_in',
               }, { skipDebugLog: true }).catch(err => {
@@ -503,7 +560,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
               const detectedLanguage = grokBridge?.getDetectedLanguage() ?? 'en';
               const waitMessage = getFallbackMessage(detectedLanguage, 'retry_wait');
-              await playFallbackTTS(callSid, waitMessage, detectedLanguage, {
+              await playFallbackTTS(twilioCallSid, waitMessage, detectedLanguage, {
                 pauseSeconds: Math.ceil(GROK_RECONNECT_TIMEOUT_MS / 1000),
               });
 
@@ -525,7 +582,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
                   return;
                 }
 
-                await reconnectMediaStream(callSid, callSessionId);
+                await reconnectMediaStream(twilioCallSid, callSessionId);
                 return;
               }
 
@@ -539,7 +596,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               }, 'Call ended due to pod failure');
 
               const failedMessage = getFallbackMessage(detectedLanguage, 'retry_failed');
-              await playFallbackTTS(callSid, failedMessage, detectedLanguage, { hangup: true });
+              recordVoiceDisconnect(callSessionId, 'pod_failure');
+              await playFallbackTTS(twilioCallSid, failedMessage, detectedLanguage, { hangup: true });
               await sleep(FALLBACK_TTS_WAIT_MS);
 
               await completeCallSession(callSessionId, {
@@ -562,6 +620,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
             if (existingBridge) {
               grokBridge = existingBridge;
+              grokBridge.updateTwilioContext({ twilioCallSid, twilioStreamSid });
               grokBridge.updateCallbacks({
                 onAudioReceived,
                 onClearBuffer,
@@ -574,6 +633,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
             } else {
               grokBridge = new GrokBridge({
                 callSessionId,
+                twilioCallSid,
+                twilioStreamSid,
                 lineId: line.id,
                 accountId: account.id,
                 userName: line.display_name,
@@ -668,7 +729,8 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
             const fallbackLanguage = grokBridge?.getDetectedLanguage() ?? startingLanguage;
             const failedMessage = getFallbackMessage(fallbackLanguage, 'retry_failed');
-            await playFallbackTTS(callSid, failedMessage, fallbackLanguage, { hangup: true });
+            recordVoiceDisconnect(callSessionId, 'grok_error');
+            await playFallbackTTS(twilioCallSid, failedMessage, fallbackLanguage, { hangup: true });
             await sleep(FALLBACK_TTS_WAIT_MS);
 
             // Send fallback message via Twilio TTS
@@ -708,7 +770,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
               account,
               grokBridge,
               ws,
-              streamSid,
+              twilioStreamSid,
               setPendingOptOut: (value: boolean) => { pendingOptOut = value; },
               getPendingOptOut: () => pendingOptOut,
             });
@@ -716,7 +778,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
           break;
 
         case 'stop':
-          logger.info({ callSessionId, streamSid }, 'Twilio stream stopped');
+          logger.info({ callSessionId, twilioStreamSid }, 'Twilio stream stopped');
           break;
 
         case 'mark':
@@ -727,11 +789,21 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
     } catch (error) {
       logger.error({ error, callSessionId }, 'Error processing Twilio message');
     }
-  });
+  }));
 
   // Handle WebSocket close
-  ws.on('close', async (code, reason) => {
+  ws.on('close', withContext(async (code, reason) => {
     logger.info({ callSessionId, code, reason: reason.toString() }, 'Media stream WebSocket closed');
+    // Prefer Twilio status callbacks for disconnect attribution; fall back to ws_close if nothing else arrives.
+    const wsCloseDisconnectTimer = setTimeout(() => {
+      recordVoiceDisconnect(callSessionId, 'ws_close');
+    }, 15_000);
+    if (typeof wsCloseDisconnectTimer.unref === 'function') {
+      wsCloseDisconnectTimer.unref();
+    }
+    const endSpan = () => {
+      wsSpan?.end();
+    };
 
     if (trialExpiryTimeout) {
       clearTimeout(trialExpiryTimeout);
@@ -742,6 +814,7 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
     if (keepBridgeAlive) {
       logger.info({ callSessionId }, 'Skipping cleanup to allow recovery');
+      endSpan();
       return;
     }
 
@@ -820,10 +893,11 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
         languageDetected: grokBridge?.getDetectedLanguage() ?? undefined,
       });
     }
-  });
+    endSpan();
+  }));
 
   // Handle WebSocket error
-  ws.on('error', async (error) => {
+  ws.on('error', withContext(async (error) => {
     logger.error({ error, callSessionId }, 'Media stream WebSocket error');
 
     if (keepBridgeAlive) {
@@ -832,14 +906,14 @@ export async function handleMediaStreamConnection(ws: WebSocket, callSessionId: 
 
     const fallbackLanguage = grokBridge?.getDetectedLanguage() ?? startingLanguage;
     const failedMessage = getFallbackMessage(fallbackLanguage, 'retry_failed');
-    await playFallbackTTS(callSid, failedMessage, fallbackLanguage, { hangup: true });
+    await playFallbackTTS(twilioCallSid, failedMessage, fallbackLanguage, { hangup: true });
     await sleep(FALLBACK_TTS_WAIT_MS);
 
     if (grokBridge) {
       grokBridge.close();
     }
     unregisterGrokBridge(callSessionId);
-  });
+  }));
 }
 
 // Handle DTMF input
@@ -851,7 +925,7 @@ async function handleDTMF(
     account: any;
     grokBridge: GrokBridge | null;
     ws: WebSocket;
-    streamSid: string | null;
+    twilioStreamSid: string | null;
     setPendingOptOut: (value: boolean) => void;
     getPendingOptOut: () => boolean;
   }
@@ -921,29 +995,29 @@ function buildSayTwiML(options: {
 }
 
 async function playFallbackTTS(
-  callSid: string | null,
+  twilioCallSid: string | null,
   message: string,
   languageCode: string,
   options: { pauseSeconds?: number; hangup?: boolean } = {}
 ): Promise<void> {
-  if (!callSid) return;
+  if (!twilioCallSid) return;
 
   try {
     const twiml = buildSayTwiML({ message, languageCode, ...options });
-    await getTwilioClient().calls(callSid).update({ twiml });
+    await getTwilioClient().calls(twilioCallSid).update({ twiml });
   } catch (error) {
-    logger.error({ error, callSid }, 'Failed to play fallback TTS');
+    logger.error({ error, twilioCallSid }, 'Failed to play fallback TTS');
   }
 }
 
-async function reconnectMediaStream(callSid: string | null, callSessionId: string): Promise<void> {
-  if (!callSid) return;
+async function reconnectMediaStream(twilioCallSid: string | null, callSessionId: string): Promise<void> {
+  if (!twilioCallSid) return;
 
   try {
     const twiml = generateStreamTwiML(callSessionId, getWebsocketUrl());
-    await getTwilioClient().calls(callSid).update({ twiml });
+    await getTwilioClient().calls(twilioCallSid).update({ twiml });
   } catch (error) {
-    logger.error({ error, callSid, callSessionId }, 'Failed to reconnect media stream');
+    logger.error({ error, twilioCallSid, callSessionId }, 'Failed to reconnect media stream');
   }
 }
 

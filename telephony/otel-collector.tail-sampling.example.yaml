@@ -1,0 +1,43 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 200
+    policies:
+      - name: error-spans
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow-first-audio
+        type: numeric_attribute
+        numeric_attribute:
+          key: voice.first_audio.latency_ms
+          min_value: 2000
+      - name: slow-core-spans
+        type: latency
+        latency:
+          threshold_ms: 2000
+          span_kinds: [SPAN_KIND_SERVER, SPAN_KIND_INTERNAL]
+      - name: baseline
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 5
+
+exporters:
+  otlp/tempo:
+    endpoint: ${TEMPO_OTLP_ENDPOINT}
+    tls:
+      insecure: false
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [tail_sampling]
+      exporters: [otlp/tempo]

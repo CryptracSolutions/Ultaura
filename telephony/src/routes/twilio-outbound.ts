@@ -1,6 +1,7 @@
 // Twilio outbound call webhook handler
 
 import { Router, Request, Response } from 'express';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { logger } from '../server.js';
 import type { CallAnsweredBy } from '../services/call-session.js';
 import { getCallSession, updateCallSession, updateCallStatus } from '../services/call-session.js';
@@ -9,6 +10,7 @@ import { getStartingLanguageForLine } from '../services/language.js';
 import { generateStreamTwiML, generateMessageTwiML, generateHangupTwiML, validateTwilioSignature } from '../utils/twilio.js';
 import { getWebsocketUrl } from '../utils/env.js';
 import { getVoicemailMessage } from '../utils/voicemail-messages.js';
+import { updateLogContext } from '../observability/log-context.js';
 
 export const twilioOutboundRouter = Router();
 
@@ -47,17 +49,32 @@ twilioOutboundRouter.use(validateTwilioWebhook);
 
 // Handle outbound call TwiML request (when Twilio answers the call)
 twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
+  const { callSessionId } = req.query;
+  const { CallSid, CallStatus, AnsweredBy } = req.body;
+  const span = trace.getActiveSpan();
+  if (span) {
+    if (typeof CallSid === 'string') {
+      span.setAttribute('twilioCallSid', CallSid);
+    }
+    if (typeof callSessionId === 'string') {
+      span.setAttribute('callSessionId', callSessionId);
+    }
+  }
   try {
-    const { callSessionId } = req.query;
-    const { CallSid, CallStatus, AnsweredBy } = req.body;
-
-    logger.info({ callSessionId, callSid: CallSid, status: CallStatus, answeredBy: AnsweredBy }, 'Outbound call answered');
+    logger.info({
+      callSessionId,
+      twilioCallSid: CallSid,
+      status: CallStatus,
+      answeredBy: AnsweredBy,
+    }, 'Outbound call answered');
 
     if (!callSessionId || typeof callSessionId !== 'string') {
       logger.error('Missing callSessionId in outbound request');
       res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an error. Goodbye."));
       return;
     }
+
+    updateLogContext({ callSessionId, twilioCallSid: CallSid });
 
     // Get the call session
     const session = await getCallSession(callSessionId);
@@ -66,6 +83,8 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
       res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an error. Goodbye."));
       return;
     }
+
+    span?.setAttribute('callSessionId', session.id);
 
     // Get line info
     const lineWithAccount = await getLineById(session.line_id);
@@ -114,9 +133,9 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
           return;
         }
       } else {
-      logger.info({ lineId: line.id, reason: accessCheck.reason }, 'Line access denied for outbound');
-      res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an issue with your account. Please contact support. Goodbye."));
-      return;
+        logger.info({ lineId: line.id, reason: accessCheck.reason }, 'Line access denied for outbound');
+        res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an issue with your account. Please contact support. Goodbye."));
+        return;
       }
     }
 
@@ -179,10 +198,12 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
       includeDisclosure: false,
     });
 
-    logger.info({ sessionId: session.id, lineId: line.id }, 'Connecting outbound call to media stream');
+    logger.info({ callSessionId: session.id, lineId: line.id }, 'Connecting outbound call to media stream');
 
     res.type('text/xml').send(twiml);
   } catch (error) {
+    span?.recordException(error as Error);
+    span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling outbound call');
     res.type('text/xml').send(generateMessageTwiML("I'm sorry, I'm having technical difficulties. Goodbye."));
   }

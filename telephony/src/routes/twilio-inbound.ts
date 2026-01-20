@@ -1,12 +1,14 @@
 // Twilio inbound call webhook handler
 
 import { Router, Request, Response } from 'express';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { logger } from '../server.js';
 import { findLineByPhone, checkLineAccess } from '../services/line-lookup.js';
 import { createCallSession } from '../services/call-session.js';
 import { generateStreamTwiML, generateMessageTwiML, formatToE164, validateTwilioSignature } from '../utils/twilio.js';
 import { getWebsocketUrl } from '../utils/env.js';
 import { redactPhone } from '../utils/redact.js';
+import { updateLogContext } from '../observability/log-context.js';
 
 export const twilioInboundRouter = Router();
 
@@ -58,13 +60,18 @@ const MESSAGES = {
 
 // Handle inbound voice calls from Twilio
 twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
+  const { CallSid } = req.body;
+  const span = trace.getActiveSpan();
+  if (span && typeof CallSid === 'string') {
+    span.setAttribute('twilioCallSid', CallSid);
+  }
   try {
-    const { From, To, CallSid, CallStatus } = req.body;
+    const { From, To, CallStatus } = req.body;
 
     logger.info({
       from: redactPhone(From),
       to: redactPhone(To),
-      callSid: CallSid,
+      twilioCallSid: CallSid,
       status: CallStatus,
     }, 'Inbound call received');
 
@@ -132,16 +139,21 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
       return;
     }
 
+    updateLogContext({ callSessionId: session.id, twilioCallSid: CallSid });
+    span?.setAttribute('callSessionId', session.id);
+
     // Generate TwiML to connect to WebSocket stream
     const websocketUrl = getWebsocketUrl();
     const twiml = generateStreamTwiML(session.id, websocketUrl, {
       includeDisclosure: false,
     });
 
-    logger.info({ sessionId: session.id, lineId: line.id }, 'Connecting to media stream');
+    logger.info({ callSessionId: session.id, lineId: line.id }, 'Connecting to media stream');
 
     res.type('text/xml').send(twiml);
   } catch (error) {
+    span?.recordException(error as Error);
+    span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling inbound call');
     res.type('text/xml').send(generateMessageTwiML("I'm sorry, I'm having technical difficulties. Please try again later."));
   }

@@ -11,7 +11,13 @@ import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-l
 import { recalculateBaselinesForAllLines } from '../services/baseline.js';
 import { runPersonaAnalyzerForAllLines } from '../services/persona-analyzer.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
-import { activeLeases, leaseAcquisitions, leaseHoldDuration } from '../utils/metrics.js';
+import {
+  activeLeases,
+  leaseAcquisitions,
+  leaseHoldDuration,
+  scheduleOutcomesTotal,
+  reminderOutcomesTotal,
+} from '../utils/metrics.js';
 
 // Configuration
 const POLL_INTERVAL_MS = 30_000; // 30 seconds
@@ -574,6 +580,7 @@ async function completeScheduleWithResult(
   resetRetryCount: boolean
 ): Promise<void> {
   const supabase = getSupabaseClient();
+  scheduleOutcomesTotal.inc({ outcome: result });
 
   const { error } = await supabase.rpc('complete_schedule_processing', {
     p_schedule_id: schedule.id,
@@ -690,6 +697,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 
   if (isDateWithinVacation(reminder.due_at, line)) {
     logger.info({ reminderId: reminder.id, lineId: reminder.line_id }, 'Line on vacation, skipping reminder');
+    reminderOutcomesTotal.inc({ outcome: 'suppressed_vacation' });
 
     if (reminder.is_recurring) {
       const nextDueAt = calculateNextReminderOccurrence(reminder);
@@ -801,6 +809,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       // Check for idempotency conflict
       if (errorData.code === 'DUPLICATE_SCHEDULED_CALL') {
         logger.warn({ reminderId: reminder.id, idempotencyKey }, 'Duplicate reminder call, already processed');
+        reminderOutcomesTotal.inc({ outcome: 'success' });
         // Still need to handle recurring logic
         if (reminder.is_recurring) {
           await handleRecurringReminderSuccess(supabase, reminder);
@@ -817,6 +826,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       throw new Error('Failed to initiate reminder call');
     }
 
+    reminderOutcomesTotal.inc({ outcome: 'success' });
     logger.info({ reminderId: reminder.id }, 'Reminder call initiated');
 
     // Handle recurring vs one-time reminders
@@ -972,6 +982,8 @@ async function handleReminderFailure(
   status: 'missed' | 'canceled'
 ): Promise<void> {
   const eventType = status === 'missed' ? 'no_answer' : 'failed';
+  const outcome = status === 'missed' ? 'missed' : 'failed';
+  reminderOutcomesTotal.inc({ outcome });
 
   if (reminder.is_recurring) {
     // For recurring reminders that fail, still advance to next occurrence

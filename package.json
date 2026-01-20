@@ -17,19 +17,19 @@
     "postbuild": "next-sitemap",
     "cypress": "NODE_ENV=test cypress open",
     "cypress:headless": "NODE_ENV=test cypress run",
-    "supabase:start": "supabase start --ignore-health-check",
-    "supabase:stop": "supabase stop",
-    "supabase:stop:no-backup": "supabase stop --no-backup",
-    "supabase:db:reset": "supabase db reset",
+    "supabase:start": "node scripts/supabase-cli.js start --ignore-health-check",
+    "supabase:stop": "node scripts/supabase-cli.js stop",
+    "supabase:stop:no-backup": "node scripts/supabase-cli.js stop --no-backup",
+    "supabase:db:reset": "node scripts/supabase-cli.js db reset",
     "format": "prettier --write .",
     "stripe:listen": "docker run --rm -it --name=stripe -v ~/.config/stripe:/root/.config/stripe stripe/stripe-cli:latest listen --forward-to http://host.docker.internal:3000/api/stripe/webhook",
     "stripe:mock-server": "docker run --rm -it -p 12111-12112:12111-12112 stripe/stripe-mock:latest",
-    "typegen": "supabase gen types typescript --local > src/database.types.ts",
+    "typegen": "node scripts/supabase-cli.js gen types typescript --local > src/database.types.ts",
     "typecheck": "tsc -b && tsc -b cypress",
     "test:unit": "vitest",
     "test:e2e": "sh ./scripts/test.sh",
-    "test:db": "supabase test db",
-    "test:reset:db": "supabase db reset && supabase test db --debug"
+    "test:db": "node scripts/supabase-cli.js test db",
+    "test:reset:db": "node scripts/supabase-cli.js db reset && node scripts/supabase-cli.js test db --debug"
   },
   "prettier": {
     "tabWidth": 2,
@@ -115,12 +115,11 @@
     "postcss": "^8.4.38",
     "prettier": "3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.12",
-    "supabase": "^1.190.0",
     "typescript": "5.4.3",
     "vitest": "^1.6.0"
   },
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=18.19.0 <21"
   },
   "overrides": {
     "@typescript-eslint/parser": "6.13.2"

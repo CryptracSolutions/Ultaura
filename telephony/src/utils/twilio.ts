@@ -182,7 +182,7 @@ export async function startRecordingForCall(options: {
     });
     return recording.sid || null;
   } catch (error) {
-    logger.error({ error, callSid: options.callSid }, 'Failed to start call recording');
+    logger.error({ error, twilioCallSid: options.callSid }, 'Failed to start call recording');
     return null;
   }
 }
@@ -199,7 +199,11 @@ export async function stopRecordingForCall(options: {
       .update({ status: 'stopped' });
     return true;
   } catch (error) {
-    logger.error({ error, recordingSid: options.recordingSid }, 'Failed to stop call recording');
+    logger.error({
+      error,
+      recordingSid: options.recordingSid,
+      twilioCallSid: options.callSid,
+    }, 'Failed to stop call recording');
     return false;
   }
 }
@@ -216,7 +220,11 @@ export async function pauseRecordingForCall(options: {
       .update({ status: 'paused' });
     return true;
   } catch (error) {
-    logger.error({ error, recordingSid: options.recordingSid }, 'Failed to pause call recording');
+    logger.error({
+      error,
+      recordingSid: options.recordingSid,
+      twilioCallSid: options.callSid,
+    }, 'Failed to pause call recording');
     return false;
   }
 }
@@ -285,7 +293,7 @@ export async function initiateOutboundCall(options: {
 
   const call = await client.calls.create(callOptions);
 
-  logger.info({ callSid: call.sid, to: redactPhone(options.to) }, 'Outbound call initiated');
+  logger.info({ twilioCallSid: call.sid, to: redactPhone(options.to) }, 'Outbound call initiated');
 
   return call.sid;
 }

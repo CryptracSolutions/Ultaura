@@ -1,6 +1,8 @@
 // Ultaura Telephony Backend Server
 // Main entry point for handling Twilio webhooks and xAI Grok bridge
 
+import { initTracing, runWithSpan, shutdownTracing, startSpan, SpanKind, SpanStatusCode } from './observability/tracing.js';
+
 import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
@@ -32,9 +34,13 @@ import { validateTimezoneSupport } from './utils/timezone.js';
 import { logger } from './utils/logger.js';
 import { validateEnvVariables } from './utils/env-validator.js';
 import { callDrainWaitDuration } from './utils/metrics.js';
+import { bindLogContext, runWithLogContext, type LogContext } from './observability/log-context.js';
 
 // Re-export logger for use by other modules
 export { logger };
+
+// Initialize tracing before anything else
+initTracing();
 
 // Validate environment before starting server
 validateEnvVariables();
@@ -61,20 +67,46 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Request logging
+function extractLogContext(req: express.Request): LogContext {
+  const context: LogContext = {};
+  const queryCallSessionId = req.query.callSessionId;
+  if (typeof queryCallSessionId === 'string') {
+    context.callSessionId = queryCallSessionId;
+  }
+
+  if (req.body && typeof req.body === 'object') {
+    const body = req.body as Record<string, unknown>;
+    if (typeof body.callSessionId === 'string') {
+      context.callSessionId = body.callSessionId;
+    }
+    if (typeof body.CallSid === 'string') {
+      context.twilioCallSid = body.CallSid;
+    }
+    if (typeof body.StreamSid === 'string') {
+      context.twilioStreamSid = body.StreamSid;
+    }
+  }
+
+  return context;
+}
+
 app.use((req, res, next) => {
-  const start = Date.now();
-  logger.info({ method: req.method, path: req.path }, 'Incoming request');
+  const logContext = extractLogContext(req);
+  runWithLogContext(logContext, () => {
+    const start = Date.now();
+    logger.info({ method: req.method, path: req.path }, 'Incoming request');
 
-  res.on('finish', () => {
-    logger.debug({
-      method: req.method,
-      url: req.originalUrl,
-      statusCode: res.statusCode,
-      durationMs: Date.now() - start,
-    }, 'Request completed');
+    res.on('finish', bindLogContext(() => {
+      logger.debug({
+        method: req.method,
+        url: req.originalUrl,
+        statusCode: res.statusCode,
+        durationMs: Date.now() - start,
+      }, 'Request completed');
+    }));
+
+    next();
   });
-
-  next();
 });
 
 // Enhanced health check
@@ -181,20 +213,48 @@ wss.on('connection', async (ws, req) => {
       return;
     }
 
-    const validation = await validateWebSocketConnection(req, callSessionId, token, ws);
+    const logContext: LogContext = { callSessionId };
+    await runWithLogContext(logContext, async () => {
+      const wsSpan = startSpan('twilio.media_stream.session', {
+        kind: SpanKind.SERVER,
+        attributes: { callSessionId },
+      });
 
-    if (!validation.allowed) {
-      logger.warn({ callSessionId }, 'WebSocket connection rejected by security');
-      ws.close(1008, 'Connection rejected');
-      return;
-    }
+      const validation = await runWithSpan(wsSpan, () =>
+        validateWebSocketConnection(req, callSessionId, token, ws)
+      );
 
-    ws.on('close', () => {
-      unregisterConnection(callSessionId, ws);
+      if (!validation.allowed) {
+        logger.warn({ callSessionId }, 'WebSocket connection rejected by security');
+        wsSpan?.end();
+        ws.close(1008, 'Connection rejected');
+        return;
+      }
+
+      ws.on('close', () => {
+        unregisterConnection(callSessionId, ws);
+      });
+
+      runWithSpan(wsSpan, () => {
+        logger.info({ callSessionId }, 'WebSocket connection established');
+      });
+      void handleMediaStreamConnection(ws, callSessionId, { span: wsSpan, logContext })
+        .catch((error) => {
+          runWithLogContext(logContext, () => runWithSpan(wsSpan, () => {
+            logger.error({ error, callSessionId }, 'Media stream handler error');
+            wsSpan?.recordException(error as Error);
+            wsSpan?.setStatus({ code: SpanStatusCode.ERROR });
+          }));
+          try {
+            ws.close(1011, 'Internal error');
+          } catch {
+            // Ignore close errors on failed sessions.
+          }
+          if (wsSpan?.isRecording()) {
+            wsSpan.end();
+          }
+        });
     });
-
-    logger.info({ callSessionId }, 'WebSocket connection established');
-    handleMediaStreamConnection(ws, callSessionId);
   } catch (error) {
     logger.error({ error }, 'WebSocket connection error');
     ws.close(1011, 'Internal error');
@@ -209,6 +269,7 @@ wss.on('error', (error) => {
 const PORT = process.env.PORT || 3001;
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 30_000;
 const DRAIN_CHECK_INTERVAL_MS = 1_000;
+const OTEL_SHUTDOWN_TIMEOUT_MS = resolveOtelShutdownTimeoutMs();
 
 const REQUIRED_TIMEZONES = [
   'America/New_York',
@@ -282,6 +343,15 @@ async function gracefulShutdown(signal: string): Promise<void> {
     callDrainWaitDuration.observe(waitSeconds);
   }
 
+  try {
+    const completed = await shutdownTracingWithTimeout(OTEL_SHUTDOWN_TIMEOUT_MS);
+    if (!completed) {
+      logger.warn({ timeoutMs: OTEL_SHUTDOWN_TIMEOUT_MS }, 'Tracing shutdown timed out');
+    }
+  } catch (error) {
+    logger.error({ error }, 'Failed to flush tracing');
+  }
+
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
@@ -303,6 +373,37 @@ process.on('SIGINT', () => {
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function resolveOtelShutdownTimeoutMs(): number {
+  const raw = process.env.ULTAURA_OTEL_SHUTDOWN_TIMEOUT_MS;
+  if (!raw) {
+    return 5000;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 5000;
+  }
+  return parsed;
+}
+
+async function shutdownTracingWithTimeout(timeoutMs: number): Promise<boolean> {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      shutdownTracing().then(() => true),
+      new Promise<boolean>((resolve) => {
+        timeout = setTimeout(() => resolve(false), timeoutMs);
+        if (typeof timeout.unref === 'function') {
+          timeout.unref();
+        }
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 export { app, server };
