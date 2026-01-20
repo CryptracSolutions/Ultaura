@@ -5,120 +5,111 @@ import {
 } from '@ultaura/schemas/telephony';
 import { SAFETY_CATEGORY_TIERS } from '@ultaura/types';
 import { logger } from '../../server.js';
-import { getCallSession, recordCallEvent, recordSafetyEvent } from '../../services/call-session.js';
+import {
+  getCallSession,
+  recordCallEvent,
+  recordSafetyEvent,
+  updateSafetyEventSignals,
+} from '../../services/call-session.js';
+import { buildContextWindow, enqueueClassifierJob } from '../../services/safety-classifier.js';
+import { getBuffer, type TurnSummary } from '../../services/ephemeral-buffer.js';
+import { incrementNotificationsBlocked } from '../../services/safety-metrics.js';
+import { notifyTrustedContacts } from '../../services/safety-notifications.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
-import { enforceRateLimit } from '../../services/rate-limiter.js';
-import { getSupabaseClient } from '../../utils/supabase.js';
-import { sendSms } from '../../utils/twilio.js';
+import { verifyHighTierEvent } from '../../services/safety-verifier.js';
+import { getGrokBridge } from '../../websocket/grok-bridge-registry.js';
 
 export const safetyEventRouter = Router();
 
-// Notify trusted contacts for high-tier safety events
-async function notifyTrustedContacts(
-  accountId: string,
-  callSessionId: string,
-  lineId: string,
-  tier: string,
-  actionTaken: string
-): Promise<void> {
-  const supabase = getSupabaseClient();
+const MAX_VERIFIER_TURNS = 12;
+const MAX_VERIFIER_CHARS = 2000;
+const VERIFIER_WINDOW_DURATION_MS = 120_000;
 
-  try {
-    // Check for trusted_contact_notify consent
-    const { data: consent } = await supabase
-      .from('ultaura_consents')
-      .select('granted')
-      .eq('line_id', lineId)
-      .eq('type', 'trusted_contact_notify')
-      .eq('granted', true)
-      .is('revoked_at', null)
-      .maybeSingle();
+function turnKey(turn: TurnSummary): string {
+  return `${turn.timestamp}-${turn.speaker}-${turn.summary}`;
+}
 
-    if (!consent) {
-      logger.info({ lineId }, 'No trusted contact consent found, skipping notification');
-      return;
+function getPreviousAssistantTurn(turns: TurnSummary[]): TurnSummary | null {
+  if (!turns.length) return null;
+  const lastTurn = turns[turns.length - 1];
+  if (lastTurn.speaker !== 'user') return null;
+
+  for (let i = turns.length - 2; i >= 0; i--) {
+    if (turns[i].speaker === 'assistant') {
+      return turns[i];
     }
-
-    // Get enabled trusted contacts for this line
-    const { data: contacts } = await supabase
-      .from('ultaura_trusted_contacts')
-      .select('id, name, phone_e164, notify_on')
-      .eq('line_id', lineId)
-      .eq('enabled', true);
-
-    if (!contacts || contacts.length === 0) {
-      logger.info({ lineId }, 'No enabled trusted contacts found');
-      return;
-    }
-
-    // Filter to contacts who want high-tier notifications
-    const contactsToNotify = contacts.filter(
-      (c) => c.notify_on && Array.isArray(c.notify_on) && c.notify_on.includes('high')
-    );
-
-    if (contactsToNotify.length === 0) {
-      logger.info({ lineId }, 'No contacts configured for high-tier notifications');
-      return;
-    }
-
-    // Get line info for personalized message
-    const { data: line } = await supabase
-      .from('ultaura_lines')
-      .select('display_name')
-      .eq('id', lineId)
-      .single();
-
-    const lovedOneName = line?.display_name || 'Your loved one';
-
-    // Send SMS to each contact
-    let skippedCount = 0;
-
-    for (const contact of contactsToNotify) {
-      try {
-        const rateLimitResult = await enforceRateLimit({
-          action: 'sms',
-          accountId,
-          callSessionId,
-          phoneNumber: contact.phone_e164,
-        });
-
-        if (!rateLimitResult.allowed) {
-          skippedCount++;
-          logger.warn(
-            { accountId, contactId: contact.id, limit: rateLimitResult.limitType },
-            'SMS rate limit exceeded, skipping trusted contact notification'
-          );
-          continue;
-        }
-
-        const message = `Ultaura safety alert: ${lovedOneName} may need support. Action taken: ${actionTaken === 'suggested_988' ? 'Suggested calling 988 crisis line' : actionTaken === 'suggested_911' ? 'Suggested calling 911' : 'Provided support'}. Please check in with them.`;
-
-        await sendSms({
-          to: contact.phone_e164,
-          body: message,
-        });
-
-        logger.info(
-          { contactId: contact.id, lineId, tier },
-          'Notified trusted contact of safety event'
-        );
-      } catch (smsError) {
-        logger.error(
-          { error: smsError, contactId: contact.id, lineId },
-          'Failed to send SMS to trusted contact'
-        );
-      }
-    }
-
-    if (skippedCount > 0) {
-      logger.warn(
-        { accountId, lineId, skippedCount },
-        'Trusted contact notifications skipped due to SMS rate limits'
-      );
-    }
-  } catch (error) {
-    logger.error({ error, lineId }, 'Error notifying trusted contacts');
   }
+
+  return null;
+}
+
+function trimContextTurns(
+  turns: TurnSummary[],
+  requiredKey: string | null
+): TurnSummary[] {
+  const trimmed = [...turns];
+  let totalChars = trimmed.reduce((sum, t) => sum + t.summary.length, 0);
+
+  while (trimmed.length > MAX_VERIFIER_TURNS || totalChars > MAX_VERIFIER_CHARS) {
+    let removeIndex = 0;
+    if (requiredKey && trimmed.length > 1 && turnKey(trimmed[0]) === requiredKey) {
+      removeIndex = 1;
+    }
+
+    const removed = trimmed.splice(removeIndex, 1)[0];
+    if (removed) {
+      totalChars -= removed.summary.length;
+    }
+
+    if (trimmed.length === 1 && totalChars > MAX_VERIFIER_CHARS) {
+      const remaining = Math.max(0, MAX_VERIFIER_CHARS);
+      trimmed[0] = {
+        ...trimmed[0],
+        summary: trimmed[0].summary.slice(0, remaining),
+      };
+      totalChars = trimmed[0].summary.length;
+      break;
+    }
+  }
+
+  return trimmed;
+}
+
+function buildVerifierContext(turns: TurnSummary[]): { text: string; stats: { turns: number; chars: number } } {
+  const cutoffTime = Date.now() - VERIFIER_WINDOW_DURATION_MS;
+  const recentTurns = turns.filter((turn) => turn.timestamp >= cutoffTime);
+  const baseWindow = buildContextWindow(
+    recentTurns,
+    MAX_VERIFIER_TURNS,
+    MAX_VERIFIER_CHARS
+  );
+  let windowTurns = [...baseWindow.turns];
+  const previousAssistant = getPreviousAssistantTurn(recentTurns);
+  let requiredKey: string | null = null;
+
+  if (previousAssistant) {
+    requiredKey = turnKey(previousAssistant);
+    if (!windowTurns.some((turn) => turnKey(turn) === requiredKey)) {
+      windowTurns.push(previousAssistant);
+      windowTurns.sort((a, b) => a.timestamp - b.timestamp);
+    }
+  }
+
+  windowTurns = trimContextTurns(windowTurns, requiredKey);
+
+  const text = windowTurns
+    .map((turn) => `${turn.speaker}: ${turn.summary}`)
+    .join('\n')
+    .slice(0, MAX_VERIFIER_CHARS);
+  const chars = windowTurns.reduce((sum, turn) => sum + turn.summary.length, 0);
+
+  return {
+    text,
+    stats: {
+      turns: windowTurns.length,
+      chars,
+    },
+  };
 }
 
 safetyEventRouter.post('/', async (req: Request, res: Response) => {
@@ -186,7 +177,7 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
 
     markSafetyTier(callSessionId, effectiveTier, sourceValue);
 
-    await recordSafetyEvent({
+    const safetyEventId = await recordSafetyEvent({
       accountId,
       lineId,
       callSessionId,
@@ -198,6 +189,7 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
       },
       actionTaken,
     });
+
     await recordCallEvent(
       callSessionId,
       'tool_call',
@@ -212,14 +204,78 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
       { skipDebugLog: true }
     );
 
-    // For high-tier events, notify trusted contacts
     if (effectiveTier === 'high' && sourceValue === 'model') {
-      logger.warn({ callSessionId, lineId, tier: effectiveTier, category, actionTaken }, 'HIGH SAFETY TIER EVENT');
-      // Run notification in background to not block the response
-      notifyTrustedContacts(accountId, callSessionId, lineId, effectiveTier, actionTaken)
-        .catch((error) => {
-          logger.error({ error, lineId }, 'Background trusted contact notification failed');
+      logger.warn(
+        { callSessionId, lineId, tier: effectiveTier, category, actionTaken },
+        'HIGH SAFETY TIER EVENT'
+      );
+
+      const grokBridge = getGrokBridge(callSessionId);
+      const languageCode = grokBridge?.getDetectedLanguage() ?? 'unknown';
+      const buffer = getBuffer(callSessionId);
+
+      if (process.env.ULTAURA_MULTILINGUAL_SAFETY_ENABLED === 'true' && buffer) {
+        const classifierWindow = buildContextWindow(buffer.turns);
+        enqueueClassifierJob(
+          callSessionId,
+          lineId,
+          languageCode,
+          'high_verify',
+          classifierWindow,
+          safetyEventId ?? undefined,
+          'model'
+        );
+      }
+
+      void (async () => {
+        const contextResult = buffer ? buildVerifierContext(buffer.turns) : null;
+        const contextText = contextResult?.text ?? '';
+        const contextStats = contextResult?.stats ?? { turns: 0, chars: 0 };
+
+        if (!contextText) {
+          if (safetyEventId) {
+            await updateSafetyEventSignals(safetyEventId, {
+              verifier_result: 'uncertain',
+              verifier_latency_ms: 0,
+              context_window_stats: contextStats,
+            });
+          }
+          incrementNotificationsBlocked('uncertain');
+          return;
+        }
+
+        const verifierResult = await verifyHighTierEvent({
+          callSessionId,
+          contextWindowText: contextText,
+          languageCode,
+          category: category === 'GENERAL_CONCERN' ? undefined : category,
+          source: sourceValue,
         });
+
+        if (safetyEventId) {
+          await updateSafetyEventSignals(safetyEventId, {
+            verifier_result: verifierResult.decision,
+            verifier_latency_ms: verifierResult.latencyMs,
+            context_window_stats: contextStats,
+          });
+        }
+
+        if (verifierResult.decision === 'confirm') {
+          await notifyTrustedContacts({
+            accountId,
+            callSessionId,
+            lineId,
+            tier: 'high',
+            actionTaken,
+          });
+        } else {
+          const blockReason = verifierResult.decision === 'clear' ? 'verifier_clear' : 'uncertain';
+          incrementNotificationsBlocked(blockReason);
+        }
+      })().catch((error) => {
+        incrementNotificationsBlocked('uncertain');
+        logger.error({ error, callSessionId, lineId }, 'Safety verifier background task failed');
+      });
     }
 
     res.json({ success: true, message: 'Safety concern logged' });

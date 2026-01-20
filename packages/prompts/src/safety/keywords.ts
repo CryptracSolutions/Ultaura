@@ -1,64 +1,267 @@
 import type { SafetyCategory, SafetyTier } from '@ultaura/types';
 
+export interface LanguageKeywords {
+  high: readonly string[];
+  medium: readonly string[];
+  low: readonly string[];
+}
+
+export const SAFETY_KEYWORDS_BY_LANGUAGE: Record<string, LanguageKeywords> = {
+  en: {
+    high: [
+      'suicide',
+      'kill myself',
+      'end my life',
+      'end it all',
+      'want to die',
+      'want to kill me',
+      'going to kill me',
+      'better off dead',
+      'hurt myself',
+      'harm myself',
+      'self-harm',
+      'self harm',
+      'cut myself',
+      "don't want to live",
+      'no reason to live',
+      'take my own life',
+    ],
+    medium: [
+      'hopeless',
+      'give up',
+      'giving up',
+      'not worth living',
+      "what's the point",
+      'no point in living',
+      "can't go on",
+      "can't take it anymore",
+      "wish i wasn't here",
+      'disappear',
+      'nobody would miss me',
+      'burden to everyone',
+    ],
+    low: [
+      'so lonely',
+      'all alone',
+      'nobody cares',
+      "don't care anymore",
+      'tired of everything',
+      'exhausted with life',
+      'nothing matters',
+    ],
+  },
+  es: {
+    high: [
+      'suicidio',
+      'matarme',
+      'me quiero matar',
+      'quiero matarme',
+      'quiero morir',
+      'acabar con todo',
+      'acabar con mi vida',
+      'terminar con mi vida',
+      'quitarme la vida',
+      'no quiero vivir',
+      'hacerme daño',
+      'lastimarme',
+      'autolesion',
+      'autolesión',
+      'cortarme',
+    ],
+    medium: [
+      'sin esperanza',
+      'no vale la pena',
+      'no tiene sentido',
+      'no puedo más',
+      'no aguanto más',
+      'quiero rendirme',
+      'rendirme',
+    ],
+    low: [
+      'muy solo',
+      'muy sola',
+      'me siento solo',
+      'me siento sola',
+      'nadie me quiere',
+      'nadie se preocupa',
+    ],
+  },
+  zh: {
+    high: [
+      '自杀',
+      '想死',
+      '不想活',
+      '结束生命',
+      '自残',
+      '伤害自己',
+      '活着没意思',
+      '不如死了',
+    ],
+    medium: [
+      '绝望',
+      '放弃',
+      '没有希望',
+      '活不下去',
+      '没有意义',
+      '太累了',
+    ],
+    low: [
+      '孤独',
+      '寂寞',
+      '没人关心',
+      '一个人',
+    ],
+  },
+  tl: {
+    high: [
+      'pagpapakamatay',
+      'gusto kong mamatay',
+      'tapusin ang buhay',
+      'saktan ang sarili',
+      'pumatay',
+      'ayaw ko nang mabuhay',
+    ],
+    medium: [
+      'walang pag-asa',
+      'sumuko',
+      'hindi na kaya',
+      'pagod na ako sa lahat',
+    ],
+    low: [
+      'malungkot',
+      'nag-iisa',
+      'walang nagmamahal',
+    ],
+  },
+  vi: {
+    high: [
+      'tự tử',
+      'muốn chết',
+      'kết thúc cuộc sống',
+      'tự hại',
+      'không muốn sống',
+    ],
+    medium: [
+      'tuyệt vọng',
+      'bỏ cuộc',
+      'không còn hy vọng',
+      'chịu không nổi',
+    ],
+    low: [
+      'cô đơn',
+      'một mình',
+      'không ai quan tâm',
+    ],
+  },
+  fr: {
+    high: [
+      'suicide',
+      'me tuer',
+      'en finir',
+      'mourir',
+      'me faire du mal',
+      'ne plus vivre',
+    ],
+    medium: [
+      'sans espoir',
+      'abandonner',
+      'plus la peine',
+      "n'en peux plus",
+    ],
+    low: [
+      'seul',
+      'seule',
+      "personne ne m'aime",
+      'isolé',
+    ],
+  },
+  ar: {
+    high: [
+      'انتحار',
+      'أريد الموت',
+      'إنهاء حياتي',
+      'أؤذي نفسي',
+      'لا أريد أن أعيش',
+    ],
+    medium: [
+      'يائس',
+      'استسلام',
+      'لا أمل',
+      'لا أستطيع المتابعة',
+    ],
+    low: [
+      'وحيد',
+      'لا أحد يهتم',
+      'منعزل',
+    ],
+  },
+  ko: {
+    high: [
+      '자살',
+      '죽고 싶어',
+      '삶을 끝내고',
+      '자해',
+      '살고 싶지 않아',
+    ],
+    medium: [
+      '절망',
+      '포기',
+      '희망이 없어',
+      '더 이상 못하겠어',
+    ],
+    low: [
+      '외로워',
+      '혼자',
+      '아무도 신경 안 써',
+    ],
+  },
+  hi: {
+    high: [
+      'आत्महत्या',
+      'मरना चाहता हूं',
+      'जीवन समाप्त',
+      'खुद को नुकसान',
+      'जीना नहीं चाहता',
+    ],
+    medium: [
+      'निराशा',
+      'हार मान',
+      'कोई उम्मीद नहीं',
+      'सहन नहीं होता',
+    ],
+    low: [
+      'अकेला',
+      'कोई परवाह नहीं करता',
+      'तन्हा',
+    ],
+  },
+  ur: {
+    high: [
+      'خودکشی',
+      'مرنا چاہتا ہوں',
+      'زندگی ختم',
+      'خود کو نقصان',
+      'جینا نہیں چاہتا',
+    ],
+    medium: [
+      'مایوسی',
+      'ہار ماننا',
+      'کوئی امید نہیں',
+      'برداشت نہیں ہوتا',
+    ],
+    low: [
+      'اکیلا',
+      'کوئی پرواہ نہیں کرتا',
+      'تنہا',
+    ],
+  },
+};
+
 export const SAFETY_KEYWORDS: Record<SafetyTier, readonly string[]> = {
-  high: [
-    // English
-    'suicide',
-    'kill myself',
-    'end my life',
-    'end it all',
-    'want to die',
-    'want to kill me',
-    'going to kill me',
-    'better off dead',
-    'hurt myself',
-    'harm myself',
-    'self-harm',
-    'self harm',
-    'cut myself',
-    "don't want to live",
-    'no reason to live',
-    'take my own life',
-    // Spanish
-    'suicidio',
-    'matarme',
-    'quiero morir',
-    'acabar con todo',
-  ],
-  medium: [
-    // English
-    'hopeless',
-    'give up',
-    'giving up',
-    'not worth living',
-    "what's the point",
-    'no point in living',
-    "can't go on",
-    "can't take it anymore",
-    "wish i wasn't here",
-    'disappear',
-    'nobody would miss me',
-    'burden to everyone',
-    // Spanish
-    'sin esperanza',
-    'no vale la pena',
-    'rendirme',
-  ],
-  low: [
-    // English
-    'so lonely',
-    'all alone',
-    'nobody cares',
-    "don't care anymore",
-    'tired of everything',
-    'exhausted with life',
-    'nothing matters',
-    // Spanish
-    'muy solo',
-    'muy sola',
-    'nadie me quiere',
-  ],
-} as const;
+  high: Object.values(SAFETY_KEYWORDS_BY_LANGUAGE).flatMap((lang) => lang.high),
+  medium: Object.values(SAFETY_KEYWORDS_BY_LANGUAGE).flatMap((lang) => lang.medium),
+  low: Object.values(SAFETY_KEYWORDS_BY_LANGUAGE).flatMap((lang) => lang.low),
+};
 
 export const KEYWORD_CATEGORIES: Record<string, SafetyCategory> = {
   // HIGH - SUICIDAL_IDEATION
@@ -73,8 +276,19 @@ export const KEYWORD_CATEGORIES: Record<string, SafetyCategory> = {
   'take my own life': 'SUICIDAL_IDEATION',
   'suicidio': 'SUICIDAL_IDEATION',
   'matarme': 'SUICIDAL_IDEATION',
+  'me quiero matar': 'SUICIDAL_IDEATION',
+  'quiero matarme': 'SUICIDAL_IDEATION',
   'quiero morir': 'SUICIDAL_IDEATION',
   'acabar con todo': 'SUICIDAL_IDEATION',
+  'acabar con mi vida': 'SUICIDAL_IDEATION',
+  'terminar con mi vida': 'SUICIDAL_IDEATION',
+  'quitarme la vida': 'SUICIDAL_IDEATION',
+  'no quiero vivir': 'SUICIDAL_IDEATION',
+  'hacerme daño': 'SELF_HARM',
+  'lastimarme': 'SELF_HARM',
+  'autolesion': 'SELF_HARM',
+  'autolesión': 'SELF_HARM',
+  'cortarme': 'SELF_HARM',
 
   // HIGH - PHYSICAL_DANGER
   'want to kill me': 'PHYSICAL_DANGER',

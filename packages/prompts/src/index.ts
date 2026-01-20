@@ -13,8 +13,16 @@ export * from './golden/index.js';
 
 export { GROK_TOOLS } from './tools/definitions.js';
 
-export { SAFETY_KEYWORDS, KEYWORD_CATEGORIES } from './safety/keywords.js';
-export { SAFETY_EXCLUSION_PATTERNS } from './safety/exclusions.js';
+export {
+  SAFETY_KEYWORDS,
+  SAFETY_KEYWORDS_BY_LANGUAGE,
+  KEYWORD_CATEGORIES,
+} from './safety/keywords.js';
+export {
+  SAFETY_EXCLUSION_PATTERNS,
+  SAFETY_EXCLUSION_PATTERNS_EN,
+  SAFETY_EXCLUSION_PATTERNS_ES,
+} from './safety/exclusions.js';
 
 export {
   getLanguageName,

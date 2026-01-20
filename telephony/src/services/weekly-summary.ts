@@ -221,6 +221,7 @@ async function fetchSafetyEvents(options: {
     .select('tier, action_taken, created_at')
     .eq('line_id', options.lineId)
     .eq('tier', 'high')
+    .eq('signals->>verifier_result', 'confirm')
     .gte('created_at', options.startUtc)
     .lt('created_at', options.endUtc)
     .order('created_at', { ascending: false });

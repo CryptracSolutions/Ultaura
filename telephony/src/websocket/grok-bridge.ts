@@ -4,7 +4,6 @@
 import { WebSocket } from 'ws';
 import { DateTime } from 'luxon';
 import { compilePrompt, buildReminderPrompt, GROK_TOOLS } from '@ultaura/prompts';
-import { KEYWORD_CATEGORIES, SAFETY_EXCLUSION_PATTERNS, SAFETY_KEYWORDS } from '@ultaura/prompts/safety';
 import type {
   AccountStatus,
   Memory,
@@ -16,13 +15,16 @@ import type {
 } from '@ultaura/types';
 import { SAFETY_CATEGORY_TIERS } from '@ultaura/types';
 import { logger } from '../server.js';
-import { addTurn, markConsentGranted, TurnSummary } from '../services/ephemeral-buffer.js';
+import { addTurn, getBuffer, markConsentGranted, TurnSummary } from '../services/ephemeral-buffer.js';
 import { recordCallEvent } from '../services/call-session.js';
 import { getMemoriesForLine, markMemoriesAccessed } from '../services/memory.js';
 import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
 import type { CallPreview } from '../services/call-preview.js';
 import type { StoryArc } from '../services/retention-context.js';
+import { buildContextWindow, clearJobsForSession, enqueueClassifierJob } from '../services/safety-classifier.js';
+import { detectHeuristics } from '../services/safety-heuristics.js';
+import { scanForSafetyKeywords } from '../services/safety-keywords.js';
 import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 import {
   GROK_INITIAL_CONNECT_TIMEOUT_MS,
@@ -33,6 +35,20 @@ import {
 
 const GROK_REALTIME_URL = process.env.XAI_REALTIME_URL || 'wss://api.x.ai/v1/realtime';
 const ROUTINE_TIME_WINDOW_MINUTES = 120;
+
+function isMultilingualSafetyEnabled(): boolean {
+  return process.env.ULTAURA_MULTILINGUAL_SAFETY_ENABLED === 'true';
+}
+
+function isSafetySweepsEnabled(): boolean {
+  return process.env.ULTAURA_SAFETY_SWEEPS_ENABLED !== 'false';
+}
+
+function randomBetween(minMs: number, maxMs: number): number {
+  const min = Math.ceil(minMs);
+  const max = Math.floor(maxMs);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 function sanitizePromptSnippet(input: string): string {
   return input
@@ -236,10 +252,16 @@ export class GrokBridge {
   private suppressDisconnect = false;
   private safetyState: SafetyState;
   private detectedLanguage: string | null = null;
+  private periodicSweepTimer: NodeJS.Timeout | null = null;
+  private lastSweepTime = 0;
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
     this.safetyState = getOrCreateSafetyState(options.callSessionId);
+    if (options.startingLanguage && options.isLanguageAutoDetect === false) {
+      this.detectedLanguage = options.startingLanguage;
+    }
+    this.startPeriodicSweeps();
   }
 
   // Connect to Grok Realtime API
@@ -663,110 +685,144 @@ At the START of this call:
     this.options.onDisconnect?.(type, detail);
   }
 
-  private scanForSafetyKeywords(transcript: string): SafetyMatch[] {
-    const text = transcript.toLowerCase().trim();
-    const matches: SafetyMatch[] = [];
+  private handleTranscriptSafety(transcript: string): void {
+    const multilingualEnabled = isMultilingualSafetyEnabled();
+    const scanLanguage = multilingualEnabled ? this.detectedLanguage : 'en';
+    const scanResult = scanForSafetyKeywords(
+      transcript,
+      scanLanguage,
+      this.safetyState.triggeredTiers
+    );
 
-    for (const tier of ['high', 'medium', 'low'] as const) {
-      if (this.safetyState.triggeredTiers.has(tier)) {
-        continue;
-      }
-
-      const keywords = SAFETY_KEYWORDS[tier];
-      let matchedTier = false;
-
-      for (const keyword of keywords) {
-        let keywordMatch = this.findKeywordMatch(text, keyword);
-
-        while (keywordMatch) {
-          if (!this.isExcludedAtPosition(text, keywordMatch.start, keywordMatch.end)) {
-            matches.push({ tier, matchedKeyword: keyword });
-            matchedTier = true;
-            break;
-          }
-
-          keywordMatch = this.findKeywordMatch(text, keyword, keywordMatch.end);
-        }
-
-        if (matchedTier) {
-          break;
-        }
+    if (scanResult.matches.length > 0) {
+      this.handleSafetyBackstop(scanResult.matches);
+      if (multilingualEnabled) {
+        this.enqueueClassifierForSoftSignal('keyword');
       }
     }
 
-    return matches;
-  }
-
-  private findKeywordMatch(
-    text: string,
-    keyword: string,
-    fromIndex = 0
-  ): { start: number; end: number } | null {
-    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
-    regex.lastIndex = fromIndex;
-    const match = regex.exec(text);
-    if (!match) {
-      return null;
+    if (!multilingualEnabled) {
+      return;
     }
 
-    return { start: match.index, end: match.index + match[0].length };
+    const heuristicResult = detectHeuristics(transcript);
+    if (heuristicResult.triggered && heuristicResult.totalConfidence >= 0.6) {
+      this.enqueueClassifierForSoftSignal('heuristic');
+    }
   }
 
-  private isExcludedAtPosition(text: string, keywordStart: number, keywordEnd: number): boolean {
-    for (const pattern of SAFETY_EXCLUSION_PATTERNS) {
-      const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
-      let match: RegExpExecArray | null;
+  private enqueueClassifierForSoftSignal(source: 'keyword' | 'heuristic'): void {
+    const buffer = getBuffer(this.options.callSessionId);
+    if (!buffer) return;
 
-      while ((match = regex.exec(text)) !== null) {
-        const exclStart = match.index;
-        const exclEnd = match.index + match[0].length;
-        if (keywordStart < exclEnd && keywordEnd > exclStart) {
-          return true;
-        }
-      }
+    const contextWindow = buildContextWindow(buffer.turns);
+    enqueueClassifierJob(
+      this.options.callSessionId,
+      this.options.lineId,
+      this.detectedLanguage ?? 'unknown',
+      'soft_signal',
+      contextWindow,
+      undefined,
+      source
+    );
+  }
+
+  private startPeriodicSweeps(): void {
+    this.stopPeriodicSweeps();
+
+    if (!isMultilingualSafetyEnabled() || !isSafetySweepsEnabled()) {
+      return;
     }
 
-    return false;
+    if (!this.shouldRunSweepsForLanguage()) {
+      return;
+    }
+
+    this.scheduleNextSweep();
   }
 
-  private async handleSafetyBackstop(matches: SafetyMatch[]): Promise<void> {
+  private scheduleNextSweep(): void {
+    const intervalMs = this.getSweepIntervalMs();
+    if (!intervalMs) {
+      return;
+    }
+
+    this.periodicSweepTimer = setTimeout(() => {
+      this.runPeriodicSweep();
+      this.scheduleNextSweep();
+    }, intervalMs);
+  }
+
+  private stopPeriodicSweeps(): void {
+    if (this.periodicSweepTimer) {
+      clearTimeout(this.periodicSweepTimer);
+      this.periodicSweepTimer = null;
+    }
+  }
+
+  private shouldRunSweepsForLanguage(): boolean {
+    const language = this.detectedLanguage;
+    if (!language) return true;
+    return language !== 'en' && language !== 'es';
+  }
+
+  private getSweepIntervalMs(): number {
+    if (!this.shouldRunSweepsForLanguage()) {
+      return 0;
+    }
+
+    const language = this.detectedLanguage;
+    if (!language) {
+      return randomBetween(60_000, 90_000);
+    }
+
+    const supportedNonEnEs = ['zh', 'tl', 'vi', 'fr', 'ar', 'ko', 'hi', 'ur'];
+    if (supportedNonEnEs.includes(language)) {
+      return 120_000;
+    }
+
+    return 60_000;
+  }
+
+  private runPeriodicSweep(): void {
+    if (!isMultilingualSafetyEnabled() || !isSafetySweepsEnabled()) {
+      return;
+    }
+
+    if (!this.shouldRunSweepsForLanguage()) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - this.lastSweepTime < 30_000) {
+      return;
+    }
+
+    this.lastSweepTime = now;
+
+    const buffer = getBuffer(this.options.callSessionId);
+    if (!buffer || buffer.turns.length < 3) {
+      return;
+    }
+
+    const contextWindow = buildContextWindow(buffer.turns);
+    enqueueClassifierJob(
+      this.options.callSessionId,
+      this.options.lineId,
+      this.detectedLanguage ?? 'unknown',
+      'periodic_sweep',
+      contextWindow,
+      undefined,
+      'sweep'
+    );
+  }
+
+  private handleSafetyBackstop(matches: SafetyMatch[]): void {
     if (matches.length === 0) return;
-
-    const baseUrl = getBackendUrl();
-
     for (const match of matches) {
-      const { tier, matchedKeyword } = match;
-      const category = KEYWORD_CATEGORIES[matchedKeyword] || 'GENERAL_CONCERN';
-      const effectiveTier = category === 'GENERAL_CONCERN'
-        ? tier
-        : SAFETY_CATEGORY_TIERS[category] || tier;
-
+      const { tier } = match;
       this.safetyState.triggeredTiers.add(tier);
       this.safetyState.backstopTiersTriggered.add(tier);
-
-      try {
-        await this.callToolEndpoint(`${baseUrl}/tools/safety_event`, {
-          callSessionId: this.options.callSessionId,
-          lineId: this.options.lineId,
-          category,
-          tier: effectiveTier,
-          confidence: 1.0,
-          actionTaken: 'none',
-          source: 'keyword_backstop',
-        });
-
-        logger.info({
-          event: 'safety_backstop_triggered',
-          callSessionId: this.options.callSessionId,
-          lineId: this.options.lineId,
-          tier,
-          timestamp: Date.now(),
-        }, 'Safety backstop triggered');
-      } catch (error) {
-        logger.error({ error, tier, callSessionId: this.options.callSessionId }, 'Failed to log safety backstop event');
-      }
     }
 
     this.safetyState.lastDetectionTime = Date.now();
@@ -808,6 +864,23 @@ At the START of this call:
     logger.debug({ tier }, 'Injected safety hint to model');
   }
 
+  public sendSafetyAssessmentHint(source: 'sweep' | 'soft_signal' | 'model'): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    const message = `[SYSTEM: Safety classifier flagged potential high-tier risk via ${source}. Ask a direct safety check and call log_safety_concern if warranted.]`;
+    const itemMessage = {
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'system',
+        content: [{ type: 'input_text', text: message }],
+      },
+    };
+
+    this.ws.send(JSON.stringify(itemMessage));
+    this.ws.send(JSON.stringify({ type: 'response.create' }));
+  }
+
   // Handle messages from Grok
   private handleGrokMessage(data: Buffer): void {
     try {
@@ -836,13 +909,7 @@ At the START of this call:
           const transcript = message.text || message.transcript || message.item?.output || '';
           if (transcript) {
             addTurn(this.options.callSessionId, this.extractUserTurn(transcript));
-
-            const safetyMatches = this.scanForSafetyKeywords(transcript);
-            if (safetyMatches.length > 0) {
-              this.handleSafetyBackstop(safetyMatches).catch((err) => {
-                logger.error({ error: err }, 'Safety backstop handling failed');
-              });
-            }
+            this.handleTranscriptSafety(transcript);
           }
           break;
         }
@@ -1770,7 +1837,13 @@ At the START of this call:
   }
 
   public setDetectedLanguage(code: string): void {
+    const previousLanguage = this.detectedLanguage;
     this.detectedLanguage = code;
+
+    if (previousLanguage !== code) {
+      this.stopPeriodicSweeps();
+      this.startPeriodicSweeps();
+    }
   }
 
   public getDetectedLanguage(): string | null {
@@ -1779,6 +1852,9 @@ At the START of this call:
 
   // Close the connection
   close(): void {
+    this.stopPeriodicSweeps();
+    clearJobsForSession(this.options.callSessionId);
+
     if (this.ws) {
       this.suppressDisconnect = true;
       this.ws.close();

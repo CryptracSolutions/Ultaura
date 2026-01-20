@@ -678,23 +678,27 @@ export async function recordSafetyEvent(options: {
   confidence?: number;
   signals?: Record<string, unknown>;
   actionTaken?: 'none' | 'suggested_988' | 'suggested_911' | 'notified_contact' | 'transferred_call';
-}): Promise<void> {
+}): Promise<string | null> {
   const supabase = getSupabaseClient();
 
-  const { error } = await supabase.from('ultaura_safety_events').insert({
-    account_id: options.accountId,
-    line_id: options.lineId,
-    call_session_id: options.callSessionId,
-    tier: options.tier,
-    category: options.category ?? null,
-    confidence: options.confidence ?? null,
-    signals: options.signals || null,
-    action_taken: options.actionTaken || 'none',
-  });
+  const { data, error } = await supabase
+    .from('ultaura_safety_events')
+    .insert({
+      account_id: options.accountId,
+      line_id: options.lineId,
+      call_session_id: options.callSessionId,
+      tier: options.tier,
+      category: options.category ?? null,
+      confidence: options.confidence ?? null,
+      signals: options.signals || null,
+      action_taken: options.actionTaken || 'none',
+    })
+    .select('id')
+    .single();
 
   if (error) {
     logger.error({ error, options }, 'Failed to record safety event');
-    return;
+    return null;
   }
 
   // Also record as call event
@@ -703,5 +707,40 @@ export async function recordSafetyEvent(options: {
     actionTaken: options.actionTaken,
   }, { skipDebugLog: true });
 
-  logger.warn({ ...options }, 'Safety event recorded');
+  const safetyEventId = data?.id ?? null;
+  logger.warn({ ...options, safetyEventId }, 'Safety event recorded');
+  return safetyEventId;
+}
+
+export async function updateSafetyEventSignals(
+  safetyEventId: string,
+  updates: Record<string, unknown>
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('ultaura_safety_events')
+    .select('signals')
+    .eq('id', safetyEventId)
+    .single();
+
+  if (error) {
+    logger.error({ error, safetyEventId }, 'Failed to load safety event signals');
+    return;
+  }
+
+  const existingSignals = (data?.signals as Record<string, unknown> | null) ?? {};
+  const mergedSignals = {
+    ...existingSignals,
+    ...updates,
+  };
+
+  const { error: updateError } = await supabase
+    .from('ultaura_safety_events')
+    .update({ signals: mergedSignals })
+    .eq('id', safetyEventId);
+
+  if (updateError) {
+    logger.error({ error: updateError, safetyEventId }, 'Failed to update safety event signals');
+  }
 }

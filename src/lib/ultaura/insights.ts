@@ -1390,7 +1390,9 @@ export async function getSafetyEvents(
     .limit(limit);
 
   if (!options?.includeAllTiers) {
-    query = query.eq('tier', 'high');
+    query = query.eq('tier', 'high').eq('signals->>verifier_result', 'confirm');
+  } else {
+    query = query.or('tier.neq.high,signals->>verifier_result.eq.confirm');
   }
 
   const { data, error } = await query;

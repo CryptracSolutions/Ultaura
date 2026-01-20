@@ -49,6 +49,10 @@ const ULTAURA_ENV_VARS: EnvVariable[] = [
   { name: 'ULTAURA_DECAY_CRON', required: false },
   { name: 'ULTAURA_PER_LINE_DEK_ENABLED', required: false, format: 'boolean', default: 'true' },
   { name: 'ULTAURA_PER_LINE_DEK_CUTOFF', required: false },
+  { name: 'ULTAURA_MULTILINGUAL_SAFETY_ENABLED', required: false, format: 'boolean', default: 'false' },
+  { name: 'ULTAURA_SAFETY_SWEEPS_ENABLED', required: false, format: 'boolean', default: 'true' },
+  { name: 'ULTAURA_SAFETY_VERIFIER_GATE_ENABLED', required: false, format: 'boolean', default: 'true' },
+  { name: 'ULTAURA_SAFETY_CLASSIFIER_MODEL', required: false },
 
   // Optional - Redis (rate limiting)
   { name: 'UPSTASH_REDIS_REST_URL', required: false, format: 'url' },

@@ -1,2 +1,10 @@
-export { SAFETY_KEYWORDS, KEYWORD_CATEGORIES } from './keywords.js';
-export { SAFETY_EXCLUSION_PATTERNS } from './exclusions.js';
+export {
+  SAFETY_KEYWORDS,
+  SAFETY_KEYWORDS_BY_LANGUAGE,
+  KEYWORD_CATEGORIES,
+} from './keywords.js';
+export {
+  SAFETY_EXCLUSION_PATTERNS,
+  SAFETY_EXCLUSION_PATTERNS_EN,
+  SAFETY_EXCLUSION_PATTERNS_ES,
+} from './exclusions.js';

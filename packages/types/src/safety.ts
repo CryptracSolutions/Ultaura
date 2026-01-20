@@ -28,3 +28,16 @@ export interface SafetyMatch {
   tier: SafetyTier;
   matchedKeyword: string;
 }
+
+export interface SafetySignals {
+  source: 'model' | 'keyword_backstop' | 'sweep' | 'soft_signal';
+  verifier_result?: 'confirm' | 'clear' | 'uncertain';
+  verifier_latency_ms?: number;
+  imminent_risk?: boolean;
+  has_plan_or_means?: boolean;
+  rationale_codes?: string[];
+  context_window_stats?: {
+    turns: number;
+    chars: number;
+  };
+}
