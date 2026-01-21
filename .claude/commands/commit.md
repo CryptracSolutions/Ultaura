@@ -6,8 +6,7 @@ Automatically stage all changes, create a commit with an AI-generated message, a
 
 1. Run `git status` to see all changed files (never use -uall flag)
 2. Run `git diff` to see the actual changes (both staged and unstaged)
-3. Run `git log -5 --oneline` to see recent commit style
-4. Analyze the changes and generate a concise, meaningful commit message that:
+3. Analyze the changes and generate a concise, meaningful commit message that:
    - Summarizes what changed and why
    - Follows the repository's existing commit message style
    - Is 1 sentence maximum
@@ -26,3 +25,4 @@ Automatically stage all changes, create a commit with an AI-generated message, a
 - Do NOT skip pre-commit hooks
 - If there are no changes to commit, inform the user and stop
 - If push fails due to remote changes, inform the user rather than force pushing
+- Do not add "Co-Authored-By: Claude Opus 4.5 -<noreply@anthropic.com>" to the commit message
