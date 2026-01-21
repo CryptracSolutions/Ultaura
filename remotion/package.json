@@ -1,0 +1,37 @@
+{
+  "name": "@ultaura/remotion",
+  "version": "1.0.0",
+  "description": "Ultaura promo video built with Remotion",
+  "main": "src/index.ts",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts UltauraPromo out/ultaura-promo.mp4",
+    "render:gif": "remotion render src/index.ts UltauraPromo out/ultaura-promo.gif --image-format=png",
+    "build": "tsc",
+    "upgrade": "remotion upgrade"
+  },
+  "keywords": [
+    "remotion",
+    "video",
+    "promo",
+    "ultaura"
+  ],
+  "author": "Ultaura",
+  "license": "UNLICENSED",
+  "private": true,
+  "packageManager": "pnpm@10.26.1",
+  "dependencies": {
+    "@remotion/bundler": "^4.0.407",
+    "@remotion/cli": "^4.0.407",
+    "@remotion/google-fonts": "4.0.407",
+    "@remotion/media": "4.0.407",
+    "@remotion/renderer": "^4.0.407",
+    "@remotion/transitions": "4.0.407",
+    "@types/react": "^18.3.27",
+    "@types/react-dom": "^18.3.7",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "^4.0.407",
+    "typescript": "^5.9.3"
+  }
+}
