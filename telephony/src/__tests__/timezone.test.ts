@@ -54,29 +54,82 @@ describe('timezone utilities', () => {
     });
   });
 
-  describe('DST spring forward', () => {
-    it('shifts skipped time forward to post-DST', () => {
+  describe('DST transitions', () => {
+    it('DST: spring-forward 02:30 shifts to 03:30 America/New_York', () => {
       const result = getNextOccurrence({
         timeOfDay: '02:30',
         timezone: 'America/New_York',
         daysOfWeek: [0],
-        afterDate: new Date('2025-03-08T12:00:00Z'),
+        afterDate: new Date('2025-03-09T06:30:00.000Z'),
       });
 
       expect(result.toISOString()).toBe('2025-03-09T07:30:00.000Z');
     });
-  });
 
-  describe('DST fall back', () => {
-    it('uses second occurrence for ambiguous time', () => {
+    it('DST: spring-forward 02:00 shifts to 03:00 America/New_York', () => {
+      const result = getNextOccurrence({
+        timeOfDay: '02:00',
+        timezone: 'America/New_York',
+        daysOfWeek: [0],
+        afterDate: new Date('2025-03-09T06:00:00.000Z'),
+      });
+
+      expect(result.toISOString()).toBe('2025-03-09T07:00:00.000Z');
+    });
+
+    it('DST: spring-forward Europe/London 01:30 shifts to 02:30', () => {
+      const result = getNextOccurrence({
+        timeOfDay: '01:30',
+        timezone: 'Europe/London',
+        daysOfWeek: [0],
+        afterDate: new Date('2025-03-30T00:30:00.000Z'),
+      });
+
+      expect(result.toISOString()).toBe('2025-03-30T01:30:00.000Z');
+    });
+
+    it('DST: fall-back 01:30 uses later occurrence (default) America/New_York', () => {
       const result = getNextOccurrence({
         timeOfDay: '01:30',
         timezone: 'America/New_York',
         daysOfWeek: [0],
-        afterDate: new Date('2025-11-01T12:00:00Z'),
+        afterDate: new Date('2025-11-02T04:30:00.000Z'),
       });
 
       expect(result.toISOString()).toBe('2025-11-02T06:30:00.000Z');
+    });
+
+    it('DST: fall-back Europe/London 01:30 uses later occurrence', () => {
+      const result = getNextOccurrence({
+        timeOfDay: '01:30',
+        timezone: 'Europe/London',
+        daysOfWeek: [0],
+        afterDate: new Date('2025-10-26T00:30:00.000Z'),
+      });
+
+      expect(result.toISOString()).toBe('2025-10-26T01:30:00.000Z');
+    });
+
+    it('DST: America/Phoenix no shift on March 9', () => {
+      const result = getNextOccurrence({
+        timeOfDay: '02:30',
+        timezone: 'America/Phoenix',
+        daysOfWeek: [0],
+        afterDate: new Date('2025-03-09T07:00:00.000Z'),
+      });
+
+      expect(result.toISOString()).toBe('2025-03-09T09:30:00.000Z');
+    });
+
+    it('DST: America/Phoenix no shift on November 2', () => {
+      const result = getNextOccurrence({
+        timeOfDay: '01:30',
+        timezone: 'America/Phoenix',
+        daysOfWeek: [0],
+        afterDate: new Date('2025-11-02T07:00:00.000Z'),
+      });
+
+      expect(result.toISOString()).toBe('2025-11-02T08:30:00.000Z');
     });
   });
 
@@ -110,23 +163,17 @@ describe('timezone utilities', () => {
         })
       ).toThrow();
     });
-
-    it('handles Arizona (no DST) correctly', () => {
-      const result = getNextOccurrence({
-        timeOfDay: '09:00',
-        timezone: 'America/Phoenix',
-        daysOfWeek: [0],
-        afterDate: new Date('2025-03-08T12:00:00Z'),
-      });
-
-      expect(result.toISOString()).toBe('2025-03-09T16:00:00.000Z');
-    });
   });
 
   describe('localToUtc', () => {
-    it('uses the first occurrence for ambiguous times', () => {
+    it('DST: fall-back 01:30 uses earlier occurrence via localToUtc', () => {
       const result = localToUtc('2025-11-02T01:30:00', 'America/New_York');
       expect(result.toISOString()).toBe('2025-11-02T05:30:00.000Z');
+    });
+
+    it('DST: snooze into nonexistent time shifts forward', () => {
+      const result = localToUtc('2025-03-09T02:30:00', 'America/New_York');
+      expect(result.toISOString()).toBe('2025-03-09T07:30:00.000Z');
     });
   });
 
@@ -151,6 +198,90 @@ describe('timezone utilities', () => {
       });
 
       expect(result?.toISOString()).toBe('2025-01-09T13:00:00.000Z');
+    });
+
+    it('DST: DAILY recurrence crosses spring-forward', () => {
+      const result = getNextReminderOccurrence({
+        rrule: 'FREQ=DAILY;INTERVAL=1',
+        timezone: 'America/New_York',
+        timeOfDay: '02:30',
+        currentDueAt: new Date('2025-03-08T07:30:00.000Z'),
+      });
+
+      expect(result?.toISOString()).toBe('2025-03-09T07:30:00.000Z');
+    });
+
+    it('DST: DAILY recurrence crosses fall-back', () => {
+      const result = getNextReminderOccurrence({
+        rrule: 'FREQ=DAILY;INTERVAL=1',
+        timezone: 'America/New_York',
+        timeOfDay: '01:30',
+        currentDueAt: new Date('2025-11-01T05:30:00.000Z'),
+      });
+
+      expect(result?.toISOString()).toBe('2025-11-02T06:30:00.000Z');
+    });
+
+    it('DST: WEEKLY recurrence on spring-forward day', () => {
+      const result = getNextReminderOccurrence({
+        rrule: 'FREQ=WEEKLY;INTERVAL=1',
+        timezone: 'America/New_York',
+        timeOfDay: '02:30',
+        currentDueAt: new Date('2025-03-02T07:30:00.000Z'),
+        daysOfWeek: [0],
+      });
+
+      expect(result?.toISOString()).toBe('2025-03-09T07:30:00.000Z');
+    });
+
+    it('DST: WEEKLY recurrence on fall-back day', () => {
+      const result = getNextReminderOccurrence({
+        rrule: 'FREQ=WEEKLY;INTERVAL=1',
+        timezone: 'America/New_York',
+        timeOfDay: '01:30',
+        currentDueAt: new Date('2025-10-26T05:30:00.000Z'),
+        daysOfWeek: [0],
+      });
+
+      expect(result?.toISOString()).toBe('2025-11-02T06:30:00.000Z');
+    });
+
+    describe('DST: WEEKLY interval correctness', () => {
+      it('DST: WEEKLY interval=2 Mon/Wed/Fri - mid-week advances within same week', () => {
+        const result = getNextReminderOccurrence({
+          rrule: 'FREQ=WEEKLY;INTERVAL=2',
+          timezone: 'America/New_York',
+          timeOfDay: '09:00',
+          currentDueAt: new Date('2025-01-06T14:00:00.000Z'),
+          daysOfWeek: [1, 3, 5],
+        });
+
+        expect(result?.toISOString()).toBe('2025-01-08T14:00:00.000Z');
+      });
+
+      it('DST: WEEKLY interval=2 Sun/Mon boundary stays in same week', () => {
+        const result = getNextReminderOccurrence({
+          rrule: 'FREQ=WEEKLY;INTERVAL=2',
+          timezone: 'America/New_York',
+          timeOfDay: '09:00',
+          currentDueAt: new Date('2025-01-05T14:00:00.000Z'),
+          daysOfWeek: [0, 1],
+        });
+
+        expect(result?.toISOString()).toBe('2025-01-06T14:00:00.000Z');
+      });
+
+      it('DST: WEEKLY interval=2 Mon/Wed/Fri - end of week advances by interval', () => {
+        const result = getNextReminderOccurrence({
+          rrule: 'FREQ=WEEKLY;INTERVAL=2',
+          timezone: 'America/New_York',
+          timeOfDay: '09:00',
+          currentDueAt: new Date('2025-01-10T14:00:00.000Z'),
+          daysOfWeek: [1, 3, 5],
+        });
+
+        expect(result?.toISOString()).toBe('2025-01-20T14:00:00.000Z');
+      });
     });
   });
 

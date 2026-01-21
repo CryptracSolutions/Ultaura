@@ -403,6 +403,8 @@ export function getNextReminderOccurrence(params: {
       if (daysOfWeek && daysOfWeek.length > 0) {
         let tempDate = currentDt.plus({ days: 1 });
         const luxonToOurDay = (d: number) => d % 7;
+        const startOfWeek = (dt: DateTime) =>
+          dt.minus({ days: luxonToOurDay(dt.weekday) }).startOf('day');
         let attempts = 0;
 
         while (!daysOfWeek.includes(luxonToOurDay(tempDate.weekday)) && attempts < 14) {
@@ -410,7 +412,8 @@ export function getNextReminderOccurrence(params: {
           attempts++;
         }
 
-        if (interval > 1) {
+        const crossedWeek = startOfWeek(tempDate).toMillis() > startOfWeek(currentDt).toMillis();
+        if (interval > 1 && crossedWeek) {
           tempDate = tempDate.plus({ weeks: interval - 1 });
         }
 

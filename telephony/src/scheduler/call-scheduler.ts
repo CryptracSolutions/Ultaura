@@ -71,6 +71,7 @@ let shuttingDown = false;
 let lastCleanupTimestamp = 0;
 let lastBaselineRunDate: string | null = null;
 let lastPersonaRunDate: string | null = null;
+const leaseExistenceCache = new Map<string, boolean>();
 
 /**
  * Calculate the next occurrence for a recurring reminder.
@@ -269,8 +270,30 @@ async function processWithLease(
   }
 
   if (!acquired) {
-    leaseAcquisitions.labels(leaseId, WORKER_ID, 'held').inc();
-    logger.debug({ leaseId, workerId: WORKER_ID }, 'Lease held by another worker');
+    if (!leaseExistenceCache.has(leaseId)) {
+      const { data: leaseExists, error: existsError } = await supabase
+        .from('ultaura_scheduler_leases')
+        .select('id')
+        .eq('id', leaseId)
+        .maybeSingle();
+
+      if (existsError) {
+        logger.warn({ leaseId, error: existsError }, 'Lease existence check failed');
+        leaseAcquisitions.labels(leaseId, WORKER_ID, 'held').inc();
+        return;
+      }
+
+      leaseExistenceCache.set(leaseId, !!leaseExists);
+    }
+
+    const exists = leaseExistenceCache.get(leaseId);
+    if (!exists) {
+      logger.error({ leaseId }, 'Lease row missing - check migrations/seed data');
+      leaseAcquisitions.labels(leaseId, WORKER_ID, 'missing').inc();
+    } else {
+      leaseAcquisitions.labels(leaseId, WORKER_ID, 'held').inc();
+      logger.debug({ leaseId, workerId: WORKER_ID }, 'Lease held by another worker');
+    }
     return;
   }
 
@@ -403,8 +426,8 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
   if (schedule.next_run_at && isDateWithinVacation(schedule.next_run_at, line)) {
     logger.info({ scheduleId: schedule.id, lineId: schedule.line_id }, 'Line on vacation, suppressing call');
     const nextRun = calculateNextRun(schedule);
-    await completeScheduleWithResult(schedule, 'suppressed_vacation', nextRun, true);
-    if (nextRun) {
+    const completed = await completeScheduleWithResult(schedule, 'suppressed_vacation', nextRun, true);
+    if (completed && nextRun) {
       await supabase
         .from('ultaura_lines')
         .update({ next_scheduled_call_at: nextRun })
@@ -451,7 +474,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
     if (exception?.new_datetime) {
       const snoozeTime = DateTime.fromISO(exception.new_datetime);
       if (DateTime.utc() < snoozeTime) {
-        const { error: updateError } = await supabase
+        const { data: updatedSchedule, error: updateError } = await supabase
           .from('ultaura_schedules')
           .update({
             next_run_at: exception.new_datetime,
@@ -460,16 +483,23 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
             processing_claimed_at: null,
           })
           .eq('id', schedule.id)
-          .eq('processing_claimed_by', WORKER_ID);
+          .eq('processing_claimed_by', WORKER_ID)
+          .select('id')
+          .maybeSingle();
 
         if (updateError) {
           logger.error({ error: updateError, scheduleId: schedule.id }, 'Failed to apply snooze exception');
-        } else {
-          await supabase
-            .from('ultaura_lines')
-            .update({ next_scheduled_call_at: exception.new_datetime })
-            .eq('id', schedule.line_id);
+          return;
         }
+        if (!updatedSchedule) {
+          logger.warn({ scheduleId: schedule.id, workerId: WORKER_ID }, 'Schedule claim lost while applying snooze');
+          return;
+        }
+
+        await supabase
+          .from('ultaura_lines')
+          .update({ next_scheduled_call_at: exception.new_datetime })
+          .eq('id', schedule.line_id);
         return;
       }
     }
@@ -485,8 +515,8 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
     if (blockException) {
       logger.info({ scheduleId: schedule.id, exceptionType: blockException.exception_type }, 'Schedule exception blocked call');
       const nextRun = calculateNextRun(schedule);
-      await completeScheduleWithResult(schedule, 'skipped', nextRun, true);
-      if (nextRun) {
+      const completed = await completeScheduleWithResult(schedule, 'skipped', nextRun, true);
+      if (completed && nextRun) {
         await supabase
           .from('ultaura_lines')
           .update({ next_scheduled_call_at: nextRun })
@@ -519,7 +549,14 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
       // Check for idempotency conflict (already processed)
       if (errorData.code === 'DUPLICATE_SCHEDULED_CALL') {
         logger.warn({ scheduleId: schedule.id, idempotencyKey }, 'Duplicate scheduled call, already processed');
-        await completeScheduleWithResult(schedule, 'success', calculateNextRun(schedule), true);
+        const nextRun = calculateNextRun(schedule);
+        const completed = await completeScheduleWithResult(schedule, 'success', nextRun, true);
+        if (completed && nextRun) {
+          await supabase
+            .from('ultaura_lines')
+            .update({ next_scheduled_call_at: nextRun })
+            .eq('id', schedule.line_id);
+        }
         return;
       }
 
@@ -530,11 +567,11 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
     logger.info({ scheduleId: schedule.id, sessionId: result.sessionId }, 'Scheduled call initiated');
 
     // Update schedule
-    await completeScheduleWithResult(schedule, 'success', calculateNextRun(schedule), true);
+    const nextRun = calculateNextRun(schedule);
+    const completed = await completeScheduleWithResult(schedule, 'success', nextRun, true);
 
     // Update line's next scheduled call
-    const nextRun = calculateNextRun(schedule);
-    if (nextRun) {
+    if (completed && nextRun) {
       await supabase
         .from('ultaura_lines')
         .update({ next_scheduled_call_at: nextRun })
@@ -578,11 +615,11 @@ async function completeScheduleWithResult(
   result: 'success' | 'missed' | 'suppressed_quiet_hours' | 'skipped' | 'suppressed_vacation' | 'failed',
   nextRunAt: string | null,
   resetRetryCount: boolean
-): Promise<void> {
+): Promise<boolean> {
   const supabase = getSupabaseClient();
   scheduleOutcomesTotal.inc({ outcome: result });
 
-  const { error } = await supabase.rpc('complete_schedule_processing', {
+  const { data: completed, error } = await supabase.rpc('complete_schedule_processing', {
     p_schedule_id: schedule.id,
     p_worker_id: WORKER_ID,
     p_result: result,
@@ -592,7 +629,15 @@ async function completeScheduleWithResult(
 
   if (error) {
     logger.error({ error, scheduleId: schedule.id }, 'Failed to complete schedule processing');
+    return false;
   }
+
+  if (!completed) {
+    logger.warn({ scheduleId: schedule.id, workerId: WORKER_ID }, 'Claim lost during processing');
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -703,7 +748,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       const nextDueAt = calculateNextReminderOccurrence(reminder);
 
       if (nextDueAt && (!reminder.ends_at || new Date(nextDueAt) <= new Date(reminder.ends_at))) {
-        await supabase
+        const { data: updated, error: updateError } = await supabase
           .from('ultaura_reminders')
           .update({
             due_at: nextDueAt,
@@ -713,7 +758,21 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
             snoozed_until: null,
             original_due_at: null,
           })
-          .eq('id', reminder.id);
+          .eq('id', reminder.id)
+          .eq('processing_claimed_by', WORKER_ID)
+          .select('id')
+          .maybeSingle();
+
+        if (updateError) {
+          logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update recurring reminder');
+          await releaseReminderClaim(reminder.id);
+          return;
+        }
+
+        if (!updated) {
+          logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+          return;
+        }
 
         await supabase.from('ultaura_reminder_events').insert({
           account_id: reminder.account_id,
@@ -728,7 +787,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
         return;
       }
 
-      await supabase
+      const { data: updated, error: updateError } = await supabase
         .from('ultaura_reminders')
         .update({
           status: 'missed',
@@ -738,7 +797,21 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
           snoozed_until: null,
           original_due_at: null,
         })
-        .eq('id', reminder.id);
+        .eq('id', reminder.id)
+        .eq('processing_claimed_by', WORKER_ID)
+        .select('id')
+        .maybeSingle();
+
+      if (updateError) {
+        logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update recurring reminder');
+        await releaseReminderClaim(reminder.id);
+        return;
+      }
+
+      if (!updated) {
+        logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+        return;
+      }
 
       await supabase.from('ultaura_reminder_events').insert({
         account_id: reminder.account_id,
@@ -753,7 +826,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       return;
     }
 
-    await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('ultaura_reminders')
       .update({
         status: 'missed',
@@ -762,7 +835,21 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
         snoozed_until: null,
         original_due_at: null,
       })
-      .eq('id', reminder.id);
+      .eq('id', reminder.id)
+      .eq('processing_claimed_by', WORKER_ID)
+      .select('id')
+      .maybeSingle();
+
+    if (updateError) {
+      logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update reminder');
+      await releaseReminderClaim(reminder.id);
+      return;
+    }
+
+    if (!updated) {
+      logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+      return;
+    }
 
     await supabase.from('ultaura_reminder_events').insert({
       account_id: reminder.account_id,
@@ -812,14 +899,32 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
         reminderOutcomesTotal.inc({ outcome: 'success' });
         // Still need to handle recurring logic
         if (reminder.is_recurring) {
-          await handleRecurringReminderSuccess(supabase, reminder);
+          const updated = await handleRecurringReminderSuccess(supabase, reminder);
+          if (updated) {
+            await releaseReminderClaim(reminder.id);
+          }
         } else {
-          await supabase
+          const { data: updated, error: updateError } = await supabase
             .from('ultaura_reminders')
             .update({ status: 'sent', last_delivery_status: 'completed' })
-            .eq('id', reminder.id);
+            .eq('id', reminder.id)
+            .eq('processing_claimed_by', WORKER_ID)
+            .select('id')
+            .maybeSingle();
+
+          if (updateError) {
+            logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update reminder');
+            await releaseReminderClaim(reminder.id);
+            return;
+          }
+
+          if (!updated) {
+            logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+            return;
+          }
+
+          await releaseReminderClaim(reminder.id);
         }
-        await releaseReminderClaim(reminder.id);
         return;
       }
 
@@ -831,10 +936,13 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 
     // Handle recurring vs one-time reminders
     if (reminder.is_recurring) {
-      await handleRecurringReminderSuccess(supabase, reminder);
+      const updated = await handleRecurringReminderSuccess(supabase, reminder);
+      if (!updated) {
+        return;
+      }
     } else {
       // One-time reminder: mark as sent
-      await supabase
+      const { data: updated, error: updateError } = await supabase
         .from('ultaura_reminders')
         .update({
           status: 'sent',
@@ -843,7 +951,21 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
           snoozed_until: null,
           original_due_at: null,
         })
-        .eq('id', reminder.id);
+        .eq('id', reminder.id)
+        .eq('processing_claimed_by', WORKER_ID)
+        .select('id')
+        .maybeSingle();
+
+      if (updateError) {
+        logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update reminder');
+        await releaseReminderClaim(reminder.id);
+        return;
+      }
+
+      if (!updated) {
+        logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+        return;
+      }
 
       // Log delivery event
       await supabase.from('ultaura_reminder_events').insert({
@@ -867,17 +989,25 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 /**
  * Release a reminder processing claim.
  */
-async function releaseReminderClaim(reminderId: string): Promise<void> {
+async function releaseReminderClaim(reminderId: string): Promise<boolean> {
   const supabase = getSupabaseClient();
 
-  const { error } = await supabase.rpc('complete_reminder_processing', {
+  const { data: released, error } = await supabase.rpc('complete_reminder_processing', {
     p_reminder_id: reminderId,
     p_worker_id: WORKER_ID,
   });
 
   if (error) {
     logger.error({ error, reminderId }, 'Failed to release reminder claim');
+    return false;
   }
+
+  if (!released) {
+    logger.warn({ reminderId, workerId: WORKER_ID }, 'Reminder claim already released or lost');
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -887,13 +1017,13 @@ async function releaseReminderClaim(reminderId: string): Promise<void> {
 async function handleRecurringReminderSuccess(
   supabase: ReturnType<typeof getSupabaseClient>,
   reminder: ReminderRow
-): Promise<void> {
+): Promise<boolean> {
   const nextDueAt = calculateNextReminderOccurrence(reminder);
 
   // Check if series should end (past end date or no next occurrence)
   if (!nextDueAt) {
     logger.info({ reminderId: reminder.id }, 'Recurring reminder has no next occurrence, marking sent');
-    await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('ultaura_reminders')
       .update({
         status: 'sent',
@@ -903,7 +1033,21 @@ async function handleRecurringReminderSuccess(
         snoozed_until: null,
         original_due_at: null,
       })
-      .eq('id', reminder.id);
+      .eq('id', reminder.id)
+      .eq('processing_claimed_by', WORKER_ID)
+      .select('id')
+      .maybeSingle();
+
+    if (updateError) {
+      logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update recurring reminder');
+      await releaseReminderClaim(reminder.id);
+      return false;
+    }
+
+    if (!updated) {
+      logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+      return false;
+    }
 
     // Log delivery event
     await supabase.from('ultaura_reminder_events').insert({
@@ -913,12 +1057,12 @@ async function handleRecurringReminderSuccess(
       event_type: 'delivered',
       triggered_by: 'system',
     });
-    return;
+    return true;
   }
 
   if (reminder.ends_at && new Date(nextDueAt) > new Date(reminder.ends_at)) {
     logger.info({ reminderId: reminder.id, endsAt: reminder.ends_at }, 'Recurring reminder series complete');
-    await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('ultaura_reminders')
       .update({
         status: 'sent',
@@ -928,7 +1072,21 @@ async function handleRecurringReminderSuccess(
         snoozed_until: null,
         original_due_at: null,
       })
-      .eq('id', reminder.id);
+      .eq('id', reminder.id)
+      .eq('processing_claimed_by', WORKER_ID)
+      .select('id')
+      .maybeSingle();
+
+    if (updateError) {
+      logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update recurring reminder');
+      await releaseReminderClaim(reminder.id);
+      return false;
+    }
+
+    if (!updated) {
+      logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+      return false;
+    }
 
     // Log delivery event
     await supabase.from('ultaura_reminder_events').insert({
@@ -938,11 +1096,11 @@ async function handleRecurringReminderSuccess(
       event_type: 'delivered',
       triggered_by: 'system',
     });
-    return;
+    return true;
   }
 
   // Reschedule for next occurrence - reset snooze state
-  await supabase
+  const { data: updated, error: updateError } = await supabase
     .from('ultaura_reminders')
     .update({
       due_at: nextDueAt,
@@ -953,7 +1111,21 @@ async function handleRecurringReminderSuccess(
       snoozed_until: null,
       original_due_at: null,
     })
-    .eq('id', reminder.id);
+    .eq('id', reminder.id)
+    .eq('processing_claimed_by', WORKER_ID)
+    .select('id')
+    .maybeSingle();
+
+  if (updateError) {
+    logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update recurring reminder');
+    await releaseReminderClaim(reminder.id);
+    return false;
+  }
+
+  if (!updated) {
+    logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+    return false;
+  }
 
   // Log delivery event
   await supabase.from('ultaura_reminder_events').insert({
@@ -970,6 +1142,7 @@ async function handleRecurringReminderSuccess(
     nextDueAt,
     occurrenceCount: (reminder.occurrence_count || 0) + 1,
   }, 'Recurring reminder rescheduled');
+  return true;
 }
 
 /**
@@ -990,7 +1163,7 @@ async function handleReminderFailure(
     const nextDueAt = calculateNextReminderOccurrence(reminder);
 
     if (nextDueAt && (!reminder.ends_at || new Date(nextDueAt) <= new Date(reminder.ends_at))) {
-      await supabase
+      const { data: updated, error: updateError } = await supabase
         .from('ultaura_reminders')
         .update({
           due_at: nextDueAt,
@@ -1000,7 +1173,21 @@ async function handleReminderFailure(
           snoozed_until: null,
           original_due_at: null,
         })
-        .eq('id', reminder.id);
+        .eq('id', reminder.id)
+        .eq('processing_claimed_by', WORKER_ID)
+        .select('id')
+        .maybeSingle();
+
+      if (updateError) {
+        logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update recurring reminder');
+        await releaseReminderClaim(reminder.id);
+        return;
+      }
+
+      if (!updated) {
+        logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+        return;
+      }
 
       // Log the failure event
       await supabase.from('ultaura_reminder_events').insert({
@@ -1021,13 +1208,27 @@ async function handleReminderFailure(
   }
 
   // One-time reminder or recurring with no next occurrence: mark as missed
-  await supabase
+  const { data: updated, error: updateError } = await supabase
     .from('ultaura_reminders')
     .update({
       status,
       last_delivery_status: status === 'missed' ? 'no_answer' : 'failed',
     })
-    .eq('id', reminder.id);
+    .eq('id', reminder.id)
+    .eq('processing_claimed_by', WORKER_ID)
+    .select('id')
+    .maybeSingle();
+
+  if (updateError) {
+    logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update reminder');
+    await releaseReminderClaim(reminder.id);
+    return;
+  }
+
+  if (!updated) {
+    logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+    return;
+  }
 
   // Log the failure event
   await supabase.from('ultaura_reminder_events').insert({
@@ -1041,3 +1242,37 @@ async function handleReminderFailure(
   // Release the claim
   await releaseReminderClaim(reminder.id);
 }
+
+// Test exports - only used by tests
+export const __test__ = {
+  runSchedulerCycle,
+  processWithLease,
+  processScheduledCalls,
+  processReminders,
+  processSchedule,
+  processReminder,
+  completeScheduleWithResult,
+  releaseReminderClaim,
+  handleRecurringReminderSuccess,
+  handleReminderFailure,
+  calculateNextRun,
+  WORKER_ID,
+  resetState: () => {
+    heartbeatIntervals.forEach(interval => clearInterval(interval));
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    isRunning = false;
+    shuttingDown = false;
+    heartbeatIntervals = [];
+    lastCleanupTimestamp = 0;
+    lastBaselineRunDate = null;
+    lastPersonaRunDate = null;
+  },
+  setShuttingDown: (value: boolean) => { shuttingDown = value; },
+  setIsRunning: (value: boolean) => { isRunning = value; },
+  clearLeaseExistenceCache: () => { leaseExistenceCache.clear(); },
+  HEARTBEAT_INTERVAL_MS,
+  LEASE_DURATION_SECONDS,
+};
