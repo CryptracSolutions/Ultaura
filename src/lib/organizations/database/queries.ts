@@ -24,6 +24,7 @@ const FETCH_ORGANIZATION_QUERY = `
   subscription: organizations_subscriptions (
     customerId: customer_id,
     data: subscription_id (
+      id,
       status,
       currency,
       interval,
