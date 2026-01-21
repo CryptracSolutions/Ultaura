@@ -14,9 +14,15 @@ const getLineById = vi.hoisted(() => vi.fn());
 const checkLineAccess = vi.hoisted(() => vi.fn());
 const isInQuietHours = vi.hoisted(() => vi.fn());
 const fetchMock = vi.hoisted(() => vi.fn());
-const leaseAcquisitionsLabels = vi.hoisted(() => vi.fn(() => ({ inc: vi.fn() })));
-const activeLeasesLabels = vi.hoisted(() => vi.fn(() => ({ set: vi.fn() })));
-const leaseHoldDurationLabels = vi.hoisted(() => vi.fn(() => ({ observe: vi.fn() })));
+const leaseAcquisitionsLabels = vi.hoisted(() =>
+  vi.fn((..._args: [string, string, string]) => ({ inc: vi.fn() }))
+);
+const activeLeasesLabels = vi.hoisted(() =>
+  vi.fn((..._args: [string]) => ({ set: vi.fn() }))
+);
+const leaseHoldDurationLabels = vi.hoisted(() =>
+  vi.fn((..._args: [string]) => ({ observe: vi.fn() }))
+);
 const scheduleOutcomesTotalInc = vi.hoisted(() => vi.fn());
 const reminderOutcomesTotalInc = vi.hoisted(() => vi.fn());
 

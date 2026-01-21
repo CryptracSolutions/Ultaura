@@ -23,10 +23,10 @@ export function createQueryBuilder(result: { data: unknown; error: unknown }): R
   builder.single = vi.fn().mockResolvedValue(result);
   builder.maybeSingle = vi.fn().mockResolvedValue(result);
 
-  builder.then = (resolve: (value: { data: unknown; error: unknown }) => void) => {
+  builder.then = vi.fn((resolve: (value: { data: unknown; error: unknown }) => void) => {
     resolve(result);
     return Promise.resolve(result);
-  };
+  });
 
   return builder;
 }
