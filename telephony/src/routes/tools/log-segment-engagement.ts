@@ -2,8 +2,12 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
+import { minimizeDerivedObjectDeep, minimizeDerivedOptionalText } from '../../utils/derived-artifact-minimizer.js';
 
 export const logSegmentEngagementRouter = Router();
+
+const ALLOWED_SEGMENT_TYPES = new Set(['trivia', 'story', 'learning', 'memory_lane']);
+const ALLOWED_SENIOR_RESPONSES = new Set(['enjoyed', 'neutral', 'declined', 'interrupted']);
 
 logSegmentEngagementRouter.post('/', async (req: Request, res: Response) => {
   const {
@@ -32,8 +36,13 @@ logSegmentEngagementRouter.post('/', async (req: Request, res: Response) => {
     chapterCompleted?: number;
   };
 
-  if (!callSessionId || !lineId || !segmentType || !seniorResponse) {
+  if (!callSessionId || !lineId || !segmentType) {
     res.status(400).json({ success: false, error: 'Missing required fields' });
+    return;
+  }
+
+  if (!ALLOWED_SEGMENT_TYPES.has(segmentType)) {
+    res.status(400).json({ success: false, error: 'Invalid segmentType' });
     return;
   }
 
@@ -65,6 +74,19 @@ logSegmentEngagementRouter.post('/', async (req: Request, res: Response) => {
     ? mergedContext
     : null;
 
+  const normalizedSeniorResponse =
+    typeof seniorResponse === 'string' && ALLOWED_SENIOR_RESPONSES.has(seniorResponse)
+      ? seniorResponse
+      : null;
+
+  const safeSegmentContext =
+    segmentContextValue ? minimizeDerivedObjectDeep(segmentContextValue, { defaultMode: 'label' }) : null;
+  const safeEngagementSignals =
+    engagementSignals && typeof engagementSignals === 'object'
+      ? minimizeDerivedObjectDeep(engagementSignals, { defaultMode: 'label' })
+      : null;
+  const safeSegmentDomain = minimizeDerivedOptionalText(segmentDomain, 'label');
+
   const { data, error } = await supabase
     .from('ultaura_segment_engagement')
     .insert({
@@ -72,12 +94,12 @@ logSegmentEngagementRouter.post('/', async (req: Request, res: Response) => {
       account_id: session.account_id,
       call_session_id: callSessionId,
       segment_type: segmentType,
-      segment_domain: segmentDomain || null,
-      segment_context: segmentContextValue,
-      engagement_signals: engagementSignals || null,
+      segment_domain: safeSegmentDomain,
+      segment_context: safeSegmentContext,
+      engagement_signals: safeEngagementSignals,
       duration_seconds: typeof durationSeconds === 'number' ? durationSeconds : null,
       completed: typeof completed === 'boolean' ? completed : false,
-      senior_response: seniorResponse,
+      senior_response: normalizedSeniorResponse,
     })
     .select('id')
     .single();
@@ -109,7 +131,6 @@ logSegmentEngagementRouter.post('/', async (req: Request, res: Response) => {
     tool: 'log_segment_engagement',
     success: true,
     segmentType,
-    seniorResponse,
     storyArcId,
     chapterCompleted,
   }, { skipDebugLog: true });

@@ -23,6 +23,7 @@ import type {
 import { isDeepStrictEqual } from 'node:util';
 import { buildSearchableText, generateEmbedding, formatEmbeddingForDb } from './embedding.js';
 import { categorizeMemoryTopic, isTopicExcluded } from './topic-exclusions.js';
+import { minimizeDerivedObjectDeep } from '../utils/derived-artifact-minimizer.js';
 
 export type MemoryWriteAction = 'created' | 'updated' | 'skipped' | 'excluded';
 export type MemoryWriteReason = 'duplicate_value' | 'key_updated' | 'topic_excluded' | 'embedding_pending';
@@ -402,6 +403,12 @@ export async function storeMemory(
     }
   }
 
+  if (options?.source === 'conversation') {
+    normalizedValue = minimizeDerivedObjectDeep(normalizedValue, {
+      defaultMode: 'sentence',
+    });
+  }
+
   try {
     const existing = await fetchDecryptedMemoryByKey(
       supabase,
@@ -570,6 +577,12 @@ export async function updateMemory(
         routineValue.proactivePrompt = buildRoutinePrompt(routineValue.description, routineValue.timeOfDay);
       }
       normalizedValue = routineValue;
+    }
+
+    if (options?.callSessionId) {
+      normalizedValue = minimizeDerivedObjectDeep(normalizedValue, {
+        defaultMode: 'sentence',
+      });
     }
 
     if (valuesMatch(existing.value, normalizedValue)) {

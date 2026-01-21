@@ -96,7 +96,7 @@ async function extractInsightsFromText(turnText: string) {
     const content = data?.choices?.[0]?.message?.content || '';
     const parsed = parseJson(content);
     if (!parsed) {
-      logger.warn({ content }, 'Failed to parse fallback insights JSON');
+      logger.warn({ contentLength: typeof content === 'string' ? content.length : null }, 'Failed to parse fallback insights JSON');
       return null;
     }
 

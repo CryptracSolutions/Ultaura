@@ -637,6 +637,14 @@ export async function recordDebugEvent(
 
   const debugLogId = crypto.randomUUID();
   const payloadSummary = buildPayloadSummary(payload);
+  const safePayload = {
+    _encrypted: false,
+    summary: payloadSummary,
+  };
+  const payloadForEncryption = {
+    ...safePayload,
+    _encrypted: true,
+  };
 
   let encrypted: {
     ciphertext: Buffer;
@@ -648,7 +656,7 @@ export async function recordDebugEvent(
 
   if (accountId) {
     try {
-      encrypted = await encryptDebugPayload(supabase, accountId, sessionId, debugLogId, payload);
+      encrypted = await encryptDebugPayload(supabase, accountId, sessionId, debugLogId, payloadForEncryption);
     } catch (error) {
       const err = error as Error;
       logger.error({
@@ -662,10 +670,7 @@ export async function recordDebugEvent(
     }
   }
 
-  const safePayload = {
-    _encrypted: encrypted !== null,
-    summary: payloadSummary,
-  };
+  safePayload._encrypted = encrypted !== null;
 
   const insertRow: Record<string, unknown> = {
     id: debugLogId,

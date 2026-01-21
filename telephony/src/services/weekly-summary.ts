@@ -9,6 +9,7 @@ import { getInternalApiSecret } from '../utils/env.js';
 import { logger } from '../utils/logger.js';
 import { getBaselineWindow, isCallAnswered } from './baseline.js';
 import { getUsageSummary } from './metering.js';
+import { minimizeDerivedOptionalText } from '../utils/derived-artifact-minimizer.js';
 
 type CallSessionSummaryRow = Pick<
   CallSessionRow,
@@ -469,7 +470,16 @@ async function storeWeeklySummary(options: {
   const dek = await getOrCreateAccountDEK(supabase, options.accountId);
   const aad = buildWeeklySummaryAAD(options.accountId, options.lineId, options.weekStartDate);
 
-  const { ciphertext, iv, tag } = encryptMemoryValue(dek, options.summary, aad);
+  const sanitizedSummary: WeeklySummaryData = {
+    ...options.summary,
+    engagementNote: minimizeDerivedOptionalText(options.summary.engagementNote, 'sentence'),
+    moodSummary: minimizeDerivedOptionalText(options.summary.moodSummary, 'sentence'),
+    moodShiftNote: minimizeDerivedOptionalText(options.summary.moodShiftNote, 'sentence'),
+    socialNeedNote: minimizeDerivedOptionalText(options.summary.socialNeedNote, 'sentence'),
+    pausedNote: minimizeDerivedOptionalText(options.summary.pausedNote, 'sentence'),
+  };
+
+  const { ciphertext, iv, tag } = encryptMemoryValue(dek, sanitizedSummary, aad);
 
   if (existing) {
     const { error } = await supabase
@@ -521,7 +531,7 @@ async function storeWeeklySummary(options: {
           options.lineId,
           options.weekStartDate
         );
-        const retryEncrypted = encryptMemoryValue(dek, options.summary, retryAad);
+        const retryEncrypted = encryptMemoryValue(dek, sanitizedSummary, retryAad);
         const { error: retryError } = await supabase
           .from('ultaura_weekly_summaries')
           .update({

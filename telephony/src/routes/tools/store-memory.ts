@@ -81,9 +81,7 @@ storeMemoryRouter.post('/', async (req: Request, res: Response) => {
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'store_memory',
       success: true,
-      key,
       action: result.action,
-      reason: result.reason,
       version: result.version,
     }, { skipDebugLog: true });
 

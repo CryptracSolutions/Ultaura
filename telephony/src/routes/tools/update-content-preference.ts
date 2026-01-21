@@ -10,6 +10,7 @@ import {
   recordCallEvent,
 } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
+import { minimizeDerivedObjectDeep } from '../../utils/derived-artifact-minimizer.js';
 
 const PREFERENCE_COLUMNS: Record<string, string> = {
   trivia: 'trivia_preference',
@@ -110,7 +111,8 @@ updateContentPreferenceRouter.post('/', async (req: Request, res: Response) => {
     };
 
     if (specific_update && typeof specific_update === 'object') {
-      for (const [key, value] of Object.entries(specific_update)) {
+      const minimizedUpdate = minimizeDerivedObjectDeep(specific_update, { defaultMode: 'label' });
+      for (const [key, value] of Object.entries(minimizedUpdate)) {
         if (SPECIFIC_UPDATE_KEYS.has(key)) {
           updates[key] = value;
         }

@@ -1050,8 +1050,11 @@ At the START of this call:
           break;
 
         case 'error':
-          logger.error({ message, callSessionId: this.options.callSessionId }, 'Grok error');
-          this.options.onError(new Error(`Grok error: ${JSON.stringify(message)}`));
+          logger.error({
+            callSessionId: this.options.callSessionId,
+            grokMessageType: message.type,
+          }, 'Grok error');
+          this.options.onError(new Error('Grok error'));
           break;
 
         default:

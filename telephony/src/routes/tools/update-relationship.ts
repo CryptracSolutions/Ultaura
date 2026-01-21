@@ -10,12 +10,32 @@ import {
   recordCallEvent,
 } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
+import { minimizeDerivedOptionalText, minimizeDerivedText } from '../../utils/derived-artifact-minimizer.js';
 
 export const updateRelationshipRouter = Router();
 
 const DEFAULT_RELATION_TYPE = 'unknown';
 const DEFAULT_RELATION_ROLE = 'relationship';
 const MAX_RECENT_TOPICS = 5;
+
+function normalizeNameForMatch(value: string): string {
+  return minimizeDerivedText(value, 'label').toLowerCase();
+}
+
+function pickBestRelationshipMatch<T extends { updated_at?: string | null; times_mentioned?: number | null }>(
+  matches: T[]
+): T | null {
+  if (matches.length === 0) return null;
+  const sorted = [...matches].sort((a, b) => {
+    const aTime = a.updated_at ? Date.parse(a.updated_at) : 0;
+    const bTime = b.updated_at ? Date.parse(b.updated_at) : 0;
+    if (aTime !== bTime) return bTime - aTime;
+    const aCount = a.times_mentioned ?? 0;
+    const bCount = b.times_mentioned ?? 0;
+    return bCount - aCount;
+  });
+  return sorted[0] ?? null;
+}
 
 updateRelationshipRouter.post('/', async (req: Request, res: Response) => {
   try {
@@ -53,33 +73,59 @@ updateRelationshipRouter.post('/', async (req: Request, res: Response) => {
     const supabase = getSupabaseClient();
     const now = new Date().toISOString();
     const trimmedName = name.trim();
-
-    const { data: existing, error: existingError } = await supabase
-      .from('ultaura_relationships')
-      .select('*')
-      .eq('line_id', lineId)
-      .ilike('name', trimmedName)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (existingError) {
-      logger.error({ error: existingError, lineId }, 'Failed to fetch relationship');
+    const minimizedName = minimizeDerivedText(trimmedName, 'label');
+    if (!minimizedName) {
+      res.status(400).json({ success: false, error: 'Invalid name' });
+      return;
     }
+    const minimizedNickname = minimizeDerivedOptionalText(updates.nickname, 'label');
+    const minimizedLocation = minimizeDerivedOptionalText(updates.location, 'label');
+    const minimizedRecentTopic = minimizeDerivedOptionalText(updates.recent_topic, 'label');
+    const minimizedSharedActivity = minimizeDerivedOptionalText(updates.shared_activity, 'label');
+
+    const { data: candidates, error: candidatesError } = await supabase
+      .from('ultaura_relationships')
+      .select(
+        'id,name,nickname,contact_frequency,sentiment,location,recent_topics,shared_activities,times_mentioned,updated_at,last_mentioned_at'
+      )
+      .eq('line_id', lineId)
+      .limit(200);
+
+    if (candidatesError) {
+      logger.error({ error: candidatesError, lineId }, 'Failed to fetch relationships');
+      res.status(500).json({ success: false, error: 'Failed to update relationship' });
+      return;
+    }
+
+    const normalizedTarget = normalizeNameForMatch(trimmedName);
+
+    const normalizedMatches = (candidates ?? []).filter((row) => {
+      if (!row?.name || typeof row.name !== 'string') return false;
+      return normalizeNameForMatch(row.name) === normalizedTarget;
+    });
+
+    const rawLower = trimmedName.toLowerCase();
+    const rawMatches = (candidates ?? []).filter((row) => {
+      if (!row?.name || typeof row.name !== 'string') return false;
+      return row.name.trim().toLowerCase() === rawLower;
+    });
+
+    const existing =
+      pickBestRelationshipMatch(normalizedMatches) ?? pickBestRelationshipMatch(rawMatches);
 
     if (!existing) {
       const insertPayload: Record<string, unknown> = {
         account_id: session.account_id,
         line_id: lineId,
-        name: trimmedName,
+        name: minimizedName,
         relation_type: DEFAULT_RELATION_TYPE,
         relation_role: DEFAULT_RELATION_ROLE,
-        nickname: updates.nickname ?? null,
+        nickname: minimizedNickname,
         contact_frequency: updates.contact_frequency ?? null,
         sentiment: updates.sentiment ?? null,
-        location: updates.location ?? null,
-        shared_activities: updates.shared_activity ? [updates.shared_activity] : null,
-        recent_topics: updates.recent_topic ? [updates.recent_topic] : null,
+        location: minimizedLocation,
+        shared_activities: minimizedSharedActivity ? [minimizedSharedActivity] : null,
+        recent_topics: minimizedRecentTopic ? [minimizedRecentTopic] : null,
         times_mentioned: 1,
         last_mentioned_at: now,
         updated_at: now,
@@ -113,19 +159,19 @@ updateRelationshipRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const nextRecentTopics = (() => {
-      if (!updates.recent_topic) {
+      if (!minimizedRecentTopic) {
         return existing.recent_topics ?? null;
       }
-      const topics = [updates.recent_topic, ...(existing.recent_topics ?? [])];
+      const topics = [minimizedRecentTopic, ...(existing.recent_topics ?? [])];
       const deduped = Array.from(new Set(topics.map((topic) => topic.trim()).filter(Boolean)));
       return deduped.slice(0, MAX_RECENT_TOPICS);
     })();
 
     const nextSharedActivities = (() => {
-      if (!updates.shared_activity) {
+      if (!minimizedSharedActivity) {
         return existing.shared_activities ?? null;
       }
-      const activities = [...(existing.shared_activities ?? []), updates.shared_activity];
+      const activities = [...(existing.shared_activities ?? []), minimizedSharedActivity];
       return Array.from(new Set(activities.map((activity) => activity.trim()).filter(Boolean)));
     })();
 
@@ -133,10 +179,10 @@ updateRelationshipRouter.post('/', async (req: Request, res: Response) => {
       updated_at: now,
       last_mentioned_at: now,
       times_mentioned: (existing.times_mentioned ?? 0) + 1,
-      nickname: updates.nickname ?? existing.nickname,
+      nickname: minimizedNickname ?? existing.nickname,
       contact_frequency: updates.contact_frequency ?? existing.contact_frequency,
       sentiment: updates.sentiment ?? existing.sentiment,
-      location: updates.location ?? existing.location,
+      location: minimizedLocation ?? existing.location,
       recent_topics: nextRecentTopics,
       shared_activities: nextSharedActivities,
     };

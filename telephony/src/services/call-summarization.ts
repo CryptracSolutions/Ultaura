@@ -193,7 +193,7 @@ async function extractMemoriesWithGrok(turnText: string): Promise<ExtractedMemor
     try {
       return JSON.parse(content);
     } catch {
-      logger.warn({ content }, 'Failed to parse extraction response as JSON');
+      logger.warn({ contentLength: typeof content === 'string' ? content.length : null }, 'Failed to parse extraction response as JSON');
       return [];
     }
   } catch (error: any) {

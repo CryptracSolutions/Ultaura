@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
+import { minimizeDerivedObjectDeep, minimizeDerivedOptionalText, minimizeDerivedText } from '../../utils/derived-artifact-minimizer.js';
 
 export const storeCallPreviewRouter = Router();
 
@@ -28,6 +29,12 @@ storeCallPreviewRouter.post('/', async (req: Request, res: Response) => {
     res.status(400).json({ success: false, error: 'Missing required fields' });
     return;
   }
+
+  const minimizedTopicDisplay = minimizeDerivedText(topicDisplay, 'label');
+  const minimizedSegmentType = minimizeDerivedOptionalText(segmentType, 'label');
+  const minimizedSegmentContext = segmentContext
+    ? minimizeDerivedObjectDeep(segmentContext, { defaultMode: 'label' })
+    : null;
 
   const session = await getCallSession(callSessionId);
   if (!session || session.line_id !== lineId) {
@@ -56,9 +63,9 @@ storeCallPreviewRouter.post('/', async (req: Request, res: Response) => {
       account_id: session.account_id,
       topic_type: topicType,
       topic_key: topicKey,
-      topic_display: topicDisplay,
-      segment_type: segmentType || null,
-      segment_context: segmentContext || null,
+      topic_display: minimizedTopicDisplay,
+      segment_type: minimizedSegmentType,
+      segment_context: minimizedSegmentContext,
       offered_at: now,
       selected_at: now,
       status: 'pending',

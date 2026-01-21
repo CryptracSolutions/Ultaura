@@ -12,6 +12,7 @@ import {
 } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { encryptHealthMentionSummary } from '../../utils/health-mention-crypto.js';
+import { minimizeDerivedText } from '../../utils/derived-artifact-minimizer.js';
 
 export const logHealthMentionRouter = Router();
 
@@ -36,6 +37,7 @@ logHealthMentionRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const { callSessionId, lineId, category, summary, severity } = parsed.data;
+    const minimizedSummary = minimizeDerivedText(summary, 'sentence');
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -54,7 +56,7 @@ logHealthMentionRouter.post('/', async (req: Request, res: Response) => {
       lineId,
       callSessionId,
       mentionId,
-      summary
+      minimizedSummary
     );
 
     const triggersAlert = severity === 'concerning';

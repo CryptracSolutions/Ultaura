@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
+import { minimizeDerivedObjectDeep, minimizeDerivedOptionalText, minimizeDerivedText } from '../../utils/derived-artifact-minimizer.js';
 
 export const manageStoryArcRouter = Router();
 
@@ -57,16 +58,22 @@ manageStoryArcRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const minimizedTitle = minimizeDerivedText(title, 'label');
+    const minimizedDescription = minimizeDerivedOptionalText(description, 'sentence');
+    const minimizedStoryState = minimizeDerivedObjectDeep(storyState || {}, {
+      defaultMode: 'label',
+    });
+
     const { data, error } = await supabase
       .from('ultaura_story_arcs')
       .insert({
         account_id: session.account_id,
         line_id: lineId,
         story_type: storyType,
-        title,
-        description: description || null,
+        title: minimizedTitle,
+        description: minimizedDescription,
         total_chapters: typeof totalChapters === 'number' ? totalChapters : 5,
-        story_state: storyState || {},
+        story_state: minimizedStoryState,
         updated_at: now,
       })
       .select('id')
@@ -94,7 +101,9 @@ manageStoryArcRouter.post('/', async (req: Request, res: Response) => {
       updates.last_chapter_at = now;
     }
     if (storyState) {
-      updates.story_state = storyState;
+      updates.story_state = minimizeDerivedObjectDeep(storyState, {
+        defaultMode: 'label',
+      });
     }
     if (typeof totalChapters === 'number') {
       updates.total_chapters = totalChapters;

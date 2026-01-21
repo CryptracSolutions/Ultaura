@@ -134,9 +134,7 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
       await recordCallEvent(callSessionId, 'tool_call', {
         tool: 'update_memory',
         success: true,
-        key: existingKey,
         action: result.action,
-        reason: result.reason,
         version: result.version,
         matchType: 'not_found',
       }, { skipDebugLog: true });
@@ -172,9 +170,7 @@ updateMemoryRouter.post('/', async (req: Request, res: Response) => {
     await recordCallEvent(callSessionId, 'tool_call', {
       tool: 'update_memory',
       success: true,
-      key: existingKey,
       action: updated.action,
-      reason: updated.reason,
       version: updated.version,
       matchType: matchType === 'not_found' ? 'exact' : matchType,
     }, { skipDebugLog: true });

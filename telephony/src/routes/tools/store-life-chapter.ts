@@ -12,6 +12,7 @@ import {
 } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { encryptLifeChapterNarrative } from '../../utils/life-chapter-crypto.js';
+import { minimizeDerivedOptionalText, minimizeDerivedText } from '../../utils/derived-artifact-minimizer.js';
 
 export const storeLifeChapterRouter = Router();
 
@@ -46,6 +47,11 @@ storeLifeChapterRouter.post('/', async (req: Request, res: Response) => {
       key_people,
       emotional_tone,
     } = parsed.data;
+    const minimizedTitle = minimizeDerivedText(title, 'label');
+    const minimizedNarrative = minimizeDerivedText(narrative_summary, 'sentence');
+    const minimizedKeyPeople = (key_people ?? [])
+      .map((person) => minimizeDerivedOptionalText(person, 'label'))
+      .filter((person): person is string => Boolean(person));
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -63,7 +69,7 @@ storeLifeChapterRouter.post('/', async (req: Request, res: Response) => {
       session.account_id,
       lineId,
       chapterId,
-      narrative_summary
+      minimizedNarrative
     );
 
     const supabase = getSupabaseClient();
@@ -75,7 +81,7 @@ storeLifeChapterRouter.post('/', async (req: Request, res: Response) => {
         account_id: session.account_id,
         line_id: lineId,
         chapter_type,
-        title,
+        title: minimizedTitle,
         era_start_year: era_start_year ?? null,
         era_end_year: era_end_year ?? null,
         location: null,
@@ -84,7 +90,7 @@ storeLifeChapterRouter.post('/', async (req: Request, res: Response) => {
         narrative_tag: tag,
         narrative_alg: alg,
         narrative_kid: kid,
-        key_people: key_people ?? null,
+        key_people: minimizedKeyPeople.length > 0 ? minimizedKeyPeople : null,
         emotional_tone: emotional_tone ?? null,
         updated_at: now,
         source: 'conversation',

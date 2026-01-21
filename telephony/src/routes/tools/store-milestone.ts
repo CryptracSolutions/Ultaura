@@ -10,6 +10,7 @@ import {
   recordCallEvent,
 } from '../../services/call-session.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
+import { minimizeDerivedOptionalText, minimizeDerivedText } from '../../utils/derived-artifact-minimizer.js';
 
 export const storeMilestoneRouter = Router();
 
@@ -44,6 +45,8 @@ storeMilestoneRouter.post('/', async (req: Request, res: Response) => {
       related_person_name,
       is_recurring,
     } = parsed.data;
+    const minimizedTitle = minimizeDerivedText(title, 'label');
+    const minimizedRelatedPerson = minimizeDerivedOptionalText(related_person_name, 'label');
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -64,12 +67,12 @@ storeMilestoneRouter.post('/', async (req: Request, res: Response) => {
         account_id: session.account_id,
         line_id: lineId,
         milestone_type,
-        title,
+        title: minimizedTitle,
         date_month,
         date_day,
         date_year: date_year ?? null,
         is_recurring: is_recurring ?? true,
-        related_person_name: related_person_name ?? null,
+        related_person_name: minimizedRelatedPerson,
         updated_at: now,
         source: 'conversation',
       })

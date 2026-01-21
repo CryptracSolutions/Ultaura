@@ -34,7 +34,7 @@ logCognitiveObservationRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { callSessionId, lineId, observation_type, severity, context, response_given } = parsed.data;
+    const { callSessionId, lineId, observation_type, severity } = parsed.data;
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -81,8 +81,8 @@ logCognitiveObservationRouter.post('/', async (req: Request, res: Response) => {
         line_id: lineId,
         observation_type,
         severity,
-        context: context ?? null,
-        response_given: response_given ?? null,
+        context: null,
+        response_given: null,
         is_novel: isNovel,
         similar_observation_count: similarObservationCount,
       });

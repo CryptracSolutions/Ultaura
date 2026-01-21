@@ -3,7 +3,7 @@ import { sanitizePayload } from '../event-sanitizer.js';
 
 describe('sanitizePayload', () => {
   describe('tool_call events', () => {
-    it('should keep action and reason for store_memory', () => {
+    it('should keep only safe metadata for store_memory', () => {
       const payload = {
         tool: 'store_memory',
         key: 'preferred_name',
@@ -17,12 +17,12 @@ describe('sanitizePayload', () => {
 
       expect(sanitized).toEqual({
         tool: 'store_memory',
-        key: 'preferred_name',
         action: 'updated',
-        reason: 'key_updated',
         success: true,
       });
       expect(stripped).toEqual({
+        key: 'preferred_name',
+        reason: 'key_updated',
         value: 'Johnny',
       });
     });
@@ -41,11 +41,11 @@ describe('sanitizePayload', () => {
 
       expect(sanitized).toEqual({
         tool: 'update_memory',
-        key: 'favorite_food',
         action: 'updated',
         success: true,
       });
       expect(stripped).toEqual({
+        key: 'favorite_food',
         previousValue: 'pizza',
         newValue: 'pasta',
       });

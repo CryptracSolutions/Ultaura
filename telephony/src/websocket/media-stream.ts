@@ -19,7 +19,7 @@ import { buildPromptPlaceholders } from '../services/prompt-context.js';
 import { registerActiveCall, unregisterActiveCall } from '../services/active-calls.js';
 import { GrokBridge } from './grok-bridge.js';
 import type { AccountStatus, PlanId } from '@ultaura/types';
-import { redactSensitive, summarizeArgs } from '../utils/redact.js';
+import { summarizeArgs } from '../utils/redact.js';
 import { buildReminderMessageAAD, decryptReminderMessageWithDek } from '../utils/reminder-crypto.js';
 import { getSupabaseClient } from '../utils/supabase.js';
 import { registerGrokBridge, unregisterGrokBridge, getGrokBridge } from './grok-bridge-registry.js';
@@ -470,16 +470,17 @@ export async function handleMediaStreamConnection(
             };
 
             const onToolCall = async (toolName: string, args: Record<string, unknown>) => {
+              const argsSummary = summarizeArgs(args);
               logger.debug({
                 callSessionId,
                 toolName,
-                args: redactSensitive(args),
+                argsSummary,
               }, 'Tool call from Grok');
               const phoneLast4 = line.phone_e164 ? line.phone_e164.slice(-4) : null;
               await recordDebugEvent(
                 callSessionId,
                 'tool_call',
-                { tool: toolName, argsSummary: summarizeArgs(args) },
+                { tool: toolName, argsSummary },
                 {
                   line_id: line.id,
                   phone_number_last4: phoneLast4,
