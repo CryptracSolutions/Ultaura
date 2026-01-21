@@ -709,7 +709,6 @@ export type Database = {
           recording_deletion_reason: string | null
           recording_sid: string | null
           reminder_id: string | null
-          reminder_message: string | null
           scheduler_idempotency_key: string | null
           seconds_connected: number | null
           started_at: string | null
@@ -741,7 +740,6 @@ export type Database = {
           recording_deletion_reason?: string | null
           recording_sid?: string | null
           reminder_id?: string | null
-          reminder_message?: string | null
           scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
@@ -773,7 +771,6 @@ export type Database = {
           recording_deletion_reason?: string | null
           recording_sid?: string | null
           reminder_id?: string | null
-          reminder_message?: string | null
           scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
@@ -3075,7 +3072,7 @@ export type Database = {
           is_recurring: boolean
           last_delivery_status: string | null
           line_id: string
-          message: string
+          message: string | null
           message_alg: string | null
           message_ciphertext: string | null
           message_iv: string | null
@@ -3109,7 +3106,7 @@ export type Database = {
           is_recurring?: boolean
           last_delivery_status?: string | null
           line_id: string
-          message: string
+          message?: string | null
           message_alg?: string | null
           message_ciphertext?: string | null
           message_iv?: string | null
@@ -3143,7 +3140,7 @@ export type Database = {
           is_recurring?: boolean
           last_delivery_status?: string | null
           line_id?: string
-          message?: string
+          message?: string | null
           message_alg?: string | null
           message_ciphertext?: string | null
           message_iv?: string | null
@@ -4089,7 +4086,7 @@ export type Database = {
           is_recurring: boolean
           last_delivery_status: string | null
           line_id: string
-          message: string
+          message: string | null
           message_alg: string | null
           message_ciphertext: string | null
           message_iv: string | null

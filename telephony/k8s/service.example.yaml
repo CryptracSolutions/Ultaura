@@ -1,0 +1,19 @@
+# Example Service for Ultaura Telephony
+#
+# Copy this file, customize for your environment, and apply.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultaura-telephony
+  labels:
+    app: ultaura-telephony
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+      name: http
+  selector:
+    app: ultaura-telephony

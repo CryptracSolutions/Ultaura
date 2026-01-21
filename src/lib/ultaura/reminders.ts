@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import { revalidatePath } from 'next/cache';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '~/database.types';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
@@ -347,36 +348,61 @@ const createReminderWithTrial = withTrialCheck(async (
     };
   }
 
-  const { data: reminder, error } = await client
+  const insertPayload: Database['public']['Tables']['ultaura_reminders']['Insert'] = {
+    id: reminderId,
+    account_id: account.id,
+    line_id: parsed.data.lineId,
+    due_at: dueAtUtc.toISOString(),
+    timezone,
+    message: null,
+    message_ciphertext: encryptedMessage.ciphertext as unknown as string,
+    message_iv: encryptedMessage.iv as unknown as string,
+    message_tag: encryptedMessage.tag as unknown as string,
+    message_alg: encryptedMessage.alg,
+    message_kid: encryptedMessage.kid,
+    delivery_method: 'outbound_call',
+    status: 'scheduled',
+    privacy_scope: 'line_only',
+    is_recurring: isRecurring,
+    rrule,
+    interval_days: intervalDays,
+    days_of_week: daysOfWeek,
+    day_of_month: dayOfMonth,
+    time_of_day: timeOfDay,
+    ends_at: endsAt,
+  };
+
+  let reminder: ReminderRowWithEncryption | null = null;
+  let error: { code?: string } | null = null;
+
+  ({ data: reminder, error } = await client
     .from('ultaura_reminders')
-    .insert({
-      id: reminderId,
-      account_id: account.id,
-      line_id: parsed.data.lineId,
-      due_at: dueAtUtc.toISOString(),
-      timezone,
-      message: trimmedMessage,
-      message_ciphertext: encryptedMessage.ciphertext as unknown as string,
-      message_iv: encryptedMessage.iv as unknown as string,
-      message_tag: encryptedMessage.tag as unknown as string,
-      message_alg: encryptedMessage.alg,
-      message_kid: encryptedMessage.kid,
-      delivery_method: 'outbound_call',
-      status: 'scheduled',
-      privacy_scope: 'line_only',
-      is_recurring: isRecurring,
-      rrule,
-      interval_days: intervalDays,
-      days_of_week: daysOfWeek,
-      day_of_month: dayOfMonth,
-      time_of_day: timeOfDay,
-      ends_at: endsAt,
-    })
+    .insert(insertPayload)
     .select()
-    .single();
+    .single());
+
+  if (error && error.code === '23502') {
+    logger.warn({ error }, 'Reminder message column is still NOT NULL; falling back to plaintext (apply migrations to disable plaintext storage)');
+    ({ data: reminder, error } = await client
+      .from('ultaura_reminders')
+      .insert({
+        ...insertPayload,
+        message: trimmedMessage,
+      })
+      .select()
+      .single());
+  }
 
   if (error) {
     logger.error({ error }, 'Failed to create reminder');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to create reminder'),
+    };
+  }
+
+  if (!reminder) {
+    logger.error({ reminderId }, 'Reminder insert returned no row');
     return {
       success: false,
       error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to create reminder'),
@@ -892,6 +918,7 @@ export async function editReminder(
     const newValues: Record<string, unknown> = {};
     const metadata: Record<string, unknown> = { oldValues, newValues };
     const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
+    let legacyPlaintextMessage: string | null = null;
 
     if (inputData.updates.message !== undefined) {
       if (!inputData.updates.message.trim()) {
@@ -918,7 +945,7 @@ export async function editReminder(
           error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to encrypt reminder'),
         };
       }
-      updates.message = trimmedMessage;
+      updates.message = null;
       updates.message_ciphertext = encryptedMessage.ciphertext;
       updates.message_iv = encryptedMessage.iv;
       updates.message_tag = encryptedMessage.tag;
@@ -927,6 +954,7 @@ export async function editReminder(
       metadata.messageChanged = true;
       metadata.oldMessageLength = inputData.reminder.message?.length ?? null;
       metadata.newMessageLength = trimmedMessage.length;
+      legacyPlaintextMessage = trimmedMessage;
     }
 
     if (inputData.updates.dueAt !== undefined) {
@@ -1038,10 +1066,21 @@ export async function editReminder(
       };
     }
 
-    const { error } = await client
+    let { error } = await client
       .from('ultaura_reminders')
       .update(updates)
       .eq('id', inputData.reminder.id);
+
+    if (error && legacyPlaintextMessage && (error as { code?: string }).code === '23502') {
+      logger.warn({ error }, 'Reminder message column is still NOT NULL; falling back to plaintext (apply migrations to disable plaintext storage)');
+      ({ error } = await client
+        .from('ultaura_reminders')
+        .update({
+          ...updates,
+          message: legacyPlaintextMessage,
+        })
+        .eq('id', inputData.reminder.id));
+    }
 
     if (error) {
       logger.error({ error }, 'Failed to edit reminder');

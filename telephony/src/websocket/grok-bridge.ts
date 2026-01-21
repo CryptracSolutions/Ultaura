@@ -18,7 +18,8 @@ import type {
 import { SAFETY_CATEGORY_TIERS } from '@ultaura/types';
 import { logger } from '../utils/logger.js';
 import { addTurn, getBuffer, markConsentGranted, TurnSummary } from '../services/ephemeral-buffer.js';
-import { recordCallEvent } from '../services/call-session.js';
+import { recordCallEvent, updateCallSession } from '../services/call-session.js';
+import { persistLanguageToLine } from '../services/language.js';
 import { getMemoriesForLine, markMemoriesAccessed } from '../services/memory.js';
 import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
@@ -28,6 +29,7 @@ import { buildContextWindow, clearJobsForSession, enqueueClassifierJob } from '.
 import { detectHeuristics } from '../services/safety-heuristics.js';
 import { scanForSafetyKeywords } from '../services/safety-keywords.js';
 import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
+import { detectLanguageFromText } from '../utils/language-detection.js';
 import {
   GROK_INITIAL_CONNECT_TIMEOUT_MS,
   GROK_RECONNECT_TIMEOUT_MS,
@@ -263,6 +265,7 @@ export class GrokBridge {
   private detectedLanguage: string | null = null;
   private periodicSweepTimer: NodeJS.Timeout | null = null;
   private lastSweepTime = 0;
+  private languageAutoDetectionComplete = false;
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
@@ -1019,6 +1022,7 @@ At the START of this call:
           if (transcript) {
             addTurn(this.options.callSessionId, this.extractUserTurn(transcript));
             this.handleTranscriptSafety(transcript);
+            void this.maybeAutoDetectLanguage(transcript);
           }
           break;
         }
@@ -2021,6 +2025,39 @@ At the START of this call:
 
   public getDetectedLanguage(): string | null {
     return this.detectedLanguage;
+  }
+
+  private async maybeAutoDetectLanguage(transcript: string): Promise<void> {
+    if (this.languageAutoDetectionComplete || !this.options.isLanguageAutoDetect) {
+      return;
+    }
+
+    const detected = detectLanguageFromText(transcript);
+    if (!detected) {
+      return;
+    }
+
+    this.languageAutoDetectionComplete = true;
+    this.setDetectedLanguage(detected);
+
+    try {
+      await Promise.all([
+        persistLanguageToLine(this.options.lineId, detected),
+        updateCallSession(this.options.callSessionId, { languageDetected: detected }),
+      ]);
+
+      this.runWithContext(() => {
+        logger.info({
+          callSessionId: this.options.callSessionId,
+          lineId: this.options.lineId,
+          detectedLanguage: detected,
+        }, 'Auto-detected language from transcript');
+      });
+    } catch (error) {
+      this.runWithContext(() => {
+        logger.error({ error, callSessionId: this.options.callSessionId }, 'Failed to persist auto-detected language');
+      });
+    }
   }
 
   // Close the connection

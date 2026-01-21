@@ -20,6 +20,8 @@ EXPOSE 3001
 # Set environment
 ENV NODE_ENV=production
 ENV PORT=3001
+# Pod-local tool calls: route internal HTTP calls to localhost to avoid cross-pod routing
+ENV ULTAURA_INTERNAL_BACKEND_URL=http://127.0.0.1:3001
 
 # Start the server
 CMD ["node", "dist/server.js"]

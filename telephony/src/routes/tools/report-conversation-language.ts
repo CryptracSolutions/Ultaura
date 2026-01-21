@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { normalizeLanguageCode } from '@ultaura/prompts';
 import { logger } from '../../server.js';
-import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
+import { getCallSession, incrementToolInvocations, recordCallEvent, updateCallSession } from '../../services/call-session.js';
 import { getGrokBridge } from '../../websocket/grok-bridge-registry.js';
+import { sendRoutingAlert } from '../../services/routing-alerts.js';
 import { persistLanguageToLine } from '../../services/language.js';
+import { voiceRoutingIssuesTotal } from '../../utils/metrics.js';
 
 export const reportConversationLanguageRouter = Router();
 
@@ -48,6 +50,16 @@ reportConversationLanguageRouter.post('/', async (req: Request, res: Response) =
       grokBridge.setDetectedLanguage(normalizedCode);
     } else {
       logger.warn({ callSessionId }, 'Grok bridge not found for language report');
+      voiceRoutingIssuesTotal.inc({ issue: 'bridge_missing_for_tool' });
+      void sendRoutingAlert({
+        callSessionId,
+        issue: 'bridge_missing_for_tool',
+        severity: 'high',
+        details: {
+          tool: 'report_conversation_language',
+          podName: process.env.HOSTNAME,
+        },
+      });
     }
 
     const persisted = await persistLanguageToLine(session.line_id, rawCode);
@@ -57,6 +69,8 @@ reportConversationLanguageRouter.post('/', async (req: Request, res: Response) =
         'Language persisted to line'
       );
     }
+
+    await updateCallSession(callSessionId, { languageDetected: normalizedCode });
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {

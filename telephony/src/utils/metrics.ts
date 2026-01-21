@@ -105,6 +105,13 @@ export const voiceToolErrorsTotal = new Counter({
   registers: [registry],
 });
 
+export const voiceRoutingIssuesTotal = new Counter({
+  name: 'ultaura_voice_routing_issues_total',
+  help: 'Total number of detected routing/state locality issues (e.g., missing in-memory bridge)',
+  labelNames: ['issue'],
+  registers: [registry],
+});
+
 // Scheduler outcome metrics
 export const scheduleOutcomesTotal = new Counter({
   name: 'ultaura_scheduler_schedule_outcomes_total',

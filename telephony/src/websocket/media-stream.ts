@@ -33,7 +33,8 @@ import { getTwilioClient, getVoiceConfigForLanguage, getVoiceForLanguage, genera
 import { getWebsocketUrl } from '../utils/env.js';
 import { runWithLogContext, updateLogContext, withLogContext, type LogContext } from '../observability/log-context.js';
 import { runWithSpan, startSpan, SpanKind } from '../observability/tracing.js';
-import { recordVoiceDisconnect, voiceBargeInTotal, voiceTimeToFirstAudioMs } from '../utils/metrics.js';
+import { sendRoutingAlert } from '../services/routing-alerts.js';
+import { recordVoiceDisconnect, voiceBargeInTotal, voiceRoutingIssuesTotal, voiceTimeToFirstAudioMs } from '../utils/metrics.js';
 
 interface TwilioMessage {
   event: 'connected' | 'start' | 'media' | 'dtmf' | 'stop' | 'mark';
@@ -618,6 +619,26 @@ export async function handleMediaStreamConnection(
             };
 
             const existingBridge = getGrokBridge(callSessionId);
+
+            if (!existingBridge && session.status === 'in_progress') {
+              voiceRoutingIssuesTotal.inc({ issue: 'bridge_missing_on_reconnect' });
+              void sendRoutingAlert({
+                callSessionId,
+                issue: 'bridge_missing_on_reconnect',
+                severity: 'high',
+                details: {
+                  podName: process.env.HOSTNAME,
+                  twilioCallSid,
+                  twilioStreamSid,
+                  sessionStatus: session.status,
+                  isReminderCall: session.is_reminder_call,
+                  isTestCall: session.is_test_call,
+                  isPreviewMode: session.is_preview_mode,
+                  lineId: session.line_id,
+                  accountId: session.account_id,
+                },
+              });
+            }
 
             if (existingBridge) {
               grokBridge = existingBridge;

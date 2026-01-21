@@ -1,0 +1,43 @@
+# Example Ingress for Ultaura Telephony with sticky sessions
+#
+# CRITICAL: The upstream-hash-by annotation ensures Twilio Media Stream
+# reconnections land on the same pod that holds the in-memory Grok bridge.
+#
+# Copy this file, customize for your environment, and apply.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ultaura-telephony
+  annotations:
+    # Sticky sessions: hash by callSessionId query param
+    # This ensures WebSocket reconnects go to the same pod
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$arg_callSessionId"
+
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+
+    # Required for WebSocket upgrade
+    nginx.ingress.kubernetes.io/websocket-services: "ultaura-telephony"
+
+    # TLS (adjust for your cert-manager setup)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - telephony.your-domain.com
+      secretName: ultaura-telephony-tls
+  rules:
+    - host: telephony.your-domain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ultaura-telephony
+                port:
+                  number: 3001

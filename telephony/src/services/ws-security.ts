@@ -55,7 +55,11 @@ cleanupTimer.unref?.();
 
 function getSecurityMode(): 'audit' | 'enforce' {
   const mode = process.env.ULTAURA_WS_SECURITY_MODE?.toLowerCase();
-  return mode === 'enforce' ? 'enforce' : 'audit';
+  if (mode === 'enforce' || mode === 'audit') {
+    return mode;
+  }
+
+  return process.env.NODE_ENV === 'production' ? 'enforce' : 'audit';
 }
 
 function ipToBigInt(ip: string): bigint | null {
@@ -111,7 +115,7 @@ function getTwilioIpRanges(): string[] {
 }
 
 function checkIpAllowlist(ip: string): IpCheckResult {
-  if (process.env.TWILIO_MEDIA_IP_ALLOW_UNKNOWN?.toLowerCase() === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.TWILIO_MEDIA_IP_ALLOW_UNKNOWN?.toLowerCase() === 'true') {
     return { allowed: true, reason: 'development', ip };
   }
 

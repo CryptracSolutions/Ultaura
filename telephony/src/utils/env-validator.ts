@@ -3,7 +3,7 @@ import { IANAZone } from 'luxon';
 interface EnvVariable {
   name: string;
   required: boolean;
-  format?: 'hex64' | 'url' | 'wss' | 'boolean' | 'number' | 'timezone' | 'min32' | 'decimal';
+  format?: 'hex64' | 'url' | 'any_url' | 'wss' | 'boolean' | 'number' | 'timezone' | 'min32' | 'decimal';
   default?: string;
 }
 
@@ -12,6 +12,8 @@ const ULTAURA_ENV_VARS: EnvVariable[] = [
   { name: 'ULTAURA_ENCRYPTION_KEY', required: true, format: 'hex64' },
   { name: 'ULTAURA_INTERNAL_API_SECRET', required: true, format: 'min32' },
   { name: 'ULTAURA_BACKEND_URL', required: true, format: 'url' },
+  // Optional: Used by the telephony service for self-referential tool calls to avoid cross-pod routing.
+  { name: 'ULTAURA_INTERNAL_BACKEND_URL', required: false, format: 'any_url' },
   { name: 'ULTAURA_PUBLIC_URL', required: true, format: 'url' },
   { name: 'ULTAURA_WEBSOCKET_URL', required: true, format: 'wss' },
   { name: 'ULTAURA_STREAM_TOKEN_SECRET', required: true, format: 'min32' },
@@ -109,6 +111,24 @@ export function validateEnvVariables(): void {
     }
   }
 
+  const wsSecurityMode = process.env.ULTAURA_WS_SECURITY_MODE?.toLowerCase();
+  if (wsSecurityMode && wsSecurityMode !== 'audit' && wsSecurityMode !== 'enforce') {
+    errors.push(`ULTAURA_WS_SECURITY_MODE must be 'audit' or 'enforce'. Got: ${process.env.ULTAURA_WS_SECURITY_MODE}`);
+  }
+
+  if (isProduction() && wsSecurityMode !== 'enforce') {
+    errors.push('ULTAURA_WS_SECURITY_MODE must be set to enforce in production.');
+  }
+
+  const allowUnknownIps = process.env.TWILIO_MEDIA_IP_ALLOW_UNKNOWN?.toLowerCase() === 'true';
+  if (isProduction() && allowUnknownIps) {
+    errors.push('TWILIO_MEDIA_IP_ALLOW_UNKNOWN cannot be enabled in production.');
+  }
+
+  if (isProduction() && !process.env.TWILIO_MEDIA_IP_ALLOWLIST) {
+    warnings.push('TWILIO_MEDIA_IP_ALLOWLIST is unset in production; using the built-in default allowlist.');
+  }
+
   if (errors.length > 0) {
     console.error('\n========================================');
     console.error('ENVIRONMENT VALIDATION FAILED');
@@ -152,6 +172,11 @@ function validateFormat(name: string, value: string, format: EnvVariable['format
         return `${name} must use HTTPS in production.`;
       }
       if (!production && !/^https?:\/\/.+/.test(value)) {
+        return `${name} must be a valid URL.`;
+      }
+      break;
+    case 'any_url':
+      if (!/^https?:\/\/.+/.test(value)) {
         return `${name} must be a valid URL.`;
       }
       break;

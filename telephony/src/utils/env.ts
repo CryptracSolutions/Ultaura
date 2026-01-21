@@ -1,7 +1,9 @@
 const DEV_BACKEND_URL = 'http://localhost:3001';
 
 export function getBackendUrl(): string {
-  const backendUrl = process.env.ULTAURA_BACKEND_URL ||
+  const backendUrl =
+    process.env.ULTAURA_INTERNAL_BACKEND_URL ||
+    process.env.ULTAURA_BACKEND_URL ||
     (process.env.NODE_ENV === 'production' ? '' : DEV_BACKEND_URL);
 
   if (!backendUrl) {

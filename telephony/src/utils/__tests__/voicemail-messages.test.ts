@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { LANGUAGE_NAMES } from '@ultaura/prompts';
 import { getVoicemailMessage } from '../voicemail-messages.js';
 
 describe('voicemail-messages', () => {
@@ -21,5 +22,20 @@ describe('voicemail-messages', () => {
 
     expect(brief.toLowerCase()).toContain('reminder');
     expect(detailed.toLowerCase()).toContain('reminder');
+  });
+
+  it('returns localized templates for all supported languages', () => {
+    for (const language of Object.keys(LANGUAGE_NAMES)) {
+      const message = getVoicemailMessage({
+        name: 'Alex',
+        language,
+        preferredLanguageIso: language,
+        behavior: 'brief',
+        isReminderCall: false,
+      });
+
+      expect(message).toEqual(expect.any(String));
+      expect(message).toContain('Alex');
+    }
   });
 });

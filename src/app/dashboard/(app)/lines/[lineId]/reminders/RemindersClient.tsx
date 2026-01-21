@@ -350,7 +350,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     if (disabled) return;
 
     setEditingReminder(reminder);
-    setEditMessage(reminder.message);
+    setEditMessage(reminder.message ?? '');
     // Parse the due_at to get date and time in local format
     const dueDate = new Date(reminder.due_at);
     const initialDate = dueDate.toISOString().split('T')[0];
@@ -360,7 +360,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     const initialTime = `${hours}:${minutes}`;
     setEditTime(initialTime);
     setInitialEditState({
-      message: reminder.message,
+      message: reminder.message ?? '',
       date: initialDate,
       time: initialTime,
     });
@@ -400,7 +400,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
     const updates: { message?: string; dueAt?: string } = {};
 
-    if (editMessage.trim() !== editingReminder.message) {
+    if (editMessage.trim() !== (editingReminder.message ?? '')) {
       updates.message = editMessage.trim();
     }
 

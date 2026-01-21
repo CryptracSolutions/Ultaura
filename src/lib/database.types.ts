@@ -521,7 +521,6 @@ export type Database = {
           line_id: string
           recording_sid: string | null
           reminder_id: string | null
-          reminder_message: string | null
           scheduler_idempotency_key: string | null
           seconds_connected: number | null
           started_at: string | null
@@ -550,7 +549,6 @@ export type Database = {
           line_id: string
           recording_sid?: string | null
           reminder_id?: string | null
-          reminder_message?: string | null
           scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
@@ -579,7 +577,6 @@ export type Database = {
           line_id?: string
           recording_sid?: string | null
           reminder_id?: string | null
-          reminder_message?: string | null
           scheduler_idempotency_key?: string | null
           seconds_connected?: number | null
           started_at?: string | null
@@ -1446,7 +1443,7 @@ export type Database = {
           message_ciphertext: string | null
           message_iv: string | null
           message_kid: string | null
-          message: string
+          message: string | null
           message_tag: string | null
           occurrence_count: number
           original_due_at: string | null
@@ -1480,7 +1477,7 @@ export type Database = {
           message_ciphertext?: string | null
           message_iv?: string | null
           message_kid?: string | null
-          message: string
+          message?: string | null
           message_tag?: string | null
           occurrence_count?: number
           original_due_at?: string | null
@@ -1514,7 +1511,7 @@ export type Database = {
           message_ciphertext?: string | null
           message_iv?: string | null
           message_kid?: string | null
-          message?: string
+          message?: string | null
           message_tag?: string | null
           occurrence_count?: number
           original_due_at?: string | null

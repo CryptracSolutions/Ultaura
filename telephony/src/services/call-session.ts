@@ -338,6 +338,7 @@ export async function updateCallSession(
   sessionId: string,
   options: {
     answeredBy?: CallAnsweredBy;
+    languageDetected?: string;
     endReason?: CallEndReason;
   }
 ): Promise<void> {
@@ -347,6 +348,10 @@ export async function updateCallSession(
 
   if (options.answeredBy !== undefined) {
     updates.answered_by = options.answeredBy;
+  }
+
+  if (options.languageDetected !== undefined) {
+    updates.language_detected = options.languageDetected;
   }
 
   if (options.endReason !== undefined) {

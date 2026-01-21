@@ -1,0 +1,103 @@
+# Example Deployment for Ultaura Telephony
+#
+# Key configuration:
+# - ULTAURA_INTERNAL_BACKEND_URL ensures tool calls stay on the same pod
+# - Resource limits should be tuned for your workload
+#
+# Copy this file, customize for your environment, and apply.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultaura-telephony
+  labels:
+    app: ultaura-telephony
+spec:
+  replicas: 2  # Scale as needed; sticky sessions handle routing
+  selector:
+    matchLabels:
+      app: ultaura-telephony
+  template:
+    metadata:
+      labels:
+        app: ultaura-telephony
+    spec:
+      terminationGracePeriodSeconds: 35  # Allow 30s for call drain + buffer
+      containers:
+        - name: telephony
+          image: your-registry/ultaura-telephony:latest
+          ports:
+            - containerPort: 3001
+              name: http
+          env:
+            # Pod-local routing: tool calls stay on the same pod
+            # This is set in Dockerfile but shown here for visibility
+            - name: ULTAURA_INTERNAL_BACKEND_URL
+              value: "http://127.0.0.1:3001"
+
+            # External URL for Twilio webhooks (through ingress)
+            - name: ULTAURA_BACKEND_URL
+              value: "https://telephony.your-domain.com"
+
+            # WebSocket URL for Twilio Media Streams
+            - name: ULTAURA_WEBSOCKET_URL
+              value: "wss://telephony.your-domain.com/twilio/media"
+
+            # Public URL (same as backend for telephony)
+            - name: ULTAURA_PUBLIC_URL
+              value: "https://telephony.your-domain.com"
+
+            # Security: must be 'enforce' in production
+            - name: ULTAURA_WS_SECURITY_MODE
+              value: "enforce"
+
+            # Pod hostname for routing alerts
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+            # Add other required env vars from secrets:
+            # - ULTAURA_ENCRYPTION_KEY
+            # - ULTAURA_INTERNAL_API_SECRET
+            # - ULTAURA_STREAM_TOKEN_SECRET
+            # - XAI_API_KEY
+            # - TWILIO_ACCOUNT_SID
+            # - TWILIO_AUTH_TOKEN
+            # - TWILIO_PHONE_NUMBER
+            # - TWILIO_VERIFY_SERVICE_SID
+            # - SUPABASE_URL
+            # - SUPABASE_SERVICE_ROLE_KEY
+            # - OPENAI_API_KEY (if semantic search enabled)
+
+          envFrom:
+            - secretRef:
+                name: ultaura-telephony-secrets
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 30
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          # Graceful shutdown: drain active calls before terminating
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]  # Allow LB to stop routing new connections

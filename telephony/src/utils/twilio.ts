@@ -111,6 +111,7 @@ const TWILIO_VOICE_MAP: Record<string, { voice: string; language: string }> = {
   zh: { voice: 'Polly.Zhiyu', language: 'cmn-CN' },
   nl: { voice: 'Google.nl-NL-Standard-F', language: 'nl-NL' },
   ru: { voice: 'Google.ru-RU-Standard-A', language: 'ru-RU' },
+  uk: { voice: 'Google.uk-UA-Standard-A', language: 'uk-UA' },
   ar: { voice: 'Polly.Hala-Neural', language: 'ar-AE' },
   hi: { voice: 'Google.hi-IN-Standard-A', language: 'hi-IN' },
   tr: { voice: 'Google.tr-TR-Standard-A', language: 'tr-TR' },
@@ -239,12 +240,42 @@ export function generateHoldTwiML(message: string): string {
 }
 
 function getRecordingDisclosureMessage(languageCode?: string): string {
-  // TODO: Expand localization beyond English and Spanish as demographics require.
-  const normalized = languageCode ? normalizeLanguageCode(languageCode) : 'en';
-  if (normalized === 'es') {
-    return 'Esta llamada puede ser grabada para fines de calidad.';
-  }
-  return 'This call may be recorded for quality purposes.';
+  const normalized = normalizeLanguageCode(languageCode || 'en');
+
+  const messages: Record<string, string> = {
+    en: 'This call may be recorded for quality purposes.',
+    es: 'Esta llamada puede ser grabada para fines de calidad.',
+    fr: "Cet appel peut être enregistré à des fins de qualité.",
+    de: 'Dieser Anruf kann zu Qualitätszwecken aufgezeichnet werden.',
+    it: 'Questa chiamata può essere registrata a fini di qualità.',
+    pt: 'Esta chamada pode ser gravada para fins de qualidade.',
+    ja: 'この通話は品質向上のため録音される場合があります。',
+    ko: '이 통화는 품질 향상을 위해 녹음될 수 있습니다.',
+    zh: '此通话可能会被录音用于质量改进。',
+    nl: 'Dit gesprek kan worden opgenomen voor kwaliteitsdoeleinden.',
+    ru: 'Этот звонок может быть записан в целях контроля качества.',
+    ar: 'قد يتم تسجيل هذه المكالمة لأغراض الجودة.',
+    hi: 'गुणवत्ता के उद्देश्य से यह कॉल रिकॉर्ड की जा सकती है।',
+    tr: 'Bu arama kalite amaçları için kaydedilebilir.',
+    pl: 'Ta rozmowa może być nagrywana w celach jakościowych.',
+    sv: 'Det här samtalet kan spelas in i kvalitetssyfte.',
+    da: 'Dette opkald kan blive optaget til kvalitetsformål.',
+    no: 'Denne samtalen kan bli tatt opp for kvalitetsformål.',
+    fi: 'Tämä puhelu voidaan tallentaa laatutarkoituksiin.',
+    cs: 'Tento hovor může být nahráván pro účely kvality.',
+    th: 'การสนทนานี้อาจถูกบันทึกเพื่อวัตถุประสงค์ด้านคุณภาพ',
+    vi: 'Cuộc gọi này có thể được ghi âm cho mục đích chất lượng.',
+    id: 'Panggilan ini dapat direkam untuk tujuan kualitas.',
+    ms: 'Panggilan ini mungkin dirakam untuk tujuan kualiti.',
+    tl: 'Maaaring i-record ang tawag na ito para sa layunin ng kalidad.',
+    uk: 'Цей дзвінок може бути записаний для контролю якості.',
+    el: 'Η κλήση αυτή ενδέχεται να καταγραφεί για σκοπούς ποιότητας.',
+    he: 'ייתכן שהשיחה הזו תוקלט למטרות איכות.',
+    ro: 'Acest apel poate fi înregistrat în scopuri de calitate.',
+    hu: 'Ezt a hívást minőségi célokból rögzíthetjük.',
+  };
+
+  return messages[normalized] ?? messages.en;
 }
 
 function buildRecordingDisclosure(languageCode?: string): string {

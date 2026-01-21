@@ -156,6 +156,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     const updates: Record<string, unknown> = {};
     const oldValues: Record<string, unknown> = {};
     const changes: string[] = [];
+    let legacyPlaintextMessage: string | null = null;
 
     if (newMessage && newMessage.trim()) {
       if (newMessage.length > 500) {
@@ -174,7 +175,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         reminder.id,
         trimmedMessage
       );
-      updates.message = trimmedMessage;
+      updates.message = null;
       updates.message_ciphertext = encryptedMessage.ciphertext;
       updates.message_iv = encryptedMessage.iv;
       updates.message_tag = encryptedMessage.tag;
@@ -184,6 +185,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       oldValues.oldMessageLength = reminder.message?.length ?? null;
       oldValues.newMessageLength = trimmedMessage.length;
       changes.push('message');
+      legacyPlaintextMessage = trimmedMessage;
     }
 
     if (newTimeLocal) {
@@ -252,12 +254,25 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     // Update the reminder
-    const { error: updateError } = await supabase
+    let { error: updateError } = await supabase
       .from('ultaura_reminders')
       .update(updates)
       .eq('id', reminderId)
       .eq('line_id', effectiveLineId)
       .eq('account_id', session.account_id);
+
+    if (updateError && legacyPlaintextMessage && updateError.code === '23502') {
+      logger.warn({ error: updateError }, 'Reminder message column is still NOT NULL; falling back to plaintext (apply migrations to disable plaintext storage)');
+      ({ error: updateError } = await supabase
+        .from('ultaura_reminders')
+        .update({
+          ...updates,
+          message: legacyPlaintextMessage,
+        })
+        .eq('id', reminderId)
+        .eq('line_id', effectiveLineId)
+        .eq('account_id', session.account_id));
+    }
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to edit reminder');

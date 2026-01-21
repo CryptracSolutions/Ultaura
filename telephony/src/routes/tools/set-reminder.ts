@@ -325,35 +325,55 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       finalMessage.slice(0, 500)
     );
 
-    const { data: reminder, error } = await supabase
+    const insertPayload: Record<string, unknown> = {
+      id: reminderId,
+      account_id: session.account_id,
+      line_id: effectiveLineId,
+      due_at: dueAt.toISOString(),
+      timezone: tz,
+      message: null,
+      message_ciphertext: encryptedMessage.ciphertext,
+      message_iv: encryptedMessage.iv,
+      message_tag: encryptedMessage.tag,
+      message_alg: encryptedMessage.alg,
+      message_kid: encryptedMessage.kid,
+      delivery_method: 'outbound_call',
+      status: 'scheduled',
+      privacy_scope: privacyScope,
+      created_by_call_session_id: callSessionId,
+      // Recurrence fields
+      is_recurring: isRecurring,
+      rrule,
+      interval_days: intervalDays,
+      days_of_week: daysOfWeekVal,
+      day_of_month: dayOfMonthVal,
+      time_of_day: timeOfDay,
+      ends_at: endsAt,
+    };
+
+    type ReminderInsertRow = { id: string; due_at: string };
+    type SupabaseError = { code?: string; message: string; details?: string } | null;
+
+    let reminder: ReminderInsertRow | null = null;
+    let error: SupabaseError = null;
+
+    ({ data: reminder, error } = await supabase
       .from('ultaura_reminders')
-      .insert({
-        id: reminderId,
-        account_id: session.account_id,
-        line_id: effectiveLineId,
-        due_at: dueAt.toISOString(),
-        timezone: tz,
-        message: finalMessage.slice(0, 500), // Limit message length
-        message_ciphertext: encryptedMessage.ciphertext,
-        message_iv: encryptedMessage.iv,
-        message_tag: encryptedMessage.tag,
-        message_alg: encryptedMessage.alg,
-        message_kid: encryptedMessage.kid,
-        delivery_method: 'outbound_call',
-        status: 'scheduled',
-        privacy_scope: privacyScope,
-        created_by_call_session_id: callSessionId,
-        // Recurrence fields
-        is_recurring: isRecurring,
-        rrule,
-        interval_days: intervalDays,
-        days_of_week: daysOfWeekVal,
-        day_of_month: dayOfMonthVal,
-        time_of_day: timeOfDay,
-        ends_at: endsAt,
-      })
+      .insert(insertPayload)
       .select()
-      .single();
+      .single() as unknown as { data: ReminderInsertRow | null; error: SupabaseError });
+
+    if (error && error.code === '23502') {
+      logger.warn({ error }, 'Reminder message column is still NOT NULL; falling back to plaintext (apply migrations to disable plaintext storage)');
+      ({ data: reminder, error } = await supabase
+        .from('ultaura_reminders')
+        .insert({
+          ...insertPayload,
+          message: finalMessage.slice(0, 500),
+        })
+        .select()
+        .single() as unknown as { data: ReminderInsertRow | null; error: SupabaseError });
+    }
 
     if (error) {
       logger.error({
@@ -372,6 +392,12 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       }, 'Failed to create reminder');
       await recordFailure(error.code);
       res.status(500).json({ error: 'Failed to create reminder', details: error.message });
+      return;
+    }
+
+    if (!reminder) {
+      await recordFailure('reminder_insert_no_row');
+      res.status(500).json({ error: 'Failed to create reminder' });
       return;
     }
 

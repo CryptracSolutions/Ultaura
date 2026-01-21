@@ -20,6 +20,10 @@ const RECOMMENDED_ACTIONS: Record<string, string> = {
     'WebSocket connection with an invalid token signature from a Twilio IP range. Verify token generation and validation, and check for clock skew.',
   ws_security_expired_token:
     'WebSocket connection with an expired token. Usually indicates network delays or clock skew. If frequent, consider increasing token lifetime.',
+  routing_bridge_missing_on_reconnect:
+    'Twilio reconnected to a pod that did not have the in-memory Grok bridge for this call session. This usually indicates missing sticky sessions (hash by callSessionId) or a pod restart mid-call. Verify ingress session affinity and check pod health/restarts.',
+  routing_bridge_missing_for_tool:
+    'A tool call landed on a pod that did not have the in-memory Grok bridge for this call session. Ensure tool calls are routed to the same pod (e.g., set ULTAURA_INTERNAL_BACKEND_URL to localhost inside the telephony container) and verify sticky session configuration.',
 };
 
 function formatAnomalyType(type: string): string {

@@ -19,6 +19,8 @@ import {
   type ClassifierTriggerSource,
 } from './safety-metrics.js';
 import { getGrokBridge } from '../websocket/grok-bridge-registry.js';
+import { sendRoutingAlert } from './routing-alerts.js';
+import { voiceRoutingIssuesTotal } from '../utils/metrics.js';
 
 export interface ClassifierJob {
   id: string;
@@ -411,7 +413,20 @@ function maybeSendSafetyHint(callSessionId: string, source: 'sweep' | 'soft_sign
   }
 
   const bridge = getGrokBridge(callSessionId);
-  if (!bridge) return;
+  if (!bridge) {
+    voiceRoutingIssuesTotal.inc({ issue: 'bridge_missing_for_tool' });
+    void sendRoutingAlert({
+      callSessionId,
+      issue: 'bridge_missing_for_tool',
+      severity: 'high',
+      details: {
+        tool: 'safety_classifier',
+        hintSource: source,
+        podName: process.env.HOSTNAME,
+      },
+    });
+    return;
+  }
 
   bridge.sendSafetyAssessmentHint(source);
   hintCooldowns.set(callSessionId, now);

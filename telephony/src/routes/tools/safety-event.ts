@@ -18,6 +18,8 @@ import { notifyTrustedContacts } from '../../services/safety-notifications.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
 import { verifyHighTierEvent } from '../../services/safety-verifier.js';
 import { getGrokBridge } from '../../websocket/grok-bridge-registry.js';
+import { sendRoutingAlert } from '../../services/routing-alerts.js';
+import { voiceRoutingIssuesTotal } from '../../utils/metrics.js';
 
 export const safetyEventRouter = Router();
 
@@ -211,7 +213,20 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
       );
 
       const grokBridge = getGrokBridge(callSessionId);
-      const languageCode = grokBridge?.getDetectedLanguage() ?? 'unknown';
+      if (!grokBridge) {
+        voiceRoutingIssuesTotal.inc({ issue: 'bridge_missing_for_tool' });
+        void sendRoutingAlert({
+          callSessionId,
+          issue: 'bridge_missing_for_tool',
+          severity: 'high',
+          details: {
+            tool: 'log_safety_concern',
+            podName: process.env.HOSTNAME,
+          },
+        });
+      }
+
+      const languageCode = grokBridge?.getDetectedLanguage() ?? session.language_detected ?? 'unknown';
       const buffer = getBuffer(callSessionId);
 
       if (process.env.ULTAURA_MULTILINGUAL_SAFETY_ENABLED === 'true' && buffer) {

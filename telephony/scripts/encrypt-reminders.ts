@@ -69,6 +69,7 @@ async function run(): Promise<void> {
         const { error: updateError } = await supabase
           .from('ultaura_reminders')
           .update({
+            message: null,
             message_ciphertext: encrypted.ciphertext,
             message_iv: encrypted.iv,
             message_tag: encrypted.tag,

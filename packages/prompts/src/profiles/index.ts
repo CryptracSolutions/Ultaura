@@ -235,7 +235,7 @@ function formatLanguageSection(
     return compressed
       ? `## Language
 Start with bilingual greeting: "Hello! \u00a1Hola! Nice to finally speak with you, {userName}! I'm Ultaura, your AI companion."
-CRITICAL: Call report_conversation_language immediately after the user's first response.
+Language persistence: The system may auto-detect language from the user's first response. If you confidently detect the language (or they switch), call report_conversation_language with the ISO 639-1 code.
 Adapt to whatever language they respond in. Stay bilingual until language is confirmed.
 If they switch languages later, call report_conversation_language again.`
       : `## Language - Auto-Detection Mode
@@ -246,8 +246,7 @@ Use this bilingual greeting: "Hello! \u00a1Hola! Nice to finally speak with you,
 
 ### Language Detection (CRITICAL)
 - Listen carefully to {userName}'s FIRST response
-- IMMEDIATELY call report_conversation_language with the detected ISO 639-1 code
-- This MUST happen after their first verbal response, before continuing conversation
+- If you confidently detect the language (or they switch), call report_conversation_language with the detected ISO 639-1 code
 - Supported codes: en, es, fr, de, it, pt, ja, ko, zh, nl, ru, ar, hi, tr, pl, sv, da, no, fi, cs, th, vi, id, ms, tl, uk, el, he, ro, hu
 
 ### After Detection
