@@ -6,9 +6,12 @@ type SupabaseResponse = {
 };
 
 type SupabaseMock = {
-  from: ReturnType<typeof vi.fn>;
+  from: (table: string) => ReturnType<typeof createBuilder>;
   storage: {
-    from: ReturnType<typeof vi.fn>;
+    from: () => {
+      upload: (path: string, payload: Buffer) => Promise<{ error: null }>;
+      createSignedUrl: () => Promise<{ data: { signedUrl: string }; error: null }>;
+    };
   };
 };
 

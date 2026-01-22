@@ -3,7 +3,7 @@ import { getSupabaseClient } from '../utils/supabase.js';
 
 export interface RateLimitEventLog {
   eventType: 'allowed' | 'blocked' | 'anomaly';
-  action: 'verify_send' | 'verify_check' | 'sms' | 'set_reminder';
+  action: 'verify_send' | 'verify_check' | 'sms' | 'email' | 'set_reminder';
   ipAddress?: string;
   phoneNumber?: string;
   accountId?: string;
@@ -36,4 +36,3 @@ export async function logRateLimitEvent(event: RateLimitEventLog): Promise<void>
     logger.error({ error, event }, 'Failed to log rate limit event');
   }
 }
-
