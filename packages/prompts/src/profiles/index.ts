@@ -32,6 +32,7 @@ import { WEB_SEARCH_POLICY_SECTION } from '../golden/sections/web-search-policy.
 import { SEGMENTS_POLICY_SECTION } from '../golden/sections/segments-policy.js';
 import { RECORDING_CONSENT_SECTION } from '../golden/sections/recording-consent.js';
 import { FAMILY_SHARING_CONSENT_SECTION } from '../golden/sections/family-sharing-consent.js';
+import { INSIGHTS_CONSENT_SECTION } from '../golden/sections/insights-consent.js';
 import { sanitizeForPrompt, sanitizeKey } from '../utils/sanitize.js';
 
 export type PromptProfile = 'voice_realtime' | 'admin_preview';
@@ -133,6 +134,7 @@ export function compilePrompt(
   }
 
   sections.push(selectSection(INSIGHTS_SECTION, compressed));
+  sections.push(selectSection(INSIGHTS_CONSENT_SECTION, compressed));
 
   if (params.currentPlanId && params.accountStatus) {
     sections.push(formatPlansSection(params.currentPlanId, params.accountStatus, compressed));

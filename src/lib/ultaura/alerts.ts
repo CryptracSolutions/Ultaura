@@ -1,12 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import requireSession from '~/lib/user/require-session';
 import getLogger from '~/core/logger';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
 import type { WellnessAlert } from './types';
+import type { SharingTier } from '@ultaura/types';
+import { getSharingGate, validateAccountOwnership } from './sharing-gate';
 
 const logger = getLogger();
 
@@ -14,13 +15,30 @@ export async function getWellnessAlerts(
   accountId: string,
   options?: { limit?: number }
 ): Promise<WellnessAlert[]> {
-  const client = getSupabaseServerComponentClient();
   const limit = options?.limit ?? 50;
+  const userClient = getSupabaseServerActionClient();
+  await requireSession(userClient);
 
-  const { data: alerts, error } = await client
+  const ownsAccount = await validateAccountOwnership(userClient, accountId);
+  if (!ownsAccount) {
+    throw new Error('Access denied');
+  }
+
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const { data: alerts, error } = await adminClient
     .from('ultaura_wellness_alerts')
-    .select('id, line_id, created_at, alert_type, severity, title, summary, acknowledged_at')
-    .eq('account_id', accountId)
+    .select(`
+      id,
+      line_id,
+      created_at,
+      alert_type,
+      severity,
+      title,
+      summary,
+      acknowledged_at,
+      ultaura_lines!inner(display_name, account_id)
+    `)
+    .eq('ultaura_lines.account_id', accountId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -29,35 +47,94 @@ export async function getWellnessAlerts(
     return [];
   }
 
-  const lineIds = Array.from(new Set((alerts ?? []).map((alert) => alert.line_id)));
-  const lineNameMap = new Map<string, string>();
+  const gateCache = new Map<string, ReturnType<typeof getSharingGate>>();
+  const results: WellnessAlert[] = [];
 
-  if (lineIds.length > 0) {
-    const { data: lines, error: lineError } = await client
-      .from('ultaura_lines')
-      .select('id, display_name')
-      .in('id', lineIds);
+  for (const alert of alerts ?? []) {
+    const lineId = alert.line_id;
+    let gate = gateCache.get(lineId);
+    if (!gate) {
+      gate = getSharingGate(adminClient, lineId, accountId);
+      gateCache.set(lineId, gate);
+    }
+    const resolvedGate = await gate;
 
-    if (lineError) {
-      logger.error({ error: lineError, accountId }, 'Failed to fetch line names for alerts');
-    } else {
-      lines?.forEach((line) => {
-        lineNameMap.set(line.id, line.display_name);
-      });
+    if (!resolvedGate.canAccessNonSafety) {
+      continue;
+    }
+
+    if (!resolvedGate.isSelfUser && resolvedGate.isFamilyOutputSuppressed) {
+      continue;
+    }
+
+    const lineName = (alert.ultaura_lines as { display_name?: string } | null)?.display_name ?? 'Unknown';
+    const mapped = mapAlert(alert, lineName);
+
+    if (resolvedGate.isSelfUser) {
+      results.push(mapped);
+      continue;
+    }
+
+    const redacted = redactAlertByTier(mapped, resolvedGate.effectiveTier);
+    if (redacted) {
+      results.push(redacted);
     }
   }
 
-  return (alerts ?? []).map((alert) => ({
+  return results;
+}
+
+function mapAlert(
+  alert: {
+    id: string;
+    line_id: string;
+    created_at: string;
+    alert_type: string;
+    severity: string;
+    title: string;
+    summary: string;
+    acknowledged_at: string | null;
+  },
+  lineName: string
+): WellnessAlert {
+  return {
     id: alert.id,
     lineId: alert.line_id,
-    lineName: lineNameMap.get(alert.line_id) ?? 'Unknown',
+    lineName,
     createdAt: alert.created_at,
     alertType: alert.alert_type,
     severity: alert.severity as WellnessAlert['severity'],
     title: alert.title,
     summary: alert.summary,
     acknowledgedAt: alert.acknowledged_at ?? null,
-  }));
+  };
+}
+
+export function redactAlertByTier(
+  alert: WellnessAlert,
+  tier: SharingTier
+): WellnessAlert | null {
+  if (tier === 'tier_1') {
+    return null;
+  }
+
+  if (tier === 'tier_2' || tier === 'tier_3') {
+    if (alert.alertType === 'mood_drop') {
+      return {
+        ...alert,
+        title: 'Mood change noted',
+        summary: 'A mood trend was observed during recent calls.',
+      };
+    }
+
+    return {
+      ...alert,
+      title: 'Wellness observation',
+      summary: 'A wellness observation was noted. Consider checking in.',
+    };
+  }
+
+  return alert;
 }
 
 export async function acknowledgeWellnessAlert(

@@ -99,7 +99,7 @@ recordingConsentRouter.post('/grant_recording_consent', async (req: Request, res
       lineId,
       session.account_id,
       callSessionId,
-      { recordingConsent: 'granted' },
+      { recordingConsent: 'granted', recordingReenableRequestedAt: null },
       { skipPersist, auditMetadata }
     );
 
@@ -206,7 +206,7 @@ recordingConsentRouter.post('/deny_recording_consent', async (req: Request, res:
       lineId,
       session.account_id,
       callSessionId,
-      { recordingConsent: 'denied' },
+      { recordingConsent: 'denied', recordingReenableRequestedAt: null },
       { skipPersist, auditMetadata }
     );
 
@@ -301,7 +301,7 @@ recordingConsentRouter.post('/revoke_recording_consent', async (req: Request, re
       lineId,
       session.account_id,
       callSessionId,
-      { recordingConsent: 'denied' },
+      { recordingConsent: 'denied', recordingReenableRequestedAt: null },
       { skipPersist, auditMetadata }
     );
 
@@ -360,14 +360,43 @@ recordingConsentRouter.post('/set_recording_preference_permanent', async (req: R
       return;
     }
 
+    const supabase = getSupabaseClient();
+    const { data: consentRow, error: consentError } = await supabase
+      .from('ultaura_line_voice_consent')
+      .select('recording_reenable_requested_at, recording_reenable_decline_count, recording_reenable_blocked_at')
+      .eq('line_id', lineId)
+      .maybeSingle();
+
+    if (consentError) {
+      logger.error({ error: consentError, lineId }, 'Failed to load recording consent state');
+    }
+
     const skipPersist = session.is_test_call || session.is_preview_mode;
     const auditMetadata = buildAuditMetadata(session);
+
+    const hasReenableRequest = Boolean(consentRow?.recording_reenable_requested_at);
+    const currentDeclineCount = consentRow?.recording_reenable_decline_count ?? 0;
+    const currentBlockedAt = consentRow?.recording_reenable_blocked_at ?? null;
+    const updates: Parameters<typeof updateLineVoiceConsent>[3] = {
+      recordingPreferencePermanent: never_ask,
+    };
+
+    if (hasReenableRequest) {
+      updates.recordingReenableRequestedAt = null;
+      if (never_ask) {
+        const nextDeclineCount = currentDeclineCount + 1;
+        updates.recordingReenableDeclineCount = nextDeclineCount;
+        if (!currentBlockedAt) {
+          updates.recordingReenableBlockedAt = new Date().toISOString();
+        }
+      }
+    }
 
     const updated = await updateLineVoiceConsent(
       lineId,
       session.account_id,
       callSessionId,
-      { recordingPreferencePermanent: never_ask },
+      updates,
       { skipPersist, auditMetadata }
     );
 

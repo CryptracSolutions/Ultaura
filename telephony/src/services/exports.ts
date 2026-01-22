@@ -54,13 +54,15 @@ export async function processExportRequest(
 
     const { data: account, error: accountError } = await supabase
       .from('ultaura_accounts')
-      .select('id, created_at, plan_id, status')
+      .select('id, created_at, plan_id, status, user_type')
       .eq('id', request.account_id)
       .single();
 
     if (accountError || !account) {
       throw new Error('Account not found for export');
     }
+
+    const isSelfUser = account.user_type === 'self';
 
     const { data: privacySettings } = await supabase
       .from('ultaura_account_privacy_settings')
@@ -198,7 +200,16 @@ export async function processExportRequest(
       privacyScope: string;
     }> = [];
 
-    if (request.include_memories && lines) {
+    const allowMemoryExport = request.include_memories && isSelfUser;
+
+    if (request.include_memories && !isSelfUser) {
+      logger.info(
+        { accountId: request.account_id },
+        'Skipping memory export for family-managed account'
+      );
+    }
+
+    if (allowMemoryExport && lines) {
       for (const line of lines) {
         const decrypted = await fetchDecryptedMemories(supabase, request.account_id, line.id, {
           active: true,
@@ -238,7 +249,7 @@ export async function processExportRequest(
           doNotCall: line.do_not_call,
         },
       })),
-      memories: request.include_memories ? memories : [],
+      memories: allowMemoryExport ? memories : [],
       callSessions: request.include_call_metadata ? callSessions : [],
       reminders: request.include_reminders ? reminders : [],
       auditLog: (auditLog || []).map((entry) => ({

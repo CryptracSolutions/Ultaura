@@ -8,6 +8,10 @@ const logger = getLogger();
 const ALGORITHM = 'aes-256-gcm';
 const TAG_LENGTH = 16;
 
+function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
+  return Uint8Array.from(value);
+}
+
 function getKEK(): Buffer {
   const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
   if (!kekHex || kekHex.length !== 64) {
@@ -18,9 +22,17 @@ function getKEK(): Buffer {
 
 function unwrapDEK(wrapped: Buffer, iv: Buffer, tag: Buffer): Buffer {
   const kek = getKEK();
-  const decipher = crypto.createDecipheriv(ALGORITHM, kek, iv, { authTagLength: TAG_LENGTH });
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(wrapped), decipher.final()]);
+  const decipher = crypto.createDecipheriv(
+    ALGORITHM,
+    toUint8Array(kek),
+    toUint8Array(iv),
+    { authTagLength: TAG_LENGTH }
+  );
+  decipher.setAuthTag(toUint8Array(tag));
+  return Buffer.concat([
+    Uint8Array.from(decipher.update(toUint8Array(wrapped))),
+    Uint8Array.from(decipher.final()),
+  ]);
 }
 
 async function getAccountDEK(
@@ -49,13 +61,13 @@ function buildDebugLogAAD(
   accountId: string,
   callSessionId: string | null,
   debugLogId: string
-): Buffer {
-  return Buffer.from(JSON.stringify({
+): Uint8Array {
+  return Uint8Array.from(Buffer.from(JSON.stringify({
     account_id: accountId,
     call_session_id: callSessionId,
     debug_log_id: debugLogId,
     type: 'debug_log_payload',
-  }), 'utf8');
+  }), 'utf8'));
 }
 
 export async function decryptDebugPayload(
@@ -72,15 +84,18 @@ export async function decryptDebugPayload(
     }
 
     const aad = buildDebugLogAAD(accountId, callSessionId, debugLogId);
-    const decipher = crypto.createDecipheriv(ALGORITHM, dek, Buffer.from(encrypted.iv), {
-      authTagLength: TAG_LENGTH,
-    });
-    decipher.setAuthTag(Buffer.from(encrypted.tag));
+    const decipher = crypto.createDecipheriv(
+      ALGORITHM,
+      toUint8Array(dek),
+      toUint8Array(encrypted.iv),
+      { authTagLength: TAG_LENGTH }
+    );
+    decipher.setAuthTag(toUint8Array(encrypted.tag));
     decipher.setAAD(aad);
 
     const plaintext = Buffer.concat([
-      decipher.update(Buffer.from(encrypted.ciphertext)),
-      decipher.final(),
+      Uint8Array.from(decipher.update(toUint8Array(encrypted.ciphertext))),
+      Uint8Array.from(decipher.final()),
     ]);
 
     return JSON.parse(plaintext.toString('utf8'));

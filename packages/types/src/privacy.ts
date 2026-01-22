@@ -8,8 +8,12 @@ export type ConsentAuditAction =
   | 'voice_consent_given'
   | 'voice_consent_denied'
   | 'recording_consent_updated'
+  | 'recording_reenable_requested'
   | 'sharing_consent_updated'
   | 'sharing_enabled_by_self_user'
+  | 'insights_enabled_changed'
+  | 'pause_mode_changed'
+  | 'insights_reprompt_requested'
   | 'onboarding_completed'
   | 'consent_incomplete_retry'
   | 'memory_hard_deleted'
@@ -47,12 +51,15 @@ export interface LineVoiceConsent {
   recordingConsentCallSessionId: string | null;
   recordingPreferencePermanent: boolean;
   recordingReenableRequestedAt: string | null;
+  recordingReenableDeclineCount: number;
+  recordingReenableBlockedAt: string | null;
   sharingConsent: VoiceConsentStatus;
   sharingTier: SharingTier;
   sharingConsentAt: string | null;
   sharingConsentCallSessionId: string | null;
   sharingLastPromptAt: string | null;
   sharingRePromptRequestedAt: string | null;
+  insightsRepromptRequestedAt: string | null;
   onboardingCompletedAt: string | null;
 }
 

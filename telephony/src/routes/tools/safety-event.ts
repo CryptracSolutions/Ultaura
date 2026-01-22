@@ -14,7 +14,7 @@ import {
 import { buildContextWindow, enqueueClassifierJob } from '../../services/safety-classifier.js';
 import { getBuffer, type TurnSummary } from '../../services/ephemeral-buffer.js';
 import { incrementNotificationsBlocked } from '../../services/safety-metrics.js';
-import { notifyTrustedContacts } from '../../services/safety-notifications.js';
+import { notifyPayerSafetyEmail, notifyTrustedContacts } from '../../services/safety-notifications.js';
 import { markSafetyTier, wasBackstopTriggered } from '../../services/safety-state.js';
 import { verifyHighTierEvent } from '../../services/safety-verifier.js';
 import { getGrokBridge } from '../../websocket/grok-bridge-registry.js';
@@ -279,6 +279,12 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
           await notifyTrustedContacts({
             accountId,
             callSessionId,
+            lineId,
+            tier: 'high',
+            actionTaken,
+          });
+          await notifyPayerSafetyEmail({
+            accountId,
             lineId,
             tier: 'high',
             actionTaken,

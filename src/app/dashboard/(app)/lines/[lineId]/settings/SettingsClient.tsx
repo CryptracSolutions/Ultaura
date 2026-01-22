@@ -30,10 +30,19 @@ import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import type { LineRow, VoicemailBehavior, InsightPrivacyRow, NotificationPreferencesRow, AccessibilitySettingsRow } from '~/lib/ultaura/types';
+import { Button } from '~/core/ui/Button';
+import type {
+  LineRow,
+  VoicemailBehavior,
+  InsightPrivacySettings,
+  NotificationPreferencesRow,
+  AccessibilitySettingsRow,
+  LineVoiceConsent,
+} from '~/lib/ultaura/types';
 import { updateLine } from '~/lib/ultaura/lines';
-import { INSIGHTS, LANGUAGE_OPTIONS, US_TIMEZONES, TIME_OPTIONS, WEEKDAY_OPTIONS } from '~/lib/ultaura/constants';
+import { LANGUAGE_OPTIONS, US_TIMEZONES, TIME_OPTIONS, WEEKDAY_OPTIONS } from '~/lib/ultaura/constants';
 import { setPauseMode, updateInsightPrivacy, updateNotificationPreferences } from '~/lib/ultaura/insights';
+import { requestInsightsRePrompt } from '~/lib/ultaura/privacy';
 import { updateAccessibilitySettings } from '~/lib/ultaura/accessibility';
 import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
 import { parseVacationRanges, type VacationRange } from '~/lib/ultaura/vacation-utils';
@@ -42,9 +51,11 @@ import { getLanguageDisplayName } from '~/lib/ultaura/language';
 
 interface SettingsClientProps {
   line: LineRow;
-  insightPrivacy: InsightPrivacyRow | null;
+  insightPrivacy: InsightPrivacySettings | null;
   notificationPreferences: NotificationPreferencesRow | null;
   accessibilitySettings: AccessibilitySettingsRow | null;
+  voiceConsent: LineVoiceConsent | null;
+  userType: 'self' | 'family_managed';
   disabled?: boolean;
 }
 
@@ -112,6 +123,8 @@ export function SettingsClient({
   insightPrivacy,
   notificationPreferences,
   accessibilitySettings,
+  voiceConsent,
+  userType,
   disabled = false,
 }: SettingsClientProps) {
   const router = useRouter();
@@ -159,7 +172,6 @@ export function SettingsClient({
 
   const privacyDefaults = {
     insights_enabled: insightPrivacy?.insights_enabled ?? true,
-    private_topic_codes: insightPrivacy?.private_topic_codes ?? [],
     is_paused: insightPrivacy?.is_paused ?? false,
     paused_reason: insightPrivacy?.paused_reason ?? '',
   };
@@ -179,9 +191,6 @@ export function SettingsClient({
   };
 
   const [insightsEnabled, setInsightsEnabled] = useState(privacyDefaults.insights_enabled);
-  const [privateTopicCodes, setPrivateTopicCodes] = useState<string[]>(
-    privacyDefaults.private_topic_codes ?? []
-  );
   const [isPaused, setIsPaused] = useState(privacyDefaults.is_paused);
   const [pausedReason, setPausedReason] = useState(privacyDefaults.paused_reason || '');
 
@@ -212,20 +221,35 @@ export function SettingsClient({
   const weeklySummaryDeliveryLabel =
     weeklySummaryFormat === 'email' ? 'Email' : 'Email (SMS coming soon)';
 
-  const togglePrivateTopic = (code: string) => {
-    setPrivateTopicCodes((prev) => {
-      if (prev.includes(code)) {
-        return prev.filter((item) => item !== code);
-      }
-      return [...prev, code];
-    });
-  };
+  const [isRequestingInsightsChange, setIsRequestingInsightsChange] = useState(false);
+  const [insightsRepromptRequested, setInsightsRepromptRequested] = useState(
+    Boolean(voiceConsent?.insightsRepromptRequestedAt)
+  );
 
   const handlePauseToggle = (checked: boolean) => {
     setIsPaused(checked);
     if (!checked) {
       setPausedReason('');
     }
+  };
+
+  const handleRequestInsightsRePrompt = async () => {
+    if (disabled || isRequestingInsightsChange || insightsRepromptRequested) {
+      return;
+    }
+
+    setIsRequestingInsightsChange(true);
+    const result = await requestInsightsRePrompt(line.id);
+
+    if (!result.success) {
+      toast.error(result.error || 'Failed to request insights change');
+      setIsRequestingInsightsChange(false);
+      return;
+    }
+
+    toast.success('Request sent. We will check in on the next call.');
+    setInsightsRepromptRequested(true);
+    setIsRequestingInsightsChange(false);
   };
 
   const resetFormState = () => {
@@ -239,7 +263,7 @@ export function SettingsClient({
     setVoicemailBehavior((line.voicemail_behavior || 'brief') as VoicemailBehavior);
     setVacationRanges(initialVacationRanges);
     setInsightsEnabled(privacyDefaults.insights_enabled);
-    setPrivateTopicCodes(privacyDefaults.private_topic_codes ?? []);
+    setInsightsRepromptRequested(Boolean(voiceConsent?.insightsRepromptRequestedAt));
     setIsPaused(privacyDefaults.is_paused);
     setPausedReason(privacyDefaults.paused_reason || '');
     setWeeklySummaryEnabled(notificationDefaults.weekly_summary_enabled);
@@ -311,7 +335,6 @@ export function SettingsClient({
       if (hasInsightPrivacyChanges) {
         await updateInsightPrivacy(line.id, {
           insights_enabled: insightsEnabled,
-          private_topic_codes: privateTopicCodes,
         });
       }
 
@@ -352,7 +375,6 @@ export function SettingsClient({
     }
   };
 
-  const normalizeCodes = (codes: string[]) => [...codes].sort().join('|');
   const normalizeRanges = (ranges: VacationRange[]) =>
     [...ranges].map((range) => `${range.start}|${range.end}`).sort().join('|');
 
@@ -366,9 +388,9 @@ export function SettingsClient({
     inboundAllowed !== (line.inbound_allowed ?? true) ||
     voicemailBehavior !== (line.voicemail_behavior || 'brief');
 
+  const canEditInsightsEnabled = userType === 'self';
   const hasInsightPrivacyChanges =
-    insightsEnabled !== privacyDefaults.insights_enabled ||
-    normalizeCodes(privateTopicCodes) !== normalizeCodes(privacyDefaults.private_topic_codes || []);
+    canEditInsightsEnabled && insightsEnabled !== privacyDefaults.insights_enabled;
 
   const hasPauseChanges =
     isPaused !== privacyDefaults.is_paused ||
@@ -843,7 +865,7 @@ export function SettingsClient({
                       Insights & Privacy
                     </div>
                   }
-                  description="Control how insights are generated and which topics stay private."
+                  description="Control how insights are generated and manage alert visibility."
                 />
                 <SectionBody className="gap-6">
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
@@ -864,48 +886,38 @@ export function SettingsClient({
                         stored.
                       </p>
                     </div>
-                    <Switch
-                      checked={insightsEnabled}
-                      onCheckedChange={setInsightsEnabled}
-                      disabled={disabled}
-                    />
+                    {userType === 'self' ? (
+                      <Switch
+                        checked={insightsEnabled}
+                        onCheckedChange={setInsightsEnabled}
+                        disabled={disabled}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-sm text-foreground">
+                            {insightsEnabled ? 'Enabled' : 'Disabled'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {line.display_name} controls this setting.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleRequestInsightsRePrompt}
+                          disabled={disabled || insightsRepromptRequested || isRequestingInsightsChange}
+                        >
+                          {insightsRepromptRequested ? 'Change Requested' : 'Request Change'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   <Accordion>
                     <AccordionItem value="insights-advanced">
                       <AccordionTrigger>Advanced insight controls</AccordionTrigger>
                       <AccordionContent className="space-y-6">
-                        <div>
-                          <label className="text-sm font-medium text-foreground">
-                            Private topics
-                          </label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Mark topics to hide from the insights dashboard and weekly summaries.
-                          </p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {INSIGHTS.TOPIC_CODES.map((code) => {
-                              const isPrivate = privateTopicCodes.includes(code);
-                              return (
-                                <button
-                                  key={code}
-                                  type="button"
-                                  onClick={() => togglePrivateTopic(code)}
-                                  disabled={disabled}
-                                  className={[
-                                    'rounded-full border px-3 py-1 text-xs transition-colors',
-                                    isPrivate
-                                      ? 'border-destructive/30 bg-destructive/10 text-destructive'
-                                      : 'border-border bg-background text-foreground hover:bg-muted',
-                                    disabled ? 'opacity-50 cursor-not-allowed' : '',
-                                  ].join(' ')}
-                                >
-                                  {INSIGHTS.TOPIC_LABELS[code]}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
                         <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
@@ -913,8 +925,7 @@ export function SettingsClient({
                                 Pause insights and alerts
                               </label>
                               <p className="text-sm text-muted-foreground mt-1">
-                                Use this when someone is away or prefers a break. Weekly summaries
-                                still send.
+                                Pause family-facing insights and alerts while still collecting call data.
                               </p>
                             </div>
                             <Switch

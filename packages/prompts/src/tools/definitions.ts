@@ -911,6 +911,21 @@ Return a conversational summary they can listen to.`,
   },
   {
     type: 'function',
+    name: 'set_insights_enabled',
+    description: 'Enable or disable insights when the user wants to turn summaries on or off.',
+    parameters: {
+      type: 'object',
+      properties: {
+        enabled: {
+          type: 'boolean',
+          description: 'Whether insights should be enabled',
+        },
+      },
+      required: ['enabled'],
+    },
+  },
+  {
+    type: 'function',
     name: 'log_call_insights',
     description: 'Record conversation insights for this call. Call this once at the natural end of the conversation.',
     parameters: {

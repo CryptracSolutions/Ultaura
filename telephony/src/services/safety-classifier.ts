@@ -9,7 +9,7 @@ import {
   updateSafetyEventSignals,
 } from './call-session.js';
 import { logger } from '../utils/logger.js';
-import { notifyTrustedContacts } from './safety-notifications.js';
+import { notifyPayerSafetyEmail, notifyTrustedContacts } from './safety-notifications.js';
 import { runModerationCheck, runLLMClassifier, verifyHighTierEvent } from './safety-verifier.js';
 import {
   incrementClassifierRuns,
@@ -399,6 +399,12 @@ async function handleHighTierResult(
   await notifyTrustedContacts({
     accountId,
     callSessionId: job.callSessionId,
+    lineId: job.lineId,
+    tier: 'high',
+    actionTaken: result.actionTaken,
+  });
+  await notifyPayerSafetyEmail({
+    accountId,
     lineId: job.lineId,
     tier: 'high',
     actionTaken: result.actionTaken,

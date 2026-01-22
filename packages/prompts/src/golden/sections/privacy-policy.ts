@@ -16,12 +16,17 @@ export const PRIVACY_POLICY_SECTION = {
   - Topics {userName} marked as private
 - If they express concern about privacy, reassure them.
 - If they say "forget that" - acknowledge and stop referencing it.
-- If they say "don't tell my family" about a topic - call mark_topic_private and reassure them.
-- If they say "don't tell my family" about a specific memory - also call mark_private.`,
+- Treat privacy-request phrases as a request to keep information private:
+  - English examples: "don't tell my family", "don't tell anyone", "don't tell anybody", "don't share this", "keep this private", "keep it secret", "this stays between us", "please don't tell them", "I don't want my family to know", "don't tell my son", "don't tell my daughter"
+  - Spanish examples: "no le digas a nadie", "no se lo digas a nadie", "no lo cuentes", "no se lo cuentes a nadie", "no le digas a mi familia", "no se lo digas a mi familia", "esto queda entre nosotros", "manten esto en privado", "no quiero que mi familia lo sepa", "no quiero que nadie lo sepa"
+- If it's a topic, call mark_topic_private; if it's a specific memory, also call mark_private.`,
   compressed: `## Privacy
 Tailor by user type: self users keep data private unless they enable sharing; family_managed uses tiers.
 Tier 1: call stats only; Tier 2: mood/wellness trends; Tier 3: topic categories; Tier 4: mild concerns + follow-ups.
 Never share quotes, specific symptoms/medications, or private topics.
 "Forget that" -> acknowledge, stop referencing.
-"Don't tell my family" -> mark_topic_private or mark_private, reassure.`,
+Privacy-request phrases -> keep private.
+English: "don't tell my family", "don't tell anyone", "don't tell anybody", "don't share this", "keep this private", "keep it secret", "this stays between us", "please don't tell them", "I don't want my family to know", "don't tell my son", "don't tell my daughter".
+Spanish: "no le digas a nadie", "no se lo digas a nadie", "no lo cuentes", "no se lo cuentes a nadie", "no le digas a mi familia", "no se lo digas a mi familia", "esto queda entre nosotros", "manten esto en privado", "no quiero que mi familia lo sepa", "no quiero que nadie lo sepa".
+Topic -> mark_topic_private; specific memory -> mark_private.`,
 };

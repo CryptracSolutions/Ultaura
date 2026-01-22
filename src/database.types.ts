@@ -1710,6 +1710,7 @@ export type Database = {
           account_id: string
           created_at: string
           id: string
+          insights_reprompt_requested_at: string | null
           last_consent_prompt_at: string | null
           line_id: string
           memory_consent: Database["public"]["Enums"]["ultaura_voice_consent_status"]
@@ -1720,6 +1721,8 @@ export type Database = {
           recording_consent_at: string | null
           recording_consent_call_session_id: string | null
           recording_preference_permanent: boolean
+          recording_reenable_blocked_at: string | null
+          recording_reenable_decline_count: number
           recording_reenable_requested_at: string | null
           sharing_consent: Database["public"]["Enums"]["ultaura_voice_consent_status"]
           sharing_consent_at: string | null
@@ -1733,6 +1736,7 @@ export type Database = {
           account_id: string
           created_at?: string
           id?: string
+          insights_reprompt_requested_at?: string | null
           last_consent_prompt_at?: string | null
           line_id: string
           memory_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
@@ -1743,6 +1747,8 @@ export type Database = {
           recording_consent_at?: string | null
           recording_consent_call_session_id?: string | null
           recording_preference_permanent?: boolean
+          recording_reenable_blocked_at?: string | null
+          recording_reenable_decline_count?: number
           recording_reenable_requested_at?: string | null
           sharing_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
           sharing_consent_at?: string | null
@@ -1756,6 +1762,7 @@ export type Database = {
           account_id?: string
           created_at?: string
           id?: string
+          insights_reprompt_requested_at?: string | null
           last_consent_prompt_at?: string | null
           line_id?: string
           memory_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
@@ -1766,6 +1773,8 @@ export type Database = {
           recording_consent_at?: string | null
           recording_consent_call_session_id?: string | null
           recording_preference_permanent?: boolean
+          recording_reenable_blocked_at?: string | null
+          recording_reenable_decline_count?: number
           recording_reenable_requested_at?: string | null
           sharing_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
           sharing_consent_at?: string | null
@@ -4389,10 +4398,14 @@ export type Database = {
         | "data_deletion_requested"
         | "memory_hard_deleted"
         | "recording_consent_updated"
+        | "recording_reenable_requested"
         | "sharing_consent_updated"
         | "sharing_enabled_by_self_user"
         | "onboarding_completed"
         | "consent_incomplete_retry"
+        | "insights_enabled_changed"
+        | "pause_mode_changed"
+        | "insights_reprompt_requested"
       ultaura_consent_type:
         | "outbound_calls"
         | "trusted_contact_notify"
@@ -5242,10 +5255,14 @@ export const Constants = {
         "data_deletion_requested",
         "memory_hard_deleted",
         "recording_consent_updated",
+        "recording_reenable_requested",
         "sharing_consent_updated",
         "sharing_enabled_by_self_user",
         "onboarding_completed",
         "consent_incomplete_retry",
+        "insights_enabled_changed",
+        "pause_mode_changed",
+        "insights_reprompt_requested",
       ],
       ultaura_consent_type: [
         "outbound_calls",
@@ -5339,4 +5356,3 @@ export const Constants = {
     },
   },
 } as const
-

@@ -295,13 +295,20 @@ export async function handleMediaStreamConnection(
             const recordingConsent = voiceConsent?.recordingConsent ?? 'pending';
             const recordingPreferencePermanent = voiceConsent?.recordingPreferencePermanent ?? false;
             const recordingReenableRequested = Boolean(voiceConsent?.recordingReenableRequestedAt);
+            const recordingReenableDeclineCount = voiceConsent?.recordingReenableDeclineCount ?? 0;
+            const recordingReenableBlockedAt = voiceConsent?.recordingReenableBlockedAt;
+            const recordingReenableBlocked = Boolean(recordingReenableBlockedAt) || recordingReenableDeclineCount >= 1;
             let needsRecordingConsent = recordingEnabled && !(
               recordingPreferencePermanent && recordingConsent === 'denied'
             );
+            if (recordingReenableRequested && !recordingReenableBlocked) {
+              needsRecordingConsent = recordingEnabled;
+            }
 
             const sharingConsent = voiceConsent?.sharingConsent ?? 'pending';
             const sharingTier = voiceConsent?.sharingTier ?? 'tier_1';
             const sharingRePromptRequested = Boolean(voiceConsent?.sharingRePromptRequestedAt);
+            const insightsRepromptRequested = Boolean(voiceConsent?.insightsRepromptRequestedAt);
             const userType = account.user_type;
             const sharingEnabled = account.sharing_enabled;
             let needsSharingConsent = false;
@@ -325,25 +332,6 @@ export async function handleMediaStreamConnection(
               needsMemoryConsent = false;
               needsRecordingConsent = false;
               needsSharingConsent = false;
-            }
-
-            if (
-              recordingReenableRequested &&
-              needsRecordingConsent &&
-              !session.is_test_call &&
-              !isPreviewMode
-            ) {
-              const cleared = await updateLineVoiceConsent(
-                line.id,
-                account.id,
-                callSessionId,
-                { recordingReenableRequestedAt: null },
-                { skipPersist: false }
-              );
-
-              if (!cleared) {
-                logger.warn({ callSessionId, lineId: line.id }, 'Failed to clear recording re-enable flag');
-              }
             }
 
             if (
@@ -372,10 +360,25 @@ export async function handleMediaStreamConnection(
 
             // Fetch memories for the line (use empty list when memory is disabled)
             const memories = await getMemoriesForLine(account.id, line.id, { limit: 150 });
-            if (memoryEnabled && memories.length > 0) {
-              await markMemoriesAccessed(memories.map((memory) => memory.id));
+            let memoriesForPrompt = memoryEnabled ? memories : [];
+
+            if (memoryEnabled && account.user_type === 'family_managed') {
+              const filtered = memoriesForPrompt.filter((memory) => memory.privacyScope !== 'line_only');
+              const filteredCount = memoriesForPrompt.length - filtered.length;
+              if (filteredCount > 0) {
+                logger.info({
+                  callSessionId,
+                  lineId: line.id,
+                  totalMemories: memoriesForPrompt.length,
+                  filteredCount,
+                }, 'Filtered private memories from family_managed call context');
+              }
+              memoriesForPrompt = filtered;
             }
-            const memoriesForPrompt = memoryEnabled ? memories : [];
+
+            if (memoryEnabled && memoriesForPrompt.length > 0) {
+              await markMemoriesAccessed(memoriesForPrompt.map((memory) => memory.id));
+            }
 
             // Check if this is the first call
             const onboardingCompletedAt = voiceConsent?.onboardingCompletedAt;
@@ -424,6 +427,7 @@ export async function handleMediaStreamConnection(
             } catch (error) {
               logger.warn({ error, callSessionId, lineId: line.id }, 'Failed to build prompt placeholders');
             }
+            promptPlaceholders.insightsRepromptRequested = insightsRepromptRequested ? 'true' : 'false';
 
             // Check minutes status
             const minutesStatus = await getMinutesStatus();

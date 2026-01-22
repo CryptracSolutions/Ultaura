@@ -173,7 +173,17 @@ export async function processWellnessAlertsForCall(options: {
   }
 
   const privacy = await getInsightPrivacy(options.lineId);
-  if (privacy?.insights_enabled === false || privacy?.is_paused) {
+  if (privacy?.insights_enabled === false) {
+    return;
+  }
+
+  const { data: account } = await supabase
+    .from('ultaura_accounts')
+    .select('user_type')
+    .eq('id', options.accountId)
+    .maybeSingle();
+
+  if (privacy?.is_paused && account?.user_type === 'family_managed') {
     return;
   }
 

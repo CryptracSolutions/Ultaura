@@ -62,12 +62,15 @@ export async function getLineVoiceConsent(
     recordingConsentCallSessionId: data.recording_consent_call_session_id,
     recordingPreferencePermanent: data.recording_preference_permanent,
     recordingReenableRequestedAt: data.recording_reenable_requested_at,
+    recordingReenableDeclineCount: data.recording_reenable_decline_count ?? 0,
+    recordingReenableBlockedAt: data.recording_reenable_blocked_at,
     sharingConsent: data.sharing_consent,
     sharingTier: data.sharing_tier,
     sharingConsentAt: data.sharing_consent_at,
     sharingConsentCallSessionId: data.sharing_consent_call_session_id,
     sharingLastPromptAt: data.sharing_last_prompt_at,
     sharingRePromptRequestedAt: data.sharing_reprompt_requested_at,
+    insightsRepromptRequestedAt: data.insights_reprompt_requested_at,
     onboardingCompletedAt: data.onboarding_completed_at,
   };
 }
@@ -81,10 +84,13 @@ export async function updateLineVoiceConsent(
     recordingConsent?: 'pending' | 'granted' | 'denied';
     recordingPreferencePermanent?: boolean;
     recordingReenableRequestedAt?: string | null;
+    recordingReenableDeclineCount?: number;
+    recordingReenableBlockedAt?: string | null;
     sharingConsent?: 'pending' | 'granted' | 'denied';
     sharingTier?: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4';
     sharingLastPromptAt?: string | null;
     sharingRePromptRequestedAt?: string | null;
+    insightsRepromptRequestedAt?: string | null;
     onboardingCompletedAt?: string | null;
   },
   options?: {
@@ -97,7 +103,7 @@ export async function updateLineVoiceConsent(
 
   const { data: existing, error: existingError } = await supabase
     .from('ultaura_line_voice_consent')
-    .select('memory_consent, recording_consent, recording_preference_permanent, recording_reenable_requested_at, sharing_consent, sharing_tier, sharing_reprompt_requested_at, onboarding_completed_at')
+    .select('memory_consent, recording_consent, recording_preference_permanent, recording_reenable_requested_at, recording_reenable_decline_count, recording_reenable_blocked_at, sharing_consent, sharing_tier, sharing_reprompt_requested_at, insights_reprompt_requested_at, onboarding_completed_at')
     .eq('line_id', lineId)
     .single();
 
@@ -143,10 +149,6 @@ export async function updateLineVoiceConsent(
       dbUpdates.recording_consent_at = now;
       dbUpdates.recording_consent_call_session_id = callSessionId;
     }
-
-    if (existing.recording_reenable_requested_at) {
-      dbUpdates.recording_reenable_requested_at = null;
-    }
   }
 
   if (updates.recordingPreferencePermanent !== undefined) {
@@ -155,6 +157,18 @@ export async function updateLineVoiceConsent(
 
   if (updates.recordingReenableRequestedAt !== undefined) {
     dbUpdates.recording_reenable_requested_at = updates.recordingReenableRequestedAt;
+  }
+
+  if (updates.recordingReenableDeclineCount !== undefined) {
+    dbUpdates.recording_reenable_decline_count = updates.recordingReenableDeclineCount;
+  }
+
+  if (updates.recordingReenableBlockedAt !== undefined) {
+    dbUpdates.recording_reenable_blocked_at = updates.recordingReenableBlockedAt;
+  }
+
+  if (updates.insightsRepromptRequestedAt !== undefined) {
+    dbUpdates.insights_reprompt_requested_at = updates.insightsRepromptRequestedAt;
   }
 
   if (updates.recordingConsent || updates.recordingPreferencePermanent !== undefined) {

@@ -252,8 +252,8 @@ export default async function LineInsightsPage({ params }: PageProps) {
               <ConversationHighlights
                 data={conversationHighlights}
                 timezone={line.timezone}
-                showMemoryKeys={allowConcerns}
-                showMilestones={allowConcerns}
+                showMemoryKeys={allowConcerns && !isFamilyManaged}
+                showMilestones={allowConcerns && !isFamilyManaged}
                 showMood={allowMood}
               />
             ) : (

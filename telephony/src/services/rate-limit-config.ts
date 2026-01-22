@@ -4,6 +4,7 @@ const DEFAULTS = {
   perIp: 20,
   perAccount: 10,
   smsPerAccount: 15,
+  emailPerAccount: 15,
   remindersPerSession: 5,
   anomalyCostThreshold: 10.0,
   anomalyRepeatedHitsThreshold: 3,
@@ -34,6 +35,7 @@ export const RATE_LIMITS = {
   perIp: getIntEnv('RATE_LIMIT_PER_IP', DEFAULTS.perIp),
   perAccount: getIntEnv('RATE_LIMIT_PER_ACCOUNT', DEFAULTS.perAccount),
   smsPerAccount: getIntEnv('RATE_LIMIT_SMS_PER_ACCOUNT', DEFAULTS.smsPerAccount),
+  emailPerAccount: getIntEnv('RATE_LIMIT_EMAIL_PER_ACCOUNT', DEFAULTS.emailPerAccount),
   remindersPerSession: getIntEnv('RATE_LIMIT_REMINDERS_PER_SESSION', DEFAULTS.remindersPerSession),
 };
 
@@ -42,4 +44,3 @@ export const ANOMALY_THRESHOLDS = {
   repeatedHits: getIntEnv('ANOMALY_REPEATED_HITS_THRESHOLD', DEFAULTS.anomalyRepeatedHitsThreshold),
   enumeration: getIntEnv('ANOMALY_ENUMERATION_THRESHOLD', DEFAULTS.anomalyEnumerationThreshold),
 };
-

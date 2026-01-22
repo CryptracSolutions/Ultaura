@@ -2,6 +2,10 @@ import 'server-only';
 
 export type ByteaInput = Uint8Array | string | null | undefined;
 
+function toUint8Array(value: Buffer): Uint8Array {
+  return Uint8Array.from(value);
+}
+
 export function decodeBytea(value: ByteaInput): Uint8Array | null {
   if (!value) {
     return null;
@@ -21,16 +25,16 @@ export function decodeBytea(value: ByteaInput): Uint8Array | null {
   }
 
   if (trimmed.startsWith('\\x') || trimmed.startsWith('0x')) {
-    return Buffer.from(trimmed.slice(2), 'hex');
+    return toUint8Array(Buffer.from(trimmed.slice(2), 'hex'));
   }
 
   if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0) {
-    return Buffer.from(trimmed, 'hex');
+    return toUint8Array(Buffer.from(trimmed, 'hex'));
   }
 
   if (/^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length % 4 === 0) {
-    return Buffer.from(trimmed, 'base64');
+    return toUint8Array(Buffer.from(trimmed, 'base64'));
   }
 
-  return Buffer.from(trimmed, 'utf8');
+  return toUint8Array(Buffer.from(trimmed, 'utf8'));
 }

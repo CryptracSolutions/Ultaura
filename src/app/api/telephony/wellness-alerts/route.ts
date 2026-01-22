@@ -36,7 +36,10 @@ function validateWebhookSecret(request: Request): NextResponse | null {
 
   if (
     providedBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+    !crypto.timingSafeEqual(
+      Uint8Array.from(providedBuffer),
+      Uint8Array.from(expectedBuffer)
+    )
   ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -97,14 +100,64 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing billing email' }, { status: 400 });
   }
 
+  const { data: voiceConsent } = await supabase
+    .from('ultaura_line_voice_consent')
+    .select('sharing_consent, sharing_tier')
+    .eq('line_id', payload.lineId)
+    .maybeSingle();
+
+  const { data: privacy } = await supabase
+    .from('ultaura_insight_privacy')
+    .select('is_paused, insights_enabled')
+    .eq('line_id', payload.lineId)
+    .maybeSingle();
+
+  const isSelfUser = account.user_type === 'self';
+  const sharingConsent = voiceConsent?.sharing_consent ?? 'pending';
+  const sharingTier = (voiceConsent?.sharing_tier ?? 'tier_1') as
+    | 'tier_1'
+    | 'tier_2'
+    | 'tier_3'
+    | 'tier_4';
+  const isPaused = privacy?.is_paused ?? false;
+  const insightsEnabled = privacy?.insights_enabled ?? true;
+
+  const canSendToBillingEmail = insightsEnabled && (
+    isSelfUser || (sharingConsent === 'granted' && !isPaused)
+  );
+  const canSendToRecipients = insightsEnabled && sharingConsent === 'granted' && !isPaused && (
+    !isSelfUser || account.sharing_enabled
+  );
+
+  if (!canSendToBillingEmail && !canSendToRecipients) {
+    return NextResponse.json({ success: true, skipped: 'no_eligible_recipients' });
+  }
+
+  const effectiveTier = isSelfUser ? 'tier_4' : sharingTier;
+  if (!isSelfUser && effectiveTier === 'tier_1') {
+    return NextResponse.json({ success: true, skipped: 'tier_restricted' });
+  }
+
+  const { title, summary } = redactAlertContentByTier(
+    payload.alertType,
+    payload.title,
+    payload.summary,
+    effectiveTier
+  );
+
+  const emailPayload = {
+    ...payload,
+    title,
+    summary,
+  };
+
   try {
     const recipients = new Map<string, { isPrimary: boolean; token?: string }>();
-    recipients.set(account.billing_email, { isPrimary: true });
+    if (canSendToBillingEmail) {
+      recipients.set(account.billing_email, { isPrimary: true });
+    }
 
-    if (
-      account.user_type === 'family_managed' ||
-      (account.user_type === 'self' && account.sharing_enabled)
-    ) {
+    if (canSendToRecipients) {
       const { data: recipientRows, error: recipientError } = await supabase
         .from('ultaura_notification_recipients')
         .select('id, email')
@@ -126,22 +179,22 @@ export async function POST(request: Request) {
       }
     }
 
-    const subject = `${payload.title} - ${payload.lineName}`;
+    const subject = `${emailPayload.title} - ${emailPayload.lineName}`;
 
     for (const [email, meta] of Array.from(recipients.entries())) {
       const unsubscribeLink = meta.isPrimary || !meta.token
         ? undefined
         : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
       const html = renderWellnessAlertEmail({
-        lineName: payload.lineName,
-        title: payload.title,
-        summary: payload.summary,
-        severity: payload.severity,
-        dashboardUrl: payload.dashboardUrl,
-        settingsUrl: payload.settingsUrl,
+        lineName: emailPayload.lineName,
+        title: emailPayload.title,
+        summary: emailPayload.summary,
+        severity: emailPayload.severity,
+        dashboardUrl: emailPayload.dashboardUrl,
+        settingsUrl: emailPayload.settingsUrl,
         unsubscribeLink,
       });
-      const text = buildTextAlert(payload, { unsubscribeLink });
+      const text = buildTextAlert(emailPayload, { unsubscribeLink });
       const headers = unsubscribeLink
         ? {
             'List-Unsubscribe': `<${unsubscribeLink}>`,
@@ -163,4 +216,31 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true });
+}
+
+function redactAlertContentByTier(
+  alertType: string,
+  title: string,
+  summary: string,
+  tier: 'tier_1' | 'tier_2' | 'tier_3' | 'tier_4'
+): { title: string; summary: string } {
+  if (tier === 'tier_4') {
+    return { title, summary };
+  }
+
+  if (tier === 'tier_2' || tier === 'tier_3') {
+    if (alertType === 'mood_drop') {
+      return {
+        title: 'Mood change noted',
+        summary: 'A mood trend was observed during recent calls.',
+      };
+    }
+
+    return {
+      title: 'Wellness observation',
+      summary: 'A wellness observation was noted. Consider checking in.',
+    };
+  }
+
+  return { title, summary };
 }

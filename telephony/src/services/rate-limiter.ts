@@ -20,7 +20,7 @@ export interface RateLimitCheck {
   ipAddress?: string;
   accountId?: string;
   callSessionId?: string;
-  action: 'verify_send' | 'verify_check' | 'sms' | 'set_reminder';
+  action: 'verify_send' | 'verify_check' | 'sms' | 'email' | 'set_reminder';
 }
 
 const limiterCache = new Map<string, Ratelimit>();
@@ -256,6 +256,49 @@ export async function checkRateLimit(check: RateLimitCheck): Promise<RateLimitRe
         allowed: true,
         remaining: smsResult.remaining,
         resetAt: normalizeReset(smsResult.reset),
+        retryAfter: 0,
+        limitType: null,
+        redisAvailable: true,
+      };
+    }
+
+    if (check.action === 'email') {
+      const accountId = check.accountId;
+      if (!accountId) {
+        return {
+          allowed: true,
+          retryAfter: 0,
+          limitType: null,
+          redisAvailable: true,
+          metadata: { reason: 'missing_identifier' },
+        };
+      }
+
+      const emailLimiter = getLimiter('email-account', RATE_LIMITS.emailPerAccount, DAILY_WINDOW);
+      if (!emailLimiter) {
+        logger.warn(
+          { event: 'rate_limit_bypass', reason: 'redis_unavailable', ...check },
+          'Rate limiter bypassed'
+        );
+        return {
+          allowed: true,
+          retryAfter: 0,
+          limitType: null,
+          redisAvailable: false,
+          metadata: { reason: 'redis_unavailable' },
+        };
+      }
+
+      const emailKey = `email:account:${accountId}`;
+      const emailResult = await emailLimiter.limit(emailKey);
+      if (!emailResult.success) {
+        return toBlockedResult('account', emailResult, true);
+      }
+
+      return {
+        allowed: true,
+        remaining: emailResult.remaining,
+        resetAt: normalizeReset(emailResult.reset),
         retryAfter: 0,
         limitType: null,
         redisAvailable: true,

@@ -16,6 +16,10 @@ const DEFAULT_DEK_CUTOFF = '2026-03-01T00:00:00Z';
 const PER_LINE_DEK_ENABLED = process.env.ULTAURA_PER_LINE_DEK_ENABLED !== 'false';
 const PER_LINE_DEK_CUTOFF = new Date(process.env.ULTAURA_PER_LINE_DEK_CUTOFF || DEFAULT_DEK_CUTOFF);
 
+function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
+  return Uint8Array.from(value);
+}
+
 function getKEK(): Buffer {
   const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
 
@@ -32,22 +36,28 @@ function getKEK(): Buffer {
 
 function unwrapDEK(wrapped: Buffer, iv: Buffer, tag: Buffer): Buffer {
   const kek = getKEK();
-  const decipher = crypto.createDecipheriv(ALGORITHM, kek, iv, {
+  const decipher = crypto.createDecipheriv(ALGORITHM, toUint8Array(kek), toUint8Array(iv), {
     authTagLength: TAG_LENGTH,
   });
 
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(wrapped), decipher.final()]);
+  decipher.setAuthTag(toUint8Array(tag));
+  return Buffer.concat([
+    Uint8Array.from(decipher.update(toUint8Array(wrapped))),
+    Uint8Array.from(decipher.final()),
+  ]);
 }
 
 function wrapDEK(dek: Buffer): { wrapped: Buffer; iv: Buffer; tag: Buffer } {
   const kek = getKEK();
   const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, kek, iv, {
+  const cipher = crypto.createCipheriv(ALGORITHM, toUint8Array(kek), toUint8Array(iv), {
     authTagLength: TAG_LENGTH,
   });
 
-  const wrapped = Buffer.concat([cipher.update(dek), cipher.final()]);
+  const wrapped = Buffer.concat([
+    Uint8Array.from(cipher.update(toUint8Array(dek))),
+    Uint8Array.from(cipher.final()),
+  ]);
   const tag = cipher.getAuthTag();
 
   return { wrapped, iv, tag };
@@ -181,32 +191,37 @@ export function buildReminderMessageAAD(
   accountId: string,
   lineId: string,
   reminderId: string
-): Buffer {
-  return Buffer.from(
-    JSON.stringify({
-      account_id: accountId,
-      line_id: lineId,
-      reminder_id: reminderId,
-      type: 'reminder_message',
-    }),
-    'utf8'
+): Uint8Array {
+  return Uint8Array.from(
+    Buffer.from(
+      JSON.stringify({
+        account_id: accountId,
+        line_id: lineId,
+        reminder_id: reminderId,
+        type: 'reminder_message',
+      }),
+      'utf8'
+    )
   );
 }
 
 function encryptValue(
   dek: Buffer,
   message: string,
-  aad: Buffer
+  aad: Uint8Array
 ): { ciphertext: Buffer; iv: Buffer; tag: Buffer } {
   const iv = crypto.randomBytes(IV_LENGTH);
   const plaintext = Buffer.from(JSON.stringify(message), 'utf8');
 
-  const cipher = crypto.createCipheriv(ALGORITHM, dek, iv, {
+  const cipher = crypto.createCipheriv(ALGORITHM, toUint8Array(dek), toUint8Array(iv), {
     authTagLength: TAG_LENGTH,
   });
 
   cipher.setAAD(aad);
-  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    Uint8Array.from(cipher.update(toUint8Array(plaintext))),
+    Uint8Array.from(cipher.final()),
+  ]);
   const tag = cipher.getAuthTag();
 
   return { ciphertext, iv, tag };
@@ -217,18 +232,18 @@ function decryptValue(
   ciphertext: Uint8Array,
   iv: Uint8Array,
   tag: Uint8Array,
-  aad: Buffer
+  aad: Uint8Array
 ): string {
-  const decipher = crypto.createDecipheriv(ALGORITHM, dek, iv, {
+  const decipher = crypto.createDecipheriv(ALGORITHM, toUint8Array(dek), toUint8Array(iv), {
     authTagLength: TAG_LENGTH,
   });
 
-  decipher.setAuthTag(Buffer.from(tag));
+  decipher.setAuthTag(toUint8Array(tag));
   decipher.setAAD(aad);
 
   const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(ciphertext)),
-    decipher.final(),
+    Uint8Array.from(decipher.update(toUint8Array(ciphertext))),
+    Uint8Array.from(decipher.final()),
   ]);
 
   return String(JSON.parse(plaintext.toString('utf8')) ?? '');
@@ -310,9 +325,9 @@ export function decryptReminderMessagesWithDek(
       try {
         const message = decryptValue(
           dek,
-          Buffer.from(reminder.message_ciphertext as Uint8Array),
-          Buffer.from(reminder.message_iv as Uint8Array),
-          Buffer.from(reminder.message_tag as Uint8Array),
+          toUint8Array(reminder.message_ciphertext as Uint8Array),
+          toUint8Array(reminder.message_iv as Uint8Array),
+          toUint8Array(reminder.message_tag as Uint8Array),
           aad
         );
         return { id: reminder.id, message, decryptFailed: false };

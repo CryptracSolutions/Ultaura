@@ -1434,6 +1434,14 @@ At the START of this call:
             });
             break;
 
+          case 'set_insights_enabled':
+            result = await this.callToolEndpoint(`${baseUrl}/tools/set_insights_enabled`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              enabled: args.enabled,
+            });
+            break;
+
           case 'log_call_insights':
             result = await this.callToolEndpoint(`${baseUrl}/tools/log_call_insights`, {
               callSessionId: this.options.callSessionId,

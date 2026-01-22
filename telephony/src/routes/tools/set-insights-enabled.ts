@@ -1,19 +1,19 @@
 import { Router, Request, Response } from 'express';
 import {
-  SetPauseModeInputSchema,
-  type SetPauseModeInput,
+  SetInsightsEnabledInputSchema,
+  type SetInsightsEnabledInput,
 } from '@ultaura/schemas/telephony';
 import { logger } from '../../server.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
-import { logConsentAuditEvent } from '../../services/privacy.js';
+import { logConsentAuditEvent, updateLineVoiceConsent } from '../../services/privacy.js';
 
-export const setPauseModeRouter = Router();
+export const setInsightsEnabledRouter = Router();
 
-setPauseModeRouter.post('/', async (req: Request, res: Response) => {
+setInsightsEnabledRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const rawBody = req.body as Partial<SetPauseModeInput>;
-    const parsed = SetPauseModeInputSchema.safeParse(rawBody);
+    const rawBody = req.body as Partial<SetInsightsEnabledInput>;
+    const parsed = SetInsightsEnabledInputSchema.safeParse(rawBody);
 
     if (!parsed.success) {
       const missingRequired = parsed.error.issues.some((issue) =>
@@ -28,7 +28,7 @@ setPauseModeRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { callSessionId, lineId, enabled, reason } = parsed.data;
+    const { callSessionId, lineId, enabled } = parsed.data;
     const session = await getCallSession(callSessionId);
 
     if (!session) {
@@ -38,7 +38,7 @@ setPauseModeRouter.post('/', async (req: Request, res: Response) => {
 
     const recordFailure = async (errorCode?: string) => {
       await recordCallEvent(callSessionId, 'tool_call', {
-        tool: 'set_pause_mode',
+        tool: 'set_insights_enabled',
         success: false,
         errorCode,
       }, { skipDebugLog: true });
@@ -55,52 +55,62 @@ setPauseModeRouter.post('/', async (req: Request, res: Response) => {
 
     const { data: existing } = await supabase
       .from('ultaura_insight_privacy')
-      .select('is_paused')
+      .select('insights_enabled')
       .eq('line_id', lineId)
       .maybeSingle();
 
-    const previousPaused = existing?.is_paused ?? false;
+    const previousEnabled = existing?.insights_enabled ?? true;
 
     const { error: updateError } = await supabase
       .from('ultaura_insight_privacy')
       .upsert({
         line_id: lineId,
-        is_paused: enabled,
-        paused_at: enabled ? now : null,
-        paused_reason: enabled ? (reason?.slice(0, 200) || null) : null,
+        insights_enabled: enabled,
         updated_at: now,
       }, { onConflict: 'line_id' });
 
     if (updateError) {
-      logger.error({ error: updateError, lineId }, 'Failed to update pause mode');
-      await recordFailure('pause_update_failed');
-      res.status(500).json({ error: 'Failed to update pause mode' });
+      logger.error({ error: updateError, lineId }, 'Failed to update insights enabled');
+      await recordFailure('insights_update_failed');
+      res.status(500).json({ error: 'Failed to update insights setting' });
       return;
+    }
+
+    const clearedReprompt = await updateLineVoiceConsent(
+      lineId,
+      session.account_id,
+      callSessionId,
+      { insightsRepromptRequestedAt: null }
+    );
+
+    if (!clearedReprompt) {
+      logger.warn({ lineId }, 'Failed to clear insights reprompt request');
     }
 
     await logConsentAuditEvent({
       accountId: session.account_id,
       lineId,
       callSessionId,
-      action: 'pause_mode_changed',
-      oldValue: { is_paused: previousPaused },
-      newValue: { is_paused: enabled, reason: enabled ? (reason?.slice(0, 200) || null) : null },
+      action: 'insights_enabled_changed',
+      oldValue: { insights_enabled: previousEnabled },
+      newValue: { insights_enabled: enabled },
     });
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {
-      tool: 'set_pause_mode',
+      tool: 'set_insights_enabled',
       success: true,
+      enabled,
     }, { skipDebugLog: true });
 
     res.json({
       success: true,
       message: enabled
-        ? 'Pause mode enabled. Alerts will be suppressed while you are away.'
-        : 'Pause mode disabled. Alerts are active again.',
+        ? 'Insights are enabled again.'
+        : 'Insights are disabled until you turn them back on.',
     });
   } catch (error) {
-    logger.error({ error }, 'Error processing pause mode');
-    res.status(500).json({ error: 'Failed to update pause mode' });
+    logger.error({ error }, 'Error updating insights enabled');
+    res.status(500).json({ error: 'Failed to update insights setting' });
   }
 });

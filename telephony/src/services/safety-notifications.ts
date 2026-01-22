@@ -1,11 +1,31 @@
 import { logger } from '../utils/logger.js';
 import { getSupabaseClient } from '../utils/supabase.js';
 import { sendSms } from '../utils/twilio.js';
+import { getInternalApiSecret } from '../utils/env.js';
 import { enforceRateLimit } from './rate-limiter.js';
 import {
   incrementNotificationsBlocked,
   incrementNotificationsSent,
 } from './safety-metrics.js';
+
+function getAppBaseUrl(): string {
+  return (
+    process.env.ULTAURA_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'http://localhost:3000'
+  ).replace(/\/$/, '');
+}
+
+function mapActionToDescription(action: string): string {
+  switch (action) {
+    case 'suggested_988':
+      return 'We suggested calling the 988 crisis line';
+    case 'suggested_911':
+      return 'We suggested calling 911';
+    default:
+      return 'We provided support during the call';
+  }
+}
 
 export async function notifyTrustedContacts(options: {
   accountId: string;
@@ -117,5 +137,77 @@ export async function notifyTrustedContacts(options: {
     }
   } catch (error) {
     logger.error({ error, lineId }, 'Error notifying trusted contacts');
+  }
+}
+
+export async function notifyPayerSafetyEmail(options: {
+  accountId: string;
+  lineId: string;
+  tier: 'high';
+  actionTaken: string;
+}): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { data: account } = await supabase
+    .from('ultaura_accounts')
+    .select('billing_email')
+    .eq('id', options.accountId)
+    .single();
+
+  const { data: line } = await supabase
+    .from('ultaura_lines')
+    .select('display_name')
+    .eq('id', options.lineId)
+    .single();
+
+  if (!account?.billing_email) {
+    logger.warn({ accountId: options.accountId }, 'No billing email for safety alert');
+    return;
+  }
+
+  const rateLimitResult = await enforceRateLimit({
+    action: 'email',
+    accountId: options.accountId,
+  });
+
+  if (!rateLimitResult.allowed) {
+    incrementNotificationsBlocked('rate_limited');
+    logger.warn(
+      { accountId: options.accountId, limit: rateLimitResult.limitType },
+      'Email rate limit exceeded, skipping safety notification'
+    );
+    return;
+  }
+
+  const actionDescription = mapActionToDescription(options.actionTaken);
+
+  try {
+    const response = await fetch(`${getAppBaseUrl()}/api/telephony/safety-alert`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Webhook-Secret': getInternalApiSecret(),
+      },
+      body: JSON.stringify({
+        email: account.billing_email,
+        lineName: line?.display_name || 'Your loved one',
+        severity: options.tier,
+        actionTaken: actionDescription,
+        dashboardUrl: `${getAppBaseUrl()}/dashboard/alerts`,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      logger.error(
+        { status: response.status, body, accountId: options.accountId },
+        'Safety alert email failed'
+      );
+      return;
+    }
+
+    incrementNotificationsSent('email', 'high');
+  } catch (error) {
+    logger.error({ error, accountId: options.accountId }, 'Failed to send safety email to payer');
   }
 }

@@ -1114,6 +1114,10 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
     return;
   }
 
+  if (privacy?.is_paused && account.user_type === 'family_managed') {
+    return;
+  }
+
   const { data: voiceConsent } = await supabase
     .from('ultaura_line_voice_consent')
     .select('sharing_consent, sharing_tier')
@@ -1234,9 +1238,14 @@ export async function checkMissedCallAlert(options: {
     return;
   }
 
-  const [preferences, privacy] = await Promise.all([
+  const [preferences, privacy, accountRow] = await Promise.all([
     getNotificationPreferences(accountId, lineId),
     getInsightPrivacy(lineId),
+    getSupabaseClient()
+      .from('ultaura_accounts')
+      .select('user_type')
+      .eq('id', accountId)
+      .maybeSingle(),
   ]);
 
   if (!preferences.alert_missed_calls_enabled) {
@@ -1247,7 +1256,12 @@ export async function checkMissedCallAlert(options: {
     return;
   }
 
-  if (privacy?.insights_enabled === false || privacy?.is_paused) {
+  if (privacy?.insights_enabled === false) {
+    return;
+  }
+
+  const accountUserType = accountRow.data?.user_type ?? 'family_managed';
+  if (privacy?.is_paused && accountUserType === 'family_managed') {
     return;
   }
 

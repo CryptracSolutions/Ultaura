@@ -90,7 +90,7 @@ export function incrementNotificationsBlocked(reason: NotificationBlockReason): 
   safetyNotificationsBlockedTotal.inc({ reason });
 }
 
-export function incrementNotificationsSent(channel: 'sms', tier: 'high'): void {
+export function incrementNotificationsSent(channel: 'sms' | 'email', tier: 'high'): void {
   safetyNotificationsSentTotal.inc({ channel, tier });
 }
 

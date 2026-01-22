@@ -758,7 +758,6 @@ export interface InsightsDashboard {
   insightsEnabled: boolean;
   isPaused: boolean;
   pausedReason: string | null;
-  privateTopicCodes: string[];
   retention?: RetentionInsights;
   summary: {
     scheduledCalls: number;
@@ -904,6 +903,7 @@ export type CallPreviewRow = Database['public']['Tables']['ultaura_call_previews
 export type SegmentEngagementRow = Database['public']['Tables']['ultaura_segment_engagement']['Row'];
 export type StoryArcRow = Database['public']['Tables']['ultaura_story_arcs']['Row'];
 export type InsightPrivacyRow = Database['public']['Tables']['ultaura_insight_privacy']['Row'];
+export type InsightPrivacySettings = Omit<InsightPrivacyRow, 'private_topic_codes'>;
 export type LineBaselineRow = Database['public']['Tables']['ultaura_line_baselines']['Row'];
 export type NotificationPreferencesRow =
   Database['public']['Tables']['ultaura_notification_preferences']['Row'];

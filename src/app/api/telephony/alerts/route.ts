@@ -87,7 +87,10 @@ export async function POST(request: Request) {
 
   if (
     providedBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+    !crypto.timingSafeEqual(
+      Uint8Array.from(providedBuffer),
+      Uint8Array.from(expectedBuffer)
+    )
   ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

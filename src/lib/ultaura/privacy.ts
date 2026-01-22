@@ -309,12 +309,15 @@ function mapLineVoiceConsentRow(
     recordingConsentCallSessionId: data.recording_consent_call_session_id,
     recordingPreferencePermanent: data.recording_preference_permanent,
     recordingReenableRequestedAt: data.recording_reenable_requested_at,
+    recordingReenableDeclineCount: data.recording_reenable_decline_count ?? 0,
+    recordingReenableBlockedAt: data.recording_reenable_blocked_at,
     sharingConsent: data.sharing_consent,
     sharingTier: data.sharing_tier as LineVoiceConsent['sharingTier'],
     sharingConsentAt: data.sharing_consent_at,
     sharingConsentCallSessionId: data.sharing_consent_call_session_id,
     sharingLastPromptAt: data.sharing_last_prompt_at,
     sharingRePromptRequestedAt: data.sharing_reprompt_requested_at,
+    insightsRepromptRequestedAt: data.insights_reprompt_requested_at,
     onboardingCompletedAt: data.onboarding_completed_at,
   };
 }
@@ -352,12 +355,12 @@ export async function requestRecordingReenable(
   }
 
   if (account.user_type !== 'family_managed') {
-    return { success: false, error: 'Sharing changes are managed by the senior' };
+    return { success: false, error: 'Recording changes are managed by the senior' };
   }
 
   const { data: consent, error: consentError } = await adminClient
     .from('ultaura_line_voice_consent')
-    .select('recording_consent, recording_preference_permanent')
+    .select('recording_consent, recording_preference_permanent, recording_reenable_requested_at, recording_reenable_decline_count, recording_reenable_blocked_at')
     .eq('line_id', lineId)
     .single();
 
@@ -366,14 +369,37 @@ export async function requestRecordingReenable(
     return { success: false, error: 'Consent record not found' };
   }
 
+  if (consent.recording_reenable_blocked_at || (consent.recording_reenable_decline_count ?? 0) >= 1) {
+    return { success: false, error: 'Recording re-enable requests are blocked' };
+  }
+
+  if (consent.recording_reenable_requested_at) {
+    return { success: false, error: 'Recording re-enable already requested' };
+  }
+
+  const { data: lastRequest, error: lastRequestError } = await adminClient
+    .from('ultaura_consent_audit_log')
+    .select('created_at')
+    .eq('line_id', lineId)
+    .eq('action', 'recording_reenable_requested')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastRequestError) {
+    logger.error({ error: lastRequestError, lineId }, 'Failed to check recording re-enable cooldown');
+  } else if (lastRequest?.created_at) {
+    const lastRequestMs = new Date(lastRequest.created_at).getTime();
+    const cooldownMs = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - lastRequestMs < cooldownMs) {
+      return { success: false, error: 'Recording re-enable is limited to once every 30 days' };
+    }
+  }
+
   const now = new Date().toISOString();
   const { error } = await adminClient
     .from('ultaura_line_voice_consent')
     .update({
-      recording_consent: 'pending',
-      recording_consent_at: null,
-      recording_consent_call_session_id: null,
-      recording_preference_permanent: false,
       recording_reenable_requested_at: now,
       updated_at: now,
     })
@@ -389,15 +415,15 @@ export async function requestRecordingReenable(
     lineId,
     actorUserId,
     actorType: 'payer',
-    action: 'recording_consent_updated',
+    action: 'recording_reenable_requested',
     consentType: 'recording',
     oldValue: {
       consent: consent.recording_consent,
       permanent: consent.recording_preference_permanent,
     },
     newValue: {
-      consent: 'pending',
-      permanent: false,
+      consent: consent.recording_consent,
+      permanent: consent.recording_preference_permanent,
       recording_reenable_requested_at: now,
     },
     ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
@@ -429,6 +455,20 @@ export async function requestSharingRePrompt(
 
   if (lineError || !line) {
     return { success: false, error: 'Line not found' };
+  }
+
+  const { data: account, error: accountError } = await adminClient
+    .from('ultaura_accounts')
+    .select('user_type')
+    .eq('id', line.account_id)
+    .single();
+
+  if (accountError || !account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  if (account.user_type !== 'family_managed') {
+    return { success: false, error: 'Sharing changes are managed directly for self accounts' };
   }
 
   const { data: consent, error: consentError } = await adminClient
@@ -486,6 +526,112 @@ export async function requestSharingRePrompt(
       consent: consent.sharing_consent,
       tier: consent.sharing_tier,
       sharing_reprompt_requested_at: now,
+    },
+    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
+    userAgent: headersList.get('user-agent') || null,
+  }, adminClient);
+
+  revalidatePath('/dashboard/privacy', 'page');
+
+  return { success: true };
+}
+
+export async function requestInsightsRePrompt(
+  lineId: string
+): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseServerComponentClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const headersList = await headers();
+
+  const actorUserId = await getAuthenticatedUserId();
+  if (!actorUserId) {
+    return { success: false, error: 'User not authenticated' };
+  }
+
+  const { data: line, error: lineError } = await client
+    .from('ultaura_lines')
+    .select('id, account_id')
+    .eq('id', lineId)
+    .single();
+
+  if (lineError || !line) {
+    return { success: false, error: 'Line not found' };
+  }
+
+  const { data: account, error: accountError } = await adminClient
+    .from('ultaura_accounts')
+    .select('user_type')
+    .eq('id', line.account_id)
+    .single();
+
+  if (accountError || !account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  if (account.user_type !== 'family_managed') {
+    return { success: false, error: 'Insights changes are managed directly for self accounts' };
+  }
+
+  const { data: consent, error: consentError } = await adminClient
+    .from('ultaura_line_voice_consent')
+    .select('insights_reprompt_requested_at')
+    .eq('line_id', lineId)
+    .single();
+
+  if (consentError || !consent) {
+    logger.error({ error: consentError, lineId }, 'Failed to load insights consent for re-prompt');
+    return { success: false, error: 'Consent record not found' };
+  }
+
+  if (consent.insights_reprompt_requested_at) {
+    return { success: false, error: 'Insights change already requested' };
+  }
+
+  const { data: lastRequest, error: lastRequestError } = await adminClient
+    .from('ultaura_consent_audit_log')
+    .select('created_at')
+    .eq('line_id', lineId)
+    .eq('action', 'insights_reprompt_requested')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastRequestError) {
+    logger.error({ error: lastRequestError, lineId }, 'Failed to check insights re-prompt cooldown');
+  } else if (lastRequest?.created_at) {
+    const lastRequestMs = new Date(lastRequest.created_at).getTime();
+    const cooldownMs = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - lastRequestMs < cooldownMs) {
+      return { success: false, error: 'Insights re-prompt is limited to once every 30 days' };
+    }
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await adminClient
+    .from('ultaura_line_voice_consent')
+    .update({
+      insights_reprompt_requested_at: now,
+      updated_at: now,
+    })
+    .eq('line_id', lineId);
+
+  if (error) {
+    logger.error({ error, lineId }, 'Failed to request insights re-prompt');
+    return { success: false, error: 'Failed to update insights preference' };
+  }
+
+  await logConsentAudit({
+    accountId: line.account_id,
+    lineId,
+    actorUserId,
+    actorType: 'payer',
+    action: 'insights_reprompt_requested',
+    consentType: 'insights',
+    oldValue: {
+      insights_reprompt_requested_at: consent.insights_reprompt_requested_at,
+    },
+    newValue: {
+      insights_reprompt_requested_at: now,
     },
     ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
     userAgent: headersList.get('user-agent') || null,

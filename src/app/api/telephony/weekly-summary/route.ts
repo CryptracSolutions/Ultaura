@@ -23,7 +23,10 @@ function validateWebhookSecret(request: Request): NextResponse | null {
 
   if (
     providedBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+    !crypto.timingSafeEqual(
+      Uint8Array.from(providedBuffer),
+      Uint8Array.from(expectedBuffer)
+    )
   ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -146,23 +149,42 @@ export async function POST(request: Request) {
     .eq('line_id', summary.lineId)
     .maybeSingle();
 
+  const { data: privacy } = await supabase
+    .from('ultaura_insight_privacy')
+    .select('is_paused, insights_enabled')
+    .eq('line_id', summary.lineId)
+    .maybeSingle();
+
+  const isSelfUser = account.user_type === 'self';
   const sharingConsent = voiceConsent?.sharing_consent ?? 'pending';
   const sharingTier = (voiceConsent?.sharing_tier ?? 'tier_1') as
     | 'tier_1'
     | 'tier_2'
     | 'tier_3'
     | 'tier_4';
+  const isPaused = privacy?.is_paused ?? false;
+  const insightsEnabled = privacy?.insights_enabled ?? true;
   const sharingPayload = sharingSummary ?? { ...summary, sharingTier };
 
   try {
     const recipients = new Map<string, { isPrimary: boolean; token?: string }>();
 
-    recipients.set(account.billing_email, { isPrimary: true });
+    const canSendToBillingEmail = insightsEnabled && (
+      isSelfUser || (sharingConsent === 'granted' && !isPaused)
+    );
+    const canSendToRecipients = insightsEnabled && sharingConsent === 'granted' && !isPaused && (
+      !isSelfUser || account.sharing_enabled
+    );
 
-    const allowFamilyRecipients = account.user_type === 'family_managed' ||
-      (account.user_type === 'self' && account.sharing_enabled && sharingConsent === 'granted');
+    if (!canSendToBillingEmail && !canSendToRecipients) {
+      return NextResponse.json({ success: true, skipped: 'no_eligible_recipients' });
+    }
 
-    if (allowFamilyRecipients) {
+    if (canSendToBillingEmail) {
+      recipients.set(account.billing_email, { isPrimary: true });
+    }
+
+    if (canSendToRecipients) {
       const { data: recipientRows, error: recipientError } = await supabase
         .from('ultaura_notification_recipients')
         .select('id, email')
@@ -190,7 +212,7 @@ export async function POST(request: Request) {
       const unsubscribeLink = meta.isPrimary || !meta.token
         ? undefined
         : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
-      const isSelfRecipient = account.user_type === 'self' && meta.isPrimary;
+      const isSelfRecipient = isSelfUser && meta.isPrimary;
       const summaryForRecipient = isSelfRecipient ? summary : {
         ...sharingPayload,
         sharingTier: sharingPayload.sharingTier ?? sharingTier,

@@ -50,6 +50,7 @@ const TOOL_ALLOWLISTS: Record<string, string[]> = {
   list_topic_exclusions: ['excludedCount'],
   review_memories: ['memoryCount'],
   set_pause_mode: ['enabled'],
+  set_insights_enabled: ['enabled'],
   log_call_insights: ['has_concerns', 'confidence_overall', 'skipped', 'reason'],
   choose_overage_action: ['action', 'planId'],
   request_upgrade: ['planId', 'sendLink'],

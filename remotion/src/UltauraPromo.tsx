@@ -62,7 +62,7 @@ export const UltauraPromo: React.FC = () => {
       {/* Background Music with fade in/out */}
       <Audio
         src={BACKGROUND_MUSIC_URL}
-        volume={(f) => {
+        volume={(f: number) => {
           // Fade in at start
           if (f < musicFadeFrames) {
             return interpolate(f, [0, musicFadeFrames], [0, 0.35]);

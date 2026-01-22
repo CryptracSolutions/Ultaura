@@ -21,6 +21,7 @@ import type {
   EmotionalTrendEntry,
   EmotionalTrendsData,
   InsightPrivacyRow,
+  InsightPrivacySettings,
   InsightsDashboard,
   LineBaselineRow,
   LineRow,
@@ -40,6 +41,8 @@ import type {
 } from './types';
 import { INSIGHTS } from './constants';
 import type { SegmentType } from './types/retention';
+import { getPrivateTopicCodes, getSharingGate } from './sharing-gate';
+import { logConsentAudit } from './privacy';
 
 const logger = getLogger();
 
@@ -50,6 +53,10 @@ interface EncryptedPayload {
 }
 
 const INSIGHTS_ALG = 'aes-256-gcm';
+
+function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
+  return Uint8Array.from(value);
+}
 
 function getKEK(): Buffer {
   const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
@@ -67,12 +74,18 @@ function getKEK(): Buffer {
 
 function unwrapDEK(wrapped: Buffer, iv: Buffer, tag: Buffer): Buffer {
   const kek = getKEK();
-  const decipher = crypto.createDecipheriv(INSIGHTS_ALG, kek, iv, {
-    authTagLength: 16,
-  });
+  const decipher = crypto.createDecipheriv(
+    INSIGHTS_ALG,
+    toUint8Array(kek),
+    toUint8Array(iv),
+    { authTagLength: 16 }
+  );
 
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(wrapped), decipher.final()]);
+  decipher.setAuthTag(toUint8Array(tag));
+  return Buffer.concat([
+    Uint8Array.from(decipher.update(toUint8Array(wrapped))),
+    Uint8Array.from(decipher.final()),
+  ]);
 }
 
 function decryptValue(
@@ -82,14 +95,20 @@ function decryptValue(
   tag: Buffer,
   aad: Buffer
 ): CallInsights | WeeklySummaryData {
-  const decipher = crypto.createDecipheriv(INSIGHTS_ALG, dek, iv, {
-    authTagLength: 16,
-  });
+  const decipher = crypto.createDecipheriv(
+    INSIGHTS_ALG,
+    toUint8Array(dek),
+    toUint8Array(iv),
+    { authTagLength: 16 }
+  );
 
-  decipher.setAuthTag(tag);
-  decipher.setAAD(aad);
+  decipher.setAuthTag(toUint8Array(tag));
+  decipher.setAAD(toUint8Array(aad));
 
-  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  const plaintext = Buffer.concat([
+    Uint8Array.from(decipher.update(toUint8Array(ciphertext))),
+    Uint8Array.from(decipher.final()),
+  ]);
   return JSON.parse(plaintext.toString('utf8')) as CallInsights | WeeklySummaryData;
 }
 
@@ -114,8 +133,13 @@ async function getOrCreateAccountDEK(
   const dek = crypto.randomBytes(32);
   const kek = getKEK();
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(INSIGHTS_ALG, kek, iv, { authTagLength: 16 });
-  const wrapped = Buffer.concat([cipher.update(dek), cipher.final()]);
+  const cipher = crypto.createCipheriv(INSIGHTS_ALG, toUint8Array(kek), toUint8Array(iv), {
+    authTagLength: 16,
+  });
+  const wrapped = Buffer.concat([
+    Uint8Array.from(cipher.update(toUint8Array(dek))),
+    Uint8Array.from(cipher.final()),
+  ]);
   const tag = cipher.getAuthTag();
 
   const { error } = await client
@@ -359,6 +383,27 @@ function hasSocialNeed(insights: CallInsights[]): boolean {
   );
 }
 
+function sanitizeInsightTopics(
+  insight: CallInsights,
+  storedPrivateTopicCodes: string[],
+  lineId: string
+): Array<{ code: TopicCode; weight: number }> {
+  const allPrivate = new Set<string>([
+    ...storedPrivateTopicCodes,
+    ...(insight.private_topics ?? []),
+  ]);
+
+  const foundPrivate = (insight.topics ?? []).filter((topic) => allPrivate.has(topic.code));
+  if (foundPrivate.length > 0) {
+    logger.warn(
+      { lineId, privateTopicsFound: foundPrivate.map((topic) => topic.code) },
+      'Private topic codes found in stored insight - filtering for payer'
+    );
+  }
+
+  return (insight.topics ?? []).filter((topic) => !allPrivate.has(topic.code));
+}
+
 async function getAuthorizedLine(lineId: string): Promise<LineRow | null> {
   const client = getSupabaseServerActionClient();
   await requireSession(client);
@@ -511,7 +556,9 @@ export async function getNotificationPreferences(
   return created as NotificationPreferencesRow;
 }
 
-export async function getInsightPrivacy(lineId: string): Promise<InsightPrivacyRow | null> {
+export async function getInsightPrivacy(
+  lineId: string
+): Promise<InsightPrivacySettings | null> {
   const line = await getAuthorizedLine(lineId);
   if (!line) {
     return null;
@@ -520,7 +567,7 @@ export async function getInsightPrivacy(lineId: string): Promise<InsightPrivacyR
   const client = await getAdminClient();
   const { data, error } = await client
     .from('ultaura_insight_privacy')
-    .select('*')
+    .select('id, line_id, insights_enabled, is_paused, paused_at, paused_reason, created_at, updated_at')
     .eq('line_id', lineId)
     .maybeSingle();
 
@@ -529,7 +576,7 @@ export async function getInsightPrivacy(lineId: string): Promise<InsightPrivacyR
     return null;
   }
 
-  return data as InsightPrivacyRow | null;
+  return (data as InsightPrivacySettings | null) ?? null;
 }
 
 export async function getLineInsights(
@@ -555,6 +602,12 @@ export async function getLineInsights(
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+
+  if (!gate.isSelfUser || !gate.canAccessNonSafety) {
+    return [];
+  }
+
   let query = client
     .from('ultaura_call_insights')
     .select('*')
@@ -638,6 +691,29 @@ export async function getLineBaseline(lineId: string): Promise<LineBaselineRow |
   return data as LineBaselineRow | null;
 }
 
+function applyWeeklySummaryTier(
+  summary: WeeklySummaryData,
+  tier: SharingTier
+): WeeklySummaryData {
+  const allowsMood = tier !== 'tier_1';
+  const allowsTopics = tier === 'tier_3' || tier === 'tier_4';
+  const allowsConcerns = tier === 'tier_4';
+
+  return {
+    ...summary,
+    sharingTier: tier,
+    engagementNote: allowsMood ? summary.engagementNote : null,
+    moodSummary: allowsMood ? summary.moodSummary : null,
+    moodShiftNote: allowsMood ? summary.moodShiftNote : null,
+    moodDistribution: allowsMood ? summary.moodDistribution : null,
+    topTopics: allowsTopics ? summary.topTopics : [],
+    concerns: allowsConcerns ? summary.concerns : [],
+    needsFollowUp: allowsConcerns ? summary.needsFollowUp : false,
+    followUpReasons: allowsConcerns ? summary.followUpReasons : [],
+    socialNeedNote: allowsConcerns ? summary.socialNeedNote : null,
+  };
+}
+
 export async function getWeeklySummary(
   lineId: string,
   weekStartDate: Date
@@ -648,6 +724,16 @@ export async function getWeeklySummary(
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+
+  if (!gate.canAccessNonSafety) {
+    return null;
+  }
+
+  if (!gate.isSelfUser && gate.isFamilyOutputSuppressed) {
+    return null;
+  }
+
   const { data, error } = await client
     .from('ultaura_weekly_summaries')
     .select('*')
@@ -663,7 +749,16 @@ export async function getWeeklySummary(
   }
 
   try {
-    return await decryptWeeklySummary(client, line.account_id, lineId, data as WeeklySummaryRow);
+    const summary = await decryptWeeklySummary(
+      client,
+      line.account_id,
+      lineId,
+      data as WeeklySummaryRow
+    );
+    if (gate.isSelfUser) {
+      return summary;
+    }
+    return applyWeeklySummaryTier(summary, gate.effectiveTier);
   } catch (decryptError) {
     logger.warn({ decryptError, lineId }, 'Failed to decrypt weekly summary');
     return null;
@@ -677,9 +772,19 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+
+  if (!gate.canAccessNonSafety) {
+    return null;
+  }
+
+  if (!gate.isSelfUser && gate.isFamilyOutputSuppressed) {
+    return null;
+  }
+
   const { data: privacy } = await client
     .from('ultaura_insight_privacy')
-    .select('insights_enabled, is_paused, paused_reason, private_topic_codes')
+    .select('insights_enabled, is_paused, paused_reason, paused_at')
     .eq('line_id', lineId)
     .maybeSingle();
 
@@ -722,7 +827,6 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     previewRows,
     segmentRows,
     storyArcs,
-    accountRow,
     voiceConsent,
   ] = await Promise.all([
     client
@@ -758,11 +862,6 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
       .eq('line_id', lineId)
       .eq('status', 'active'),
     client
-      .from('ultaura_accounts')
-      .select('user_type, sharing_enabled')
-      .eq('id', line.account_id)
-      .maybeSingle(),
-    client
       .from('ultaura_line_voice_consent')
       .select('sharing_consent, sharing_tier')
       .eq('line_id', lineId)
@@ -791,25 +890,21 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     logger.error({ error: storyArcs.error, lineId }, 'Failed to fetch story arcs for dashboard');
   }
 
-  if (accountRow.error) {
-    logger.error({ error: accountRow.error, lineId }, 'Failed to fetch account for dashboard');
-  }
-
   if (voiceConsent.error) {
     logger.error({ error: voiceConsent.error, lineId }, 'Failed to fetch sharing consent for dashboard');
   }
 
-  const userType = (accountRow.data?.user_type ?? 'family_managed') as 'self' | 'family_managed';
+  const userType: 'self' | 'family_managed' = gate.isSelfUser ? 'self' : 'family_managed';
   const sharingConsent = (voiceConsent.data?.sharing_consent ?? 'pending') as VoiceConsentStatus;
   const sharingTier = (voiceConsent.data?.sharing_tier ?? 'tier_1') as SharingTier;
   const isFamilyManaged = userType === 'family_managed';
-  const effectiveTier = isFamilyManaged
-    ? (sharingConsent === 'granted' ? sharingTier : 'tier_1')
-    : 'tier_4';
-  const allowMood = !isFamilyManaged || effectiveTier !== 'tier_1';
-  const allowTopics = !isFamilyManaged || effectiveTier === 'tier_3' || effectiveTier === 'tier_4';
-  const allowConcerns = !isFamilyManaged || effectiveTier === 'tier_4';
-  const allowRetention = !isFamilyManaged || effectiveTier === 'tier_3' || effectiveTier === 'tier_4';
+  const effectiveTier = gate.effectiveTier;
+  const allowMood = gate.allowMood;
+  const allowTopics = gate.allowTopics;
+  const allowConcerns = gate.allowConcerns;
+  const allowRetention =
+    gate.canAccessNonSafety &&
+    (gate.isSelfUser || effectiveTier === 'tier_3' || effectiveTier === 'tier_4');
 
   const sessionList = (sessions.data || []) as CallSessionRow[];
   const insightsList = insightsRows.data || [];
@@ -1010,19 +1105,12 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
       ? 'Low mood calls were higher than typical this week.'
       : null;
 
-  const privateTopics = new Set((privacy?.private_topic_codes as string[]) || []);
+  const storedPrivateTopicCodes = await getPrivateTopicCodes(client, lineId);
   const topicWeights = new Map<TopicCode, number>();
 
   for (const insight of weekInsights) {
-    const callPrivateTopics = new Set<string>(insight.private_topics);
-    privateTopics.forEach((topic) => {
-      callPrivateTopics.add(topic);
-    });
-
-    for (const topic of insight.topics || []) {
-      if (callPrivateTopics.has(topic.code)) {
-        continue;
-      }
+    const filteredTopics = sanitizeInsightTopics(insight, storedPrivateTopicCodes, lineId);
+    for (const topic of filteredTopics) {
       topicWeights.set(topic.code, (topicWeights.get(topic.code) || 0) + topic.weight);
     }
   }
@@ -1188,7 +1276,6 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
     insightsEnabled: privacy?.insights_enabled ?? true,
     isPaused: privacy?.is_paused ?? false,
     pausedReason: privacy?.paused_reason ?? null,
-    privateTopicCodes: (privacy?.private_topic_codes as string[]) || [],
     retention,
     summary: {
       scheduledCalls,
@@ -1242,28 +1329,28 @@ export async function getEmotionalTrends(
   lineId: string,
   days: number = 14
 ): Promise<EmotionalTrendsData> {
+  const emptyResult: EmotionalTrendsData = {
+    entries: [],
+    distribution: initializeCountMap(MOOD_SNAPSHOT_VALUES),
+    energyLevels: initializeCountMap(ENERGY_LEVEL_VALUES),
+    trajectories: initializeCountMap(TRAJECTORY_VALUES),
+  };
   const line = await getAuthorizedLine(lineId);
   if (!line) {
-    return {
-      entries: [],
-      distribution: initializeCountMap(MOOD_SNAPSHOT_VALUES),
-      energyLevels: initializeCountMap(ENERGY_LEVEL_VALUES),
-      trajectories: initializeCountMap(TRAJECTORY_VALUES),
-    };
+    return emptyResult;
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowMood) {
+    return emptyResult;
+  }
   const now = DateTime.now().setZone(line.timezone);
   const start = now.minus({ days });
   const startUtc = start.toUTC().toISO();
 
   if (!startUtc) {
-    return {
-      entries: [],
-      distribution: initializeCountMap(MOOD_SNAPSHOT_VALUES),
-      energyLevels: initializeCountMap(ENERGY_LEVEL_VALUES),
-      trajectories: initializeCountMap(TRAJECTORY_VALUES),
-    };
+    return emptyResult;
   }
 
   const { data: rows, error } = await client
@@ -1314,12 +1401,17 @@ export async function getMoodCalendar(
   lineId: string,
   month: string
 ): Promise<MoodCalendarData> {
+  const emptyResult: MoodCalendarData = { month, days: [] };
   const line = await getAuthorizedLine(lineId);
   if (!line) {
-    return { month, days: [] };
+    return emptyResult;
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowMood) {
+    return emptyResult;
+  }
   const parsedMonth = DateTime.fromFormat(month, 'yyyy-MM', { zone: line.timezone });
   const monthStart = parsedMonth.isValid
     ? parsedMonth.startOf('month')
@@ -1413,12 +1505,17 @@ export async function getConversationHighlights(
   lineId: string,
   limit: number = 10
 ): Promise<ConversationHighlightsData> {
+  const emptyResult: ConversationHighlightsData = { highlights: [] };
   const line = await getAuthorizedLine(lineId);
   if (!line) {
-    return { highlights: [] };
+    return emptyResult;
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowTopics) {
+    return emptyResult;
+  }
   const { data: sessions, error: sessionError } = await client
     .from('ultaura_call_sessions')
     .select('id, created_at, answered_by, seconds_connected, is_test_call, is_reminder_call')
@@ -1428,7 +1525,7 @@ export async function getConversationHighlights(
 
   if (sessionError) {
     logger.error({ error: sessionError, lineId }, 'Failed to fetch call sessions for highlights');
-    return { highlights: [] };
+    return emptyResult;
   }
 
   const answeredSessions = (sessions ?? [])
@@ -1441,23 +1538,28 @@ export async function getConversationHighlights(
 
   const callSessionIds = answeredSessions.map((session) => session.id);
   if (callSessionIds.length === 0) {
-    return { highlights: [] };
+    return emptyResult;
   }
 
+  const includeArtifacts = gate.isSelfUser;
   const [insightRows, memoryRows, eventRows] = await Promise.all([
     client
       .from('ultaura_call_insights')
       .select('call_session_id, created_at, insights_ciphertext, insights_iv, insights_tag')
       .in('call_session_id', callSessionIds),
-    client
-      .from('ultaura_memories')
-      .select('id, key, privacy_scope, created_in_call_session_id')
-      .in('created_in_call_session_id', callSessionIds),
-    client
-      .from('ultaura_call_events')
-      .select('call_session_id, payload')
-      .eq('type', 'tool_call')
-      .in('call_session_id', callSessionIds),
+    includeArtifacts
+      ? client
+          .from('ultaura_memories')
+          .select('id, key, privacy_scope, created_in_call_session_id')
+          .in('created_in_call_session_id', callSessionIds)
+      : Promise.resolve({ data: [] }),
+    includeArtifacts
+      ? client
+          .from('ultaura_call_events')
+          .select('call_session_id, payload')
+          .eq('type', 'tool_call')
+          .in('call_session_id', callSessionIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const insightsByCall = new Map<string, CallInsights>();
@@ -1528,14 +1630,18 @@ export async function getConversationHighlights(
     }
   }
 
+  const storedPrivateTopicCodes = await getPrivateTopicCodes(client, lineId);
   const highlights = answeredSessions.map((session) => {
     const insight = insightsByCall.get(session.id);
-    const topics = (insight?.topics ?? [])
+    const filteredTopics = insight
+      ? sanitizeInsightTopics(insight, storedPrivateTopicCodes, lineId)
+      : [];
+    const topics = filteredTopics
       .sort((a, b) => b.weight - a.weight)
       .slice(0, 3)
       .map((topic) => INSIGHTS.TOPIC_LABELS[topic.code as TopicCode] ?? topic.code);
 
-    const milestoneSet = milestoneIdsByCall.get(session.id);
+    const milestoneSet = includeArtifacts ? milestoneIdsByCall.get(session.id) : null;
     const milestones = milestoneSet
       ? Array.from(milestoneSet)
           .map((id) => milestoneTitleMap.get(id))
@@ -1547,7 +1653,7 @@ export async function getConversationHighlights(
       occurredAt: session.created_at,
       mood: insight?.mood_overall ?? null,
       topics,
-      newMemoryKeys: memoryKeysByCall.get(session.id) ?? [],
+      newMemoryKeys: includeArtifacts ? (memoryKeysByCall.get(session.id) ?? []) : [],
       milestones,
     };
   });
@@ -1559,12 +1665,20 @@ export async function getMemoryActivity(
   lineId: string,
   limit: number = 20
 ): Promise<MemoryActivityData> {
+  const emptyResult: MemoryActivityData = { items: [] };
   const line = await getAuthorizedLine(lineId);
   if (!line) {
-    return { items: [] };
+    return emptyResult;
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowConcerns) {
+    return emptyResult;
+  }
+  if (!gate.isSelfUser) {
+    return emptyResult;
+  }
   const { data, error } = await client
     .from('ultaura_memories')
     .select('id, type, key, created_at, privacy_scope')
@@ -1575,7 +1689,7 @@ export async function getMemoryActivity(
 
   if (error) {
     logger.error({ error, lineId }, 'Failed to fetch memory activity');
-    return { items: [] };
+    return emptyResult;
   }
 
   const items: MemoryActivityItem[] = (data ?? []).map((row) => ({
@@ -1592,12 +1706,17 @@ export async function getMemoryActivity(
 export async function getRelationshipIndicators(
   lineId: string
 ): Promise<RelationshipIndicatorsData> {
+  const emptyResult: RelationshipIndicatorsData = { indicators: [] };
   const line = await getAuthorizedLine(lineId);
   if (!line) {
-    return { indicators: [] };
+    return emptyResult;
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowConcerns) {
+    return emptyResult;
+  }
   const { data, error } = await client
     .from('ultaura_relationships')
     .select('name, relation_type, relation_role, sentiment, times_mentioned, last_mentioned_at')
@@ -1607,7 +1726,7 @@ export async function getRelationshipIndicators(
 
   if (error) {
     logger.error({ error, lineId }, 'Failed to fetch relationship indicators');
-    return { indicators: [] };
+    return emptyResult;
   }
 
   const now = DateTime.now();
@@ -1728,12 +1847,46 @@ export async function updateInsightPrivacy(
   }
 
   const client = await getAdminClient();
-  const base = await fetchInsightPrivacyBase(client, lineId);
-  const updates = Object.fromEntries(
-    Object.entries(settings).filter(([, value]) => value !== undefined)
-  );
+  const { data: account } = await client
+    .from('ultaura_accounts')
+    .select('user_type')
+    .eq('id', line.account_id)
+    .single();
 
-  await upsertInsightPrivacy(client, lineId, { ...base, ...updates });
+  const isSelfUser = account?.user_type === 'self';
+  const allowedSettings: Partial<InsightPrivacyRow> = {};
+
+  if (settings.private_topic_codes !== undefined) {
+    throw new Error(
+      'Cannot update senior-controlled field: private_topic_codes. This setting can only be changed via voice.'
+    );
+  }
+
+  if (settings.insights_enabled !== undefined) {
+    if (!isSelfUser) {
+      throw new Error(
+        'Cannot update senior-controlled field: insights_enabled. This setting can only be changed via voice.'
+      );
+    }
+    allowedSettings.insights_enabled = settings.insights_enabled;
+  }
+
+  if (settings.is_paused !== undefined) {
+    allowedSettings.is_paused = settings.is_paused;
+  }
+  if (settings.paused_at !== undefined) {
+    allowedSettings.paused_at = settings.paused_at;
+  }
+  if (settings.paused_reason !== undefined) {
+    allowedSettings.paused_reason = settings.paused_reason;
+  }
+
+  if (Object.keys(allowedSettings).length === 0) {
+    return;
+  }
+
+  const base = await fetchInsightPrivacyBase(client, lineId);
+  await upsertInsightPrivacy(client, lineId, { ...base, ...allowedSettings });
 }
 
 export async function setPauseMode(
@@ -1746,11 +1899,26 @@ export async function setPauseMode(
     throw new Error('Line not found');
   }
 
+  const userClient = getSupabaseServerActionClient();
+  const session = await requireSession(userClient);
+  const actorUserId = session?.user?.id ?? null;
+
   const client = await getAdminClient();
   const base = await fetchInsightPrivacyBase(client, lineId);
+  const oldPaused = base.is_paused;
   const pauseUpdate = enabled
     ? { is_paused: true, paused_at: new Date().toISOString(), paused_reason: reason || null }
     : { is_paused: false, paused_at: null, paused_reason: null };
 
   await upsertInsightPrivacy(client, lineId, { ...base, ...pauseUpdate });
+
+  await logConsentAudit({
+    accountId: line.account_id,
+    lineId,
+    actorUserId,
+    actorType: 'payer',
+    action: 'pause_mode_changed',
+    oldValue: { is_paused: oldPaused },
+    newValue: { is_paused: enabled, reason: reason || null },
+  }, client);
 }

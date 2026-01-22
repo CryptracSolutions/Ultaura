@@ -209,6 +209,9 @@ let getCallSession: typeof import('../../services/call-session.js').getCallSessi
 let getLineById: typeof import('../../services/line-lookup.js').getLineById;
 let getAccountPrivacySettings: typeof import('../../services/privacy.js').getAccountPrivacySettings;
 let getLineVoiceConsent: typeof import('../../services/privacy.js').getLineVoiceConsent;
+let getMemoriesForLine: typeof import('../../services/memory.js').getMemoriesForLine;
+let getGrokBridge: typeof import('../grok-bridge-registry.js').getGrokBridge;
+let unregisterGrokBridge: typeof import('../grok-bridge-registry.js').unregisterGrokBridge;
 
 const CALL_SESSION_ID_1 = '00000000-0000-0000-0000-000000000100';
 const CALL_SESSION_ID_2 = '00000000-0000-0000-0000-000000000200';
@@ -250,11 +253,21 @@ beforeAll(async () => {
   ({ getCallSession } = await import('../../services/call-session.js'));
   ({ getLineById } = await import('../../services/line-lookup.js'));
   ({ getAccountPrivacySettings, getLineVoiceConsent } = await import('../../services/privacy.js'));
+  ({ getMemoriesForLine } = await import('../../services/memory.js'));
+  ({ getGrokBridge, unregisterGrokBridge } = await import('../grok-bridge-registry.js'));
 });
 
 beforeEach(() => {
   FakeWebSocketClass.instances = [];
   vi.clearAllMocks();
+
+  for (const sessionId of [CALL_SESSION_ID_1, CALL_SESSION_ID_2]) {
+    const existing = getGrokBridge(sessionId);
+    if (existing) {
+      existing.close();
+      unregisterGrokBridge(sessionId);
+    }
+  }
 
   vi.mocked(getCallSession).mockImplementation(async (sessionId: string) => ({
     id: sessionId,
@@ -401,6 +414,92 @@ describe('media-stream simulator', () => {
     expect(afterTools).toContain('store_memory');
     expect(afterTools).toContain('update_memory');
     expect(afterTools).toContain('review_memories');
+  });
+
+  it('filters line_only memories for family-managed prompts', async () => {
+    vi.mocked(getLineById).mockResolvedValue({
+      line: {
+        id: LINE_ID,
+        display_name: 'Test User',
+        timezone: 'America/Los_Angeles',
+        phone_e164: '+15551234567',
+        seed_interests: [],
+        seed_avoid_topics: [],
+        inbound_allowed: true,
+        interruption_tolerance: 'normal',
+        filler_word_patience: 'normal',
+        silence_tolerance_ms: 1000,
+        crosstalk_recovery_mode: 'patient',
+      },
+      account: {
+        id: ACCOUNT_ID,
+        status: 'active',
+        plan_id: 'care',
+        user_type: 'family_managed',
+        sharing_enabled: true,
+        trial_ends_at: null,
+      },
+    } as any);
+
+    vi.mocked(getLineVoiceConsent).mockResolvedValue({
+      memoryConsent: 'granted',
+      recordingConsent: 'pending',
+      sharingConsent: 'pending',
+      sharingTier: 'tier_1',
+      recordingPreferencePermanent: false,
+      recordingReenableRequestedAt: null,
+      sharingRePromptRequestedAt: null,
+      onboardingCompletedAt: null,
+    } as any);
+
+    vi.mocked(getMemoriesForLine).mockResolvedValue([
+      {
+        id: 'mem-1',
+        key: 'public_note',
+        value: 'likes birds',
+        privacyScope: 'account_shared',
+      },
+      {
+        id: 'mem-2',
+        key: 'secret_note',
+        value: 'secret',
+        privacyScope: 'line_only',
+      },
+    ] as any);
+
+    const twilioWs = new FakeWebSocketClass('ws://twilio');
+
+    await handleMediaStreamConnection(twilioWs as any, CALL_SESSION_ID_1);
+
+    await twilioWs.emitAsync('message', Buffer.from(JSON.stringify({
+      event: 'start',
+      start: {
+        streamSid: 'MS123',
+        callSid: 'CA123',
+        accountSid: 'AC123',
+        tracks: ['inbound'],
+        customParameters: {},
+      },
+    })));
+
+    const waitFor = async (predicate: () => boolean, label: string) => {
+      for (let i = 0; i < 200; i++) {
+        if (predicate()) return;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+
+    await waitFor(
+      () => FakeWebSocketClass.instances.some((ws: any) => ws.url?.includes('realtime')),
+      'Grok WebSocket creation'
+    );
+    const grokWs = findGrokSocket();
+    await waitFor(() => Boolean(lastSessionUpdate(grokWs)), 'initial session.update');
+
+    const instructions = lastSessionUpdate(grokWs)?.session?.instructions ?? '';
+    expect(instructions).toContain('public_note');
+    expect(instructions).not.toContain('secret_note');
   });
 
   it('never logs tool args values (only argsSummary) from Grok tool calls', async () => {
