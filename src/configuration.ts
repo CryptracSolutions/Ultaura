@@ -187,10 +187,12 @@ export default configuration;
 // Validate Stripe configuration
 // as this is a new requirement, we throw an error if the key is not defined
 // in the environment
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
 if (
   configuration.stripe.embedded &&
   production &&
-  !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
+  !isBuildPhase
 ) {
   throw new Error(
     'The key NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not defined. Please add it to your environment variables.',

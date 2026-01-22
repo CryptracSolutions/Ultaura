@@ -6,8 +6,8 @@ import requireSession from '~/lib/user/require-session';
 import getLogger from '~/core/logger';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
 import type { WellnessAlert } from './types';
-import type { SharingTier } from '@ultaura/types';
 import { getSharingGate, validateAccountOwnership } from './sharing-gate';
+import { redactAlertByTier } from './alerts-redaction';
 
 const logger = getLogger();
 
@@ -108,33 +108,6 @@ function mapAlert(
     summary: alert.summary,
     acknowledgedAt: alert.acknowledged_at ?? null,
   };
-}
-
-export function redactAlertByTier(
-  alert: WellnessAlert,
-  tier: SharingTier
-): WellnessAlert | null {
-  if (tier === 'tier_1') {
-    return null;
-  }
-
-  if (tier === 'tier_2' || tier === 'tier_3') {
-    if (alert.alertType === 'mood_drop') {
-      return {
-        ...alert,
-        title: 'Mood change noted',
-        summary: 'A mood trend was observed during recent calls.',
-      };
-    }
-
-    return {
-      ...alert,
-      title: 'Wellness observation',
-      summary: 'A wellness observation was noted. Consider checking in.',
-    };
-  }
-
-  return alert;
 }
 
 export async function acknowledgeWellnessAlert(

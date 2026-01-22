@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WellnessAlert } from '../types';
-import { redactAlertByTier } from '../alerts';
+import { redactAlertByTier } from '../alerts-redaction';
 
 describe('redactAlertByTier', () => {
   const baseAlert: WellnessAlert = {
