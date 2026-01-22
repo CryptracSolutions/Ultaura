@@ -1,10 +1,18 @@
-import { useVideoConfig, interpolate, AbsoluteFill, Sequence } from "remotion";
-import { Audio } from "@remotion/media";
-import { TransitionSeries, linearTiming } from "@remotion/transitions";
+import React from "react";
+import {
+  useVideoConfig,
+  interpolate,
+  AbsoluteFill,
+  Sequence,
+  Audio,
+  staticFile,
+} from "remotion";
+import { TransitionSeries, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { theme } from "./theme";
-import { ProgressBar, Watermark } from "./components";
+import { wipe } from "@remotion/transitions/wipe";
+import { theme, springs } from "./theme";
+import { ProgressBar } from "./components";
 import {
   HookScene,
   ProblemScene,
@@ -16,41 +24,17 @@ import {
   CTAScene,
 } from "./scenes";
 
-// Royalty-free ambient/corporate music from Pixabay
-const BACKGROUND_MUSIC_URL =
-  "https://cdn.pixabay.com/audio/2024/11/29/audio_5abe58a705.mp3";
-
-// Royalty-free whoosh sound effect for transitions
-const WHOOSH_SOUND_URL =
-  "https://cdn.pixabay.com/audio/2022/03/24/audio_1ca2a0c5e2.mp3";
-
 export const UltauraPromo: React.FC = () => {
   const { fps, durationInFrames } = useVideoConfig();
   const { sections } = theme;
 
-  // Transition duration in frames (0.5 seconds)
-  const transitionDuration = Math.round(fps * 0.5);
+  // Transition durations
+  const fadeTransition = Math.round(fps * 0.5);
+  const slideTransition = Math.round(fps * 0.6);
+  const wipeTransition = Math.round(fps * 0.5);
 
   // Fade in/out duration for music
-  const musicFadeFrames = fps * 2; // 2 seconds
-
-  // Calculate transition start frames (accounting for TransitionSeries overlaps)
-  const getTransitionFrame = (sceneIndex: number) => {
-    const sceneDurations = [
-      sections.hook.duration,
-      sections.problem.duration,
-      sections.solution.duration,
-      sections.aiCalls.duration,
-      sections.dashboard.duration,
-      sections.safety.duration,
-      sections.reminders.duration,
-    ];
-    let frame = 0;
-    for (let i = 0; i < sceneIndex; i++) {
-      frame += sceneDurations[i] - transitionDuration;
-    }
-    return frame;
-  };
+  const musicFadeFrames = fps * 2;
 
   return (
     <AbsoluteFill
@@ -61,32 +45,25 @@ export const UltauraPromo: React.FC = () => {
     >
       {/* Background Music with fade in/out */}
       <Audio
-        src={BACKGROUND_MUSIC_URL}
+        src={staticFile("background-music.mp3")}
+        trimAfter={durationInFrames}
         volume={(f: number) => {
           // Fade in at start
           if (f < musicFadeFrames) {
-            return interpolate(f, [0, musicFadeFrames], [0, 0.35]);
+            return interpolate(f, [0, musicFadeFrames], [0, 0.2]);
           }
           // Fade out at end
           if (f > durationInFrames - musicFadeFrames) {
             return interpolate(
               f,
               [durationInFrames - musicFadeFrames, durationInFrames],
-              [0.35, 0]
+              [0.2, 0]
             );
           }
           // Normal volume
-          return 0.35;
+          return 0.2;
         }}
-        loop
       />
-
-      {/* Whoosh sound effects on slide transitions */}
-      {[2, 3, 4, 5].map((sceneIndex) => (
-        <Sequence key={sceneIndex} from={getTransitionFrame(sceneIndex)} layout="none">
-          <Audio src={WHOOSH_SOUND_URL} volume={0.15} />
-        </Sequence>
-      ))}
 
       <TransitionSeries>
         {/* Scene 1: Hook (0-5s) */}
@@ -96,7 +73,10 @@ export const UltauraPromo: React.FC = () => {
 
         <TransitionSeries.Transition
           presentation={fade()}
-          timing={linearTiming({ durationInFrames: transitionDuration })}
+          timing={springTiming({
+            config: springs.smooth,
+            durationInFrames: fadeTransition,
+          })}
         />
 
         {/* Scene 2: Problem (5-12s) */}
@@ -104,9 +84,13 @@ export const UltauraPromo: React.FC = () => {
           <ProblemScene />
         </TransitionSeries.Sequence>
 
+        {/* Wipe transition - more dramatic reveal for solution */}
         <TransitionSeries.Transition
-          presentation={fade()}
-          timing={linearTiming({ durationInFrames: transitionDuration })}
+          presentation={wipe({ direction: "from-bottom-left" })}
+          timing={springTiming({
+            config: springs.smooth,
+            durationInFrames: wipeTransition,
+          })}
         />
 
         {/* Scene 3: Solution (12-18s) */}
@@ -114,9 +98,13 @@ export const UltauraPromo: React.FC = () => {
           <SolutionScene />
         </TransitionSeries.Sequence>
 
+        {/* Slide with spring timing for more organic motion */}
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-right" })}
-          timing={linearTiming({ durationInFrames: transitionDuration })}
+          timing={springTiming({
+            config: springs.smooth,
+            durationInFrames: slideTransition,
+          })}
         />
 
         {/* Scene 4: AI Calls Feature (18-26s) */}
@@ -126,7 +114,10 @@ export const UltauraPromo: React.FC = () => {
 
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-left" })}
-          timing={linearTiming({ durationInFrames: transitionDuration })}
+          timing={springTiming({
+            config: springs.smooth,
+            durationInFrames: slideTransition,
+          })}
         />
 
         {/* Scene 5: Dashboard Feature (26-34s) */}
@@ -136,7 +127,10 @@ export const UltauraPromo: React.FC = () => {
 
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-right" })}
-          timing={linearTiming({ durationInFrames: transitionDuration })}
+          timing={springTiming({
+            config: springs.smooth,
+            durationInFrames: slideTransition,
+          })}
         />
 
         {/* Scene 6: Safety Feature (34-40s) */}
@@ -146,7 +140,10 @@ export const UltauraPromo: React.FC = () => {
 
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-left" })}
-          timing={linearTiming({ durationInFrames: transitionDuration })}
+          timing={springTiming({
+            config: springs.smooth,
+            durationInFrames: slideTransition,
+          })}
         />
 
         {/* Scene 7: Reminders Feature (40-46s) */}
@@ -154,9 +151,13 @@ export const UltauraPromo: React.FC = () => {
           <RemindersScene />
         </TransitionSeries.Sequence>
 
+        {/* Fade for final CTA - elegant finish */}
         <TransitionSeries.Transition
           presentation={fade()}
-          timing={linearTiming({ durationInFrames: transitionDuration })}
+          timing={springTiming({
+            config: springs.smooth,
+            durationInFrames: fadeTransition,
+          })}
         />
 
         {/* Scene 8: CTA (46-52s) */}
@@ -168,8 +169,6 @@ export const UltauraPromo: React.FC = () => {
       {/* Progress bar at bottom */}
       <ProgressBar />
 
-      {/* Watermark in top-right */}
-      <Watermark position="top-right" />
     </AbsoluteFill>
   );
 };

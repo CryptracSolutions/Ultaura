@@ -1,6 +1,6 @@
 import React from "react";
-import { useCurrentFrame, spring, useVideoConfig, interpolate } from "remotion";
-import { theme } from "../theme";
+import { useCurrentFrame, spring, useVideoConfig, interpolate, Img, staticFile } from "remotion";
+import { theme, springs, easings } from "../theme";
 
 interface UltauraLogoProps {
   delay?: number;
@@ -19,21 +19,41 @@ export const UltauraLogo: React.FC<UltauraLogoProps> = ({
   const { fps } = useVideoConfig();
   const adjustedFrame = Math.max(0, frame - delay);
 
-  const scale = animated
+  // Logo entrance with bounce
+  const logoSpring = animated
     ? spring({
         frame: adjustedFrame,
         fps,
-        config: { damping: 12, stiffness: 100 },
+        config: springs.bouncy,
       })
     : 1;
 
   const opacity = animated
-    ? interpolate(adjustedFrame, [0, 10], [0, 1], { extrapolateRight: "clamp" })
+    ? interpolate(adjustedFrame, [0, 15], [0, 1], {
+        extrapolateRight: "clamp",
+        easing: easings.easeOut,
+      })
+    : 1;
+
+  // Wordmark entrance (delayed)
+  const wordmarkSpring = animated
+    ? spring({
+        frame: Math.max(0, adjustedFrame - 15),
+        fps,
+        config: springs.smooth,
+      })
     : 1;
 
   const wordmarkOpacity = animated
-    ? interpolate(adjustedFrame, [15, 30], [0, 1], { extrapolateRight: "clamp" })
+    ? interpolate(adjustedFrame, [15, 35], [0, 1], { extrapolateRight: "clamp" })
     : 1;
+
+  // Subtle glow pulse
+  const glowIntensity = interpolate(
+    Math.sin(adjustedFrame * 0.06),
+    [-1, 1],
+    [0.3, 0.6]
+  );
 
   return (
     <div
@@ -45,55 +65,38 @@ export const UltauraLogo: React.FC<UltauraLogoProps> = ({
         opacity,
       }}
     >
-      {/* Logo Icon - Stylized waveform/companion symbol */}
+      {/* Logo with glow effect */}
       <div
         style={{
+          position: "relative",
           width: size,
           height: size,
-          transform: `scale(${scale})`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          transform: `scale(${logoSpring})`,
         }}
       >
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 120 120"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* Outer glow circle */}
-          <circle
-            cx="60"
-            cy="60"
-            r="55"
-            fill={`${theme.colors.primary}15`}
-          />
-          {/* Main circle */}
-          <circle
-            cx="60"
-            cy="60"
-            r="45"
-            fill={theme.colors.primary}
-          />
-          {/* Inner accent */}
-          <circle
-            cx="60"
-            cy="60"
-            r="35"
-            fill={theme.colors.primaryLight}
-            opacity={0.3}
-          />
-          {/* Waveform bars representing voice */}
-          <g fill="white">
-            <rect x="35" y="50" width="6" height="20" rx="3" />
-            <rect x="47" y="40" width="6" height="40" rx="3" />
-            <rect x="57" y="35" width="6" height="50" rx="3" />
-            <rect x="67" y="40" width="6" height="40" rx="3" />
-            <rect x="79" y="50" width="6" height="20" rx="3" />
-          </g>
-        </svg>
+        {/* Glow behind logo */}
+        <div
+          style={{
+            position: "absolute",
+            inset: -20,
+            background: `radial-gradient(circle, ${theme.colors.primary}${Math.round(glowIntensity * 60).toString(16).padStart(2, '0')} 0%, transparent 70%)`,
+            filter: "blur(20px)",
+            borderRadius: "50%",
+          }}
+        />
+
+        {/* Actual logo image */}
+        <Img
+          src={staticFile("ultaura-logo.svg")}
+          style={{
+            width: size,
+            height: size,
+            objectFit: "contain",
+            position: "relative",
+            zIndex: 1,
+            filter: `drop-shadow(0 0 ${20 * glowIntensity}px ${theme.colors.primary}80)`,
+          }}
+        />
       </div>
 
       {/* Wordmark */}
@@ -101,11 +104,13 @@ export const UltauraLogo: React.FC<UltauraLogoProps> = ({
         <div
           style={{
             fontFamily: theme.fonts.heading,
-            fontSize: size * 0.5,
+            fontSize: size * 0.4,
             fontWeight: 700,
             color: theme.colors.textPrimary,
-            letterSpacing: 2,
+            letterSpacing: 3,
             opacity: wordmarkOpacity,
+            transform: `translateY(${interpolate(wordmarkSpring, [0, 1], [15, 0])}px)`,
+            textShadow: `0 0 ${30 * glowIntensity}px ${theme.colors.primary}40`,
           }}
         >
           ULTAURA

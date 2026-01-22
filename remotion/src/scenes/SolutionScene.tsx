@@ -1,6 +1,12 @@
 import React from "react";
-import { useCurrentFrame, interpolate, Sequence } from "remotion";
-import { theme } from "../theme";
+import {
+  useCurrentFrame,
+  interpolate,
+  spring,
+  useVideoConfig,
+  Sequence,
+} from "remotion";
+import { theme, springs, easings } from "../theme";
 import {
   GradientBackground,
   UltauraLogo,
@@ -13,26 +19,101 @@ import {
 
 export const SolutionScene: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
 
-  // Glow pulse effect
-  const glowIntensity = interpolate(Math.sin(frame * 0.1), [-1, 1], [0.3, 0.6]);
+  // Logo entrance
+  const logoEntrance = spring({
+    frame,
+    fps,
+    config: springs.bouncy,
+  });
+
+  // Glow pulse effect - more dramatic
+  const glowIntensity = interpolate(
+    Math.sin(frame * 0.08),
+    [-1, 1],
+    [0.3, 0.8]
+  );
+
+  const glowScale = interpolate(
+    Math.sin(frame * 0.08),
+    [-1, 1],
+    [0.9, 1.1]
+  );
+
+  // Waveform entrance
+  const waveformEntrance = spring({
+    frame: Math.max(0, frame - 45),
+    fps,
+    config: springs.smooth,
+  });
+
+  // Orbiting particles around logo
+  const orbitParticles = [0, 1, 2, 3].map((i) => {
+    const phase = (i / 4) * Math.PI * 2;
+    const radius = 120 + (i % 2) * 20;
+    const speed = 0.02 + (i % 2) * 0.005;
+    return {
+      x: Math.cos(frame * speed + phase) * radius,
+      y: Math.sin(frame * speed + phase) * radius * 0.3,
+      opacity: interpolate(Math.sin(frame * 0.06 + i), [-1, 1], [0.3, 0.7]) * logoEntrance,
+      size: 5 + (i % 2) * 2,
+    };
+  });
 
   return (
-    <SceneLayout background={<GradientBackground variant="radial" />}>
-      {/* Glowing accent behind content */}
+    <SceneLayout background={<GradientBackground variant="aurora" />}>
+      {/* Orbiting particles */}
+      {orbitParticles.map((p, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            top: "30%",
+            left: "50%",
+            width: p.size,
+            height: p.size,
+            borderRadius: "50%",
+            background: theme.colors.primaryLight,
+            transform: `translate(calc(-50% + ${p.x}px), calc(-50% + ${p.y}px))`,
+            opacity: p.opacity,
+            boxShadow: `0 0 ${p.size * 3}px ${theme.colors.primary}80`,
+            zIndex: 0,
+          }}
+        />
+      ))}
+
+      {/* Main glowing accent behind content */}
       <div
         style={{
           position: "absolute",
-          top: "25%",
+          top: "28%",
           left: "50%",
-          transform: "translateX(-50%)",
-          width: 400,
-          height: 400,
+          transform: `translate(-50%, -50%) scale(${glowScale})`,
+          width: 450,
+          height: 450,
           borderRadius: "50%",
-          background: `radial-gradient(circle, ${theme.colors.primary}${Math.round(glowIntensity * 40)
+          background: `radial-gradient(circle, ${theme.colors.primary}${Math.round(glowIntensity * 30)
             .toString(16)
-            .padStart(2, "0")} 0%, transparent 70%)`,
-          filter: "blur(60px)",
+            .padStart(2, "0")} 0%, transparent 60%)`,
+          filter: "blur(50px)",
+          zIndex: 0,
+          opacity: logoEntrance,
+        }}
+      />
+
+      {/* Secondary glow ring */}
+      <div
+        style={{
+          position: "absolute",
+          top: "28%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 300,
+          height: 300,
+          borderRadius: "50%",
+          border: `2px solid ${theme.colors.primary}20`,
+          opacity: interpolate(Math.sin(frame * 0.05), [-1, 1], [0.2, 0.5]) * logoEntrance,
           zIndex: 0,
         }}
       />
@@ -43,24 +124,36 @@ export const SolutionScene: React.FC = () => {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 40,
+            gap: 45,
+            position: "relative",
+            zIndex: 1,
           }}
         >
-          {/* Logo reveal */}
-          <UltauraLogo delay={0} size={140} showWordmark={true} />
+          {/* Logo reveal with enhanced animation */}
+          <div
+            style={{
+              transform: `scale(${interpolate(logoEntrance, [0, 1], [0.5, 1])})`,
+              opacity: logoEntrance,
+            }}
+          >
+            <UltauraLogo delay={0} size={150} showWordmark={true} />
+          </div>
 
           {/* Waveform animation */}
-          <Sequence from={45} layout="none">
-            <div
-              style={{
-                opacity: interpolate(frame - 45, [0, 20], [0, 1], {
-                  extrapolateRight: "clamp",
-                }),
-              }}
-            >
-              <Waveform width={280} height={70} bars={16} />
-            </div>
-          </Sequence>
+          <div
+            style={{
+              transform: `scale(${waveformEntrance})`,
+              opacity: waveformEntrance,
+            }}
+          >
+            <Waveform
+              width={300}
+              height={75}
+              bars={18}
+              variant="glow"
+              entranceDelay={45}
+            />
+          </div>
         </div>
       </ContentArea>
 
@@ -74,10 +167,10 @@ export const SolutionScene: React.FC = () => {
               color: theme.colors.textSecondary,
               lineHeight: 1.4,
             }}
-            animationType="fadeUp"
+            animationType="wordReveal"
           />
         </Sequence>
-        <Sequence from={95} layout="none">
+        <Sequence from={100} layout="none">
           <AnimatedText
             text="that calls daily."
             style={{
@@ -86,7 +179,7 @@ export const SolutionScene: React.FC = () => {
               color: theme.colors.primary,
               lineHeight: 1.4,
             }}
-            animationType="fadeUp"
+            animationType="glowReveal"
           />
         </Sequence>
       </TextArea>

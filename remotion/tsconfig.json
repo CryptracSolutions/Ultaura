@@ -12,7 +12,6 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "lib": ["ES2020", "DOM", "DOM.Iterable"]
   },
   "include": ["src/**/*", "remotion.config.ts"],

@@ -6,50 +6,152 @@ import {
   useVideoConfig,
   Sequence,
 } from "remotion";
-import { theme } from "../theme";
+import { theme, springs, easings } from "../theme";
 import { GradientBackground, UltauraLogo, SceneLayout } from "../components";
+
+// Animated particle with trail effect
+const FloatingParticle: React.FC<{
+  index: number;
+  frame: number;
+  fps: number;
+}> = ({ index, frame, fps }) => {
+  const goldenRatio = 1.618033988749895;
+  const x = ((index * goldenRatio * 137.5) % 100);
+  const y = ((index * goldenRatio * 73.3 + 50) % 100);
+  const size = 3 + (index % 4) * 2;
+  const delay = index * 10;
+  const speed = 0.4 + (index % 3) * 0.2;
+  const duration = 150 + (index % 50);
+
+  const adjustedFrame = Math.max(0, frame - delay);
+  const cycleFrame = adjustedFrame % duration;
+
+  const floatY = interpolate(
+    cycleFrame,
+    [0, duration * 0.5, duration],
+    [0, -80 - (index % 40), 0],
+    { easing: easings.smooth }
+  );
+
+  const floatX = Math.sin((adjustedFrame * speed * 0.025) + index) * 20;
+
+  const opacity = interpolate(
+    cycleFrame,
+    [0, duration * 0.1, duration * 0.7, duration],
+    [0, 0.5, 0.5, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+
+  const scale = interpolate(
+    cycleFrame,
+    [0, duration * 0.3, duration],
+    [0.5, 1, 0.5]
+  );
+
+  // Glow based on position
+  const glow = interpolate(
+    Math.sin(adjustedFrame * 0.1 + index),
+    [-1, 1],
+    [0.3, 1]
+  );
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: `${x}%`,
+        top: `${y}%`,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: `radial-gradient(circle, ${theme.colors.primaryLight} 0%, ${theme.colors.primary} 100%)`,
+        opacity: opacity * glow,
+        transform: `translate(${floatX}px, ${floatY}px) scale(${scale})`,
+        boxShadow: `0 0 ${size * 4 * glow}px ${theme.colors.primary}80`,
+        zIndex: 0,
+      }}
+    />
+  );
+};
 
 export const CTAScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Button pulse animation
-  const pulseScale = interpolate(Math.sin(frame * 0.15), [-1, 1], [1, 1.03]);
-
-  const buttonSpring = spring({
-    frame: Math.max(0, frame - 60),
+  // Logo entrance
+  const logoSpring = spring({
+    frame,
     fps,
-    config: { damping: 10, stiffness: 100 },
+    config: springs.bouncy,
   });
 
-  return (
-    <SceneLayout background={<GradientBackground variant="radial" />}>
-      {/* Animated background particles */}
-      {Array.from({ length: 15 }).map((_, i) => {
-        const x = ((i * 137.5) % 100);
-        const y = ((i * 73.3) % 100);
-        const size = 3 + (i % 4) * 2;
-        const delay = i * 8;
-        const adjustedFrame = Math.max(0, frame - delay);
+  // Button animations
+  const buttonEntrance = spring({
+    frame: Math.max(0, frame - 50),
+    fps,
+    config: springs.snappy,
+  });
 
-        return (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: `${x}%`,
-              top: `${y}%`,
-              width: size,
-              height: size,
-              borderRadius: "50%",
-              background: theme.colors.primary,
-              opacity: interpolate(adjustedFrame % 120, [0, 60, 120], [0, 0.3, 0]),
-              transform: `translateY(${interpolate(adjustedFrame % 120, [0, 120], [0, -40])}px)`,
-              zIndex: 0,
-            }}
-          />
-        );
-      })}
+  // Continuous button pulse - more energetic
+  const pulseScale = interpolate(
+    Math.sin(frame * 0.1),
+    [-1, 1],
+    [0.99, 1.02]
+  );
+
+  const pulseGlow = interpolate(
+    Math.sin(frame * 0.1),
+    [-1, 1],
+    [25, 45]
+  );
+
+  // Shine effect across button
+  const shineFrame = Math.min(Math.max(frame - 60, 0), 30);
+  const shinePosition = interpolate(shineFrame, [0, 30], [-120, 220]);
+  const shineOpacity = interpolate(
+    shineFrame,
+    [0, 5, 25, 30],
+    [0, 0.35, 0.35, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+
+  // Trust badges entrance
+  const badgeEntrances = [0, 1, 2].map((i) =>
+    spring({
+      frame: Math.max(0, frame - 90 - i * 10),
+      fps,
+      config: springs.snappy,
+    })
+  );
+
+  return (
+    <SceneLayout background={<GradientBackground variant="aurora" particleCount={16} />}>
+      {/* Additional floating particles for extra magic */}
+      {Array.from({ length: 10 }).map((_, i) => (
+        <FloatingParticle
+          key={i}
+          index={i}
+          frame={frame}
+          fps={fps}
+        />
+      ))}
+
+      {/* Central glow burst */}
+      <div
+        style={{
+          position: "absolute",
+          top: "35%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 420,
+          height: 420,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${theme.colors.primary}20 0%, ${theme.colors.primary}08 40%, transparent 70%)`,
+          filter: "blur(40px)",
+          opacity: interpolate(Math.sin(frame * 0.05), [-1, 1], [0.5, 0.8]),
+          zIndex: 0,
+        }}
+      />
 
       <div
         style={{
@@ -58,65 +160,106 @@ export const CTAScene: React.FC = () => {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 40,
+          gap: 35,
           zIndex: 1,
         }}
       >
-        {/* Logo */}
-        <UltauraLogo delay={0} size={120} showWordmark={true} />
+        {/* Logo with enhanced animation */}
+        <div
+          style={{
+            transform: `scale(${interpolate(logoSpring, [0, 1], [0.5, 1])})`,
+            opacity: interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" }),
+          }}
+        >
+          <UltauraLogo delay={0} size={130} showWordmark={true} />
+        </div>
 
         {/* Tagline */}
-        <Sequence from={30} layout="none">
+        <Sequence from={25} layout="none">
           <div
             style={{
               fontFamily: theme.fonts.heading,
-              fontSize: 32,
+              fontSize: 34,
               fontWeight: 500,
               color: theme.colors.textSecondary,
               textAlign: "center",
               padding: "0 40px",
-              opacity: interpolate(frame - 30, [0, 20], [0, 1], {
+              opacity: interpolate(frame - 25, [0, 20], [0, 1], {
                 extrapolateRight: "clamp",
               }),
-              transform: `translateY(${interpolate(frame - 30, [0, 20], [20, 0], {
+              transform: `translateY(${interpolate(frame - 25, [0, 20], [25, 0], {
                 extrapolateRight: "clamp",
+                easing: easings.easeOut,
               })}px)`,
             }}
           >
             AI Voice Companion
             <br />
-            for Seniors
+            <span style={{ color: theme.colors.primary }}>for Seniors</span>
           </div>
         </Sequence>
 
-        {/* CTA Button */}
-        <Sequence from={60} layout="none">
+        {/* CTA Button with enhanced effects */}
+        <Sequence from={50} layout="none">
           <div
             style={{
-              transform: `scale(${buttonSpring * pulseScale})`,
-              opacity: interpolate(frame - 60, [0, 15], [0, 1], {
+              position: "relative",
+              transform: `scale(${buttonEntrance * pulseScale})`,
+              opacity: interpolate(frame - 50, [0, 15], [0, 1], {
                 extrapolateRight: "clamp",
               }),
             }}
           >
+            {/* Button glow ring */}
             <div
               style={{
-                background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryDark})`,
-                padding: "20px 50px",
-                borderRadius: 40,
+                position: "absolute",
+                inset: -8,
+                borderRadius: 50,
+                background: `${theme.colors.primary}30`,
+                filter: "blur(15px)",
+                opacity: interpolate(Math.sin(frame * 0.1), [-1, 1], [0.3, 0.7]),
+              }}
+            />
+
+            <div
+              style={{
+                position: "relative",
+                background: `linear-gradient(135deg, ${theme.colors.primaryLight} 0%, ${theme.colors.primary} 50%, ${theme.colors.primaryDark} 100%)`,
+                padding: "22px 55px",
+                borderRadius: 45,
                 boxShadow: `
-                  0 0 40px ${theme.colors.primary}40,
-                  0 10px 30px rgba(0, 0, 0, 0.3)
+                  0 0 ${pulseGlow}px ${theme.colors.primary}50,
+                  0 12px 35px rgba(0, 0, 0, 0.35),
+                  inset 0 2px 0 rgba(255, 255, 255, 0.2)
                 `,
+                overflow: "hidden",
               }}
             >
+              {/* Shine effect */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: shinePosition,
+                  width: 60,
+                  height: "100%",
+                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)",
+                  transform: "skewX(-20deg)",
+                  opacity: shineOpacity,
+                }}
+              />
+
               <div
                 style={{
                   fontFamily: theme.fonts.heading,
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: 700,
                   color: "white",
-                  letterSpacing: 1,
+                  letterSpacing: 1.5,
+                  textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  position: "relative",
+                  zIndex: 1,
                 }}
               >
                 Start Free Trial
@@ -125,15 +268,15 @@ export const CTAScene: React.FC = () => {
           </div>
         </Sequence>
 
-        {/* Trial info */}
-        <Sequence from={90} layout="none">
+        {/* Trial info and trust badges */}
+        <Sequence from={80} layout="none">
           <div
             style={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 12,
-              opacity: interpolate(frame - 90, [0, 20], [0, 1], {
+              gap: 16,
+              opacity: interpolate(frame - 80, [0, 20], [0, 1], {
                 extrapolateRight: "clamp",
               }),
             }}
@@ -141,51 +284,72 @@ export const CTAScene: React.FC = () => {
             <div
               style={{
                 fontFamily: theme.fonts.body,
-                fontSize: 16,
+                fontSize: 17,
                 color: theme.colors.textSecondary,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
               }}
             >
-              3-day free trial • No credit card
+              <span>3-day free trial</span>
+              <span style={{ opacity: 0.5 }}>•</span>
+              <span>No credit card</span>
             </div>
 
-            {/* Trust badges */}
+            {/* Trust badges with staggered entrance */}
             <div
               style={{
                 display: "flex",
-                gap: 20,
-                marginTop: 8,
+                gap: 24,
+                marginTop: 10,
                 flexWrap: "wrap",
                 justifyContent: "center",
               }}
             >
-              {["Secure", "Private", "24/7"].map((badge, i) => (
+              {[
+                { icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", label: "Secure", color: theme.colors.success },
+                { icon: "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.8 1.1 2.8 2.5V11c.6.3 1.2.9 1.2 1.5v3c0 .8-.7 1.5-1.5 1.5h-5c-.8 0-1.5-.7-1.5-1.5v-3c0-.6.6-1.2 1.2-1.5V9.5C9.2 8.1 10.6 7 12 7z", label: "Private", color: theme.colors.info },
+                { icon: "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z", label: "24/7", color: theme.colors.primary },
+              ].map((badge, i) => (
                 <div
-                  key={badge}
+                  key={badge.label}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    opacity: interpolate(frame - 100 - i * 8, [0, 15], [0, 1], {
-                      extrapolateRight: "clamp",
-                    }),
+                    gap: 8,
+                    transform: `translateY(${interpolate(badgeEntrances[i], [0, 1], [15, 0])}px)`,
+                    opacity: badgeEntrances[i],
                   }}
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill={theme.colors.success}
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: `${badge.color}20`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                  </svg>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill={badge.color}
+                    >
+                      <path d={badge.icon} />
+                    </svg>
+                  </div>
                   <span
                     style={{
                       fontFamily: theme.fonts.body,
-                      fontSize: 12,
+                      fontSize: 14,
+                      fontWeight: 500,
                       color: theme.colors.textMuted,
                     }}
                   >
-                    {badge}
+                    {badge.label}
                   </span>
                 </div>
               ))}

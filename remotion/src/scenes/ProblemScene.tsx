@@ -1,6 +1,12 @@
 import React from "react";
-import { useCurrentFrame, interpolate, Sequence } from "remotion";
-import { theme } from "../theme";
+import {
+  useCurrentFrame,
+  interpolate,
+  spring,
+  useVideoConfig,
+  Sequence,
+} from "remotion";
+import { theme, springs, easings } from "../theme";
 import {
   GradientBackground,
   AnimatedText,
@@ -11,60 +17,80 @@ import {
 
 export const ProblemScene: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
 
-  // Floating phone icons
+  // Calendar entrance
+  const calendarEntrance = spring({
+    frame,
+    fps,
+    config: springs.smooth,
+  });
+
+  // Floating phone icons with improved motion
   const phones = [
-    { x: -200, y: -100, delay: 0 },
-    { x: 200, y: -50, delay: 15 },
-    { x: -150, y: 100, delay: 30 },
-    { x: 180, y: 80, delay: 45 },
+    { x: -180, y: -80, delay: 0, rotation: -15 },
+    { x: 180, y: -40, delay: 15, rotation: 20 },
+    { x: -140, y: 80, delay: 30, rotation: -25 },
+    { x: 160, y: 60, delay: 45, rotation: 15 },
+    { x: 0, y: -120, delay: 60, rotation: 5 },
   ];
 
+  // Days of the week for calendar
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+
   return (
-    <SceneLayout background={<GradientBackground variant="default" />}>
+    <SceneLayout background={<GradientBackground variant="default" showParticles={false} />}>
       <ContentArea>
         <div
           style={{
             position: "relative",
-            width: 300,
-            height: 250,
+            width: 340,
+            height: 280,
           }}
         >
-          {/* Empty calendar visual */}
+          {/* Empty calendar visual with animation */}
           <div
             style={{
-              width: 300,
-              height: 200,
+              width: 340,
+              height: 220,
               background: theme.colors.backgroundCard,
-              borderRadius: 20,
-              border: `1px solid ${theme.colors.textMuted}30`,
-              opacity: interpolate(frame, [0, 20, 160, 180], [0, 0.8, 0.8, 0], {
-                extrapolateRight: "clamp",
-              }),
+              borderRadius: 24,
+              border: `1px solid ${theme.colors.textMuted}25`,
+              opacity: interpolate(calendarEntrance, [0, 1], [0, 0.9]),
+              transform: `scale(${interpolate(calendarEntrance, [0, 1], [0.9, 1])})`,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
+              boxShadow: "0 10px 40px rgba(0, 0, 0, 0.3)",
             }}
           >
             {/* Calendar header */}
             <div
               style={{
-                padding: 20,
+                padding: 22,
                 background: theme.colors.backgroundLight,
-                borderBottom: `1px solid ${theme.colors.textMuted}20`,
+                borderBottom: `1px solid ${theme.colors.textMuted}15`,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
               }}
             >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={theme.colors.textMuted}>
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
+              </svg>
               <div
                 style={{
                   fontFamily: theme.fonts.heading,
                   fontSize: 18,
+                  fontWeight: 600,
                   color: theme.colors.textMuted,
                 }}
               >
                 This Week
               </div>
             </div>
-            {/* Empty days */}
+
+            {/* Empty days with staggered animation */}
             <div
               style={{
                 flex: 1,
@@ -74,49 +100,82 @@ export const ProblemScene: React.FC = () => {
                 alignItems: "center",
               }}
             >
-              {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
+              {days.map((day, i) => {
+                const dayDelay = 15 + i * 5;
+                const dayEntrance = spring({
+                  frame: Math.max(0, frame - dayDelay),
+                  fps,
+                  config: springs.snappy,
+                });
+
+                // Empty circle pulse
+                const emptyPulse = interpolate(
+                  Math.sin(frame * 0.04 + i),
+                  [-1, 1],
+                  [0.3, 0.6]
+                );
+
+                return (
                   <div
+                    key={i}
                     style={{
-                      fontFamily: theme.fonts.body,
-                      fontSize: 12,
-                      color: theme.colors.textMuted,
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 10,
+                      opacity: dayEntrance,
+                      transform: `translateY(${interpolate(dayEntrance, [0, 1], [15, 0])}px)`,
                     }}
                   >
-                    {day}
+                    <div
+                      style={{
+                        fontFamily: theme.fonts.body,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: theme.colors.textMuted,
+                      }}
+                    >
+                      {day}
+                    </div>
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        border: `2px dashed ${theme.colors.textMuted}`,
+                        opacity: emptyPulse,
+                      }}
+                    />
                   </div>
-                  <div
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: "50%",
-                      border: `1px dashed ${theme.colors.textMuted}40`,
-                    }}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* Floating disconnected phone icons */}
           {phones.map((phone, i) => {
             const adjustedFrame = Math.max(0, frame - phone.delay);
-            const opacity = interpolate(
-              adjustedFrame,
-              [0, 20, 140, 170],
-              [0, 0.4, 0.4, 0],
-              { extrapolateRight: "clamp" }
+
+            const phoneSpring = spring({
+              frame: adjustedFrame,
+              fps,
+              config: springs.gentle,
+            });
+
+            // Floating motion
+            const floatY = interpolate(
+              Math.sin(adjustedFrame * 0.03 + i),
+              [-1, 1],
+              [-8, 8]
             );
-            const y = interpolate(adjustedFrame, [0, 170], [0, -30]);
+
+            const opacity = interpolate(
+              frame,
+              [phone.delay, phone.delay + 20, 160, 180],
+              [0, 0.35, 0.35, 0],
+              { extrapolateRight: "clamp", extrapolateLeft: "clamp" }
+            );
 
             return (
               <div
@@ -124,20 +183,37 @@ export const ProblemScene: React.FC = () => {
                 style={{
                   position: "absolute",
                   left: `calc(50% + ${phone.x}px)`,
-                  top: `calc(50% + ${phone.y}px + ${y}px)`,
-                  opacity,
-                  transform: `rotate(${i * 20 - 40}deg)`,
+                  top: `calc(50% + ${phone.y}px)`,
+                  opacity: opacity * phoneSpring,
+                  transform: `
+                    translateY(${floatY}px)
+                    rotate(${phone.rotation}deg)
+                    scale(${interpolate(phoneSpring, [0, 1], [0.5, 1])})
+                  `,
                 }}
               >
-                <svg
-                  width="50"
-                  height="50"
-                  viewBox="0 0 24 24"
-                  fill={theme.colors.textMuted}
-                  opacity={0.6}
+                <div
+                  style={{
+                    width: 45,
+                    height: 45,
+                    borderRadius: 12,
+                    background: `${theme.colors.textMuted}15`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: `1px solid ${theme.colors.textMuted}20`,
+                  }}
                 >
-                  <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z" />
-                </svg>
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill={theme.colors.textMuted}
+                    opacity={0.5}
+                  >
+                    <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z" />
+                  </svg>
+                </div>
               </div>
             );
           })}
@@ -154,10 +230,10 @@ export const ProblemScene: React.FC = () => {
               color: theme.colors.textSecondary,
               lineHeight: 1.4,
             }}
-            animationType="fadeUp"
+            animationType="wordReveal"
           />
         </Sequence>
-        <Sequence from={55} layout="none">
+        <Sequence from={60} layout="none">
           <AnimatedText
             text="spend days without"
             style={{
@@ -166,10 +242,10 @@ export const ProblemScene: React.FC = () => {
               color: theme.colors.textSecondary,
               lineHeight: 1.4,
             }}
-            animationType="fadeUp"
+            animationType="wordReveal"
           />
         </Sequence>
-        <Sequence from={80} layout="none">
+        <Sequence from={90} layout="none">
           <AnimatedText
             text="meaningful conversation."
             style={{
@@ -178,7 +254,7 @@ export const ProblemScene: React.FC = () => {
               color: theme.colors.textPrimary,
               lineHeight: 1.4,
             }}
-            animationType="fadeUp"
+            animationType="glowReveal"
           />
         </Sequence>
       </TextArea>
