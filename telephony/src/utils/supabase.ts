@@ -51,6 +51,8 @@ export interface UltauraAccountRow {
   created_by_user_id: string;
 }
 
+export type GrokVoice = 'Ara' | 'Eve' | 'Leo' | 'Rex' | 'Sal';
+
 export interface LineRow {
   id: string;
   short_id: string;
@@ -59,6 +61,7 @@ export interface LineRow {
   display_name: string;
   phone_e164: string;
   phone_verified_at: string | null;
+  preferred_grok_voice: GrokVoice;
   preferred_language_bcp47: string | null;
   preferred_language_iso: string | null;
   status: 'active' | 'paused' | 'disabled';

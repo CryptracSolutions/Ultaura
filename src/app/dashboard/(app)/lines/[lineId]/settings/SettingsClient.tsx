@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -18,6 +18,7 @@ import {
   Ear,
   PhoneIncoming,
   Palmtree,
+  Mic,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import classNames from 'clsx';
@@ -31,6 +32,7 @@ import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { Button } from '~/core/ui/Button';
+import { useTranslation } from 'react-i18next';
 import type {
   LineRow,
   VoicemailBehavior,
@@ -48,6 +50,8 @@ import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
 import { parseVacationRanges, type VacationRange } from '~/lib/ultaura/vacation-utils';
 import { VacationSettings } from './VacationSettings';
 import { getLanguageDisplayName } from '~/lib/ultaura/language';
+import { DEFAULT_GROK_VOICE, type GrokVoice, isGrokVoice } from '~/lib/ultaura/voices';
+import { VoiceSelector, type VoiceSaveStatus } from './components/VoiceSelector';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -62,6 +66,7 @@ interface SettingsClientProps {
 type LineSettingsTabValue = 'calling' | 'insights' | 'accessibility';
 type LineSettingsSectionValue =
   | 'language'
+  | 'voice-preference'
   | 'timezone'
   | 'quiet-hours'
   | 'voicemail'
@@ -84,10 +89,12 @@ const LINE_SETTINGS_TABS: Array<{ value: LineSettingsTabValue; label: string }> 
   { value: 'insights', label: 'Insights & Notifications' },
   { value: 'accessibility', label: 'Accessibility' },
 ];
-
-const LINE_SETTINGS_SECTIONS: Record<LineSettingsTabValue, LineSettingsSectionConfig[]> = {
+const buildLineSettingsSections = (
+  voiceLabel: string
+): Record<LineSettingsTabValue, LineSettingsSectionConfig[]> => ({
   calling: [
     { value: 'language', label: 'Language', icon: Languages },
+    { value: 'voice-preference', label: voiceLabel, icon: Mic },
     { value: 'timezone', label: 'Timezone', icon: Globe },
     { value: 'quiet-hours', label: 'Quiet Hours', icon: Clock },
     { value: 'voicemail', label: 'Voicemail', icon: Voicemail },
@@ -103,7 +110,7 @@ const LINE_SETTINGS_SECTIONS: Record<LineSettingsTabValue, LineSettingsSectionCo
   accessibility: [
     { value: 'accessibility', label: 'Accessibility', icon: Ear },
   ],
-};
+});
 
 function buildSettingsUrl(
   lineShortId: string,
@@ -127,6 +134,7 @@ export function SettingsClient({
   userType,
   disabled = false,
 }: SettingsClientProps) {
+  const { t } = useTranslation('voices');
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -155,6 +163,15 @@ export function SettingsClient({
   const [voicemailBehavior, setVoicemailBehavior] = useState<VoicemailBehavior>(
     (line.voicemail_behavior || 'brief') as VoicemailBehavior
   );
+  const initialVoice = isGrokVoice(line.preferred_grok_voice)
+    ? line.preferred_grok_voice
+    : DEFAULT_GROK_VOICE;
+  const [selectedVoice, setSelectedVoice] = useState<GrokVoice>(initialVoice);
+  const [savedVoiceBaseline, setSavedVoiceBaseline] = useState<GrokVoice>(initialVoice);
+  const [voiceSaveStatus, setVoiceSaveStatus] = useState<VoiceSaveStatus>('idle');
+  const voiceSaveIdRef = useRef(0);
+  const voiceSaveSuccessRef = useRef(0);
+  const voiceSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialVacationRanges = useMemo(
     () => parseVacationRanges(line.vacation_ranges),
     [line.vacation_ranges]
@@ -275,7 +292,65 @@ export function SettingsClient({
     setSpeechRate(accessibilityDefaults.speech_rate);
     setCognitiveMode(accessibilityDefaults.cognitive_mode);
     setContextWindowCalls(accessibilityDefaults.context_window_calls);
+    setSelectedVoice(savedVoiceBaseline);
+    setVoiceSaveStatus('idle');
     setError(null);
+  };
+
+  const scheduleVoiceStatusReset = () => {
+    if (voiceSaveTimeoutRef.current) {
+      clearTimeout(voiceSaveTimeoutRef.current);
+    }
+    voiceSaveTimeoutRef.current = setTimeout(() => {
+      setVoiceSaveStatus((current) => (current === 'saved' ? 'idle' : current));
+    }, 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (voiceSaveTimeoutRef.current) {
+        clearTimeout(voiceSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const saveVoiceSelection = async (voice: GrokVoice, options?: { force?: boolean }) => {
+    if (disabled) return;
+    setSelectedVoice(voice);
+    if (!options?.force && voice === savedVoiceBaseline) {
+      setVoiceSaveStatus('idle');
+      return;
+    }
+    if (voiceSaveTimeoutRef.current) {
+      clearTimeout(voiceSaveTimeoutRef.current);
+    }
+    setVoiceSaveStatus('saving');
+    const requestId = ++voiceSaveIdRef.current;
+
+    const result = await updateLine(line.id, { preferredGrokVoice: voice });
+
+    const isLatestRequest = requestId === voiceSaveIdRef.current;
+
+    if (!result.success) {
+      if (isLatestRequest) {
+        setVoiceSaveStatus('error');
+        toast.error(result.error?.message || t('ui.voicePreference.toastError'));
+      }
+      return;
+    }
+
+    if (requestId > voiceSaveSuccessRef.current) {
+      voiceSaveSuccessRef.current = requestId;
+      setSavedVoiceBaseline(voice);
+    }
+
+    if (!isLatestRequest) {
+      return;
+    }
+
+    setVoiceSaveStatus('saved');
+    toast.success(t('ui.voicePreference.toastSuccess'));
+    scheduleVoiceStatusReset();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -412,7 +487,9 @@ export function SettingsClient({
     cognitiveMode !== accessibilityDefaults.cognitive_mode ||
     contextWindowCalls !== accessibilityDefaults.context_window_calls;
 
-  const hasChanges =
+  const hasVoiceChanges = selectedVoice !== savedVoiceBaseline;
+
+  const hasSaveableChanges =
     hasLineChanges ||
     hasVacationChanges ||
     hasInsightPrivacyChanges ||
@@ -420,11 +497,17 @@ export function SettingsClient({
     hasNotificationChanges ||
     hasAccessibilityChanges;
 
+  const hasChanges = hasSaveableChanges || hasVoiceChanges;
+
   const shouldWarnOnNavigate = hasChanges && !isLoading;
   const tabParam = searchParams.get('tab') as LineSettingsTabValue | null;
   const activeTab =
     LINE_SETTINGS_TABS.find((tab) => tab.value === tabParam) ?? LINE_SETTINGS_TABS[0];
-  const sectionsForTab = LINE_SETTINGS_SECTIONS[activeTab.value];
+  const lineSettingsSections = useMemo(
+    () => buildLineSettingsSections(t('ui.voicePreference.sectionLabel')),
+    [t]
+  );
+  const sectionsForTab = lineSettingsSections[activeTab.value];
   const sectionParam = searchParams.get('section') as LineSettingsSectionValue | null;
   const activeSection =
     sectionsForTab.find((section) => section.value === sectionParam) ??
@@ -604,6 +687,30 @@ export function SettingsClient({
               </Section>
             );
           }
+          case 'voice-preference':
+            return (
+              <Section>
+                <SectionHeader
+                  title={
+                    <div className="flex items-center gap-2">
+                      <Mic className="h-4 w-4 text-muted-foreground" />
+                      {t('ui.voicePreference.sectionTitle')}
+                    </div>
+                  }
+                  description={t('ui.voicePreference.sectionDescription')}
+                />
+                <SectionBody className="gap-4">
+                  <VoiceSelector
+                    value={selectedVoice}
+                    onChange={(voice) => void saveVoiceSelection(voice)}
+                    onRetry={() => void saveVoiceSelection(selectedVoice, { force: true })}
+                    saveStatus={voiceSaveStatus}
+                    disabled={disabled}
+                    helperText={t('ui.voicePreference.helperText')}
+                  />
+                </SectionBody>
+              </Section>
+            );
           case 'timezone':
             return (
               <Section>
@@ -1235,7 +1342,7 @@ export function SettingsClient({
               onClick={(event) =>
                 handleInternalNavigation(
                   event,
-                  buildSettingsUrl(line.short_id, tab.value, LINE_SETTINGS_SECTIONS[tab.value][0].value),
+                  buildSettingsUrl(line.short_id, tab.value, lineSettingsSections[tab.value][0].value),
                   { scroll: false }
                 )
               }
@@ -1243,7 +1350,7 @@ export function SettingsClient({
                 path: buildSettingsUrl(
                   line.short_id,
                   tab.value,
-                  LINE_SETTINGS_SECTIONS[tab.value][0].value
+                  lineSettingsSections[tab.value][0].value
                 ),
                 label: tab.label,
               }}
@@ -1268,14 +1375,14 @@ export function SettingsClient({
           <button
             type="button"
             onClick={resetFormState}
-            disabled={disabled || isLoading || !hasChanges}
+            disabled={disabled || isLoading || !hasSaveableChanges}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-input px-4 py-2 text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             Discard changes
           </button>
           <button
             type="submit"
-            disabled={disabled || isLoading || !hasChanges}
+            disabled={disabled || isLoading || !hasSaveableChanges}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? 'Saving...' : 'Save Changes'}

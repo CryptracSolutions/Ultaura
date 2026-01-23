@@ -22,6 +22,8 @@ import UserTypeStep, { UserTypeStepData } from './UserTypeStep';
 import PhoneCollectionStep, { PhoneCollectionStepData } from './PhoneCollectionStep';
 import BirthdayStep, { BirthdayStepData } from './BirthdayStep';
 import LovedOneSetupStep, { LovedOneSetupStepData } from './LovedOneSetupStep';
+import VoiceSelectionStep, { VoiceSelectionStepData } from './VoiceSelectionStep';
+import { DEFAULT_GROK_VOICE } from '~/lib/ultaura/voices';
 
 type Invite = {
   email: string;
@@ -43,6 +45,7 @@ const SELF_USER_STEPS = [
   'onboarding:userType',
   'onboarding:phoneCollection',
   'onboarding:birthday',
+  'onboarding:voiceSelection',
   'onboarding:plan',
 ];
 
@@ -50,6 +53,7 @@ const FAMILY_STEPS_WITH_INVITES = [
   'onboarding:userType',
   'onboarding:info',
   'onboarding:lovedOneSetup',
+  'onboarding:voiceSelection',
   'onboarding:plan',
   'onboarding:invites',
 ];
@@ -58,6 +62,7 @@ const FAMILY_STEPS_NO_INVITES = [
   'onboarding:userType',
   'onboarding:info',
   'onboarding:lovedOneSetup',
+  'onboarding:voiceSelection',
   'onboarding:plan',
 ];
 
@@ -80,6 +85,7 @@ function OnboardingContainer(
         lovedOneName: '',
         lovedOnePhoneE164: '',
         lovedOneTimezone: 'America/Los_Angeles',
+        preferredGrokVoice: DEFAULT_GROK_VOICE,
       },
       currentStep: 0,
     },
@@ -136,6 +142,14 @@ function OnboardingContainer(
       form.setValue('data.lovedOneName', data.lovedOneName);
       form.setValue('data.lovedOnePhoneE164', data.lovedOnePhoneE164);
       form.setValue('data.lovedOneTimezone', data.lovedOneTimezone);
+      nextStep();
+    },
+    [form, nextStep],
+  );
+
+  const onVoiceSelectionSubmitted = useCallback(
+    (data: VoiceSelectionStepData) => {
+      form.setValue('data.preferredGrokVoice', data.preferredGrokVoice);
       nextStep();
     },
     [form, nextStep],
@@ -221,6 +235,14 @@ function OnboardingContainer(
 
         <If condition={stepId === 'onboarding:lovedOneSetup'}>
           <LovedOneSetupStep onSubmit={onLovedOneStepSubmitted} onGoBack={prevStep} />
+        </If>
+
+        <If condition={stepId === 'onboarding:voiceSelection'}>
+          <VoiceSelectionStep
+            onSubmit={onVoiceSelectionSubmitted}
+            onGoBack={prevStep}
+            value={formData?.preferredGrokVoice ?? DEFAULT_GROK_VOICE}
+          />
         </If>
 
         <If condition={stepId === 'onboarding:plan' && !isCompleting}>

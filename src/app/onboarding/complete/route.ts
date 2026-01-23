@@ -15,7 +15,7 @@ import MembershipRole from '~/lib/organizations/types/membership-role';
 import inviteMembers from '~/lib/server/organizations/invite-members';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 
-import { BILLING, PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
+import { BILLING, GROK, PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
 import { createLine } from '~/lib/ultaura/lines';
 import { getUserDataById } from '~/lib/server/queries';
 
@@ -30,11 +30,11 @@ export const POST = async (req: NextRequest) => {
   let body;
   try {
     const json = await req.json();
-    console.log('[DEBUG] Onboarding request body:', JSON.stringify(json, null, 2));
     body = await getOnboardingBodySchema().parseAsync(json);
   } catch (error) {
-    console.log('[DEBUG] Onboarding validation error:', error);
-    logger.warn({ error, userId }, 'Invalid onboarding request body');
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    const issueCount = error instanceof z.ZodError ? error.issues.length : undefined;
+    logger.warn({ userId, errorName, issueCount }, 'Invalid onboarding request body');
     return NextResponse.json(
       { success: false, error: 'Invalid request body' },
       { status: 400 },
@@ -70,7 +70,6 @@ export const POST = async (req: NextRequest) => {
   const { data: organizationUid, error } = await completeOnboarding(payload);
 
   if (error) {
-    console.log('[DEBUG] completeOnboarding error:', JSON.stringify(error, null, 2));
     logger.error(
       {
         error,
@@ -89,7 +88,7 @@ export const POST = async (req: NextRequest) => {
     .eq('id', userId);
 
   if (onboardedError) {
-    console.log('[DEBUG] Failed to update onboarded flag:', JSON.stringify(onboardedError, null, 2));
+    logger.warn({ error: onboardedError, userId }, 'Failed to update onboarded flag');
   }
 
   if (body.userType === 'family_managed' && invites.length > 0) {
@@ -121,7 +120,6 @@ export const POST = async (req: NextRequest) => {
       .single();
 
     if (orgError || !orgRow) {
-      console.log('[DEBUG] orgError:', JSON.stringify(orgError, null, 2), 'organizationUid:', organizationUid);
       logger.error({ orgError, organizationUid }, 'Failed to fetch organization for Ultaura account creation');
       return throwInternalServerErrorException();
     }
@@ -133,7 +131,6 @@ export const POST = async (req: NextRequest) => {
       .maybeSingle();
 
     if (existingAccountError) {
-      console.log('[DEBUG] existingAccountError:', JSON.stringify(existingAccountError, null, 2));
       logger.error({ existingAccountError, organizationUid }, 'Failed to check existing Ultaura account');
       return throwInternalServerErrorException();
     }
@@ -169,7 +166,6 @@ export const POST = async (req: NextRequest) => {
         .single();
 
       if (accountError) {
-        console.log('[DEBUG] accountError:', JSON.stringify(accountError, null, 2));
         logger.error({ accountError, organizationUid }, 'Failed to create Ultaura account during onboarding');
         return throwInternalServerErrorException();
       }
@@ -205,6 +201,7 @@ export const POST = async (req: NextRequest) => {
     displayName: lineName,
     phoneE164: linePhone,
     timezone: lineTimezone,
+    preferredGrokVoice: body.preferredGrokVoice,
   });
 
   if (!lineResult.success) {
@@ -283,6 +280,7 @@ function getOnboardingBodySchema() {
       lovedOneName: z.string().trim().optional(),
       lovedOnePhoneE164: optionalPhoneSchema.optional(),
       lovedOneTimezone: z.string().optional(),
+      preferredGrokVoice: z.enum(GROK.VOICES).optional().default(GROK.DEFAULT_VOICE),
     })
     .superRefine((data, ctx) => {
       if (data.userType === 'self') {

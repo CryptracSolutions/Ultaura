@@ -1851,6 +1851,7 @@ export type Database = {
           optimal_call_time_source: string | null
           phone_e164: string
           phone_verified_at: string | null
+          preferred_grok_voice: string
           preferred_language_bcp47: string | null
           preferred_language_iso: string | null
           quiet_hours_end: string
@@ -1892,6 +1893,7 @@ export type Database = {
           optimal_call_time_source?: string | null
           phone_e164: string
           phone_verified_at?: string | null
+          preferred_grok_voice?: string
           preferred_language_bcp47?: string | null
           preferred_language_iso?: string | null
           quiet_hours_end?: string
@@ -1933,6 +1935,7 @@ export type Database = {
           optimal_call_time_source?: string | null
           phone_e164?: string
           phone_verified_at?: string | null
+          preferred_grok_voice?: string
           preferred_language_bcp47?: string | null
           preferred_language_iso?: string | null
           quiet_hours_end?: string
@@ -4398,7 +4401,6 @@ export type Database = {
         | "data_deletion_requested"
         | "memory_hard_deleted"
         | "recording_consent_updated"
-        | "recording_reenable_requested"
         | "sharing_consent_updated"
         | "sharing_enabled_by_self_user"
         | "onboarding_completed"
@@ -4406,6 +4408,7 @@ export type Database = {
         | "insights_enabled_changed"
         | "pause_mode_changed"
         | "insights_reprompt_requested"
+        | "recording_reenable_requested"
       ultaura_consent_type:
         | "outbound_calls"
         | "trusted_contact_notify"
@@ -5255,7 +5258,6 @@ export const Constants = {
         "data_deletion_requested",
         "memory_hard_deleted",
         "recording_consent_updated",
-        "recording_reenable_requested",
         "sharing_consent_updated",
         "sharing_enabled_by_self_user",
         "onboarding_completed",
@@ -5263,6 +5265,7 @@ export const Constants = {
         "insights_enabled_changed",
         "pause_mode_changed",
         "insights_reprompt_requested",
+        "recording_reenable_requested",
       ],
       ultaura_consent_type: [
         "outbound_calls",
@@ -5356,3 +5359,4 @@ export const Constants = {
     },
   },
 } as const
+

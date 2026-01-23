@@ -665,6 +665,7 @@ export async function handleMediaStreamConnection(
                 accountId: account.id,
                 userName: line.display_name,
                 timezone: line.timezone,
+                preferredGrokVoice: line.preferred_grok_voice,
                 startingLanguage,
                 isLanguageAutoDetect,
                 isFirstCall,

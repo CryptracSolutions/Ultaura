@@ -156,7 +156,7 @@ export const GROK = {
   REALTIME_URL: 'wss://api.x.ai/v1/realtime',
 
   // Available voices
-  VOICES: ['Ara', 'Rex', 'Sal', 'Eve', 'Leo'] as const,
+  VOICES: ['Ara', 'Eve', 'Leo', 'Rex', 'Sal'] as const,
   DEFAULT_VOICE: 'Ara' as const,
 
   // Turn detection settings

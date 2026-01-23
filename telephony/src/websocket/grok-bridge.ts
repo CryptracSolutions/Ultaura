@@ -42,6 +42,9 @@ import { voiceToolCallsTotal, voiceToolErrorsTotal } from '../utils/metrics.js';
 
 const GROK_REALTIME_URL = process.env.XAI_REALTIME_URL || 'wss://api.x.ai/v1/realtime';
 const ROUTINE_TIME_WINDOW_MINUTES = 120;
+const GROK_ALLOWED_VOICES = new Set(['Ara', 'Eve', 'Leo', 'Rex', 'Sal']);
+
+type GrokVoice = 'Ara' | 'Eve' | 'Leo' | 'Rex' | 'Sal';
 
 function isMultilingualSafetyEnabled(): boolean {
   return process.env.ULTAURA_MULTILINGUAL_SAFETY_ENABLED === 'true';
@@ -156,6 +159,7 @@ interface GrokBridgeOptions {
   accountId: string;
   userName: string;
   timezone: string;
+  preferredGrokVoice?: string | null;
   startingLanguage?: string;
   isLanguageAutoDetect?: boolean;
   isFirstCall: boolean;
@@ -283,6 +287,28 @@ export class GrokBridge {
 
   private runWithContext<T>(fn: () => T): T {
     return runWithLogContext(this.logContext, () => runWithSpan(this.sessionSpan, fn));
+  }
+
+  private resolvePreferredVoice(): GrokVoice {
+    const preferred = this.options.preferredGrokVoice;
+    if (preferred && GROK_ALLOWED_VOICES.has(preferred)) {
+      return preferred as GrokVoice;
+    }
+
+    if (preferred) {
+      this.runWithContext(() => {
+        logger.warn(
+          {
+            callSessionId: this.options.callSessionId,
+            lineId: this.options.lineId,
+            preferredGrokVoice: preferred,
+          },
+          'Invalid preferred Grok voice; falling back to Ara'
+        );
+      });
+    }
+
+    return 'Ara';
   }
 
   private applyCorrelationAttributes(span: Span): void {
@@ -429,11 +455,12 @@ export class GrokBridge {
 
     const systemPrompt = this.buildSystemPrompt();
     const tools = this.getActiveTools();
+    const resolvedVoice = this.resolvePreferredVoice();
 
     const sessionConfig: GrokMessage = {
       type: 'session.update',
       session: {
-        voice: 'Ara', // Warm, friendly voice
+        voice: resolvedVoice,
         instructions: systemPrompt,
         audio: {
           input: { format: { type: 'audio/pcmu' } }, // μ-law for Twilio

@@ -1,0 +1,55 @@
+{
+  "voices": {
+    "ara": {
+      "name": "Ara",
+      "description": "Warm and nurturing"
+    },
+    "eve": {
+      "name": "Eve",
+      "description": "Bright and cheerful"
+    },
+    "leo": {
+      "name": "Leo",
+      "description": "Calm and reassuring"
+    },
+    "rex": {
+      "name": "Rex",
+      "description": "Clear and articulate"
+    },
+    "sal": {
+      "name": "Sal",
+      "description": "Conversational and natural"
+    }
+  },
+  "traits": {
+    "gentle": "Gentle",
+    "comforting": "Comforting",
+    "patient": "Patient",
+    "upbeat": "Upbeat",
+    "friendly": "Friendly",
+    "energetic": "Energetic",
+    "steady": "Steady",
+    "warm": "Warm",
+    "thoughtful": "Thoughtful",
+    "clear": "Clear",
+    "confident": "Confident",
+    "engaging": "Engaging",
+    "natural": "Natural",
+    "relaxed": "Relaxed",
+    "personable": "Personable"
+  },
+  "ui": {
+    "voicePreference": {
+      "sectionLabel": "Voice Preference",
+      "sectionTitle": "Voice Preference",
+      "sectionDescription": "Choose the voice Ultaura uses for this line.",
+      "helperText": "Applies to your next call.",
+      "statusSaving": "Saving...",
+      "statusSaved": "Saved",
+      "statusError": "Not saved",
+      "retry": "Retry",
+      "toastSuccess": "Voice updated",
+      "toastError": "Failed to update voice"
+    }
+  }
+}

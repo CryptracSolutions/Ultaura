@@ -32,12 +32,22 @@ describe('lines', () => {
 
     const line = await getLine(lineId);
     expect(line?.display_name).toBe('Test Line');
+    expect(line?.preferred_grok_voice).toBe('Ara');
 
     const updated = await updateLine(lineId, { displayName: 'Updated Line' });
     expect(updated.success).toBe(true);
 
     const updatedLine = await getLine(lineId);
     expect(updatedLine?.display_name).toBe('Updated Line');
+
+    const voiceUpdated = await updateLine(lineId, { preferredGrokVoice: 'Eve' });
+    expect(voiceUpdated.success).toBe(true);
+
+    const voiceLine = await getLine(lineId);
+    expect(voiceLine?.preferred_grok_voice).toBe('Eve');
+
+    const invalidUpdate = await updateLine(lineId, { preferredGrokVoice: 'InvalidVoice' } as any);
+    expect(invalidUpdate.success).toBe(false);
 
     const removed = await deleteLine(lineId);
     expect(removed.success).toBe(true);

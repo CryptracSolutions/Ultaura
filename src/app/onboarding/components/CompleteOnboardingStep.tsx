@@ -8,6 +8,7 @@ import Trans from '~/core/ui/Trans';
 import Spinner from '~/core/ui/Spinner';
 import Heading from '~/core/ui/Heading';
 import { CheckCircle } from 'lucide-react';
+import type { GrokVoice } from '~/lib/ultaura/voices';
 
 import useApiRequest from '~/core/hooks/use-api';
 import configuration from '~/configuration';
@@ -26,6 +27,7 @@ interface CompleteOnboardingStepData {
   lovedOneName: string;
   lovedOnePhoneE164: string;
   lovedOneTimezone: string;
+  preferredGrokVoice: GrokVoice;
 }
 
 const CompleteOnboardingStep: React.FC<{

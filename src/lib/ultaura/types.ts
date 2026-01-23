@@ -18,6 +18,7 @@ import type {
 } from '@ultaura/types';
 import type { Database } from '~/database.types';
 import type { RetentionInsights } from './types/retention';
+import type { GrokVoice } from './constants';
 export type {
   AccountStatus,
   CallInsights,
@@ -221,6 +222,7 @@ export interface Line {
   allowVoiceReminderControl: boolean;
   allowVoiceScheduleControl: boolean;
   voicemailBehavior: VoicemailBehavior;
+  preferredGrokVoice?: GrokVoice;
   preferredLanguageBcp47: string | null;
   preferredLanguageIso: string | null;
   vacationRanges?: Array<{ start: string; end: string }>;
@@ -243,6 +245,7 @@ export interface CreateLineInput {
   displayName: string;
   phoneE164: string;
   timezone?: string;
+  preferredGrokVoice?: GrokVoice;
   preferredLanguageIso?: SupportedLanguageIso | null;
   seedInterests?: string[];
   seedAvoidTopics?: string[];
@@ -255,6 +258,7 @@ export interface UpdateLineInput {
   quietHoursEnd?: string;
   doNotCall?: boolean;
   inboundAllowed?: boolean;
+  preferredGrokVoice?: GrokVoice;
   preferredLanguageIso?: SupportedLanguageIso | null;
   seedInterests?: string[];
   seedAvoidTopics?: string[];
