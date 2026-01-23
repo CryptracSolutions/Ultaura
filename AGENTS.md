@@ -24,6 +24,21 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Accessibility Settings**: Hearing and cognitive support adaptations
 - **Privacy Center**: Consent management, data export, account deletion
 
+## Codex Multi-Agent Preferences
+
+1. When using the Task tool to spawn agents, always use `model: "opus"` for all agent types including:
+- Explore
+- Plan
+- code-simplifier
+- feature-dev agents
+- Any other subagent types
+
+2. Collaborating Agents Rules
+- ALWAYS wait for all subagents to complete before yielding
+- Spawn subagents automatically when:
+- Parallelizable work (e.g., install + verify, npm test + typecheck, multiple tasks from plan)
+- Long-running or blocking tasks where a worker can run independently
+- Isolation for risky changes or checks
 
 ## Architecture
 
