@@ -15,12 +15,14 @@ function DocsLayout({ children }: React.PropsWithChildren) {
 
   return (
     <Container>
-      <div className={'flex'}>
+      <div className={'flex gap-8'}>
         <DocsNavigation
           tree={tree as ReturnType<typeof buildDocumentationTree>}
         />
 
-        <div className={'w-full flex flex-col items-center'}>{children}</div>
+        <div className={'flex-1 min-w-0 flex flex-col items-center'}>
+          {children}
+        </div>
       </div>
     </Container>
   );
