@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <radialGradient id="ring_ara" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 140) rotate(90) scale(310)">
+      <stop offset="0" stop-color="#3DD4CF" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#0ABAB5" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#0ABAB5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent_ara" x1="140" y1="124" x2="372" y2="392" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB38A"/>
+      <stop offset="1" stop-color="#FF6F91"/>
+    </linearGradient>
+    <linearGradient id="hair_ara" x1="184" y1="132" x2="332" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B2B2B"/>
+      <stop offset="1" stop-color="#2A0F16"/>
+    </linearGradient>
+    <filter id="soft_ara" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.6" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.45 0" result="s"/>
+      <feMerge>
+        <feMergeNode in="s"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer glow ring (transparent outside) -->
+  <circle cx="256" cy="256" r="238" fill="url(#ring_ara)"/>
+
+  <!-- Subtle border ring -->
+  <circle cx="256" cy="256" r="210" stroke="#0ABAB5" stroke-opacity="0.35" stroke-width="6"/>
+
+  <!-- Portrait base -->
+  <g filter="url(#soft_ara)">
+    <circle cx="256" cy="270" r="148" fill="#101018" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="2"/>
+
+    <!-- Hair -->
+    <path d="M162 262c0-92 62-142 140-142s140 50 140 142c0 18-3 33-9 45c-8-28-25-48-48-62c-27-16-59-20-83-20s-56 4-83 20c-23 14-40 34-48 62c-6-12-9-27-9-45z" fill="url(#hair_ara)"/>
+    <path d="M182 212c18-42 54-68 98-74c54-7 104 19 126 74c-16-18-38-34-67-40c-25-5-48-2-67 4c-22 7-45 20-64 36c-9 8-18 17-26 26z" fill="#FFFFFF" fill-opacity="0.06"/>
+
+    <!-- Face -->
+    <path d="M196 280c0-40 26-76 60-88c34-12 74 0 98 28c19 22 25 51 18 78c-10 40-43 69-88 74c-51 6-88-27-88-92z" fill="#FFD7C2"/>
+
+    <!-- Cheeks -->
+    <circle cx="214" cy="310" r="18" fill="#FF6F91" fill-opacity="0.18"/>
+    <circle cx="326" cy="310" r="18" fill="#FF6F91" fill-opacity="0.18"/>
+
+    <!-- Eyes -->
+    <path d="M226 292c10-8 24-8 34 0" stroke="#1B1B22" stroke-opacity="0.85" stroke-width="8" stroke-linecap="round"/>
+    <path d="M286 292c10-8 24-8 34 0" stroke="#1B1B22" stroke-opacity="0.85" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- Smile -->
+    <path d="M238 338c20 18 48 18 68 0" stroke="#1B1B22" stroke-opacity="0.85" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Collar -->
+    <path d="M174 440c18-38 52-60 82-68c30 26 70 26 100 0c30 8 64 30 82 68c-70 26-192 26-264 0z" fill="url(#accent_ara)" fill-opacity="0.9"/>
+  </g>
+
+  <!-- Tiny voice badge -->
+  <g transform="translate(340 338)">
+    <rect x="0" y="0" width="116" height="56" rx="18" fill="#0A0A0F" fill-opacity="0.85" stroke="#0ABAB5" stroke-opacity="0.35" stroke-width="2"/>
+    <g transform="translate(18 16)" fill="#0ABAB5" fill-opacity="0.95">
+      <rect x="0" y="12" width="6" height="12" rx="3"/>
+      <rect x="12" y="6" width="6" height="24" rx="3"/>
+      <rect x="24" y="0" width="6" height="36" rx="3"/>
+      <rect x="36" y="8" width="6" height="20" rx="3"/>
+      <rect x="48" y="14" width="6" height="10" rx="3"/>
+    </g>
+    <text x="78" y="35" font-family="Manrope, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="700" fill="#FFFFFF" fill-opacity="0.92" text-anchor="middle">Ara</text>
+  </g>
+</svg>
+

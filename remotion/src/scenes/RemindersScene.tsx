@@ -6,7 +6,7 @@ import {
   useVideoConfig,
   Sequence,
 } from "remotion";
-import { theme, springs, easings } from "../theme";
+import { theme, springs } from "../theme";
 import {
   GradientBackground,
   AnimatedText,
@@ -66,11 +66,11 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
       <div
         style={{
           background: theme.colors.backgroundCard,
-          borderRadius: 20,
-          padding: 24,
+          borderRadius: 22,
+          padding: 26,
           display: "flex",
           alignItems: "center",
-          gap: 18,
+          gap: 20,
           opacity,
           transform: `translateX(${translateX}px)`,
           border: `1px solid ${color}25`,
@@ -79,9 +79,9 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
       >
         <div
           style={{
-            width: 60,
-            height: 60,
-            borderRadius: 16,
+            width: 64,
+            height: 64,
+            borderRadius: 18,
             background: `${color}15`,
             display: "flex",
             alignItems: "center",
@@ -96,7 +96,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
         <div
           style={{
             fontFamily: theme.fonts.heading,
-            fontSize: 19,
+            fontSize: 20,
             fontWeight: 600,
             color: theme.colors.textPrimary,
             marginBottom: 6,
@@ -107,7 +107,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
         <div
           style={{
             fontFamily: theme.fonts.body,
-            fontSize: 15,
+            fontSize: 16,
             color: theme.colors.textSecondary,
           }}
         >
@@ -153,7 +153,7 @@ export const RemindersScene: React.FC = () => {
   const reminders = [
     {
       icon: (
-        <svg width="30" height="30" viewBox="0 0 24 24" fill={theme.colors.error}>
+        <svg width="34" height="34" viewBox="0 0 24 24" fill={theme.colors.error}>
           <path d="M19 3H5c-1.1 0-1.99.9-1.99 2L3 19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11h-4v4h-4v-4H6v-4h4V6h4v4h4v4z" />
         </svg>
       ),
@@ -163,23 +163,13 @@ export const RemindersScene: React.FC = () => {
     },
     {
       icon: (
-        <svg width="30" height="30" viewBox="0 0 24 24" fill={theme.colors.info}>
+        <svg width="34" height="34" viewBox="0 0 24 24" fill={theme.colors.info}>
           <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z" />
         </svg>
       ),
       title: "Doctor Appointment",
       time: "Tomorrow 2:30 PM",
       color: theme.colors.info,
-    },
-    {
-      icon: (
-        <svg width="30" height="30" viewBox="0 0 24 24" fill={theme.colors.success}>
-          <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z" />
-        </svg>
-      ),
-      title: "Call Sarah",
-      time: "This Saturday",
-      color: theme.colors.success,
     },
   ];
 
@@ -192,9 +182,9 @@ export const RemindersScene: React.FC = () => {
 
   // Bell icon animation
   const bellWobble = interpolate(
-    Math.sin(frame * 0.3),
+    Math.sin(frame * 0.2),
     [-1, 1],
-    [-8, 8]
+    [-5, 5]
   );
 
   return (
@@ -265,13 +255,29 @@ export const RemindersScene: React.FC = () => {
               />
             ))}
           </div>
+
+          <Sequence from={100} layout="none">
+            <div
+              style={{
+                textAlign: "center",
+                fontFamily: theme.fonts.body,
+                fontSize: 15,
+                color: theme.colors.textMuted,
+                opacity: interpolate(frame - 100, [0, 20], [0, 0.7], {
+                  extrapolateRight: "clamp",
+                }),
+              }}
+            >
+              +3 more reminders
+            </div>
+          </Sequence>
         </div>
       </ContentArea>
 
       <TextArea>
-        <Sequence from={110} layout="none">
+        <Sequence from={130} layout="none">
           <AnimatedText
-            text="Medication. Appointments."
+            text="Set reminders."
             style={{
               fontSize: 34,
               fontWeight: 600,
@@ -281,7 +287,7 @@ export const RemindersScene: React.FC = () => {
             animationType="wordReveal"
           />
         </Sequence>
-        <Sequence from={140} layout="none">
+        <Sequence from={160} layout="none">
           <AnimatedText
             text="Never miss a thing."
             style={{

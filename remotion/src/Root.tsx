@@ -1,11 +1,11 @@
 import { Composition } from "remotion";
 import { UltauraPromo } from "./UltauraPromo";
-import { theme } from "./theme";
+import { theme, TRANSITION_COUNT, TRANSITION_DURATION_FRAMES } from "./theme";
 
 // Calculate total duration accounting for transition overlaps
 // Each transition subtracts from total since scenes overlap during transitions
-const transitionDuration = Math.round(theme.fps * 0.5); // 0.5 seconds
-const numberOfTransitions = 7; // 7 transitions between 8 scenes
+const transitionDuration = TRANSITION_DURATION_FRAMES;
+const numberOfTransitions = TRANSITION_COUNT;
 const totalSceneDuration = Object.values(theme.sections).reduce(
   (acc, section) => acc + section.duration,
   0

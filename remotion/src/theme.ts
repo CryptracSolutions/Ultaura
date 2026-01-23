@@ -7,6 +7,10 @@ const { fontFamily } = loadFont("normal", {
   subsets: ["latin"],
 });
 
+// Transition configuration (30fps)
+export const TRANSITION_DURATION_FRAMES = 18; // 0.6s
+export const TRANSITION_COUNT = 6;
+
 // Spring configurations for different animation types
 export const springs = {
   // Smooth, no bounce - for subtle reveals and text
@@ -21,6 +25,8 @@ export const springs = {
   pop: { damping: 12, stiffness: 300 },
   // Gentle float - for background elements
   gentle: { damping: 30, stiffness: 50 },
+  // Premium crossfade - no overshoot
+  premiumFade: { damping: 200, stiffness: 100 },
 } as const;
 
 // Easing presets for interpolate functions
@@ -83,17 +89,19 @@ export const theme = {
 
   // Section timings in frames (at 30fps)
   sections: {
-    hook: { start: 0, duration: 150 },       // 0-5s
-    problem: { start: 150, duration: 210 },   // 5-12s
-    solution: { start: 360, duration: 180 },  // 12-18s
-    aiCalls: { start: 540, duration: 240 },   // 18-26s
-    dashboard: { start: 780, duration: 240 }, // 26-34s
-    safety: { start: 1020, duration: 180 },   // 34-40s
-    reminders: { start: 1200, duration: 180 },// 40-46s
-    cta: { start: 1380, duration: 180 },      // 46-52s
+    hook: { start: 0, duration: 180 },             // 6s
+    voiceSelection: { start: 180, duration: 210 }, // 7s
+    reminders: { start: 390, duration: 210 },      // 7s
+    schedule: { start: 600, duration: 210 },       // 7s
+    insightsSafety: { start: 810, duration: 360 }, // 12s
+    calls: { start: 1170, duration: 270 },         // 9s
+    cta: { start: 1440, duration: 228 },           // 7.6s
   },
 
-  // Total duration: 52 seconds = 1560 frames
+  // Total raw duration before overlap subtraction
+  totalRawDuration: 1668,
+
+  // Final output duration: 52 seconds = 1560 frames
   totalDuration: 1560,
 } as const;
 

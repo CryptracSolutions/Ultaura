@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <radialGradient id="ring_leo" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 140) rotate(90) scale(310)">
+      <stop offset="0" stop-color="#22C55E" stop-opacity="0.42"/>
+      <stop offset="0.55" stop-color="#0ABAB5" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#0ABAB5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent_leo" x1="140" y1="124" x2="372" y2="392" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#0ABAB5"/>
+    </linearGradient>
+    <linearGradient id="hair_leo" x1="176" y1="128" x2="344" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2B2A2F"/>
+      <stop offset="1" stop-color="#0D0D10"/>
+    </linearGradient>
+    <filter id="soft_leo" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.6" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.45 0" result="s"/>
+      <feMerge>
+        <feMergeNode in="s"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="256" cy="256" r="238" fill="url(#ring_leo)"/>
+  <circle cx="256" cy="256" r="210" stroke="#22C55E" stroke-opacity="0.26" stroke-width="6"/>
+
+  <g filter="url(#soft_leo)">
+    <circle cx="256" cy="270" r="148" fill="#101018" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="2"/>
+
+    <!-- Hair (short) -->
+    <path d="M170 276c0-96 64-152 138-152c88 0 146 54 146 152c0 26-6 46-14 62c-10-30-30-50-58-62c-24-10-52-12-74-12s-50 2-74 12c-28 12-48 32-58 62c-8-16-14-36-14-62z" fill="url(#hair_leo)"/>
+    <path d="M200 206c30-34 70-50 114-50c56 0 102 26 120 68c-18-12-40-20-66-22c-36-3-68 8-94 24c-20 12-38 26-54 40z" fill="#FFFFFF" fill-opacity="0.05"/>
+
+    <!-- Face -->
+    <path d="M198 284c0-44 30-82 70-92c40-10 85 10 104 44c16 28 14 62-4 88c-16 24-44 40-78 44c-58 6-92-24-92-84z" fill="#F2D5BE"/>
+
+    <!-- Eyes -->
+    <path d="M226 296c12-6 26-6 38 0" stroke="#1B1B22" stroke-opacity="0.84" stroke-width="8" stroke-linecap="round"/>
+    <path d="M288 296c12-6 26-6 38 0" stroke="#1B1B22" stroke-opacity="0.84" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- Smile -->
+    <path d="M242 344c18 14 46 14 64 0" stroke="#1B1B22" stroke-opacity="0.84" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Collar -->
+    <path d="M174 440c18-38 52-60 82-68c30 26 70 26 100 0c30 8 64 30 82 68c-70 26-192 26-264 0z" fill="url(#accent_leo)" fill-opacity="0.9"/>
+  </g>
+
+  <g transform="translate(340 338)">
+    <rect x="0" y="0" width="116" height="56" rx="18" fill="#0A0A0F" fill-opacity="0.85" stroke="#22C55E" stroke-opacity="0.30" stroke-width="2"/>
+    <g transform="translate(18 16)" fill="#22C55E" fill-opacity="0.95">
+      <rect x="0" y="12" width="6" height="12" rx="3"/>
+      <rect x="12" y="6" width="6" height="24" rx="3"/>
+      <rect x="24" y="0" width="6" height="36" rx="3"/>
+      <rect x="36" y="8" width="6" height="20" rx="3"/>
+      <rect x="48" y="14" width="6" height="10" rx="3"/>
+    </g>
+    <text x="78" y="35" font-family="Manrope, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="700" fill="#FFFFFF" fill-opacity="0.92" text-anchor="middle">Leo</text>
+  </g>
+</svg>
+

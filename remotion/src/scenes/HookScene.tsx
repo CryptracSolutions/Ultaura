@@ -28,18 +28,18 @@ export const HookScene: React.FC = () => {
 
   // Rotation wobble
   const wobble = interpolate(
-    Math.sin(frame * 0.5),
+    Math.sin(frame * 0.4),
     [-1, 1],
-    [-4, 4]
+    [-2, 2]
   );
 
   // Ripple effects - staggered
-  const ripple1Progress = (frame % 60) / 60;
-  const ripple2Progress = ((frame + 20) % 60) / 60;
+  const ripple1Progress = (frame % 90) / 90;
+  const ripple2Progress = ((frame + 30) % 90) / 90;
 
   const getRippleStyle = (progress: number) => ({
-    scale: interpolate(progress, [0, 1], [0.85, 2.1]),
-    opacity: interpolate(progress, [0, 0.35, 1], [0, 0.35, 0]),
+    scale: interpolate(progress, [0, 1], [0.9, 1.8]),
+    opacity: interpolate(progress, [0, 0.35, 1], [0, 0.25, 0]),
   });
 
   const ripple1 = getRippleStyle(ripple1Progress);
@@ -137,22 +137,22 @@ export const HookScene: React.FC = () => {
       </ContentArea>
 
       <TextArea>
-        <Sequence from={40} layout="none">
+        <Sequence from={45} layout="none">
           <AnimatedText
             text="What if your loved one"
             style={{
-              fontSize: 48,
+              fontSize: 46,
               fontWeight: 600,
               lineHeight: 1.3,
             }}
             animationType="wordReveal"
           />
         </Sequence>
-        <Sequence from={70} layout="none">
+        <Sequence from={75} layout="none">
           <AnimatedText
             text="never felt alone?"
             style={{
-              fontSize: 48,
+              fontSize: 46,
               fontWeight: 700,
               color: theme.colors.primary,
               lineHeight: 1.3,

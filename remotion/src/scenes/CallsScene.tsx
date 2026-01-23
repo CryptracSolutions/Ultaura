@@ -6,7 +6,7 @@ import {
   useVideoConfig,
   Sequence,
 } from "remotion";
-import { theme, springs, easings } from "../theme";
+import { theme, springs } from "../theme";
 import {
   GradientBackground,
   PhoneFrame,
@@ -17,29 +17,29 @@ import {
   TextArea,
 } from "../components";
 
-export const AICallsScene: React.FC = () => {
+export const CallsScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Pulse animation for active indicator - more pronounced
-  const pulseOpacity = interpolate(Math.sin(frame * 0.2), [-1, 1], [0.4, 0.8]);
-  const pulseScale = interpolate(Math.sin(frame * 0.2), [-1, 1], [0.9, 1.08]);
-  const pulseGlow = interpolate(Math.sin(frame * 0.2), [-1, 1], [0, 8]);
+  // Calmer pulse animation for active indicator
+  const pulseOpacity = interpolate(Math.sin(frame * 0.12), [-1, 1], [0.4, 0.65]);
+  const pulseScale = interpolate(Math.sin(frame * 0.12), [-1, 1], [0.96, 1.03]);
+  const pulseGlow = interpolate(Math.sin(frame * 0.12), [-1, 1], [0, 4]);
 
   // Avatar glow animation
   const avatarGlow = interpolate(
-    Math.sin(frame * 0.08),
+    Math.sin(frame * 0.06),
     [-1, 1],
-    [22, 45]
+    [18, 32]
   );
 
   // Speaking indicator - voice bars inside avatar
   const voiceBars = [0, 1, 2, 3, 4].map((i) => {
     const phase = (i / 5) * Math.PI * 2;
     return interpolate(
-      Math.sin((frame * 0.2) + phase),
+      Math.sin((frame * 0.16) + phase),
       [-1, 1],
-      [10, 20]
+      [12, 18]
     );
   });
 
@@ -78,7 +78,7 @@ export const AICallsScene: React.FC = () => {
     <SceneLayout background={<GradientBackground variant="mesh" />}>
       <ContentArea>
         {/* Phone with active call UI */}
-        <PhoneFrame delay={0} scale={1.1} tiltIntensity={0.5}>
+        <PhoneFrame delay={0} scale={1.3} tiltIntensity={0.35}>
           <div
             style={{
               width: "100%",
@@ -91,7 +91,7 @@ export const AICallsScene: React.FC = () => {
               paddingTop: 50,
             }}
           >
-            {/* Active call indicator with enhanced animation */}
+            {/* Active call indicator */}
             <div
               style={{
                 display: "flex",
@@ -122,7 +122,7 @@ export const AICallsScene: React.FC = () => {
                     borderRadius: "50%",
                     background: theme.colors.success,
                     boxShadow: `0 0 ${pulseGlow}px ${theme.colors.success}`,
-                    transform: `scale(${interpolate(pulseScale, [0.7, 1.3], [0.9, 1.1])})`,
+                    transform: `scale(${interpolate(pulseScale, [0.96, 1.03], [0.97, 1.03])})`,
                   }}
                 />
               </div>
@@ -158,7 +158,7 @@ export const AICallsScene: React.FC = () => {
                   borderRadius: "50%",
                   background: `radial-gradient(circle, ${theme.colors.primary}40 0%, transparent 70%)`,
                   filter: "blur(10px)",
-                  opacity: interpolate(Math.sin(frame * 0.1), [-1, 1], [0.5, 1]),
+                  opacity: interpolate(Math.sin(frame * 0.08), [-1, 1], [0.4, 0.8]),
                 }}
               />
 
@@ -247,6 +247,72 @@ export const AICallsScene: React.FC = () => {
               />
             </div>
 
+            {/* Live headline card */}
+            <Sequence from={100} layout="none">
+              <div
+                style={{
+                  marginTop: 18,
+                  padding: 16,
+                  background: theme.colors.backgroundCard,
+                  borderRadius: 16,
+                  border: `1px solid ${theme.colors.info}30`,
+                  width: 220,
+                  opacity: interpolate(frame - 100, [0, 20], [0, 1], { extrapolateRight: "clamp" }),
+                  transform: `translateY(${interpolate(frame - 100, [0, 20], [15, 0], { extrapolateRight: "clamp" })}px)`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: theme.colors.error,
+                      boxShadow: `0 0 8px ${theme.colors.error}`,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: theme.fonts.body,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: theme.colors.error,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    Live
+                  </span>
+                </div>
+                <div style={{ fontFamily: theme.fonts.body, fontSize: 13, color: theme.colors.textMuted, marginBottom: 4 }}>
+                  Today's Weather
+                </div>
+                <div style={{ fontFamily: theme.fonts.heading, fontSize: 18, fontWeight: 600, color: theme.colors.textPrimary }}>
+                  Sunny and 72°
+                </div>
+              </div>
+            </Sequence>
+
+            {/* Speech bubble */}
+            <Sequence from={140} layout="none">
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 14,
+                  background: `${theme.colors.primary}15`,
+                  borderRadius: 18,
+                  borderTopLeftRadius: 4,
+                  maxWidth: 240,
+                  opacity: interpolate(frame - 140, [0, 15], [0, 1], { extrapolateRight: "clamp" }),
+                  transform: `scale(${interpolate(frame - 140, [0, 15], [0.9, 1], { extrapolateRight: "clamp" })})`,
+                }}
+              >
+                <div style={{ fontFamily: theme.fonts.body, fontSize: 14, color: theme.colors.textPrimary, fontStyle: "italic" }}>
+                  "Did you hear? It's beautiful outside today!"
+                </div>
+              </div>
+            </Sequence>
+
             {/* Call duration counter */}
             <div
               style={{
@@ -294,9 +360,9 @@ export const AICallsScene: React.FC = () => {
       </ContentArea>
 
       <TextArea>
-        <Sequence from={120} layout="none">
+        <Sequence from={180} layout="none">
           <AnimatedText
-            text="Friendly check-ins."
+            text="Chat about anything."
             style={{
               fontSize: 36,
               fontWeight: 600,
@@ -306,21 +372,9 @@ export const AICallsScene: React.FC = () => {
             animationType="wordReveal"
           />
         </Sequence>
-        <Sequence from={145} layout="none">
+        <Sequence from={210} layout="none">
           <AnimatedText
-            text="Natural conversations."
-            style={{
-              fontSize: 36,
-              fontWeight: 600,
-              color: theme.colors.textPrimary,
-              lineHeight: 1.4,
-            }}
-            animationType="wordReveal"
-          />
-        </Sequence>
-        <Sequence from={170} layout="none">
-          <AnimatedText
-            text="Every single day."
+            text="From weather to memories."
             style={{
               fontSize: 36,
               fontWeight: 700,

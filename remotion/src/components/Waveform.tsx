@@ -1,6 +1,6 @@
 import React from "react";
 import { useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
-import { theme, springs, easings } from "../theme";
+import { theme, springs } from "../theme";
 
 interface WaveformProps {
   width?: number;
@@ -59,15 +59,15 @@ export const Waveform: React.FC<WaveformProps> = ({
         const secondaryPhase = ((i + bars / 2) / bars) * Math.PI * 2;
 
         // Multi-layered wave for more organic motion
-        const wave1 = Math.sin((frame * 0.12) + phase);
-        const wave2 = Math.sin((frame * 0.08) + secondaryPhase) * 0.5;
+        const wave1 = Math.sin((frame * 0.06) + phase);
+        const wave2 = Math.sin((frame * 0.04) + secondaryPhase) * 0.5;
         const combinedWave = (wave1 + wave2) / 1.5;
 
         const animatedHeight = animated
           ? interpolate(
               combinedWave,
               [-1, 1],
-              [height * 0.15, height * 0.95]
+              [height * 0.25, height * 0.7]
             )
           : height * 0.5;
 
@@ -76,7 +76,7 @@ export const Waveform: React.FC<WaveformProps> = ({
         const barEntrance = spring({
           frame: Math.max(0, frame - barEntranceDelay),
           fps,
-          config: springs.snappy,
+          config: springs.smooth,
         });
 
         const barScale = interpolate(barEntrance, [0, 1], [0, 1]);
@@ -84,8 +84,8 @@ export const Waveform: React.FC<WaveformProps> = ({
         // Glow intensity based on height
         const glowIntensity = interpolate(
           animatedHeight,
-          [height * 0.15, height * 0.95],
-          [0.2, 0.8]
+          [height * 0.25, height * 0.7],
+          [0.15, 0.5]
         );
 
         const getBarStyle = () => {
