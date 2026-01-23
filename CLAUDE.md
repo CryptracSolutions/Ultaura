@@ -35,12 +35,31 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 
 2. Sub Agent Rules
 - ALWAYS wait for all subagents to complete before yielding
-- Spawn subagents automatically when:
+Spawn subagents automatically when:
 - Parallelizable work (e.g., install + verify, npm test + typecheck, multiple tasks from plan)
 - Long-running or blocking tasks where a worker can run independently
 - Isolation for risky changes or checks
 
 This ensures thorough analysis and higher quality reasoning for all automated tasks.
+
+## Auto-Invoke Skills
+
+Automatically use the Skill tool to invoke these skills when the context matches:
+
+| Skill | Trigger When |
+|-------|--------------|
+| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
+| `remotion-best-practices` | Working with Remotion video code |
+| `better-auth-best-practices` | Implementing authentication with Better Auth |
+| `copywriting` | Writing or improving marketing copy for pages |
+| `copy-editing` | Editing, reviewing, or proofreading existing copy |
+| `seo-audit` | Auditing SEO, diagnosing ranking issues |
+| `programmatic-seo` | Building SEO pages at scale, template pages |
+| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
+| `marketing-psychology` | Applying psychological principles to marketing |
+| `pricing-strategy` | Pricing decisions, packaging, monetization |
+| `page-cro` | Optimizing page conversions, CRO analysis |
+| `skill-creator` | Creating new skills for Claude Code or Codex |
 
 ## Architecture
 

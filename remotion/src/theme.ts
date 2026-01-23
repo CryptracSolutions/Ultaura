@@ -7,8 +7,8 @@ const { fontFamily } = loadFont("normal", {
   subsets: ["latin"],
 });
 
-// Transition configuration (30fps)
-export const TRANSITION_DURATION_FRAMES = 18; // 0.6s
+// Transition configuration (30fps) - faster for TikTok/Reels pacing
+export const TRANSITION_DURATION_FRAMES = 15; // 0.5s (was 0.6s)
 export const TRANSITION_COUNT = 6;
 
 // Spring configurations for different animation types
@@ -27,6 +27,11 @@ export const springs = {
   gentle: { damping: 30, stiffness: 50 },
   // Premium crossfade - no overshoot
   premiumFade: { damping: 200, stiffness: 100 },
+
+  // New energetic presets for fast-paced promo
+  quick: { damping: 15, stiffness: 300 },
+  energetic: { damping: 10, stiffness: 250 },
+  shake: { damping: 5, stiffness: 500 },
 } as const;
 
 // Easing presets for interpolate functions
@@ -56,6 +61,7 @@ export const theme = {
     background: "#0A0A0F",
     backgroundLight: "#121218",
     backgroundCard: "#1A1A22",
+    surface: "#1A1A22",
 
     // Text
     textPrimary: "#FFFFFF",
@@ -68,6 +74,9 @@ export const theme = {
     error: "#EF4444",
     info: "#3B82F6",
 
+    // Accent for variety
+    accent: "#8B5CF6",
+
     // Gradients
     gradientStart: "#0ABAB5",
     gradientEnd: "#089A96",
@@ -76,6 +85,7 @@ export const theme = {
   fonts: {
     heading: fontFamily,
     body: fontFamily,
+    primary: fontFamily,
   },
 
   // 9:16 vertical format
@@ -87,22 +97,22 @@ export const theme = {
   // 30 FPS standard
   fps: 30,
 
-  // Section timings in frames (at 30fps)
+  // Section timings in frames (at 30fps) - optimized for TikTok/Reels pacing
   sections: {
-    hook: { start: 0, duration: 180 },             // 6s
-    voiceSelection: { start: 180, duration: 210 }, // 7s
-    reminders: { start: 390, duration: 210 },      // 7s
-    schedule: { start: 600, duration: 210 },       // 7s
-    insightsSafety: { start: 810, duration: 360 }, // 12s
-    calls: { start: 1170, duration: 270 },         // 9s
-    cta: { start: 1440, duration: 228 },           // 7.6s
+    hook: { start: 0, duration: 150 },               // 5s (was 6s)
+    voiceSelection: { start: 150, duration: 165 },   // 5.5s (was 7s)
+    reminders: { start: 315, duration: 165 },        // 5.5s (was 7s)
+    schedule: { start: 480, duration: 165 },         // 5.5s (was 7s)
+    insightsSafety: { start: 645, duration: 240 },   // 8s (was 12s)
+    calls: { start: 885, duration: 210 },            // 7s (was 9s)
+    cta: { start: 1095, duration: 210 },             // 7s (was 7.6s)
   },
 
   // Total raw duration before overlap subtraction
-  totalRawDuration: 1668,
+  totalRawDuration: 1305,
 
-  // Final output duration: 52 seconds = 1560 frames
-  totalDuration: 1560,
+  // Final output duration: ~40.5 seconds = 1215 frames (was 52s/1560f)
+  totalDuration: 1215,
 } as const;
 
 export type Theme = typeof theme;

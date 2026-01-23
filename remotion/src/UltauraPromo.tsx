@@ -8,6 +8,8 @@ import {
 } from "remotion";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
+import { slide } from "@remotion/transitions/slide";
+import { wipe } from "@remotion/transitions/wipe";
 import { theme, easings, TRANSITION_DURATION_FRAMES } from "./theme";
 import {
   HookScene,
@@ -23,8 +25,8 @@ export const UltauraPromo: React.FC = () => {
   const { fps, durationInFrames } = useVideoConfig();
   const { sections } = theme;
 
-  // Transition duration
-  const crossfadeTransition = TRANSITION_DURATION_FRAMES;
+  // Transition duration - faster for TikTok/Reels pacing
+  const transitionDuration = TRANSITION_DURATION_FRAMES;
 
   // Fade in/out duration for music
   const musicFadeFrames = fps * 2;
@@ -64,10 +66,11 @@ export const UltauraPromo: React.FC = () => {
           <HookScene />
         </TransitionSeries.Sequence>
 
+        {/* Transition: Hook -> VoiceSelection (slide from bottom) */}
         <TransitionSeries.Transition
-          presentation={fade()}
+          presentation={slide({ direction: "from-bottom" })}
           timing={linearTiming({
-            durationInFrames: crossfadeTransition,
+            durationInFrames: transitionDuration,
             easing: easings.smooth,
           })}
         />
@@ -77,10 +80,11 @@ export const UltauraPromo: React.FC = () => {
           <VoiceSelectionScene />
         </TransitionSeries.Sequence>
 
+        {/* Transition: VoiceSelection -> Reminders (wipe from left) */}
         <TransitionSeries.Transition
-          presentation={fade()}
+          presentation={wipe({ direction: "from-left" })}
           timing={linearTiming({
-            durationInFrames: crossfadeTransition,
+            durationInFrames: transitionDuration,
             easing: easings.smooth,
           })}
         />
@@ -90,10 +94,11 @@ export const UltauraPromo: React.FC = () => {
           <RemindersScene />
         </TransitionSeries.Sequence>
 
+        {/* Transition: Reminders -> Schedule (fade) */}
         <TransitionSeries.Transition
           presentation={fade()}
           timing={linearTiming({
-            durationInFrames: crossfadeTransition,
+            durationInFrames: transitionDuration,
             easing: easings.smooth,
           })}
         />
@@ -103,10 +108,11 @@ export const UltauraPromo: React.FC = () => {
           <ScheduleScene />
         </TransitionSeries.Sequence>
 
+        {/* Transition: Schedule -> InsightsSafety (slide from right) */}
         <TransitionSeries.Transition
-          presentation={fade()}
+          presentation={slide({ direction: "from-right" })}
           timing={linearTiming({
-            durationInFrames: crossfadeTransition,
+            durationInFrames: transitionDuration,
             easing: easings.smooth,
           })}
         />
@@ -116,10 +122,11 @@ export const UltauraPromo: React.FC = () => {
           <InsightsSafetyScene />
         </TransitionSeries.Sequence>
 
+        {/* Transition: InsightsSafety -> Calls (slide from top) */}
         <TransitionSeries.Transition
-          presentation={fade()}
+          presentation={slide({ direction: "from-top" })}
           timing={linearTiming({
-            durationInFrames: crossfadeTransition,
+            durationInFrames: transitionDuration,
             easing: easings.smooth,
           })}
         />
@@ -129,11 +136,12 @@ export const UltauraPromo: React.FC = () => {
           <CallsScene />
         </TransitionSeries.Sequence>
 
+        {/* Transition: Calls -> CTA (premium fade) */}
         <TransitionSeries.Transition
           presentation={fade()}
           timing={linearTiming({
-            durationInFrames: crossfadeTransition,
-            easing: easings.smooth,
+            durationInFrames: transitionDuration,
+            easing: easings.gentle,
           })}
         />
 

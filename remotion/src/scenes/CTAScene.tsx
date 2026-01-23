@@ -7,7 +7,11 @@ import {
   Sequence,
 } from "remotion";
 import { theme, springs, easings } from "../theme";
-import { GradientBackground, UltauraLogo, SceneLayout } from "../components";
+import {
+  GradientBackground,
+  UltauraLogo,
+  SceneLayout,
+} from "../components";
 
 export const CTAScene: React.FC = () => {
   const frame = useCurrentFrame();
@@ -22,36 +26,37 @@ export const CTAScene: React.FC = () => {
 
   // Button animations
   const buttonEntrance = spring({
-    frame: Math.max(0, frame - 50),
+    frame: Math.max(0, frame - 40),
     fps,
-    config: springs.smooth,
+    config: springs.energetic,
   });
 
-  // Subtle button breathing
+  // Enhanced button breathing - more pronounced
   const pulseScale = interpolate(
-    Math.sin(frame * 0.03),
+    Math.sin(frame * 0.04),
     [-1, 1],
-    [0.995, 1.005]
+    [0.99, 1.02]
   );
 
   const pulseGlow = interpolate(
-    Math.sin(frame * 0.03),
+    Math.sin(frame * 0.04),
     [-1, 1],
-    [16, 22]
+    [18, 28]
   );
 
   // Shine effect across button
-  const shineFrame = Math.min(Math.max(frame - 60, 0), 30);
-  const shinePosition = interpolate(shineFrame, [0, 30], [-120, 220]);
+  const shineFrame = Math.min(Math.max(frame - 55, 0), 30);
+  const shinePosition = interpolate(shineFrame, [0, 30], [-140, 260]);
   const shineOpacity = interpolate(
     shineFrame,
     [0, 5, 25, 30],
-    [0, 0.35, 0.35, 0],
+    [0, 0.4, 0.4, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
+
   return (
-    <SceneLayout background={<GradientBackground variant="aurora" particleCount={8} />}>
+    <SceneLayout background={<GradientBackground variant="aurora" particleCount={10} />}>
 
       {/* Central glow burst */}
       <div
@@ -60,12 +65,12 @@ export const CTAScene: React.FC = () => {
           top: "35%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 420,
-          height: 420,
+          width: 480,
+          height: 480,
           borderRadius: "50%",
-          background: `radial-gradient(circle, ${theme.colors.primary}20 0%, ${theme.colors.primary}08 40%, transparent 70%)`,
-          filter: "blur(40px)",
-          opacity: interpolate(Math.sin(frame * 0.04), [-1, 1], [0.45, 0.7]),
+          background: `radial-gradient(circle, ${theme.colors.primary}25 0%, ${theme.colors.primary}10 40%, transparent 70%)`,
+          filter: "blur(45px)",
+          opacity: interpolate(Math.sin(frame * 0.05), [-1, 1], [0.5, 0.8]),
           zIndex: 0,
         }}
       />
@@ -77,7 +82,7 @@ export const CTAScene: React.FC = () => {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 35,
+          gap: 32,
           zIndex: 1,
         }}
       >
@@ -85,26 +90,26 @@ export const CTAScene: React.FC = () => {
         <div
           style={{
             transform: `scale(${interpolate(logoSpring, [0, 1], [0.5, 1])})`,
-            opacity: interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" }),
+            opacity: interpolate(frame, [0, 18], [0, 1], { extrapolateRight: "clamp" }),
           }}
         >
-          <UltauraLogo delay={0} size={130} showWordmark={true} />
+          <UltauraLogo delay={0} size={140} showWordmark={true} />
         </div>
 
         {/* Tagline */}
-        <Sequence from={25} layout="none">
+        <Sequence from={22} layout="none">
           <div
             style={{
               fontFamily: theme.fonts.heading,
-              fontSize: 34,
+              fontSize: 36,
               fontWeight: 500,
               color: theme.colors.textSecondary,
               textAlign: "center",
               padding: "0 40px",
-              opacity: interpolate(frame - 25, [0, 20], [0, 1], {
+              opacity: interpolate(frame - 22, [0, 18], [0, 1], {
                 extrapolateRight: "clamp",
               }),
-              transform: `translateY(${interpolate(frame - 25, [0, 20], [25, 0], {
+              transform: `translateY(${interpolate(frame - 22, [0, 18], [25, 0], {
                 extrapolateRight: "clamp",
                 easing: easings.easeOut,
               })}px)`,
@@ -116,13 +121,34 @@ export const CTAScene: React.FC = () => {
           </div>
         </Sequence>
 
-        {/* CTA Button with enhanced effects */}
-        <Sequence from={50} layout="none">
+        {/* Urgency text */}
+        <Sequence from={35} layout="none">
+          <div
+            style={{
+              fontFamily: theme.fonts.body,
+              fontSize: 18,
+              fontWeight: 600,
+              color: theme.colors.warning,
+              opacity: interpolate(frame - 35, [0, 15], [0, 1], {
+                extrapolateRight: "clamp",
+              }),
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 20 }}>⚡</span>
+            Limited Time: 3-Day Free Trial
+          </div>
+        </Sequence>
+
+        {/* CTA Button with enhanced effects - bigger */}
+        <Sequence from={40} layout="none">
           <div
             style={{
               position: "relative",
               transform: `scale(${buttonEntrance * pulseScale})`,
-              opacity: interpolate(frame - 50, [0, 15], [0, 1], {
+              opacity: interpolate(frame - 40, [0, 12], [0, 1], {
                 extrapolateRight: "clamp",
               }),
             }}
@@ -131,11 +157,11 @@ export const CTAScene: React.FC = () => {
             <div
               style={{
                 position: "absolute",
-                inset: -8,
-                borderRadius: 50,
-                background: `${theme.colors.primary}30`,
-                filter: "blur(15px)",
-                opacity: interpolate(Math.sin(frame * 0.1), [-1, 1], [0.3, 0.7]),
+                inset: -10,
+                borderRadius: 55,
+                background: `${theme.colors.primary}35`,
+                filter: "blur(18px)",
+                opacity: interpolate(Math.sin(frame * 0.1), [-1, 1], [0.35, 0.8]),
               }}
             />
 
@@ -143,12 +169,12 @@ export const CTAScene: React.FC = () => {
               style={{
                 position: "relative",
                 background: `linear-gradient(135deg, ${theme.colors.primaryLight} 0%, ${theme.colors.primary} 50%, ${theme.colors.primaryDark} 100%)`,
-                padding: "22px 55px",
-                borderRadius: 45,
+                padding: "28px 70px",
+                borderRadius: 50,
                 boxShadow: `
-                  0 0 ${pulseGlow}px ${theme.colors.primary}50,
-                  0 12px 35px rgba(0, 0, 0, 0.35),
-                  inset 0 2px 0 rgba(255, 255, 255, 0.2)
+                  0 0 ${pulseGlow}px ${theme.colors.primary}55,
+                  0 14px 40px rgba(0, 0, 0, 0.4),
+                  inset 0 2px 0 rgba(255, 255, 255, 0.25)
                 `,
                 overflow: "hidden",
               }}
@@ -159,9 +185,9 @@ export const CTAScene: React.FC = () => {
                   position: "absolute",
                   top: 0,
                   left: shinePosition,
-                  width: 60,
+                  width: 70,
                   height: "100%",
-                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)",
+                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)",
                   transform: "skewX(-20deg)",
                   opacity: shineOpacity,
                 }}
@@ -170,11 +196,11 @@ export const CTAScene: React.FC = () => {
               <div
                 style={{
                   fontFamily: theme.fonts.heading,
-                  fontSize: 24,
+                  fontSize: 30,
                   fontWeight: 700,
                   color: "white",
                   letterSpacing: 1.5,
-                  textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  textShadow: "0 2px 4px rgba(0,0,0,0.25)",
                   position: "relative",
                   zIndex: 1,
                 }}
@@ -182,18 +208,19 @@ export const CTAScene: React.FC = () => {
                 Start Free Trial
               </div>
             </div>
+
           </div>
         </Sequence>
 
         {/* Trial info and trust line */}
-        <Sequence from={70} layout="none">
+        <Sequence from={75} layout="none">
           <div
             style={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 16,
-              opacity: interpolate(frame - 70, [0, 20], [0, 1], {
+              gap: 14,
+              opacity: interpolate(frame - 75, [0, 18], [0, 1], {
                 extrapolateRight: "clamp",
               }),
             }}
@@ -206,14 +233,14 @@ export const CTAScene: React.FC = () => {
                 color: theme.colors.textMuted,
                 display: "flex",
                 alignItems: "center",
-                gap: 12,
+                gap: 14,
               }}
             >
-              <span>Secure</span>
+              <span>🔒 Secure</span>
               <span style={{ opacity: 0.4 }}>•</span>
-              <span>Private</span>
+              <span>🛡️ Private</span>
               <span style={{ opacity: 0.4 }}>•</span>
-              <span>24/7</span>
+              <span>📞 24/7</span>
             </div>
 
             <div
@@ -223,12 +250,12 @@ export const CTAScene: React.FC = () => {
                 color: theme.colors.textSecondary,
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
+                gap: 12,
               }}
             >
-              <span>3-day free trial</span>
+              <span>No credit card required</span>
               <span style={{ opacity: 0.5 }}>•</span>
-              <span>No credit card</span>
+              <span>Cancel anytime</span>
             </div>
           </div>
         </Sequence>

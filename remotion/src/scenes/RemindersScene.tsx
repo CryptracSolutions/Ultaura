@@ -40,66 +40,68 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
   const springValue = spring({
     frame: adjustedFrame,
     fps,
-    config: springs.snappy,
+    config: springs.quick,
   });
 
-  const translateX = interpolate(springValue, [0, 1], [index % 2 === 0 ? -100 : 100, 0]);
-  const opacity = interpolate(adjustedFrame, [0, 15], [0, 1], {
+  const translateX = interpolate(springValue, [0, 1], [index % 2 === 0 ? -120 : 120, 0]);
+  const opacity = interpolate(adjustedFrame, [0, 12], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  // Pending dot animation
+  // Checkmark animation - faster
   const checkFill = spring({
-    frame: Math.max(0, adjustedFrame - 15),
+    frame: Math.max(0, adjustedFrame - 12),
     fps,
     config: springs.bouncy,
   });
 
   // Subtle glow
   const glowIntensity = interpolate(
-    Math.sin(frame * 0.06 + index),
+    Math.sin(frame * 0.08 + index),
     [-1, 1],
-    [0.1, 0.3]
+    [0.15, 0.4]
   );
 
   return (
+    <div
+      style={{
+        background: theme.colors.backgroundCard,
+        borderRadius: 24,
+        padding: 32,
+        display: "flex",
+        alignItems: "center",
+        gap: 24,
+        opacity,
+        transform: `translateX(${translateX}px)`,
+        border: `1px solid ${color}30`,
+        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.22), 0 0 ${40 * glowIntensity}px ${color}25`,
+        maxWidth: 700,
+        width: "100%",
+      }}
+    >
       <div
         style={{
-          background: theme.colors.backgroundCard,
+          width: 80,
+          height: 80,
           borderRadius: 22,
-          padding: 26,
+          background: `${color}18`,
           display: "flex",
           alignItems: "center",
-          gap: 20,
-          opacity,
-          transform: `translateX(${translateX}px)`,
-          border: `1px solid ${color}25`,
-          boxShadow: `0 6px 24px rgba(0, 0, 0, 0.18), 0 0 ${30 * glowIntensity}px ${color}20`,
+          justifyContent: "center",
+          flexShrink: 0,
+          border: `1px solid ${color}30`,
         }}
       >
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 18,
-            background: `${color}15`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            border: `1px solid ${color}25`,
-          }}
-        >
         {icon}
       </div>
       <div style={{ flex: 1 }}>
         <div
           style={{
             fontFamily: theme.fonts.heading,
-            fontSize: 20,
+            fontSize: 24,
             fontWeight: 600,
             color: theme.colors.textPrimary,
-            marginBottom: 6,
+            marginBottom: 8,
           }}
         >
           {title}
@@ -107,19 +109,20 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
         <div
           style={{
             fontFamily: theme.fonts.body,
-            fontSize: 16,
+            fontSize: 18,
             color: theme.colors.textSecondary,
           }}
         >
           {time}
         </div>
       </div>
-      {/* Pending indicator */}
+      {/* Checkmark indicator */}
       <div
         style={{
-          width: 26,
-          height: 26,
+          width: 32,
+          height: 32,
           borderRadius: "50%",
+          background: `${color}20`,
           border: `2px solid ${color}`,
           display: "flex",
           alignItems: "center",
@@ -128,19 +131,29 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
           overflow: "hidden",
         }}
       >
-        {/* Subtle pending dot */}
         <div
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
+            position: "absolute",
+            inset: 0,
             background: color,
-            position: "relative",
-            zIndex: 1,
-            transform: `scale(${interpolate(checkFill, [0, 1], [0.6, 1])})`,
-            opacity: interpolate(checkFill, [0, 1], [0.4, 1]),
+            transform: `scale(${checkFill})`,
+            borderRadius: "50%",
           }}
         />
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="white"
+          style={{
+            position: "relative",
+            zIndex: 1,
+            opacity: checkFill,
+            transform: `scale(${checkFill})`,
+          }}
+        >
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+        </svg>
       </div>
     </div>
   );
@@ -153,7 +166,7 @@ export const RemindersScene: React.FC = () => {
   const reminders = [
     {
       icon: (
-        <svg width="34" height="34" viewBox="0 0 24 24" fill={theme.colors.error}>
+        <svg width="42" height="42" viewBox="0 0 24 24" fill={theme.colors.error}>
           <path d="M19 3H5c-1.1 0-1.99.9-1.99 2L3 19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11h-4v4h-4v-4H6v-4h4V6h4v4h4v4z" />
         </svg>
       ),
@@ -163,7 +176,7 @@ export const RemindersScene: React.FC = () => {
     },
     {
       icon: (
-        <svg width="34" height="34" viewBox="0 0 24 24" fill={theme.colors.info}>
+        <svg width="42" height="42" viewBox="0 0 24 24" fill={theme.colors.info}>
           <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z" />
         </svg>
       ),
@@ -180,32 +193,34 @@ export const RemindersScene: React.FC = () => {
     config: springs.smooth,
   });
 
-  // Bell icon animation
+  // Bell icon animation - stronger swing
   const bellWobble = interpolate(
-    Math.sin(frame * 0.2),
+    Math.sin(frame * 0.25),
     [-1, 1],
-    [-5, 5]
+    [-12, 12]
   );
+
 
   return (
     <SceneLayout background={<GradientBackground variant="mesh" />}>
       <ContentArea>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 30,
-          width: "100%",
-          maxWidth: 560,
-        }}
-      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 28,
+            width: "100%",
+            maxWidth: 700,
+            position: "relative",
+          }}
+        >
           {/* Header */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 14,
+              gap: 16,
               opacity: headerEntrance,
               transform: `translateY(${interpolate(headerEntrance, [0, 1], [-20, 0])}px)`,
             }}
@@ -217,8 +232,8 @@ export const RemindersScene: React.FC = () => {
               }}
             >
               <svg
-              width="52"
-              height="52"
+                width="58"
+                height="58"
                 viewBox="0 0 24 24"
                 fill={theme.colors.primary}
               >
@@ -228,7 +243,7 @@ export const RemindersScene: React.FC = () => {
             <div
               style={{
                 fontFamily: theme.fonts.heading,
-              fontSize: 34,
+                fontSize: 38,
                 fontWeight: 700,
                 color: theme.colors.textPrimary,
               }}
@@ -242,7 +257,7 @@ export const RemindersScene: React.FC = () => {
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 14,
+              gap: 18,
               width: "100%",
             }}
           >
@@ -250,20 +265,20 @@ export const RemindersScene: React.FC = () => {
               <ReminderCard
                 key={i}
                 {...reminder}
-                delay={30 + i * 25}
+                delay={25 + i * 18}
                 index={i}
               />
             ))}
           </div>
 
-          <Sequence from={100} layout="none">
+          <Sequence from={75} layout="none">
             <div
               style={{
                 textAlign: "center",
                 fontFamily: theme.fonts.body,
-                fontSize: 15,
+                fontSize: 16,
                 color: theme.colors.textMuted,
-                opacity: interpolate(frame - 100, [0, 20], [0, 0.7], {
+                opacity: interpolate(frame - 75, [0, 15], [0, 0.7], {
                   extrapolateRight: "clamp",
                 }),
               }}
@@ -271,15 +286,16 @@ export const RemindersScene: React.FC = () => {
               +3 more reminders
             </div>
           </Sequence>
+
         </div>
       </ContentArea>
 
       <TextArea>
-        <Sequence from={130} layout="none">
+        <Sequence from={100} layout="none">
           <AnimatedText
             text="Set reminders."
             style={{
-              fontSize: 34,
+              fontSize: 36,
               fontWeight: 600,
               color: theme.colors.textPrimary,
               lineHeight: 1.4,
@@ -287,11 +303,11 @@ export const RemindersScene: React.FC = () => {
             animationType="wordReveal"
           />
         </Sequence>
-        <Sequence from={160} layout="none">
+        <Sequence from={125} layout="none">
           <AnimatedText
             text="Never miss a thing."
             style={{
-              fontSize: 34,
+              fontSize: 36,
               fontWeight: 700,
               color: theme.colors.primary,
               lineHeight: 1.4,
