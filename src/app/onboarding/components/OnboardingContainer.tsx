@@ -209,8 +209,8 @@ function OnboardingContainer(
 
   return (
     <CsrfTokenContext.Provider value={props.csrfToken}>
-      {!isCompleting && (
-        <Stepper variant={'default'} currentStep={currentStep} steps={steps} />
+      {!isCompleting && currentStep > 0 && (
+        <Stepper variant={'default'} currentStep={currentStep - 1} steps={steps.slice(1)} />
       )}
 
       <div

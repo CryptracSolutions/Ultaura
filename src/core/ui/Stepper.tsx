@@ -81,7 +81,7 @@ function getClassNameBuilder() {
   return cva(``, {
     variants: {
       variant: {
-        default: `flex flex-col h-[2.5px] min-w-0 flex-1 transition-colors duration-500`,
+        default: `flex flex-col-reverse h-[2.5px] min-w-0 flex-1 transition-colors duration-500`,
         numbers:
           'w-9 h-9 font-bold rounded-full flex items-center justify-center' +
           ' text-sm border',
