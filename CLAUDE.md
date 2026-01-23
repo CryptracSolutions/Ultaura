@@ -60,6 +60,7 @@ Automatically use the Skill tool to invoke these skills when the context matches
 | `pricing-strategy` | Pricing decisions, packaging, monetization |
 | `page-cro` | Optimizing page conversions, CRO analysis |
 | `skill-creator` | Creating new skills for Claude Code or Codex |
+| `ultaura-docs` | Writing or updating user documentation for the /docs page |
 
 ## Architecture
 
