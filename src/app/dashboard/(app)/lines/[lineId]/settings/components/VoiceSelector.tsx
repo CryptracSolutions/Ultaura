@@ -1,10 +1,63 @@
 'use client';
 
+import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrokVoice } from '~/lib/ultaura/voices';
+import Lottie, { LottieRefCurrentProps } from 'lottie-react';
+import type { GrokVoice, VoiceOption } from '~/lib/ultaura/voices';
 import { VOICE_OPTIONS } from '~/lib/ultaura/voices';
 
 export type VoiceSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+function VoiceAvatar({
+  option,
+  alt,
+  isSelected,
+}: {
+  option: VoiceOption;
+  alt: string;
+  isSelected: boolean;
+}) {
+  const [animationData, setAnimationData] = useState<object | null>(null);
+  const lottieRef = useRef<LottieRefCurrentProps>(null);
+
+  useEffect(() => {
+    if (option.animationPath) {
+      fetch(option.animationPath)
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to load animation');
+          return res.json();
+        })
+        .then(setAnimationData)
+        .catch(() => {});
+    }
+  }, [option.animationPath]);
+
+  useEffect(() => {
+    if (lottieRef.current) {
+      if (isSelected) {
+        lottieRef.current.play();
+      } else {
+        lottieRef.current.pause();
+        lottieRef.current.goToAndStop(0, true);
+      }
+    }
+  }, [isSelected]);
+
+  if (animationData) {
+    return (
+      <Lottie
+        lottieRef={lottieRef}
+        animationData={animationData}
+        loop
+        autoplay={isSelected}
+        className="h-8 w-8"
+      />
+    );
+  }
+
+  // Placeholder while loading
+  return <div className="h-8 w-8 rounded-full bg-muted" />;
+}
 
 interface VoiceSelectorProps {
   value: GrokVoice;
@@ -63,10 +116,10 @@ export function VoiceSelector({
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/40">
-                  <img
-                    src={option.iconPath}
+                  <VoiceAvatar
+                    option={option}
                     alt={t(nameKey)}
-                    className="h-7 w-7"
+                    isSelected={isSelected}
                   />
                 </div>
                 <div>
