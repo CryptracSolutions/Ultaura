@@ -133,6 +133,28 @@ export default function DocsNavigation({
   tree: ProcessedDocumentationPage[];
 }) {
   const activePath = usePathname().replace('/docs/', '');
+  const [query, setQuery] = useState('');
+
+  const searchResults = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return [];
+
+    const results: ProcessedDocumentationPage[] = [];
+    const visit = (nodes: ProcessedDocumentationPage[]) => {
+      nodes.forEach((node) => {
+        const haystack = `${node.title} ${node.label}`.toLowerCase();
+        if (haystack.includes(term)) {
+          results.push(node);
+        }
+        if (node.children.length > 0) {
+          visit(node.children);
+        }
+      });
+    };
+
+    visit(tree);
+    return results;
+  }, [query, tree]);
 
   return (
     <>
@@ -147,16 +169,46 @@ export default function DocsNavigation({
           <TextFieldInput
             placeholder="Search documentation..."
             className="pl-9"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
         </div>
 
         <div className="overflow-y-auto flex-1">
-          <Tree tree={tree} level={0} activePath={activePath} />
+          {query.trim().length > 0 ? (
+            <div className="space-y-2">
+              {searchResults.length > 0 ? (
+                searchResults.map((page) => (
+                  <DocsNavLink
+                    key={page.resolvedPath}
+                    label={page.label}
+                    url={page.resolvedPath}
+                    level={0}
+                    activePath={activePath}
+                    collapsible={false}
+                    collapsed={false}
+                    toggleCollapsed={() => {}}
+                  />
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground px-3 py-2">
+                  No matching pages
+                </div>
+              )}
+            </div>
+          ) : (
+            <Tree tree={tree} level={0} activePath={activePath} />
+          )}
         </div>
       </aside>
 
       <div className={'lg:hidden'}>
-        <FloatingDocumentationNavigation tree={tree} activePath={activePath} />
+        <FloatingDocumentationNavigation
+          tree={tree}
+          activePath={activePath}
+          query={query}
+          onQueryChange={setQuery}
+        />
       </div>
     </>
   );
@@ -181,9 +233,13 @@ function getNavLinkClassName(isCurrent: boolean, isFirstLevel: boolean) {
 function FloatingDocumentationNavigation({
   tree,
   activePath,
+  query,
+  onQueryChange,
 }: React.PropsWithChildren<{
   tree: ProcessedDocumentationPage[];
   activePath: string;
+  query: string;
+  onQueryChange: (value: string) => void;
 }>) {
   const body = useMemo(() => {
     return isBrowser() ? document.body : null;
@@ -219,6 +275,27 @@ function FloatingDocumentationNavigation({
     setIsVisible(!isVisible);
   };
 
+  const searchResults = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return [];
+
+    const results: ProcessedDocumentationPage[] = [];
+    const visit = (nodes: ProcessedDocumentationPage[]) => {
+      nodes.forEach((node) => {
+        const haystack = `${node.title} ${node.label}`.toLowerCase();
+        if (haystack.includes(term)) {
+          results.push(node);
+        }
+        if (node.children.length > 0) {
+          visit(node.children);
+        }
+      });
+    };
+
+    visit(tree);
+    return results;
+  }, [query, tree]);
+
   return (
     <>
       <If condition={isVisible}>
@@ -230,7 +307,40 @@ function FloatingDocumentationNavigation({
         >
           <Heading type={1}>Table of Contents</Heading>
 
-          <Tree tree={tree} level={0} activePath={activePath} />
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <TextFieldInput
+              placeholder="Search documentation..."
+              className="pl-9"
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+            />
+          </div>
+
+          {query.trim().length > 0 ? (
+            <div className="space-y-2">
+              {searchResults.length > 0 ? (
+                searchResults.map((page) => (
+                  <DocsNavLink
+                    key={page.resolvedPath}
+                    label={page.label}
+                    url={page.resolvedPath}
+                    level={0}
+                    activePath={activePath}
+                    collapsible={false}
+                    collapsed={false}
+                    toggleCollapsed={() => {}}
+                  />
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground px-3 py-2">
+                  No matching pages
+                </div>
+              )}
+            </div>
+          ) : (
+            <Tree tree={tree} level={0} activePath={activePath} />
+          )}
         </div>
       </If>
 

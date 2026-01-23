@@ -15,21 +15,25 @@ function DocumentationPageLink({
   return (
     <Link
       className={classNames(
-        `flex w-full items-center space-x-8 rounded-xl p-6 font-medium text-current ring-2 dark:ring-dark-800 ring-gray-100 transition-all hover:bg-gray-50 dark:hover:bg-background/90 hover:dark:ring-dark-700 active:dark:bg-dark-800`,
-        {
-          'justify-start': before,
-          'justify-end self-end': after,
-        },
+        `relative flex w-full items-center justify-center rounded-xl px-6 py-[18px] font-medium text-current ring-1 ring-primary transition-all hover:bg-gray-50 dark:hover:bg-background/90 active:dark:bg-dark-800 text-center`,
       )}
       href={`/docs/${page.resolvedPath}`}
     >
-      <If condition={before}>{(node) => <>{node}</>}</If>
+      <If condition={before}>
+        {(node) => (
+          <span
+            className="absolute left-6 flex items-center text-primary"
+            aria-hidden="true"
+          >
+            {node}
+          </span>
+        )}
+      </If>
 
-      <span className={'flex flex-col space-y-1.5'}>
+      <span className={'flex flex-col items-center space-y-1.5 text-center'}>
         <span
           className={
-            'text-xs font-semibold uppercase dark:text-gray-400' +
-            ' text-gray-500'
+            'text-xs font-semibold uppercase text-primary'
           }
         >
           {before ? `Previous` : ``}
@@ -39,7 +43,16 @@ function DocumentationPageLink({
         <span>{page.title}</span>
       </span>
 
-      <If condition={after}>{(node) => <>{node}</>}</If>
+      <If condition={after}>
+        {(node) => (
+          <span
+            className="absolute right-6 flex items-center text-primary"
+            aria-hidden="true"
+          >
+            {node}
+          </span>
+        )}
+      </If>
     </Link>
   );
 }
