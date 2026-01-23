@@ -56,40 +56,25 @@ const VoiceSelectionStep: React.FCC<{
               onClick={() => setSelectedVoice(option.apiName)}
               aria-pressed={isSelected}
               className={
-                'flex w-full flex-col rounded-xl border p-5 text-left transition-all ' +
+                'flex w-full flex-col items-center rounded-xl border p-6 text-center transition-all ' +
                 (isSelected
                   ? 'border-primary ring-2 ring-primary shadow-xl shadow-primary/20'
                   : 'border-border bg-card hover:ring-2 hover:ring-primary hover:shadow-sm')
               }
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/40">
-                  <img
-                    src={option.iconPath}
-                    alt={t(nameKey)}
-                    className="h-7 w-7"
-                  />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-foreground">
-                    {t(nameKey)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t(descriptionKey)}
-                  </p>
-                </div>
+              <p className="text-lg font-semibold text-foreground">
+                {t(nameKey)}
+              </p>
+              <div className="mt-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/40">
+                <img
+                  src={option.iconPath}
+                  alt={t(nameKey)}
+                  className="h-10 w-10"
+                />
               </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {option.traitIds.map((traitId) => (
-                  <span
-                    key={traitId}
-                    className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
-                  >
-                    {t(`traits.${traitId}`)}
-                  </span>
-                ))}
-              </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                {t(descriptionKey)}
+              </p>
             </button>
           );
         })}
