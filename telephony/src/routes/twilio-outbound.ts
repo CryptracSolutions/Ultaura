@@ -96,9 +96,11 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
 
     const { line, account } = lineWithAccount;
 
-    const bypassDncForTestTarget = session.is_test_call &&
+    const bypassDncForTestTarget = Boolean(
+      session.is_test_call &&
       session.twilio_to &&
-      session.twilio_to !== line.phone_e164;
+      session.twilio_to !== line.phone_e164
+    );
     const allowQuietHoursOverride = session.is_test_call &&
       (overrideQuietHours === '1' || overrideQuietHours === 'true');
 
