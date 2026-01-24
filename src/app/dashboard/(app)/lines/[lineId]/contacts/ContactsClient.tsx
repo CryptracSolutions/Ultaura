@@ -3,11 +3,17 @@
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { Card, CardContent } from '~/components/ui/card';
 import { Checkbox } from '~/core/ui/Checkbox';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
-import { Phone, Trash2, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
+import { Phone, Trash2, Plus, X } from 'lucide-react';
 import {
   getTrustedContacts,
   addTrustedContact,
@@ -35,6 +41,7 @@ interface ContactsClientProps {
 export function ContactsClient({ line, disabled = false }: ContactsClientProps) {
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [newContact, setNewContact] = useState({
     name: '',
@@ -79,6 +86,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
     if (disabled) return;
 
     try {
+      setIsSubmitting(true);
       const result = await addTrustedContact(line.id, {
         name: newContact.name,
         phoneE164: newContact.phone,
@@ -96,6 +104,8 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
     } catch (error) {
       console.error(error);
       toast.error('Failed to add contact');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -132,81 +142,117 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
         </Button>
       </div>
 
-      {isAdding && !disabled && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Add Trusted Contact</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAddContact} className="space-y-4">
-              <div>
-                <label htmlFor="contact-name" className="block text-sm font-medium text-foreground mb-1">
-                  Name
-                </label>
-                <Input
-                  id="contact-name"
-                  placeholder="e.g., John Smith"
-                  value={newContact.name}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, name: e.target.value })}
-                  required
+      <Dialog
+        open={isAdding && !disabled}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetAddForm();
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-[468px]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">Add trusted contact</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Trusted contacts receive SMS alerts when Ultaura detects distress.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={resetAddForm}
+              className={modalIconButtonClass}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleAddContact} className="space-y-4">
+            <div>
+              <label htmlFor="contact-name" className="block text-sm font-medium text-foreground mb-1">
+                Name
+              </label>
+              <Input
+                id="contact-name"
+                placeholder="e.g., John Smith"
+                value={newContact.name}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-phone" className="block text-sm font-medium text-foreground mb-1">
+                Phone Number
+              </label>
+              <Input
+                id="contact-phone"
+                placeholder="e.g., (555) 123-4567"
+                type="tel"
+                value={newContact.phone}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, phone: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-relationship" className="block text-sm font-medium text-foreground mb-1">
+                Relationship <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                id="contact-relationship"
+                placeholder="e.g., Son, Daughter, Caregiver"
+                value={newContact.relationship}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setNewContact({ ...newContact, relationship: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="consent-acknowledgment"
+                  checked={consentAcknowledged}
+                  onCheckedChange={(checked) => setConsentAcknowledged(checked === true)}
                 />
-              </div>
-              <div>
-                <label htmlFor="contact-phone" className="block text-sm font-medium text-foreground mb-1">
-                  Phone Number
+                <label htmlFor="consent-acknowledgment" className="text-sm leading-tight">
+                  I understand that this contact will receive SMS notifications when Ultaura detects
+                  signs of distress during calls (such as expressions of hopelessness or self-harm).
                 </label>
-                <Input
-                  id="contact-phone"
-                  placeholder="e.g., (555) 123-4567"
-                  type="tel"
-                  value={newContact.phone}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, phone: e.target.value })}
-                  required
-                />
               </div>
-              <div>
-                <label htmlFor="contact-relationship" className="block text-sm font-medium text-foreground mb-1">
-                  Relationship <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <Input
-                  id="contact-relationship"
-                  placeholder="e.g., Son, Daughter, Caregiver"
-                  value={newContact.relationship}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setNewContact({ ...newContact, relationship: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-start gap-2">
-                  <Checkbox
-                    id="consent-acknowledgment"
-                    checked={consentAcknowledged}
-                    onCheckedChange={(checked) => setConsentAcknowledged(checked === true)}
-                  />
-                  <label htmlFor="consent-acknowledgment" className="text-sm leading-tight">
-                    I understand that this contact will receive SMS notifications when Ultaura detects
-                    signs of distress during calls (such as expressions of hopelessness or self-harm).
-                  </label>
-                </div>
-                <a href="/docs" className="text-xs text-primary hover:underline">
-                  Learn more about trusted contact notifications
-                </a>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={!consentAcknowledged}>Add</Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetAddForm}
-                >
-                  Discard changes
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+              <a href="/docs" className="text-xs text-primary hover:underline">
+                Learn more about trusted contact notifications
+              </a>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={resetAddForm}
+                className={modalSecondaryButtonClass}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!consentAcknowledged || isSubmitting}
+                className={modalPrimaryButtonClass}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving
+                  </>
+                ) : (
+                  'Add Contact'
+                )}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4">
         {contacts.map((contact) => (

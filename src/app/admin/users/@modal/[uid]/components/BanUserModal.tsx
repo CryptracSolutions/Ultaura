@@ -8,11 +8,13 @@ import type { User } from '@supabase/supabase-js';
 import { banUser } from '~/app/admin/users/@modal/[uid]/actions.server';
 
 import Modal from '~/core/ui/Modal';
-import Button from '~/core/ui/Button';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import ErrorBoundary from '~/core/ui/ErrorBoundary';
-import Alert from '~/core/ui/Alert';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 function BanUserModal({
   user,
@@ -62,13 +64,7 @@ function BanUserModal({
               <p>Are you sure you want to do this?</p>
             </div>
 
-            <div className={'flex space-x-2.5 justify-end'}>
-              <Modal.CancelButton onClick={onDismiss}>
-                Cancel
-              </Modal.CancelButton>
-
-              <SubmitButton />
-            </div>
+            <BanUserActions onDismiss={onDismiss} />
           </div>
         </form>
       </ErrorBoundary>
@@ -80,9 +76,20 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button loading={pending} variant={'destructive'}>
-      Yes, ban user
-    </Button>
+    <button
+      type="submit"
+      disabled={pending}
+      className={modalDestructiveButtonClass}
+    >
+      {pending ? (
+        <>
+          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Banning
+        </>
+      ) : (
+        'Yes, ban user'
+      )}
+    </button>
   );
 }
 
@@ -90,9 +97,28 @@ export default BanUserModal;
 
 function BanErrorAlert() {
   return (
-    <Alert type={'error'}>
-      <Alert.Heading>There was an error banning this user.</Alert.Heading>
+    <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      <p className="font-medium">There was an error banning this user.</p>
       Check the logs for more information.
-    </Alert>
+    </div>
+  );
+}
+
+function BanUserActions({ onDismiss }: { onDismiss: () => void }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={onDismiss}
+        disabled={pending}
+        className={modalSecondaryButtonClass}
+      >
+        Cancel
+      </button>
+
+      <SubmitButton />
+    </div>
   );
 }

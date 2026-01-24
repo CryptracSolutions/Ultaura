@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormStatus } from 'react-dom';
+import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
 
 import Modal from '~/core/ui/Modal';
 import Button from '~/core/ui/Button';
@@ -8,8 +9,11 @@ import Heading from '~/core/ui/Heading';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
 import ErrorBoundary from '~/core/ui/ErrorBoundary';
-import Alert from '~/core/ui/Alert';
 import { deleteUserAccountAction } from '~/lib/user/actions.server';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 function ProfileDangerZone() {
   return <DeleteProfileContainer />;
@@ -87,9 +91,7 @@ function DeleteProfileForm() {
         </TextFieldLabel>
       </div>
 
-      <div className={'flex justify-end space-x-2.5'}>
-        <DeleteAccountSubmitButton />
-      </div>
+      <DeleteAccountActions />
     </form>
   );
 }
@@ -98,26 +100,53 @@ function DeleteAccountSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button
+    <button
       data-cy={'confirm-delete-account-button'}
       name={'action'}
       value={'delete'}
-      variant={'destructive'}
-      loading={pending}
+      type="submit"
+      disabled={pending}
+      className={modalDestructiveButtonClass}
     >
-      <Trans i18nKey={'profile:deleteAccount'} />
-    </Button>
+      {pending ? (
+        <>
+          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <Trans i18nKey={'profile:deleteAccount'} />
+        </>
+      ) : (
+        <Trans i18nKey={'profile:deleteAccount'} />
+      )}
+    </button>
   );
 }
 
 function DeleteProfileErrorAlert() {
   return (
-    <Alert type={'error'}>
-      <Alert.Heading>
+    <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      <p className="font-medium">
         <Trans i18nKey={'profile:deleteAccountErrorHeading'} />
-      </Alert.Heading>
-
+      </p>
       <Trans i18nKey={'common:genericError'} />
-    </Alert>
+    </div>
+  );
+}
+
+function DeleteAccountActions() {
+  const { pending } = useFormStatus();
+
+  return (
+    <div className="flex gap-3 pt-2">
+      <DialogPrimitiveClose asChild>
+        <button
+          type="button"
+          disabled={pending}
+          className={modalSecondaryButtonClass}
+        >
+          <Trans i18nKey={'common:cancel'} />
+        </button>
+      </DialogPrimitiveClose>
+
+      <DeleteAccountSubmitButton />
+    </div>
   );
 }

@@ -1,16 +1,20 @@
 'use client';
 
-import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
+import { X } from 'lucide-react';
+import classNames from 'clsx';
+import {
+  modalIconButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
-import IconButton from '~/core/ui/IconButton';
 import If from '~/core/ui/If';
-import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle,
   DialogTrigger,
 } from '~/core/ui/Dialog';
@@ -27,13 +31,14 @@ type TriggerProps = {
 type Props = React.PropsWithChildren<
   {
     heading: string | React.ReactNode;
+    description?: string | React.ReactNode;
     closeButton?: boolean;
   } & (ControlledOpenProps & TriggerProps)
 >;
 
 const Modal: React.FC<Props> & {
   CancelButton: typeof CancelButton;
-} = ({ closeButton, heading, children, ...props }) => {
+} = ({ closeButton, heading, description, children, ...props }) => {
   const isControlled = 'isOpen' in props;
   const useCloseButton = closeButton ?? true;
 
@@ -43,32 +48,39 @@ const Modal: React.FC<Props> & {
         <DialogTrigger asChild>{props.Trigger}</DialogTrigger>
       </If>
 
-      <DialogContent>
-        <div className={'flex flex-col space-y-4'}>
-          <div className="flex items-center">
-            <DialogTitle className="flex w-full text-xl font-semibold text-current">
-              <span className={'max-w-[90%] truncate'}>{heading}</span>
-            </DialogTitle>
+      <DialogContent overlayClassName="bg-black/50 backdrop-blur-none">
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate text-xl font-semibold text-current">
+                {heading}
+              </DialogTitle>
+              <If condition={description}>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  {description}
+                </DialogDescription>
+              </If>
+            </div>
+
+            <If condition={useCloseButton}>
+              <DialogPrimitiveClose asChild>
+                <button
+                  type="button"
+                  className={modalIconButtonClass}
+                  aria-label="Close"
+                  onClick={() => {
+                    if (isControlled && props.setIsOpen) {
+                      props.setIsOpen(false);
+                    }
+                  }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </DialogPrimitiveClose>
+            </If>
           </div>
 
           <div className="relative">{children}</div>
-
-          <If condition={useCloseButton}>
-            <DialogPrimitiveClose asChild>
-              <IconButton
-                className={'absolute top-0 right-4 flex items-center'}
-                label={'Close Modal'}
-                onClick={() => {
-                  if (isControlled && props.setIsOpen) {
-                    props.setIsOpen(false);
-                  }
-                }}
-              >
-                <XMarkIcon className={'h-6'} />
-                <span className="sr-only">Close</span>
-              </IconButton>
-            </DialogPrimitiveClose>
-          </If>
         </div>
       </DialogContent>
     </Dialog>
@@ -80,15 +92,17 @@ export default Modal;
 function CancelButton<Props extends React.ButtonHTMLAttributes<unknown>>(
   props: Props,
 ) {
+  const { className, ...rest } = props;
+
   return (
-    <Button
-      type={'button'}
+    <button
+      type="button"
       data-cy={'close-modal-button'}
-      variant={'ghost'}
-      {...props}
+      className={classNames(modalSecondaryButtonClass, className)}
+      {...rest}
     >
       <Trans i18nKey={'common:cancel'} />
-    </Button>
+    </button>
   );
 }
 

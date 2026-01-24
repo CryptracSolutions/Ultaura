@@ -5,15 +5,17 @@ import { useState, useTransition } from 'react';
 import type { User } from '@supabase/supabase-js';
 
 import Modal from '~/core/ui/Modal';
-import Button from '~/core/ui/Button';
 import If from '~/core/ui/If';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import { impersonateUser } from '~/app/admin/users/@modal/[uid]/actions.server';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
 
 import ImpersonateUserAuthSetter from '../components/ImpersonateUserAuthSetter';
 import PageLoadingIndicator from '~/core/ui/PageLoadingIndicator';
-import { Alert, AlertHeading } from '~/core/ui/Alert';
 
 function ImpersonateUserConfirmationModal({
   user,
@@ -71,10 +73,10 @@ function ImpersonateUserConfirmationModal({
       </If>
 
       <If condition={error}>
-        <Alert type={'error'}>
-          <AlertHeading>Impersonation Error</AlertHeading>
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="font-medium">Impersonation error</p>
           Sorry, something went wrong. Please check the logs.
-        </Alert>
+        </div>
       </If>
 
       <If condition={!error && !tokens}>
@@ -96,19 +98,31 @@ function ImpersonateUserConfirmationModal({
             </p>
           </div>
 
-          <div className={'flex space-x-2.5 justify-end'}>
-            <Modal.CancelButton disabled={pending} onClick={onDismiss}>
-              Cancel
-            </Modal.CancelButton>
-
-            <Button
-              type={'button'}
-              loading={pending}
-              variant={'destructive'}
-              onClick={onConfirm}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={pending}
+              className={modalSecondaryButtonClass}
             >
-              Yes, let&apos;s do it
-            </Button>
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={pending}
+              className={modalDestructiveButtonClass}
+            >
+              {pending ? (
+                <>
+                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Impersonating
+                </>
+              ) : (
+                'Yes, let\'s do it'
+              )}
+            </button>
           </div>
         </div>
       </If>

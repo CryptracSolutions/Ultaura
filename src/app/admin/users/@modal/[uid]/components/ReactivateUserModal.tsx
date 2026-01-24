@@ -5,9 +5,12 @@ import { useState, useTransition } from 'react';
 import type { User } from '@supabase/supabase-js';
 
 import Modal from '~/core/ui/Modal';
-import Button from '~/core/ui/Button';
 import { reactivateUser } from '~/app/admin/users/@modal/[uid]/actions.server';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
+import {
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 function ReactivateUserModal({
   user,
@@ -49,14 +52,31 @@ function ReactivateUserModal({
           <p>Are you sure you want to do this?</p>
         </div>
 
-        <div className={'flex space-x-2.5 justify-end'}>
-          <Modal.CancelButton disabled={pending} onClick={onDismiss}>
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onDismiss}
+            disabled={pending}
+            className={modalSecondaryButtonClass}
+          >
             Cancel
-          </Modal.CancelButton>
+          </button>
 
-          <Button loading={pending} onClick={onConfirm}>
-            Yes, reactivate user
-          </Button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className={modalPrimaryButtonClass}
+          >
+            {pending ? (
+              <>
+                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Reactivating
+              </>
+            ) : (
+              'Yes, reactivate user'
+            )}
+          </button>
         </div>
       </div>
     </Modal>

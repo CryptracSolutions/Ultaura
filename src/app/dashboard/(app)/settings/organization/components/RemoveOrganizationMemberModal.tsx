@@ -1,12 +1,14 @@
 import { useCallback, useState, useTransition } from 'react';
 
 import Trans from '~/core/ui/Trans';
-import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import { deleteMemberAction } from '~/lib/memberships/actions';
 import If from '~/core/ui/If';
-import Alert from '~/core/ui/Alert';
 
 const RemoveOrganizationMemberModal: React.FCC<{
   isOpen: boolean;
@@ -49,44 +51,53 @@ function RemoveMemberForm({
   }, [membershipId, setIsOpen]);
 
   return (
-    <form action={onMemberRemoved}>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onMemberRemoved();
+      }}
+    >
       <div className={'flex flex-col space-y-6'}>
         <p className={'text-sm'}>
           <Trans i18nKey={'common:modalConfirmationQuestion'} />
         </p>
 
         <If condition={error}>
-          <RemoveMemberErrorAlert />
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p className="font-medium">
+              <Trans i18nKey={'organization:removeMemberErrorHeading'} />
+            </p>
+            <Trans i18nKey={'organization:removeMemberErrorMessage'} />
+          </div>
         </If>
 
-        <div className={'flex justify-end space-x-2'}>
-          <Modal.CancelButton
-            type={'button'}
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
             onClick={() => setIsOpen(false)}
-          />
-
-          <Button
-            data-cy={'confirm-remove-member'}
-            variant={'destructive'}
-            loading={isSubmitting}
-            onClick={onMemberRemoved}
+            className={modalSecondaryButtonClass}
+            disabled={isSubmitting}
           >
-            <Trans i18nKey={'organization:removeMemberSubmitLabel'} />
-          </Button>
+            <Trans i18nKey={'common:cancel'} />
+          </button>
+
+          <button
+            data-cy={'confirm-remove-member'}
+            type="submit"
+            disabled={isSubmitting}
+            className={modalDestructiveButtonClass}
+          >
+            {isSubmitting ? (
+              <>
+                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <Trans i18nKey={'organization:removeMemberSubmitLabel'} />
+              </>
+            ) : (
+              <Trans i18nKey={'organization:removeMemberSubmitLabel'} />
+            )}
+          </button>
         </div>
       </div>
     </form>
-  );
-}
-
-function RemoveMemberErrorAlert() {
-  return (
-    <Alert type={'error'}>
-      <Alert.Heading>
-        <Trans i18nKey={'organization:removeMemberErrorHeading'} />
-      </Alert.Heading>
-
-      <Trans i18nKey={'organization:removeMemberErrorMessage'} />
-    </Alert>
   );
 }

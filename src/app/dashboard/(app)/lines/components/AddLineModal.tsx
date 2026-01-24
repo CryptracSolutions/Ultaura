@@ -10,6 +10,17 @@ import type { SharingTier, UserType } from '~/lib/ultaura/types';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '~/core/ui/Dialog';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
+import {
   Select,
   SelectTrigger,
   SelectValue,
@@ -208,39 +219,48 @@ export function AddLineModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-background/80"
-        onClick={discardAndClose}
-      />
-
-      {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-lg bg-card rounded-xl shadow-lg border border-border">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <h2 className="text-xl font-semibold text-foreground">
-              {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
-            </h2>
+    <>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            discardAndClose();
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-[468px]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">
+                {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                {step === 1
+                  ? 'Add the basics for scheduled check-in calls.'
+                  : 'Add topics, sharing preferences, and required consent.'}
+              </DialogDescription>
+            </div>
             <button
+              type="button"
               onClick={discardAndClose}
-              className="p-2 rounded-md hover:bg-muted transition-colors"
+              className={modalIconButtonClass}
+              aria-label="Close"
             >
-              <X className="w-5 h-5 text-muted-foreground" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Content */}
-          <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-6">
-              {error && (
-                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                  {error}
-                </div>
-              )}
+          {error && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
-              {step === 1 && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {step === 1 && (
                 <>
                   {/* Display Name */}
                   <div className="space-y-2">
@@ -335,7 +355,7 @@ export function AddLineModal({
               </>
             )}
 
-              {step === 2 && (
+            {step === 2 && (
                 <>
                   {/* Interests */}
                   <div className="space-y-2">
@@ -520,24 +540,22 @@ export function AddLineModal({
                   </div>
                 </>
               )}
-            </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between p-6 border-t border-border bg-muted/50 rounded-b-xl">
+            <div className="flex gap-3 pt-2">
               {step === 1 ? (
                 <>
                   <button
                     type="button"
                     onClick={discardAndClose}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className={modalSecondaryButtonClass}
                   >
-                    Discard changes
+                    Cancel
                   </button>
                   <button
                     type="button"
                     onClick={() => setStep(2)}
                     disabled={!displayName || !phoneNumber}
-                    className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={modalPrimaryButtonClass}
                   >
                     Continue
                   </button>
@@ -547,23 +565,30 @@ export function AddLineModal({
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className={modalSecondaryButtonClass}
                   >
                     Back
                   </button>
                   <button
                     type="submit"
                     disabled={isLoading || !disclosure || !consent || !isVendorAcknowledged}
-                    className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={modalPrimaryButtonClass}
                   >
-                    {isLoading ? 'Creating...' : 'Add Line'}
+                    {isLoading ? (
+                      <>
+                        <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Creating
+                      </>
+                    ) : (
+                      'Add Line'
+                    )}
                   </button>
                 </>
               )}
             </div>
           </form>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmationDialog
         open={dialogProps.open}
@@ -575,7 +600,7 @@ export function AddLineModal({
         variant="default"
         onConfirm={dialogProps.onConfirm}
       />
-    </div>
+    </>
   );
 }
 

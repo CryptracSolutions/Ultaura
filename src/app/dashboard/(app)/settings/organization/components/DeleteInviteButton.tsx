@@ -5,10 +5,13 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 
 import IconButton from '~/core/ui/IconButton';
 import Modal from '~/core/ui/Modal';
-import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
 import If from '~/core/ui/If';
-import Alert from '~/core/ui/Alert';
+import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import { deleteMemberAction } from '~/lib/memberships/actions';
 
@@ -51,7 +54,12 @@ function DeleteInviteForm({
   }, [membershipId]);
 
   return (
-    <form>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onInviteDeleteRequested();
+      }}
+    >
       <div className={'flex flex-col space-y-4 text-sm'}>
         <p>
           <Trans
@@ -66,18 +74,40 @@ function DeleteInviteForm({
         </p>
 
         <If condition={error}>
-          <RemoveMemberErrorAlert />
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p className="font-medium">
+              <Trans i18nKey={'organization:removeMemberErrorHeading'} />
+            </p>
+            <Trans i18nKey={'organization:removeMemberErrorMessage'} />
+          </div>
         </If>
 
-        <div className={'flex justify-end'}>
-          <Button
-            loading={isSubmitting}
+        <div className="flex gap-3 pt-2">
+          <DialogPrimitiveClose asChild>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              className={modalSecondaryButtonClass}
+            >
+              <Trans i18nKey={'common:cancel'} />
+            </button>
+          </DialogPrimitiveClose>
+
+          <button
+            type="submit"
             data-cy={'confirm-delete-invite-button'}
-            variant={'destructive'}
-            formAction={onInviteDeleteRequested}
+            disabled={isSubmitting}
+            className={modalDestructiveButtonClass}
           >
-            <Trans i18nKey={'organization:deleteInviteSubmitLabel'} />
-          </Button>
+            {isSubmitting ? (
+              <>
+                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <Trans i18nKey={'organization:deleteInviteSubmitLabel'} />
+              </>
+            ) : (
+              <Trans i18nKey={'organization:deleteInviteSubmitLabel'} />
+            )}
+          </button>
         </div>
       </div>
     </form>
@@ -85,15 +115,3 @@ function DeleteInviteForm({
 }
 
 export default DeleteInviteButton;
-
-function RemoveMemberErrorAlert() {
-  return (
-    <Alert type={'error'}>
-      <Alert.Heading>
-        <Trans i18nKey={'organization:removeMemberErrorHeading'} />
-      </Alert.Heading>
-
-      <Trans i18nKey={'organization:removeMemberErrorMessage'} />
-    </Alert>
-  );
-}

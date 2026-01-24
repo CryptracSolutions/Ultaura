@@ -18,6 +18,10 @@ import Modal from '~/core/ui/Modal';
 import Badge from '~/core/ui/Badge';
 import IconButton from '~/core/ui/IconButton';
 import Trans from '~/core/ui/Trans';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import useSupabase from '~/core/hooks/use-supabase';
 import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
@@ -181,20 +185,31 @@ function ConfirmUnenrollFactorModal(
           <Trans i18nKey={'profile:unenrollFactorModalBody'} />
         </div>
 
-        <div className={'flex flex-row justify-end space-x-2'}>
-          <Modal.CancelButton
-            disabled={unEnroll.isMutating}
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
             onClick={() => props.setIsModalOpen(false)}
-          />
-
-          <Button
-            type={'button'}
-            loading={unEnroll.isMutating}
-            variant={'destructive'}
-            onClick={() => onUnenrollRequested(props.factorId)}
+            disabled={unEnroll.isMutating}
+            className={modalSecondaryButtonClass}
           >
-            <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
-          </Button>
+            <Trans i18nKey={'common:cancel'} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onUnenrollRequested(props.factorId)}
+            disabled={unEnroll.isMutating}
+            className={modalDestructiveButtonClass}
+          >
+            {unEnroll.isMutating ? (
+              <>
+                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
+              </>
+            ) : (
+              <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
+            )}
+          </button>
         </div>
       </div>
     </Modal>

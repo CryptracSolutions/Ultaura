@@ -4,11 +4,15 @@ import { useFormStatus } from 'react-dom';
 import { useState } from 'react';
 
 import TextField from '~/core/ui/TextField';
-import Button from '~/core/ui/Button';
-import Alert from '~/core/ui/Alert';
 import Trans from '~/core/ui/Trans';
 import If from '~/core/ui/If';
-import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import { X } from 'lucide-react';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import { createNewOrganizationAction } from '~/lib/organizations/actions';
 
@@ -18,10 +22,28 @@ const CreateOrganizationModal: React.FC<{
 }> = ({ isOpen, setIsOpen }) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent>
-        <DialogTitle>
-          <Trans i18nKey={'organization:createOrganizationModalHeading'} />
-        </DialogTitle>
+      <DialogContent
+        className="max-w-[468px]"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <DialogTitle className="truncate">
+              <Trans i18nKey={'organization:createOrganizationModalHeading'} />
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Create a new workspace for billing and team access.
+            </DialogDescription>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className={modalIconButtonClass}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         <CreateOrganizationForm setIsOpen={setIsOpen} />
       </DialogContent>
@@ -51,7 +73,12 @@ function CreateOrganizationForm({
     >
       <div className={'flex flex-col space-y-6'}>
         <If condition={error}>
-          <CreateOrganizationErrorAlert />
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p className="font-medium">
+              <Trans i18nKey={'organization:createOrganizationErrorHeading'} />
+            </p>
+            <Trans i18nKey={'organization:createOrganizationErrorMessage'} />
+          </div>
         </If>
 
         <TextField>
@@ -69,14 +96,14 @@ function CreateOrganizationForm({
           </TextField.Label>
         </TextField>
 
-        <div className={'flex space-x-2 justify-end'}>
-          <Button
-            variant={'ghost'}
-            type={'button'}
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
             onClick={() => setIsOpen(false)}
+            className={modalSecondaryButtonClass}
           >
             <Trans i18nKey={'common:cancel'} />
-          </Button>
+          </button>
 
           <SubmitButton />
         </div>
@@ -89,20 +116,20 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button data-cy={'confirm-create-organization-button'} loading={pending}>
-      <Trans i18nKey={'organization:createOrganizationSubmitLabel'} />
-    </Button>
-  );
-}
-
-function CreateOrganizationErrorAlert() {
-  return (
-    <Alert type={'error'}>
-      <Alert.Heading>
-        <Trans i18nKey={'organization:createOrganizationErrorHeading'} />
-      </Alert.Heading>
-
-      <Trans i18nKey={'organization:createOrganizationErrorMessage'} />
-    </Alert>
+    <button
+      data-cy={'confirm-create-organization-button'}
+      type="submit"
+      disabled={pending}
+      className={modalPrimaryButtonClass}
+    >
+      {pending ? (
+        <>
+          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <Trans i18nKey={'organization:createOrganizationSubmitLabel'} />
+        </>
+      ) : (
+        <Trans i18nKey={'organization:createOrganizationSubmitLabel'} />
+      )}
+    </button>
   );
 }

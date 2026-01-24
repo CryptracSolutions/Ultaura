@@ -14,6 +14,10 @@ import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import AuthErrorMessage from '~/app/auth/components/AuthErrorMessage';
 import useSupabase from '~/core/hooks/use-supabase';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import configuration from '~/configuration';
 
@@ -168,17 +172,31 @@ function RemovePhoneNumberButton({
 
           <AuthErrorMessage error={error} />
 
-          <div className={'flex justify-end space-x-2'}>
-            <Modal.CancelButton onClick={() => setIsModalOpen(false)} />
-
-            <Button
-              type={'button'}
-              variant={'destructive'}
-              loading={isMutating}
-              onClick={onUnlinkPhoneNumber}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              disabled={isMutating}
+              className={modalSecondaryButtonClass}
             >
-              <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
-            </Button>
+              <Trans i18nKey={'common:cancel'} />
+            </button>
+
+            <button
+              type="button"
+              onClick={onUnlinkPhoneNumber}
+              disabled={isMutating}
+              className={modalDestructiveButtonClass}
+            >
+              {isMutating ? (
+                <>
+                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
+                </>
+              ) : (
+                <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
+              )}
+            </button>
           </div>
         </div>
       </Modal>

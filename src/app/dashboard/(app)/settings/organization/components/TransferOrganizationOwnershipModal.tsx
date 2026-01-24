@@ -3,10 +3,12 @@
 import { useCallback, useState, useTransition } from 'react';
 
 import Trans from '~/core/ui/Trans';
-import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
-import Alert from '~/core/ui/Alert';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import { transferOrganizationOwnershipAction } from '~/lib/organizations/actions';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
@@ -69,7 +71,12 @@ function TransferOrganizationOwnershipForm({
   return (
     <form className={'flex flex-col space-y-6 text-sm'} onSubmit={onSubmit}>
       <If condition={error}>
-        <TransferOwnershipErrorAlert />
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="font-medium">
+            <Trans i18nKey={'organization:transferOrganizationErrorHeading'} />
+          </p>
+          <Trans i18nKey={'organization:transferOrganizationErrorMessage'} />
+        </div>
       </If>
 
       <p>
@@ -86,37 +93,34 @@ function TransferOrganizationOwnershipForm({
         <Trans i18nKey={'common:modalConfirmationQuestion'} />
       </p>
 
-      <div className={'flex justify-end space-x-2'}>
-        <Modal.CancelButton onClick={() => setIsOpen(false)} />
-
-        <Button
-          type={'submit'}
-          data-cy={'confirm-transfer-ownership-button'}
-          variant={'destructive'}
-          loading={pending}
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          className={modalSecondaryButtonClass}
+          disabled={pending}
         >
-          <If
-            condition={pending}
-            fallback={<Trans i18nKey={'organization:transferOwnership'} />}
-          >
-            <Trans i18nKey={'organization:transferringOwnership'} />
-          </If>
-        </Button>
+          <Trans i18nKey={'common:cancel'} />
+        </button>
+
+        <button
+          type="submit"
+          data-cy={'confirm-transfer-ownership-button'}
+          disabled={pending}
+          className={modalDestructiveButtonClass}
+        >
+          {pending ? (
+            <>
+              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <Trans i18nKey={'organization:transferringOwnership'} />
+            </>
+          ) : (
+            <Trans i18nKey={'organization:transferOwnership'} />
+          )}
+        </button>
       </div>
     </form>
   );
 }
 
 export default TransferOrganizationOwnershipModal;
-
-function TransferOwnershipErrorAlert() {
-  return (
-    <Alert type={'error'}>
-      <Alert.Heading>
-        <Trans i18nKey={'organization:transferOrganizationErrorHeading'} />
-      </Alert.Heading>
-
-      <Trans i18nKey={'organization:transferOrganizationErrorMessage'} />
-    </Alert>
-  );
-}

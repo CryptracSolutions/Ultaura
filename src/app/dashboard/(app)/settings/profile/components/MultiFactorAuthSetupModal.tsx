@@ -7,12 +7,14 @@ import { toast } from 'sonner';
 import useSupabase from '~/core/hooks/use-supabase';
 import useMutation from 'swr/mutation';
 
-import Button from '~/core/ui/Button';
-import Alert from '~/core/ui/Alert';
 import TextField from '~/core/ui/TextField';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
+import {
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
 import VerificationCodeInput from '~/app/auth/components/VerificationCodeInput';
@@ -33,8 +35,8 @@ function MultiFactorAuthSetupModal(
 
   return (
     <Modal
-      closeButton={false}
       heading={<Trans i18nKey={'profile:setupMfaButtonLabel'} />}
+      description="Scan the QR code and confirm your authenticator app."
       isOpen={props.isOpen}
       setIsOpen={props.setIsOpen}
     >
@@ -97,11 +99,18 @@ function MultiFactorAuthSetupForm({
   if (state.error) {
     return (
       <div className={'flex flex-col space-y-4'}>
-        <Alert type={'error'}>
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <Trans i18nKey={'profile:multiFactorSetupError'} />
-        </Alert>
+        </div>
 
-        <Modal.CancelButton onClick={onCancel} />
+        <button
+          type="button"
+          onClick={onCancel}
+          className={modalSecondaryButtonClass}
+          disabled={state.loading}
+        >
+          <Trans i18nKey={'common:cancel'} />
+        </button>
       </div>
     );
   }
@@ -135,20 +144,30 @@ function MultiFactorAuthSetupForm({
               </TextField.Hint>
             </TextField.Label>
 
-            <div className={'flex justify-end space-x-2'}>
-              <Modal.CancelButton type={'button'} onClick={onCancel} />
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={state.loading}
+                className={modalSecondaryButtonClass}
+              >
+                <Trans i18nKey={'common:cancel'} />
+              </button>
 
-              <Button
-                disabled={!verificationCode}
-                loading={state.loading}
-                type={'submit'}
+              <button
+                type="submit"
+                disabled={!verificationCode || state.loading}
+                className={modalPrimaryButtonClass}
               >
                 {state.loading ? (
-                  <Trans i18nKey={'profile:verifyingCode'} />
+                  <>
+                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <Trans i18nKey={'profile:verifyingCode'} />
+                  </>
                 ) : (
                   <Trans i18nKey={'profile:enableMfaFactor'} />
                 )}
-              </Button>
+              </button>
             </div>
           </div>
         </form>
@@ -206,11 +225,17 @@ function FactorQrCode({
   if (error) {
     return (
       <div className={'flex w-full flex-col space-y-2'}>
-        <Alert type={'error'}>
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <Trans i18nKey={'profile:qrCodeError'} />
-        </Alert>
+        </div>
 
-        <Modal.CancelButton onClick={onCancel} />
+        <button
+          type="button"
+          onClick={onCancel}
+          className={modalSecondaryButtonClass}
+        >
+          <Trans i18nKey={'common:cancel'} />
+        </button>
       </div>
     );
   }
@@ -272,12 +297,21 @@ function FactorNameForm(
           </TextField.Hint>
         </TextField.Label>
 
-        <div className={'flex justify-end space-x-2'}>
-          <Modal.CancelButton onClick={props.onCancel} />
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={props.onCancel}
+            className={modalSecondaryButtonClass}
+          >
+            <Trans i18nKey={'common:cancel'} />
+          </button>
 
-          <Button type={'submit'}>
+          <button
+            type="submit"
+            className={modalPrimaryButtonClass}
+          >
             <Trans i18nKey={'profile:factorNameSubmitLabel'} />
-          </Button>
+          </button>
         </div>
       </div>
     </form>

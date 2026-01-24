@@ -4,11 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import Modal from '~/core/ui/Modal';
-import Button from '~/core/ui/Button';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import Organization from '~/lib/organizations/types/organization';
 import { deleteOrganizationAction } from '~/app/admin/organizations/@modal/[uid]/actions.server';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 function DeleteOrganizationModal({
   organization,
@@ -70,14 +73,30 @@ function DeleteOrganizationModal({
             </TextFieldLabel>
           </div>
 
-          <div className={'flex space-x-2.5 justify-end'}>
-            <Modal.CancelButton disabled={pending} onClick={onDismiss}>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={pending}
+              className={modalSecondaryButtonClass}
+            >
               Cancel
-            </Modal.CancelButton>
+            </button>
 
-            <Button loading={pending} variant={'destructive'}>
-              Yes, delete organization
-            </Button>
+            <button
+              type="submit"
+              disabled={pending}
+              className={modalDestructiveButtonClass}
+            >
+              {pending ? (
+                <>
+                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Deleting
+                </>
+              ) : (
+                'Yes, delete organization'
+              )}
+            </button>
           </div>
         </div>
       </form>

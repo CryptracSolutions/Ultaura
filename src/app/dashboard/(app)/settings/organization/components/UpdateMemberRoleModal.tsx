@@ -1,10 +1,12 @@
 import { useCallback, useState, useTransition } from 'react';
 import Trans from '~/core/ui/Trans';
 
-import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
-import Alert from '~/core/ui/Alert';
+import {
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import type MembershipRole from '~/lib/organizations/types/membership-role';
 import { updateMemberAction } from '~/lib/memberships/actions';
@@ -71,35 +73,43 @@ function UpdateMemberForm({
       />
 
       <If condition={error}>
-        <UpdateRoleErrorAlert />
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="font-medium">
+            <Trans i18nKey={'organization:updateRoleErrorHeading'} />
+          </p>
+          <Trans i18nKey={'organization:updateRoleErrorMessage'} />
+        </div>
       </If>
 
-      <div className={'flex justify-end space-x-2'}>
-        <Modal.CancelButton onClick={() => setIsOpen(false)} />
-
-        <Button
-          type={'button'}
-          data-cy={'confirm-update-member-role'}
-          loading={isSubmitting}
-          onClick={onRoleUpdated}
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          className={modalSecondaryButtonClass}
+          disabled={isSubmitting}
         >
-          <Trans i18nKey={'organization:updateRoleSubmitLabel'} />
-        </Button>
+          <Trans i18nKey={'common:cancel'} />
+        </button>
+
+        <button
+          type="button"
+          data-cy={'confirm-update-member-role'}
+          disabled={isSubmitting}
+          onClick={onRoleUpdated}
+          className={modalPrimaryButtonClass}
+        >
+          {isSubmitting ? (
+            <>
+              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <Trans i18nKey={'organization:updateRoleSubmitLabel'} />
+            </>
+          ) : (
+            <Trans i18nKey={'organization:updateRoleSubmitLabel'} />
+          )}
+        </button>
       </div>
     </div>
   );
 }
 
 export default UpdateMemberRoleModal;
-
-function UpdateRoleErrorAlert() {
-  return (
-    <Alert type={'error'}>
-      <Alert.Heading>
-        <Trans i18nKey={'organization:updateRoleErrorHeading'} />
-      </Alert.Heading>
-
-      <Trans i18nKey={'organization:updateRoleErrorMessage'} />
-    </Alert>
-  );
-}

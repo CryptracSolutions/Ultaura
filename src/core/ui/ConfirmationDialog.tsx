@@ -1,15 +1,19 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogFooter,
   DialogTitle,
   DialogDescription,
 } from '~/core/ui/Dialog';
-import Button from '~/core/ui/Button';
+import {
+  modalDestructiveButtonClass,
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -58,27 +62,57 @@ export function ConfirmationDialog({
 
   return (
     <Dialog open={open} onOpenChange={isLoading ? undefined : onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            variant="ghost"
+      <DialogContent
+        className="max-w-[468px]"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <DialogTitle className="truncate">{title}</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {description}
+            </DialogDescription>
+          </div>
+          <button
+            type="button"
             onClick={handleCancel}
             disabled={isLoading}
+            className={modalIconButtonClass + ' disabled:opacity-50'}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={isLoading}
+            className={modalSecondaryButtonClass}
           >
             {cancelLabel}
-          </Button>
-          <Button
-            variant={variant}
+          </button>
+          <button
+            type="button"
             onClick={handleConfirm}
-            loading={isLoading}
+            disabled={isLoading}
+            className={
+              variant === 'destructive'
+                ? modalDestructiveButtonClass
+                : modalPrimaryButtonClass
+            }
           >
-            {confirmLabel}
-          </Button>
-        </DialogFooter>
+            {isLoading ? (
+              <>
+                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {confirmLabel}
+              </>
+            ) : (
+              confirmLabel
+            )}
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );

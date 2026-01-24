@@ -1,11 +1,16 @@
 'use client';
 
 import { useFormStatus } from 'react-dom';
+import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
 
 import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
 import Heading from '~/core/ui/Heading';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 import {
   TextFieldHint,
@@ -15,7 +20,6 @@ import {
 
 import Trans from '~/core/ui/Trans';
 import ErrorBoundary from '~/core/ui/ErrorBoundary';
-import Alert from '~/core/ui/Alert';
 
 import useCurrentUserRole from '~/lib/organizations/hooks/use-current-user-role';
 import MembershipRole from '~/lib/organizations/types/membership-role';
@@ -134,9 +138,7 @@ function DeleteOrganizationForm({ name, id }: { name: string; id: number }) {
           </TextFieldLabel>
         </div>
 
-        <div className={'flex justify-end space-x-2.5'}>
-          <DeleteOrganizationSubmitButton />
-        </div>
+        <DeleteOrganizationActions />
       </form>
     </ErrorBoundary>
   );
@@ -146,13 +148,21 @@ function DeleteOrganizationSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button
+    <button
       data-cy={'confirm-delete-organization-button'}
-      loading={pending}
-      variant={'destructive'}
+      type="submit"
+      disabled={pending}
+      className={modalDestructiveButtonClass}
     >
-      <Trans i18nKey={'organization:deleteOrganization'} />
-    </Button>
+      {pending ? (
+        <>
+          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <Trans i18nKey={'organization:deleteOrganization'} />
+        </>
+      ) : (
+        <Trans i18nKey={'organization:deleteOrganization'} />
+      )}
+    </button>
   );
 }
 
@@ -207,9 +217,7 @@ function LeaveOrganizationContainer() {
                   </div>
                 </div>
 
-                <div className={'flex justify-end space-x-2.5'}>
-                  <LeaveOrganizationSubmitButton />
-                </div>
+                <LeaveOrganizationActions />
               </div>
             </form>
           </ErrorBoundary>
@@ -223,36 +231,82 @@ function LeaveOrganizationSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button
+    <button
       data-cy={'confirm-leave-organization-button'}
-      loading={pending}
-      variant={'destructive'}
+      type="submit"
+      disabled={pending}
+      className={modalDestructiveButtonClass}
     >
-      <Trans i18nKey={'organization:leaveOrganization'} />
-    </Button>
+      {pending ? (
+        <>
+          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <Trans i18nKey={'organization:leaveOrganization'} />
+        </>
+      ) : (
+        <Trans i18nKey={'organization:leaveOrganization'} />
+      )}
+    </button>
   );
 }
 
 function LeaveOrganizationErrorAlert() {
   return (
-    <Alert type={'error'}>
-      <Alert.Heading>
+    <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      <p className="font-medium">
         <Trans i18nKey={'organization:leaveOrganizationErrorHeading'} />
-      </Alert.Heading>
-
+      </p>
       <Trans i18nKey={'common:genericError'} />
-    </Alert>
+    </div>
   );
 }
 
 function DeleteOrganizationErrorAlert() {
   return (
-    <Alert type={'error'}>
-      <Alert.Heading>
+    <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      <p className="font-medium">
         <Trans i18nKey={'organization:deleteOrganizationErrorHeading'} />
-      </Alert.Heading>
-
+      </p>
       <Trans i18nKey={'common:genericError'} />
-    </Alert>
+    </div>
+  );
+}
+
+function DeleteOrganizationActions() {
+  const { pending } = useFormStatus();
+
+  return (
+    <div className="flex gap-3 pt-2">
+      <DialogPrimitiveClose asChild>
+        <button
+          type="button"
+          disabled={pending}
+          className={modalSecondaryButtonClass}
+        >
+          <Trans i18nKey={'common:cancel'} />
+        </button>
+      </DialogPrimitiveClose>
+
+      <DeleteOrganizationSubmitButton />
+    </div>
+  );
+}
+
+function LeaveOrganizationActions() {
+  const { pending } = useFormStatus();
+
+  return (
+    <div className="flex gap-3 pt-2">
+      <DialogPrimitiveClose asChild>
+        <button
+          type="button"
+          disabled={pending}
+          className={modalSecondaryButtonClass}
+        >
+          <Trans i18nKey={'common:cancel'} />
+        </button>
+      </DialogPrimitiveClose>
+
+      <LeaveOrganizationSubmitButton />
+    </div>
   );
 }

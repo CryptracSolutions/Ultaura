@@ -5,11 +5,11 @@ import { useFormStatus, useFormState } from 'react-dom';
 import classNames from 'clsx';
 
 import {
-  XMarkIcon,
   CheckCircleIcon,
   ChevronRightIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
+import { X } from 'lucide-react';
 
 import { submitFeedbackAction } from '~/plugins/feedback-popup/lib/feedback-actions';
 
@@ -17,6 +17,11 @@ import Button from '~/core/ui/Button';
 import Textarea from '~/core/ui/Textarea';
 import If from '~/core/ui/If';
 import TextField, { TextFieldHint, TextFieldInput } from '~/core/ui/TextField';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 enum FeedbackType {
   Bug = 'bug',
@@ -40,10 +45,10 @@ export function MobileFeedbackModal({ isOpen, onClose }: MobileFeedbackModalProp
           <h2 className="text-lg font-semibold">Send Feedback</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-muted rounded-md transition-colors"
+            className={modalIconButtonClass}
             aria-label="Close"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -242,26 +247,32 @@ function SubmitButtons({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex gap-3 pt-4">
-      <Button
-        disabled={pending}
-        variant="outline"
-        className="flex-1"
-        onClick={onClose}
+      <button
         type="button"
+        onClick={onClose}
+        disabled={pending}
+        className={modalSecondaryButtonClass}
       >
         Cancel
-      </Button>
+      </button>
 
-      <Button loading={pending} className="flex-1" type="submit">
+      <button
+        type="submit"
+        disabled={pending}
+        className={modalPrimaryButtonClass}
+      >
         {pending ? (
-          'Sending...'
+          <>
+            <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Sending
+          </>
         ) : (
           <span className="flex space-x-1 items-center">
             <span>Send</span>
             <ChevronRightIcon className="h-4" />
           </span>
         )}
-      </Button>
+      </button>
     </div>
   );
 }

@@ -5,10 +5,13 @@ import { useState, useTransition } from 'react';
 import type { User } from '@supabase/supabase-js';
 
 import Modal from '~/core/ui/Modal';
-import Button from '~/core/ui/Button';
 import { deleteUserAction } from '~/app/admin/users/@modal/[uid]/actions.server';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
+import {
+  modalDestructiveButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 function DeleteUserModal({
   user,
@@ -67,14 +70,30 @@ function DeleteUserModal({
             </TextFieldLabel>
           </div>
 
-          <div className={'flex space-x-2.5 justify-end'}>
-            <Modal.CancelButton disabled={pending} onClick={onDismiss}>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={pending}
+              className={modalSecondaryButtonClass}
+            >
               Cancel
-            </Modal.CancelButton>
+            </button>
 
-            <Button loading={pending} variant={'destructive'}>
-              Yes, delete user
-            </Button>
+            <button
+              type="submit"
+              disabled={pending}
+              className={modalDestructiveButtonClass}
+            >
+              {pending ? (
+                <>
+                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Deleting
+                </>
+              ) : (
+                'Yes, delete user'
+              )}
+            </button>
           </div>
         </div>
       </form>

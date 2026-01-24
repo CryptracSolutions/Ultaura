@@ -3,13 +3,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import { Input } from '~/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 import { createMilestone, updateMilestone, deleteMilestone } from '~/lib/ultaura/milestones';
 import { MilestoneCalendar } from './MilestoneCalendar';
@@ -208,168 +214,202 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         </Button>
       </div>
 
-      {showForm && !disabled ? (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-border bg-card p-6 space-y-4"
+      <Dialog
+        open={showForm && !disabled}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetForm();
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-[468px]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
         >
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              {editingMilestone ? 'Edit milestone' : 'Add milestone'}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              These dates help Ultaura celebrate meaningful moments.
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">
+                {editingMilestone ? 'Edit milestone' : 'Add milestone'}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                These dates help Ultaura celebrate meaningful moments.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={resetForm}
+              className={modalIconButtonClass}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label htmlFor="milestone-title" className="text-xs text-muted-foreground block mb-1">
-                Title
-              </label>
-              <Input
-                id="milestone-title"
-                value={formState.title}
-                onChange={(event) =>
-                  setFormState((prev) => ({ ...prev, title: event.target.value }))
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label htmlFor="milestone-title" className="text-xs text-muted-foreground block mb-1">
+                  Title
+                </label>
+                <Input
+                  id="milestone-title"
+                  value={formState.title}
+                  onChange={(event) =>
+                    setFormState((prev) => ({ ...prev, title: event.target.value }))
+                  }
+                  placeholder="e.g., Margaret's birthday"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="milestone-type" className="text-xs text-muted-foreground block mb-1">
+                  Type
+                </label>
+                <Select
+                  value={formState.milestoneType}
+                  onValueChange={(value) =>
+                    setFormState((prev) => ({ ...prev, milestoneType: value }))
+                  }
+                >
+                  <SelectTrigger id="milestone-type" className="w-full py-2.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MILESTONE_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label htmlFor="milestone-person" className="text-xs text-muted-foreground block mb-1">
+                  Related person
+                </label>
+                <Input
+                  id="milestone-person"
+                  value={formState.relatedPersonName}
+                  onChange={(event) =>
+                    setFormState((prev) => ({ ...prev, relatedPersonName: event.target.value }))
+                  }
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label htmlFor="milestone-month" className="text-xs text-muted-foreground block mb-1">
+                  Month
+                </label>
+                <Select
+                  value={String(formState.dateMonth)}
+                  onValueChange={(value) =>
+                    setFormState((prev) => ({ ...prev, dateMonth: Number(value) }))
+                  }
+                >
+                  <SelectTrigger id="milestone-month" className="w-full py-2.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_OPTIONS.map((month) => (
+                      <SelectItem key={month.value} value={String(month.value)}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label htmlFor="milestone-day" className="text-xs text-muted-foreground block mb-1">
+                  Day
+                </label>
+                <Input
+                  id="milestone-day"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={formState.dateDay}
+                  onChange={(event) =>
+                    setFormState((prev) => ({ ...prev, dateDay: Number(event.target.value) }))
+                  }
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="milestone-year" className="text-xs text-muted-foreground block mb-1">
+                  Year (optional)
+                </label>
+                <Input
+                  id="milestone-year"
+                  type="number"
+                  min={1900}
+                  max={2100}
+                  value={formState.dateYear}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setFormState((prev) => ({
+                      ...prev,
+                      dateYear: value === '' ? '' : Number(value),
+                    }));
+                  }}
+                  placeholder="e.g., 1954"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+              <div>
+                <label
+                  htmlFor="milestone-recurring"
+                  className="text-sm font-medium text-foreground cursor-pointer"
+                >
+                  Recurring yearly
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Turn off for one-time achievements or memorials.
+                </p>
+              </div>
+              <Switch
+                id="milestone-recurring"
+                checked={formState.isRecurring}
+                onCheckedChange={(checked) =>
+                  setFormState((prev) => ({ ...prev, isRecurring: checked }))
                 }
-                placeholder="e.g., Margaret's birthday"
-                required
               />
             </div>
 
-            <div>
-              <label htmlFor="milestone-type" className="text-xs text-muted-foreground block mb-1">
-                Type
-              </label>
-              <Select
-                value={formState.milestoneType}
-                onValueChange={(value) =>
-                  setFormState((prev) => ({ ...prev, milestoneType: value }))
-                }
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={resetForm}
+                className={modalSecondaryButtonClass}
               >
-                <SelectTrigger id="milestone-type" className="w-full py-2.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MILESTONE_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label htmlFor="milestone-person" className="text-xs text-muted-foreground block mb-1">
-                Related person
-              </label>
-              <Input
-                id="milestone-person"
-                value={formState.relatedPersonName}
-                onChange={(event) =>
-                  setFormState((prev) => ({ ...prev, relatedPersonName: event.target.value }))
-                }
-                placeholder="Optional"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label htmlFor="milestone-month" className="text-xs text-muted-foreground block mb-1">
-                Month
-              </label>
-              <Select
-                value={String(formState.dateMonth)}
-                onValueChange={(value) =>
-                  setFormState((prev) => ({ ...prev, dateMonth: Number(value) }))
-                }
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={modalPrimaryButtonClass}
               >
-                <SelectTrigger id="milestone-month" className="w-full py-2.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTH_OPTIONS.map((month) => (
-                    <SelectItem key={month.value} value={String(month.value)}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {isSubmitting ? (
+                  <>
+                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving
+                  </>
+                ) : (
+                  editingMilestone ? 'Save changes' : 'Add milestone'
+                )}
+              </button>
             </div>
-
-            <div>
-              <label htmlFor="milestone-day" className="text-xs text-muted-foreground block mb-1">
-                Day
-              </label>
-              <Input
-                id="milestone-day"
-                type="number"
-                min={1}
-                max={31}
-                value={formState.dateDay}
-                onChange={(event) =>
-                  setFormState((prev) => ({ ...prev, dateDay: Number(event.target.value) }))
-                }
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="milestone-year" className="text-xs text-muted-foreground block mb-1">
-                Year (optional)
-              </label>
-              <Input
-                id="milestone-year"
-                type="number"
-                min={1900}
-                max={2100}
-                value={formState.dateYear}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setFormState((prev) => ({
-                    ...prev,
-                    dateYear: value === '' ? '' : Number(value),
-                  }));
-                }}
-                placeholder="e.g., 1954"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-            <div>
-              <label
-                htmlFor="milestone-recurring"
-                className="text-sm font-medium text-foreground cursor-pointer"
-              >
-                Recurring yearly
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Turn off for one-time achievements or memorials.
-              </p>
-            </div>
-            <Switch
-              id="milestone-recurring"
-              checked={formState.isRecurring}
-              onCheckedChange={(checked) =>
-                setFormState((prev) => ({ ...prev, isRecurring: checked }))
-              }
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
-              {editingMilestone ? 'Save changes' : 'Add milestone'}
-            </Button>
-            <Button type="button" variant="outline" onClick={resetForm}>
-              Discard changes
-            </Button>
-          </div>
-        </form>
-      ) : null}
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <MilestoneCalendar
         line={line}
