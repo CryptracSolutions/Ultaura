@@ -10,6 +10,7 @@ export * from './log-call-insights.js';
 export * from './mark-topic-private.js';
 export * from './set-pause-mode.js';
 export * from './set-insights-enabled.js';
+export * from './set-voice-preference.js';
 export * from './store-life-chapter.js';
 export * from './log-mood-snapshot.js';
 export * from './update-content-preference.js';

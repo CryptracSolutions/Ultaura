@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import Lottie, { LottieRefCurrentProps } from 'lottie-react';
+import { PlayCircleIcon, StopCircleIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import type { GrokVoice, VoiceOption } from '~/lib/ultaura/voices';
 import { VOICE_OPTIONS } from '~/lib/ultaura/voices';
 
-export type VoiceSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+type PlayState = 'idle' | 'loading' | 'playing';
 
 function VoiceAvatar({
   option,
@@ -50,53 +52,90 @@ function VoiceAvatar({
         animationData={animationData}
         loop
         autoplay={isSelected}
-        className="h-8 w-8"
+        className="h-14 w-14 sm:h-40 sm:w-40"
       />
     );
   }
 
   // Placeholder while loading
-  return <div className="h-8 w-8 rounded-full bg-muted" />;
+  return <div className="h-14 w-14 sm:h-40 sm:w-40 rounded-full bg-muted animate-pulse" />;
 }
 
 interface VoiceSelectorProps {
   value: GrokVoice;
   onChange: (voice: GrokVoice) => void;
-  saveStatus?: VoiceSaveStatus;
-  onRetry?: () => void;
   disabled?: boolean;
-  helperText?: string;
 }
 
 export function VoiceSelector({
   value,
   onChange,
-  saveStatus = 'idle',
-  onRetry,
   disabled = false,
-  helperText,
 }: VoiceSelectorProps) {
   const { t } = useTranslation('voices');
+  const [playingVoice, setPlayingVoice] = useState<GrokVoice | null>(null);
+  const [playState, setPlayState] = useState<PlayState>('idle');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const statusLabel = (() => {
-    if (saveStatus === 'saving') return t('ui.voicePreference.statusSaving');
-    if (saveStatus === 'saved') return t('ui.voicePreference.statusSaved');
-    if (saveStatus === 'error') return t('ui.voicePreference.statusError');
-    return null;
-  })();
+  const handlePlayVoice = useCallback(
+    async (voice: GrokVoice, e: React.MouseEvent) => {
+      e.stopPropagation();
 
-  const statusColor =
-    saveStatus === 'error'
-      ? 'text-destructive'
-      : saveStatus === 'saved'
-      ? 'text-success'
-      : 'text-muted-foreground';
+      if (playingVoice === voice && playState === 'playing') {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        setPlayState('idle');
+        setPlayingVoice(null);
+        return;
+      }
+
+      setPlayingVoice(voice);
+      setPlayState('loading');
+
+      try {
+        const response = await fetch('/api/voice-demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: `Hi, I'm ${voice}. I'd love to be your companion.`,
+            voice: voice,
+          }),
+        });
+
+        if (!response.ok) {
+          setPlayState('idle');
+          setPlayingVoice(null);
+          return;
+        }
+
+        setPlayState('idle');
+        setPlayingVoice(null);
+      } catch (error) {
+        console.error('Voice demo error:', error);
+        setPlayState('idle');
+        setPlayingVoice(null);
+      }
+    },
+    [playingVoice, playState],
+  );
+
+  const handleAudioEnd = () => {
+    setPlayState('idle');
+    setPlayingVoice(null);
+  };
 
   return (
     <div className="flex flex-col gap-4">
+      <audio ref={audioRef} onEnded={handleAudioEnd} className="hidden" />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {VOICE_OPTIONS.map((option) => {
           const isSelected = value === option.apiName;
+          const isPlayingThis = playingVoice === option.apiName;
+          const isLoading = isPlayingThis && playState === 'loading';
+          const isPlaying = isPlayingThis && playState === 'playing';
           const nameKey = `voices.${option.id}.name`;
           const descriptionKey = `voices.${option.id}.description`;
 
@@ -108,62 +147,60 @@ export function VoiceSelector({
               disabled={disabled}
               aria-pressed={isSelected}
               className={
-                'flex w-full flex-col rounded-xl border p-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60 ' +
+                'flex w-full rounded-xl border transition-all disabled:cursor-not-allowed disabled:opacity-60 ' +
+                'flex-row items-center gap-3 p-3 sm:flex-col sm:items-center sm:gap-0 sm:p-6 sm:text-center ' +
                 (isSelected
                   ? 'border-primary ring-2 ring-primary shadow-xl shadow-primary/20'
                   : 'border-border bg-card hover:ring-2 hover:ring-primary hover:shadow-sm')
               }
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/40">
-                  <VoiceAvatar
-                    option={option}
-                    alt={t(nameKey)}
-                    isSelected={isSelected}
-                  />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-foreground">
-                    {t(nameKey)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t(descriptionKey)}
-                  </p>
-                </div>
+              {/* Mobile: Avatar on left */}
+              <div className="shrink-0 sm:order-2 sm:mt-4">
+                <VoiceAvatar
+                  option={option}
+                  alt={t(nameKey)}
+                  isSelected={isSelected}
+                />
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {option.traitIds.map((traitId) => (
-                  <span
-                    key={traitId}
-                    className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
-                  >
-                    {t(`traits.${traitId}`)}
-                  </span>
-                ))}
+              {/* Mobile: Name + Description in middle */}
+              <div className="flex min-w-0 flex-1 flex-col items-start sm:order-1 sm:items-center">
+                <p className="text-base font-semibold text-foreground sm:text-lg">
+                  {t(nameKey)}
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground sm:hidden">
+                  {t(descriptionKey)}
+                </p>
               </div>
+
+              {/* Desktop only: Description */}
+              <p className="hidden text-sm text-muted-foreground sm:order-3 sm:mt-4 sm:block">
+                {t(descriptionKey)}
+              </p>
+
+              {/* Play button */}
+              <button
+                type="button"
+                onClick={(e) => handlePlayVoice(option.apiName, e)}
+                disabled={isLoading || disabled}
+                className={
+                  'shrink-0 flex items-center justify-center rounded-full p-2 transition-all sm:order-4 sm:mt-4 ' +
+                  (isPlaying || isLoading
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary')
+                }
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : isPlaying ? (
+                  <StopCircleIcon className="h-5 w-5" />
+                ) : (
+                  <PlayCircleIcon className="h-5 w-5" />
+                )}
+              </button>
             </button>
           );
         })}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span>{helperText}</span>
-        {statusLabel && (
-          <span className="flex items-center gap-2">
-            <span className={statusColor}>{statusLabel}</span>
-            {saveStatus === 'error' && onRetry ? (
-              <button
-                type="button"
-                onClick={onRetry}
-                disabled={disabled}
-                className="text-primary hover:underline disabled:opacity-50"
-              >
-                {t('ui.voicePreference.retry')}
-              </button>
-            ) : null}
-          </span>
-        )}
       </div>
     </div>
   );

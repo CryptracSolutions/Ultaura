@@ -22,6 +22,7 @@ import { reportConversationLanguageRouter } from './report-conversation-language
 import { logCallInsightsRouter } from './log-call-insights.js';
 import { setPauseModeRouter } from './set-pause-mode.js';
 import { setInsightsEnabledRouter } from './set-insights-enabled.js';
+import { setVoicePreferenceRouter } from './set-voice-preference.js';
 import { markTopicPrivateRouter } from './mark-topic-private.js';
 import { storeCallPreviewRouter } from './store-call-preview.js';
 import { markPreviewOutcomeRouter } from './mark-preview-outcome.js';
@@ -77,6 +78,7 @@ toolsRouter.use('/report_conversation_language', reportConversationLanguageRoute
 toolsRouter.use('/log_call_insights', logCallInsightsRouter);
 toolsRouter.use('/set_pause_mode', setPauseModeRouter);
 toolsRouter.use('/set_insights_enabled', setInsightsEnabledRouter);
+toolsRouter.use('/set_voice_preference', setVoicePreferenceRouter);
 toolsRouter.use('/mark_topic_private', markTopicPrivateRouter);
 toolsRouter.use('/store_call_preview', storeCallPreviewRouter);
 toolsRouter.use('/mark_preview_outcome', markPreviewOutcomeRouter);

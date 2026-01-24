@@ -349,6 +349,19 @@ Use when starting a new story series or updating progress.`,
   },
   {
     type: 'function',
+    name: 'set_voice_preference',
+    description: `Change the assistant voice for the rest of this call and future calls.
+Use when the user asks to switch voices. If they do not specify a voice, ask which one (Ara, Eve, Leo, Rex, Sal).`,
+    parameters: {
+      type: 'object',
+      properties: {
+        voice: { type: 'string', enum: ['Ara', 'Eve', 'Leo', 'Rex', 'Sal'] },
+      },
+      required: ['voice'],
+    },
+  },
+  {
+    type: 'function',
     name: 'update_content_preference',
     description: 'Update content preferences.',
     parameters: {

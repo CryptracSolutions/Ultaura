@@ -265,6 +265,7 @@ export class GrokBridge {
   private isGeneratingAudio = false;
   private hasEverConnected = false;
   private suppressDisconnect = false;
+  private activeVoice: GrokVoice | null = null;
   private safetyState: SafetyState;
   private detectedLanguage: string | null = null;
   private periodicSweepTimer: NodeJS.Timeout | null = null;
@@ -309,6 +310,31 @@ export class GrokBridge {
     }
 
     return 'Ara';
+  }
+
+  private updatePreferredVoice(preferredGrokVoice: string | null, reason: string): void {
+    this.options.preferredGrokVoice = preferredGrokVoice;
+    const resolvedVoice = this.resolvePreferredVoice();
+    if (this.activeVoice === resolvedVoice) {
+      return;
+    }
+
+    this.activeVoice = resolvedVoice;
+    this.sendMessage({
+      type: 'session.update',
+      session: {
+        voice: resolvedVoice,
+      },
+    });
+
+    this.runWithContext(() => {
+      logger.info({
+        callSessionId: this.options.callSessionId,
+        lineId: this.options.lineId,
+        voice: resolvedVoice,
+        reason,
+      }, 'Updated Grok voice');
+    });
   }
 
   private applyCorrelationAttributes(span: Span): void {
@@ -456,6 +482,7 @@ export class GrokBridge {
     const systemPrompt = this.buildSystemPrompt();
     const tools = this.getActiveTools();
     const resolvedVoice = this.resolvePreferredVoice();
+    this.activeVoice = resolvedVoice;
 
     const sessionConfig: GrokMessage = {
       type: 'session.update',
@@ -1699,6 +1726,25 @@ At the START of this call:
               source: args.source,
             });
             break;
+          case 'set_voice_preference': {
+            const raw = await this.callToolEndpoint(`${baseUrl}/tools/set_voice_preference`, {
+              callSessionId: this.options.callSessionId,
+              lineId: this.options.lineId,
+              voice: args.voice,
+            });
+
+            const parsed = this.parseToolResponse(raw, 'set_voice_preference');
+            this.options.onToolResult?.('set_voice_preference', parsed?.success === true);
+            if (parsed?.success) {
+              const nextVoice = typeof (parsed as { voice?: unknown })?.voice === 'string'
+                ? (parsed as { voice?: string }).voice
+                : (typeof args.voice === 'string' ? args.voice : null);
+              this.updatePreferredVoice(nextVoice, 'tool_call');
+            }
+
+            result = raw;
+            break;
+          }
           case 'update_content_preference':
             result = await this.callToolEndpoint(`${baseUrl}/tools/update_content_preference`, {
               callSessionId: this.options.callSessionId,

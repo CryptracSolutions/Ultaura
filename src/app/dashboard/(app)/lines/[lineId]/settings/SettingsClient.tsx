@@ -51,7 +51,7 @@ import { parseVacationRanges, type VacationRange } from '~/lib/ultaura/vacation-
 import { VacationSettings } from './VacationSettings';
 import { getLanguageDisplayName } from '~/lib/ultaura/language';
 import { DEFAULT_GROK_VOICE, type GrokVoice, isGrokVoice } from '~/lib/ultaura/voices';
-import { VoiceSelector, type VoiceSaveStatus } from './components/VoiceSelector';
+import { VoiceSelector } from './components/VoiceSelector';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -167,11 +167,6 @@ export function SettingsClient({
     ? line.preferred_grok_voice
     : DEFAULT_GROK_VOICE;
   const [selectedVoice, setSelectedVoice] = useState<GrokVoice>(initialVoice);
-  const [savedVoiceBaseline, setSavedVoiceBaseline] = useState<GrokVoice>(initialVoice);
-  const [voiceSaveStatus, setVoiceSaveStatus] = useState<VoiceSaveStatus>('idle');
-  const voiceSaveIdRef = useRef(0);
-  const voiceSaveSuccessRef = useRef(0);
-  const voiceSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialVacationRanges = useMemo(
     () => parseVacationRanges(line.vacation_ranges),
     [line.vacation_ranges]
@@ -292,65 +287,8 @@ export function SettingsClient({
     setSpeechRate(accessibilityDefaults.speech_rate);
     setCognitiveMode(accessibilityDefaults.cognitive_mode);
     setContextWindowCalls(accessibilityDefaults.context_window_calls);
-    setSelectedVoice(savedVoiceBaseline);
-    setVoiceSaveStatus('idle');
+    setSelectedVoice(initialVoice);
     setError(null);
-  };
-
-  const scheduleVoiceStatusReset = () => {
-    if (voiceSaveTimeoutRef.current) {
-      clearTimeout(voiceSaveTimeoutRef.current);
-    }
-    voiceSaveTimeoutRef.current = setTimeout(() => {
-      setVoiceSaveStatus((current) => (current === 'saved' ? 'idle' : current));
-    }, 3000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (voiceSaveTimeoutRef.current) {
-        clearTimeout(voiceSaveTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const saveVoiceSelection = async (voice: GrokVoice, options?: { force?: boolean }) => {
-    if (disabled) return;
-    setSelectedVoice(voice);
-    if (!options?.force && voice === savedVoiceBaseline) {
-      setVoiceSaveStatus('idle');
-      return;
-    }
-    if (voiceSaveTimeoutRef.current) {
-      clearTimeout(voiceSaveTimeoutRef.current);
-    }
-    setVoiceSaveStatus('saving');
-    const requestId = ++voiceSaveIdRef.current;
-
-    const result = await updateLine(line.id, { preferredGrokVoice: voice });
-
-    const isLatestRequest = requestId === voiceSaveIdRef.current;
-
-    if (!result.success) {
-      if (isLatestRequest) {
-        setVoiceSaveStatus('error');
-        toast.error(result.error?.message || t('ui.voicePreference.toastError'));
-      }
-      return;
-    }
-
-    if (requestId > voiceSaveSuccessRef.current) {
-      voiceSaveSuccessRef.current = requestId;
-      setSavedVoiceBaseline(voice);
-    }
-
-    if (!isLatestRequest) {
-      return;
-    }
-
-    setVoiceSaveStatus('saved');
-    toast.success(t('ui.voicePreference.toastSuccess'));
-    scheduleVoiceStatusReset();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -364,8 +302,8 @@ export function SettingsClient({
       if (hasLineChanges) {
         const result = await updateLine(line.id, {
           timezone,
-          quietHoursStart,
-          quietHoursEnd,
+          quietHoursStart: normalizeTimeValue(quietHoursStart),
+          quietHoursEnd: normalizeTimeValue(quietHoursEnd),
           allowVoiceReminderControl,
           allowVoiceScheduleControl,
           inboundAllowed,
@@ -375,6 +313,17 @@ export function SettingsClient({
 
         if (!result.success) {
           setError(result.error.message || 'Failed to update line settings');
+          return;
+        }
+      }
+
+      if (hasVoiceChanges) {
+        const result = await updateLine(line.id, {
+          preferredGrokVoice: selectedVoice,
+        });
+
+        if (!result.success) {
+          setError(result.error.message || 'Failed to update voice preference');
           return;
         }
       }
@@ -441,7 +390,6 @@ export function SettingsClient({
       }
 
       toast.success('Settings saved');
-      router.push(`/dashboard/lines/${line.short_id}`);
       router.refresh();
     } catch {
       setError('An unexpected error occurred');
@@ -487,7 +435,7 @@ export function SettingsClient({
     cognitiveMode !== accessibilityDefaults.cognitive_mode ||
     contextWindowCalls !== accessibilityDefaults.context_window_calls;
 
-  const hasVoiceChanges = selectedVoice !== savedVoiceBaseline;
+  const hasVoiceChanges = selectedVoice !== initialVoice;
 
   const hasSaveableChanges =
     hasLineChanges ||
@@ -495,9 +443,10 @@ export function SettingsClient({
     hasInsightPrivacyChanges ||
     hasPauseChanges ||
     hasNotificationChanges ||
-    hasAccessibilityChanges;
+    hasAccessibilityChanges ||
+    hasVoiceChanges;
 
-  const hasChanges = hasSaveableChanges || hasVoiceChanges;
+  const hasChanges = hasSaveableChanges;
 
   const shouldWarnOnNavigate = hasChanges && !isLoading;
   const tabParam = searchParams.get('tab') as LineSettingsTabValue | null;
@@ -702,11 +651,8 @@ export function SettingsClient({
                 <SectionBody className="gap-4">
                   <VoiceSelector
                     value={selectedVoice}
-                    onChange={(voice) => void saveVoiceSelection(voice)}
-                    onRetry={() => void saveVoiceSelection(selectedVoice, { force: true })}
-                    saveStatus={voiceSaveStatus}
+                    onChange={setSelectedVoice}
                     disabled={disabled}
-                    helperText={t('ui.voicePreference.helperText')}
                   />
                 </SectionBody>
               </Section>
@@ -1000,26 +946,36 @@ export function SettingsClient({
                         disabled={disabled}
                       />
                     ) : (
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="text-sm text-foreground">
-                            {insightsEnabled ? 'Enabled' : 'Disabled'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {line.display_name} controls this setting.
-                          </p>
-                        </div>
+                      <span className={
+                        'rounded-full px-2.5 py-1 text-xs font-medium ' +
+                        (insightsEnabled
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-muted text-muted-foreground')
+                      }>
+                        {insightsEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    )}
+                  </div>
+
+                  {userType !== 'self' && (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm text-muted-foreground">
+                          {line.display_name} controls this setting. Request a change and we&apos;ll ask on the next call.
+                        </p>
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
                           onClick={handleRequestInsightsRePrompt}
                           disabled={disabled || insightsRepromptRequested || isRequestingInsightsChange}
+                          className="shrink-0"
                         >
-                          {insightsRepromptRequested ? 'Change Requested' : 'Request Change'}
+                          {insightsRepromptRequested ? 'Requested' : 'Request Change'}
                         </Button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <Accordion>
                     <AccordionItem value="insights-advanced">

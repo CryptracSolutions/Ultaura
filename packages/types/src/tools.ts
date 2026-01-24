@@ -265,6 +265,10 @@ export interface AdjustAccessibilityArgs {
   source?: 'senior_request' | 'ai_detected';
 }
 
+export interface SetVoicePreferenceArgs {
+  voice: 'Ara' | 'Eve' | 'Leo' | 'Rex' | 'Sal';
+}
+
 export interface StoreMilestoneArgs {
   milestone_type: 'birthday' | 'anniversary' | 'memorial' | 'achievement' | 'holiday' | 'custom';
   title: string;
@@ -358,6 +362,7 @@ export type ToolCallArgs =
   | { name: 'mark_relationship_deceased'; args: MarkRelationshipDeceasedArgs }
   | { name: 'log_cognitive_observation'; args: LogCognitiveObservationArgs }
   | { name: 'adjust_accessibility'; args: AdjustAccessibilityArgs }
+  | { name: 'set_voice_preference'; args: SetVoicePreferenceArgs }
   | { name: 'store_milestone'; args: StoreMilestoneArgs }
   | { name: 'mark_milestone_celebrated'; args: MarkMilestoneCelebratedArgs }
   | { name: 'log_health_mention'; args: LogHealthMentionArgs }
