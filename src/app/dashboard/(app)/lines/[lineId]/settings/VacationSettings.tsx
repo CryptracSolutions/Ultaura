@@ -1,11 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { DateTime } from 'luxon';
-import { Palmtree, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { CheckCircle, Palmtree, Plus, Trash2, X } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { VacationRange } from '~/lib/ultaura/vacation-utils';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 export function VacationSettings({
   line,
@@ -20,8 +26,14 @@ export function VacationSettings({
   disabled?: boolean;
   showHeader?: boolean;
 }) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showPastVacations, setShowPastVacations] = useState(false);
+  const [addSuccess, setAddSuccess] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const startDateInputRef = useRef<HTMLInputElement>(null);
 
   const today = useMemo(() => {
     return DateTime.now().setZone(line.timezone).toISODate();
@@ -32,21 +44,68 @@ export function VacationSettings({
     [ranges]
   );
 
-  const getStatus = (range: VacationRange) => {
+  const getStatus = useCallback((range: VacationRange) => {
     if (!today) return 'upcoming';
     if (range.end < today) return 'past';
     if (range.start <= today && range.end >= today) return 'active';
     return 'upcoming';
-  };
+  }, [today]);
 
-  const handleAdd = () => {
+  const pastVacations = useMemo(
+    () => sortedRanges.filter((range) => getStatus(range) === 'past'),
+    [getStatus, sortedRanges]
+  );
+  const activeAndUpcoming = useMemo(
+    () => sortedRanges.filter((range) => getStatus(range) !== 'past'),
+    [getStatus, sortedRanges]
+  );
+  const displayedRanges = showPastVacations ? sortedRanges : activeAndUpcoming;
+
+  const openAddModal = useCallback(() => {
     if (disabled) return;
+    setAddSuccess(false);
+    setError(null);
+    setShowAddModal(true);
+  }, [disabled]);
+
+  const closeModal = useCallback(() => {
+    setShowAddModal(false);
+    setAddSuccess(false);
+    setStartDate('');
+    setEndDate('');
+    setError(null);
+  }, []);
+
+  const hasVacationFormChanges = !addSuccess && (startDate !== '' || endDate !== '');
+
+  const attemptCloseVacation = useCallback(() => {
+    if (hasVacationFormChanges) {
+      setShowDiscardConfirm(true);
+    } else {
+      closeModal();
+    }
+  }, [closeModal, hasVacationFormChanges]);
+
+  const handleAdd = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (disabled) return;
+    setError(null);
+
     if (!startDate || !endDate) {
-      toast.error('Select a start and end date');
+      setError('Select a start and end date');
       return;
     }
+
+    const todayInLineTimezone = DateTime.now()
+      .setZone(line.timezone)
+      .toFormat('yyyy-MM-dd');
+    if (startDate < todayInLineTimezone) {
+      setError('Start date cannot be in the past');
+      return;
+    }
+
     if (startDate > endDate) {
-      toast.error('Start date must be before end date');
+      setError('Start date must be before end date');
       return;
     }
 
@@ -54,7 +113,7 @@ export function VacationSettings({
       (range) => range.start <= endDate && range.end >= startDate
     );
     if (overlaps) {
-      toast.error('Vacation range overlaps an existing range');
+      setError('Vacation range overlaps an existing range');
       return;
     }
 
@@ -62,8 +121,17 @@ export function VacationSettings({
       a.start.localeCompare(b.start)
     );
     onRangesChange(updated);
+    setAddSuccess(true);
+  };
+
+  const handleAddAnother = () => {
+    setAddSuccess(false);
     setStartDate('');
     setEndDate('');
+    setError(null);
+    requestAnimationFrame(() => {
+      startDateInputRef.current?.focus();
+    });
   };
 
   const handleRemove = (range: VacationRange) => {
@@ -74,55 +142,101 @@ export function VacationSettings({
   return (
     <div className="space-y-4">
       {showHeader ? (
-        <>
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <Palmtree className="w-4 h-4 text-muted-foreground" />
-            Vacation Mode
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Palmtree className="w-4 h-4 text-muted-foreground" />
+              Vacation Mode
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Pause all scheduled calls and reminders during vacations. Dates are based on{' '}
+              {line.timezone}.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Pause all scheduled calls and reminders during vacations. Dates are based on {line.timezone}.
-          </p>
-        </>
+          <button
+            type="button"
+            onClick={openAddModal}
+            disabled={disabled}
+            className="inline-flex items-center gap-2 text-sm text-primary hover:underline disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            Add Vacation
+          </button>
+        </div>
       ) : null}
 
-      <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-end">
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">Start date</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            min={today ?? undefined}
-            disabled={disabled}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
+      {!showHeader ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-medium text-foreground">Vacation ranges</div>
+          <div className="flex items-center gap-3">
+            {pastVacations.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowPastVacations(!showPastVacations)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                {showPastVacations
+                  ? 'Hide past vacations'
+                  : `Show ${pastVacations.length} past vacation${pastVacations.length !== 1 ? 's' : ''}`}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={openAddModal}
+              disabled={disabled}
+              className="inline-flex items-center gap-2 text-sm text-primary hover:underline disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" />
+              Add Vacation
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">End date</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            min={startDate || today || undefined}
-            disabled={disabled}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={disabled}
-          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          Add Vacation
-        </button>
-      </div>
+      ) : null}
 
-      {sortedRanges.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No vacation ranges yet.</p>
+      {activeAndUpcoming.length === 0 && !showPastVacations ? (
+        <div className="text-center py-8 rounded-lg border border-dashed border-border">
+          <Palmtree className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          {pastVacations.length === 0 ? (
+            <p className="text-sm text-muted-foreground mb-4">No vacation ranges yet.</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground mb-2">No upcoming vacations.</p>
+              <button
+                type="button"
+                onClick={() => setShowPastVacations(true)}
+                className="text-xs text-primary hover:underline mb-4"
+              >
+                Show {pastVacations.length} past vacation
+                {pastVacations.length !== 1 ? 's' : ''}
+              </button>
+            </>
+          )}
+          {!disabled ? (
+            <button
+              type="button"
+              onClick={openAddModal}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              {pastVacations.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
+            </button>
+          ) : null}
+        </div>
       ) : (
         <div className="space-y-2">
-          {sortedRanges.map((range) => {
+          {showHeader && pastVacations.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowPastVacations(!showPastVacations)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              {showPastVacations
+                ? 'Hide past vacations'
+                : `Show ${pastVacations.length} past vacation${pastVacations.length !== 1 ? 's' : ''}`}
+            </button>
+          ) : null}
+
+          {displayedRanges.map((range) => {
             const status = getStatus(range);
             const statusLabel =
               status === 'active' ? 'Active' : status === 'past' ? 'Past' : 'Upcoming';
@@ -142,7 +256,9 @@ export function VacationSettings({
                   <div className="text-sm font-medium text-foreground">
                     {range.start} → {range.end}
                   </div>
-                  <span className={`inline-flex mt-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}>
+                  <span
+                    className={`inline-flex mt-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}
+                  >
                     {statusLabel}
                   </span>
                 </div>
@@ -161,6 +277,163 @@ export function VacationSettings({
           })}
         </div>
       )}
+
+      <Dialog
+        open={showAddModal}
+        onOpenChange={(open) => {
+          if (open) {
+            setShowAddModal(true);
+          } else {
+            attemptCloseVacation();
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-[468px]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+          onInteractOutside={(event) => {
+            if (hasVacationFormChanges) {
+              event.preventDefault();
+              attemptCloseVacation();
+            }
+          }}
+          onEscapeKeyDown={(event) => {
+            if (hasVacationFormChanges) {
+              event.preventDefault();
+              attemptCloseVacation();
+            }
+          }}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            startDateInputRef.current?.focus();
+          }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">Add vacation</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Pause all scheduled calls during this period.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={attemptCloseVacation}
+              className={modalIconButtonClass}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {error}
+            </div>
+          )}
+
+          {addSuccess ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900/30 dark:bg-green-900/10 p-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-green-800 dark:text-green-300">
+                  <CheckCircle className="w-4 h-4" />
+                  Added to pending changes
+                </div>
+                <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                  Remember to click <strong>Save Changes</strong> to apply.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleAddAnother}
+                  className={modalSecondaryButtonClass}
+                >
+                  Add another
+                </button>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className={modalPrimaryButtonClass}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleAdd} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    Start date
+                  </label>
+                  <input
+                    ref={startDateInputRef}
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => setStartDate(event.target.value)}
+                    min={today ?? undefined}
+                    disabled={disabled}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    End date
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => setEndDate(event.target.value)}
+                    min={startDate || today || undefined}
+                    disabled={disabled}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    required
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">Dates are based on {line.timezone}.</p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={attemptCloseVacation}
+                  className={modalSecondaryButtonClass}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={disabled}
+                  className={modalPrimaryButtonClass}
+                >
+                  Add Vacation
+                </button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmationDialog
+        open={showDiscardConfirm}
+        onOpenChange={(open) => {
+          if (!open) setShowDiscardConfirm(false);
+        }}
+        title="Unsaved changes"
+        description="You have unsaved changes. Leave without saving?"
+        confirmLabel="Discard & leave"
+        cancelLabel="Stay here"
+        variant="default"
+        onConfirm={() => {
+          setShowDiscardConfirm(false);
+          closeModal();
+        }}
+      />
     </div>
   );
 }

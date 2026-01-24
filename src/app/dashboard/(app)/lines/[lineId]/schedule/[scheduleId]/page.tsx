@@ -1,16 +1,8 @@
 import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
-import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
 import { getSchedule } from '~/lib/ultaura/schedules';
-import { EditScheduleClient } from './EditScheduleClient';
 import { isUUID } from '~/lib/ultaura/short-id';
-import AppHeader from '../../../../components/AppHeader';
-import { PageBody } from '~/core/ui/Page';
-import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
-import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
-import { PLANS } from '~/lib/ultaura/constants';
-import type { PlanId } from '~/lib/ultaura/types';
 
 export const metadata: Metadata = {
   title: 'Edit Schedule - Ultaura',
@@ -30,35 +22,14 @@ export default async function EditSchedulePage({ params }: PageProps) {
     notFound();
   }
 
-  if (isUUID(params.lineId)) {
-    redirect(`/dashboard/lines/${line.short_id}/schedule/${params.scheduleId}`);
-  }
-
   // Verify the schedule belongs to this line
   if (schedule.line_id !== line.id) {
     notFound();
   }
 
-  const trialInfo = await getTrialInfo(line.account_id);
-  const isTrialExpired = trialInfo?.isExpired ?? false;
-  const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
-  const trialPlanId = trialInfo?.trialPlanId ?? null;
-  const trialPlanKey = (trialPlanId ?? 'free_trial') as PlanId;
-  const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
+  if (isUUID(params.lineId)) {
+    redirect(`/dashboard/lines/${line.short_id}/schedule?edit=${params.scheduleId}`);
+  }
 
-  return (
-    <>
-      <AppHeader title="Edit Schedule" description={`Modify schedule for ${line.display_name}`}>
-        {isTrialActive && trialInfo ? (
-          <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />
-        ) : null}
-      </AppHeader>
-      <PageBody>
-        <div className="space-y-6">
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <EditScheduleClient line={line} schedule={schedule} disabled={isTrialExpired} />
-        </div>
-      </PageBody>
-    </>
-  );
+  redirect(`/dashboard/lines/${line.short_id}/schedule?edit=${params.scheduleId}`);
 }

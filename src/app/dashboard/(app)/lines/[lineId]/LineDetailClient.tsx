@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -14,7 +14,6 @@ import {
   Edit2,
   CheckCircle,
   AlertTriangle,
-  Save,
   X,
   MessageCircle,
   Bell,
@@ -37,9 +36,14 @@ import type { ActionError } from '@ultaura/schemas';
 import { formatTime, TELEPHONY } from '~/lib/ultaura/constants';
 import { CallActivityList } from './components/CallActivityList';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import Modal from '~/core/ui/Modal';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
 
 const MAX_INTEREST_TOPICS = 5;
 
@@ -167,11 +171,13 @@ export function LineDetailClient({
   const [testCallSessionId, setTestCallSessionId] = useState<string | null>(null);
   const [showVoicemailNotice, setShowVoicemailNotice] = useState(false);
   const [showCallFailedNotice, setShowCallFailedNotice] = useState(false);
-  const [isEditingTopics, setIsEditingTopics] = useState(false);
+  const [showTopicsModal, setShowTopicsModal] = useState(false);
+  const [showTopicsDiscardConfirm, setShowTopicsDiscardConfirm] = useState(false);
   const [isSavingTopics, setIsSavingTopics] = useState(false);
   const [topicChips, setTopicChips] = useState<string[]>([]);
   const [topicCustom, setTopicCustom] = useState('');
   const [avoidTopicsText, setAvoidTopicsText] = useState('');
+  const firstChipRef = useRef<HTMLButtonElement>(null);
   const [initialTopics, setInitialTopics] = useState<{
     chips: string[];
     custom: string;
@@ -450,7 +456,7 @@ export function LineDetailClient({
     };
   }, [line.id, testCallSessionId]);
 
-  const startEditingTopics = () => {
+  const openTopicsModal = () => {
     if (isReadOnly) return;
 
     const interests = line.seed_interests ?? [];
@@ -470,17 +476,17 @@ export function LineDetailClient({
     setTopicChips(initialState.chips);
     setTopicCustom(initialState.custom);
     setAvoidTopicsText(initialState.avoid);
-    setIsEditingTopics(true);
+    setShowTopicsModal(true);
     setError(null);
   };
 
-  const resetTopics = useCallback(() => {
+  const closeTopicsModal = useCallback(() => {
     setTopicChips(initialTopics.chips);
     setTopicCustom(initialTopics.custom);
     setAvoidTopicsText(initialTopics.avoid);
-    setIsEditingTopics(false);
-    setIsSavingTopics(false);
     setError(null);
+    setShowTopicsModal(false);
+    setShowTopicsDiscardConfirm(false);
   }, [initialTopics.avoid, initialTopics.chips, initialTopics.custom]);
 
   const initialCombinedTopics = dedupeTopics([
@@ -488,15 +494,27 @@ export function LineDetailClient({
     ...parseTopics(initialTopics.custom),
   ]).slice(0, MAX_INTEREST_TOPICS);
   const hasTopicChanges =
-    isEditingTopics &&
+    showTopicsModal &&
     (normalizeTopicList(combinedTopics) !== normalizeTopicList(initialCombinedTopics) ||
       normalizeTopicList(parseTopics(avoidTopicsText)) !==
         normalizeTopicList(parseTopics(initialTopics.avoid)));
-  const shouldWarnOnNavigate = hasTopicChanges && !isSavingTopics;
-  const { dialogProps: topicDialogProps } = useLeavePageGuard({
-    isDirty: shouldWarnOnNavigate,
-    onDiscard: resetTopics,
-  });
+  const attemptCloseTopics = useCallback(() => {
+    if (isSavingTopics) {
+      return;
+    }
+    if (hasTopicChanges) {
+      setShowTopicsDiscardConfirm(true);
+    } else {
+      closeTopicsModal();
+    }
+  }, [closeTopicsModal, hasTopicChanges, isSavingTopics]);
+  const confirmDiscardTopics = useCallback(() => {
+    setShowTopicsDiscardConfirm(false);
+    closeTopicsModal();
+  }, [closeTopicsModal]);
+  const cancelDiscardTopics = useCallback(() => {
+    setShowTopicsDiscardConfirm(false);
+  }, []);
 
   const toggleTopic = (topic: string) => {
     if (isReadOnly) return;
@@ -529,13 +547,18 @@ export function LineDetailClient({
         return;
       }
 
-      setIsEditingTopics(false);
+      setShowTopicsModal(false);
       router.refresh();
     } catch {
       setError('An unexpected error occurred');
     } finally {
       setIsSavingTopics(false);
     }
+  };
+
+  const handleTopicsSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    saveTopics();
   };
 
   return (
@@ -589,13 +612,6 @@ export function LineDetailClient({
         </div>
       </div>
 
-      {error && (
-        <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5" />
-          {error}
-        </div>
-      )}
-
       {/* Settings Card */}
       <div className={`${CARD_CLASS} mb-6`}>
         <div className="flex items-center justify-between mb-4">
@@ -641,10 +657,10 @@ export function LineDetailClient({
             <h2 className="font-semibold text-foreground">Conversation topics</h2>
           </div>
 
-          {!isEditingTopics && !isReadOnly && (
+          {!isReadOnly && (
             <button
               type="button"
-              onClick={startEditingTopics}
+              onClick={openTopicsModal}
               className="text-sm text-primary hover:underline inline-flex items-center gap-2"
             >
               <Edit2 className="w-4 h-4" />
@@ -653,132 +669,186 @@ export function LineDetailClient({
           )}
         </div>
 
-        {isEditingTopics ? (
-          <div className="space-y-6">
-            {/* Enjoy topics */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-4">
-                <div className="text-sm font-medium text-foreground">
-                  Topics they enjoy
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Selected: {topicsSelectedCount}/{MAX_INTEREST_TOPICS}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {INTEREST_TOPIC_OPTIONS.map((topic) => {
-                  const isSelected = topicChips.includes(topic);
-                  const disabled =
-                    isReadOnly || (!isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS);
-
-                  return (
-                    <button
-                      key={topic}
-                      type="button"
-                      onClick={() => toggleTopic(topic)}
-                      disabled={disabled}
-                      className={[
-                        'rounded-full border px-3 py-1 text-sm transition-colors',
-                        isSelected
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border bg-background text-foreground hover:bg-muted',
-                        disabled ? 'opacity-50 cursor-not-allowed' : '',
-                      ].join(' ')}
-                    >
-                      {topic}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-medium text-muted-foreground">
-                  Other topics (comma-separated)
-                </label>
-                <input
-                  value={topicCustom}
-                  onChange={(e) => setTopicCustom(e.target.value)}
-                  placeholder="e.g., baseball, baking, church"
-                  disabled={customDisabled || isReadOnly}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                />
-                {customDisabled ? (
-                  <p className="text-xs text-muted-foreground">
-                    Remove a selected topic to add a custom one.
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    We&apos;ll save up to {MAX_INTEREST_TOPICS} total topics.
-                  </p>
-                )}
-              </div>
+        <div className="space-y-4">
+          <div>
+            <div className="text-sm text-muted-foreground">Topics they enjoy</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {line.seed_interests?.length ? (
+                line.seed_interests.map((topic) => (
+                  <span key={topic} className="inline-flex items-center rounded-full border border-primary/10 bg-primary/10 px-3 py-1 text-xs text-primary">
+                    {topic}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">None yet</span>
+              )}
             </div>
-
-            {/* Avoid topics */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-foreground">
-                Topics to avoid
-              </div>
-              <textarea
-                value={avoidTopicsText}
-                onChange={(e) => setAvoidTopicsText(e.target.value)}
-                placeholder="e.g., politics, health issues..."
-                rows={2}
-                disabled={isReadOnly}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none disabled:opacity-50"
-              />
-              <p className="text-xs text-muted-foreground">
-                Separate topics with commas.
-              </p>
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">Topics to avoid</div>
+            <div className="mt-2 text-sm text-foreground">
+              {line.seed_avoid_topics?.length ? line.seed_avoid_topics.join(', ') : 'None'}
             </div>
+          </div>
+        </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end pt-4 border-t border-border">
+        <Dialog
+          open={showTopicsModal}
+          onOpenChange={(open) => {
+            if (!open) {
+              if (isSavingTopics) return;
+              attemptCloseTopics();
+            }
+          }}
+        >
+          <DialogContent
+            className="max-w-[468px]"
+            overlayClassName="bg-black/50 backdrop-blur-none"
+            onInteractOutside={(event) => {
+              if (isSavingTopics || hasTopicChanges) {
+                event.preventDefault();
+                attemptCloseTopics();
+              }
+            }}
+            onEscapeKeyDown={(event) => {
+              if (isSavingTopics || hasTopicChanges) {
+                event.preventDefault();
+                attemptCloseTopics();
+              }
+            }}
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              firstChipRef.current?.focus();
+            }}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <DialogTitle className="truncate">Conversation topics</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Customize what Ultaura discusses during calls.
+                </DialogDescription>
+              </div>
               <button
                 type="button"
-                onClick={resetTopics}
+                onClick={attemptCloseTopics}
                 disabled={isSavingTopics}
-                className={`${BTN_OUTLINE_CLASS} w-full sm:w-auto`}
+                className={modalIconButtonClass}
+                aria-label="Close"
               >
                 <X className="w-4 h-4" />
-                Discard changes
               </button>
-              <button
-                type="button"
-                onClick={saveTopics}
-                disabled={isSavingTopics || isReadOnly}
-                className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto`}
+            </div>
+
+            {error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
               >
-                <Save className="w-4 h-4" />
-                {isSavingTopics ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm text-muted-foreground">Topics they enjoy</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {line.seed_interests?.length ? (
-                  line.seed_interests.map((topic) => (
-                    <span key={topic} className="inline-flex items-center rounded-full border border-primary/10 bg-primary/10 px-3 py-1 text-xs text-primary">
-                      {topic}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground">None yet</span>
-                )}
+                {error}
               </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Topics to avoid</div>
-              <div className="mt-2 text-sm text-foreground">
-                {line.seed_avoid_topics?.length ? line.seed_avoid_topics.join(', ') : 'None'}
+            )}
+
+            <form onSubmit={handleTopicsSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="text-sm font-medium text-foreground">Topics they enjoy</div>
+                  <div className="text-xs text-muted-foreground">
+                    Selected: {topicsSelectedCount}/{MAX_INTEREST_TOPICS}
+                  </div>
+                </div>
+
+                <div className="max-h-32 overflow-y-auto">
+                  <div className="flex flex-wrap gap-2">
+                    {INTEREST_TOPIC_OPTIONS.map((topic, index) => {
+                      const isSelected = topicChips.includes(topic);
+                      const disabled =
+                        isReadOnly || (!isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS);
+
+                      return (
+                        <button
+                          key={topic}
+                          ref={index === 0 ? firstChipRef : undefined}
+                          type="button"
+                          onClick={() => toggleTopic(topic)}
+                          disabled={disabled}
+                          className={[
+                            'rounded-full border px-3 py-1 text-sm transition-colors',
+                            isSelected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-background text-foreground hover:bg-muted',
+                            disabled ? 'opacity-50 cursor-not-allowed' : '',
+                          ].join(' ')}
+                        >
+                          {topic}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-muted-foreground">
+                    Other topics (comma-separated)
+                  </label>
+                  <input
+                    value={topicCustom}
+                    onChange={(event) => setTopicCustom(event.target.value)}
+                    placeholder="e.g., baseball, baking, church"
+                    disabled={customDisabled || isReadOnly}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  />
+                  {customDisabled ? (
+                    <p className="text-xs text-muted-foreground">
+                      Remove a selected topic to add a custom one.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      We&apos;ll save up to {MAX_INTEREST_TOPICS} total topics.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-foreground">Topics to avoid</div>
+                <textarea
+                  value={avoidTopicsText}
+                  onChange={(event) => setAvoidTopicsText(event.target.value)}
+                  placeholder="e.g., politics, health issues..."
+                  rows={2}
+                  disabled={isReadOnly}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground">Separate topics with commas.</p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={attemptCloseTopics}
+                  disabled={isSavingTopics}
+                  className={modalSecondaryButtonClass}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingTopics || isReadOnly}
+                  className={modalPrimaryButtonClass}
+                >
+                  {isSavingTopics ? (
+                    <>
+                      <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Saving
+                    </>
+                  ) : (
+                    'Save changes'
+                  )}
+                </button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Engagement Features Card */}
@@ -1056,14 +1126,16 @@ export function LineDetailClient({
       />
 
       <ConfirmationDialog
-        open={topicDialogProps.open}
-        onOpenChange={topicDialogProps.onOpenChange}
+        open={showTopicsDiscardConfirm}
+        onOpenChange={(open) => {
+          if (!open) cancelDiscardTopics();
+        }}
         title="Unsaved changes"
         description="You have unsaved changes. Leave without saving?"
         confirmLabel="Discard & leave"
         cancelLabel="Stay here"
         variant="default"
-        onConfirm={topicDialogProps.onConfirm}
+        onConfirm={confirmDiscardTopics}
       />
     </div>
   );

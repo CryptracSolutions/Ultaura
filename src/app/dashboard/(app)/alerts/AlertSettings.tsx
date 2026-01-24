@@ -1,15 +1,19 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Bell, Brain, Activity } from 'lucide-react';
+import { Bell, Brain, Activity, Edit2, X } from 'lucide-react';
 import { Switch } from '~/core/ui/Switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
-import Button from '~/core/ui/Button';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import type { LineRow, NotificationPreferencesRow } from '~/lib/ultaura/types';
 import { updateNotificationPreferences } from '~/lib/ultaura/insights';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  modalIconButtonClass,
+  modalPrimaryButtonClass,
+  modalSecondaryButtonClass,
+} from '~/core/ui/modal-button-classes';
+import { useRouter } from 'next/navigation';
 
 interface AlertSettingsEntry {
   line: LineRow;
@@ -21,215 +25,170 @@ interface AlertSettingsProps {
   disabled?: boolean;
 }
 
-const DELIVERY_OPTIONS = [
-  { value: 'email', label: 'Email' },
-] as const;
-
 function buildDefaults(preferences: NotificationPreferencesRow | null) {
-  const rawDelivery = preferences?.alert_delivery_method ?? 'email';
-  const deliveryMethod = DELIVERY_OPTIONS.some((option) => option.value === rawDelivery)
-    ? rawDelivery
-    : 'email';
-
   return {
     healthMentionAlerts: preferences?.health_mention_alerts ?? true,
     moodDropAlerts: preferences?.mood_drop_alerts ?? true,
     cognitiveConcernAlerts: preferences?.cognitive_concern_alerts ?? true,
-    deliveryMethod,
   };
 }
 
 function AlertSettingsCard({
   line,
   preferences,
-  onDirtyChange,
-  onRegisterReset,
   disabled = false,
+  onEdit,
 }: {
   line: LineRow;
   preferences: NotificationPreferencesRow | null;
-  onDirtyChange?: (dirty: boolean) => void;
-  onRegisterReset?: (handler: () => void) => void;
   disabled?: boolean;
+  onEdit: (line: LineRow, preferences: NotificationPreferencesRow | null) => void;
 }) {
-  const defaults = useMemo(() => buildDefaults(preferences), [preferences]);
-  const [healthMentionAlerts, setHealthMentionAlerts] = useState(defaults.healthMentionAlerts);
-  const [moodDropAlerts, setMoodDropAlerts] = useState(defaults.moodDropAlerts);
-  const [cognitiveConcernAlerts, setCognitiveConcernAlerts] = useState(defaults.cognitiveConcernAlerts);
-  const [deliveryMethod, setDeliveryMethod] = useState(defaults.deliveryMethod);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedDefaults, setSavedDefaults] = useState(defaults);
+  const settings = buildDefaults(preferences);
 
-  const hasChanges =
-    healthMentionAlerts !== savedDefaults.healthMentionAlerts ||
-    moodDropAlerts !== savedDefaults.moodDropAlerts ||
-    cognitiveConcernAlerts !== savedDefaults.cognitiveConcernAlerts ||
-    deliveryMethod !== savedDefaults.deliveryMethod;
-
-  const resetForm = useCallback(() => {
-    setHealthMentionAlerts(savedDefaults.healthMentionAlerts);
-    setMoodDropAlerts(savedDefaults.moodDropAlerts);
-    setCognitiveConcernAlerts(savedDefaults.cognitiveConcernAlerts);
-    setDeliveryMethod(savedDefaults.deliveryMethod);
-  }, [savedDefaults]);
-
-  useEffect(() => {
-    onDirtyChange?.(hasChanges);
-  }, [hasChanges, onDirtyChange]);
-
-  useEffect(() => {
-    onRegisterReset?.(resetForm);
-  }, [onRegisterReset, resetForm]);
-
-  const handleSave = async () => {
-    if (disabled || !hasChanges) return;
-    setIsSaving(true);
-
-    try {
-      await updateNotificationPreferences(line.account_id, line.id, {
-        health_mention_alerts: healthMentionAlerts,
-        mood_drop_alerts: moodDropAlerts,
-        cognitive_concern_alerts: cognitiveConcernAlerts,
-        alert_delivery_method: deliveryMethod,
-      });
-      const nextDefaults = {
-        healthMentionAlerts,
-        moodDropAlerts,
-        cognitiveConcernAlerts,
-        deliveryMethod,
-      };
-      setSavedDefaults(nextDefaults);
-      toast.success(`Alert settings updated for ${line.display_name}`);
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to update alert settings');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const StatusBadge = ({ enabled }: { enabled: boolean }) => (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+        enabled
+          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+          : 'bg-muted text-muted-foreground'
+      }`}
+    >
+      {enabled ? 'Enabled' : 'Disabled'}
+    </span>
+  );
 
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-4">
-      <div>
-        <p className="text-sm font-semibold text-foreground">{line.display_name}</p>
-        <p className="text-xs text-muted-foreground">Deliver wellness alerts for this line.</p>
+    <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{line.display_name}</p>
+          <p className="text-xs text-muted-foreground">Wellness alert settings</p>
+        </div>
+        {!disabled ? (
+          <button
+            type="button"
+            onClick={() => onEdit(line, preferences)}
+            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+          >
+            <Edit2 className="w-4 h-4" />
+            Edit
+          </button>
+        ) : null}
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            <Bell className="w-4 h-4 text-muted-foreground mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Health mention alerts</p>
-              <p className="text-xs text-muted-foreground">Private summary only.</p>
-            </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <Bell className="w-4 h-4 text-muted-foreground" />
+            Health mention alerts
           </div>
-          <Switch
-            checked={healthMentionAlerts}
-            onCheckedChange={setHealthMentionAlerts}
-            disabled={disabled}
-          />
+          <StatusBadge enabled={settings.healthMentionAlerts} />
         </div>
-
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            <Activity className="w-4 h-4 text-muted-foreground mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Mood drop alerts</p>
-              <p className="text-xs text-muted-foreground">Triggered by sudden or sustained drops.</p>
-            </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <Activity className="w-4 h-4 text-muted-foreground" />
+            Mood drop alerts
           </div>
-          <Switch
-            checked={moodDropAlerts}
-            onCheckedChange={setMoodDropAlerts}
-            disabled={disabled}
-          />
+          <StatusBadge enabled={settings.moodDropAlerts} />
         </div>
-
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            <Brain className="w-4 h-4 text-muted-foreground mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Cognitive concern alerts</p>
-              <p className="text-xs text-muted-foreground">Notifies after repeated observations.</p>
-            </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <Brain className="w-4 h-4 text-muted-foreground" />
+            Cognitive concern alerts
           </div>
-          <Switch
-            checked={cognitiveConcernAlerts}
-            onCheckedChange={setCognitiveConcernAlerts}
-            disabled={disabled}
-          />
+          <StatusBadge enabled={settings.cognitiveConcernAlerts} />
         </div>
       </div>
 
-      <div>
-        <label className="text-xs text-muted-foreground block mb-1">Delivery method</label>
-        <Select
-          value={deliveryMethod}
-          onValueChange={setDeliveryMethod}
-          disabled={disabled}
-        >
-          <SelectTrigger className="w-full py-2.5">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {DELIVERY_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground mt-1">SMS and push options are coming soon.</p>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Button
-          variant="outline"
-          size="small"
-          onClick={resetForm}
-          disabled={disabled || !hasChanges || isSaving}
-        >
-          Discard changes
-        </Button>
-        <Button
-          variant="outline"
-          size="small"
-          onClick={handleSave}
-          disabled={disabled || !hasChanges}
-          loading={isSaving}
-        >
-          Save changes
-        </Button>
+      <div className="text-xs text-muted-foreground pt-2 border-t border-border/40">
+        Delivery: Email
+        <span className="text-muted-foreground/60 ml-1">(SMS and Push coming soon)</span>
       </div>
     </div>
   );
 }
 
 export function AlertSettings({ settings, disabled = false }: AlertSettingsProps) {
-  const resetHandlers = useRef<Record<string, () => void>>({});
-  const [dirtyMap, setDirtyMap] = useState<Record<string, boolean>>({});
-
-  const registerReset = useCallback((lineId: string, handler: () => void) => {
-    resetHandlers.current[lineId] = handler;
-  }, []);
-
-  const updateDirty = useCallback((lineId: string, dirty: boolean) => {
-    setDirtyMap((prev) => (prev[lineId] === dirty ? prev : { ...prev, [lineId]: dirty }));
-  }, []);
-
-  const discardAllChanges = useCallback(() => {
-    Object.values(resetHandlers.current).forEach((handler) => handler?.());
-  }, []);
-
-  const hasChanges = useMemo(
-    () => Object.values(dirtyMap).some(Boolean),
-    [dirtyMap]
-  );
-  const { dialogProps } = useLeavePageGuard({
-    isDirty: hasChanges,
-    onDiscard: discardAllChanges,
+  const router = useRouter();
+  const [editingEntry, setEditingEntry] = useState<AlertSettingsEntry | null>(null);
+  const [editState, setEditState] = useState({
+    healthMentionAlerts: true,
+    moodDropAlerts: true,
+    cognitiveConcernAlerts: true,
   });
+  const [initialEditState, setInitialEditState] = useState(editState);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const firstSwitchRef = useRef<HTMLButtonElement>(null);
+
+  const openEditModal = (line: LineRow, preferences: NotificationPreferencesRow | null) => {
+    const defaults = buildDefaults(preferences);
+    const state = {
+      healthMentionAlerts: defaults.healthMentionAlerts,
+      moodDropAlerts: defaults.moodDropAlerts,
+      cognitiveConcernAlerts: defaults.cognitiveConcernAlerts,
+    };
+    setEditState(state);
+    setInitialEditState(state);
+    setEditingEntry({ line, preferences });
+    setError(null);
+  };
+
+  const closeEditModal = useCallback(() => {
+    setEditingEntry(null);
+    setError(null);
+  }, []);
+
+  const hasChanges =
+    editingEntry !== null &&
+    (editState.healthMentionAlerts !== initialEditState.healthMentionAlerts ||
+      editState.moodDropAlerts !== initialEditState.moodDropAlerts ||
+      editState.cognitiveConcernAlerts !== initialEditState.cognitiveConcernAlerts);
+
+  const attemptClose = useCallback(() => {
+    if (isSaving) {
+      return;
+    }
+    if (hasChanges) {
+      setShowDiscardConfirm(true);
+    } else {
+      closeEditModal();
+    }
+  }, [closeEditModal, hasChanges, isSaving]);
+
+  const confirmDiscard = useCallback(() => {
+    setShowDiscardConfirm(false);
+    closeEditModal();
+  }, [closeEditModal]);
+
+  const cancelDiscard = useCallback(() => {
+    setShowDiscardConfirm(false);
+  }, []);
+
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingEntry) return;
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      await updateNotificationPreferences(editingEntry.line.account_id, editingEntry.line.id, {
+        health_mention_alerts: editState.healthMentionAlerts,
+        mood_drop_alerts: editState.moodDropAlerts,
+        cognitive_concern_alerts: editState.cognitiveConcernAlerts,
+      });
+      toast.success(`Alert settings updated for ${editingEntry.line.display_name}`);
+      closeEditModal();
+      router.refresh();
+    } catch {
+      setError('Failed to update alert settings');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -250,22 +209,177 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
               line={entry.line}
               preferences={entry.preferences}
               disabled={disabled}
-              onDirtyChange={(dirty) => updateDirty(entry.line.id, dirty)}
-              onRegisterReset={(handler) => registerReset(entry.line.id, handler)}
+              onEdit={openEditModal}
             />
           ))}
         </div>
       )}
 
+      <Dialog
+        open={editingEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (isSaving) return;
+            attemptClose();
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-[468px]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+          onInteractOutside={(event) => {
+            if (isSaving || hasChanges) {
+              event.preventDefault();
+              attemptClose();
+            }
+          }}
+          onEscapeKeyDown={(event) => {
+            if (isSaving || hasChanges) {
+              event.preventDefault();
+              attemptClose();
+            }
+          }}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            firstSwitchRef.current?.focus();
+          }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">
+                Edit alerts for {editingEntry?.line.display_name}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Configure which wellness alerts to receive.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={attemptClose}
+              disabled={isSaving}
+              className={modalIconButtonClass}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  <Bell className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Health mention alerts</p>
+                    <p className="text-xs text-muted-foreground">Private summary only.</p>
+                  </div>
+                </div>
+                <Switch
+                  ref={firstSwitchRef}
+                  checked={editState.healthMentionAlerts}
+                  onCheckedChange={(checked) =>
+                    setEditState((state) => ({ ...state, healthMentionAlerts: checked }))
+                  }
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  <Activity className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Mood drop alerts</p>
+                    <p className="text-xs text-muted-foreground">
+                      Triggered by sudden or sustained drops.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={editState.moodDropAlerts}
+                  onCheckedChange={(checked) =>
+                    setEditState((state) => ({ ...state, moodDropAlerts: checked }))
+                  }
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  <Brain className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Cognitive concern alerts
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Notifies after repeated observations.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={editState.cognitiveConcernAlerts}
+                  onCheckedChange={(checked) =>
+                    setEditState((state) => ({ ...state, cognitiveConcernAlerts: checked }))
+                  }
+                  disabled={isSaving}
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-border/40">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Delivery method:</span> Email
+                <span className="text-muted-foreground/60 ml-1">(SMS and Push coming soon)</span>
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={attemptClose}
+                disabled={isSaving}
+                className={modalSecondaryButtonClass}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className={modalPrimaryButtonClass}
+              >
+                {isSaving ? (
+                  <>
+                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving
+                  </>
+                ) : (
+                  'Save changes'
+                )}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <ConfirmationDialog
-        open={dialogProps.open}
-        onOpenChange={dialogProps.onOpenChange}
+        open={showDiscardConfirm}
+        onOpenChange={(open) => {
+          if (!open) cancelDiscard();
+        }}
         title="Unsaved changes"
         description="You have unsaved changes. Leave without saving?"
         confirmLabel="Discard & leave"
         cancelLabel="Stay here"
         variant="default"
-        onConfirm={dialogProps.onConfirm}
+        onConfirm={confirmDiscard}
       />
     </div>
   );
