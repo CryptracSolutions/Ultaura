@@ -102,4 +102,58 @@ describe('calls/outbound', () => {
     }));
     expect(res.body.success).toBe(true);
   });
+
+  it('allows test calls to alternate targets even if line is opted out', async () => {
+    vi.mocked(getLineById).mockResolvedValue({
+      line: {
+        id: 'line-1',
+        phone_e164: '+15551234567',
+        do_not_call: true,
+        timezone: 'America/Los_Angeles',
+        inbound_allowed: true,
+      },
+      account: {
+        id: 'acct-1',
+        status: 'active',
+        plan_id: 'care',
+      },
+    } as any);
+
+    const res = createMockRes();
+
+    await outboundHandler({
+      body: {
+        lineId: 'line-1',
+        reason: 'test',
+        isPreviewMode: true,
+        targetPhoneNumber: '+15551239999',
+      },
+    } as any, res);
+
+    expect(createCallSession).toHaveBeenCalledWith(expect.objectContaining({
+      twilioTo: '+15551239999',
+      isTestCall: true,
+      isPreviewMode: true,
+    }));
+    expect(res.body.success).toBe(true);
+  });
+
+  it('honors quiet hours override for test calls', async () => {
+    vi.mocked(isInQuietHours).mockReturnValue(true);
+    const res = createMockRes();
+
+    await outboundHandler({
+      body: {
+        lineId: 'line-1',
+        reason: 'test',
+        isPreviewMode: true,
+        overrideQuietHours: true,
+      },
+    } as any, res);
+
+    expect(initiateOutboundCall).toHaveBeenCalledWith(expect.objectContaining({
+      callbackParams: { overrideQuietHours: '1' },
+    }));
+    expect(res.body.success).toBe(true);
+  });
 });

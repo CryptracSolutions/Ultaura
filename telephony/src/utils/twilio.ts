@@ -305,14 +305,24 @@ export async function initiateOutboundCall(options: {
   statusCallbackUrl: string;
   callSessionId: string;
   amdEnabled?: boolean;
+  callbackParams?: Record<string, string>;
 }): Promise<string> {
   const client = getTwilioClient();
   const amdEnabled = options.amdEnabled ?? isAmdEnabled(process.env.TWILIO_AMD_ENABLED);
+  const callbackUrl = new URL(options.callbackUrl);
+  callbackUrl.searchParams.set('callSessionId', options.callSessionId);
+
+  if (options.callbackParams) {
+    for (const [key, value] of Object.entries(options.callbackParams)) {
+      if (value === undefined || value === null) continue;
+      callbackUrl.searchParams.set(key, String(value));
+    }
+  }
 
   const callOptions: Parameters<typeof client.calls.create>[0] = {
     to: options.to,
     from: options.from,
-    url: `${options.callbackUrl}?callSessionId=${options.callSessionId}`,
+    url: callbackUrl.toString(),
     statusCallback: options.statusCallbackUrl,
     statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
     statusCallbackMethod: 'POST',

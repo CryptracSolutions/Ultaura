@@ -49,7 +49,7 @@ twilioOutboundRouter.use(validateTwilioWebhook);
 
 // Handle outbound call TwiML request (when Twilio answers the call)
 twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
-  const { callSessionId } = req.query;
+  const { callSessionId, overrideQuietHours } = req.query;
   const { CallSid, CallStatus, AnsweredBy } = req.body;
   const span = trace.getActiveSpan();
   if (span) {
@@ -96,21 +96,30 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
 
     const { line, account } = lineWithAccount;
 
+    const bypassDncForTestTarget = session.is_test_call &&
+      session.twilio_to &&
+      session.twilio_to !== line.phone_e164;
+    const allowQuietHoursOverride = session.is_test_call &&
+      (overrideQuietHours === '1' || overrideQuietHours === 'true');
+
     // Check if call should be suppressed
-    if (line.do_not_call) {
+    if (line.do_not_call && !bypassDncForTestTarget) {
       logger.info({ lineId: line.id }, 'Line opted out, ending call');
       res.type('text/xml').send(generateMessageTwiML("This line has opted out of calls. Goodbye."));
       return;
     }
 
-    if (isInQuietHours(line)) {
+    if (isInQuietHours(line) && !allowQuietHoursOverride) {
       logger.info({ lineId: line.id }, 'In quiet hours, ending call');
       res.type('text/xml').send(generateMessageTwiML("I apologize for calling during quiet hours. I'll try again later. Goodbye."));
       return;
     }
 
     // Check access
-    const accessCheck = await checkLineAccess(line, account, 'outbound');
+    const accessCheck = await checkLineAccess(line, account, 'outbound', {
+      skipDnc: bypassDncForTestTarget,
+      skipVerification: bypassDncForTestTarget,
+    });
     if (!accessCheck.allowed) {
       // If the call session was created before the trial ended, allow the call to proceed.
       // This avoids blocking calls that were initiated just before trial expiration.
@@ -173,7 +182,9 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
 
     if (isMachine) {
       logger.info({ callSessionId, answeredBy }, 'Answering machine detected');
-      const voicemailBehavior = line.voicemail_behavior || 'brief';
+      const voicemailBehavior = (session.is_test_call && session.is_preview_mode)
+        ? 'none'
+        : (line.voicemail_behavior || 'brief');
 
       if (voicemailBehavior === 'none') {
         res.type('text/xml').send(generateHangupTwiML());

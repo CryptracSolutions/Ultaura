@@ -96,7 +96,11 @@ function isTrialExpired(account: UltauraAccountRow): boolean {
 export async function checkLineAccess(
   line: LineRow,
   account: UltauraAccountRow,
-  direction: 'inbound' | 'outbound'
+  direction: 'inbound' | 'outbound',
+  options?: {
+    skipDnc?: boolean;
+    skipVerification?: boolean;
+  }
 ): Promise<LineAccessCheck> {
   // Check line status
   if (line.status === 'disabled') {
@@ -113,12 +117,12 @@ export async function checkLineAccess(
     return { allowed: false, reason: 'inbound_blocked' };
   }
 
-  if (direction === 'outbound' && line.do_not_call) {
+  if (direction === 'outbound' && line.do_not_call && !options?.skipDnc) {
     return { allowed: false, reason: 'do_not_call' };
   }
 
   // Check if phone is verified
-  if (!line.phone_verified_at) {
+  if (!line.phone_verified_at && !options?.skipVerification) {
     return { allowed: false, reason: 'not_verified' };
   }
 

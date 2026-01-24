@@ -162,8 +162,13 @@ export async function getLineActivity(accountId: string): Promise<LineActivity[]
 
 const initiateTestCallWithTrial = withTrialCheck(async (
   _account: UltauraAccountRow,
-  input: { lineId: string; isPreviewMode?: boolean }
-): Promise<ActionResult<void>> => {
+  input: {
+    lineId: string;
+    isPreviewMode?: boolean;
+    targetPhoneNumber?: string;
+    overrideQuietHours?: boolean;
+  }
+): Promise<ActionResult<{ sessionId: string }>> => {
   const line = await getSupabaseServerComponentClient()
     .from('ultaura_lines')
     .select('account_id')
@@ -190,18 +195,25 @@ const initiateTestCallWithTrial = withTrialCheck(async (
         lineId: input.lineId,
         reason: 'test',
         isPreviewMode: input.isPreviewMode ?? false,
+        targetPhoneNumber: input.targetPhoneNumber,
+        overrideQuietHours: input.overrideQuietHours ?? false,
       }),
     });
 
+    const payload = await response.json().catch(() => null);
+
     if (!response.ok) {
-      const error = await response.json();
       return {
         success: false,
-        error: createError(ErrorCodes.EXTERNAL_SERVICE_ERROR, error.error || 'Failed to initiate test call'),
+        error: createError(
+          ErrorCodes.EXTERNAL_SERVICE_ERROR,
+          payload?.error || 'Failed to initiate test call',
+          payload?.code ? { telephonyCode: payload.code } : undefined
+        ),
       };
     }
 
-    return { success: true, data: undefined };
+    return { success: true, data: { sessionId: payload?.sessionId } };
   } catch (error) {
     logger.error({ error }, 'Failed to initiate test call');
     return {
@@ -213,8 +225,8 @@ const initiateTestCallWithTrial = withTrialCheck(async (
 
 export async function initiateTestCall(
   lineId: string,
-  options?: { isPreviewMode?: boolean }
-): Promise<ActionResult<void>> {
+  options?: { isPreviewMode?: boolean; targetPhoneNumber?: string; overrideQuietHours?: boolean }
+): Promise<ActionResult<{ sessionId: string }>> {
   const line = await getSupabaseServerComponentClient()
     .from('ultaura_lines')
     .select('account_id')
@@ -236,5 +248,40 @@ export async function initiateTestCall(
     };
   }
 
-  return initiateTestCallWithTrial(account, { lineId, isPreviewMode: options?.isPreviewMode });
+  return initiateTestCallWithTrial(account, {
+    lineId,
+    isPreviewMode: options?.isPreviewMode,
+    targetPhoneNumber: options?.targetPhoneNumber,
+    overrideQuietHours: options?.overrideQuietHours,
+  });
+}
+
+export async function getCallSessionStatus(
+  lineId: string,
+  sessionId: string
+): Promise<ActionResult<{ status: string; endReason: string | null; answeredBy: string | null }>> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client
+    .from('ultaura_call_sessions')
+    .select('status, end_reason, answered_by')
+    .eq('id', sessionId)
+    .eq('line_id', lineId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Call session not found'),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      status: data.status,
+      endReason: data.end_reason,
+      answeredBy: data.answered_by,
+    },
+  };
 }

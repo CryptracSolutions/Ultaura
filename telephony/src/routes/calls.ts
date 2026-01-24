@@ -21,6 +21,8 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       reminderId,
       schedulerIdempotencyKey,
       isPreviewMode,
+      targetPhoneNumber,
+      overrideQuietHours,
     } = req.body;
 
     if (!lineId) {
@@ -31,6 +33,8 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
     const isReminderCall = reason === 'reminder' && !!reminderId;
     const isTestCall = reason === 'test';
     const previewMode = Boolean(isPreviewMode) && isTestCall;
+    const hasAlternateTarget = isTestCall && typeof targetPhoneNumber === 'string' && targetPhoneNumber.trim().length > 0;
+    const quietHoursOverride = isTestCall && Boolean(overrideQuietHours);
 
     logger.info({
       lineId,
@@ -51,26 +55,31 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
     const { line, account } = lineWithAccount;
 
     // Check if line is opted out
-    if (line.do_not_call) {
+    if (line.do_not_call && !hasAlternateTarget) {
       logger.info({ lineId }, 'Line opted out, skipping call');
       res.status(400).json({ error: 'Line opted out', code: 'DO_NOT_CALL' });
       return;
     }
 
     // Check quiet hours
-    if (isInQuietHours(line)) {
+    if (isInQuietHours(line) && !quietHoursOverride) {
       logger.info({ lineId }, 'In quiet hours, skipping call');
       res.status(400).json({ error: 'In quiet hours', code: 'QUIET_HOURS' });
       return;
     }
 
     // Check access
-    const accessCheck = await checkLineAccess(line, account, 'outbound');
+    const accessCheck = await checkLineAccess(line, account, 'outbound', {
+      skipDnc: hasAlternateTarget,
+      skipVerification: hasAlternateTarget,
+    });
     if (!accessCheck.allowed) {
       logger.info({ lineId, reason: accessCheck.reason }, 'Line access denied');
       res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
       return;
     }
+
+    const callDestination = hasAlternateTarget ? targetPhoneNumber.trim() : line.phone_e164;
 
     // Create call session
     const session = await createCallSession({
@@ -78,7 +87,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       lineId: line.id,
       direction: 'outbound',
       twilioFrom: process.env.TWILIO_PHONE_NUMBER,
-      twilioTo: line.phone_e164,
+      twilioTo: callDestination,
       isReminderCall,
       isTestCall,
       reminderId: isReminderCall ? reminderId : undefined,
@@ -109,11 +118,12 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
     try {
       // Initiate the call via Twilio
       const callSid = await initiateOutboundCall({
-        to: line.phone_e164,
+        to: callDestination,
         from: process.env.TWILIO_PHONE_NUMBER!,
         callbackUrl: `${publicUrl}/twilio/voice/outbound`,
         statusCallbackUrl: `${publicUrl}/twilio/status`,
         callSessionId: session.id,
+        callbackParams: quietHoursOverride ? { overrideQuietHours: '1' } : undefined,
       });
 
       logger.info({

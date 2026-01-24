@@ -33,6 +33,7 @@ import { SEGMENTS_POLICY_SECTION } from '../golden/sections/segments-policy.js';
 import { RECORDING_CONSENT_SECTION } from '../golden/sections/recording-consent.js';
 import { FAMILY_SHARING_CONSENT_SECTION } from '../golden/sections/family-sharing-consent.js';
 import { INSIGHTS_CONSENT_SECTION } from '../golden/sections/insights-consent.js';
+import { PREVIEW_DEMO_SECTION } from '../golden/sections/preview-demo.js';
 import { sanitizeForPrompt, sanitizeKey } from '../utils/sanitize.js';
 
 export type PromptProfile = 'voice_realtime' | 'admin_preview';
@@ -158,7 +159,9 @@ export function compilePrompt(
     );
   }
 
-  if (params.isFirstCall) {
+  if (params.isPreviewMode) {
+    sections.push(selectSection(PREVIEW_DEMO_SECTION, compressed));
+  } else if (params.isFirstCall) {
     sections.push(selectSection(ONBOARDING_SECTION, compressed));
   }
 
