@@ -12,11 +12,9 @@ Convert inline forms and controls across the Ultaura dashboard into modal-based 
 |----------|-----------|-----------------|
 | 1 | ScheduleClient.tsx | Inline create form → Modal |
 | 2 | RemindersClient.tsx | Inline create form → Modal |
-| 3 | UsageCapControl.tsx | Inline dropdown → Selection modal |
-| 4 | RemindersPageClient.tsx | Button-per-line → Single modal with line picker (reuses CreateReminderForm) |
-| 5 | CallsPageClient.tsx | Button-per-line → Single modal with line picker (reuses CreateScheduleForm) |
-| 6 | SettingsClient.tsx | Inline forms → Read-only cards + per-section modals (preserves all existing sidebar sections) |
-| 7 | DebugLogFilters.tsx | Inline filter panel → Filters modal (Admin, form method="GET" preserved) |
+| 3 | RemindersPageClient.tsx | Button-per-line → Single modal with line picker (reuses CreateReminderForm) |
+| 4 | CallsPageClient.tsx | Button-per-line → Single modal with line picker (reuses CreateScheduleForm) |
+| 5 | DebugLogFilters.tsx | Inline filter panel → Filters modal (Admin, form method="GET" preserved) |
 
 **Out of Scope:** WellnessAlertsList.tsx and InsightsPageClient.tsx (single-filter UIs don't benefit from modals).
 
@@ -24,29 +22,40 @@ Convert inline forms and controls across the Ultaura dashboard into modal-based 
 
 ## Global Patterns & Conventions
 
-### Modal Structure (Follow Existing Pattern)
+### Modal Structure (Match “New exception” Modal 1:1)
 
-All modals must follow the established structure in the codebase. **Critical**: The dialog content must use a flex column layout with constrained height to keep the footer visible while allowing the body to scroll.
+All new modals introduced by this spec must match the existing **“New exception”** modal in:
+- Close button styling (the `X` icon button in the top-right)
+- Title + description layout
+- Button labels and placements (left “Discard changes”, right “Save …”)
+- Field styling (e.g., `h-11` for Select triggers, input classes)
+- Error block styling
+
+**Scrolling requirement (exception-compatible):**
+- Keep the overall visual/layout identical, but allow content to scroll when it exceeds the viewport.
+- Use a constrained height on the dialog content and make the *form body* scroll while keeping header and footer visible.
+
+Reference implementation (must copy structure/behavior):  
+`src/app/dashboard/(app)/lines/[lineId]/schedule/ScheduleClient.tsx` → “New exception” modal.
 
 ```tsx
 <Dialog open={isOpen} onOpenChange={handleOpenChange}>
   <DialogContent
     className="max-w-[468px] flex flex-col max-h-[85vh]"
     overlayClassName="bg-black/50 backdrop-blur-none"
-    onInteractOutside={handleInteractOutside}
-    onEscapeKeyDown={handleEscapeKeyDown}
-    onOpenAutoFocus={handleAutoFocus}
   >
-    {/* Header - Fixed */}
+    {/* Header */}
     <div className="flex items-start justify-between gap-4 flex-shrink-0">
       <div className="min-w-0">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle className="truncate">{title}</DialogTitle>
+        <DialogDescription className="text-sm text-muted-foreground">
+          {description}
+        </DialogDescription>
       </div>
       <button
         type="button"
         onClick={handleClose}
-        className={modalIconButtonClass}
+        className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         aria-label="Close"
         disabled={isSubmitting}
       >
@@ -54,7 +63,7 @@ All modals must follow the established structure in the codebase. **Critical**: 
       </button>
     </div>
 
-    {/* Error Banner - Fixed */}
+    {/* Error */}
     {error && (
       <div
         role="alert"
@@ -64,81 +73,78 @@ All modals must follow the established structure in the codebase. **Critical**: 
       </div>
     )}
 
-    {/* Form Content - Scrollable */}
-    <div className="flex-1 overflow-y-auto min-h-0">
-      {/* Form fields */}
-    </div>
+    {/* Form (scrollable body + fixed footer) */}
+    <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-4">
+        {/* form fields */}
+      </div>
 
-    {/* Footer - Fixed */}
-    <div className="flex gap-3 pt-2 flex-shrink-0">
-      <button type="button" onClick={handleClose} className={modalSecondaryButtonClass}>
-        Cancel
-      </button>
-      <button type="submit" disabled={isSubmitting} className={modalPrimaryButtonClass}>
-        {isSubmitting ? <Spinner /> : 'Save'}
-      </button>
-    </div>
+      <div className="flex gap-3 pt-2 flex-shrink-0">
+        <button
+          type="button"
+          onClick={handleDiscard}
+          className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
+          disabled={isSubmitting}
+        >
+          Discard changes
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+        >
+          {isSubmitting ? (
+            <>
+              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Saving...
+            </>
+          ) : (
+            saveLabel
+          )}
+        </button>
+      </div>
+    </form>
   </DialogContent>
 </Dialog>
 ```
 
 **Layout Requirements:**
-- `DialogContent` must have `flex flex-col max-h-[85vh]`
-- Header, error banner, and footer use `flex-shrink-0` to stay fixed
-- Body uses `flex-1 overflow-y-auto min-h-0` to scroll when content overflows
+- `DialogContent` must use `max-w-[468px] flex flex-col max-h-[85vh]`
+- The `<form>` should be `flex flex-col min-h-0 flex-1` so the body can scroll
+- The fields container uses `flex-1 overflow-y-auto min-h-0`
+- The footer buttons match the “New exception” button styles and placement
 
-### Dirty Close Guard Pattern
+### Close / Discard Behavior (Match “New exception”)
 
-When user has unsaved changes and attempts to close:
+The “New exception” modal does **not** use a close-guard confirmation. To match 1:1:
 
-1. **Block close events** (`onInteractOutside`, `onEscapeKeyDown`, X button click)
-2. **Show ConfirmationDialog** with:
-   - Title: "Unsaved changes"
-   - Description: "You have unsaved changes. Discard and close?"
-   - Cancel: "Stay here"
-   - Confirm: "Discard & close" (variant: default)
-3. **Allow close immediately** when form is clean (no changes)
-4. **Block all close methods** while submitting (disable X button, prevent outside/Escape)
+1. **X button** closes immediately by calling the same handler as “Discard changes”.
+2. **Click outside / Escape** closes the dialog and discards local modal state (Radix default), except while submitting.
+3. **Submitting state** disables the X button and prevents double-submit.
+4. **Explicit discard** is provided by the left footer button labeled exactly “Discard changes”.
 
-```tsx
-const handleClose = useCallback(() => {
-  if (isSubmitting) return;
-  if (hasChanges) {
-    setShowDiscardConfirm(true);
-  } else {
-    closeModal();
-  }
-}, [isSubmitting, hasChanges, closeModal]);
-
-const handleInteractOutside = useCallback((e: Event) => {
-  if (isSubmitting || hasChanges) {
-    e.preventDefault();
-    if (hasChanges && !isSubmitting) setShowDiscardConfirm(true);
-  }
-}, [isSubmitting, hasChanges]);
-```
+**Multi-step exception (allowed):** For 2-step overview modals (line picker → form), Step 2 includes a “Back” control. If the form is dirty and the user clicks “Back”, show a discard confirmation (“Discard changes?” / “Going back will discard your … details.”). All buttons still use the same visual styles as “New exception”.
 
 ### Save Behavior
 
 - **Immediate save**: Each modal saves its own data on submit
 - **On success**: `toast.success()` + close modal + `router.refresh()`
-- **On error**: Inline error banner (role="alert") + modal stays open
+- **On error**: Inline error block (styled like “New exception”; include `role="alert"`) + modal stays open
 - **During submit**: Disable all close methods and submit button, show spinner
 
 ### Accessibility Requirements
 
 1. `aria-label="Close"` on X button
 2. `DialogTitle` + `DialogDescription` for screen reader labeling
-3. `role="alert"` on error banners
-4. Focus first input on open via `onOpenAutoFocus`:
+3. Focus first input on open via `onOpenAutoFocus`:
    ```tsx
    onOpenAutoFocus={(e) => {
      e.preventDefault();
      firstInputRef.current?.focus();
    }}
    ```
-5. Natural tab order (Radix handles focus trap)
-6. Enter submits form; Escape follows dirty-close guard
+4. Natural tab order (Radix handles focus trap)
+5. Enter submits form; Escape closes the modal (Radix default)
 
 ### Key Files to Reference
 
@@ -154,6 +160,7 @@ const handleInteractOutside = useCallback((e: Event) => {
 | Schedule schema | `packages/schemas/src/schedule.ts` |
 | Line update schema | `packages/schemas/src/line.ts` (see `UpdateLineInputSchema`) |
 | Vacation actions | `src/lib/ultaura/vacation.ts` |
+| “New exception” modal | `src/app/dashboard/(app)/lines/[lineId]/schedule/ScheduleClient.tsx` |
 
 ---
 
@@ -191,7 +198,9 @@ Key fields used throughout the modal conversions. **Note:** LineRow uses snake_c
 - "New Schedule" button opens a modal
 - Modal contains same form fields in scrollable body
 - Quick presets remain as clickable cards
-- Cancel/Create buttons in fixed footer
+- Footer buttons match “New exception” 1:1:
+  - Left: **“Discard changes”**
+  - Right: **“Save Schedule”**
 
 ### Trigger Placement
 - Replace current "New Schedule" button behavior
@@ -258,7 +267,7 @@ const handleCreateSubmit = async (e: FormEvent) => {
    - Time dropdown (existing TIME_OPTIONS)
    - Quick presets section with 3 cards
    - Schedule summary preview
-3. **Footer**: Cancel / Create Schedule
+3. **Footer**: Discard changes / Save Schedule
 
 ### Validation
 - At least one day must be selected
@@ -349,9 +358,10 @@ export function CreateScheduleForm({
 
 ### Target UX
 - "New Reminder" button opens a modal
-- Modal body scrollable (using flex layout pattern)
-- Recurrence options in collapsible/optional section (checkbox to enable)
-- Cancel/Create buttons in fixed footer
+- Modal matches the “New exception” modal 1:1 in structure and button styling
+- Content scroll enabled (form body scrolls; header/footer fixed)
+- Recurrence options stay as an optional section (checkbox to enable)
+- Footer buttons: “Discard changes” (left) and “Save Reminder” (right)
 
 ### Trigger Placement
 - Replace current "New Reminder" button behavior
@@ -409,7 +419,7 @@ const openCreateModal = () => {
        - Frequency dropdown (daily/weekly/monthly/custom)
        - Conditional fields based on frequency
        - End date checkbox + picker
-3. **Footer**: Cancel / Create Reminder
+3. **Footer**: Discard changes / Save Reminder
 
 ### Validation
 - Message required (non-empty)
@@ -479,120 +489,11 @@ export function CreateReminderForm({
 ---
 
 ## Conversion 3: UsageCapControl Modal
-
-**File:** `src/app/dashboard/(app)/usage/components/UsageCapControl.tsx`
-
-### Current UX
-- Inline dropdown immediately saves on change
-- Shows current cap value in dropdown
-- Optimistic update with revert on failure
-
-### Target UX
-- Read-only card displays current cap + explanation
-- "Edit cap" button opens modal
-- Modal shows options as radio buttons or selectable cards
-- Cancel/Save in footer
-- Save triggers server action
-
-### Trigger Placement
-- Add "Edit cap" button to current display card
-- Keep current card layout, make dropdown value read-only text
-
-### Form State Strategy
-- `showModal` boolean
-- `selectedCap` for modal selection (initialize from current)
-- `hasChanges` = selectedCap !== currentCap
-
-### Implementation Details
-
-```tsx
-// Props remain same
-interface UsageCapControlProps {
-  accountId: string;
-  capCents: number;
-  disabled?: boolean;
-}
-
-// State
-const [showModal, setShowModal] = useState(false);
-const [selectedCap, setSelectedCap] = useState<string>('');
-const [isSubmitting, setIsSubmitting] = useState(false);
-const [error, setError] = useState<string | null>(null);
-
-// Open handler
-const openModal = () => {
-  setSelectedCap(String(capCents));
-  setError(null);
-  setShowModal(true);
-};
-
-// Save handler
-const handleSave = async () => {
-  setIsSubmitting(true);
-  setError(null);
-  try {
-    const result = await updateOverageCap(accountId, Number(selectedCap));
-    if (!result.success) {
-      setError(result.error?.message || 'Failed to update cap');
-      return;
-    }
-    toast.success('Spending cap updated');
-    setShowModal(false);
-    router.refresh();
-  } catch {
-    setError('An unexpected error occurred');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
-const hasChanges = selectedCap !== String(capCents);
-```
-
-### Modal Content Structure
-1. **Header**: "Edit Spending Cap" / "Set a limit on overage charges"
-2. **Body**:
-   - Explanation text: "When your included minutes run out, calls continue at $0.15/min. Set a cap to limit how much you can be charged."
-   - Radio group or selectable cards for cap options:
-     - No limit ($0)
-     - $10
-     - $25
-     - $50
-     - $100
-   - Each option shows what happens: "Calls will stop when you reach this amount"
-3. **Footer**: Cancel / Save
-
-### Cap Options
-```tsx
-const CAP_OPTIONS = [
-  { value: '0', label: 'No limit', description: 'Calls continue with no cap on overage charges' },
-  { value: '1000', label: '$10', description: 'Calls stop after $10 in overage charges' },
-  { value: '2500', label: '$25', description: 'Calls stop after $25 in overage charges' },
-  { value: '5000', label: '$50', description: 'Calls stop after $50 in overage charges' },
-  { value: '10000', label: '$100', description: 'Calls stop after $100 in overage charges' },
-];
-```
-
-### Post-Success
-- `toast.success('Spending cap updated')`
-- Close modal
-- `router.refresh()` (updates server-rendered progress UI)
-
-### Testing Checklist
-- [ ] Read-only card shows current cap correctly
-- [ ] "Edit cap" button opens modal
-- [ ] Modal shows all 5 cap options
-- [ ] Current cap is pre-selected
-- [ ] Selecting different option enables Save
-- [ ] Same option = no changes = close without confirm
-- [ ] Save shows loading spinner
-- [ ] Success closes modal and updates display
-- [ ] Error shows inline banner
-- [ ] Disabled prop hides Edit button
+**Removed from scope.** No changes to `src/app/dashboard/(app)/usage/components/UsageCapControl.tsx`.
 
 ---
 
-## Conversion 4: RemindersPageClient Add Modal
+## Conversion 3: RemindersPageClient Add Modal
 
 **File:** `src/app/dashboard/(app)/reminders/RemindersPageClient.tsx`
 
@@ -606,6 +507,8 @@ const CAP_OPTIONS = [
   - **Step 1** (if multiple lines): Line picker
   - **Step 2**: Reminder form (embeds `CreateReminderForm`)
 - If only 1 line, skip Step 1
+
+**Modal styling requirement:** Both steps must match the “New exception” modal structure and button styles. Step 2 supports scrolling.
 
 ### Trigger Placement
 - Replace "Add for [LineName]" button section with single "Add Reminder" button
@@ -676,17 +579,11 @@ function AddReminderModal({ open, onOpenChange, lines }: AddReminderModalProps) 
 }
 ```
 
-### Step 2 → Back Dirty Handling
+### Step 2 → Back Dirty Handling (Allowed Exception)
 
-When user is at Step 2 with unsaved form changes and clicks "Back":
-
-1. Show ConfirmationDialog with:
-   - Title: "Discard changes?"
-   - Description: "Going back will discard your reminder details."
-   - Cancel: "Stay here"
-   - Confirm: "Discard & go back"
-2. On confirm: Reset form state, return to Step 1
-3. On cancel: Stay on Step 2
+Because this modal is multi-step, Step 2 must guard “Back” when the form is dirty:
+- Show a ConfirmationDialog: “Discard changes?” / “Going back will discard your reminder details.”
+- Confirm returns to Step 1 and resets form state.
 
 ### Modal Content Structure
 
@@ -695,14 +592,14 @@ When user is at Step 2 with unsaved form changes and clicks "Back":
 2. **Body**:
    - List of lines as selectable cards
    - Each shows `displayName` and `phoneE164` (formatted)
-3. **Footer**: Cancel / Continue (disabled until line selected)
+3. **Footer**: Discard changes / Continue (Continue disabled until line selected)
 
 **Step 2 - Reminder Form**:
 1. **Header**: "Add Reminder" / "Create a reminder for [selectedLine.displayName]"
 2. **Body**: Embed `CreateReminderForm` with selected line's data
 3. **Footer**:
-   - If multiple lines: Back / Create Reminder
-   - If single line: Cancel / Create Reminder
+   - If multiple lines: Back (styled like Discard) / Save Reminder
+   - If single line: Discard changes / Save Reminder
 
 ### Server Action
 - `CreateReminderForm` internally calls `createReminder` from `~/lib/ultaura/reminders`
@@ -728,7 +625,7 @@ When user is at Step 2 with unsaved form changes and clicks "Back":
 
 ---
 
-## Conversion 5: CallsPageClient Add Modal
+## Conversion 4: CallsPageClient Add Modal
 
 **File:** `src/app/dashboard/(app)/calls/CallsPageClient.tsx`
 
@@ -742,6 +639,8 @@ When user is at Step 2 with unsaved form changes and clicks "Back":
   - **Step 1** (if multiple lines): Line picker
   - **Step 2**: Schedule form (embeds `CreateScheduleForm`)
 - If only 1 line, skip Step 1
+
+**Modal styling requirement:** Both steps must match the “New exception” modal structure and button styles. Step 2 supports scrolling.
 
 ### Architecture: AddScheduleModal wrapping CreateScheduleForm
 
@@ -810,282 +709,13 @@ Same as RemindersPageClient - show discard confirmation if form has changes.
 
 ---
 
-## Conversion 6: SettingsClient to Read-Only Cards + Modals
+## Conversion 5: SettingsClient to Read-Only Cards + Modals
 
-**File:** `src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx`
-
-### Current UX
-- 3 tabs with sidebar navigation (one section visible at a time)
-- All changes batched until "Save Changes" button
-- Unsaved changes warning on navigation
-
-### Target UX (Surgical - Preserves All Existing Section URLs)
-
-**Critical:** Keep all existing sidebar section values unchanged to preserve bookmarked URLs.
-
-- **Keep existing 3 tabs with sidebar navigation**
-- **Keep all 12 existing sidebar sections** (no consolidation)
-- The currently active section becomes a read-only card with "Edit" button
-- "Edit" opens section-specific modal
-- Each modal saves immediately on submit
-- **Remove global "Save Changes" button** - no more batched saves
-
-### Existing Sidebar Sections (Preserved Exactly)
-
-From `LineSettingsSectionValue` type and `buildLineSettingsSections`:
-
-**Tab 1: Calling & Availability**
-| Section Value | Label | Modal |
-|---------------|-------|-------|
-| `language` | Language | Language modal |
-| `voice-preference` | Voice Preference | Voice Preference modal |
-| `timezone` | Timezone | Timezone modal |
-| `quiet-hours` | Quiet Hours | Quiet Hours modal |
-| `voicemail` | Voicemail | Voicemail modal |
-| `inbound` | Inbound Calls | Inbound Calls modal |
-| `voice-controls` | Voice Controls | Voice Controls modal |
-| `vacation` | Vacation | Vacation modal (refactored) |
-
-**Tab 2: Insights & Notifications**
-| Section Value | Label | Modal |
-|---------------|-------|-------|
-| `insights-privacy` | Insights & Privacy | Insights & Privacy modal |
-| `weekly-summary` | Weekly Summary | Weekly Summary modal |
-| `missed-calls` | Missed Call Alerts | Missed Call Alerts modal |
-
-**Tab 3: Accessibility**
-| Section Value | Label | Modal |
-|---------------|-------|-------|
-| `accessibility` | Accessibility | Accessibility modal |
-
-**URL compatibility:** All existing URLs like `?tab=calling&section=quiet-hours` continue to work exactly as before.
-
-### Section Modals Detail
-
-All Settings modals use `updateLine(lineId, input)` which validates against `UpdateLineInputSchema` from `packages/schemas/src/line.ts`. **Critical:** The schema expects camelCase field names, not snake_case database column names.
-
-#### 6.1 Language Modal
-**Fields:**
-- Language dropdown (with auto-detect option)
-
-**Server Action:**
-```tsx
-await updateLine(line.id, { preferredLanguageIso: selectedLanguage });
-// Set to null for auto-detect
-await updateLine(line.id, { preferredLanguageIso: null });
-```
-
-#### 6.2 Voice Preference Modal
-**Fields:**
-- Voice preference (VoiceSelector component)
-
-**Server Action:**
-```tsx
-await updateLine(line.id, { preferredGrokVoice: selectedVoice });
-// Valid values: 'Ara' | 'Eve' | 'Leo' | 'Rex' | 'Sal'
-```
-
-#### 6.3 Timezone Modal
-**Fields:**
-- Timezone dropdown
-
-**Server Action:**
-```tsx
-await updateLine(line.id, { timezone: selectedTimezone });
-// Must be valid IANA timezone (e.g., 'America/New_York')
-```
-
-#### 6.4 Quiet Hours Modal
-**Fields:**
-- Quiet hours start time
-- Quiet hours end time
-
-**Server Action:**
-```tsx
-await updateLine(line.id, {
-  quietHoursStart: startTime, // HH:mm format
-  quietHoursEnd: endTime,     // HH:mm format
-});
-```
-
-#### 6.5 Voicemail Modal
-**Fields:**
-- Voicemail behavior radio group (none/brief/detailed)
-
-**Server Action:**
-```tsx
-await updateLine(line.id, { voicemailBehavior: selectedBehavior });
-// Valid values: 'none' | 'brief' | 'detailed'
-```
-
-#### 6.6 Inbound Calls Modal
-**Fields:**
-- Inbound calls allowed toggle
-
-**Server Action:**
-```tsx
-await updateLine(line.id, { inboundAllowed: isAllowed });
-```
-
-**Note:** Even though this is a single toggle, using a modal maintains consistency with the "editing is explicit" principle across all settings.
-
-#### 6.7 Voice Controls Modal
-**Fields:**
-- Allow voice reminder control (switch)
-- Allow voice schedule control (switch)
-
-**Server Action:**
-```tsx
-await updateLine(line.id, {
-  allowVoiceReminderControl: reminderControlEnabled,
-  allowVoiceScheduleControl: scheduleControlEnabled,
-});
-```
-
-#### 6.8 Vacation Modal (Refactored for Immediate Persist)
-
-**Current Problem:** VacationSettings has pending local state for the add-range form; persistence happens via page's global "Save Changes".
-
-**Solution:** Refactor to immediate persist for completed ranges, but keep dirty-close guard for partially-filled add-range form.
-
-**Fields:**
-- Vacation ranges list (read-only display of saved ranges)
-- Add range form (start date, end date)
-- Remove range buttons
-
-**Behavior:**
-- "Add vacation range" button validates the form, then immediately calls `addVacationRange()` server action
-- On successful add: `toast.success()` + `router.refresh()` + clear form inputs
-- "Remove" button immediately calls `removeVacationRange()` server action
-- On successful remove: `toast.success()` + `router.refresh()`
-- Modal close button follows dirty-close guard **only for unsaved add-range form inputs** (if user has typed start/end dates but not clicked Add)
-
-**Dirty State:**
-- `hasChanges` = add-range form has any input (start or end date input is non-empty)
-- If user tries to close with partially-filled form, show discard confirmation
-- Saved ranges are already persisted, so removing a range and closing is fine
-
-**Server Actions (from `src/lib/ultaura/vacation.ts`):**
-
-```tsx
-// Add a vacation range
-// VacationRange = { start: string, end: string } (ISO date format YYYY-MM-DD)
-await addVacationRange(line.id, { start: startDate, end: endDate });
-
-// Remove a vacation range (identified by start date)
-await removeVacationRange(line.id, range.start);
-```
-
-**Note:** The `removeVacationRange` function uses `start` as the range identifier, not a separate `rangeId`. Each vacation range is uniquely identified by its start date.
-
-#### 6.9 Insights & Privacy Modal
-**Fields (self-managed):**
-- Insights enabled (switch)
-- Pause mode (switch)
-- Pause reason (text input, if paused)
-
-**Fields (family-managed):**
-- Read-only status badge
-- "Request Change" button (existing flow)
-
-**Server Actions:**
-- `updateInsightPrivacy()` for insights_enabled
-- `setPauseMode()` for pause toggle
-
-#### 6.10 Weekly Summary Modal
-**Fields:**
-- Enable weekly summary (switch)
-- Day of week dropdown
-- Time dropdown
-
-**Server Action:** `updateNotificationPreferences()`
-
-#### 6.11 Missed Call Alerts Modal
-**Fields:**
-- Enable missed call alerts (switch)
-- Threshold dropdown (2-5 calls)
-
-**Server Action:** `updateNotificationPreferences()`
-
-#### 6.12 Accessibility Modal
-**Fields:**
-- Hearing mode dropdown (normal/enhanced_clarity/slow_pace)
-- Cognitive mode dropdown (normal/supportive/high_support)
-- Advanced section (collapsible):
-  - Speech rate number input
-  - Context window calls number input
-
-**Server Action:** `updateAccessibilitySettings()`
-
-### Data Flow: Props → Card → Modal → Save
-
-**Important:** The read-only card displays current values from the page's props (passed down from server component). When the user clicks "Edit", the modal initializes its form state from those same props. On successful save, `router.refresh()` re-fetches server data, updating the props and thus the card display. This ensures consistency without optimistic updates.
-
-### Read-Only Card Component
-
-Create a reusable component for consistent read-only display:
-
-```tsx
-interface SettingsCardProps {
-  title: string;
-  icon: React.ReactNode;
-  onEdit: () => void;
-  disabled?: boolean;
-  children: React.ReactNode; // current values display
-}
-
-function SettingsCard({ title, icon, onEdit, disabled, children }: SettingsCardProps) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-muted">{icon}</div>
-          <h3 className="font-medium">{title}</h3>
-        </div>
-        <button
-          onClick={onEdit}
-          disabled={disabled}
-          className="text-sm text-primary hover:underline disabled:opacity-50"
-        >
-          Edit
-        </button>
-      </div>
-      <div className="mt-3 text-sm text-muted-foreground">
-        {children}
-      </div>
-    </div>
-  );
-}
-```
-
-### State Management Changes
-- Remove global batch state tracking
-- Remove global `handleSubmit` function
-- Remove `hasSaveableChanges` computation
-- Remove global "Save Changes" button
-- Each modal manages its own state independently
-- Remove `useLeavePageGuard` (no longer needed - no pending changes except Vacation add-form)
-
-### Testing Checklist
-- [ ] Tab + sidebar navigation unchanged
-- [ ] All 12 existing section URLs continue to work
-- [ ] Each sidebar section shows read-only card
-- [ ] Each card shows current values accurately
-- [ ] Edit button opens correct modal
-- [ ] Each modal pre-fills with current values
-- [ ] Each modal saves independently with `router.refresh()`
-- [ ] Success toast + close + refresh
-- [ ] Error handling per modal
-- [ ] Family-managed restrictions work (Insights)
-- [ ] Vacation add persists immediately, remove persists immediately
-- [ ] Vacation modal: dirty-close guard for partially-filled add-form only
-- [ ] No stale data after edits
-- [ ] Disabled state disables all Edit buttons
-- [ ] No global Save button exists
+**Removed from scope.** No changes to `src/app/dashboard/(app)/lines/[lineId]/settings/SettingsClient.tsx`.
 
 ---
 
-## Conversion 7: DebugLogFilters Modal (Admin)
+## Conversion 5: DebugLogFilters Modal (Admin)
 
 **File:** `src/app/ultaura-admin/debug-logs/components/DebugLogFilters.tsx`
 
@@ -1097,9 +727,13 @@ function SettingsCard({ title, icon, onEdit, disabled, children }: SettingsCardP
 ### Target UX
 - "Filters" button in header area
 - Opens modal with all filter fields
-- Apply/Clear buttons in modal footer
+- Footer buttons (2 buttons only) match “New exception” 1:1:
+  - Left: **“Discard changes”** (closes modal without navigation)
+  - Right: **“Apply filters”** (submits GET)
 - Applied filters summary shown near list title
 - **Preserve form method="GET"** - only modal open/close is client-side
+
+**Modal styling requirement:** Match the “New exception” modal 1:1 (header, X button styling, button styles), with scrolling enabled if needed.
 
 ### Architecture: Minimal Client Conversion
 
@@ -1156,7 +790,7 @@ function FilterModal({ children, activeFilterCount }: FilterModalProps) {
 
 Since the form uses native GET submission:
 - Modal closes on form submit (page navigation)
-- Modal closes on Clear (link navigation)
+- “Clear all” becomes a link outside the modal (near the active filter summary) to remove query params
 - User can close modal freely without losing data (it's just URL params)
 - No complex client-side state management required
 
@@ -1206,7 +840,6 @@ Create these shared components to avoid code duplication:
 | `CreateReminderForm` | Form component | `src/components/ultaura/CreateReminderForm.tsx` | RemindersClient modal, AddReminderModal |
 | `AddScheduleModal` | Dialog wrapper | `src/components/ultaura/AddScheduleModal.tsx` | CallsPageClient |
 | `AddReminderModal` | Dialog wrapper | `src/components/ultaura/AddReminderModal.tsx` | RemindersPageClient |
-| `SettingsCard` | Display component | `src/components/ultaura/SettingsCard.tsx` | SettingsClient |
 | `FilterModal` | Dialog wrapper | `src/app/ultaura-admin/debug-logs/components/FilterModal.tsx` | DebugLogFilters |
 
 **Naming Convention:**
@@ -1223,11 +856,9 @@ Execute in this sequence:
 2. **ScheduleClient create modal** - Use extracted form component
 3. **Extract CreateReminderForm** - Create reusable form component from RemindersClient
 4. **RemindersClient create modal** - Use extracted form component
-5. **UsageCapControl modal** - Small, validates save/refresh UX
-6. **AddReminderModal** - Dialog wrapper using CreateReminderForm
-7. **AddScheduleModal** - Dialog wrapper using CreateScheduleForm
-8. **SettingsClient modals** - Largest surface area, implement section by section
-9. **DebugLogFilters modal** - Nice-to-have admin polish
+5. **AddReminderModal** - Dialog wrapper using CreateReminderForm
+6. **AddScheduleModal** - Dialog wrapper using CreateScheduleForm
+7. **DebugLogFilters modal** - Nice-to-have admin polish
 
 ---
 
@@ -1261,7 +892,7 @@ After all conversions:
 ## Assumptions
 
 1. Existing server actions remain unchanged (just called from modals instead of inline forms)
-2. Modal width `max-w-[468px]` is appropriate for most forms; Settings modals may use `max-w-lg`
+2. Modal width `max-w-[468px]` is appropriate for these forms
 3. `router.refresh()` is sufficient for data updates (no need for optimistic updates)
 4. Toast notifications are appropriate for success feedback
 5. Form validation rules remain unchanged from current inline implementations
@@ -1282,11 +913,9 @@ After all conversions:
 
 ## Risk Mitigation
 
-1. **State complexity in SettingsClient**: Start with simpler modals first to validate patterns
-2. **Form height overflow**: Use flex column layout with `flex-1 overflow-y-auto min-h-0` for body
-3. **Data staleness**: Always `router.refresh()` after successful saves
-4. **Accessibility regressions**: Follow existing patterns exactly, test with screen reader
-5. **Mobile usability**: Test modals on mobile viewports, ensure touch targets adequate
-6. **Code duplication**: Extract reusable form components before implementing overview modals
-7. **State mutation bugs**: Always use `normalizeDays` (or similar slice+sort pattern) for array comparisons
-8. **URL compatibility**: Preserve all existing sidebar section values to avoid breaking bookmarks
+1. **Form height overflow**: Use exception-compatible scroll (fixed header/footer, scroll body)
+2. **Data staleness**: Always `router.refresh()` after successful saves
+3. **Accessibility regressions**: Match “New exception” modal structure; ensure initial focus in create modals
+4. **Mobile usability**: Test modals on mobile viewports, ensure touch targets adequate
+5. **Code duplication**: Extract reusable form components before implementing overview modals
+6. **State mutation bugs**: Always use `normalizeDays` (or similar slice+sort pattern) for array comparisons
