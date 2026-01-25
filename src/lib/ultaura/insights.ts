@@ -1682,9 +1682,7 @@ export async function getMemoryActivity(
   if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowConcerns) {
     return emptyResult;
   }
-  if (!gate.isSelfUser) {
-    return emptyResult;
-  }
+
   const { data, error } = await client
     .from('ultaura_memories')
     .select('id, type, key, created_at, privacy_scope')
