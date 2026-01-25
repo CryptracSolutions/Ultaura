@@ -5,16 +5,17 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
-import { ArrowLeft, Clock, Check, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock } from 'lucide-react';
+import { ArrowLeft, Clock, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, ScheduleRow, ScheduleExceptionRow } from '~/lib/ultaura/types';
-import { createSchedule, deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/schedules';
+import { deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { createScheduleException, deleteScheduleException } from '~/lib/ultaura/schedule-exceptions';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
 import { extractOriginalTimeOfDay, normalizeTimeOfDay } from '~/lib/ultaura/schedule-helpers';
+import { CreateScheduleForm } from '~/components/ultaura/CreateScheduleForm';
 
 interface ScheduleClientProps {
   line: LineRow;
@@ -31,13 +32,8 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   const handledEditIdRef = useRef<string | null>(null);
   const editLoadSeqRef = useRef(0);
   const exceptionInitializedRef = useRef(false);
-  const defaultCreateDays = [1, 2, 3, 4, 5];
-  const defaultCreateTime = '09:00';
-  const [selectedDays, setSelectedDays] = useState<number[]>(defaultCreateDays); // Weekdays
-  const [selectedTime, setSelectedTime] = useState(defaultCreateTime);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -74,6 +70,10 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   } | null>(null);
 
   const normalizeDays = (days: number[]) => days.slice().sort((a, b) => a - b).join(',');
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
+  };
 
   const recurringSchedules = useMemo(
     () => schedules.filter((schedule) => !schedule.is_one_time && schedule.days_of_week.length > 0),
@@ -130,14 +130,6 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
     return map;
   }, [exceptions, line.timezone]);
 
-  const toggleDay = (day: number) => {
-    if (selectedDays.includes(day)) {
-      setSelectedDays(selectedDays.filter((d) => d !== day));
-    } else {
-      setSelectedDays([...selectedDays, day].sort());
-    }
-  };
-
   const toggleEditDay = (day: number) => {
     if (editSelectedDays.includes(day)) {
       setEditSelectedDays(editSelectedDays.filter((d) => d !== day));
@@ -149,7 +141,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   const openEditModal = useCallback(async (schedule: ScheduleRow) => {
     if (disabled) return;
 
-    setShowCreate(false);
+    setShowCreateModal(false);
     setEditingSchedule(schedule);
     setInitialEditState(null);
     const normalizedTime = normalizeTimeOfDay(schedule.time_of_day);
@@ -290,52 +282,6 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
     return e164;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (disabled) return;
-
-    if (selectedDays.length === 0) {
-      setError('Please select at least one day');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await createSchedule(line.account_id, {
-        lineId: line.id,
-        daysOfWeek: selectedDays,
-        timeOfDay: selectedTime,
-        timezone: line.timezone,
-      });
-
-      if (result.success) {
-        toast.success('Schedule created');
-        setShowCreate(false);
-        resetCreateForm();
-        router.refresh();
-      } else {
-        setError(result.error.message || 'Failed to create schedule');
-      }
-    } catch {
-      setError('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const resetCreateForm = () => {
-    setSelectedDays(defaultCreateDays);
-    setSelectedTime(defaultCreateTime);
-    setError(null);
-  };
-
-  const discardCreateChanges = () => {
-    resetCreateForm();
-    setShowCreate(false);
-  };
-
   const discardEditChanges = () => {
     if (initialEditState) {
       setEditSelectedDays(initialEditState.days);
@@ -363,9 +309,6 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
     setInitialExceptionState(null);
   };
 
-  const hasCreateChanges =
-    normalizeDays(selectedDays) !== normalizeDays(defaultCreateDays) ||
-    selectedTime !== defaultCreateTime;
   const hasEditChanges =
     Boolean(editingSchedule && initialEditState) &&
     (normalizeDays(editSelectedDays) !== normalizeDays(initialEditState!.days) ||
@@ -379,14 +322,12 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
       snoozeTime !== initialExceptionState!.snoozeTime ||
       rescheduleDateTime !== initialExceptionState!.rescheduleDateTime);
   const shouldWarnOnNavigate =
-    (hasCreateChanges || hasEditChanges || hasExceptionChanges) &&
-    !isLoading &&
+    (hasEditChanges || hasExceptionChanges) &&
     !isEditSaving &&
     !exceptionLoading;
   const { dialogProps } = useLeavePageGuard({
     isDirty: shouldWarnOnNavigate,
     onDiscard: () => {
-      discardCreateChanges();
       discardEditChanges();
       discardExceptionChanges();
     },
@@ -697,9 +638,9 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
           </div>
         </div>
 
-        {!showCreate && !disabled && (
+        {!disabled && (
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
           >
             <Plus className="w-4 h-4" />
@@ -712,155 +653,6 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
-        </div>
-      )}
-
-      {showCreate && !disabled && (
-        <div className="mb-8 p-6 rounded-lg border border-input bg-card">
-          <h2 className="font-semibold text-lg mb-4">Create New Schedule</h2>
-
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Day Selection */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Which days should we call?
-              </label>
-              <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                {DAYS_OF_WEEK.map((day) => (
-                  <button
-                    key={day.value}
-                    type="button"
-                    onClick={() => toggleDay(day.value)}
-                    className={`px-3 py-3 sm:px-4 sm:py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      selectedDays.includes(day.value)
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background text-foreground border-input hover:bg-muted'
-                    }`}
-                  >
-                    {day.short}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Select the days of the week for regular calls
-              </p>
-            </div>
-
-            {/* Time Selection */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                What time should we call?
-              </label>
-              <Select value={selectedTime} onValueChange={setSelectedTime}>
-                <SelectTrigger className="w-full py-3">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-muted-foreground" />
-                    <SelectValue />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {TIME_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Times are in {line.timezone}. Quiet hours: {formatTime(line.quiet_hours_start)} -{' '}
-                {formatTime(line.quiet_hours_end)}
-              </p>
-            </div>
-
-            {/* Quick Presets */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Quick presets
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDays([1, 2, 3, 4, 5]);
-                    setSelectedTime('09:00');
-                  }}
-                  className="p-3 rounded-lg border border-input bg-background text-left hover:bg-muted transition-colors"
-                >
-                  <p className="font-medium text-foreground">Weekday Mornings</p>
-                  <p className="text-xs text-muted-foreground">Mon-Fri at 9:00 AM</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
-                    setSelectedTime('10:00');
-                  }}
-                  className="p-3 rounded-lg border border-input bg-background text-left hover:bg-muted transition-colors"
-                >
-                  <p className="font-medium text-foreground">Daily Check-in</p>
-                  <p className="text-xs text-muted-foreground">Every day at 10:00 AM</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedDays([0, 6]);
-                    setSelectedTime('11:00');
-                  }}
-                  className="p-3 rounded-lg border border-input bg-background text-left hover:bg-muted transition-colors"
-                >
-                  <p className="font-medium text-foreground">Weekend Calls</p>
-                  <p className="text-xs text-muted-foreground">Sat & Sun at 11:00 AM</p>
-                </button>
-              </div>
-            </div>
-
-            {/* Summary */}
-            <div className="bg-muted/50 rounded-lg p-4">
-              <h3 className="font-medium text-foreground mb-2">Schedule Summary</h3>
-              <p className="text-sm text-muted-foreground">
-                {selectedDays.length > 0 ? (
-                  <>
-                    Calls will be made on{' '}
-                    <span className="text-foreground font-medium">
-                      {selectedDays
-                        .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.label)
-                        .join(', ')}
-                    </span>{' '}
-                    at{' '}
-                    <span className="text-foreground font-medium">
-                      {TIME_OPTIONS.find((t) => t.value === selectedTime)?.label || selectedTime}
-                    </span>
-                  </>
-                ) : (
-                  'Select days and time to schedule calls'
-                )}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={discardCreateChanges}
-                className="w-full sm:flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
-              >
-                Discard changes
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading || selectedDays.length === 0}
-                className="w-full sm:flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  'Creating...'
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    Create Schedule
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
         </div>
       )}
 
@@ -1091,7 +883,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         )}
       </div>
 
-      {schedules.length === 0 && !showCreate && (
+      {schedules.length === 0 && (
         <div className="text-center py-12">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
             <Calendar className="w-8 h-8 text-muted-foreground" />
@@ -1102,7 +894,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
           </p>
           {!disabled && (
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -1420,6 +1212,42 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
               </button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Schedule Modal */}
+      <Dialog open={showCreateModal} onOpenChange={(open) => { if (!open) handleCloseCreateModal(); }}>
+        <DialogContent
+          className="max-w-[468px] flex flex-col max-h-[85vh]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">Create Schedule</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Set up when calls should happen for {line.display_name}
+              </DialogDescription>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCloseCreateModal}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <CreateScheduleForm
+            lineId={line.id}
+            accountId={line.account_id}
+            timezone={line.timezone}
+            quietHoursStart={line.quiet_hours_start}
+            quietHoursEnd={line.quiet_hours_end}
+            onSuccess={handleCloseCreateModal}
+            onCancel={handleCloseCreateModal}
+          />
         </DialogContent>
       </Dialog>
 

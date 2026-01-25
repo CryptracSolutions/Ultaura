@@ -1,5 +1,5 @@
-import Button from '~/core/ui/Button';
 import { TextFieldInput } from '~/core/ui/TextField';
+import { FilterModal, ActiveFilters, getActiveFilterCount } from './FilterModal';
 
 const EVENT_TYPE_OPTIONS = ['dtmf', 'tool_call', 'state_change', 'error', 'safety_tier'];
 const TOOL_OPTIONS = [
@@ -31,87 +31,128 @@ export function DebugLogFilters({
 }: {
   currentFilters: Record<string, string | undefined>;
 }) {
+  const activeFilterCount = getActiveFilterCount(currentFilters);
+
   return (
-    <form
-      method="GET"
-      className="grid gap-4 rounded-xl border border-border bg-card p-4 lg:grid-cols-3"
-    >
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Start date</label>
-        <TextFieldInput
-          type="date"
-          name="startDate"
-          defaultValue={currentFilters.startDate ?? ''}
-        />
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <FilterModal activeFilterCount={activeFilterCount}>
+          {({ onClose, startDateInputRef }) => (
+            <DebugLogFilterForm
+              currentFilters={currentFilters}
+              onClose={onClose}
+              startDateInputRef={startDateInputRef}
+            />
+          )}
+        </FilterModal>
+        <ActiveFilters filters={currentFilters} />
       </div>
+    </div>
+  );
+}
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">End date</label>
-        <TextFieldInput
-          type="date"
-          name="endDate"
-          defaultValue={currentFilters.endDate ?? ''}
-        />
-      </div>
+function DebugLogFilterForm({
+  currentFilters,
+  onClose,
+  startDateInputRef,
+}: {
+  currentFilters: Record<string, string | undefined>;
+  onClose: () => void;
+  startDateInputRef: React.RefObject<HTMLInputElement>;
+}) {
+  return (
+    <>
+      <form method="GET" id="filter-form" className="flex flex-col min-h-0 flex-1">
+        <div className="flex-1 overflow-y-auto min-h-0 grid gap-4 lg:grid-cols-2 py-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Start date</label>
+            <TextFieldInput
+              ref={startDateInputRef}
+              type="date"
+              name="startDate"
+              defaultValue={currentFilters.startDate ?? ''}
+            />
+          </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Call session ID</label>
-        <TextFieldInput
-          type="text"
-          name="sessionId"
-          placeholder="UUID"
-          defaultValue={currentFilters.sessionId ?? ''}
-        />
-      </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">End date</label>
+            <TextFieldInput
+              type="date"
+              name="endDate"
+              defaultValue={currentFilters.endDate ?? ''}
+            />
+          </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Account ID</label>
-        <TextFieldInput
-          type="text"
-          name="accountId"
-          placeholder="UUID"
-          defaultValue={currentFilters.accountId ?? ''}
-        />
-      </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Call session ID</label>
+            <TextFieldInput
+              type="text"
+              name="sessionId"
+              placeholder="UUID"
+              defaultValue={currentFilters.sessionId ?? ''}
+            />
+          </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Event type</label>
-        <select
-          name="eventType"
-          className={selectClassName}
-          defaultValue={currentFilters.eventType ?? ''}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Account ID</label>
+            <TextFieldInput
+              type="text"
+              name="accountId"
+              placeholder="UUID"
+              defaultValue={currentFilters.accountId ?? ''}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Event type</label>
+            <select
+              name="eventType"
+              className={selectClassName}
+              defaultValue={currentFilters.eventType ?? ''}
+            >
+              <option value="">All</option>
+              {EVENT_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Tool name</label>
+            <select
+              name="toolName"
+              className={selectClassName}
+              defaultValue={currentFilters.toolName ?? ''}
+            >
+              <option value="">All</option>
+              {TOOL_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <div className="flex gap-3 pt-2 flex-shrink-0">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
         >
-          <option value="">All</option>
-          {EVENT_TYPE_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Tool name</label>
-        <select
-          name="toolName"
-          className={selectClassName}
-          defaultValue={currentFilters.toolName ?? ''}
+          Discard changes
+        </button>
+        <button
+          type="submit"
+          form="filter-form"
+          className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
         >
-          <option value="">All</option>
-          {TOOL_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          Apply filters
+        </button>
       </div>
-
-      <div className="flex items-end gap-2">
-        <Button type="submit">Apply filters</Button>
-        <Button variant="ghost" href="/ultaura-admin/debug-logs">
-          Reset
-        </Button>
-      </div>
-    </form>
+    </>
   );
 }

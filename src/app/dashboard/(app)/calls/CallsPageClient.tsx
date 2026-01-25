@@ -17,6 +17,7 @@ import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { AddScheduleModal } from '~/components/ultaura/AddScheduleModal';
 
 interface Schedule {
   scheduleId: string;
@@ -40,6 +41,29 @@ interface CallsPageClientProps {
 export function CallsPageClient({ lines, schedules, disabled = false }: CallsPageClientProps) {
   const router = useRouter();
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [preselectedLineId, setPreselectedLineId] = useState<string | null>(null);
+
+  // Map LineRow to LineForScheduleModal
+  const linesForModal = lines.map((line) => ({
+    id: line.id,
+    accountId: line.account_id,
+    displayName: line.display_name,
+    timezone: line.timezone,
+    quietHoursStart: line.quiet_hours_start,
+    quietHoursEnd: line.quiet_hours_end,
+    phoneE164: line.phone_e164,
+  }));
+
+  const handleOpenForLine = (lineId: string) => {
+    setPreselectedLineId(lineId);
+    setShowAddModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setPreselectedLineId(null);
+  };
 
   const sortByNextRunAt = (a: Schedule, b: Schedule) => {
     const aTime = a.nextRunAt ? new Date(a.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
@@ -101,22 +125,16 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Add Schedule Buttons */}
+      {/* Add Schedule Button */}
       {!disabled && lines.length > 0 && (
-        <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="font-medium text-foreground mb-4">Add a new schedule</h2>
-          <div className="flex flex-wrap gap-3">
-            {lines.map((line) => (
-              <Link
-                key={line.id}
-                href={`/dashboard/lines/${line.short_id}/schedule`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add for {line.display_name}
-              </Link>
-            ))}
-          </div>
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Schedule
+          </button>
         </div>
       )}
 
@@ -176,13 +194,15 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                     <div className="px-6 py-8 text-center">
                       <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No schedules set up yet</p>
-                      <Link
-                        href={`/dashboard/lines/${line.short_id}/schedule`}
-                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Create your first schedule
-                      </Link>
+                      {!disabled && (
+                        <button
+                          onClick={() => handleOpenForLine(line.id)}
+                          className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Create your first schedule
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -233,6 +253,13 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         confirmLabel="Delete"
         variant="destructive"
         onConfirm={handleDeleteSchedule}
+      />
+
+      <AddScheduleModal
+        open={showAddModal}
+        onOpenChange={handleCloseModal}
+        lines={linesForModal}
+        preselectedLineId={preselectedLineId}
       />
     </div>
   );

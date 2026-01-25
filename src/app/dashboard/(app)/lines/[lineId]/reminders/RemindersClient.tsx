@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Bell, Plus, Clock, X, Check, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
+import { ArrowLeft, Bell, Plus, Clock, X, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
@@ -14,12 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '~/core/ui/Dropdown';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
-import { Checkbox } from '~/core/ui/Checkbox';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/types';
-import { createReminder, cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/reminders';
+import { cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/reminders';
 import { ReminderActivity } from './ReminderActivity';
+import { CreateReminderForm } from '~/components/ultaura/CreateReminderForm';
 
 const SNOOZE_OPTIONS = [
   { value: 15, label: '15 minutes' },
@@ -28,8 +27,6 @@ const SNOOZE_OPTIONS = [
   { value: 120, label: '2 hours' },
   { value: 1440, label: 'Tomorrow' },
 ];
-
-type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FULL_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -93,8 +90,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const handledEditIdRef = useRef<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [skippingId, setSkippingId] = useState<string | null>(null);
   const [pausingId, setPausingId] = useState<string | null>(null);
@@ -116,37 +112,8 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     time: string;
   } | null>(null);
 
-  // Form state
-  const [message, setMessage] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('09:00');
-
-  // Recurrence form state
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [frequency, setFrequency] = useState<RecurrenceFrequency>('daily');
-  const [interval, setInterval] = useState(1);
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [dayOfMonth, setDayOfMonth] = useState(1);
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState('');
-
-  const resetCreateForm = () => {
-    setMessage('');
-    setDate('');
-    setTime('09:00');
-    setIsRecurring(false);
-    setFrequency('daily');
-    setInterval(1);
-    setSelectedDays([]);
-    setDayOfMonth(1);
-    setHasEndDate(false);
-    setEndDate('');
-    setError(null);
-  };
-
-  const discardCreateChanges = () => {
-    resetCreateForm();
-    setShowForm(false);
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
   };
 
   const discardEditChanges = () => {
@@ -160,29 +127,15 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     setIsEditSubmitting(false);
   };
 
-  const hasCreateChanges =
-    message.trim() !== '' ||
-    date !== '' ||
-    time !== '09:00' ||
-    isRecurring ||
-    (isRecurring &&
-      (frequency !== 'daily' ||
-        interval !== 1 ||
-        selectedDays.length > 0 ||
-        dayOfMonth !== 1 ||
-        hasEndDate ||
-        endDate !== ''));
   const hasEditChanges =
     Boolean(editingReminder && initialEditState) &&
     (editMessage.trim() !== initialEditState!.message ||
       editDate !== initialEditState!.date ||
       editTime !== initialEditState!.time);
-  const shouldWarnOnNavigate =
-    (hasCreateChanges || hasEditChanges) && !isSubmitting && !isEditSubmitting;
+  const shouldWarnOnNavigate = hasEditChanges && !isEditSubmitting;
   const { dialogProps } = useLeavePageGuard({
     isDirty: shouldWarnOnNavigate,
     onDiscard: () => {
-      discardCreateChanges();
       discardEditChanges();
     },
   });
@@ -206,55 +159,6 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       hour12: true,
       timeZone: line.timezone,
     });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (disabled) return;
-
-    setIsSubmitting(true);
-    setError(null);
-
-    if (!date || !time || !message.trim()) {
-      setError('Please fill in all fields');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Validate weekly frequency has at least one day selected
-    if (isRecurring && frequency === 'weekly' && selectedDays.length === 0) {
-      setError('Please select at least one day of the week');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Combine date and time
-    const dueAt = new Date(`${date}T${time}:00`);
-
-    const result = await createReminder({
-      lineId: line.id,
-      dueAt: dueAt.toISOString(),
-      message: message.trim(),
-      timezone: line.timezone,
-      recurrence: isRecurring ? {
-        frequency,
-        interval: frequency === 'custom' ? interval : undefined,
-        daysOfWeek: frequency === 'weekly' ? selectedDays : undefined,
-        dayOfMonth: frequency === 'monthly' ? dayOfMonth : undefined,
-        endsAt: hasEndDate && endDate ? new Date(endDate).toISOString() : undefined,
-      } : undefined,
-    });
-
-    setIsSubmitting(false);
-
-    if (result.success) {
-      toast.success('Reminder created');
-      setShowForm(false);
-      resetCreateForm();
-      router.refresh();
-    } else {
-      setError(result.error.message || 'Failed to create reminder');
-    }
   };
 
   const handleSkip = async (reminderId: string) => {
@@ -461,9 +365,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
           </div>
         </div>
 
-        {!showForm && !disabled && (
+        {!disabled && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
           >
             <Plus className="w-4 h-4" />
@@ -476,201 +380,6 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
         <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
-        </div>
-      )}
-
-      {/* Create Reminder Form */}
-      {showForm && !disabled && (
-        <div className="mb-8 p-6 rounded-lg border border-input bg-card">
-          <h2 className="font-semibold text-lg mb-4">Create New Reminder</h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="reminder-message" className="block text-sm font-medium text-foreground mb-2">
-                Reminder Message
-              </label>
-              <textarea
-                id="reminder-message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="e.g., Time to take your afternoon medication"
-                rows={3}
-                maxLength={500}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {message.length}/500 characters
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  min={today}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Time ({line.timezone.split('/').pop()?.replace('_', ' ')})
-                </label>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-            </div>
-
-            {/* Recurrence Options */}
-            <div className="border-t border-input pt-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={isRecurring}
-                  onCheckedChange={(checked) => setIsRecurring(checked === true)}
-                />
-                <span className="text-sm font-medium">Repeat this reminder</span>
-              </label>
-
-              {isRecurring && (
-                <div className="mt-4 space-y-4 pl-6 border-l-2 border-muted">
-                  {/* Frequency selector */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">How often?</label>
-                    <Select value={frequency} onValueChange={(val) => setFrequency(val as RecurrenceFrequency)}>
-                      <SelectTrigger className="w-full py-3">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="custom">Custom interval</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Custom interval */}
-                  {frequency === 'custom' && (
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Every how many days?</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={365}
-                        value={interval}
-                        onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
-                        className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                    </div>
-                  )}
-
-                  {/* Day of week selector for weekly */}
-                  {frequency === 'weekly' && (
-                    <div>
-                      <label className="block text-sm font-medium mb-2">On which days?</label>
-                      <div className="flex gap-2 flex-wrap">
-                        {DAY_NAMES.map((day, i) => (
-                          <button
-                            key={day}
-                            type="button"
-                            onClick={() => {
-                              setSelectedDays(prev =>
-                                prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i]
-                              );
-                            }}
-                            aria-pressed={selectedDays.includes(i)}
-                            className={`min-w-[44px] min-h-[44px] px-3 py-2 rounded-full text-sm font-medium transition-colors ${
-                              selectedDays.includes(i)
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                            }`}
-                          >
-                            {day}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Day of month for monthly */}
-                  {frequency === 'monthly' && (
-                    <div>
-                      <label className="block text-sm font-medium mb-2">On which day of the month?</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={31}
-                        value={dayOfMonth}
-                        onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
-                        className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                    </div>
-                  )}
-
-                  {/* Optional end date */}
-                  <div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={hasEndDate}
-                        onCheckedChange={(checked) => setHasEndDate(checked === true)}
-                      />
-                      <span className="text-sm">Set an end date</span>
-                    </label>
-                    {hasEndDate && (
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        min={date || today}
-                        className="mt-2 w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-muted/50 rounded-lg p-3 text-sm">
-              <p className="text-muted-foreground">
-                <strong className="text-foreground">Note:</strong> Reminder calls use 1 minute from your plan.
-                {isRecurring && ' Each occurrence counts as a separate call.'}
-                {!isRecurring && ' The AI will deliver your message and check if they have questions.'}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={discardCreateChanges}
-                className="w-full sm:flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
-              >
-                Discard changes
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || !message.trim() || !date || !time}
-                className="w-full sm:flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  'Creating...'
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    Create Reminder
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
         </div>
       )}
 
@@ -895,7 +604,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       )}
 
       {/* Empty State */}
-      {reminders.length === 0 && !showForm && (
+      {reminders.length === 0 && (
         <div className="text-center py-12">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
             <Bell className="w-8 h-8 text-muted-foreground" />
@@ -907,7 +616,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
           </p>
           {!disabled && (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -1032,6 +741,45 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
               </button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Reminder Modal */}
+      <Dialog
+        open={showCreateModal}
+        onOpenChange={(open) => {
+          if (!open) handleCloseCreateModal();
+        }}
+      >
+        <DialogContent
+          className="max-w-[468px] flex flex-col max-h-[85vh]"
+          overlayClassName="bg-black/50 backdrop-blur-none"
+        >
+          <div className="flex items-start justify-between gap-4 flex-shrink-0">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">Create Reminder</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Set up a new reminder for {line.display_name}
+              </DialogDescription>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCloseCreateModal}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <CreateReminderForm
+            lineId={line.id}
+            lineName={line.display_name}
+            timezone={line.timezone}
+            onSuccess={handleCloseCreateModal}
+            onCancel={handleCloseCreateModal}
+          />
         </DialogContent>
       </Dialog>
 

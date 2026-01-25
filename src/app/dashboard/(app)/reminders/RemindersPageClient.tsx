@@ -18,6 +18,7 @@ import {
 import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/reminders';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { AddReminderModal } from '~/components/ultaura/AddReminderModal';
 
 interface Reminder {
   reminderId: string;
@@ -106,6 +107,26 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
     reminderId: string;
     lineShortId: string;
   } | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [preselectedLineId, setPreselectedLineId] = useState<string | null>(null);
+
+  // Map LineRow to LineForReminderModal
+  const linesForModal = lines.map((line) => ({
+    id: line.id,
+    displayName: line.display_name,
+    timezone: line.timezone,
+    phoneE164: line.phone_e164,
+  }));
+
+  const handleOpenForLine = (lineId: string) => {
+    setPreselectedLineId(lineId);
+    setShowAddModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setPreselectedLineId(null);
+  };
 
   // Group reminders by line
   const remindersByLine = reminders.reduce((acc, reminder) => {
@@ -168,22 +189,16 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Add Reminder Buttons */}
+      {/* Add Reminder Button */}
       {!disabled && lines.length > 0 && (
-        <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="font-medium text-foreground mb-4">Add a new reminder</h2>
-          <div className="flex flex-wrap gap-3">
-            {lines.map((line) => (
-              <Link
-                key={line.id}
-                href={`/dashboard/lines/${line.short_id}/reminders`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add for {line.display_name}
-              </Link>
-            ))}
-          </div>
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Reminder
+          </button>
         </div>
       )}
 
@@ -243,13 +258,15 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                     <div className="px-6 py-8 text-center">
                       <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No reminders set up yet</p>
-                      <Link
-                        href={`/dashboard/lines/${line.short_id}/reminders`}
-                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Create your first reminder
-                      </Link>
+                      {!disabled && (
+                        <button
+                          onClick={() => handleOpenForLine(line.id)}
+                          className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Create your first reminder
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -314,6 +331,13 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
         confirmLabel="Cancel Reminder"
         variant="destructive"
         onConfirm={handleCancelReminder}
+      />
+
+      <AddReminderModal
+        open={showAddModal}
+        onOpenChange={handleCloseModal}
+        lines={linesForModal}
+        preselectedLineId={preselectedLineId}
       />
     </div>
   );
