@@ -8,7 +8,6 @@ import type {
   MoodCalendarData,
   ConversationHighlightsData,
   MemoryActivityData,
-  RelationshipIndicatorsData,
   RelationshipRow,
 } from '~/lib/ultaura/types';
 import type { StoryArc, SegmentStats, CallPreview } from '~/lib/ultaura/types/retention';
@@ -23,7 +22,6 @@ import { EmotionalTrends } from './components/EmotionalTrends';
 import { MoodCalendar } from './components/MoodCalendar';
 import { ConversationHighlights } from './components/ConversationHighlights';
 import { MemoryActivity } from './components/MemoryActivity';
-import { RelationshipIndicators } from './components/RelationshipIndicators';
 import { Relationships } from './components/Relationships';
 import { EngagementFeatures } from './components/EngagementFeatures';
 
@@ -41,6 +39,7 @@ interface SafetyEvent {
   occurredAt: string;
   severity: 'low' | 'medium' | 'high';
   actionTaken: string | null;
+  eventType: string | null;
 }
 
 interface InsightsPageClientProps {
@@ -51,7 +50,6 @@ interface InsightsPageClientProps {
   moodCalendar: MoodCalendarData | null;
   conversationHighlights: ConversationHighlightsData | null;
   memoryActivity: MemoryActivityData | null;
-  relationshipIndicators: RelationshipIndicatorsData | null;
   relationships: RelationshipRow[];
   safetyEvents: SafetyEvent[];
   callPreviews: CallPreview[];
@@ -144,9 +142,14 @@ function SafetyAlertsCard({
                     {event.severity} alert
                   </span>
                 </div>
-                {actionLabel ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Action: {actionLabel}</p>
-                ) : null}
+                {event.eventType && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Type: {event.eventType.replace(/_/g, ' ')}
+                  </p>
+                )}
+                {actionLabel && (
+                  <p className="mt-1 text-xs text-muted-foreground">Action: {actionLabel}</p>
+                )}
               </div>
             );
           })}
@@ -164,7 +167,6 @@ export function InsightsPageClient({
   moodCalendar,
   conversationHighlights,
   memoryActivity,
-  relationshipIndicators,
   relationships,
   safetyEvents,
   callPreviews,
@@ -339,27 +341,16 @@ export function InsightsPageClient({
         )}
       </div>
 
-      {/* Relationship Indicators and Relationships */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {allowConcerns && relationshipIndicators ? (
-          <RelationshipIndicators data={relationshipIndicators} timezone={timezone} />
-        ) : (
-          <TierGateNotice
-            title="Relationship indicators"
-            requiredTier="tier_4"
-            lineName={lineName}
-          />
-        )}
-        {allowConcerns ? (
-          <Relationships relationships={relationships} timezone={timezone} />
-        ) : (
-          <TierGateNotice
-            title="Relationships"
-            requiredTier="tier_4"
-            lineName={lineName}
-          />
-        )}
-      </div>
+      {/* Relationships */}
+      {allowConcerns ? (
+        <Relationships relationships={relationships} timezone={timezone} />
+      ) : (
+        <TierGateNotice
+          title="Relationships"
+          requiredTier="tier_4"
+          lineName={lineName}
+        />
+      )}
 
       {/* Engagement - always shown */}
       {segmentStats && (

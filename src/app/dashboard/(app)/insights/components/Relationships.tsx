@@ -23,32 +23,45 @@ export function Relationships({ relationships, timezone }: RelationshipsProps) {
       {relationships.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">No relationships recorded yet.</p>
       ) : (
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 divide-y divide-border/40">
           {relationships.map((relationship) => (
             <div
               key={relationship.id}
-              className="rounded-lg border border-border/60 bg-muted/20 p-4"
+              className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex items-center gap-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">
                     {relationship.name}
-                    {relationship.nickname ? ` ("${relationship.nickname}")` : ''}
+                    {relationship.nickname && (
+                      <span className="ml-1.5 font-normal text-muted-foreground">
+                        "{relationship.nickname}"
+                      </span>
+                    )}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {relationship.relation_role} - {relationship.relation_type}
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Last mentioned{' '}
+                    {formatLastMentioned(relationship.last_mentioned_at, timezone)}
                   </p>
                 </div>
-                {relationship.is_deceased ? (
-                  <span className="text-xs text-destructive">Deceased</span>
-                ) : null}
               </div>
-
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                <span>Contact: {relationship.contact_frequency ?? 'unknown'}</span>
-                <span>Sentiment: {relationship.sentiment ?? 'neutral'}</span>
-                <span>Mentions: {relationship.times_mentioned ?? 0}</span>
-                <span>Last mentioned {formatLastMentioned(relationship.last_mentioned_at, timezone)}</span>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                {relationship.is_deceased && (
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">
+                    Deceased
+                  </span>
+                )}
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {relationship.relation_role}
+                </span>
+                {relationship.contact_frequency && (
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {relationship.contact_frequency}
+                  </span>
+                )}
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                  {relationship.times_mentioned ?? 0} mentions
+                </span>
               </div>
             </div>
           ))}

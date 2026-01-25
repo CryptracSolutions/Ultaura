@@ -13,7 +13,6 @@ import {
   getMoodCalendar,
   getConversationHighlights,
   getMemoryActivity,
-  getRelationshipIndicators,
   getSafetyEvents,
 } from '~/lib/ultaura/insights';
 import {
@@ -133,7 +132,6 @@ export default async function InsightsLinePage({ params }: PageProps) {
     moodCalendar,
     conversationHighlights,
     memoryActivity,
-    relationshipIndicators,
     relationships,
     safetyEvents,
     callPreviews,
@@ -145,7 +143,6 @@ export default async function InsightsLinePage({ params }: PageProps) {
     getMoodCalendar(selectedLine.id, monthKey),
     getConversationHighlights(selectedLine.id, 10),
     getMemoryActivity(selectedLine.id, 20),
-    getRelationshipIndicators(selectedLine.id),
     getRelationships(selectedLine.id),
     getSafetyEvents(selectedLine.id, { includeAllTiers: true, limit: 10 }),
     getCallPreviewHistory(selectedLine.id, 10),
@@ -174,7 +171,6 @@ export default async function InsightsLinePage({ params }: PageProps) {
             moodCalendar={moodCalendar}
             conversationHighlights={conversationHighlights}
             memoryActivity={memoryActivity}
-            relationshipIndicators={relationshipIndicators}
             relationships={relationships}
             safetyEvents={safetyEvents}
             callPreviews={callPreviews}

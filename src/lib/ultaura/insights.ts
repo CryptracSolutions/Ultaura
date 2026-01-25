@@ -1466,7 +1466,7 @@ export async function getMoodCalendar(
 export async function getSafetyEvents(
   lineId: string,
   options?: { limit?: number; includeAllTiers?: boolean }
-): Promise<Array<{ id: string; occurredAt: string; severity: 'low' | 'medium' | 'high'; actionTaken: string | null }>> {
+): Promise<Array<{ id: string; occurredAt: string; severity: 'low' | 'medium' | 'high'; actionTaken: string | null; eventType: string | null }>> {
   const line = await getAuthorizedLine(lineId);
   if (!line) {
     return [];
@@ -1476,7 +1476,7 @@ export async function getSafetyEvents(
   const limit = options?.limit ?? 10;
   let query = client
     .from('ultaura_safety_events')
-    .select('id, tier, action_taken, created_at')
+    .select('id, tier, action_taken, created_at, signals')
     .eq('line_id', lineId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -1493,12 +1493,17 @@ export async function getSafetyEvents(
     return [];
   }
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    occurredAt: row.created_at,
-    severity: row.tier as 'low' | 'medium' | 'high',
-    actionTaken: row.action_taken ?? null,
-  }));
+  return (data ?? []).map((row) => {
+    const signals = row.signals as Record<string, unknown> | null;
+    const eventType = typeof signals?.type === 'string' ? signals.type : null;
+    return {
+      id: row.id,
+      occurredAt: row.created_at,
+      severity: row.tier as 'low' | 'medium' | 'high',
+      actionTaken: row.action_taken ?? null,
+      eventType,
+    };
+  });
 }
 
 export async function getConversationHighlights(
