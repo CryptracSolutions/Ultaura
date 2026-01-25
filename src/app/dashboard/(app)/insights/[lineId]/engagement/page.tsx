@@ -1,17 +1,22 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import AppHeader from '../../components/AppHeader';
+import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { getInsightsDashboard } from '~/lib/ultaura/insights';
+import {
+  getCallPreviewHistory,
+  getSegmentEngagementStats,
+  getStoryArcProgress,
+} from '~/lib/ultaura/retention';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
-import { InsightsPageHeader } from './components/InsightsPageHeader';
-import { OverviewTabContent } from './components/OverviewTabContent';
-import { computeTierAccess } from './components/tier-utils';
-import { loadInsightsPageData } from './loader';
+import { InsightsPageHeader } from '../components/InsightsPageHeader';
+import { EngagementTabContent } from '../components/EngagementTabContent';
+import { computeTierAccess } from '../components/tier-utils';
+import { loadInsightsPageData } from '../loader';
 
 export const metadata: Metadata = {
-  title: 'Insights - Ultaura',
+  title: 'Engagement - Insights - Ultaura',
 };
 
 interface PageProps {
@@ -20,7 +25,7 @@ interface PageProps {
   }>;
 }
 
-export default async function InsightsOverviewPage({ params }: PageProps) {
+export default async function InsightsEngagementPage({ params }: PageProps) {
   const { lineId } = await params;
   const loaderResult = await loadInsightsPageData(lineId);
 
@@ -55,8 +60,13 @@ export default async function InsightsOverviewPage({ params }: PageProps) {
     trialPlanName,
   } = loaderResult;
 
-  // Fetch dashboard data for Overview tab
-  const dashboard = await getInsightsDashboard(selectedLine.id);
+  // Fetch data needed for Engagement tab
+  const [dashboard, callPreviews, storyArcs, segmentStats] = await Promise.all([
+    getInsightsDashboard(selectedLine.id),
+    getCallPreviewHistory(selectedLine.id, 10),
+    getStoryArcProgress(selectedLine.id),
+    getSegmentEngagementStats(selectedLine.id),
+  ]);
 
   // Compute tier access
   const tierAccess = computeTierAccess(
@@ -82,7 +92,14 @@ export default async function InsightsOverviewPage({ params }: PageProps) {
             currentLineShortId={selectedLine.short_id}
           />
 
-          <OverviewTabContent dashboard={dashboard} tierAccess={tierAccess} />
+          <EngagementTabContent
+            dashboard={dashboard}
+            callPreviews={callPreviews}
+            storyArcs={storyArcs}
+            segmentStats={segmentStats}
+            timezone={selectedLine.timezone}
+            tierAccess={tierAccess}
+          />
         </div>
       </PageBody>
     </>

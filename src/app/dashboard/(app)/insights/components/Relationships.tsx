@@ -35,7 +35,7 @@ export function Relationships({ relationships, timezone }: RelationshipsProps) {
                     {relationship.name}
                     {relationship.nickname && (
                       <span className="ml-1.5 font-normal text-muted-foreground">
-                        "{relationship.nickname}"
+                        &ldquo;{relationship.nickname}&rdquo;
                       </span>
                     )}
                   </p>

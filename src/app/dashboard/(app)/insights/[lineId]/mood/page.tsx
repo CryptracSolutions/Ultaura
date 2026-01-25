@@ -1,17 +1,22 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import AppHeader from '../../components/AppHeader';
+import { DateTime } from 'luxon';
+import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
-import { getInsightsDashboard } from '~/lib/ultaura/insights';
+import {
+  getInsightsDashboard,
+  getEmotionalTrends,
+  getMoodCalendar,
+} from '~/lib/ultaura/insights';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
-import { InsightsPageHeader } from './components/InsightsPageHeader';
-import { OverviewTabContent } from './components/OverviewTabContent';
-import { computeTierAccess } from './components/tier-utils';
-import { loadInsightsPageData } from './loader';
+import { InsightsPageHeader } from '../components/InsightsPageHeader';
+import { MoodTabContent } from '../components/MoodTabContent';
+import { computeTierAccess } from '../components/tier-utils';
+import { loadInsightsPageData } from '../loader';
 
 export const metadata: Metadata = {
-  title: 'Insights - Ultaura',
+  title: 'Mood & Wellness - Insights - Ultaura',
 };
 
 interface PageProps {
@@ -20,7 +25,7 @@ interface PageProps {
   }>;
 }
 
-export default async function InsightsOverviewPage({ params }: PageProps) {
+export default async function InsightsMoodPage({ params }: PageProps) {
   const { lineId } = await params;
   const loaderResult = await loadInsightsPageData(lineId);
 
@@ -55,8 +60,14 @@ export default async function InsightsOverviewPage({ params }: PageProps) {
     trialPlanName,
   } = loaderResult;
 
-  // Fetch dashboard data for Overview tab
-  const dashboard = await getInsightsDashboard(selectedLine.id);
+  // Fetch data needed for Mood tab
+  const monthKey = DateTime.now().setZone(selectedLine.timezone).toFormat('yyyy-MM');
+
+  const [dashboard, emotionalTrends, moodCalendar] = await Promise.all([
+    getInsightsDashboard(selectedLine.id),
+    getEmotionalTrends(selectedLine.id),
+    getMoodCalendar(selectedLine.id, monthKey),
+  ]);
 
   // Compute tier access
   const tierAccess = computeTierAccess(
@@ -82,7 +93,13 @@ export default async function InsightsOverviewPage({ params }: PageProps) {
             currentLineShortId={selectedLine.short_id}
           />
 
-          <OverviewTabContent dashboard={dashboard} tierAccess={tierAccess} />
+          <MoodTabContent
+            dashboard={dashboard}
+            emotionalTrends={emotionalTrends}
+            moodCalendar={moodCalendar}
+            timezone={selectedLine.timezone}
+            tierAccess={tierAccess}
+          />
         </div>
       </PageBody>
     </>

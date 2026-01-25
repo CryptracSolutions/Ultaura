@@ -154,7 +154,7 @@ function CallPreviewCard({ preview, timezone }: { preview: CallPreview; timezone
       </div>
       {preview.followThroughResponse && (
         <p className="mt-2 text-xs text-muted-foreground italic">
-          "{preview.followThroughResponse}"
+          &ldquo;{preview.followThroughResponse}&rdquo;
         </p>
       )}
     </div>

@@ -399,18 +399,18 @@ async function main() {
   const dek = await getOrCreateAccountDEK();
   console.log('Got account encryption key');
 
+  // Set account to family_managed mode (applies to all lines)
+  await supabase
+    .from('ultaura_accounts')
+    .update({ user_type: 'family_managed' })
+    .eq('id', ACCOUNT_ID);
+  console.log('Set account user_type to family_managed');
+
   // ============================================
-  // LINE 1: Margaret Johnson (Self-managed)
+  // LINE 1: Margaret Johnson (No consent - tier_1 only)
   // ============================================
   const line1Id = crypto.randomUUID();
   const line1ShortId = generateShortId();
-
-  // Set account to self mode for first line
-  await supabase
-    .from('ultaura_accounts')
-    .update({ user_type: 'self' })
-    .eq('id', ACCOUNT_ID);
-  console.log('Set account user_type to self for line 1');
 
   const { error: line1Error } = await supabase.from('ultaura_lines').insert({
     id: line1Id,
@@ -431,7 +431,7 @@ async function main() {
     console.error('Error creating line 1:', line1Error);
     return;
   }
-  console.log(`Created line 1: ${line1ShortId} (Margaret Johnson - Self)`);
+  console.log(`Created line 1: ${line1ShortId} (Margaret Johnson - No consent, tier_1 only)`);
 
   // Create insight privacy (enabled)
   await supabase.from('ultaura_insight_privacy').upsert({
@@ -439,7 +439,10 @@ async function main() {
     insights_enabled: true,
     is_paused: false,
   });
-  console.log('Created insight privacy for line 1');
+
+  // Line 1 has NO consent granted - will default to tier_1 (locked gates for tier_2+)
+  // The ultaura_line_voice_consent row is created by RLS trigger with defaults
+  console.log('Created insight privacy for line 1 (no sharing consent)');
 
   // Seed Line 1 data
   const line1Relationships = [
@@ -471,20 +474,13 @@ async function main() {
     line1Memories,
     22
   );
-  console.log('Seeded data for line 1 (Margaret Johnson - Self)');
+  console.log('Seeded data for line 1 (Margaret Johnson - No consent)');
 
   // ============================================
-  // LINE 2: Eleanor Davis (Family-managed)
+  // LINE 2: Eleanor Davis (tier_4 consent)
   // ============================================
   const line2Id = crypto.randomUUID();
   const line2ShortId = generateShortId();
-
-  // Set account to family_managed mode for second line
-  await supabase
-    .from('ultaura_accounts')
-    .update({ user_type: 'family_managed' })
-    .eq('id', ACCOUNT_ID);
-  console.log('Set account user_type to family_managed for line 2');
 
   const { error: line2Error } = await supabase.from('ultaura_lines').insert({
     id: line2Id,
@@ -505,7 +501,7 @@ async function main() {
     console.error('Error creating line 2:', line2Error);
     return;
   }
-  console.log(`Created line 2: ${line2ShortId} (Eleanor Davis - Family Managed)`);
+  console.log(`Created line 2: ${line2ShortId} (Eleanor Davis - tier_4 consent)`);
 
   // Create insight privacy (enabled)
   await supabase.from('ultaura_insight_privacy').upsert({
@@ -551,15 +547,15 @@ async function main() {
     line2Memories,
     18
   );
-  console.log('Seeded data for line 2 (Eleanor Davis - Family Managed)');
+  console.log('Seeded data for line 2 (Eleanor Davis - tier_4 consent)');
 
   console.log('\n✅ Seed complete!');
-  console.log('\n📋 Created Lines:');
-  console.log(`  1. Margaret Johnson (${line1ShortId}) - Self-managed mode`);
+  console.log('\n📋 Created Lines (family_managed account):');
+  console.log(`  1. Margaret Johnson (${line1ShortId}) - NO consent (tier_1 only, locked gates)`);
   console.log(`     View: http://localhost:3000/dashboard/insights/${line1ShortId}`);
-  console.log(`  2. Eleanor Davis (${line2ShortId}) - Family-managed mode (tier_4 consent)`);
+  console.log(`  2. Eleanor Davis (${line2ShortId}) - tier_4 consent (full access)`);
   console.log(`     View: http://localhost:3000/dashboard/insights/${line2ShortId}`);
-  console.log('\nNote: Account is now set to family_managed mode.');
+  console.log('\nUse Margaret to test locked tier gates, Eleanor to see all content.');
 }
 
 main().catch(console.error);

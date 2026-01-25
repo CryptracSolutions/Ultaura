@@ -1,17 +1,18 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import AppHeader from '../../components/AppHeader';
+import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { getInsightsDashboard } from '~/lib/ultaura/insights';
+import { getRelationships } from '~/lib/ultaura/relationships';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
-import { InsightsPageHeader } from './components/InsightsPageHeader';
-import { OverviewTabContent } from './components/OverviewTabContent';
-import { computeTierAccess } from './components/tier-utils';
-import { loadInsightsPageData } from './loader';
+import { InsightsPageHeader } from '../components/InsightsPageHeader';
+import { RelationshipsTabContent } from '../components/RelationshipsTabContent';
+import { computeTierAccess } from '../components/tier-utils';
+import { loadInsightsPageData } from '../loader';
 
 export const metadata: Metadata = {
-  title: 'Insights - Ultaura',
+  title: 'Relationships - Insights - Ultaura',
 };
 
 interface PageProps {
@@ -20,7 +21,7 @@ interface PageProps {
   }>;
 }
 
-export default async function InsightsOverviewPage({ params }: PageProps) {
+export default async function InsightsRelationshipsPage({ params }: PageProps) {
   const { lineId } = await params;
   const loaderResult = await loadInsightsPageData(lineId);
 
@@ -55,8 +56,11 @@ export default async function InsightsOverviewPage({ params }: PageProps) {
     trialPlanName,
   } = loaderResult;
 
-  // Fetch dashboard data for Overview tab
-  const dashboard = await getInsightsDashboard(selectedLine.id);
+  // Fetch data needed for Relationships tab
+  const [dashboard, relationships] = await Promise.all([
+    getInsightsDashboard(selectedLine.id),
+    getRelationships(selectedLine.id),
+  ]);
 
   // Compute tier access
   const tierAccess = computeTierAccess(
@@ -82,7 +86,11 @@ export default async function InsightsOverviewPage({ params }: PageProps) {
             currentLineShortId={selectedLine.short_id}
           />
 
-          <OverviewTabContent dashboard={dashboard} tierAccess={tierAccess} />
+          <RelationshipsTabContent
+            relationships={relationships}
+            timezone={selectedLine.timezone}
+            tierAccess={tierAccess}
+          />
         </div>
       </PageBody>
     </>

@@ -774,7 +774,8 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
   const client = await getAdminClient();
   const gate = await getSharingGate(client, lineId, line.account_id);
 
-  if (!gate.canAccessNonSafety) {
+  // Only block if insights are disabled entirely
+  if (!gate.insightsEnabled) {
     return null;
   }
 
