@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
-import { ArrowLeft, Clock, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock } from 'lucide-react';
+import { Clock, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
@@ -615,15 +615,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
   };
 
   return (
-    <div className="w-full p-6 pb-12">
-      <Link
-        href={`/dashboard/lines/${line.short_id}`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Line Details
-      </Link>
-
+    <div className="w-full">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

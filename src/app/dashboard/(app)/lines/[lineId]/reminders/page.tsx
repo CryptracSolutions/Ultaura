@@ -5,12 +5,11 @@ import { getLine } from '~/lib/ultaura/lines';
 import { getReminders } from '~/lib/ultaura/reminders';
 import { RemindersClient } from './RemindersClient';
 import { isUUID } from '~/lib/ultaura/short-id';
-import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
-import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
+import { LinePageHeader } from '../components/LinePageHeader';
 
 export const metadata: Metadata = {
   title: 'Reminders - Ultaura',
@@ -42,27 +41,24 @@ export default async function RemindersPage({ params }: PageProps) {
   ]);
 
   const isTrialExpired = trialInfo?.isExpired ?? false;
-  const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
   const trialPlanId = trialInfo?.trialPlanId ?? null;
   const trialPlanKey = (trialPlanId ?? 'free_trial') as PlanId;
   const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
 
   return (
-    <>
-      <AppHeader
-        title={`Reminders for ${line.display_name}`}
-        description="Set up helpful reminders for any routine, task, or event"
-      >
-        {isTrialActive && trialInfo ? (
-          <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />
-        ) : null}
-      </AppHeader>
-      <PageBody>
-        <div className="space-y-6">
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <RemindersClient line={line} reminders={reminders} disabled={isTrialExpired} />
-        </div>
-      </PageBody>
-    </>
+    <PageBody>
+      <div className="space-y-6">
+        <LinePageHeader
+          lineName={line.display_name}
+          lineShortId={line.short_id}
+          phoneE164={line.phone_e164}
+          timezone={line.timezone}
+          status={line.status}
+          isVerified={!!line.phone_verified_at}
+        />
+        {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+        <RemindersClient line={line} reminders={reminders} disabled={isTrialExpired} />
+      </div>
+    </PageBody>
   );
 }

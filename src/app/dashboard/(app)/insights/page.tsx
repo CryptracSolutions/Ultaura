@@ -1,27 +1,19 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount, getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
-import { getInsightsDashboard } from '~/lib/ultaura/insights';
 import type { LineRow } from '~/lib/ultaura/types';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
-import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
-import { InsightsPageClient } from './InsightsPageClient';
 
 export const metadata: Metadata = {
   title: 'Insights - Ultaura',
 };
-
-interface PageProps {
-  searchParams?: {
-    line?: string;
-  };
-}
 
 type LineOption = LineRow & {
   insights_enabled: boolean;
@@ -36,7 +28,7 @@ function getDefaultLine(lines: LineOption[]): LineOption | null {
   return activeWithInsights[0] || activeLines[0] || lines[0];
 }
 
-export default async function InsightsPage({ searchParams }: PageProps) {
+export default async function InsightsPage() {
   const appData = await loadAppDataForUser();
   const organizationId = appData.organization?.id;
 
@@ -111,6 +103,7 @@ export default async function InsightsPage({ searchParams }: PageProps) {
     );
   }
 
+  // Get privacy settings to determine default line
   const supabase = getSupabaseServerComponentClient();
   const lineIds = lines.map((line) => line.id);
   const { data: privacyRows } = lineIds.length
@@ -130,30 +123,18 @@ export default async function InsightsPage({ searchParams }: PageProps) {
     insights_enabled: privacyMap.get(line.id) ?? true,
   }));
 
-  const requestedLine = searchParams?.line?.trim();
-  const selectedLine =
-    lineOptions.find(
-      (line) => line.short_id === requestedLine || line.id === requestedLine,
-    ) || getDefaultLine(lineOptions);
+  const defaultLine = getDefaultLine(lineOptions);
 
-  const dashboard = selectedLine ? await getInsightsDashboard(selectedLine.id) : null;
+  if (defaultLine) {
+    redirect(`/dashboard/insights/${defaultLine.short_id}`);
+  }
 
+  // Fallback (shouldn't reach here if lines.length > 0)
   return (
     <>
-      <AppHeader title="Insights" description="Weekly insights without transcripts">
-        {isTrialActive && trialInfo ? (
-          <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />
-        ) : null}
-      </AppHeader>
+      <AppHeader title="Insights" description="Weekly insights without transcripts" />
       <PageBody>
-        <div className="space-y-6 pb-12">
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <InsightsPageClient
-            lines={lineOptions}
-            selectedLineId={selectedLine?.id ?? null}
-            dashboard={dashboard}
-          />
-        </div>
+        <p className="text-muted-foreground">No lines available.</p>
       </PageBody>
     </>
   );

@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Bell, Plus, Clock, X, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
+import { Bell, Plus, Clock, X, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
@@ -342,15 +341,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   const pastReminders = reminders.filter(r => r.status !== 'scheduled');
 
   return (
-    <div className="w-full p-6 pb-12">
-      <Link
-        href={`/dashboard/lines/${line.short_id}`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Line Details
-      </Link>
-
+    <div className="w-full pb-12">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
-  ArrowLeft,
   Globe,
   Languages,
   Clock,
@@ -1281,19 +1280,6 @@ export function SettingsClient({
 
   return (
     <div className="flex flex-col gap-6 pb-24">
-      <Link
-        href={`/dashboard/lines/${line.short_id}`}
-        onClick={(event) =>
-          handleExitNavigation(event, `/dashboard/lines/${line.short_id}`, {
-            scroll: true,
-          })
-        }
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to {line.display_name}
-      </Link>
-
       {error && (
         <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive">
           {error}
