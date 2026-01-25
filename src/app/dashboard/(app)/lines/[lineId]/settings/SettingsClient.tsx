@@ -174,6 +174,19 @@ export function SettingsClient({
   const [vacationRanges, setVacationRanges] = useState<VacationRange[]>(
     initialVacationRanges
   );
+  const effectiveTimezone = timezone || line.timezone || '';
+  const timezoneOptions = useMemo(() => {
+    if (!line.timezone || US_TIMEZONES.some((tz) => tz.value === line.timezone)) {
+      return US_TIMEZONES;
+    }
+
+    return [{ value: line.timezone, label: line.timezone }, ...US_TIMEZONES];
+  }, [line.timezone]);
+  useEffect(() => {
+    if (!timezone && line.timezone) {
+      setTimezone(line.timezone);
+    }
+  }, [line.timezone, timezone]);
 
   const accessibilityDefaults = {
     hearing_mode: accessibilitySettings?.hearing_mode ?? 'normal',
@@ -301,7 +314,7 @@ export function SettingsClient({
     try {
       if (hasLineChanges) {
         const result = await updateLine(line.id, {
-          timezone,
+          timezone: effectiveTimezone,
           quietHoursStart: normalizeTimeValue(quietHoursStart),
           quietHoursEnd: normalizeTimeValue(quietHoursEnd),
           allowVoiceReminderControl,
@@ -402,7 +415,7 @@ export function SettingsClient({
     [...ranges].map((range) => `${range.start}|${range.end}`).sort().join('|');
 
   const hasLineChanges =
-    timezone !== line.timezone ||
+    effectiveTimezone !== line.timezone ||
     quietHoursStart !== line.quiet_hours_start ||
     quietHoursEnd !== line.quiet_hours_end ||
     preferredLanguage !== (line.preferred_language_iso ?? null) ||
@@ -670,12 +683,12 @@ export function SettingsClient({
                   description="All call times and quiet hours use this timezone."
                 />
                 <SectionBody className="gap-4">
-                  <Select value={timezone} onValueChange={setTimezone}>
+                  <Select value={effectiveTimezone} onValueChange={setTimezone}>
                     <SelectTrigger className="w-full py-3" disabled={disabled}>
-                      <SelectValue />
+                      <SelectValue placeholder="Select a timezone" />
                     </SelectTrigger>
                     <SelectContent>
-                      {US_TIMEZONES.map((tz) => (
+                      {timezoneOptions.map((tz) => (
                         <SelectItem key={tz.value} value={tz.value}>
                           {tz.label}
                         </SelectItem>
