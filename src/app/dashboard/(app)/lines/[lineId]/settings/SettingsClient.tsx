@@ -179,7 +179,9 @@ export function SettingsClient({
   const normalizeLanguageValue = (value: string | null | undefined) => {
     if (!value) return null;
     const normalized = value.trim().toLowerCase();
-    if (!normalized || normalized === 'auto') return null;
+    if (!normalized || normalized === 'auto' || normalized === 'auto-detect' || normalized === 'auto_detect') {
+      return null;
+    }
     const normalizedHyphen = normalized.replace('_', '-');
     return normalizedHyphen.includes('-')
       ? normalizedHyphen.split('-')[0]
@@ -930,7 +932,7 @@ export function SettingsClient({
                     disabled={disabled}
                   >
                     <SelectTrigger className="w-full py-3">
-                      <SelectValue />
+                      <SelectValue aria-label={selectedLabel}>{selectedLabel}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {showUnsupported && preferredLanguage ? (

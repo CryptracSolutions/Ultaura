@@ -140,8 +140,11 @@ export function LineCard({
               <Phone className={`w-6 h-6 ${getIconColorClass()}`} />
             </div>
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-semibold text-foreground">{line.display_name}</h3>
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className="min-w-0 flex-1 font-semibold text-foreground truncate">
+                  {line.display_name}
+                </h3>
+                <div className="shrink-0">{getStatusBadge()}</div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {callBadge && (
@@ -161,7 +164,6 @@ export function LineCard({
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  {getStatusBadge()}
                   <span className="inline-flex items-center gap-1">
                     <CheckCircle className={`w-3 h-3 ${isVerified ? 'text-primary' : 'text-muted-foreground/60'}`} />
                     <span>{formattedPhone}</span>
