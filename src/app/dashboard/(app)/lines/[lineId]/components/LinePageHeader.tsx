@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Phone, CheckCircle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { LineTabNav } from './LineTabNav';
 
 interface LinePageHeaderProps {
@@ -13,28 +13,7 @@ interface LinePageHeaderProps {
   isVerified: boolean;
 }
 
-function formatPhone(e164: string) {
-  const digits = e164.replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  }
-  return e164;
-}
-
-function getStatusBadgeClass(status: string): string {
-  if (status === 'active') return 'bg-success/10 text-success';
-  if (status === 'paused') return 'bg-warning/10 text-warning';
-  return 'bg-muted text-muted-foreground';
-}
-
-export function LinePageHeader({
-  lineName,
-  lineShortId,
-  phoneE164,
-  timezone,
-  status,
-  isVerified,
-}: LinePageHeaderProps) {
+export function LinePageHeader({ lineName, lineShortId }: LinePageHeaderProps) {
   return (
     <div className="mb-6">
       {/* Back link */}
@@ -50,26 +29,6 @@ export function LinePageHeader({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{lineName}</h1>
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            {/* Phone + Verified combined pill */}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground">
-              <Phone className="w-3.5 h-3.5" />
-              <span>{formatPhone(phoneE164)}</span>
-              {isVerified && (
-                <CheckCircle className="w-3.5 h-3.5 text-success" />
-              )}
-            </span>
-            {/* Timezone pill */}
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground">
-              {timezone}
-            </span>
-            {/* Status pill */}
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(status)}`}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </span>
-          </div>
         </div>
       </div>
 

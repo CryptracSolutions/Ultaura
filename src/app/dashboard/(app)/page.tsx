@@ -348,12 +348,6 @@ async function DashboardPage() {
               <h2 className="text-base font-semibold text-foreground">
                 Recent call activity
               </h2>
-              <Link
-                href="/dashboard/lines?action=add"
-                className="text-sm text-primary hover:underline"
-              >
-                Open a line
-              </Link>
             </div>
 
             {recent.length === 0 ? (

@@ -8,18 +8,15 @@ import {
   Phone,
   PhoneCall,
   MoreVertical,
-  Calendar,
   Clock,
   ShieldCheck,
-  Play,
-  Pause,
   AlertTriangle,
   Trash2,
   Palmtree,
+  CheckCircle,
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
-import { formatDistanceToNow } from 'date-fns';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 interface LineCardProps {
@@ -86,7 +83,7 @@ export function LineCard({
     }
     if (isActive) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
           Active
         </span>
       );
@@ -120,51 +117,65 @@ export function LineCard({
 
   // Determine link destination based on verification status
   const shortId = line.short_id;
-  const linkHref = isVerified
-    ? `/dashboard/lines/${shortId}`
-    : `/dashboard/lines/${shortId}/verify`;
+  const linkHref = `/dashboard/lines/${shortId}`;
 
   return (
     <div
-      className={`bg-card rounded-xl border shadow-sm hover:shadow-md transition-all relative ${
+      className={`bg-card rounded-xl border shadow-sm hover:shadow-md transition-all relative flex flex-col cursor-pointer ${
         !isVerified ? 'border-warning/50' : isOptedOut || isDisabled ? 'border-destructive/50' : 'border-border'
       }`}
     >
       {/* Clickable card link - covers the main area */}
       <Link
         href={linkHref}
-        className="absolute inset-0 z-0 rounded-xl"
+        className="absolute inset-0 z-10 rounded-xl"
         aria-label={`View ${line.display_name}`}
       />
 
       {/* Header */}
-      <div className={`relative ${isMenuOpen ? 'z-50' : 'z-10'} p-6 pb-0`}>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4 pointer-events-none">
+      <div className={`relative ${isMenuOpen ? 'z-50' : 'z-10'} p-6 pointer-events-none`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
             <div className={`w-12 h-12 rounded-full ${getIconBgClass()} flex items-center justify-center`}>
               <Phone className={`w-6 h-6 ${getIconColorClass()}`} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold text-foreground">{line.display_name}</h3>
-                {getStatusBadge()}
-                {isOnVacation && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                    <Palmtree className="w-3 h-3 mr-1" />
-                    Vacation
-                  </span>
-                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 {callBadge && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${callBadge.className}`}>
-                    <PhoneCall className="w-3 h-3 mr-1" />
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${callBadge.className}`}
+                  >
+                    <PhoneCall className="w-3 h-3" />
                     {callBadge.label}
                   </span>
                 )}
+                {isOnVacation && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    <Palmtree className="w-3 h-3" />
+                    Vacation
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-muted-foreground">{formattedPhone}</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  {getStatusBadge()}
+                  <span className="inline-flex items-center gap-1">
+                    <CheckCircle className={`w-3 h-3 ${isVerified ? 'text-primary' : 'text-muted-foreground/60'}`} />
+                    <span>{formattedPhone}</span>
+                  </span>
+                  <span className="text-border">•</span>
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-primary" />
+                    <span>{formatTimezone(line.timezone)}</span>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="relative">
+          <div className="relative pointer-events-auto">
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -174,7 +185,7 @@ export function LineCard({
               }}
               className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto"
             >
-              <MoreVertical className="w-5 h-5 text-muted-foreground" />
+              <MoreVertical className="w-5 h-5 text-primary" />
             </button>
             {isMenuOpen && (
               <>
@@ -191,14 +202,14 @@ export function LineCard({
                 >
                   <Link
                     href={`/dashboard/lines/${shortId}`}
-                    className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors rounded-t-lg"
+                    className="block px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors rounded-t-lg"
                     onClick={(e) => e.stopPropagation()}
                   >
                     View Details
                   </Link>
                   <Link
                     href={`/dashboard/lines/${shortId}/settings`}
-                    className="block px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    className="block px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Settings
@@ -234,38 +245,6 @@ export function LineCard({
           >
             <ShieldCheck className="w-4 h-4" />
             Verify Phone Number
-          </div>
-        </div>
-      )}
-
-      {/* Call Info */}
-      {isVerified && (
-        <div className="relative z-10 px-6 pb-6 pt-4 pointer-events-none">
-          <div className="pt-4 border-t border-border">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  Last call
-                </p>
-                <p className="font-medium text-foreground">
-                  {line.last_successful_call_at
-                    ? formatDistanceToNow(new Date(line.last_successful_call_at), { addSuffix: true })
-                    : 'Never'}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  Next scheduled
-                </p>
-                <p className="font-medium text-foreground">
-                  {line.next_scheduled_call_at
-                    ? formatNextCall(line.next_scheduled_call_at)
-                    : 'Not scheduled'}
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -312,29 +291,6 @@ function formatPhoneNumber(e164: string): string {
   return e164;
 }
 
-function formatNextCall(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = date.getTime() - now.getTime();
-
-  if (diff < 0) {
-    return 'Soon';
-  }
-
-  if (diff < 24 * 60 * 60 * 1000) {
-    // Today
-    return `Today, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-  }
-
-  if (diff < 48 * 60 * 60 * 1000) {
-    // Tomorrow
-    return `Tomorrow, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-  }
-
-  // Other days
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+function formatTimezone(timezone: string): string {
+  return timezone.replace(/_/g, ' ');
 }
