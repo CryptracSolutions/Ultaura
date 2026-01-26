@@ -7,7 +7,7 @@ vi.mock('~/core/email/send-email', () => ({
   default: vi.fn().mockResolvedValue(undefined),
 }));
 
-const renderWeeklySummaryEmail = vi.fn(() => '<html></html>');
+const renderWeeklySummaryEmail = vi.fn<[WeeklySummaryData], string>(() => '<html></html>');
 vi.mock('~/lib/emails/weekly-summary', () => ({
   default: renderWeeklySummaryEmail,
 }));
