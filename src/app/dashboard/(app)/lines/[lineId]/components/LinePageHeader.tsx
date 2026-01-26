@@ -11,11 +11,12 @@ interface LinePageHeaderProps {
   timezone: string;
   status: string;
   isVerified: boolean;
+  actions?: React.ReactNode;
 }
 
-export function LinePageHeader({ lineName, lineShortId }: LinePageHeaderProps) {
+export function LinePageHeader({ lineName, lineShortId, actions }: LinePageHeaderProps) {
   return (
-    <div className="mb-6">
+    <div className="mb-6 pt-3 sm:pt-0">
       {/* Back link */}
       <Link
         href="/dashboard/lines"
@@ -30,6 +31,7 @@ export function LinePageHeader({ lineName, lineShortId }: LinePageHeaderProps) {
         <div>
           <h1 className="text-2xl font-bold text-foreground">{lineName}</h1>
         </div>
+        {actions ? <div className="w-full sm:w-auto">{actions}</div> : null}
       </div>
 
       {/* Tab navigation */}

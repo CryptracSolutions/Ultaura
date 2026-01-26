@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { cn } from '~/core/generic/shadcn-utils';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '~/core/ui/Dropdown';
 
 export const MAX_INTEREST_TOPICS = 5;
 
@@ -65,6 +73,7 @@ export function TopicPreferencesForm({
   avoidLabel = 'Topics to Avoid (optional)',
   showAvoidTopics = true,
 }: TopicPreferencesFormProps) {
+  const [isTopicsDropdownOpen, setIsTopicsDropdownOpen] = useState(false);
   const normalizeTopic = (topic: string) => topic.trim();
 
   const parseCustomTopics = useCallback(
@@ -109,30 +118,65 @@ export function TopicPreferencesForm({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {INTEREST_TOPIC_OPTIONS.map((topic) => {
-            const isSelected = selectedTopics.includes(topic);
-            const isDisabled = disabled || (!isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS);
+        <DropdownMenu open={isTopicsDropdownOpen} onOpenChange={setIsTopicsDropdownOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              disabled={disabled}
+              className={cn(
+                'flex h-10 w-full space-x-2 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+              )}
+            >
+              <span className="truncate text-foreground">
+                {selectedTopics.length > 0
+                  ? `${selectedTopics.length} selected`
+                  : 'Select topics'}
+              </span>
+              <ChevronDownIcon
+                className={cn(
+                  'h-4 text-muted-foreground transition-transform',
+                  isTopicsDropdownOpen ? 'rotate-180' : '',
+                )}
+              />
+            </button>
+          </DropdownMenuTrigger>
 
-            return (
-              <button
-                key={topic}
-                type="button"
-                onClick={() => toggleTopic(topic)}
-                disabled={isDisabled}
-                className={[
-                  'rounded-full border px-3 py-1 text-sm transition-colors',
-                  isSelected
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-background text-foreground hover:bg-muted',
-                  isDisabled ? 'opacity-50 cursor-not-allowed' : '',
-                ].join(' ')}
-              >
-                {topic}
-              </button>
-            );
-          })}
-        </div>
+          <DropdownMenuContent
+            sideOffset={6}
+            alignOffset={0}
+            className={cn(
+              // Ensure it renders above Dialog overlay/content (both z-50)
+              'z-[60]',
+              // Constrain within viewport, scroll internally
+              'max-h-[min(280px,var(--radix-dropdown-menu-content-available-height))] overflow-auto',
+              // Match trigger width as closely as possible
+              'min-w-[var(--radix-dropdown-menu-trigger-width)]',
+              // Make sure pointer events work inside modals
+              'pointer-events-auto',
+            )}
+          >
+            {INTEREST_TOPIC_OPTIONS.map((topic) => {
+              const isSelected = selectedTopics.includes(topic);
+              const isDisabled =
+                disabled || (!isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS);
+
+              return (
+                <DropdownMenuCheckboxItem
+                  key={topic}
+                  checked={isSelected}
+                  disabled={isDisabled}
+                  // Keep menu open for multi-select
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    toggleTopic(topic);
+                  }}
+                >
+                  <span className="truncate">{topic}</span>
+                </DropdownMenuCheckboxItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="space-y-1">
           <label className="block text-xs font-medium text-muted-foreground">

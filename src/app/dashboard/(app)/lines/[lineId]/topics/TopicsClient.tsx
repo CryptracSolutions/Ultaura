@@ -3,10 +3,10 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Pencil, X } from 'lucide-react';
+import { Pencil, Plus, X } from 'lucide-react';
+import Button from '~/core/ui/Button';
 import { updateLine } from '~/lib/ultaura/lines';
 import type { LineRow, UserType } from '~/lib/ultaura/types';
-import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   modalIconButtonClass,
@@ -48,6 +48,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
   const [avoidTopics, setAvoidTopics] = useState(storedAvoidTopics.join(', '));
 
   const canEdit = userType === 'family_managed';
+  const hasAnyTopics = storedEnjoyTopics.length > 0 || storedAvoidTopics.length > 0;
 
   const resetForm = useCallback(() => {
     setSelectedTopics(initialSelectedTopics);
@@ -105,84 +106,77 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
 
   return (
     <>
-      <Section>
-        <SectionHeader
-          title="Conversation Topics"
-          description={
-            canEdit
-              ? "Topics Ultaura uses to personalize conversations. These can also be updated by your loved one during calls."
-              : "Topics Ultaura uses to personalize your conversations. You can update these during calls."
-          }
-        />
-        <SectionBody className="gap-6">
-          {/* Topics They Enjoy */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="text-sm font-medium text-foreground">Topics They Enjoy</h3>
-              {canEdit && !disabled && (
-                <button
-                  type="button"
-                  onClick={handleOpenEdit}
-                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit
-                </button>
+      <div className="space-y-6 pb-12">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {canEdit
+              ? 'Topics Ultaura uses to personalize conversations. These can also be updated by your loved one during calls.'
+              : 'Topics Ultaura uses to personalize your conversations. You can update these during calls.'}
+          </p>
+          {canEdit ? (
+            <Button onClick={handleOpenEdit} disabled={disabled} size="small">
+              {hasAnyTopics ? (
+                <Pencil className="h-4 w-4 mr-2" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              {hasAnyTopics ? 'Edit Topics' : 'Add Topics'}
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div className="space-y-6">
+            {/* Topics They Enjoy */}
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-sm font-semibold text-foreground">Topics They Enjoy</h3>
+              </div>
+              {storedEnjoyTopics.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {storedEnjoyTopics.map((topic) => (
+                    <span
+                      key={topic}
+                      className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm text-primary"
+                    >
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No topics set yet.
+                </p>
               )}
             </div>
-            {storedEnjoyTopics.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {storedEnjoyTopics.map((topic) => (
-                  <span
-                    key={topic}
-                    className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-sm text-primary"
-                  >
-                    {topic}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No topics set yet.{' '}
-                {canEdit && !disabled && (
-                  <button
-                    type="button"
-                    onClick={handleOpenEdit}
-                    className="text-primary hover:underline"
-                  >
-                    Add topics
-                  </button>
-                )}
+
+            {/* Topics to Avoid */}
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+              <h3 className="text-sm font-semibold text-foreground">Topics to Avoid</h3>
+              {storedAvoidTopics.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {storedAvoidTopics.map((topic) => (
+                    <span
+                      key={topic}
+                      className="rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-sm text-destructive"
+                    >
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">No topics to avoid set.</p>
+              )}
+            </div>
+
+            {!canEdit && (
+              <p className="text-xs text-muted-foreground">
+                You can change these topics by speaking with Ultaura during a call. Just say something like &quot;I&apos;d like to talk more about gardening&quot; or &quot;Please don&apos;t bring up politics.&quot;
               </p>
             )}
           </div>
-
-          {/* Topics to Avoid */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-foreground">Topics to Avoid</h3>
-            {storedAvoidTopics.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {storedAvoidTopics.map((topic) => (
-                  <span
-                    key={topic}
-                    className="rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-sm text-destructive"
-                  >
-                    {topic}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No topics to avoid set.</p>
-            )}
-          </div>
-
-          {!canEdit && (
-            <p className="text-xs text-muted-foreground border-t border-border pt-4">
-              You can change these topics by speaking with Ultaura during a call. Just say something like &quot;I&apos;d like to talk more about gardening&quot; or &quot;Please don&apos;t bring up politics.&quot;
-            </p>
-          )}
-        </SectionBody>
-      </Section>
+        </div>
+      </div>
 
       {/* Edit Modal */}
       <Dialog open={isEditing} onOpenChange={(open) => !open && handleCloseEdit()}>

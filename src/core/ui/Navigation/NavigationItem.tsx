@@ -112,7 +112,7 @@ function getNavigationMenuItemClassBuilder() {
         {
           active: true,
           bordered: true,
-          className: `relative top-[0.4rem] rounded-none bg-transparent pb-[0.55rem] text-primary after:absolute after:inset-x-0 after:-bottom-[0.125rem] after:h-1 after:bg-primary after:content-['']`,
+          className: `relative rounded-none bg-transparent text-primary after:absolute after:inset-x-0 after:-bottom-[0.125rem] after:h-1 after:bg-primary after:content-['']`,
         },
         // active - secondary
         {

@@ -44,7 +44,7 @@ function getNavigationMenuClassBuilder() {
         lg:flex-col lg:justify-start lg:space-x-0 lg:space-y-1.5 [&>li>a]:w-full`,
       },
       bordered: {
-        true: `lg:space-x-3 border-b border-border pb-1.5`,
+        true: `gap-2 lg:gap-3 border-b border-border pb-1.5`,
       },
       scrollable: {
         true: `overflow-x-auto flex-nowrap scrollbar-hide`,

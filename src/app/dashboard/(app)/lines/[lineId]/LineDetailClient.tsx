@@ -11,6 +11,7 @@ import {
   Calendar,
   PhoneCall,
   Clock,
+  ChevronDown,
 } from 'lucide-react';
 import type {
   LineRow,
@@ -32,7 +33,7 @@ const CARD_HEADER_CLASS = 'flex items-center gap-2';
 const BTN_PRIMARY_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const BTN_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50';
 const BTN_DESTRUCTIVE_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
-const STAT_CARD_CLASS = 'rounded-lg border border-border bg-muted/40 p-4';
+const STAT_CARD_CLASS = 'rounded-lg border border-border bg-card p-4';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -291,6 +292,30 @@ export function LineDetailClient({
         timezone={line.timezone}
         status={line.status}
         isVerified={!!line.phone_verified_at}
+        actions={
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <button
+              onClick={() => {
+                setIsTestCallModalOpen(true);
+                setTestCallError(null);
+                setAlternatePhoneError(null);
+              }}
+              disabled={isReadOnly}
+              className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm`}
+            >
+              <Play className="w-3 h-3" />
+              Test Call
+            </button>
+            <button
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={isReadOnly}
+              className={`${BTN_DESTRUCTIVE_OUTLINE_CLASS} w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm`}
+            >
+              <Trash2 className="w-3 h-3" />
+              Delete Line
+            </button>
+          </div>
+        }
       />
 
       {/* Overview Content */}
@@ -321,44 +346,19 @@ export function LineDetailClient({
           />
         </div>
 
-        {/* Action Buttons */}
-        <div className={CARD_CLASS}>
-          <h2 className="text-sm font-semibold text-foreground mb-4">Quick Actions</h2>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => {
-                setIsTestCallModalOpen(true);
-                setTestCallError(null);
-                setAlternatePhoneError(null);
-              }}
-              disabled={isReadOnly}
-              className={`${BTN_PRIMARY_CLASS} flex-1 sm:flex-none`}
-            >
-              <Play className="w-4 h-4" />
-              Test Call
-            </button>
-            <button
-              onClick={() => setDeleteDialogOpen(true)}
-              disabled={isReadOnly}
-              className={`${BTN_DESTRUCTIVE_OUTLINE_CLASS} flex-1 sm:flex-none`}
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete Line
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            Test Call will call this line so you can experience the full Ultaura conversation.
-          </p>
-        </div>
-
         {/* Recent Calls */}
-        <div className={CARD_CLASS}>
-          <div className={`${CARD_HEADER_CLASS} mb-6`}>
-            <Phone className="w-5 h-5 text-muted-foreground" />
-            <h2 className="font-semibold text-foreground">Recent Calls</h2>
+        <details className={`${CARD_CLASS} group`}>
+          <summary className="flex items-center justify-between gap-3 cursor-pointer select-none [&::-webkit-details-marker]:hidden">
+            <div className={`${CARD_HEADER_CLASS}`}>
+              <Phone className="w-5 h-5 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground">Recent Calls</h2>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-6">
+            <CallActivityList sessions={callSessions} />
           </div>
-          <CallActivityList sessions={callSessions} />
-        </div>
+        </details>
       </div>
 
       {/* Test Call Modal */}
