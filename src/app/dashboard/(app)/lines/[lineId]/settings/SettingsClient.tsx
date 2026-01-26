@@ -359,6 +359,7 @@ export function SettingsClient({
     setError(null);
 
     try {
+      const normalizedPreferredLanguage = normalizeLanguageValue(preferredLanguage);
       if (hasLineChanges) {
         const result = await updateLine(line.id, {
           timezone: effectiveTimezone,
@@ -368,7 +369,7 @@ export function SettingsClient({
           allowVoiceScheduleControl,
           inboundAllowed,
           voicemailBehavior,
-          preferredLanguageIso: preferredLanguage,
+          preferredLanguageIso: normalizedPreferredLanguage,
         });
 
         if (!result.success) {
@@ -461,11 +462,12 @@ export function SettingsClient({
   const normalizeRanges = (ranges: VacationRange[]) =>
     [...ranges].map((range) => `${range.start}|${range.end}`).sort().join('|');
 
+  const normalizedPreferredLanguage = normalizeLanguageValue(preferredLanguage);
   const hasLineChanges =
     effectiveTimezone !== line.timezone ||
     quietHoursStart !== normalizeTimeValue(line.quiet_hours_start) ||
     quietHoursEnd !== normalizeTimeValue(line.quiet_hours_end) ||
-    preferredLanguage !== canonicalLinePreferredLanguage ||
+    normalizedPreferredLanguage !== canonicalLinePreferredLanguage ||
     allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
     allowVoiceScheduleControl !== (line.allow_voice_schedule_control ?? true) ||
     inboundAllowed !== (line.inbound_allowed ?? true) ||
@@ -928,11 +930,15 @@ export function SettingsClient({
                 <SectionBody className="gap-4">
                   <Select
                     value={preferredLanguage ?? 'auto'}
-                    onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
+                    onValueChange={(value) =>
+                      setPreferredLanguage(
+                        value === 'auto' ? null : normalizeLanguageValue(value)
+                      )
+                    }
                     disabled={disabled}
                   >
                     <SelectTrigger className="w-full py-3">
-                      <SelectValue aria-label={selectedLabel}>{selectedLabel}</SelectValue>
+                      <SelectValue placeholder="Auto-detect" />
                     </SelectTrigger>
                     <SelectContent>
                       {showUnsupported && preferredLanguage ? (

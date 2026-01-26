@@ -16,7 +16,7 @@ interface LinePageHeaderProps {
 
 export function LinePageHeader({ lineName, lineShortId, actions }: LinePageHeaderProps) {
   return (
-    <div className="mb-6 pt-3 sm:pt-0">
+    <div className="mb-6 pt-3 sm:pt-0 md:pt-3">
       {/* Back link */}
       <Link
         href="/dashboard/lines"
