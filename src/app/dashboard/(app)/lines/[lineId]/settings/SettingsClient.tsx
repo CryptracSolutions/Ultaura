@@ -95,6 +95,10 @@ const buildLineSettingsSections = (
         sections: [{ value: 'timezone', label: 'Timezone', icon: Globe }],
       },
       {
+        label: 'Language',
+        sections: [{ value: 'language', label: 'Language', icon: Languages }],
+      },
+      {
         label: 'Insights & Alerts',
         sections: [
           { value: 'insights-privacy', label: 'Insights & Privacy', icon: Sparkles },
@@ -113,7 +117,6 @@ const buildLineSettingsSections = (
       {
         label: 'Voice & Language',
         sections: [
-          { value: 'language', label: 'Language', icon: Languages },
           { value: 'voice-preference', label: voiceLabel, icon: Mic },
           { value: 'voice-controls', label: 'Voice Controls', icon: Bell },
         ],
@@ -629,74 +632,6 @@ export function SettingsClient({
     switch (activeTabValue) {
       case 'call-controls': {
         switch (activeSection.value) {
-          case 'language': {
-            const selectedOption = LANGUAGE_OPTIONS.find(
-              (option) => option.value === preferredLanguage
-            );
-            const selectedLabel = selectedOption?.label ??
-              (preferredLanguage ? getLanguageDisplayName(preferredLanguage) : 'Auto-detect');
-            const showUnsupported = preferredLanguage !== null && !selectedOption;
-
-            return (
-              <Section>
-                <SectionHeader
-                  title={
-                    <div className="flex items-center gap-2">
-                      <Languages className="h-4 w-4 text-muted-foreground" />
-                      Language Preference
-                    </div>
-                  }
-                  description="Set the language for calls with this line."
-                />
-                <SectionBody className="gap-4">
-                  <Select
-                    value={preferredLanguage ?? 'auto'}
-                    onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger className="w-full py-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {showUnsupported && preferredLanguage ? (
-                        <SelectItem value={preferredLanguage} disabled>
-                          {selectedLabel}
-                        </SelectItem>
-                      ) : null}
-                      {LANGUAGE_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value ?? 'auto'}
-                          value={option.value ?? 'auto'}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
-                    {preferredLanguage === null ? (
-                      <>
-                        <p className="font-medium text-foreground">Auto-detect mode</p>
-                        <p className="mt-1">
-                          Ultaura will use a bilingual greeting on the first call and detect{' '}
-                          {line.display_name}&apos;s preferred language from their response.
-                          Once detected, the language will be saved automatically.
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-medium text-foreground">{selectedLabel}</p>
-                        <p className="mt-1">
-                          Ultaura will start all calls in {selectedLabel}.
-                          {line.display_name} can still switch languages during calls.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </SectionBody>
-              </Section>
-            );
-          }
           case 'voice-preference':
             return (
               <Section>
@@ -969,6 +904,74 @@ export function SettingsClient({
                 </SectionBody>
               </Section>
             );
+          case 'language': {
+            const selectedOption = LANGUAGE_OPTIONS.find(
+              (option) => option.value === preferredLanguage
+            );
+            const selectedLabel = selectedOption?.label ??
+              (preferredLanguage ? getLanguageDisplayName(preferredLanguage) : 'Auto-detect');
+            const showUnsupported = preferredLanguage !== null && !selectedOption;
+
+            return (
+              <Section>
+                <SectionHeader
+                  title={
+                    <div className="flex items-center gap-2">
+                      <Languages className="h-4 w-4 text-muted-foreground" />
+                      Language Preference
+                    </div>
+                  }
+                  description="Set the language for calls with this line."
+                />
+                <SectionBody className="gap-4">
+                  <Select
+                    value={preferredLanguage ?? 'auto'}
+                    onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
+                    disabled={disabled}
+                  >
+                    <SelectTrigger className="w-full py-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {showUnsupported && preferredLanguage ? (
+                        <SelectItem value={preferredLanguage} disabled>
+                          {selectedLabel}
+                        </SelectItem>
+                      ) : null}
+                      {LANGUAGE_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.value ?? 'auto'}
+                          value={option.value ?? 'auto'}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
+                    {preferredLanguage === null ? (
+                      <>
+                        <p className="font-medium text-foreground">Auto-detect mode</p>
+                        <p className="mt-1">
+                          Ultaura will use a bilingual greeting on the first call and detect{' '}
+                          {line.display_name}&apos;s preferred language from their response.
+                          Once detected, the language will be saved automatically.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-foreground">{selectedLabel}</p>
+                        <p className="mt-1">
+                          Ultaura will start all calls in {selectedLabel}.
+                          {line.display_name} can still switch languages during calls.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </SectionBody>
+              </Section>
+            );
+          }
           case 'insights-privacy':
             return (
               <Section>

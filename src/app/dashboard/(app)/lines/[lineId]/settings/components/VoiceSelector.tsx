@@ -140,15 +140,24 @@ export function VoiceSelector({
           const descriptionKey = `voices.${option.id}.description`;
 
           return (
-            <button
+            <div
               key={option.id}
-              type="button"
-              onClick={() => onChange(option.apiName)}
-              disabled={disabled}
+              role="button"
+              tabIndex={disabled ? -1 : 0}
+              onClick={disabled ? undefined : () => onChange(option.apiName)}
+              onKeyDown={(event) => {
+                if (disabled) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onChange(option.apiName);
+                }
+              }}
               aria-pressed={isSelected}
+              aria-disabled={disabled}
               className={
-                'flex w-full rounded-xl border transition-all disabled:cursor-not-allowed disabled:opacity-60 ' +
+                'flex w-full rounded-xl border transition-all ' +
                 'flex-row items-center gap-3 p-3 sm:flex-col sm:items-center sm:gap-0 sm:p-6 sm:text-center ' +
+                (disabled ? 'cursor-not-allowed opacity-60 ' : '') +
                 (isSelected
                   ? 'border-primary ring-2 ring-primary shadow-xl shadow-primary/20'
                   : 'border-border bg-card hover:ring-2 hover:ring-primary hover:shadow-sm')
@@ -198,7 +207,7 @@ export function VoiceSelector({
                   <PlayCircleIcon className="h-5 w-5" />
                 )}
               </button>
-            </button>
+            </div>
           );
         })}
       </div>
