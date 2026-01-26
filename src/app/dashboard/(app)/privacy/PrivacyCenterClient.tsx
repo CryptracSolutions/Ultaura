@@ -15,6 +15,7 @@ import {
   Sparkles,
   Trash2,
   Users,
+  Info,
   Plus,
   X,
 } from 'lucide-react';
@@ -1434,229 +1435,250 @@ export function PrivacyCenterClient({
         return null;
       }
       case 'family': {
+        const familyNote = (
+          <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-primary">
+              Family sharing lets you invite family members to receive weekly summaries and
+              wellness alerts. What is shared follows your loved one's sharing preferences
+              during calls.
+              <a
+                href="/docs/insights-and-reports/sharing-with-family"
+                className="text-primary hover:underline ml-1"
+              >
+                Learn more →
+              </a>
+            </p>
+          </div>
+        );
+
         if (activeSection.value === 'recipients') {
           return (
-            <Section>
-              <SectionHeader
-                title={
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    Family Recipients
-                  </div>
-                }
-                description="Invite up to 5 family members to receive summaries and alerts."
-              />
-              <SectionBody className="gap-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs text-muted-foreground">
-                    {recipients.length}/5 recipients
-                  </p>
-
-                  {recipients.length >= 5 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-block">
-                          <button
-                            type="button"
-                            disabled
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium opacity-50 cursor-not-allowed"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Invite Recipient
-                          </button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Maximum 5 recipients reached</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setInviteError(null);
-                        setShowInviteModal(true);
-                      }}
-                      disabled={isInviting}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Invite Recipient
-                    </button>
-                  )}
-                </div>
-
-                <InvitedFamilyList
-                  recipients={recipients}
-                  onRemove={handleRemoveRecipient}
-                  disabled={isInviting}
+            <>
+              {familyNote}
+              <Section>
+                <SectionHeader
+                  title={
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      Family Recipients
+                    </div>
+                  }
+                  description="Invite up to 5 family members to receive summaries and alerts."
                 />
+                <SectionBody className="gap-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      {recipients.length}/5 recipients
+                    </p>
 
-                <Dialog
-                  open={showInviteModal}
-                  onOpenChange={(open) => {
-                    if (!open) {
-                      if (isInviting) return;
-                      attemptCloseInvite();
-                    }
-                  }}
-                >
-                  <DialogContent
-                    className="max-w-[468px]"
-                    overlayClassName="bg-black/50 backdrop-blur-none"
-                    onInteractOutside={(event) => {
-                      if (isInviting || hasInviteChanges) {
-                        event.preventDefault();
-                        attemptCloseInvite();
-                      }
-                    }}
-                    onEscapeKeyDown={(event) => {
-                      if (isInviting || hasInviteChanges) {
-                        event.preventDefault();
-                        attemptCloseInvite();
-                      }
-                    }}
-                    onOpenAutoFocus={(event) => {
-                      event.preventDefault();
-                      firstInputRef.current?.focus();
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <DialogTitle className="truncate">Invite family recipient</DialogTitle>
-                        <DialogDescription className="text-sm text-muted-foreground">
-                          This person will receive weekly summaries and wellness alerts.
-                        </DialogDescription>
-                      </div>
+                    {recipients.length >= 5 ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-block">
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium opacity-50 cursor-not-allowed"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Invite Recipient
+                            </button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Maximum 5 recipients reached</TooltipContent>
+                      </Tooltip>
+                    ) : (
                       <button
                         type="button"
-                        onClick={attemptCloseInvite}
+                        onClick={() => {
+                          setInviteError(null);
+                          setShowInviteModal(true);
+                        }}
                         disabled={isInviting}
-                        className={modalIconButtonClass}
-                        aria-label="Close"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <X className="w-4 h-4" />
+                        <Plus className="w-4 h-4" />
+                        Invite Recipient
                       </button>
-                    </div>
-
-                    {inviteError && (
-                      <div
-                        role="alert"
-                        className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                      >
-                        {inviteError}
-                      </div>
                     )}
+                  </div>
 
-                    <form onSubmit={handleInviteSubmit} className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <TextField>
-                          <TextField.Label>
-                            Name <span className="text-destructive">*</span>
-                            <TextField.Input
-                              ref={firstInputRef}
-                              value={inviteName}
-                              onChange={(event) => setInviteName(event.target.value)}
-                              placeholder="e.g., Sarah Johnson"
-                              required
-                            />
-                          </TextField.Label>
-                        </TextField>
-                        <TextField>
-                          <TextField.Label>
-                            Email <span className="text-destructive">*</span>
-                            <TextField.Input
-                              type="email"
-                              value={inviteEmail}
-                              onChange={(event) => setInviteEmail(event.target.value)}
-                              placeholder="sarah@example.com"
-                              required
-                            />
-                          </TextField.Label>
-                        </TextField>
-                        <TextField>
-                          <TextField.Label>
-                            Phone{' '}
-                            {inviteAsTrusted ? (
-                              <span className="text-destructive">*</span>
-                            ) : (
-                              '(optional)'
-                            )}
-                            <TextField.Input
-                              type="tel"
-                              value={invitePhone}
-                              onChange={(event) => setInvitePhone(event.target.value)}
-                              placeholder="(555) 123-4567"
-                              required={inviteAsTrusted}
-                            />
-                          </TextField.Label>
-                        </TextField>
-                        <TextField>
-                          <TextField.Label>
-                            Relationship (optional)
-                            <TextField.Input
-                              value={inviteRelationship}
-                              onChange={(event) => setInviteRelationship(event.target.value)}
-                              placeholder="e.g., Daughter"
-                            />
-                          </TextField.Label>
-                        </TextField>
-                      </div>
+                  <InvitedFamilyList
+                    recipients={recipients}
+                    onRemove={handleRemoveRecipient}
+                    disabled={isInviting}
+                  />
 
-                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Checkbox
-                          checked={inviteAsTrusted}
-                          onCheckedChange={(checked) => setInviteAsTrusted(Boolean(checked))}
-                        />
-                        Also add as emergency contact (requires phone number)
-                      </label>
-
-                      <div className="flex gap-3 pt-2">
+                  <Dialog
+                    open={showInviteModal}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        if (isInviting) return;
+                        attemptCloseInvite();
+                      }
+                    }}
+                  >
+                    <DialogContent
+                      className="max-w-[468px]"
+                      overlayClassName="bg-black/50 backdrop-blur-none"
+                      onInteractOutside={(event) => {
+                        if (isInviting || hasInviteChanges) {
+                          event.preventDefault();
+                          attemptCloseInvite();
+                        }
+                      }}
+                      onEscapeKeyDown={(event) => {
+                        if (isInviting || hasInviteChanges) {
+                          event.preventDefault();
+                          attemptCloseInvite();
+                        }
+                      }}
+                      onOpenAutoFocus={(event) => {
+                        event.preventDefault();
+                        firstInputRef.current?.focus();
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <DialogTitle className="truncate">Invite family recipient</DialogTitle>
+                          <DialogDescription className="text-sm text-muted-foreground">
+                            This person will receive weekly summaries and wellness alerts.
+                          </DialogDescription>
+                        </div>
                         <button
                           type="button"
                           onClick={attemptCloseInvite}
                           disabled={isInviting}
-                          className={modalSecondaryButtonClass}
+                          className={modalIconButtonClass}
+                          aria-label="Close"
                         >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isInviting}
-                          className={modalPrimaryButtonClass}
-                        >
-                          {isInviting ? (
-                            <>
-                              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              Sending
-                            </>
-                          ) : (
-                            'Send invite'
-                          )}
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
 
-                <ConfirmationDialog
-                  open={showDiscardConfirm}
-                  onOpenChange={(open) => {
-                    if (!open) setShowDiscardConfirm(false);
-                  }}
-                  title="Unsaved changes"
-                  description="You have unsaved changes. Leave without saving?"
-                  confirmLabel="Discard & leave"
-                  cancelLabel="Stay here"
-                  variant="default"
-                  onConfirm={closeInviteModal}
-                />
-              </SectionBody>
-            </Section>
+                      {inviteError && (
+                        <div
+                          role="alert"
+                          className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                        >
+                          {inviteError}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleInviteSubmit} className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <TextField>
+                            <TextField.Label>
+                              Name <span className="text-destructive">*</span>
+                              <TextField.Input
+                                ref={firstInputRef}
+                                value={inviteName}
+                                onChange={(event) => setInviteName(event.target.value)}
+                                placeholder="e.g., Sarah Johnson"
+                                required
+                              />
+                            </TextField.Label>
+                          </TextField>
+                          <TextField>
+                            <TextField.Label>
+                              Email <span className="text-destructive">*</span>
+                              <TextField.Input
+                                type="email"
+                                value={inviteEmail}
+                                onChange={(event) => setInviteEmail(event.target.value)}
+                                placeholder="sarah@example.com"
+                                required
+                              />
+                            </TextField.Label>
+                          </TextField>
+                          <TextField>
+                            <TextField.Label>
+                              Phone{' '}
+                              {inviteAsTrusted ? (
+                                <span className="text-destructive">*</span>
+                              ) : (
+                                '(optional)'
+                              )}
+                              <TextField.Input
+                                type="tel"
+                                value={invitePhone}
+                                onChange={(event) => setInvitePhone(event.target.value)}
+                                placeholder="(555) 123-4567"
+                                required={inviteAsTrusted}
+                              />
+                            </TextField.Label>
+                          </TextField>
+                          <TextField>
+                            <TextField.Label>
+                              Relationship (optional)
+                              <TextField.Input
+                                value={inviteRelationship}
+                                onChange={(event) => setInviteRelationship(event.target.value)}
+                                placeholder="e.g., Daughter"
+                              />
+                            </TextField.Label>
+                          </TextField>
+                        </div>
+
+                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Checkbox
+                            checked={inviteAsTrusted}
+                            onCheckedChange={(checked) => setInviteAsTrusted(Boolean(checked))}
+                          />
+                          Also add as emergency contact (requires phone number)
+                        </label>
+
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            type="button"
+                            onClick={attemptCloseInvite}
+                            disabled={isInviting}
+                            className={modalSecondaryButtonClass}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isInviting}
+                            className={modalPrimaryButtonClass}
+                          >
+                            {isInviting ? (
+                              <>
+                                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                Sending
+                              </>
+                            ) : (
+                              'Send invite'
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+
+                  <ConfirmationDialog
+                    open={showDiscardConfirm}
+                    onOpenChange={(open) => {
+                      if (!open) setShowDiscardConfirm(false);
+                    }}
+                    title="Unsaved changes"
+                    description="You have unsaved changes. Leave without saving?"
+                    confirmLabel="Discard & leave"
+                    cancelLabel="Stay here"
+                    variant="default"
+                    onConfirm={closeInviteModal}
+                  />
+                </SectionBody>
+              </Section>
+            </>
           );
         }
 
         if (activeSection.value === 'sharing') {
           return (
             <>
+              {familyNote}
               <Section>
                 <SectionHeader
                   title={
