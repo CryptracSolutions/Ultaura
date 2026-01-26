@@ -51,6 +51,7 @@ Notes:
 - R* for insights: requires `sharing_consent='granted'`, `sharing_tier`, `insights_enabled=true`, and not paused for family-managed. Self users also require `insights_enabled=true`.
 - Added recipients only receive redacted emails (weekly summary, wellness alerts, missed calls) and never access dashboards.
 - Memory content is never shared to family or recipients; `privacy_scope='line_only'` is excluded from any family-facing context.
+- Memory reads/writes for dashboard users happen via server actions or voice tools; direct DB access remains service-role only.
 - Org membership is enforced by `can_access_ultaura_account` (via `memberships`). UI/role gating may further restrict access.
 
 ## Enforcement Points (Exact)

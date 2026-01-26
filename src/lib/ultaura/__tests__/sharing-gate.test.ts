@@ -50,6 +50,22 @@ describe('sharing gate', () => {
     expect(gate.isFamilyOutputSuppressed).toBe(true);
   });
 
+  it('requires consent for family-managed non-safety insights', () => {
+    const gate = evaluateSharingGate({
+      userType: 'family_managed',
+      sharingConsent: 'pending',
+      sharingTier: 'tier_2',
+      isPaused: false,
+      insightsEnabled: true,
+      privateTopicCodes: [],
+    });
+
+    expect(gate.canAccessNonSafety).toBe(false);
+    expect(gate.allowMood).toBe(false);
+    expect(gate.allowTopics).toBe(false);
+    expect(gate.allowConcerns).toBe(false);
+  });
+
   it('filters private topic codes from topic lists', () => {
     const topics = [
       { code: 'family', label: 'Family' },

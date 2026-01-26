@@ -7,6 +7,7 @@ import getLogger from '~/core/logger';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import type { Database } from '~/database.types';
+import requireSession from '~/lib/user/require-session';
 import type {
   AccountPrivacySettings,
   ConsentAuditEntry,
@@ -870,6 +871,7 @@ export async function requestAccountDataDeletion(
   accountId: string,
   reason: 'user_request' | 'consent_revoked'
 ): Promise<{ success: boolean; error?: string }> {
+  const userClient = getSupabaseServerActionClient();
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const headersList = await headers();
   const requestId = randomUUID();
@@ -877,6 +879,22 @@ export async function requestAccountDataDeletion(
   const actorUserId = await getAuthenticatedUserId();
   if (!actorUserId) {
     return { success: false, error: 'User not authenticated' };
+  }
+
+  await requireSession(userClient);
+
+  const { data: account, error: accountError } = await userClient
+    .from('ultaura_accounts')
+    .select('id, created_by_user_id')
+    .eq('id', accountId)
+    .single();
+
+  if (accountError || !account) {
+    return { success: false, error: 'Account not found' };
+  }
+
+  if (account.created_by_user_id !== actorUserId) {
+    return { success: false, error: 'Access denied' };
   }
 
   const { data: recordings } = await adminClient

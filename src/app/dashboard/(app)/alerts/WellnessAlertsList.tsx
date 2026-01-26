@@ -2,14 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import type { ElementType } from 'react';
-import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
-import { toast } from 'sonner';
 import { CheckCircle, AlertTriangle, AlertCircle, BellRing, Info } from 'lucide-react';
-import Button from '~/core/ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import type { LineRow, WellnessAlert } from '~/lib/ultaura/types';
-import { acknowledgeWellnessAlert } from '~/lib/ultaura/alerts';
 
 interface WellnessAlertsListProps {
   alerts: WellnessAlert[];
@@ -35,30 +31,13 @@ function formatAlertDate(value: string): string {
   return date.toLocaleString(DateTime.DATETIME_MED);
 }
 
-export function WellnessAlertsList({ alerts, lines, disabled = false }: WellnessAlertsListProps) {
-  const router = useRouter();
+export function WellnessAlertsList({ alerts, lines, disabled: _disabled = false }: WellnessAlertsListProps) {
   const [selectedLineId, setSelectedLineId] = useState('all');
-  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
 
   const filteredAlerts = useMemo(() => {
     if (selectedLineId === 'all') return alerts;
     return alerts.filter((alert) => alert.lineId === selectedLineId);
   }, [alerts, selectedLineId]);
-
-  const handleAcknowledge = async (alertId: string) => {
-    if (disabled) return;
-    setAcknowledgingId(alertId);
-    const result = await acknowledgeWellnessAlert(alertId);
-    setAcknowledgingId(null);
-
-    if (!result.success) {
-      toast.error(result.error.message || 'Failed to acknowledge alert');
-      return;
-    }
-
-    toast.success('Alert acknowledged');
-    router.refresh();
-  };
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -130,15 +109,9 @@ export function WellnessAlertsList({ alerts, lines, disabled = false }: Wellness
                         Acknowledged
                       </span>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="small"
-                        onClick={() => handleAcknowledge(alert.id)}
-                        disabled={disabled || acknowledgingId === alert.id}
-                        loading={acknowledgingId === alert.id}
-                      >
-                        Acknowledge
-                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        Acknowledgement unavailable
+                      </span>
                     )}
                   </div>
                 </div>

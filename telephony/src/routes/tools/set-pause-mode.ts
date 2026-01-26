@@ -50,42 +50,44 @@ setPauseModeRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const supabase = getSupabaseClient();
-    const now = new Date().toISOString();
+    const skipPersist = session.is_test_call || session.is_preview_mode;
+    if (!skipPersist) {
+      const supabase = getSupabaseClient();
+      const now = new Date().toISOString();
+      const { data: existing } = await supabase
+        .from('ultaura_insight_privacy')
+        .select('is_paused')
+        .eq('line_id', lineId)
+        .maybeSingle();
 
-    const { data: existing } = await supabase
-      .from('ultaura_insight_privacy')
-      .select('is_paused')
-      .eq('line_id', lineId)
-      .maybeSingle();
+      const previousPaused = existing?.is_paused ?? false;
 
-    const previousPaused = existing?.is_paused ?? false;
+      const { error: updateError } = await supabase
+        .from('ultaura_insight_privacy')
+        .upsert({
+          line_id: lineId,
+          is_paused: enabled,
+          paused_at: enabled ? now : null,
+          paused_reason: enabled ? (reason?.slice(0, 200) || null) : null,
+          updated_at: now,
+        }, { onConflict: 'line_id' });
 
-    const { error: updateError } = await supabase
-      .from('ultaura_insight_privacy')
-      .upsert({
-        line_id: lineId,
-        is_paused: enabled,
-        paused_at: enabled ? now : null,
-        paused_reason: enabled ? (reason?.slice(0, 200) || null) : null,
-        updated_at: now,
-      }, { onConflict: 'line_id' });
+      if (updateError) {
+        logger.error({ error: updateError, lineId }, 'Failed to update pause mode');
+        await recordFailure('pause_update_failed');
+        res.status(500).json({ error: 'Failed to update pause mode' });
+        return;
+      }
 
-    if (updateError) {
-      logger.error({ error: updateError, lineId }, 'Failed to update pause mode');
-      await recordFailure('pause_update_failed');
-      res.status(500).json({ error: 'Failed to update pause mode' });
-      return;
+      await logConsentAuditEvent({
+        accountId: session.account_id,
+        lineId,
+        callSessionId,
+        action: 'pause_mode_changed',
+        oldValue: { is_paused: previousPaused },
+        newValue: { is_paused: enabled, reason: enabled ? (reason?.slice(0, 200) || null) : null },
+      });
     }
-
-    await logConsentAuditEvent({
-      accountId: session.account_id,
-      lineId,
-      callSessionId,
-      action: 'pause_mode_changed',
-      oldValue: { is_paused: previousPaused },
-      newValue: { is_paused: enabled, reason: enabled ? (reason?.slice(0, 200) || null) : null },
-    });
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {

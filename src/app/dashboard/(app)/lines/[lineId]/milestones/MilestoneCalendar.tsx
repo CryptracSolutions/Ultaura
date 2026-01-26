@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { DateTime } from 'luxon';
-import { CalendarDays, Edit2, Trash2, Star } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Edit2, Trash2, Star } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 
@@ -86,10 +87,29 @@ export function MilestoneCalendar({
   disabled = false,
 }: MilestoneCalendarProps) {
   const now = DateTime.now().setZone(line.timezone);
-  const monthStart = now.startOf('month');
+  const currentYear = now.year;
+
+  // Track which month the user is viewing (1-12)
+  const [viewMonth, setViewMonth] = useState(now.month);
+
+  const monthStart = DateTime.fromObject(
+    { year: currentYear, month: viewMonth, day: 1 },
+    { zone: line.timezone },
+  );
   const daysInMonth = monthStart.daysInMonth ?? 30;
   const offset = monthStart.weekday % 7; // 0 for Sunday
   const totalCells = Math.ceil((daysInMonth + offset) / 7) * 7;
+
+  const canGoPrev = viewMonth > 1;
+  const canGoNext = viewMonth < 12;
+
+  const handlePrevMonth = () => {
+    if (canGoPrev) setViewMonth((m) => m - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (canGoNext) setViewMonth((m) => m + 1);
+  };
 
   const upcoming = milestones
     .map((milestone) => ({
@@ -109,12 +129,33 @@ export function MilestoneCalendar({
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border bg-card p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            aria-label="Previous month"
+            onClick={handlePrevMonth}
+            disabled={!canGoPrev}
+            className="p-1 rounded text-primary hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
           <div className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">{monthStart.toFormat('MMMM yyyy')}</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {monthStart.toFormat('MMMM yyyy')}
+            </h3>
           </div>
-          <span className="text-xs text-muted-foreground">Local time</span>
+
+          <button
+            type="button"
+            aria-label="Next month"
+            onClick={handleNextMonth}
+            disabled={!canGoNext}
+            className="p-1 rounded text-primary hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="mt-4 grid grid-cols-7 gap-2 text-xs text-muted-foreground">

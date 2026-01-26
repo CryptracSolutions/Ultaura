@@ -50,51 +50,53 @@ setInsightsEnabledRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const supabase = getSupabaseClient();
-    const now = new Date().toISOString();
+    const skipPersist = session.is_test_call || session.is_preview_mode;
+    if (!skipPersist) {
+      const supabase = getSupabaseClient();
+      const now = new Date().toISOString();
+      const { data: existing } = await supabase
+        .from('ultaura_insight_privacy')
+        .select('insights_enabled')
+        .eq('line_id', lineId)
+        .maybeSingle();
 
-    const { data: existing } = await supabase
-      .from('ultaura_insight_privacy')
-      .select('insights_enabled')
-      .eq('line_id', lineId)
-      .maybeSingle();
+      const previousEnabled = existing?.insights_enabled ?? true;
 
-    const previousEnabled = existing?.insights_enabled ?? true;
+      const { error: updateError } = await supabase
+        .from('ultaura_insight_privacy')
+        .upsert({
+          line_id: lineId,
+          insights_enabled: enabled,
+          updated_at: now,
+        }, { onConflict: 'line_id' });
 
-    const { error: updateError } = await supabase
-      .from('ultaura_insight_privacy')
-      .upsert({
-        line_id: lineId,
-        insights_enabled: enabled,
-        updated_at: now,
-      }, { onConflict: 'line_id' });
+      if (updateError) {
+        logger.error({ error: updateError, lineId }, 'Failed to update insights enabled');
+        await recordFailure('insights_update_failed');
+        res.status(500).json({ error: 'Failed to update insights setting' });
+        return;
+      }
 
-    if (updateError) {
-      logger.error({ error: updateError, lineId }, 'Failed to update insights enabled');
-      await recordFailure('insights_update_failed');
-      res.status(500).json({ error: 'Failed to update insights setting' });
-      return;
+      const clearedReprompt = await updateLineVoiceConsent(
+        lineId,
+        session.account_id,
+        callSessionId,
+        { insightsRepromptRequestedAt: null }
+      );
+
+      if (!clearedReprompt) {
+        logger.warn({ lineId }, 'Failed to clear insights reprompt request');
+      }
+
+      await logConsentAuditEvent({
+        accountId: session.account_id,
+        lineId,
+        callSessionId,
+        action: 'insights_enabled_changed',
+        oldValue: { insights_enabled: previousEnabled },
+        newValue: { insights_enabled: enabled },
+      });
     }
-
-    const clearedReprompt = await updateLineVoiceConsent(
-      lineId,
-      session.account_id,
-      callSessionId,
-      { insightsRepromptRequestedAt: null }
-    );
-
-    if (!clearedReprompt) {
-      logger.warn({ lineId }, 'Failed to clear insights reprompt request');
-    }
-
-    await logConsentAuditEvent({
-      accountId: session.account_id,
-      lineId,
-      callSessionId,
-      action: 'insights_enabled_changed',
-      oldValue: { insights_enabled: previousEnabled },
-      newValue: { insights_enabled: enabled },
-    });
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {

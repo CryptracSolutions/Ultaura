@@ -123,7 +123,7 @@ export async function POST(request: Request) {
   const summary = payload && 'summary' in payload ? payload.summary || null : (payload as WeeklySummaryData | null);
   const sharingSummary = payload && 'summary' in payload ? (payload.sharingSummary ?? null) : null;
 
-  if (!summary?.accountId || !summary?.lineName || !summary?.settingsUrl) {
+  if (!summary?.accountId || !summary?.lineId || !summary?.lineName || !summary?.settingsUrl) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -133,10 +133,37 @@ export async function POST(request: Request) {
   }
 
   const supabase = getSupabaseServerComponentClient({ admin: true });
+  const { data: line, error: lineError } = await supabase
+    .from('ultaura_lines')
+    .select('id, account_id, display_name')
+    .eq('id', summary.lineId)
+    .eq('account_id', summary.accountId)
+    .single();
+
+  if (lineError || !line) {
+    return NextResponse.json({ error: 'Invalid line/account pairing' }, { status: 400 });
+  }
+
+  const verifiedLineName = line.display_name || summary.lineName;
+  const normalizedSummary = {
+    ...summary,
+    accountId: line.account_id,
+    lineId: line.id,
+    lineName: verifiedLineName,
+  };
+  const normalizedSharingSummary = sharingSummary
+    ? {
+      ...sharingSummary,
+      accountId: line.account_id,
+      lineId: line.id,
+      lineName: verifiedLineName,
+    }
+    : null;
+
   const { data: account, error: accountError } = await supabase
     .from('ultaura_accounts')
     .select('billing_email, user_type, sharing_enabled')
-    .eq('id', summary.accountId)
+    .eq('id', normalizedSummary.accountId)
     .single();
 
   if (accountError || !account?.billing_email) {
@@ -146,13 +173,13 @@ export async function POST(request: Request) {
   const { data: voiceConsent } = await supabase
     .from('ultaura_line_voice_consent')
     .select('sharing_consent, sharing_tier')
-    .eq('line_id', summary.lineId)
+    .eq('line_id', normalizedSummary.lineId)
     .maybeSingle();
 
   const { data: privacy } = await supabase
     .from('ultaura_insight_privacy')
     .select('is_paused, insights_enabled')
-    .eq('line_id', summary.lineId)
+    .eq('line_id', normalizedSummary.lineId)
     .maybeSingle();
 
   const isSelfUser = account.user_type === 'self';
@@ -164,7 +191,7 @@ export async function POST(request: Request) {
     | 'tier_4';
   const isPaused = privacy?.is_paused ?? false;
   const insightsEnabled = privacy?.insights_enabled ?? true;
-  const sharingPayload = sharingSummary ?? { ...summary, sharingTier };
+  const sharingPayload = normalizedSharingSummary ?? { ...normalizedSummary, sharingTier };
 
   try {
     const recipients = new Map<string, { isPrimary: boolean; token?: string }>();
@@ -188,7 +215,7 @@ export async function POST(request: Request) {
       const { data: recipientRows, error: recipientError } = await supabase
         .from('ultaura_notification_recipients')
         .select('id, email')
-        .eq('account_id', summary.accountId)
+        .eq('account_id', normalizedSummary.accountId)
         .not('confirmed_at', 'is', null)
         .is('unsubscribed_at', null);
 
@@ -206,14 +233,14 @@ export async function POST(request: Request) {
       }
     }
 
-    const subject = `Weekly Check-in Summary for ${summary.lineName}`;
+    const subject = `Weekly Check-in Summary for ${normalizedSummary.lineName}`;
 
     for (const [email, meta] of Array.from(recipients.entries())) {
       const unsubscribeLink = meta.isPrimary || !meta.token
         ? undefined
         : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
       const isSelfRecipient = isSelfUser && meta.isPrimary;
-      const summaryForRecipient = isSelfRecipient ? summary : {
+      const summaryForRecipient = isSelfRecipient ? normalizedSummary : {
         ...sharingPayload,
         sharingTier: sharingPayload.sharingTier ?? sharingTier,
       };

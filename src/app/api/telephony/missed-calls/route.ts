@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const payload = body as MissedCallsAlertPayload | null;
 
-  if (!payload?.accountId || !payload?.lineName || !payload?.dashboardUrl || !payload?.settingsUrl) {
+  if (!payload?.accountId || !payload?.lineId || !payload?.lineName || !payload?.dashboardUrl || !payload?.settingsUrl) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -87,10 +87,24 @@ export async function POST(request: Request) {
   }
 
   const supabase = getSupabaseServerComponentClient({ admin: true });
+  const { data: line, error: lineError } = await supabase
+    .from('ultaura_lines')
+    .select('id, account_id, display_name')
+    .eq('id', payload.lineId)
+    .eq('account_id', payload.accountId)
+    .single();
+
+  if (lineError || !line) {
+    return NextResponse.json({ error: 'Invalid line/account pairing' }, { status: 400 });
+  }
+
+  const verifiedLineName = line.display_name || payload.lineName;
+  const normalizedPayload = { ...payload, lineName: verifiedLineName };
+
   const { data: account, error: accountError } = await supabase
     .from('ultaura_accounts')
     .select('billing_email, user_type, sharing_enabled')
-    .eq('id', payload.accountId)
+    .eq('id', normalizedPayload.accountId)
     .single();
 
   if (accountError || !account?.billing_email) {
@@ -100,13 +114,13 @@ export async function POST(request: Request) {
   const { data: voiceConsent } = await supabase
     .from('ultaura_line_voice_consent')
     .select('sharing_consent')
-    .eq('line_id', payload.lineId)
+    .eq('line_id', normalizedPayload.lineId)
     .maybeSingle();
 
   const { data: privacy } = await supabase
     .from('ultaura_insight_privacy')
     .select('is_paused, insights_enabled')
-    .eq('line_id', payload.lineId)
+    .eq('line_id', normalizedPayload.lineId)
     .maybeSingle();
 
   const isSelfUser = account.user_type === 'self';
@@ -135,7 +149,7 @@ export async function POST(request: Request) {
       const { data: recipientRows, error: recipientError } = await supabase
         .from('ultaura_notification_recipients')
         .select('id, email')
-        .eq('account_id', payload.accountId)
+        .eq('account_id', normalizedPayload.accountId)
         .not('confirmed_at', 'is', null)
         .is('unsubscribed_at', null);
 
@@ -153,20 +167,20 @@ export async function POST(request: Request) {
       }
     }
 
-    const subject = `Missed check-ins for ${payload.lineName}`;
+    const subject = `Missed check-ins for ${normalizedPayload.lineName}`;
 
     for (const [email, meta] of Array.from(recipients.entries())) {
       const unsubscribeLink = meta.isPrimary || !meta.token
         ? undefined
         : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
       const html = renderMissedCallsAlertEmail({
-        lineName: payload.lineName,
-        consecutiveMissedCount: payload.consecutiveMissedCount,
-        dashboardUrl: payload.dashboardUrl,
-        settingsUrl: payload.settingsUrl,
+        lineName: normalizedPayload.lineName,
+        consecutiveMissedCount: normalizedPayload.consecutiveMissedCount,
+        dashboardUrl: normalizedPayload.dashboardUrl,
+        settingsUrl: normalizedPayload.settingsUrl,
         unsubscribeLink,
       });
-      const text = buildTextAlert(payload, { unsubscribeLink });
+      const text = buildTextAlert(normalizedPayload, { unsubscribeLink });
       const headers = unsubscribeLink
         ? {
             'List-Unsubscribe': `<${unsubscribeLink}>`,

@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import requireSession from '~/lib/user/require-session';
 import getLogger from '~/core/logger';
@@ -114,46 +113,11 @@ export async function acknowledgeWellnessAlert(
   alertId: string
 ): Promise<ActionResult<void>> {
   const client = getSupabaseServerActionClient();
-  const session = await requireSession(client);
-  const userId = session?.user?.id;
+  await requireSession(client);
+  void alertId;
 
-  if (!userId) {
-    return {
-      success: false,
-      error: createError(ErrorCodes.UNAUTHORIZED, 'User not authenticated'),
-    };
-  }
-
-  const { data: existing, error: fetchError } = await client
-    .from('ultaura_wellness_alerts')
-    .select('id')
-    .eq('id', alertId)
-    .single();
-
-  if (fetchError || !existing) {
-    return {
-      success: false,
-      error: createError(ErrorCodes.NOT_FOUND, 'Alert not found'),
-    };
-  }
-
-  const { error } = await client
-    .from('ultaura_wellness_alerts')
-    .update({
-      acknowledged_at: new Date().toISOString(),
-      acknowledged_by_user_id: userId,
-    })
-    .eq('id', alertId);
-
-  if (error) {
-    logger.error({ error, alertId }, 'Failed to acknowledge alert');
-    return {
-      success: false,
-      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to acknowledge alert'),
-    };
-  }
-
-  revalidatePath('/dashboard/alerts', 'page');
-
-  return { success: true, data: undefined };
+  return {
+    success: false,
+    error: createError(ErrorCodes.FORBIDDEN, 'Acknowledgements are not available for wellness alerts'),
+  };
 }

@@ -4058,6 +4058,10 @@ export type Database = {
           should_exclude: boolean
         }[]
       }
+      can_access_self_account: {
+        Args: { account_id: string }
+        Returns: boolean
+      }
       can_access_ultaura_account: {
         Args: { account_id: string }
         Returns: boolean

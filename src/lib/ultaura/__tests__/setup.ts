@@ -110,6 +110,7 @@ export async function createTestAccount(params?: {
   planId?: string;
   status?: string;
   minutesIncluded?: number;
+  userType?: 'self' | 'family_managed';
 }) {
   const { user, email, password } = await createTestUser();
   const organization = await createTestOrganization(user.id);
@@ -129,6 +130,7 @@ export async function createTestAccount(params?: {
       cycle_start: now.toISOString(),
       cycle_end: cycleEnd.toISOString(),
       created_by_user_id: user.id,
+      ...(params?.userType ? { user_type: params.userType } : {}),
     })
     .select()
     .single();

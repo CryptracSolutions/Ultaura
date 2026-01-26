@@ -26,8 +26,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~
 import { Switch } from '~/core/ui/Switch';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/core/ui/Accordion';
-import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
-import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { Button } from '~/core/ui/Button';
@@ -62,7 +60,6 @@ interface SettingsClientProps {
   disabled?: boolean;
 }
 
-type LineSettingsTabValue = 'calling' | 'insights' | 'accessibility';
 type LineSettingsSectionValue =
   | 'language'
   | 'voice-preference'
@@ -77,38 +74,66 @@ type LineSettingsSectionValue =
   | 'missed-calls'
   | 'accessibility';
 
+type LineSettingsTabValue = 'settings' | 'call-controls';
+
 type LineSettingsSectionConfig = {
   value: LineSettingsSectionValue;
   label: string;
   icon: LucideIcon;
 };
 
-const LINE_SETTINGS_TABS: Array<{ value: LineSettingsTabValue; label: string }> = [
-  { value: 'calling', label: 'Calling & Availability' },
-  { value: 'insights', label: 'Insights & Notifications' },
-  { value: 'accessibility', label: 'Accessibility' },
-];
 const buildLineSettingsSections = (
   voiceLabel: string
-): Record<LineSettingsTabValue, LineSettingsSectionConfig[]> => ({
-  calling: [
-    { value: 'language', label: 'Language', icon: Languages },
-    { value: 'voice-preference', label: voiceLabel, icon: Mic },
-    { value: 'timezone', label: 'Timezone', icon: Globe },
-    { value: 'quiet-hours', label: 'Quiet Hours', icon: Clock },
-    { value: 'voicemail', label: 'Voicemail', icon: Voicemail },
-    { value: 'inbound', label: 'Inbound Calls', icon: PhoneIncoming },
-    { value: 'voice-controls', label: 'Voice Controls', icon: Bell },
-    { value: 'vacation', label: 'Vacation', icon: Palmtree },
-  ],
-  insights: [
-    { value: 'insights-privacy', label: 'Insights & Privacy', icon: Sparkles },
-    { value: 'weekly-summary', label: 'Weekly Summary', icon: Mail },
-    { value: 'missed-calls', label: 'Missed Call Alerts', icon: AlertTriangle },
-  ],
-  accessibility: [
-    { value: 'accessibility', label: 'Accessibility', icon: Ear },
-  ],
+): Record<
+  LineSettingsTabValue,
+  { groups: Array<{ label: string; sections: LineSettingsSectionConfig[] }> }
+> => ({
+  settings: {
+    groups: [
+      {
+        label: 'Time & Location',
+        sections: [{ value: 'timezone', label: 'Timezone', icon: Globe }],
+      },
+      {
+        label: 'Insights & Alerts',
+        sections: [
+          { value: 'insights-privacy', label: 'Insights & Privacy', icon: Sparkles },
+          { value: 'weekly-summary', label: 'Weekly Summary', icon: Mail },
+          { value: 'missed-calls', label: 'Missed Call Alerts', icon: AlertTriangle },
+        ],
+      },
+      {
+        label: 'Accessibility',
+        sections: [{ value: 'accessibility', label: 'Accessibility', icon: Ear }],
+      },
+    ],
+  },
+  'call-controls': {
+    groups: [
+      {
+        label: 'Voice & Language',
+        sections: [
+          { value: 'language', label: 'Language', icon: Languages },
+          { value: 'voice-preference', label: voiceLabel, icon: Mic },
+          { value: 'voice-controls', label: 'Voice Controls', icon: Bell },
+        ],
+      },
+      {
+        label: 'Call Behavior',
+        sections: [
+          { value: 'voicemail', label: 'Voicemail', icon: Voicemail },
+          { value: 'inbound', label: 'Inbound Calls', icon: PhoneIncoming },
+        ],
+      },
+      {
+        label: 'Availability',
+        sections: [
+          { value: 'quiet-hours', label: 'Quiet Hours', icon: Clock },
+          { value: 'vacation', label: 'Vacation', icon: Palmtree },
+        ],
+      },
+    ],
+  },
 });
 
 function buildSettingsUrl(
@@ -123,6 +148,7 @@ function buildSettingsUrl(
   }
   return `/dashboard/lines/${lineShortId}/settings?${params.toString()}`;
 }
+
 
 export function SettingsClient({
   line,
@@ -145,12 +171,32 @@ export function SettingsClient({
     scroll?: boolean;
   } | null>(null);
 
+  const normalizeTimeValue = (value: string) =>
+    value.length > 5 ? value.slice(0, 5) : value;
+  const normalizeLanguageValue = (value: string | null | undefined) => {
+    if (!value) return null;
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || normalized === 'auto') return null;
+    const normalizedHyphen = normalized.replace('_', '-');
+    return normalizedHyphen.includes('-')
+      ? normalizedHyphen.split('-')[0]
+      : normalizedHyphen;
+  };
+
   // Form state
+  const canonicalLinePreferredLanguage = normalizeLanguageValue(
+    line.preferred_language_iso ?? line.preferred_language_bcp47 ?? null
+  );
+  const initialPreferredLanguage = canonicalLinePreferredLanguage;
   const [timezone, setTimezone] = useState(line.timezone);
-  const [quietHoursStart, setQuietHoursStart] = useState(line.quiet_hours_start);
-  const [quietHoursEnd, setQuietHoursEnd] = useState(line.quiet_hours_end);
+  const [quietHoursStart, setQuietHoursStart] = useState(
+    normalizeTimeValue(line.quiet_hours_start)
+  );
+  const [quietHoursEnd, setQuietHoursEnd] = useState(
+    normalizeTimeValue(line.quiet_hours_end)
+  );
   const [preferredLanguage, setPreferredLanguage] = useState<string | null>(
-    line.preferred_language_iso ?? null
+    initialPreferredLanguage
   );
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
     line.allow_voice_reminder_control ?? true
@@ -199,9 +245,6 @@ export function SettingsClient({
     is_paused: insightPrivacy?.is_paused ?? false,
     paused_reason: insightPrivacy?.paused_reason ?? '',
   };
-
-  const normalizeTimeValue = (value: string) =>
-    value.length > 5 ? value.slice(0, 5) : value;
 
   const notificationDefaults = {
     weekly_summary_enabled: notificationPreferences?.weekly_summary_enabled ?? true,
@@ -278,9 +321,9 @@ export function SettingsClient({
 
   const resetFormState = () => {
     setTimezone(line.timezone);
-    setQuietHoursStart(line.quiet_hours_start);
-    setQuietHoursEnd(line.quiet_hours_end);
-    setPreferredLanguage(line.preferred_language_iso ?? null);
+    setQuietHoursStart(normalizeTimeValue(line.quiet_hours_start));
+    setQuietHoursEnd(normalizeTimeValue(line.quiet_hours_end));
+    setPreferredLanguage(initialPreferredLanguage);
     setAllowVoiceReminderControl(line.allow_voice_reminder_control ?? true);
     setAllowVoiceScheduleControl(line.allow_voice_schedule_control ?? true);
     setInboundAllowed(line.inbound_allowed ?? true);
@@ -415,9 +458,9 @@ export function SettingsClient({
 
   const hasLineChanges =
     effectiveTimezone !== line.timezone ||
-    quietHoursStart !== line.quiet_hours_start ||
-    quietHoursEnd !== line.quiet_hours_end ||
-    preferredLanguage !== (line.preferred_language_iso ?? null) ||
+    quietHoursStart !== normalizeTimeValue(line.quiet_hours_start) ||
+    quietHoursEnd !== normalizeTimeValue(line.quiet_hours_end) ||
+    preferredLanguage !== canonicalLinePreferredLanguage ||
     allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
     allowVoiceScheduleControl !== (line.allow_voice_schedule_control ?? true) ||
     inboundAllowed !== (line.inbound_allowed ?? true) ||
@@ -462,17 +505,23 @@ export function SettingsClient({
 
   const shouldWarnOnNavigate = hasChanges && !isLoading;
   const tabParam = searchParams.get('tab') as LineSettingsTabValue | null;
-  const activeTab =
-    LINE_SETTINGS_TABS.find((tab) => tab.value === tabParam) ?? LINE_SETTINGS_TABS[0];
+  const activeTab: { value: LineSettingsTabValue } = {
+    value: tabParam ?? 'settings',
+  };
   const lineSettingsSections = useMemo(
     () => buildLineSettingsSections(t('ui.voicePreference.sectionLabel')),
     [t]
   );
-  const sectionsForTab = lineSettingsSections[activeTab.value];
+  const groupsForTab = lineSettingsSections[activeTab.value].groups;
+  const sectionsForTab = useMemo(
+    () => groupsForTab.flatMap((group) => group.sections),
+    [groupsForTab]
+  );
   const sectionParam = searchParams.get('section') as LineSettingsSectionValue | null;
   const activeSection =
     sectionsForTab.find((section) => section.value === sectionParam) ??
     sectionsForTab[0];
+  const activeTabValue = activeTab.value;
   const currentHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 
   const handleInternalNavigation = (
@@ -577,8 +626,8 @@ export function SettingsClient({
   }, [navigationConfirmOpen, pathname, shouldWarnOnNavigate]);
 
   const activeContent = (() => {
-    switch (activeTab.value) {
-      case 'calling': {
+    switch (activeTabValue) {
+      case 'call-controls': {
         switch (activeSection.value) {
           case 'language': {
             const selectedOption = LANGUAGE_OPTIONS.find(
@@ -666,34 +715,6 @@ export function SettingsClient({
                     onChange={setSelectedVoice}
                     disabled={disabled}
                   />
-                </SectionBody>
-              </Section>
-            );
-          case 'timezone':
-            return (
-              <Section>
-                <SectionHeader
-                  title={
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      Timezone
-                    </div>
-                  }
-                  description="All call times and quiet hours use this timezone."
-                />
-                <SectionBody className="gap-4">
-                  <Select value={effectiveTimezone} onValueChange={setTimezone}>
-                    <SelectTrigger className="w-full py-3" disabled={disabled}>
-                      <SelectValue placeholder="Select a timezone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timezoneOptions.map((tz) => (
-                        <SelectItem key={tz.value} value={tz.value}>
-                          {tz.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </SectionBody>
               </Section>
             );
@@ -918,8 +939,36 @@ export function SettingsClient({
             return null;
         }
       }
-      case 'insights': {
+      case 'settings': {
         switch (activeSection.value) {
+          case 'timezone':
+            return (
+              <Section>
+                <SectionHeader
+                  title={
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                      Timezone
+                    </div>
+                  }
+                  description="All call times and quiet hours use this timezone."
+                />
+                <SectionBody className="gap-4">
+                  <Select value={effectiveTimezone} onValueChange={setTimezone}>
+                    <SelectTrigger className="w-full py-3" disabled={disabled}>
+                      <SelectValue placeholder="Select a timezone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timezoneOptions.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </SectionBody>
+              </Section>
+            );
           case 'insights-privacy':
             return (
               <Section>
@@ -1170,13 +1219,9 @@ export function SettingsClient({
                 </SectionBody>
               </Section>
             );
-          default:
-            return null;
-        }
-      }
-      case 'accessibility': {
-        return (
-          <Section>
+          case 'accessibility':
+            return (
+              <Section>
             <SectionHeader
               title={
                 <div className="flex items-center gap-2">
@@ -1270,8 +1315,11 @@ export function SettingsClient({
                 </AccordionItem>
               </Accordion>
             </SectionBody>
-          </Section>
-        );
+              </Section>
+            );
+          default:
+            return null;
+        }
       }
       default:
         return null;
@@ -1287,38 +1335,14 @@ export function SettingsClient({
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <NavigationMenu bordered scrollable>
-          {LINE_SETTINGS_TABS.map((tab) => (
-            <NavigationItem
-              key={tab.value}
-              active={tab.value === activeTab.value}
-              scroll={false}
-              onClick={(event) =>
-                handleInternalNavigation(
-                  event,
-                  buildSettingsUrl(line.short_id, tab.value, lineSettingsSections[tab.value][0].value),
-                  { scroll: false }
-                )
-              }
-              link={{
-                path: buildSettingsUrl(
-                  line.short_id,
-                  tab.value,
-                  lineSettingsSections[tab.value][0].value
-                ),
-                label: tab.label,
-              }}
-            />
-          ))}
-        </NavigationMenu>
-
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
           <LineSettingsSidebarNav
             lineShortId={line.short_id}
-            tab={activeTab.value}
+            groups={groupsForTab}
             sections={sectionsForTab}
             activeSection={activeSection}
             onNavigate={handleInternalNavigation}
+            tab={activeTab.value}
           />
           <div className="flex w-full flex-col gap-6 lg:max-w-4xl">
             {activeContent}
@@ -1361,12 +1385,14 @@ export function SettingsClient({
 function LineSettingsSidebarNav({
   lineShortId,
   tab,
+  groups,
   sections,
   activeSection,
   onNavigate,
 }: {
   lineShortId: string;
   tab: LineSettingsTabValue;
+  groups: Array<{ label: string; sections: LineSettingsSectionConfig[] }>;
   sections: LineSettingsSectionConfig[];
   activeSection: LineSettingsSectionConfig;
   onNavigate: (
@@ -1384,38 +1410,47 @@ function LineSettingsSidebarNav({
     <>
       <div className="hidden min-w-[12rem] lg:flex">
         <nav className="w-full">
-          <ul className="flex flex-col space-y-1.5">
-            {sections.map((section) => {
-              const isActive = section.value === activeSection.value;
-              const Icon = section.icon;
-              const href = buildSettingsUrl(lineShortId, tab, section.value);
-              return (
-                <li key={section.value}>
-                  <Link
-                    href={href}
-                    scroll={false}
-                    onClick={(event) => onNavigate(event, href, { scroll: false })}
-                    className={classNames(
-                      'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-primary'
-                    )}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <Icon
-                      className={classNames(
-                        'h-4 w-4',
-                        isActive
-                          ? 'text-primary'
-                          : 'text-muted-foreground group-hover:text-primary'
-                      )}
-                    />
-                    <span>{section.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
+          <ul className="flex flex-col space-y-4">
+            {groups.map((group) => (
+              <li key={group.label}>
+                <div className="px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.label}
+                </div>
+                <ul className="mt-2 flex flex-col space-y-1.5">
+                  {group.sections.map((section) => {
+                    const isActive = section.value === activeSection.value;
+                    const Icon = section.icon;
+                    const href = buildSettingsUrl(lineShortId, tab, section.value);
+                    return (
+                      <li key={section.value}>
+                        <Link
+                          href={href}
+                          scroll={false}
+                          onClick={(event) => onNavigate(event, href, { scroll: false })}
+                          className={classNames(
+                            'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                            isActive
+                              ? 'bg-muted text-foreground'
+                              : 'text-muted-foreground hover:bg-muted hover:text-primary'
+                          )}
+                          aria-current={isActive ? 'page' : undefined}
+                        >
+                          <Icon
+                            className={classNames(
+                              'h-4 w-4',
+                              isActive
+                                ? 'text-primary'
+                                : 'text-muted-foreground group-hover:text-primary'
+                            )}
+                          />
+                          <span>{section.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            ))}
           </ul>
         </nav>
       </div>

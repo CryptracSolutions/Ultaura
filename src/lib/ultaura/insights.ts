@@ -677,6 +677,11 @@ export async function getLineBaseline(lineId: string): Promise<LineBaselineRow |
   }
 
   const client = await getAdminClient();
+  const gate = await getSharingGate(client, lineId, line.account_id);
+  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowMood) {
+    return null;
+  }
+
   const { data, error } = await client
     .from('ultaura_line_baselines')
     .select('*')
@@ -776,6 +781,10 @@ export async function getInsightsDashboard(lineId: string): Promise<InsightsDash
 
   // Only block if insights are disabled entirely
   if (!gate.insightsEnabled) {
+    return null;
+  }
+
+  if (!gate.canAccessNonSafety) {
     return null;
   }
 
@@ -1679,7 +1688,7 @@ export async function getMemoryActivity(
 
   const client = await getAdminClient();
   const gate = await getSharingGate(client, lineId, line.account_id);
-  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowConcerns) {
+  if (!gate.canAccessNonSafety || !gate.isSelfUser) {
     return emptyResult;
   }
 

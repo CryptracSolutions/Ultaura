@@ -1,11 +1,12 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import sendEmail from '~/core/email/send-email';
+import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import renderSafetyAlertEmail from '~/lib/emails/safety-alert';
 
 interface SafetyAlertPayload {
-  email: string;
-  lineName: string;
+  accountId: string;
+  lineId: string;
   severity: 'high';
   actionTaken: string;
   dashboardUrl: string;
@@ -39,7 +40,12 @@ function validateWebhookSecret(request: Request): NextResponse | null {
   return null;
 }
 
-function buildTextAlert(payload: SafetyAlertPayload): string {
+function buildTextAlert(payload: {
+  lineName: string;
+  severity: 'high';
+  actionTaken: string;
+  dashboardUrl: string;
+}): string {
   return [
     `Safety alert for ${payload.lineName}`,
     '',
@@ -61,7 +67,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const payload = body as SafetyAlertPayload | null;
 
-  if (!payload?.email || !payload?.lineName || !payload?.dashboardUrl || !payload?.actionTaken) {
+  if (!payload?.accountId || !payload?.lineId || !payload?.dashboardUrl || !payload?.actionTaken) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -70,19 +76,48 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing EMAIL_SENDER configuration' }, { status: 500 });
   }
 
+  const supabase = getSupabaseServerComponentClient({ admin: true });
+  const { data: account, error: accountError } = await supabase
+    .from('ultaura_accounts')
+    .select('billing_email')
+    .eq('id', payload.accountId)
+    .single();
+
+  if (accountError || !account?.billing_email) {
+    return NextResponse.json({ error: 'Missing billing email' }, { status: 400 });
+  }
+
+  const { data: line, error: lineError } = await supabase
+    .from('ultaura_lines')
+    .select('display_name, account_id')
+    .eq('id', payload.lineId)
+    .eq('account_id', payload.accountId)
+    .single();
+
+  if (lineError || !line) {
+    return NextResponse.json({ error: 'Invalid line/account pairing' }, { status: 400 });
+  }
+
+  const lineName = line.display_name || 'Your loved one';
+
   try {
-    const subject = `Safety alert for ${payload.lineName}`;
+    const subject = `Safety alert for ${lineName}`;
     const html = renderSafetyAlertEmail({
-      lineName: payload.lineName,
+      lineName,
       actionTaken: payload.actionTaken,
       severity: payload.severity ?? 'high',
       dashboardUrl: payload.dashboardUrl,
     });
-    const text = buildTextAlert(payload);
+    const text = buildTextAlert({
+      lineName,
+      severity: payload.severity ?? 'high',
+      actionTaken: payload.actionTaken,
+      dashboardUrl: payload.dashboardUrl,
+    });
 
     await sendEmail({
       from: emailFrom,
-      to: payload.email,
+      to: account.billing_email,
       subject,
       html,
       text,

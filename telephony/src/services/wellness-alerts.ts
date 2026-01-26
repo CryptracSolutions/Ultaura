@@ -183,6 +183,11 @@ export async function processWellnessAlertsForCall(options: {
     .eq('id', options.accountId)
     .maybeSingle();
 
+  if (!privacy && account?.user_type === 'family_managed') {
+    logger.warn({ lineId: options.lineId }, 'Missing insight privacy for family-managed alert');
+    return;
+  }
+
   if (privacy?.is_paused && account?.user_type === 'family_managed') {
     return;
   }

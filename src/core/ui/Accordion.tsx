@@ -90,7 +90,7 @@ export function AccordionContent({
   return (
     <div
       className={cn(
-        'px-6 pb-6 pt-0 text-muted-foreground text-sm animate-in fade-in zoom-in-95 duration-200',
+        'px-6 pb-6 pt-3 text-muted-foreground text-sm animate-in fade-in zoom-in-95 duration-200',
         className
       )}
     >

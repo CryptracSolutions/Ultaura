@@ -154,12 +154,6 @@ export async function notifyPayerSafetyEmail(options: {
     .eq('id', options.accountId)
     .single();
 
-  const { data: line } = await supabase
-    .from('ultaura_lines')
-    .select('display_name')
-    .eq('id', options.lineId)
-    .single();
-
   if (!account?.billing_email) {
     logger.warn({ accountId: options.accountId }, 'No billing email for safety alert');
     return;
@@ -189,8 +183,8 @@ export async function notifyPayerSafetyEmail(options: {
         'X-Webhook-Secret': getInternalApiSecret(),
       },
       body: JSON.stringify({
-        email: account.billing_email,
-        lineName: line?.display_name || 'Your loved one',
+        accountId: options.accountId,
+        lineId: options.lineId,
         severity: options.tier,
         actionTaken: actionDescription,
         dashboardUrl: `${getAppBaseUrl()}/dashboard/alerts`,

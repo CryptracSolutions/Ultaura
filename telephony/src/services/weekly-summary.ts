@@ -1114,6 +1114,11 @@ export async function generateWeeklySummaryForLine(line: WeeklySummaryLine): Pro
     return;
   }
 
+  if (!privacy && account.user_type === 'family_managed') {
+    logger.warn({ lineId: line.id }, 'Missing insight privacy for family-managed summary');
+    return;
+  }
+
   if (privacy?.is_paused && account.user_type === 'family_managed') {
     return;
   }

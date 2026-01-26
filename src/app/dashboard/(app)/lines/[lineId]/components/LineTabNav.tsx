@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 
@@ -10,21 +10,30 @@ interface LineTabNavProps {
 
 const LINE_TABS = [
   { key: 'overview', label: 'Overview', pathSuffix: '' },
+  { key: 'settings', label: 'Settings', pathSuffix: '/settings' },
+  { key: 'call-controls', label: 'Call Controls', pathSuffix: '/settings?tab=call-controls' },
   { key: 'topics', label: 'Topics', pathSuffix: '/topics' },
   { key: 'milestones', label: 'Milestones', pathSuffix: '/milestones' },
   { key: 'contacts', label: 'Contacts', pathSuffix: '/contacts' },
-  { key: 'settings', label: 'Settings', pathSuffix: '/settings' },
 ] as const;
 
 export function LineTabNav({ lineShortId }: LineTabNavProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const basePath = `/dashboard/lines/${lineShortId}`;
 
   const getIsActive = (pathSuffix: string) => {
     const fullPath = `${basePath}${pathSuffix}`;
+    const tabParam = searchParams.get('tab');
+    if (pathSuffix === '/settings?tab=call-controls') {
+      return pathname.startsWith(`${basePath}/settings`) && tabParam === 'call-controls';
+    }
     if (pathSuffix === '') {
       // Overview tab - active only when exactly on the base path
       return pathname === basePath || pathname === `${basePath}/`;
+    }
+    if (pathSuffix.startsWith('/settings')) {
+      return pathname.startsWith(`${basePath}/settings`) && !tabParam;
     }
     // Other tabs - active when pathname starts with the tab path
     return pathname.startsWith(fullPath);

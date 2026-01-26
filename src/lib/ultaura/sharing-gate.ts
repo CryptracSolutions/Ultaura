@@ -79,9 +79,7 @@ export function evaluateSharingGate(
     : consentGranted
       ? context.sharingTier
       : 'tier_1';
-  // tier_1 content is always accessible for family_managed users (no consent required)
-  // Higher tiers (tier_2+) require consent
-  const canAccessNonSafety = insightsEnabled;
+  const canAccessNonSafety = insightsEnabled && (isSelfUser || consentGranted);
 
   return {
     canAccessNonSafety,
