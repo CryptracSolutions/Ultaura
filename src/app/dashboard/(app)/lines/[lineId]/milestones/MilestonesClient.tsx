@@ -41,7 +41,6 @@ const MILESTONE_TYPES = [
   { value: 'memorial', label: 'Memorial' },
   { value: 'achievement', label: 'Achievement' },
   { value: 'holiday', label: 'Holiday' },
-  { value: 'custom', label: 'Custom' },
 ] as const;
 
 interface MilestonesClientProps {

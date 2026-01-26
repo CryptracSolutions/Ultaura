@@ -1287,11 +1287,10 @@ export function SettingsClient({
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <NavigationMenu bordered>
+        <NavigationMenu bordered scrollable>
           {LINE_SETTINGS_TABS.map((tab) => (
             <NavigationItem
               key={tab.value}
-              className={'flex-1 lg:flex-none'}
               active={tab.value === activeTab.value}
               scroll={false}
               onClick={(event) =>

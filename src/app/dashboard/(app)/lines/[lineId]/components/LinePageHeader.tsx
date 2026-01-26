@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Phone, CheckCircle, Clock, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, CheckCircle } from 'lucide-react';
 import { LineTabNav } from './LineTabNav';
 
 interface LinePageHeaderProps {
@@ -50,26 +50,22 @@ export function LinePageHeader({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{lineName}</h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-muted-foreground">
-            {/* Phone */}
-            <div className="flex items-center gap-1.5">
-              <Phone className="w-4 h-4" />
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {/* Phone + Verified combined pill */}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground">
+              <Phone className="w-3.5 h-3.5" />
               <span>{formatPhone(phoneE164)}</span>
               {isVerified && (
-                <span className="flex items-center gap-1 text-success">
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  <span className="text-xs">Verified</span>
-                </span>
+                <CheckCircle className="w-3.5 h-3.5 text-success" />
               )}
-            </div>
-            {/* Timezone */}
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" />
-              <span>{timezone}</span>
-            </div>
-            {/* Status */}
+            </span>
+            {/* Timezone pill */}
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground">
+              {timezone}
+            </span>
+            {/* Status pill */}
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(status)}`}
+              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(status)}`}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </span>

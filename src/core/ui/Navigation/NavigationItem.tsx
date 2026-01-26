@@ -134,6 +134,9 @@ function getNavigationMenuItemClassBuilder() {
         secondary: {
           true: ``,
         },
+        scrollable: {
+          true: `flex-none whitespace-nowrap`,
+        },
       },
     },
   );

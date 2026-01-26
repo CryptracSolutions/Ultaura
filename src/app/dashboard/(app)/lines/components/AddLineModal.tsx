@@ -28,34 +28,10 @@ import {
   SelectItem,
 } from '~/core/ui/Select';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
-
-const MAX_INTEREST_TOPICS = 5;
-
-// Curated topics that tend to work well for 60+ conversation starters
-const INTEREST_TOPIC_OPTIONS = [
-  'Family',
-  'Grandkids',
-  'Friends',
-  'Memories',
-  'Hometown',
-  'Holidays',
-  'Cooking',
-  'Baking',
-  'Gardening',
-  'Music',
-  'Movies',
-  'TV shows',
-  'Reading',
-  'Faith / spirituality',
-  'Pets',
-  'Sports',
-  'Travel',
-  'History',
-  'Nature',
-  'Games & puzzles',
-  'Hobbies & crafts',
-  'Community events',
-];
+import {
+  TopicPreferencesForm,
+  MAX_INTEREST_TOPICS,
+} from '~/components/ultaura/TopicPreferencesForm';
 
 interface AddLineModalProps {
   isOpen: boolean;
@@ -157,19 +133,8 @@ export function AddLineModal({
     ),
   ).slice(0, MAX_INTEREST_TOPICS);
 
-  const selectedCount = combinedTopics.length;
-  const customDisabled = selectedTopics.length >= MAX_INTEREST_TOPICS;
   const isVendorAcknowledged = vendorAlreadyAcknowledged || vendorAcknowledged;
   const isSelfUser = userType === 'self';
-
-  const toggleTopic = (topic: string) => {
-    setSelectedTopics((prev) => {
-      const exists = prev.includes(topic);
-      if (exists) return prev.filter((t) => t !== topic);
-      if (combinedTopics.length >= MAX_INTEREST_TOPICS) return prev;
-      return [...prev, topic];
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,7 +158,9 @@ export function AddLineModal({
         timezone,
         preferredLanguageIso: preferredLanguage,
         seedInterests: combinedTopics.length ? combinedTopics : undefined,
-        seedAvoidTopics: avoidTopics ? avoidTopics.split(',').map(s => s.trim()) : undefined,
+        seedAvoidTopics: avoidTopics
+          ? Array.from(new Set(avoidTopics.split(',').map((s) => s.trim()).filter(Boolean)))
+          : undefined,
         defaultSharingTier: isSelfUser ? undefined : defaultSharingTier,
       });
 
@@ -357,79 +324,15 @@ export function AddLineModal({
 
             {step === 2 && (
                 <>
-                  {/* Interests */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-4">
-                      <label className="block text-sm font-medium text-foreground">
-                        Topics They Enjoy (optional)
-                      </label>
-                      <div className="text-xs text-muted-foreground">
-                        Selected: {selectedCount}/{MAX_INTEREST_TOPICS}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {INTEREST_TOPIC_OPTIONS.map((topic) => {
-                        const isSelected = selectedTopics.includes(topic);
-                        const disabled =
-                          !isSelected && combinedTopics.length >= MAX_INTEREST_TOPICS;
-
-                        return (
-                          <button
-                            key={topic}
-                            type="button"
-                            onClick={() => toggleTopic(topic)}
-                            disabled={disabled}
-                            className={[
-                              'rounded-full border px-3 py-1 text-sm transition-colors',
-                              isSelected
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border bg-background text-foreground hover:bg-muted',
-                              disabled ? 'opacity-50 cursor-not-allowed' : '',
-                            ].join(' ')}
-                          >
-                            {topic}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-muted-foreground">
-                        Other topics (comma-separated)
-                      </label>
-                      <input
-                        value={customTopics}
-                        onChange={(e) => setCustomTopics(e.target.value)}
-                        placeholder="e.g., baseball, baking, church"
-                        disabled={customDisabled}
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                      />
-                      {customDisabled ? (
-                        <p className="text-xs text-muted-foreground">
-                          Remove a selected topic to add a custom one.
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          We&apos;ll save up to {MAX_INTEREST_TOPICS} total topics.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Topics to Avoid */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">
-                      Topics to Avoid (optional)
-                    </label>
-                    <textarea
-                      value={avoidTopics}
-                      onChange={(e) => setAvoidTopics(e.target.value)}
-                      placeholder="e.g., politics, health issues..."
-                      rows={2}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                    />
-                  </div>
+                  {/* Topics Preferences */}
+                  <TopicPreferencesForm
+                    selectedTopics={selectedTopics}
+                    customTopics={customTopics}
+                    avoidTopics={avoidTopics}
+                    onSelectedTopicsChange={setSelectedTopics}
+                    onCustomTopicsChange={setCustomTopics}
+                    onAvoidTopicsChange={setAvoidTopics}
+                  />
 
                   {userType === 'family_managed' ? (
                     <div className="space-y-2 pt-4 border-t border-border">

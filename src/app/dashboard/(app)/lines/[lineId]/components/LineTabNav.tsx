@@ -10,8 +10,7 @@ interface LineTabNavProps {
 
 const LINE_TABS = [
   { key: 'overview', label: 'Overview', pathSuffix: '' },
-  { key: 'schedule', label: 'Schedule', pathSuffix: '/schedule' },
-  { key: 'reminders', label: 'Reminders', pathSuffix: '/reminders' },
+  { key: 'topics', label: 'Topics', pathSuffix: '/topics' },
   { key: 'milestones', label: 'Milestones', pathSuffix: '/milestones' },
   { key: 'contacts', label: 'Contacts', pathSuffix: '/contacts' },
   { key: 'settings', label: 'Settings', pathSuffix: '/settings' },
@@ -32,11 +31,10 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
   };
 
   return (
-    <NavigationMenu bordered>
+    <NavigationMenu bordered scrollable>
       {LINE_TABS.map((tab) => (
         <NavigationItem
           key={tab.key}
-          className="flex-1 lg:flex-none"
           active={getIsActive(tab.pathSuffix)}
           link={{
             path: `${basePath}${tab.pathSuffix}`,

@@ -36,11 +36,10 @@ export function InsightsLineTabs({ lines, currentLineShortId }: InsightsLineTabs
   };
 
   return (
-    <NavigationMenu bordered>
+    <NavigationMenu bordered scrollable>
       {lines.map((line) => (
         <NavigationItem
           key={line.id}
-          className="flex-1 lg:flex-none"
           active={line.short_id === currentLineShortId}
           link={{
             path: `/dashboard/insights/${line.short_id}`,

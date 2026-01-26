@@ -16,7 +16,11 @@ type Pill = {
   pill?: boolean;
 };
 
-export type NavigationMenuProps = Vertical & (Bordered | Pill);
+type Scrollable = {
+  scrollable?: boolean;
+};
+
+export type NavigationMenuProps = Vertical & (Bordered | Pill) & Scrollable;
 
 function NavigationMenu(props: PropsWithChildren<NavigationMenuProps>) {
   const className = getNavigationMenuClassBuilder()(props);
@@ -33,7 +37,7 @@ function NavigationMenu(props: PropsWithChildren<NavigationMenuProps>) {
 export default NavigationMenu;
 
 function getNavigationMenuClassBuilder() {
-  return cva(['w-full items-center flex-wrap flex'], {
+  return cva(['w-full items-center flex'], {
     variants: {
       vertical: {
         true: `flex items-start justify-between space-x-2
@@ -42,6 +46,13 @@ function getNavigationMenuClassBuilder() {
       bordered: {
         true: `lg:space-x-3 border-b border-border pb-1.5`,
       },
+      scrollable: {
+        true: `overflow-x-auto flex-nowrap scrollbar-hide`,
+        false: `flex-wrap`,
+      },
+    },
+    defaultVariants: {
+      scrollable: false,
     },
   });
 }

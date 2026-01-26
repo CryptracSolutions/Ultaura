@@ -33,11 +33,10 @@ export function InsightsTabNav({ lineShortId }: InsightsTabNavProps) {
   };
 
   return (
-    <NavigationMenu bordered>
+    <NavigationMenu bordered scrollable>
       {INSIGHTS_TABS.map((tab) => (
         <NavigationItem
           key={tab.key}
-          className="flex-1 lg:flex-none"
           active={getIsActive(tab.pathSuffix)}
           link={{
             path: `${basePath}${tab.pathSuffix}`,

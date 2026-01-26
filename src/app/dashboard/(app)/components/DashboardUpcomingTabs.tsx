@@ -24,11 +24,10 @@ export function DashboardUpcomingTabs(props: {
 
   return (
     <div>
-      <NavigationMenu bordered>
+      <NavigationMenu bordered scrollable>
         {DASHBOARD_TABS.map((tab) => (
           <NavigationItem
             key={tab.value}
-            className={'flex-1 lg:flex-none'}
             active={tab.value === activeTab}
             scroll={false}
             link={{ path: tab.path, label: tab.label }}

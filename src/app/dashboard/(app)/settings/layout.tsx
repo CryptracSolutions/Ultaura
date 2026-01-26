@@ -41,10 +41,9 @@ async function SettingsLayout({
       />
 
       <PageBody>
-        <NavigationMenu bordered>
+        <NavigationMenu bordered scrollable>
           {links.map((link) => (
             <NavigationItem
-              className={'flex-1 lg:flex-none'}
               link={link}
               key={link.path}
             />

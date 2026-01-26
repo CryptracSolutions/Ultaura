@@ -277,6 +277,20 @@ export async function updateLine(
 
   const updates: Record<string, unknown> = {};
 
+  // Self-managed users cannot edit topics via dashboard (only during calls)
+  const isSelfManaged = account.user_type === 'self';
+  const isTopicEdit = parsed.data.seedInterests !== undefined || parsed.data.seedAvoidTopics !== undefined;
+
+  if (isSelfManaged && isTopicEdit) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.UNAUTHORIZED,
+        'Topics can only be changed during calls for self-managed accounts'
+      ),
+    };
+  }
+
   if (parsed.data.displayName !== undefined) updates.display_name = parsed.data.displayName;
   if (parsed.data.timezone !== undefined) updates.timezone = parsed.data.timezone;
   if (parsed.data.quietHoursStart !== undefined) updates.quiet_hours_start = parsed.data.quietHoursStart;
