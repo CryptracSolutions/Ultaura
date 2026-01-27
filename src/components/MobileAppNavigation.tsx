@@ -13,6 +13,7 @@ import {
   PhoneIcon,
   BellIcon,
   PhoneArrowUpRightIcon,
+  CalendarIcon,
   LifebuoyIcon,
 } from '@heroicons/react/24/outline';
 
@@ -22,6 +23,7 @@ import NAVIGATION_CONFIG from '../navigation.config';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import useSignOut from '~/core/hooks/use-sign-out';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
+import { useManualCall } from '~/lib/contexts/ManualCallContext';
 
 import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
@@ -30,6 +32,7 @@ import Logo from '~/core/ui/Logo';
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
   const { data: ultauraAccount } = useUltauraAccount();
+  const { openManualCall } = useManualCall();
   const { open: openHelp } = useHelpPanel();
   const [isVisible, setIsVisible] = useState(false);
   const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
@@ -67,6 +70,11 @@ const MobileAppNavigation = () => {
   const handleFeedbackClick = () => {
     closeMenu();
     setTimeout(() => setFeedbackOpen(true), 200);
+  };
+
+  const handleManualCallClick = () => {
+    closeMenu();
+    setTimeout(() => openManualCall(), 200);
   };
 
   // Extract navigation items and settings from config
@@ -160,21 +168,28 @@ const MobileAppNavigation = () => {
             {/* Quick Actions Section */}
             <MenuSection label="Quick Actions">
               <MenuLink
-                Icon={PhoneIcon}
-                path="/dashboard/lines?action=add"
-                label="Add Line"
-                onClick={closeMenu}
-              />
-              <MenuLink
                 Icon={BellIcon}
                 path="/dashboard/reminders?action=add"
                 label="Add Reminder"
                 onClick={closeMenu}
               />
               <MenuLink
-                Icon={PhoneArrowUpRightIcon}
+                Icon={CalendarIcon}
                 path="/dashboard/calls?action=add"
                 label="Schedule Call"
+                onClick={closeMenu}
+              />
+              {userType === 'family_managed' && (
+                <MenuButton
+                  Icon={PhoneArrowUpRightIcon}
+                  label="Place Call"
+                  onClick={handleManualCallClick}
+                />
+              )}
+              <MenuLink
+                Icon={PhoneIcon}
+                path="/dashboard/lines?action=add"
+                label="Add Line"
                 onClick={closeMenu}
               />
             </MenuSection>

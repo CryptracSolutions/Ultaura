@@ -101,7 +101,9 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
       session.twilio_to &&
       session.twilio_to !== line.phone_e164
     );
-    const allowQuietHoursOverride = session.is_test_call &&
+    const isScheduledSession = session.scheduler_idempotency_key?.startsWith('schedule:') ?? false;
+    const isManualSession = !session.is_test_call && !session.is_reminder_call && !isScheduledSession;
+    const allowQuietHoursOverride = (session.is_test_call || isManualSession) &&
       (overrideQuietHours === '1' || overrideQuietHours === 'true');
 
     // Check if call should be suppressed

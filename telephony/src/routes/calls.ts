@@ -32,15 +32,17 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
 
     const isReminderCall = reason === 'reminder' && !!reminderId;
     const isTestCall = reason === 'test';
+    const isManualCall = reason === 'manual';
     const previewMode = Boolean(isPreviewMode) && isTestCall;
     const hasAlternateTarget = isTestCall && typeof targetPhoneNumber === 'string' && targetPhoneNumber.trim().length > 0;
-    const quietHoursOverride = isTestCall && Boolean(overrideQuietHours);
+    const quietHoursOverride = (isTestCall || isManualCall) && Boolean(overrideQuietHours);
 
     logger.info({
       lineId,
       reason,
       isReminderCall,
       isTestCall,
+      isManualCall,
       isPreviewMode: previewMode,
       schedulerIdempotencyKey,
     }, 'Outbound call request');

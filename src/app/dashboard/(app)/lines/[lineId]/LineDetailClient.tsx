@@ -22,6 +22,7 @@ import { deleteLine } from '~/lib/ultaura/lines';
 import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
 import type { ActionError } from '@ultaura/schemas';
 import { TELEPHONY } from '~/lib/ultaura/constants';
+import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { CallActivityList } from './components/CallActivityList';
 import { LinePageHeader } from './components/LinePageHeader';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -88,6 +89,7 @@ interface LineDetailClientProps {
   trustedContactsCount: number;
   isReadOnly?: boolean;
   isTrialActive?: boolean;
+  isFamilyManaged?: boolean;
 }
 
 export function LineDetailClient({
@@ -97,8 +99,10 @@ export function LineDetailClient({
   activeSchedulesCount,
   isReadOnly = false,
   isTrialActive = false,
+  isFamilyManaged = false,
 }: LineDetailClientProps) {
   const router = useRouter();
+  const { openManualCall } = useManualCall();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isTestCalling, setIsTestCalling] = useState(false);
   const [isTestCallModalOpen, setIsTestCallModalOpen] = useState(false);
@@ -334,6 +338,16 @@ export function LineDetailClient({
         isVerified={!!line.phone_verified_at}
         actions={
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            {isFamilyManaged && (
+              <button
+                onClick={() => openManualCall({ preselectedLineId: line.id })}
+                disabled={isReadOnly}
+                className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm`}
+              >
+                <PhoneCall className="w-3 h-3" />
+                Manual Call
+              </button>
+            )}
             <button
               onClick={() => {
                 setIsTestCallModalOpen(true);

@@ -18,6 +18,7 @@ import CsrfTokenContext from '~/lib/contexts/csrf';
 import SidebarContext from '~/lib/contexts/sidebar';
 import UserSessionContext from '~/core/session/contexts/user-session';
 import { HelpPanelProvider, useHelpPanel } from '~/lib/contexts/HelpPanelContext';
+import { ManualCallProvider } from '~/lib/contexts/ManualCallContext';
 import I18nProvider from '~/i18n/I18nProvider';
 
 import { setCookie } from '~/core/generic/cookies';
@@ -75,16 +76,18 @@ const OrganizationScopeLayout: React.FCC<{
                 whenSignedOut={'/'}
               >
                 <HelpPanelProvider>
-                  <main>
-                    <Toaster richColors={false} />
+                  <ManualCallProvider>
+                    <main>
+                      <Toaster richColors={false} />
 
-                    <RouteShellWithSidebar
-                      collapsed={data.ui.sidebarState === 'collapsed'}
-                      ultauraAccountId={ultauraAccountId}
-                    >
-                      {children}
-                    </RouteShellWithSidebar>
-                  </main>
+                      <RouteShellWithSidebar
+                        collapsed={data.ui.sidebarState === 'collapsed'}
+                        ultauraAccountId={ultauraAccountId}
+                      >
+                        {children}
+                      </RouteShellWithSidebar>
+                    </main>
+                  </ManualCallProvider>
                 </HelpPanelProvider>
               </AuthChangeListener>
             </I18nProvider>

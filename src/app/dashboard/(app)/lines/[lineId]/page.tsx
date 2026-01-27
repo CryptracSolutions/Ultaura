@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine } from '~/lib/ultaura/lines';
+import { getUltauraAccountById } from '~/lib/ultaura/helpers';
 import { getSchedules } from '~/lib/ultaura/schedules';
 import { getUsageSummary, getCallSessions } from '~/lib/ultaura/usage';
 import { getReminders } from '~/lib/ultaura/reminders';
@@ -61,6 +62,9 @@ export default async function LineDetailPage({ params }: PageProps) {
     getScheduleAndReminderCounts(line.id),
   ]);
 
+  const account = await getUltauraAccountById(line.account_id);
+  const isFamilyManaged = account?.user_type === 'family_managed';
+
   const trialInfo = await getTrialInfo(line.account_id);
   const isTrialExpired = trialInfo?.isExpired ?? false;
   const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
@@ -81,6 +85,7 @@ export default async function LineDetailPage({ params }: PageProps) {
           trustedContactsCount={counts.trustedContactsCount}
           isReadOnly={isTrialExpired}
           isTrialActive={isTrialActive}
+          isFamilyManaged={isFamilyManaged}
         />
       </div>
     </PageBody>

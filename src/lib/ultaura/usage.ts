@@ -223,6 +223,65 @@ const initiateTestCallWithTrial = withTrialCheck(async (
   }
 });
 
+const initiateManualCallWithTrial = withTrialCheck(async (
+  _account: UltauraAccountRow,
+  input: {
+    lineId: string;
+    overrideQuietHours?: boolean;
+  }
+): Promise<ActionResult<{ sessionId: string }>> => {
+  const line = await getSupabaseServerComponentClient()
+    .from('ultaura_lines')
+    .select('account_id')
+    .eq('id', input.lineId)
+    .single();
+
+  if (line.error || !line.data) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Line not found'),
+    };
+  }
+
+  const telephonyUrl = getTelephonyBackendUrl();
+
+  try {
+    const response = await fetch(`${telephonyUrl}/calls/outbound`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Webhook-Secret': getInternalApiSecret(),
+      },
+      body: JSON.stringify({
+        lineId: input.lineId,
+        reason: 'manual',
+        overrideQuietHours: input.overrideQuietHours ?? false,
+      }),
+    });
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: createError(
+          ErrorCodes.EXTERNAL_SERVICE_ERROR,
+          payload?.error || 'Failed to initiate manual call',
+          payload?.code ? { telephonyCode: payload.code } : undefined
+        ),
+      };
+    }
+
+    return { success: true, data: { sessionId: payload?.sessionId } };
+  } catch (error) {
+    logger.error({ error }, 'Failed to initiate manual call');
+    return {
+      success: false,
+      error: createError(ErrorCodes.EXTERNAL_SERVICE_ERROR, 'Failed to initiate manual call'),
+    };
+  }
+});
+
 export async function initiateTestCall(
   lineId: string,
   options?: { isPreviewMode?: boolean; targetPhoneNumber?: string; overrideQuietHours?: boolean }
@@ -252,6 +311,44 @@ export async function initiateTestCall(
     lineId,
     isPreviewMode: options?.isPreviewMode,
     targetPhoneNumber: options?.targetPhoneNumber,
+    overrideQuietHours: options?.overrideQuietHours,
+  });
+}
+
+export async function initiateManualCall(
+  lineId: string,
+  options?: { overrideQuietHours?: boolean }
+): Promise<ActionResult<{ sessionId: string }>> {
+  const line = await getSupabaseServerComponentClient()
+    .from('ultaura_lines')
+    .select('account_id')
+    .eq('id', lineId)
+    .single();
+
+  if (line.error || !line.data) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Line not found'),
+    };
+  }
+
+  const account = await getUltauraAccountById(line.data.account_id);
+  if (!account) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Account not found'),
+    };
+  }
+
+  if (account.user_type !== 'family_managed') {
+    return {
+      success: false,
+      error: createError(ErrorCodes.FORBIDDEN, 'Manual calls are only available for family managed accounts.'),
+    };
+  }
+
+  return initiateManualCallWithTrial(account, {
+    lineId,
     overrideQuietHours: options?.overrideQuietHours,
   });
 }

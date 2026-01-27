@@ -156,4 +156,22 @@ describe('calls/outbound', () => {
     }));
     expect(res.body.success).toBe(true);
   });
+
+  it('honors quiet hours override for manual calls', async () => {
+    vi.mocked(isInQuietHours).mockReturnValue(true);
+    const res = createMockRes();
+
+    await outboundHandler({
+      body: {
+        lineId: 'line-1',
+        reason: 'manual',
+        overrideQuietHours: true,
+      },
+    } as any, res);
+
+    expect(initiateOutboundCall).toHaveBeenCalledWith(expect.objectContaining({
+      callbackParams: { overrideQuietHours: '1' },
+    }));
+    expect(res.body.success).toBe(true);
+  });
 });
