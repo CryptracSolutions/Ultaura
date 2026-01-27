@@ -33,8 +33,6 @@ const CARD_HEADER_CLASS = 'flex items-center gap-2';
 const BTN_PRIMARY_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const BTN_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50';
 const BTN_DESTRUCTIVE_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
-const STAT_CARD_CLASS = 'rounded-lg border border-border bg-card p-4 h-full min-h-[104px]';
-
 interface StatCardProps {
   icon: React.ReactNode;
   label: string;
@@ -43,25 +41,36 @@ interface StatCardProps {
 }
 
 function StatCard({ icon, label, value, subtext }: StatCardProps): JSX.Element {
+  // Detect if value is numeric for different styling
+  const isNumeric = /^\d+$/.test(value);
+
   return (
-    <div className={STAT_CARD_CLASS}>
-      <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 text-muted-foreground min-h-5">
-          <span className="shrink-0">{icon}</span>
-          <span className="text-xs font-medium leading-tight">{label}</span>
+    <div className="relative overflow-hidden rounded-xl bg-card p-5" style={{ border: '1px solid oklch(0.75 0.12 180.426)' }}>
+      {/* Subtle corner accent */}
+      <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
+
+      <div className="relative flex flex-col">
+        {/* Label row with icon */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-primary">{icon}</span>
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         </div>
 
-        <div className="mt-2 text-xl font-semibold text-foreground leading-none tracking-tight truncate whitespace-nowrap">
-          {value}
-        </div>
-
-        {subtext ? (
-          <div className="mt-2 text-xs text-muted-foreground leading-tight truncate whitespace-nowrap">
-            {subtext}
+        {/* Value - different treatment for numeric vs text */}
+        {isNumeric ? (
+          <div className="text-2xl font-bold text-foreground tracking-tight tabular-nums">
+            {value}
           </div>
         ) : (
-          <div aria-hidden className="mt-2 text-xs leading-tight opacity-0">
-            placeholder
+          <div className="text-base font-semibold text-foreground">
+            {value}
+          </div>
+        )}
+
+        {/* Subtext */}
+        {subtext && (
+          <div className="mt-auto pt-2 text-xs text-muted-foreground">
+            {subtext}
           </div>
         )}
       </div>
@@ -284,17 +293,34 @@ export function LineDetailClient({
   }, [line.id, testCallSessionId]);
 
   // Calculate quick stats
-  const callsThisWeek = callSessions.filter((session) => {
-    if (!session.started_at) return false;
-    const sessionDate = new Date(session.started_at);
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    return sessionDate >= oneWeekAgo;
-  }).length;
+  const getLastCallDisplay = (): string => {
+    if (callSessions.length === 0) return 'No calls yet';
+
+    // Find the most recent call with a started_at timestamp
+    const sortedSessions = [...callSessions]
+      .filter((s) => s.started_at)
+      .sort((a, b) => new Date(b.started_at!).getTime() - new Date(a.started_at!).getTime());
+
+    if (sortedSessions.length === 0) return 'No calls yet';
+
+    const lastCallDate = new Date(sortedSessions[0].started_at!);
+    const now = new Date();
+    const diffMs = now.getTime() - lastCallDate.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+
+    return lastCallDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   const nextScheduledCall = activeSchedulesCount > 0 ? 'Scheduled' : 'Not scheduled';
   const minutesUsed = usage ? usage.minutesUsed : 0;
-  const minutesRemaining = usage ? usage.minutesRemaining : 0;
 
   return (
     <div className="w-full">
@@ -334,6 +360,10 @@ export function LineDetailClient({
 
       {/* Overview Content */}
       <div className="space-y-6 mt-6">
+        {/* Tab description note */}
+        <p className="text-sm text-muted-foreground">
+          At-a-glance summary of call activity and key metrics for this line.
+        </p>
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
@@ -344,14 +374,13 @@ export function LineDetailClient({
           />
           <StatCard
             icon={<PhoneCall className="w-4 h-4" />}
-            label="Calls This Week"
-            value={String(callsThisWeek)}
+            label="Last Call"
+            value={getLastCallDisplay()}
           />
           <StatCard
             icon={<Clock className="w-4 h-4" />}
             label="Minutes Used"
             value={String(minutesUsed)}
-            subtext={`${minutesRemaining} remaining`}
           />
           <StatCard
             icon={<Phone className="w-4 h-4" />}
@@ -365,7 +394,7 @@ export function LineDetailClient({
           <summary className="flex items-center justify-between gap-3 cursor-pointer select-none [&::-webkit-details-marker]:hidden">
             <div className={`${CARD_HEADER_CLASS}`}>
               <Phone className="w-5 h-5 text-muted-foreground" />
-              <h2 className="font-semibold text-foreground">Recent Calls</h2>
+              <h2 className="font-semibold text-foreground">All Calls</h2>
             </div>
             <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
@@ -374,6 +403,9 @@ export function LineDetailClient({
           </div>
         </details>
       </div>
+
+      {/* Bottom spacer */}
+      <div className="h-16" />
 
       {/* Test Call Modal */}
       <Modal

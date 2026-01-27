@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   PhoneIncoming,
   PhoneOutgoing,
@@ -7,6 +8,8 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import type { CallSessionRow, InsightMood } from '~/lib/ultaura/types';
 import { getLanguageDisplayName } from '~/lib/ultaura/language';
@@ -18,23 +21,82 @@ interface CallActivityListProps {
 }
 
 export function CallActivityList({ sessions }: CallActivityListProps) {
-  if (sessions.length === 0) {
+  const [monthOffset, setMonthOffset] = useState(0); // 0 = current month, -1 = last month, etc.
+
+  // Calculate the viewing month based on offset
+  const getViewingMonth = () => {
+    const date = new Date();
+    date.setMonth(date.getMonth() + monthOffset);
+    return date;
+  };
+
+  const viewingMonth = getViewingMonth();
+  const viewingYear = viewingMonth.getFullYear();
+  const viewingMonthIndex = viewingMonth.getMonth();
+
+  // Filter sessions for the selected month
+  const filteredSessions = sessions.filter((session) => {
+    const sessionDate = new Date(session.created_at);
     return (
-      <div className="text-center py-8">
-        <PhoneOutgoing className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-        <p className="text-muted-foreground">No call history yet</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Calls will appear here after the first check-in
-        </p>
-      </div>
+      sessionDate.getFullYear() === viewingYear &&
+      sessionDate.getMonth() === viewingMonthIndex
     );
-  }
+  });
+
+  // Check if we can navigate (limit to 12 months back)
+  const canGoBack = monthOffset > -11;
+  const canGoForward = monthOffset < 0;
+
+  const handlePrevMonth = () => {
+    if (canGoBack) setMonthOffset(monthOffset - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (canGoForward) setMonthOffset(monthOffset + 1);
+  };
+
+  const formatMonthYear = (date: Date) => {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
 
   return (
-    <div className="divide-y divide-border">
-      {sessions.map((session) => (
-        <CallActivityItem key={session.id} session={session} />
-      ))}
+    <div>
+      {/* Month Navigation */}
+      <div className="flex items-center justify-center gap-2 mb-4 pb-3 border-b border-border">
+        <button
+          onClick={handlePrevMonth}
+          disabled={!canGoBack}
+          className="p-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="w-5 h-5 text-primary" />
+        </button>
+        <span className="text-sm font-medium text-foreground">
+          {formatMonthYear(viewingMonth)}
+        </span>
+        <button
+          onClick={handleNextMonth}
+          disabled={!canGoForward}
+          className="p-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Next month"
+        >
+          <ChevronRight className="w-5 h-5 text-primary" />
+        </button>
+      </div>
+
+      {/* Call List */}
+      {filteredSessions.length === 0 ? (
+        <div className="text-center py-8">
+          <PhoneOutgoing className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">No calls in {formatMonthYear(viewingMonth)}</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {filteredSessions.map((session) => (
+            <CallActivityItem key={session.id} session={session} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -56,22 +118,9 @@ function CallActivityItem({
     ? PhoneIncoming
     : PhoneOutgoing;
 
-  // Choose colors based on status
-  const bgColor = isCompleted
-    ? 'bg-success/10'
-    : isFailed || isMissed
-    ? 'bg-destructive/10'
-    : isInProgress
-    ? 'bg-primary/10'
-    : 'bg-muted';
-
-  const iconColor = isCompleted
-    ? 'text-success'
-    : isFailed || isMissed
-    ? 'text-destructive'
-    : isInProgress
-    ? 'text-primary'
-    : 'text-muted-foreground';
+  // Always use primary tiffany blue for icon backgrounds and colors
+  const bgColor = 'bg-primary/10';
+  const iconColor = 'text-primary';
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds || seconds === 0) return null;

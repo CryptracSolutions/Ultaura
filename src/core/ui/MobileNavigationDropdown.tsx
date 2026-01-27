@@ -48,11 +48,11 @@ const MobileNavigationDropdown: React.FC<{
           <span
             className={'flex w-full items-center justify-between space-x-2'}
           >
-            <span>
+            <span className="text-primary">
               <Trans i18nKey={currentPathName} defaults={currentPathName} />
             </span>
 
-            <ChevronDownIcon className={'h-5'} />
+            <ChevronDownIcon className={'h-5 text-primary'} />
           </span>
         </Button>
       </DropdownMenuTrigger>

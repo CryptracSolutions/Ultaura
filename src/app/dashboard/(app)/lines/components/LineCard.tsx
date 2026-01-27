@@ -144,7 +144,6 @@ export function LineCard({
                 <h3 className="min-w-0 flex-1 font-semibold text-foreground truncate">
                   {line.display_name}
                 </h3>
-                <div className="shrink-0">{getStatusBadge()}</div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {callBadge && (
@@ -177,7 +176,7 @@ export function LineCard({
               </div>
             </div>
           </div>
-          <div className="relative pointer-events-auto">
+          <div className="relative pointer-events-auto flex flex-col items-end gap-2">
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -189,6 +188,7 @@ export function LineCard({
             >
               <MoreVertical className="w-5 h-5 text-primary" />
             </button>
+            <div className="shrink-0">{getStatusBadge()}</div>
             {isMenuOpen && (
               <>
                 <div

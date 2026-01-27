@@ -1339,6 +1339,13 @@ export function SettingsClient({
 
   return (
     <div className="flex flex-col gap-6 pb-24">
+      {/* Tab description note */}
+      <p className="text-sm text-muted-foreground">
+        {activeTabValue === 'call-controls'
+          ? 'Configure how Ultaura places and receives calls, including voice selection, quiet hours, and voicemail behavior.'
+          : 'Customize how Ultaura communicates with your loved one, including timezone, language, accessibility options, and notification preferences.'}
+      </p>
+
       {error && (
         <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive">
           {error}

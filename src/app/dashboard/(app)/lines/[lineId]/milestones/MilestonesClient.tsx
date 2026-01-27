@@ -205,7 +205,7 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
     <div className="space-y-6 pb-12">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Track birthdays, anniversaries, memorial dates, and special achievements.
+          Track birthdays, anniversaries, memorial dates, and special achievements so Ultaura can celebrate with you.
         </p>
         <Button onClick={openAddForm} disabled={disabled} size="small">
           <Plus className="h-4 w-4 mr-2" />
