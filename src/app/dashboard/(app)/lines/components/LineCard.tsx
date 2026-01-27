@@ -14,11 +14,14 @@ import {
   Trash2,
   Palmtree,
   CheckCircle,
+  Eye,
+  Settings,
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '~/core/ui/Dropdown';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 interface LineCardProps {
   line: LineRow;
@@ -179,17 +182,23 @@ export function LineCard({
           </div>
           <div className="relative pointer-events-auto flex flex-col items-end gap-2">
             <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <button className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto">
-                  <MoreVertical className="w-5 h-5 text-primary" />
-                </button>
-              </DropdownMenuTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto">
+                      <MoreVertical className="w-5 h-5 text-primary" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent sideOffset={20}>Menu</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem asChild>
                   <Link
                     href={`/dashboard/lines/${shortId}`}
                     onClick={(e) => e.stopPropagation()}
                   >
+                    <Eye className="w-4 h-4 mr-2" />
                     View Details
                   </Link>
                 </DropdownMenuItem>
@@ -198,6 +207,7 @@ export function LineCard({
                     href={`/dashboard/lines/${shortId}/settings`}
                     onClick={(e) => e.stopPropagation()}
                   >
+                    <Settings className="w-4 h-4 mr-2" />
                     Settings
                   </Link>
                 </DropdownMenuItem>
@@ -212,7 +222,7 @@ export function LineCard({
                       }}
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 mr-2" />
                       Delete Line
                     </DropdownMenuItem>
                   </>

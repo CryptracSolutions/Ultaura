@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 
@@ -21,6 +22,7 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const basePath = `/dashboard/lines/${lineShortId}`;
+  const navRef = useRef<HTMLDivElement>(null);
 
   const getIsActive = (pathSuffix: string) => {
     const fullPath = `${basePath}${pathSuffix}`;
@@ -39,18 +41,38 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
     return pathname.startsWith(fullPath);
   };
 
+  // Scroll active tab into view on mount/navigation (for mobile)
+  useEffect(() => {
+    if (!navRef.current) return;
+
+    const activeTab = navRef.current.querySelector('[data-active="true"]');
+    if (activeTab) {
+      activeTab.scrollIntoView({
+        behavior: 'instant',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [pathname, searchParams]);
+
   return (
-    <NavigationMenu bordered scrollable>
-      {LINE_TABS.map((tab) => (
-        <NavigationItem
-          key={tab.key}
-          active={getIsActive(tab.pathSuffix)}
-          link={{
-            path: `${basePath}${tab.pathSuffix}`,
-            label: tab.label,
-          }}
-        />
-      ))}
-    </NavigationMenu>
+    <div ref={navRef}>
+      <NavigationMenu bordered scrollable>
+        {LINE_TABS.map((tab) => {
+          const isActive = getIsActive(tab.pathSuffix);
+          return (
+            <NavigationItem
+              key={tab.key}
+              active={isActive}
+              data-active={isActive}
+              link={{
+                path: `${basePath}${tab.pathSuffix}`,
+                label: tab.label,
+              }}
+            />
+          );
+        })}
+      </NavigationMenu>
+    </div>
   );
 }

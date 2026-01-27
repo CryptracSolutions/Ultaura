@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
-import { Button } from '~/components/ui/button';
+import Button from '~/core/ui/Button';
 import { Input } from '~/components/ui/input';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { Card, CardContent } from '~/components/ui/card';
@@ -14,7 +14,7 @@ import {
   modalPrimaryButtonClass,
   modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
-import { Phone, Trash2, Plus, X, Info } from 'lucide-react';
+import { Phone, Trash2, Plus, X } from 'lucide-react';
 import {
   getTrustedContacts,
   addTrustedContact,
@@ -139,22 +139,17 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
-        <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-primary">
-          Trusted contacts receive SMS alerts when Ultaura detects signs of distress during calls,
-          such as expressions of hopelessness, self-harm, or other safety concerns.
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Trusted contacts receive SMS alerts when Ultaura detects signs of distress during calls.{' '}
           <a
             href="/docs/safety-and-contacts/trusted-contacts"
-            className="text-primary hover:underline ml-1"
+            className="text-primary hover:underline"
           >
             Learn more →
           </a>
         </p>
-      </div>
-
-      <div className="flex justify-end">
-        <Button onClick={() => setIsAdding(true)} disabled={disabled}>
+        <Button onClick={() => setIsAdding(true)} disabled={disabled} size="small">
           <Plus className="h-4 w-4 mr-2" />
           Add Contact
         </Button>
