@@ -19,6 +19,9 @@ import SidebarContext from '~/lib/contexts/sidebar';
 import UserSessionContext from '~/core/session/contexts/user-session';
 import { HelpPanelProvider, useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { ManualCallProvider } from '~/lib/contexts/ManualCallContext';
+import { AddReminderProvider } from '~/lib/contexts/AddReminderContext';
+import { AddScheduleProvider } from '~/lib/contexts/AddScheduleContext';
+import { AddLineProvider } from '~/lib/contexts/AddLineContext';
 import I18nProvider from '~/i18n/I18nProvider';
 
 import { setCookie } from '~/core/generic/cookies';
@@ -77,16 +80,22 @@ const OrganizationScopeLayout: React.FCC<{
               >
                 <HelpPanelProvider>
                   <ManualCallProvider>
-                    <main>
-                      <Toaster richColors={false} />
+                    <AddReminderProvider>
+                      <AddScheduleProvider>
+                        <AddLineProvider>
+                          <main>
+                            <Toaster richColors={false} />
 
-                      <RouteShellWithSidebar
-                        collapsed={data.ui.sidebarState === 'collapsed'}
-                        ultauraAccountId={ultauraAccountId}
-                      >
-                        {children}
-                      </RouteShellWithSidebar>
-                    </main>
+                            <RouteShellWithSidebar
+                              collapsed={data.ui.sidebarState === 'collapsed'}
+                              ultauraAccountId={ultauraAccountId}
+                            >
+                              {children}
+                            </RouteShellWithSidebar>
+                          </main>
+                        </AddLineProvider>
+                      </AddScheduleProvider>
+                    </AddReminderProvider>
                   </ManualCallProvider>
                 </HelpPanelProvider>
               </AuthChangeListener>

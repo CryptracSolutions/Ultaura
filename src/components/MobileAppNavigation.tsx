@@ -24,6 +24,9 @@ import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organi
 import useSignOut from '~/core/hooks/use-sign-out';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
+import { useAddReminder } from '~/lib/contexts/AddReminderContext';
+import { useAddSchedule } from '~/lib/contexts/AddScheduleContext';
+import { useAddLine } from '~/lib/contexts/AddLineContext';
 
 import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
@@ -33,6 +36,9 @@ const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
   const { data: ultauraAccount } = useUltauraAccount();
   const { openManualCall } = useManualCall();
+  const { openAddReminder } = useAddReminder();
+  const { openAddSchedule } = useAddSchedule();
+  const { openAddLine } = useAddLine();
   const { open: openHelp } = useHelpPanel();
   const [isVisible, setIsVisible] = useState(false);
   const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
@@ -75,6 +81,21 @@ const MobileAppNavigation = () => {
   const handleManualCallClick = () => {
     closeMenu();
     setTimeout(() => openManualCall(), 200);
+  };
+
+  const handleAddReminderClick = () => {
+    closeMenu();
+    setTimeout(() => openAddReminder(), 200);
+  };
+
+  const handleAddScheduleClick = () => {
+    closeMenu();
+    setTimeout(() => openAddSchedule(), 200);
+  };
+
+  const handleAddLineClick = () => {
+    closeMenu();
+    setTimeout(() => openAddLine(), 200);
   };
 
   // Extract navigation items and settings from config
@@ -167,17 +188,15 @@ const MobileAppNavigation = () => {
 
             {/* Quick Actions Section */}
             <MenuSection label="Quick Actions">
-              <MenuLink
+              <MenuButton
                 Icon={BellIcon}
-                path="/dashboard/reminders?action=add"
                 label="Add Reminder"
-                onClick={closeMenu}
+                onClick={handleAddReminderClick}
               />
-              <MenuLink
+              <MenuButton
                 Icon={CalendarIcon}
-                path="/dashboard/calls?action=add"
                 label="Schedule Call"
-                onClick={closeMenu}
+                onClick={handleAddScheduleClick}
               />
               {userType === 'family_managed' && (
                 <MenuButton
@@ -186,11 +205,10 @@ const MobileAppNavigation = () => {
                   onClick={handleManualCallClick}
                 />
               )}
-              <MenuLink
+              <MenuButton
                 Icon={PhoneIcon}
-                path="/dashboard/lines?action=add"
                 label="Add Line"
-                onClick={closeMenu}
+                onClick={handleAddLineClick}
               />
             </MenuSection>
 

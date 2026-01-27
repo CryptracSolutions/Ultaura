@@ -18,6 +18,7 @@ import {
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '~/core/ui/Dropdown';
 
 interface LineCardProps {
   line: LineRow;
@@ -177,64 +178,48 @@ export function LineCard({
             </div>
           </div>
           <div className="relative pointer-events-auto flex flex-col items-end gap-2">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const next = !isMenuOpen;
-                setIsMenuOpen(next);
-              }}
-              className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto"
-            >
-              <MoreVertical className="w-5 h-5 text-primary" />
-            </button>
-            <div className="shrink-0">{getStatusBadge()}</div>
-            {isMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40 bg-transparent backdrop-blur-none"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsMenuOpen(false);
-                  }}
-                />
-                <div
-                  className="absolute right-0 mt-1 w-48 bg-background rounded-lg shadow-2xl border border-border/80 ring-1 ring-border/60 z-50 pointer-events-auto"
-                >
+            <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <button className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto">
+                  <MoreVertical className="w-5 h-5 text-primary" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
                   <Link
                     href={`/dashboard/lines/${shortId}`}
-                    className="block px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors rounded-t-lg"
                     onClick={(e) => e.stopPropagation()}
                   >
                     View Details
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link
                     href={`/dashboard/lines/${shortId}/settings`}
-                    className="block px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Settings
                   </Link>
-                  {!disabled && (
-                    <>
-                      <div className="border-t border-border" />
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openDeleteDialog();
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors rounded-b-lg flex items-center gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete Line
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
+                </DropdownMenuItem>
+                {!disabled && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openDeleteDialog();
+                      }}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Line
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="shrink-0">{getStatusBadge()}</div>
           </div>
         </div>
       </div>

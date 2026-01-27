@@ -40,12 +40,12 @@ function UpdatePhoneNumberForm({
   const { t } = useTranslation();
   const currentPhoneNumber = session.auth?.user?.phone ?? '';
   const [phoneNumber, setPhoneNumber] = useState(currentPhoneNumber);
-  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | undefined>(undefined);
   const hasChanges = phoneNumber !== currentPhoneNumber;
 
   const resetForm = useCallback(() => {
     setPhoneNumber(currentPhoneNumber);
-    setPhoneError(null);
+    setPhoneError(undefined);
   }, [currentPhoneNumber]);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ function UpdatePhoneNumberForm({
 
         const validationError = getUsPhoneValidationError(phoneNumber, { required: false });
         if (validationError) {
-          setPhoneError(validationError);
+          setPhoneError(validationError ?? undefined);
           return;
         }
 
@@ -97,11 +97,13 @@ function UpdatePhoneNumberForm({
               onValueChange={(value) => {
                 setPhoneNumber(value);
                 if (phoneError) {
-                  setPhoneError(null);
+                  setPhoneError(undefined);
                 }
               }}
               onBlur={(event) => {
-                setPhoneError(getUsPhoneValidationError(event.target.value, { required: false }));
+                setPhoneError(
+                  getUsPhoneValidationError(event.target.value, { required: false }) ?? undefined
+                );
               }}
             />
             <TextField.Error error={phoneError} />

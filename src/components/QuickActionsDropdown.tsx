@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   PlusIcon,
   PhoneIcon,
@@ -10,6 +9,9 @@ import {
 } from '@heroicons/react/24/outline';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
+import { useAddReminder } from '~/lib/contexts/AddReminderContext';
+import { useAddSchedule } from '~/lib/contexts/AddScheduleContext';
+import { useAddLine } from '~/lib/contexts/AddLineContext';
 
 import {
   DropdownMenu,
@@ -25,6 +27,9 @@ import IconButton from '~/core/ui/IconButton';
 const QuickActionsDropdown: React.FC = () => {
   const { data: account } = useUltauraAccount();
   const { openManualCall } = useManualCall();
+  const { openAddReminder } = useAddReminder();
+  const { openAddSchedule } = useAddSchedule();
+  const { openAddLine } = useAddLine();
   const isFamilyManaged = account?.user_type === 'family_managed';
 
   return (
@@ -33,7 +38,7 @@ const QuickActionsDropdown: React.FC = () => {
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <IconButton label="Quick Actions">
-              <PlusIcon className="h-5 w-5" />
+              <PlusIcon className="h-5 w-5 text-primary" />
             </IconButton>
           </DropdownMenuTrigger>
         </TooltipTrigger>
@@ -41,26 +46,22 @@ const QuickActionsDropdown: React.FC = () => {
       </Tooltip>
 
       <DropdownMenuContent align="end" sideOffset={8} className="min-w-[12rem]">
-        <DropdownMenuItem asChild>
-          <Link
-            href="/dashboard/reminders?action=add"
-            className="flex w-full items-center space-x-2"
-          >
-            <BellIcon className="h-5" />
-            <span>Add Reminder</span>
-          </Link>
+        <DropdownMenuItem
+          className="flex w-full items-center space-x-2"
+          onClick={() => openAddReminder()}
+        >
+          <BellIcon className="h-5" />
+          <span>Add Reminder</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem asChild>
-          <Link
-            href="/dashboard/calls?action=add"
-            className="flex w-full items-center space-x-2"
-          >
-            <CalendarIcon className="h-5" />
-            <span>Schedule Call</span>
-          </Link>
+        <DropdownMenuItem
+          className="flex w-full items-center space-x-2"
+          onClick={() => openAddSchedule()}
+        >
+          <CalendarIcon className="h-5" />
+          <span>Schedule Call</span>
         </DropdownMenuItem>
 
         {isFamilyManaged && (
@@ -78,14 +79,12 @@ const QuickActionsDropdown: React.FC = () => {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem asChild>
-          <Link
-            href="/dashboard/lines?action=add"
-            className="flex w-full items-center space-x-2"
-          >
-            <PhoneIcon className="h-5" />
-            <span>Add Line</span>
-          </Link>
+        <DropdownMenuItem
+          className="flex w-full items-center space-x-2"
+          onClick={() => openAddLine()}
+        >
+          <PhoneIcon className="h-5" />
+          <span>Add Line</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

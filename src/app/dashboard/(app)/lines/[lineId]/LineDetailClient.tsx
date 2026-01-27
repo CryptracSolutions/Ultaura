@@ -407,7 +407,7 @@ export function LineDetailClient({
 
       {/* Test Call Modal */}
       <Modal
-        heading="Test call preview"
+        heading="Test call"
         isOpen={isTestCallModalOpen}
         setIsOpen={(open) => {
           setIsTestCallModalOpen(open);
@@ -537,7 +537,7 @@ export function LineDetailClient({
             >
               {cooldownSeconds > 0
                 ? `Try again in ${cooldownSeconds}s`
-                : (isTestCalling ? 'Calling...' : 'Start preview call')}
+                : (isTestCalling ? 'Calling...' : 'Start test call')}
             </button>
           </div>
         </div>

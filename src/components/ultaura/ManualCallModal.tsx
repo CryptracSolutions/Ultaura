@@ -91,12 +91,14 @@ export default function ManualCallModal({
     setIsLoading(true);
     setError(null);
 
-    supabase
-      .from('ultaura_lines')
-      .select('id, display_name, phone_e164, status, phone_verified_at, do_not_call')
-      .eq('account_id', account.id)
-      .order('display_name', { ascending: true })
-      .then(({ data, error: fetchError }) => {
+    const fetchLines = async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('ultaura_lines')
+          .select('id, display_name, phone_e164, status, phone_verified_at, do_not_call')
+          .eq('account_id', account.id)
+          .order('display_name', { ascending: true });
+
         if (!isActive) return;
         if (fetchError) {
           setError('Unable to load lines. Please try again.');
@@ -104,16 +106,17 @@ export default function ManualCallModal({
           return;
         }
         setLines((data || []) as LineOption[]);
-      })
-      .catch(() => {
+      } catch {
         if (!isActive) return;
         setError('Unable to load lines. Please try again.');
         setLines([]);
-      })
-      .finally(() => {
+      } finally {
         if (!isActive) return;
         setIsLoading(false);
-      });
+      }
+    };
+
+    void fetchLines();
 
     return () => {
       isActive = false;

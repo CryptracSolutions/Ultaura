@@ -234,7 +234,7 @@ export function PrivacyCenterClient({
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRelationship, setInviteRelationship] = useState('');
   const [inviteAsTrusted, setInviteAsTrusted] = useState(false);
-  const [invitePhoneError, setInvitePhoneError] = useState<string | null>(null);
+  const [invitePhoneError, setInvitePhoneError] = useState<string | undefined>(undefined);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
@@ -565,7 +565,7 @@ export function PrivacyCenterClient({
     }
   ) => {
     setInviteError(null);
-    setInvitePhoneError(null);
+    setInvitePhoneError(undefined);
     const payload = buildInvitePayload(override);
 
     if (!payload.name || !payload.email) {
@@ -1615,12 +1615,13 @@ export function PrivacyCenterClient({
                                 onValueChange={(value) => {
                                   setInvitePhone(value);
                                   if (invitePhoneError) {
-                                    setInvitePhoneError(null);
+                                    setInvitePhoneError(undefined);
                                   }
                                 }}
                                 onBlur={(event) => {
                                   setInvitePhoneError(
-                                    getUsPhoneValidationError(event.target.value, { required: inviteAsTrusted })
+                                    getUsPhoneValidationError(event.target.value, { required: inviteAsTrusted }) ??
+                                      undefined
                                   );
                                 }}
                                 placeholder="(555) 123-4567"
