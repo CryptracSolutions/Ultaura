@@ -13,10 +13,10 @@ import { FeedbackPopupContainer } from '~/plugins/feedback-popup/FeedbackPopup';
 import QuickActionsDropdown from '~/components/QuickActionsDropdown';
 
 interface TopNavBarProps {
-  onHelpClick?: () => void;
+  onHelpToggle?: () => void;
 }
 
-const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpClick }) => {
+const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
   return (
     <div className="hidden lg:flex items-center justify-end gap-2 px-container py-2 bg-background sticky top-0 z-10">
       <QuickActionsDropdown />
@@ -34,7 +34,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpClick }) => {
 
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton label="Help" onClick={onHelpClick}>
+          <IconButton label="Help" onClick={onHelpToggle}>
             <LifebuoyIcon className="h-5 w-5" />
           </IconButton>
         </TooltipTrigger>

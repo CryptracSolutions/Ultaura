@@ -69,7 +69,8 @@ import {
 } from '~/lib/ultaura/notification-recipients';
 import { InvitedFamilyList } from './components/InvitedFamilyList';
 import { TELEPHONY } from '~/lib/ultaura/constants';
-import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
+import PhoneInput from '~/components/ultaura/PhoneInput';
 
 interface PrivacyCenterClientProps {
   account: UltauraAccountRow;
@@ -233,6 +234,7 @@ export function PrivacyCenterClient({
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRelationship, setInviteRelationship] = useState('');
   const [inviteAsTrusted, setInviteAsTrusted] = useState(false);
+  const [invitePhoneError, setInvitePhoneError] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
@@ -563,10 +565,17 @@ export function PrivacyCenterClient({
     }
   ) => {
     setInviteError(null);
+    setInvitePhoneError(null);
     const payload = buildInvitePayload(override);
 
     if (!payload.name || !payload.email) {
       setInviteError('Name and email are required');
+      return;
+    }
+
+    const phoneValidationError = getUsPhoneValidationError(invitePhone, { required: inviteAsTrusted });
+    if (phoneValidationError) {
+      setInvitePhoneError(phoneValidationError);
       return;
     }
 
@@ -1601,14 +1610,23 @@ export function PrivacyCenterClient({
                               ) : (
                                 '(optional)'
                               )}
-                              <TextField.Input
-                                type="tel"
+                              <PhoneInput
                                 value={invitePhone}
-                                onChange={(event) => setInvitePhone(event.target.value)}
-                                onBlur={(event) => setInvitePhone(formatUsPhoneForDisplay(event.target.value))}
+                                onValueChange={(value) => {
+                                  setInvitePhone(value);
+                                  if (invitePhoneError) {
+                                    setInvitePhoneError(null);
+                                  }
+                                }}
+                                onBlur={(event) => {
+                                  setInvitePhoneError(
+                                    getUsPhoneValidationError(event.target.value, { required: inviteAsTrusted })
+                                  );
+                                }}
                                 placeholder="(555) 123-4567"
                                 required={inviteAsTrusted}
                               />
+                              <TextField.Error error={invitePhoneError} />
                             </TextField.Label>
                           </TextField>
                           <TextField>

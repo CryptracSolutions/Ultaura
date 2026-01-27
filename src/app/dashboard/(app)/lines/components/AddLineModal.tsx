@@ -32,7 +32,8 @@ import {
   TopicPreferencesForm,
   MAX_INTEREST_TOPICS,
 } from '~/components/ultaura/TopicPreferencesForm';
-import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
+import PhoneInput from '~/components/ultaura/PhoneInput';
 
 interface AddLineModalProps {
   isOpen: boolean;
@@ -57,6 +58,7 @@ export function AddLineModal({
   // Form state
   const [displayName, setDisplayName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [timezone, setTimezone] = useState('America/Los_Angeles');
   const [preferredLanguage, setPreferredLanguage] = useState<string | null>(null);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -71,6 +73,7 @@ export function AddLineModal({
     setStep(1);
     setDisplayName('');
     setPhoneNumber('');
+    setPhoneError(null);
     setTimezone('America/Los_Angeles');
     setPreferredLanguage(null);
     setSelectedTopics([]);
@@ -142,6 +145,13 @@ export function AddLineModal({
 
     if (!disclosure || !consent || !isVendorAcknowledged) {
       setError('Please acknowledge the required disclosures to continue');
+      return;
+    }
+
+    const phoneValidationError = getUsPhoneValidationError(phoneNumber, { required: true });
+    if (phoneValidationError) {
+      setPhoneError(phoneValidationError);
+      setStep(1);
       return;
     }
 
@@ -256,15 +266,24 @@ export function AddLineModal({
                       Phone Number
                     </label>
                     <div className="relative">
-                      <input
-                        type="tel"
+                      <PhoneInput
                         value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        onBlur={(e) => setPhoneNumber(formatUsPhoneForDisplay(e.target.value))}
+                        onValueChange={(value) => {
+                          setPhoneNumber(value);
+                          if (phoneError) {
+                            setPhoneError(null);
+                          }
+                        }}
+                        onBlur={(event) => {
+                          setPhoneError(getUsPhoneValidationError(event.target.value, { required: true }));
+                        }}
                         placeholder="(555) 123-4567"
                         className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         required
                       />
+                      {phoneError ? (
+                        <p className="text-xs text-destructive">{phoneError}</p>
+                      ) : null}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       US phone numbers only. We&apos;ll verify this number in the next step.
@@ -390,28 +409,6 @@ export function AddLineModal({
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={isVendorAcknowledged}
-                        onChange={(e) => setVendorAcknowledged(e.target.checked)}
-                        disabled={vendorAlreadyAcknowledged}
-                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                      <span className="text-sm text-foreground">
-                        I understand that Ultaura uses xAI and Twilio to power voice conversations.
-                        Audio is processed in real-time by these services.{' '}
-                        <a
-                          href="/privacy"
-                          className="text-primary hover:underline"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Learn more
-                        </a>
-                      </span>
-                    </label>
-
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
                         checked={disclosure}
                         onChange={(e) => setDisclosure(e.target.checked)}
                         className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -457,8 +454,15 @@ export function AddLineModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setStep(2)}
-                    disabled={!displayName || !phoneNumber}
+                    onClick={() => {
+                      const phoneValidationError = getUsPhoneValidationError(phoneNumber, { required: true });
+                      if (phoneValidationError) {
+                        setPhoneError(phoneValidationError);
+                        return;
+                      }
+                      setStep(2);
+                    }}
+                    disabled={!displayName || !phoneNumber || !!phoneError}
                     className={modalPrimaryButtonClass}
                   >
                     Continue

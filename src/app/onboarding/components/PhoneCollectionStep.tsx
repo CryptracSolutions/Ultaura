@@ -5,11 +5,11 @@ import { useTranslation } from 'react-i18next';
 
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
-import TextField from '~/core/ui/TextField';
 import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
 import { TELEPHONY } from '~/lib/ultaura/constants';
-import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { formatToE164, isValidUsPhoneInput } from '~/lib/ultaura/phone';
+import PhoneInput from '~/components/ultaura/PhoneInput';
 
 export interface PhoneCollectionStepData {
   phoneE164: string;
@@ -39,15 +39,13 @@ const PhoneCollectionStep: React.FCC<{
       event.preventDefault();
       setError(null);
 
-      const formatted = formatToE164(phoneNumber.trim());
-
-      if (!TELEPHONY.PHONE_REGEX.test(formatted)) {
+      if (!isValidUsPhoneInput(phoneNumber, { required: true })) {
         setError(t('phoneCollectionError', { defaultValue: 'Enter a valid US phone number.' }));
         return;
       }
 
       onSubmit({
-        phoneE164: formatted,
+        phoneE164: formatToE164(phoneNumber.trim()),
         timezone: detectTimezone(),
       });
     },
@@ -72,14 +70,19 @@ const PhoneCollectionStep: React.FCC<{
         <label className="text-sm font-medium text-foreground">
           <Trans i18nKey={'onboarding:phoneCollectionLabel'} />
         </label>
-        <TextField.Input
+        <PhoneInput
           data-cy={'self-phone-input'}
           required
           name={'phone'}
-          type={'tel'}
           value={phoneNumber}
-          onChange={(event) => setPhoneNumber(event.target.value)}
-          onBlur={(event) => setPhoneNumber(formatUsPhoneForDisplay(event.target.value))}
+          onValueChange={setPhoneNumber}
+          onBlur={() => {
+            if (!isValidUsPhoneInput(phoneNumber, { required: true })) {
+              setError(t('phoneCollectionError', { defaultValue: 'Enter a valid US phone number.' }));
+            } else {
+              setError(null);
+            }
+          }}
           placeholder={t('phoneCollectionPlaceholder')}
         />
         <p className="text-xs text-muted-foreground">

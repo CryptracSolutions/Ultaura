@@ -22,7 +22,8 @@ import { deleteLine } from '~/lib/ultaura/lines';
 import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
 import type { ActionError } from '@ultaura/schemas';
 import { TELEPHONY } from '~/lib/ultaura/constants';
-import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
+import PhoneInput from '~/components/ultaura/PhoneInput';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { CallActivityList } from './components/CallActivityList';
 import { LinePageHeader } from './components/LinePageHeader';
@@ -466,15 +467,18 @@ export function LineDetailClient({
                 <label className="text-xs font-medium text-muted-foreground">
                   Alternate phone number
                 </label>
-                <input
+                <PhoneInput
                   value={alternatePhone}
-                  onChange={(event) => {
-                    setAlternatePhone(event.target.value);
+                  onValueChange={(value) => {
+                    setAlternatePhone(value);
                     setAlternatePhoneError(null);
                   }}
-                  onBlur={(event) => setAlternatePhone(formatUsPhoneForDisplay(event.target.value))}
+                  onBlur={(event) => {
+                    setAlternatePhoneError(
+                      getUsPhoneValidationError(event.target.value, { required: true })
+                    );
+                  }}
                   placeholder="(555) 555-1234"
-                  type="tel"
                   className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 {alternatePhoneError && (

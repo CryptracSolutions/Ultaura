@@ -20,7 +20,8 @@ import {
 } from '~/core/ui/modal-button-classes';
 
 import configuration from '~/configuration';
-import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
+import PhoneInput from '~/components/ultaura/PhoneInput';
 
 interface UpdatePhoneNumberFormProps {
   session: UserSession;
@@ -39,10 +40,12 @@ function UpdatePhoneNumberForm({
   const { t } = useTranslation();
   const currentPhoneNumber = session.auth?.user?.phone ?? '';
   const [phoneNumber, setPhoneNumber] = useState(currentPhoneNumber);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const hasChanges = phoneNumber !== currentPhoneNumber;
 
   const resetForm = useCallback(() => {
     setPhoneNumber(currentPhoneNumber);
+    setPhoneError(null);
   }, [currentPhoneNumber]);
 
   useEffect(() => {
@@ -63,6 +66,12 @@ function UpdatePhoneNumberForm({
         event.preventDefault();
         if (!hasChanges) return;
 
+        const validationError = getUsPhoneValidationError(phoneNumber, { required: false });
+        if (validationError) {
+          setPhoneError(validationError);
+          return;
+        }
+
         const normalized = phoneNumber.trim() ? formatToE164(phoneNumber) : phoneNumber;
 
         const promise = trigger(normalized).then(() => {
@@ -82,12 +91,20 @@ function UpdatePhoneNumberForm({
           <TextField.Label>
             <Trans i18nKey={'profile:phoneNumberLabel'} />
 
-            <TextField.Input
+            <PhoneInput
               name={'phoneNumber'}
               value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
-              onBlur={(event) => setPhoneNumber(formatUsPhoneForDisplay(event.target.value))}
+              onValueChange={(value) => {
+                setPhoneNumber(value);
+                if (phoneError) {
+                  setPhoneError(null);
+                }
+              }}
+              onBlur={(event) => {
+                setPhoneError(getUsPhoneValidationError(event.target.value, { required: false }));
+              }}
             />
+            <TextField.Error error={phoneError} />
           </TextField.Label>
 
           {/* Only show this if phone number is enabled */}

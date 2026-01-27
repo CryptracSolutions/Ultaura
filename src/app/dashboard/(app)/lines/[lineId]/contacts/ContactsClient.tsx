@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
+import PhoneInput from '~/components/ultaura/PhoneInput';
 import { Card, CardContent } from '~/components/ui/card';
 import { Checkbox } from '~/core/ui/Checkbox';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -19,7 +20,7 @@ import {
   addTrustedContact,
   removeTrustedContact,
 } from '~/lib/ultaura/contacts';
-import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import { toast } from 'sonner';
 
 interface TrustedContact {
@@ -44,6 +45,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [consentAcknowledged, setConsentAcknowledged] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [newContact, setNewContact] = useState({
     name: '',
     phone: '',
@@ -68,6 +70,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
   const resetAddForm = () => {
     setNewContact({ name: '', phone: '', relationship: '' });
     setConsentAcknowledged(false);
+    setPhoneError(null);
     setIsAdding(false);
   };
 
@@ -85,6 +88,12 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
   async function handleAddContact(e: React.FormEvent) {
     e.preventDefault();
     if (disabled) return;
+
+    const validationError = getUsPhoneValidationError(newContact.phone, { required: true });
+    if (validationError) {
+      setPhoneError(validationError);
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -197,17 +206,24 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
               <label htmlFor="contact-phone" className="block text-sm font-medium text-foreground mb-1">
                 Phone Number
               </label>
-              <Input
+              <PhoneInput
                 id="contact-phone"
                 placeholder="e.g., (555) 123-4567"
-                type="tel"
                 value={newContact.phone}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, phone: e.target.value })}
-                onBlur={(e: ChangeEvent<HTMLInputElement>) =>
-                  setNewContact({ ...newContact, phone: formatUsPhoneForDisplay(e.target.value) })
-                }
+                onValueChange={(value) => {
+                  setNewContact({ ...newContact, phone: value });
+                  if (phoneError) {
+                    setPhoneError(null);
+                  }
+                }}
+                onBlur={(event) => {
+                  setPhoneError(getUsPhoneValidationError(event.target.value, { required: true }));
+                }}
                 required
               />
+              {phoneError ? (
+                <p className="text-xs text-destructive">{phoneError}</p>
+              ) : null}
             </div>
             <div>
               <label htmlFor="contact-relationship" className="block text-sm font-medium text-foreground mb-1">

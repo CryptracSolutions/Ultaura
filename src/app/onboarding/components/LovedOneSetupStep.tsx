@@ -10,7 +10,8 @@ import Trans from '~/core/ui/Trans';
 import TextField from '~/core/ui/TextField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { TELEPHONY, US_TIMEZONES } from '~/lib/ultaura/constants';
-import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { formatToE164, isValidUsPhoneInput } from '~/lib/ultaura/phone';
+import PhoneInput from '~/components/ultaura/PhoneInput';
 
 export interface LovedOneSetupStepData {
   lovedOneName: string;
@@ -33,9 +34,7 @@ const LovedOneSetupStep: React.FCC<{
       event.preventDefault();
       setError(null);
 
-      const formatted = formatToE164(phoneNumber.trim());
-
-      if (!TELEPHONY.PHONE_REGEX.test(formatted)) {
+      if (!isValidUsPhoneInput(phoneNumber, { required: true })) {
         setError(t('phoneCollectionError', { defaultValue: 'Enter a valid US phone number.' }));
         return;
       }
@@ -47,7 +46,7 @@ const LovedOneSetupStep: React.FCC<{
 
       onSubmit({
         lovedOneName: displayName.trim(),
-        lovedOnePhoneE164: formatted,
+        lovedOnePhoneE164: formatToE164(phoneNumber.trim()),
         lovedOneTimezone: timezone,
       });
     },
@@ -86,13 +85,18 @@ const LovedOneSetupStep: React.FCC<{
           <label className="text-sm font-medium text-foreground">
             <Trans i18nKey={'onboarding:lovedOnePhoneLabel'} />
           </label>
-          <TextField.Input
+          <PhoneInput
             required
             name={'lovedOnePhone'}
-            type={'tel'}
             value={phoneNumber}
-            onChange={(event) => setPhoneNumber(event.target.value)}
-            onBlur={(event) => setPhoneNumber(formatUsPhoneForDisplay(event.target.value))}
+            onValueChange={setPhoneNumber}
+            onBlur={() => {
+              if (!isValidUsPhoneInput(phoneNumber, { required: true })) {
+                setError(t('phoneCollectionError', { defaultValue: 'Enter a valid US phone number.' }));
+              } else {
+                setError(null);
+              }
+            }}
             placeholder={t('phoneCollectionPlaceholder')}
           />
         </div>

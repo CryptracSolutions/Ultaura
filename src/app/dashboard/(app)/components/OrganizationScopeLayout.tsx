@@ -108,6 +108,13 @@ function RouteShellWithSidebar(
 ) {
   const [collapsed, setCollapsed] = useCollapsible(props.collapsed);
   const { isOpen: isHelpOpen, open: openHelp, close: closeHelp } = useHelpPanel();
+  const toggleHelp = () => {
+    if (isHelpOpen) {
+      closeHelp();
+    } else {
+      openHelp();
+    }
+  };
   const className = getClassNameBuilder()({ collapsed, helpOpen: isHelpOpen });
 
   return (
@@ -116,7 +123,7 @@ function RouteShellWithSidebar(
         contentContainerClassName={className}
         sidebar={<AppSidebar />}
       >
-        <TopNavBar onHelpClick={openHelp} />
+        <TopNavBar onHelpToggle={toggleHelp} />
         {props.ultauraAccountId ? (
           <InProgressCallBanner accountId={props.ultauraAccountId} />
         ) : null}

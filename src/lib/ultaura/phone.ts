@@ -47,3 +47,29 @@ export function formatUsPhoneForDisplay(input: string): string {
 export function isValidUsE164(input: string): boolean {
   return TELEPHONY.PHONE_REGEX.test(input);
 }
+
+export function isValidUsPhoneInput(
+  input: string,
+  options?: { required?: boolean },
+): boolean {
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return !options?.required;
+  }
+
+  return isValidUsE164(formatToE164(trimmed));
+}
+
+export function getUsPhoneValidationError(
+  input: string,
+  options?: { required?: boolean },
+): string | null {
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return options?.required ? 'Phone number is required.' : null;
+  }
+
+  return isValidUsE164(formatToE164(trimmed)) ? null : 'Enter a valid US phone number.';
+}

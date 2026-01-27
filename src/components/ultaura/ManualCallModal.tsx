@@ -173,7 +173,7 @@ export default function ManualCallModal({
 
   return (
     <Modal
-      heading="Manual call"
+      heading="Place a call"
       description="Start a one-time check-in call right now."
       isOpen={isOpen}
       setIsOpen={onOpenChange}
@@ -272,7 +272,7 @@ export default function ManualCallModal({
             disabled={!selectedLineId || isCalling || isLoading}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isCalling ? 'Calling…' : 'Start manual call'}
+            {isCalling ? 'Calling…' : 'Start call'}
           </button>
         </div>
       </div>
