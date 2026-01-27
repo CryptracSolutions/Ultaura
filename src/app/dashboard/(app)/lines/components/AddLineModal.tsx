@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Phone, Clock } from 'lucide-react';
+import { X, Phone, Clock, Info } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
 import { LANGUAGE_OPTIONS, US_TIMEZONES } from '~/lib/ultaura/constants';
 import { acknowledgeVendorDisclosure } from '~/lib/ultaura/privacy';
@@ -32,6 +32,7 @@ import {
   TopicPreferencesForm,
   MAX_INTEREST_TOPICS,
 } from '~/components/ultaura/TopicPreferencesForm';
+import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 interface AddLineModalProps {
   isOpen: boolean;
@@ -196,7 +197,7 @@ export function AddLineModal({
         }}
       >
         <DialogContent
-          className="max-w-[468px]"
+          className="max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">
@@ -255,13 +256,13 @@ export function AddLineModal({
                       Phone Number
                     </label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input
                         type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
+                        onBlur={(e) => setPhoneNumber(formatUsPhoneForDisplay(e.target.value))}
                         placeholder="(555) 123-4567"
-                        className="w-full pl-10 pr-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         required
                       />
                     </div>
@@ -273,7 +274,6 @@ export function AddLineModal({
                   {/* Timezone */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-foreground">
-                      <Clock className="inline w-4 h-4 mr-1" />
                       Timezone
                     </label>
                   <Select value={timezone} onValueChange={(value) => setTimezone(value)}>
@@ -288,12 +288,15 @@ export function AddLineModal({
                         ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Used to schedule calls at appropriate times for the recipient.
+                  </p>
                 </div>
 
                 {/* Language Preference */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-foreground">
-                    Language Preference (optional)
+                    Language Preference
                   </label>
                   <Select
                     value={preferredLanguage ?? 'auto'}
@@ -349,29 +352,29 @@ export function AddLineModal({
                         <RadioGroupItemLabel>
                           <RadioGroupItem value="tier_1" />
                           <div>
-                            <div className="font-medium text-foreground text-sm">Basic Updates & Safety</div>
-                            <div className="text-xs text-muted-foreground">Call stats, safety alerts, usage.</div>
+                            <div className="font-medium text-foreground text-sm">Tier 1: Basic Updates & Safety</div>
+                            <div className="text-xs text-muted-foreground">Share call statistics, safety alerts, and usage data with your family.</div>
                           </div>
                         </RadioGroupItemLabel>
                         <RadioGroupItemLabel>
                           <RadioGroupItem value="tier_2" />
                           <div>
-                            <div className="font-medium text-foreground text-sm">Wellness Check (Recommended)</div>
-                            <div className="text-xs text-muted-foreground">Adds mood and engagement trends.</div>
+                            <div className="font-medium text-foreground text-sm">Tier 2: Wellness Insights</div>
+                            <div className="text-xs text-muted-foreground">Includes everything from Tier 1, plus mood tracking and engagement patterns.</div>
                           </div>
                         </RadioGroupItemLabel>
                         <RadioGroupItemLabel>
                           <RadioGroupItem value="tier_3" />
                           <div>
-                            <div className="font-medium text-foreground text-sm">Full Summary</div>
-                            <div className="text-xs text-muted-foreground">Adds topic categories.</div>
+                            <div className="font-medium text-foreground text-sm">Tier 3: Conversation Topics</div>
+                            <div className="text-xs text-muted-foreground">Includes everything from Tier 2, plus categories of topics discussed during calls.</div>
                           </div>
                         </RadioGroupItemLabel>
                         <RadioGroupItemLabel>
                           <RadioGroupItem value="tier_4" />
                           <div>
-                            <div className="font-medium text-foreground text-sm">Complete Visibility</div>
-                            <div className="text-xs text-muted-foreground">Adds mild concerns and follow-up notes.</div>
+                            <div className="font-medium text-foreground text-sm">Tier 4: Full Visibility</div>
+                            <div className="text-xs text-muted-foreground">Includes everything from Tier 3, plus wellness concerns and follow-up recommendations.</div>
                           </div>
                         </RadioGroupItemLabel>
                       </RadioGroup>
@@ -431,14 +434,12 @@ export function AddLineModal({
                     </label>
                   </div>
 
-                  <div className="rounded-lg border border-border bg-muted/40 p-4">
-                    <p className="text-sm font-medium text-foreground">
-                      Info: About Call Insights
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      After each call, we&apos;ll capture a brief summary of topics discussed
-                      and overall mood -- but never transcripts or quotes. You can disable
-                      insights anytime in Line Settings.
+                  <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                    <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-primary">
+                      After each call, Ultaura captures a brief summary of topics discussed
+                      and overall mood -- never transcripts or quotes. You can disable
+                      insights anytime in line settings.
                     </p>
                   </div>
                 </>
@@ -505,22 +506,4 @@ export function AddLineModal({
       />
     </>
   );
-}
-
-function formatToE164(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`;
-  }
-
-  if (digits.length === 10) {
-    return `+1${digits}`;
-  }
-
-  if (!phone.startsWith('+')) {
-    return `+${digits}`;
-  }
-
-  return phone;
 }

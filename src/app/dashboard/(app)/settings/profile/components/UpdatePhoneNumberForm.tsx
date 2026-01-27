@@ -20,6 +20,7 @@ import {
 } from '~/core/ui/modal-button-classes';
 
 import configuration from '~/configuration';
+import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 interface UpdatePhoneNumberFormProps {
   session: UserSession;
@@ -62,8 +63,10 @@ function UpdatePhoneNumberForm({
         event.preventDefault();
         if (!hasChanges) return;
 
-        const promise = trigger(phoneNumber).then(() => {
-          onUpdate(phoneNumber);
+        const normalized = phoneNumber.trim() ? formatToE164(phoneNumber) : phoneNumber;
+
+        const promise = trigger(normalized).then(() => {
+          onUpdate(normalized);
         });
 
         return toast.promise(promise, {
@@ -83,6 +86,7 @@ function UpdatePhoneNumberForm({
               name={'phoneNumber'}
               value={phoneNumber}
               onChange={(event) => setPhoneNumber(event.target.value)}
+              onBlur={(event) => setPhoneNumber(formatUsPhoneForDisplay(event.target.value))}
             />
           </TextField.Label>
 

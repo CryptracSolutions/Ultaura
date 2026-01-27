@@ -93,7 +93,7 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
     <>
       <Dialog open={open} onOpenChange={(openState) => { if (!openState) handleClose(); }}>
         <DialogContent
-          className="max-w-[468px] flex flex-col max-h-[85vh]"
+          className="max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
             event.preventDefault();

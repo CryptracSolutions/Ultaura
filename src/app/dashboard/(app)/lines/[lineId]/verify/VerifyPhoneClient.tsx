@@ -228,7 +228,7 @@ export function VerifyPhoneClient({
           <ShieldCheck className="w-8 h-8 text-primary" />
         </div>
         <h2 className="text-2xl font-semibold text-foreground">Verify phone number</h2>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-primary mt-2">
           We&apos;ll send a code to {phoneNumber}
         </p>
       </div>
@@ -244,7 +244,7 @@ export function VerifyPhoneClient({
           <button
             onClick={() => handleSendCode('sms')}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-input bg-background text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-input bg-background text-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
           >
             <MessageSquare className="w-5 h-5" />
             Text me
@@ -252,16 +252,13 @@ export function VerifyPhoneClient({
           <button
             onClick={() => handleSendCode('call')}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-input bg-background text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-input bg-background text-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
           >
             <Phone className="w-5 h-5" />
             Call me
           </button>
         </div>
 
-        <p className="text-xs text-center text-muted-foreground">
-          For landlines, choose &quot;Call me&quot; to receive a voice code.
-        </p>
       </div>
     </div>
   );

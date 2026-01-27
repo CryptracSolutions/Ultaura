@@ -33,7 +33,7 @@ export function FilterModal({ children, activeFilterCount }: FilterModalProps) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="max-w-[468px] flex flex-col max-h-[85vh]"
+          className="max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
             event.preventDefault();

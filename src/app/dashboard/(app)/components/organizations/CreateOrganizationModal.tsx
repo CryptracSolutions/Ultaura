@@ -23,7 +23,7 @@ const CreateOrganizationModal: React.FC<{
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent
-        className="max-w-[468px]"
+        className="max-w-[468px] max-h-[85vh] overflow-y-auto"
         overlayClassName="bg-black/50 backdrop-blur-none"
       >
         <div className="flex items-start justify-between gap-4">

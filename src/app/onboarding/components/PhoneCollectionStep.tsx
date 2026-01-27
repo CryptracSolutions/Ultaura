@@ -9,6 +9,7 @@ import TextField from '~/core/ui/TextField';
 import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
 import { TELEPHONY } from '~/lib/ultaura/constants';
+import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 export interface PhoneCollectionStepData {
   phoneE164: string;
@@ -23,24 +24,6 @@ function detectTimezone(): string {
   } catch {
     return FALLBACK_TIMEZONE;
   }
-}
-
-function formatToE164(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`;
-  }
-
-  if (digits.length === 10) {
-    return `+1${digits}`;
-  }
-
-  if (!phone.startsWith('+')) {
-    return `+${digits}`;
-  }
-
-  return phone;
 }
 
 const PhoneCollectionStep: React.FCC<{
@@ -96,6 +79,7 @@ const PhoneCollectionStep: React.FCC<{
           type={'tel'}
           value={phoneNumber}
           onChange={(event) => setPhoneNumber(event.target.value)}
+          onBlur={(event) => setPhoneNumber(formatUsPhoneForDisplay(event.target.value))}
           placeholder={t('phoneCollectionPlaceholder')}
         />
         <p className="text-xs text-muted-foreground">

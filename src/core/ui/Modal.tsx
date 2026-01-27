@@ -48,7 +48,10 @@ const Modal: React.FC<Props> & {
         <DialogTrigger asChild>{props.Trigger}</DialogTrigger>
       </If>
 
-      <DialogContent overlayClassName="bg-black/50 backdrop-blur-none">
+      <DialogContent
+        className="max-h-[85vh] overflow-y-auto"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+      >
         <div className="flex flex-col space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">

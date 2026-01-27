@@ -19,6 +19,7 @@ import {
   addTrustedContact,
   removeTrustedContact,
 } from '~/lib/ultaura/contacts';
+import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 import { toast } from 'sonner';
 
 interface TrustedContact {
@@ -87,9 +88,10 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
 
     try {
       setIsSubmitting(true);
+      const phoneE164 = formatToE164(newContact.phone);
       const result = await addTrustedContact(line.id, {
         name: newContact.name,
-        phoneE164: newContact.phone,
+        phoneE164,
         relationship: newContact.relationship || undefined,
       });
 
@@ -201,6 +203,9 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 type="tel"
                 value={newContact.phone}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, phone: e.target.value })}
+                onBlur={(e: ChangeEvent<HTMLInputElement>) =>
+                  setNewContact({ ...newContact, phone: formatUsPhoneForDisplay(e.target.value) })
+                }
                 required
               />
             </div>

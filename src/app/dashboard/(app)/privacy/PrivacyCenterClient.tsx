@@ -69,6 +69,7 @@ import {
 } from '~/lib/ultaura/notification-recipients';
 import { InvitedFamilyList } from './components/InvitedFamilyList';
 import { TELEPHONY } from '~/lib/ultaura/constants';
+import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 interface PrivacyCenterClientProps {
   account: UltauraAccountRow;
@@ -1520,7 +1521,7 @@ export function PrivacyCenterClient({
                     }}
                   >
                     <DialogContent
-                      className="max-w-[468px]"
+                      className="max-w-[468px] max-h-[85vh] overflow-y-auto"
                       overlayClassName="bg-black/50 backdrop-blur-none"
                       onInteractOutside={(event) => {
                         if (isInviting || hasInviteChanges) {
@@ -1604,6 +1605,7 @@ export function PrivacyCenterClient({
                                 type="tel"
                                 value={invitePhone}
                                 onChange={(event) => setInvitePhone(event.target.value)}
+                                onBlur={(event) => setInvitePhone(formatUsPhoneForDisplay(event.target.value))}
                                 placeholder="(555) 123-4567"
                                 required={inviteAsTrusted}
                               />
@@ -1968,22 +1970,4 @@ function statusToColor(status: DataExportRequest['status']): string {
     default:
       return 'bg-muted text-muted-foreground';
   }
-}
-
-function formatToE164(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`;
-  }
-
-  if (digits.length === 10) {
-    return `+1${digits}`;
-  }
-
-  if (!phone.startsWith('+')) {
-    return `+${digits}`;
-  }
-
-  return phone;
 }

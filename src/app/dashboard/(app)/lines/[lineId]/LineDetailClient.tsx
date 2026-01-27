@@ -22,6 +22,7 @@ import { deleteLine } from '~/lib/ultaura/lines';
 import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
 import type { ActionError } from '@ultaura/schemas';
 import { TELEPHONY } from '~/lib/ultaura/constants';
+import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { CallActivityList } from './components/CallActivityList';
 import { LinePageHeader } from './components/LinePageHeader';
@@ -149,24 +150,6 @@ export function LineDetailClient({
     }
 
     return error.message || 'Failed to initiate test call';
-  };
-
-  const formatToE164 = (phone: string): string => {
-    const digits = phone.replace(/\D/g, '');
-
-    if (digits.length === 11 && digits.startsWith('1')) {
-      return `+${digits}`;
-    }
-
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
-
-    if (!phone.startsWith('+')) {
-      return `+${digits}`;
-    }
-
-    return phone;
   };
 
   const handleDelete = async () => {
@@ -489,6 +472,7 @@ export function LineDetailClient({
                     setAlternatePhone(event.target.value);
                     setAlternatePhoneError(null);
                   }}
+                  onBlur={(event) => setAlternatePhone(formatUsPhoneForDisplay(event.target.value))}
                   placeholder="(555) 555-1234"
                   type="tel"
                   className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

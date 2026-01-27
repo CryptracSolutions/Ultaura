@@ -1,5 +1,5 @@
 export const modalIconButtonClass =
-  'p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors';
+  'p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors';
 
 export const modalSecondaryButtonClass =
   'flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50';

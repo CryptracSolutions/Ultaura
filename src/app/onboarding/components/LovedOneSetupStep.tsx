@@ -10,29 +10,12 @@ import Trans from '~/core/ui/Trans';
 import TextField from '~/core/ui/TextField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { TELEPHONY, US_TIMEZONES } from '~/lib/ultaura/constants';
+import { formatToE164, formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 export interface LovedOneSetupStepData {
   lovedOneName: string;
   lovedOnePhoneE164: string;
   lovedOneTimezone: string;
-}
-
-function formatToE164(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`;
-  }
-
-  if (digits.length === 10) {
-    return `+1${digits}`;
-  }
-
-  if (!phone.startsWith('+')) {
-    return `+${digits}`;
-  }
-
-  return phone;
 }
 
 const LovedOneSetupStep: React.FCC<{
@@ -109,6 +92,7 @@ const LovedOneSetupStep: React.FCC<{
             type={'tel'}
             value={phoneNumber}
             onChange={(event) => setPhoneNumber(event.target.value)}
+            onBlur={(event) => setPhoneNumber(formatUsPhoneForDisplay(event.target.value))}
             placeholder={t('phoneCollectionPlaceholder')}
           />
         </div>
