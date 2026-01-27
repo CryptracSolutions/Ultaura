@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DateTime } from 'luxon';
 import { CalendarDays, ChevronLeft, ChevronRight, Edit2, Trash2, Star } from 'lucide-react';
 import Button from '~/core/ui/Button';
+import { Popover, PopoverTrigger, PopoverContent } from '~/core/ui/Popover';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 
 interface MilestoneCalendarProps {
@@ -178,26 +179,62 @@ export function MilestoneCalendar({
               isMilestoneOnDate(milestone, date)
             );
 
+            if (dayMilestones.length > 0) {
+              return (
+                <Popover key={`day-${day}`}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="h-16 w-full rounded-lg p-2 text-xs text-left transition-colors cursor-pointer flex flex-col items-start border border-primary bg-primary/5 hover:bg-primary/10"
+                    >
+                      <div className="text-sm font-medium text-primary">
+                        {day}
+                      </div>
+                      <div className="mt-1 space-y-1 hidden md:block">
+                        {dayMilestones.slice(0, 2).map((milestone) => (
+                          <div key={milestone.id} className="truncate text-[11px] text-primary">
+                            {milestone.title}
+                          </div>
+                        ))}
+                        {dayMilestones.length > 2 && (
+                          <div className="text-[10px] text-muted-foreground">
+                            +{dayMilestones.length - 2} more
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-3" align="center">
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        {date.toFormat('MMMM d')}
+                      </div>
+                      {dayMilestones.map((milestone) => (
+                        <div
+                          key={milestone.id}
+                          className="border-b border-border/40 pb-2 last:border-0 last:pb-0"
+                        >
+                          <p className="text-sm font-medium text-foreground">
+                            {milestone.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {milestone.milestone_type}
+                            {milestone.related_person_name && ` · ${milestone.related_person_name}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              );
+            }
+
             return (
               <div
                 key={`day-${day}`}
                 className="h-16 rounded-lg border border-border/60 bg-muted/10 p-2 text-xs"
               >
                 <div className="text-sm font-medium text-foreground">{day}</div>
-                {dayMilestones.length > 0 ? (
-                  <div className="mt-1 space-y-1">
-                    {dayMilestones.slice(0, 2).map((milestone) => (
-                      <div key={milestone.id} className="truncate text-[11px] text-primary">
-                        {milestone.title}
-                      </div>
-                    ))}
-                    {dayMilestones.length > 2 ? (
-                      <div className="text-[10px] text-muted-foreground">
-                        +{dayMilestones.length - 2} more
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
             );
           })}
