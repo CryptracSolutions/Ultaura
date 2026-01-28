@@ -13,9 +13,15 @@ interface LinePageHeaderProps {
   status: string;
   isVerified: boolean;
   actions?: React.ReactNode;
+  showTabs?: boolean;
 }
 
-export function LinePageHeader({ lineName, lineShortId, actions }: LinePageHeaderProps) {
+export function LinePageHeader({
+  lineName,
+  lineShortId,
+  actions,
+  showTabs = true,
+}: LinePageHeaderProps) {
   return (
     <div className="mb-6 pt-3 sm:pt-0 md:pt-3">
       {/* Title row with mobile nav */}
@@ -39,7 +45,7 @@ export function LinePageHeader({ lineName, lineShortId, actions }: LinePageHeade
       {actions ? <div className="w-full sm:w-auto mb-4">{actions}</div> : null}
 
       {/* Tab navigation */}
-      <LineTabNav lineShortId={lineShortId} />
+      {showTabs ? <LineTabNav lineShortId={lineShortId} /> : null}
     </div>
   );
 }

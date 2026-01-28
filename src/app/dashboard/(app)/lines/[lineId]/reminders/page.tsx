@@ -55,6 +55,7 @@ export default async function RemindersPage({ params }: PageProps) {
           timezone={line.timezone}
           status={line.status}
           isVerified={!!line.phone_verified_at}
+          showTabs={false}
         />
         {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
         <RemindersClient line={line} reminders={reminders} disabled={isTrialExpired} />
