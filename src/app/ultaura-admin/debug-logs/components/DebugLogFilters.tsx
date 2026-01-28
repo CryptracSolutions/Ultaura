@@ -1,4 +1,8 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { TextFieldInput } from '~/core/ui/TextField';
+import { DatePicker } from '~/core/ui/DatePicker';
 import { FilterModal, ActiveFilters, getActiveFilterCount } from './FilterModal';
 
 const EVENT_TYPE_OPTIONS = ['dtmf', 'tool_call', 'state_change', 'error', 'safety_tier'];
@@ -58,28 +62,40 @@ function DebugLogFilterForm({
 }: {
   currentFilters: Record<string, string | undefined>;
   onClose: () => void;
-  startDateInputRef: React.RefObject<HTMLInputElement>;
+  startDateInputRef: React.RefObject<HTMLButtonElement>;
 }) {
+  const [startDate, setStartDate] = useState(currentFilters.startDate ?? '');
+  const [endDate, setEndDate] = useState(currentFilters.endDate ?? '');
+
+  useEffect(() => {
+    setStartDate(currentFilters.startDate ?? '');
+    setEndDate(currentFilters.endDate ?? '');
+  }, [currentFilters.startDate, currentFilters.endDate]);
+
   return (
     <>
       <form method="GET" id="filter-form" className="flex flex-col min-h-0 flex-1">
+        <input type="hidden" name="startDate" value={startDate} />
+        <input type="hidden" name="endDate" value={endDate} />
         <div className="flex-1 overflow-y-auto min-h-0 grid gap-4 lg:grid-cols-2 py-2">
           <div className="space-y-2">
             <label className="text-sm font-medium">Start date</label>
-            <TextFieldInput
+            <DatePicker
               ref={startDateInputRef}
-              type="date"
-              name="startDate"
-              defaultValue={currentFilters.startDate ?? ''}
+              value={startDate}
+              onChange={setStartDate}
+              placeholder="Select date"
+              className="w-full"
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium">End date</label>
-            <TextFieldInput
-              type="date"
-              name="endDate"
-              defaultValue={currentFilters.endDate ?? ''}
+            <DatePicker
+              value={endDate}
+              onChange={setEndDate}
+              placeholder="Select date"
+              className="w-full"
             />
           </div>
 

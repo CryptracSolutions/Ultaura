@@ -225,7 +225,7 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
         }}
       >
         <DialogContent
-          className="max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onInteractOutside={(event) => {
             if (isSaving || hasChanges) {

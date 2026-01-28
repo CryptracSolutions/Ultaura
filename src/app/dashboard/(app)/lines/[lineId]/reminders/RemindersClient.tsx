@@ -637,7 +637,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
         }}
       >
         <DialogContent
-          className="max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">
@@ -745,7 +745,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
         }}
       >
         <DialogContent
-          className="max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4 flex-shrink-0">

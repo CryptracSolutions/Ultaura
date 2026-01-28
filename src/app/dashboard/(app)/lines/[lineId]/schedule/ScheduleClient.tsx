@@ -928,7 +928,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         }}
       >
         <DialogContent
-          className="max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">
@@ -1064,7 +1064,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         }}
       >
         <DialogContent
-          className="max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">
@@ -1227,7 +1227,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
       {/* Create Schedule Modal */}
       <Dialog open={showCreateModal} onOpenChange={(open) => { if (!open) handleCloseCreateModal(); }}>
         <DialogContent
-          className="max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">

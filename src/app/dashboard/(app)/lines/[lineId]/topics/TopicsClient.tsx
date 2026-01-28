@@ -181,7 +181,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
       {/* Edit Modal */}
       <Dialog open={isEditing} onOpenChange={(open) => !open && handleCloseEdit()}>
         <DialogContent
-          className="max-w-[500px] max-h-[85vh] overflow-y-auto"
+          className="max-h-[85vh] overflow-y-auto sm:w-[min(90vw,500px)] sm:max-w-[500px]"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">

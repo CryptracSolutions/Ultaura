@@ -7,14 +7,14 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui
 interface FilterModalProps {
   children: React.ReactNode | ((props: {
     onClose: () => void;
-    startDateInputRef: React.RefObject<HTMLInputElement>;
+    startDateInputRef: React.RefObject<HTMLButtonElement>;
   }) => React.ReactNode);
   activeFilterCount: number;
 }
 
 export function FilterModal({ children, activeFilterCount }: FilterModalProps) {
   const [open, setOpen] = useState(false);
-  const startDateInputRef = useRef<HTMLInputElement>(null!);
+  const startDateInputRef = useRef<HTMLButtonElement>(null!);
 
   return (
     <>
@@ -33,7 +33,7 @@ export function FilterModal({ children, activeFilterCount }: FilterModalProps) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
