@@ -1180,6 +1180,7 @@ export async function getUpcomingReminders(accountId: string): Promise<{
     .from('ultaura_reminders')
     .select(`
       id,
+      account_id,
       line_id,
       message,
       message_ciphertext,
@@ -1272,6 +1273,7 @@ export async function getAllReminders(accountId: string): Promise<{
     .from('ultaura_reminders')
     .select(`
       id,
+      account_id,
       line_id,
       message,
       message_ciphertext,
