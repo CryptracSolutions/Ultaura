@@ -245,12 +245,6 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                   signs of distress during calls (such as expressions of hopelessness or self-harm).
                 </label>
               </div>
-              <a
-                href="/docs/safety-and-contacts/trusted-contacts"
-                className="text-xs text-primary hover:underline"
-              >
-                Learn more about trusted contact notifications →
-              </a>
             </div>
             <div className="flex gap-3 pt-2">
               <button

@@ -295,7 +295,7 @@ export function MilestoneCalendar({
                       ) : null}
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5" />
+                          <Star className="h-3.5 w-3.5 text-primary" />
                           Celebrated {milestone.times_celebrated ?? 0} times
                         </span>
                         {lastCelebrated ? (
@@ -304,25 +304,23 @@ export function MilestoneCalendar({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="small"
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
                         onClick={() => onEdit(milestone)}
                         disabled={disabled}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                        title="Edit milestone"
                       >
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="small"
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => onDelete(milestone)}
                         disabled={disabled}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                        title="Delete milestone"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>

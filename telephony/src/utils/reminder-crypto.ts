@@ -1,6 +1,7 @@
 import { decryptMemoryValue, encryptMemoryValue } from './encryption.js';
 import { getSupabaseClient } from './supabase.js';
 import { getMemoryDEK } from '../services/line-encryption.js';
+import { decodeBytea } from './bytea.js';
 
 const REMINDER_ALG = 'AES-256-GCM';
 const REMINDER_KID = 'kek_v1';
@@ -47,14 +48,20 @@ export function encryptReminderMessageWithDek(
 
 export function decryptReminderMessageWithDek(
   dek: Buffer,
-  encrypted: { ciphertext: Uint8Array; iv: Uint8Array; tag: Uint8Array },
+  encrypted: { ciphertext: Uint8Array | string; iv: Uint8Array | string; tag: Uint8Array | string },
   aad: Buffer
 ): string {
+  const ciphertext = decodeBytea(encrypted.ciphertext);
+  const iv = decodeBytea(encrypted.iv);
+  const tag = decodeBytea(encrypted.tag);
+  if (!ciphertext || !iv || !tag) {
+    throw new Error('Failed to decode reminder payloads');
+  }
   const value = decryptMemoryValue(
     dek,
-    Buffer.from(encrypted.ciphertext),
-    Buffer.from(encrypted.iv),
-    Buffer.from(encrypted.tag),
+    Buffer.from(ciphertext),
+    Buffer.from(iv),
+    Buffer.from(tag),
     aad
   );
 
@@ -78,7 +85,7 @@ export async function decryptReminderMessage(
   accountId: string,
   lineId: string,
   reminderId: string,
-  encrypted: { ciphertext: Uint8Array; iv: Uint8Array; tag: Uint8Array }
+  encrypted: { ciphertext: Uint8Array | string; iv: Uint8Array | string; tag: Uint8Array | string }
 ): Promise<string> {
   const supabase = getSupabaseClient();
   const dek = await getMemoryDEK(supabase, accountId, lineId);
@@ -93,9 +100,9 @@ export function decryptReminderMessagesWithDek(
   lineId: string,
   reminders: Array<{
     id: string;
-    message_ciphertext?: Uint8Array | null;
-    message_iv?: Uint8Array | null;
-    message_tag?: Uint8Array | null;
+    message_ciphertext?: Uint8Array | string | null;
+    message_iv?: Uint8Array | string | null;
+    message_tag?: Uint8Array | string | null;
     message?: string | null;
   }>
 ): Array<{ id: string; message: string | null; decryptFailed: boolean }> {

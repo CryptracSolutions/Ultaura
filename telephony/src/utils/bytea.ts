@@ -1,20 +1,14 @@
-import 'server-only';
-
 export type ByteaInput = Uint8Array | string | null | undefined;
 
-function toUint8Array(value: Buffer): Uint8Array {
-  return Uint8Array.from(value);
-}
-
-function parseBufferJson(value: Uint8Array): Uint8Array | null {
-  const text = Buffer.from(value).toString('utf8').trim();
+function parseBufferJson(value: Buffer): Buffer | null {
+  const text = value.toString('utf8').trim();
   if (!text || (!text.startsWith('{') && !text.startsWith('['))) {
     return null;
   }
   try {
     const parsed = JSON.parse(text) as { type?: string; data?: unknown };
     if (parsed?.type === 'Buffer' && Array.isArray(parsed.data)) {
-      return Uint8Array.from(parsed.data);
+      return Buffer.from(parsed.data);
     }
   } catch {
     return null;
@@ -22,7 +16,7 @@ function parseBufferJson(value: Uint8Array): Uint8Array | null {
   return null;
 }
 
-function normalizeDecoded(value: Uint8Array): Uint8Array {
+function normalizeDecoded(value: Buffer): Buffer {
   return parseBufferJson(value) ?? value;
 }
 
@@ -30,15 +24,13 @@ export function encodeBytea(value: Uint8Array | Buffer): string {
   return `\\x${Buffer.from(value).toString('hex')}`;
 }
 
-export function decodeBytea(value: ByteaInput): Uint8Array | null {
+export function decodeBytea(value: ByteaInput): Buffer | null {
   if (!value) {
     return null;
   }
-
   if (value instanceof Uint8Array) {
-    return normalizeDecoded(value);
+    return normalizeDecoded(Buffer.from(value));
   }
-
   if (typeof value !== 'string') {
     return null;
   }
@@ -47,26 +39,21 @@ export function decodeBytea(value: ByteaInput): Uint8Array | null {
   if (!trimmed) {
     return null;
   }
-
   if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
     trimmed = trimmed.slice(1, -1).trim();
   }
-
   if (trimmed.startsWith('\\\\x')) {
     trimmed = trimmed.slice(1);
   }
-
   if (trimmed.startsWith('\\x') || trimmed.startsWith('0x')) {
-    return normalizeDecoded(toUint8Array(Buffer.from(trimmed.slice(2), 'hex')));
+    return normalizeDecoded(Buffer.from(trimmed.slice(2), 'hex'));
   }
-
   if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0) {
-    return normalizeDecoded(toUint8Array(Buffer.from(trimmed, 'hex')));
+    return normalizeDecoded(Buffer.from(trimmed, 'hex'));
   }
-
   if (/^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length % 4 === 0) {
-    return normalizeDecoded(toUint8Array(Buffer.from(trimmed, 'base64')));
+    return normalizeDecoded(Buffer.from(trimmed, 'base64'));
   }
 
-  return normalizeDecoded(toUint8Array(Buffer.from(trimmed, 'utf8')));
+  return normalizeDecoded(Buffer.from(trimmed, 'utf8'));
 }

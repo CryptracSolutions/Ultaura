@@ -3,6 +3,7 @@ import 'server-only';
 import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import getLogger from '~/core/logger';
+import { decodeBytea } from './bytea';
 
 const logger = getLogger();
 const ALGORITHM = 'aes-256-gcm';
@@ -50,11 +51,16 @@ async function getAccountDEK(
     return null;
   }
 
-  return unwrapDEK(
-    Buffer.from(data.dek_wrapped),
-    Buffer.from(data.dek_wrap_iv),
-    Buffer.from(data.dek_wrap_tag)
-  );
+  const wrapped = decodeBytea(data.dek_wrapped);
+  const iv = decodeBytea(data.dek_wrap_iv);
+  const tag = decodeBytea(data.dek_wrap_tag);
+
+  if (!wrapped || !iv || !tag) {
+    logger.error({ accountId }, 'Failed to decode account DEK payloads');
+    return null;
+  }
+
+  return unwrapDEK(Buffer.from(wrapped), Buffer.from(iv), Buffer.from(tag));
 }
 
 function buildDebugLogAAD(

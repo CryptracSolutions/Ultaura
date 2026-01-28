@@ -10,6 +10,8 @@ import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
+import { DatePicker } from '~/core/ui/DatePicker';
+import { TimePicker } from '~/core/ui/TimePicker';
 import type { LineRow, ScheduleRow, ScheduleExceptionRow } from '~/lib/ultaura/types';
 import { deleteSchedule, getSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { createScheduleException, deleteScheduleException } from '~/lib/ultaura/schedule-exceptions';
@@ -1131,12 +1133,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Date to apply
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={exceptionDate}
-                  onChange={(e) => setExceptionDate(e.target.value)}
+                  onChange={setExceptionDate}
                   min={DateTime.now().setZone(line.timezone).toISODate() ?? undefined}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="Select date"
                 />
               </div>
             )}
@@ -1146,14 +1147,13 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                 <label className="block text-sm font-medium text-foreground mb-2">
                   New time
                 </label>
-                <input
-                  type="time"
+                <TimePicker
                   value={snoozeTime}
-                  onChange={(e) => setSnoozeTime(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onChange={setSnoozeTime}
+                  placeholder="Select time"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Snoozes the next call. If the time is earlier than now, we’ll schedule for tomorrow.
+                  Snoozes the next call. If the time is earlier than now, we'll schedule for tomorrow.
                 </p>
                 {snoozePreview && (
                   <p className="text-xs text-muted-foreground mt-2">
@@ -1165,17 +1165,34 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
             )}
 
             {exceptionType === 'reschedule' && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  New date & time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={rescheduleDateTime}
-                  onChange={(e) => setRescheduleDateTime(e.target.value)}
-                  min={DateTime.now().setZone(line.timezone).toFormat("yyyy-MM-dd'T'HH:mm")}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    New date
+                  </label>
+                  <DatePicker
+                    value={rescheduleDateTime.split('T')[0] || ''}
+                    onChange={(date) => {
+                      const time = rescheduleDateTime.split('T')[1] || '09:00';
+                      setRescheduleDateTime(`${date}T${time}`);
+                    }}
+                    min={DateTime.now().setZone(line.timezone).toISODate() ?? undefined}
+                    placeholder="Select date"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    New time
+                  </label>
+                  <TimePicker
+                    value={rescheduleDateTime.split('T')[1] || ''}
+                    onChange={(time) => {
+                      const date = rescheduleDateTime.split('T')[0] || DateTime.now().setZone(line.timezone).toISODate();
+                      setRescheduleDateTime(`${date}T${time}`);
+                    }}
+                    placeholder="Select time"
+                  />
+                </div>
               </div>
             )}
 

@@ -25,6 +25,7 @@ import { logReminderEvent } from './reminder-events';
 import { parseVacationRanges } from './vacation-utils';
 import type { ReminderRow, UltauraAccountRow } from './types';
 import { decryptReminderMessagesForLine, encryptReminderMessage } from './reminder-crypto';
+import { encodeBytea } from './bytea';
 
 const logger = getLogger();
 
@@ -355,9 +356,9 @@ const createReminderWithTrial = withTrialCheck(async (
     due_at: dueAtUtc.toISOString(),
     timezone,
     message: null,
-    message_ciphertext: encryptedMessage.ciphertext as unknown as string,
-    message_iv: encryptedMessage.iv as unknown as string,
-    message_tag: encryptedMessage.tag as unknown as string,
+    message_ciphertext: encodeBytea(encryptedMessage.ciphertext),
+    message_iv: encodeBytea(encryptedMessage.iv),
+    message_tag: encodeBytea(encryptedMessage.tag),
     message_alg: encryptedMessage.alg,
     message_kid: encryptedMessage.kid,
     delivery_method: 'outbound_call',
@@ -946,9 +947,9 @@ export async function editReminder(
         };
       }
       updates.message = null;
-      updates.message_ciphertext = encryptedMessage.ciphertext;
-      updates.message_iv = encryptedMessage.iv;
-      updates.message_tag = encryptedMessage.tag;
+      updates.message_ciphertext = encodeBytea(encryptedMessage.ciphertext);
+      updates.message_iv = encodeBytea(encryptedMessage.iv);
+      updates.message_tag = encodeBytea(encryptedMessage.tag);
       updates.message_alg = encryptedMessage.alg;
       updates.message_kid = encryptedMessage.kid;
       metadata.messageChanged = true;

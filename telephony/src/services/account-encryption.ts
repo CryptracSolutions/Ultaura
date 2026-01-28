@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '../server.js';
 import { generateDEK, wrapDEK, unwrapDEK } from '../utils/crypto.js';
+import { decodeBytea, encodeBytea } from '../utils/bytea.js';
 
 export async function getOrCreateAccountDEK(
   supabase: SupabaseClient,
@@ -13,9 +14,12 @@ export async function getOrCreateAccountDEK(
     .single();
 
   if (existingKey) {
-    const wrapped = Buffer.from(existingKey.dek_wrapped);
-    const iv = Buffer.from(existingKey.dek_wrap_iv);
-    const tag = Buffer.from(existingKey.dek_wrap_tag);
+    const wrapped = decodeBytea(existingKey.dek_wrapped);
+    const iv = decodeBytea(existingKey.dek_wrap_iv);
+    const tag = decodeBytea(existingKey.dek_wrap_tag);
+    if (!wrapped || !iv || !tag) {
+      throw new Error('Failed to decode account DEK payloads');
+    }
     return unwrapDEK(wrapped, iv, tag);
   }
 
@@ -26,9 +30,9 @@ export async function getOrCreateAccountDEK(
     .from('ultaura_account_crypto_keys')
     .insert({
       account_id: accountId,
-      dek_wrapped: wrapped,
-      dek_wrap_iv: iv,
-      dek_wrap_tag: tag,
+      dek_wrapped: encodeBytea(wrapped),
+      dek_wrap_iv: encodeBytea(iv),
+      dek_wrap_tag: encodeBytea(tag),
       dek_kid: 'kek_v1',
       dek_alg: 'AES-256-GCM',
     });

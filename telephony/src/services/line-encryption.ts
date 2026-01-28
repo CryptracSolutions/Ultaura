@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '../server.js';
 import { generateDEK, wrapDEK, unwrapDEK } from '../utils/crypto.js';
 import { getOrCreateAccountDEK } from './account-encryption.js';
+import { decodeBytea, encodeBytea } from '../utils/bytea.js';
 
 const DEFAULT_DEK_CUTOFF = '2026-03-01T00:00:00Z';
 const PER_LINE_DEK_ENABLED = process.env.ULTAURA_PER_LINE_DEK_ENABLED !== 'false';
@@ -55,9 +56,12 @@ export async function getLineDEK(
   if (!existingKey) {
     return null;
   }
-  const wrapped = Buffer.from(existingKey.dek_wrapped);
-  const iv = Buffer.from(existingKey.dek_wrap_iv);
-  const tag = Buffer.from(existingKey.dek_wrap_tag);
+  const wrapped = decodeBytea(existingKey.dek_wrapped);
+  const iv = decodeBytea(existingKey.dek_wrap_iv);
+  const tag = decodeBytea(existingKey.dek_wrap_tag);
+  if (!wrapped || !iv || !tag) {
+    throw new Error('Failed to decode line DEK payloads');
+  }
   return unwrapDEK(wrapped, iv, tag);
 }
 
@@ -74,9 +78,9 @@ export async function createLineDEK(
     .insert({
       line_id: lineId,
       account_id: accountId,
-      dek_wrapped: wrapped,
-      dek_wrap_iv: iv,
-      dek_wrap_tag: tag,
+      dek_wrapped: encodeBytea(wrapped),
+      dek_wrap_iv: encodeBytea(iv),
+      dek_wrap_tag: encodeBytea(tag),
       dek_kid: 'kek_v1',
       dek_alg: 'AES-256-GCM',
     });

@@ -15,6 +15,7 @@ import { getLineById } from '../../services/line-lookup.js';
 import { RATE_LIMITS } from '../../services/rate-limit-config.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 import { encryptReminderMessage } from '../../utils/reminder-crypto.js';
+import { encodeBytea } from '../../utils/bytea.js';
 import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const setReminderRouter = Router();
@@ -332,9 +333,9 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       due_at: dueAt.toISOString(),
       timezone: tz,
       message: null,
-      message_ciphertext: encryptedMessage.ciphertext,
-      message_iv: encryptedMessage.iv,
-      message_tag: encryptedMessage.tag,
+      message_ciphertext: encodeBytea(encryptedMessage.ciphertext),
+      message_iv: encodeBytea(encryptedMessage.iv),
+      message_tag: encodeBytea(encryptedMessage.tag),
       message_alg: encryptedMessage.alg,
       message_kid: encryptedMessage.kid,
       delivery_method: 'outbound_call',

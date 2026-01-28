@@ -43,6 +43,7 @@ import { INSIGHTS } from './constants';
 import type { SegmentType } from './types/retention';
 import { getPrivateTopicCodes, getSharingGate } from './sharing-gate';
 import { logConsentAudit } from './privacy';
+import { decodeBytea, encodeBytea, type ByteaInput } from './bytea';
 
 const logger = getLogger();
 
@@ -56,6 +57,26 @@ const INSIGHTS_ALG = 'aes-256-gcm';
 
 function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
   return Uint8Array.from(value);
+}
+
+function decodeByteaOrThrow(
+  label: string,
+  value: ByteaInput,
+  expectedLength?: number
+): Buffer {
+  const decoded = decodeBytea(value);
+  if (!decoded) {
+    logger.error({ label, valueType: typeof value }, 'Failed to decode bytea value');
+    throw new Error(`Invalid ${label} payload`);
+  }
+  if (expectedLength && decoded.length !== expectedLength) {
+    logger.error(
+      { label, expectedLength, actualLength: decoded.length },
+      'Bytea payload length mismatch'
+    );
+    throw new Error(`Invalid ${label} length`);
+  }
+  return Buffer.from(decoded);
 }
 
 function getKEK(): Buffer {
@@ -123,10 +144,13 @@ async function getOrCreateAccountDEK(
     .single();
 
   if (existing) {
+    const wrapped = decodeByteaOrThrow('account.dek_wrapped', existing.dek_wrapped);
+    const iv = decodeByteaOrThrow('account.dek_wrap_iv', existing.dek_wrap_iv, 12);
+    const tag = decodeByteaOrThrow('account.dek_wrap_tag', existing.dek_wrap_tag, 16);
     return unwrapDEK(
-      Buffer.from(existing.dek_wrapped),
-      Buffer.from(existing.dek_wrap_iv),
-      Buffer.from(existing.dek_wrap_tag)
+      wrapped,
+      iv,
+      tag
     );
   }
 
@@ -146,9 +170,9 @@ async function getOrCreateAccountDEK(
     .from('ultaura_account_crypto_keys')
     .insert({
       account_id: accountId,
-      dek_wrapped: wrapped,
-      dek_wrap_iv: iv,
-      dek_wrap_tag: tag,
+      dek_wrapped: encodeBytea(wrapped),
+      dek_wrap_iv: encodeBytea(iv),
+      dek_wrap_tag: encodeBytea(tag),
       dek_kid: 'kek_v1',
       dek_alg: 'AES-256-GCM',
     });

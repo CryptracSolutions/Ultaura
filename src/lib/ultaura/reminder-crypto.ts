@@ -3,6 +3,7 @@ import 'server-only';
 import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import getLogger from '~/core/logger';
+import { decodeBytea, encodeBytea, type ByteaInput } from './bytea';
 
 const logger = getLogger();
 
@@ -18,6 +19,32 @@ const PER_LINE_DEK_CUTOFF = new Date(process.env.ULTAURA_PER_LINE_DEK_CUTOFF || 
 
 function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
   return Uint8Array.from(value);
+}
+
+function decodeByteaOrThrow(
+  label: string,
+  value: ByteaInput,
+  expectedLength?: number
+): Buffer {
+  const decoded = decodeBytea(value);
+  if (!decoded) {
+    const preview = typeof value === 'string'
+      ? { rawLength: value.length, rawPrefix: value.slice(0, 8) }
+      : undefined;
+    logger.error({ label, valueType: typeof value, ...preview }, 'Failed to decode bytea value');
+    throw new Error(`Invalid ${label} payload`);
+  }
+  if (expectedLength && decoded.length !== expectedLength) {
+    const preview = typeof value === 'string'
+      ? { rawLength: value.length, rawPrefix: value.slice(0, 8) }
+      : undefined;
+    logger.error(
+      { label, expectedLength, actualLength: decoded.length, ...preview },
+      'Bytea payload length mismatch'
+    );
+    throw new Error(`Invalid ${label} length`);
+  }
+  return Buffer.from(decoded);
 }
 
 function getKEK(): Buffer {
@@ -86,10 +113,13 @@ async function getOrCreateAccountDEK(
     .single();
 
   if (existing) {
+    const wrapped = decodeByteaOrThrow('account.dek_wrapped', existing.dek_wrapped);
+    const iv = decodeByteaOrThrow('account.dek_wrap_iv', existing.dek_wrap_iv, IV_LENGTH);
+    const tag = decodeByteaOrThrow('account.dek_wrap_tag', existing.dek_wrap_tag, TAG_LENGTH);
     return unwrapDEK(
-      Buffer.from(existing.dek_wrapped),
-      Buffer.from(existing.dek_wrap_iv),
-      Buffer.from(existing.dek_wrap_tag)
+      wrapped,
+      iv,
+      tag
     );
   }
 
@@ -100,9 +130,9 @@ async function getOrCreateAccountDEK(
     .from('ultaura_account_crypto_keys')
     .insert({
       account_id: accountId,
-      dek_wrapped: wrapped,
-      dek_wrap_iv: iv,
-      dek_wrap_tag: tag,
+      dek_wrapped: encodeBytea(wrapped),
+      dek_wrap_iv: encodeBytea(iv),
+      dek_wrap_tag: encodeBytea(tag),
       dek_kid: REMINDER_KID,
       dek_alg: REMINDER_ALG,
     });
@@ -134,10 +164,13 @@ async function getLineDEK(
     return null;
   }
 
+  const wrapped = decodeByteaOrThrow('line.dek_wrapped', existing.dek_wrapped);
+  const iv = decodeByteaOrThrow('line.dek_wrap_iv', existing.dek_wrap_iv, IV_LENGTH);
+  const tag = decodeByteaOrThrow('line.dek_wrap_tag', existing.dek_wrap_tag, TAG_LENGTH);
   return unwrapDEK(
-    Buffer.from(existing.dek_wrapped),
-    Buffer.from(existing.dek_wrap_iv),
-    Buffer.from(existing.dek_wrap_tag)
+    wrapped,
+    iv,
+    tag
   );
 }
 
@@ -154,9 +187,9 @@ async function createLineDEK(
     .insert({
       line_id: lineId,
       account_id: accountId,
-      dek_wrapped: wrapped,
-      dek_wrap_iv: iv,
-      dek_wrap_tag: tag,
+      dek_wrapped: encodeBytea(wrapped),
+      dek_wrap_iv: encodeBytea(iv),
+      dek_wrap_tag: encodeBytea(tag),
       dek_kid: REMINDER_KID,
       dek_alg: REMINDER_ALG,
     });
@@ -321,13 +354,19 @@ export function decryptReminderMessagesWithDek(
 ): Array<{ id: string; message: string | null; decryptFailed: boolean }> {
   return reminders.map((reminder) => {
     if (reminder.message_ciphertext && reminder.message_iv && reminder.message_tag) {
+      const ciphertext = decodeBytea(reminder.message_ciphertext);
+      const iv = decodeBytea(reminder.message_iv);
+      const tag = decodeBytea(reminder.message_tag);
+      if (!ciphertext || !iv || !tag) {
+        return { id: reminder.id, message: null, decryptFailed: true };
+      }
       const aad = buildReminderMessageAAD(accountId, lineId, reminder.id);
       try {
         const message = decryptValue(
           dek,
-          toUint8Array(reminder.message_ciphertext as Uint8Array),
-          toUint8Array(reminder.message_iv as Uint8Array),
-          toUint8Array(reminder.message_tag as Uint8Array),
+          toUint8Array(ciphertext),
+          toUint8Array(iv),
+          toUint8Array(tag),
           aad
         );
         return { id: reminder.id, message, decryptFailed: false };

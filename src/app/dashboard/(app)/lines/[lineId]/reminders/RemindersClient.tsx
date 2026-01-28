@@ -18,6 +18,8 @@ import type { ReminderRow } from '~/lib/ultaura/types';
 import { cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/reminders';
 import { ReminderActivity } from './ReminderActivity';
 import { CreateReminderForm } from '~/components/ultaura/CreateReminderForm';
+import { DatePicker } from '~/core/ui/DatePicker';
+import { TimePicker } from '~/core/ui/TimePicker';
 
 const SNOOZE_OPTIONS = [
   { value: 15, label: '15 minutes' },
@@ -669,7 +671,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 rows={3}
                 maxLength={500}
                 disabled={isEditSubmitting}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary resize-none disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {editMessage.length}/500 characters
@@ -681,13 +683,13 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Date
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
+                  onChange={setEditDate}
                   min={today}
                   disabled={isEditSubmitting}
-                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  placeholder="Select date"
+                  className="h-11"
                 />
               </div>
 
@@ -695,12 +697,12 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Time
                 </label>
-                <input
-                  type="time"
+                <TimePicker
                   value={editTime}
-                  onChange={(e) => setEditTime(e.target.value)}
+                  onChange={setEditTime}
                   disabled={isEditSubmitting}
-                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  placeholder="Select time"
+                  className="h-11"
                 />
               </div>
             </div>

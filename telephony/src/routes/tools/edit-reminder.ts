@@ -11,6 +11,7 @@ import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 import { encryptReminderMessage } from '../../utils/reminder-crypto.js';
+import { encodeBytea } from '../../utils/bytea.js';
 import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const editReminderRouter = Router();
@@ -176,9 +177,9 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         trimmedMessage
       );
       updates.message = null;
-      updates.message_ciphertext = encryptedMessage.ciphertext;
-      updates.message_iv = encryptedMessage.iv;
-      updates.message_tag = encryptedMessage.tag;
+      updates.message_ciphertext = encodeBytea(encryptedMessage.ciphertext);
+      updates.message_iv = encodeBytea(encryptedMessage.iv);
+      updates.message_tag = encodeBytea(encryptedMessage.tag);
       updates.message_alg = encryptedMessage.alg;
       updates.message_kid = encryptedMessage.kid;
       oldValues.messageChanged = true;

@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../src/utils/supabase.js';
 import { getMemoryDEK } from '../src/services/line-encryption.js';
 import { buildReminderMessageAAD, encryptReminderMessageWithDek } from '../src/utils/reminder-crypto.js';
+import { encodeBytea } from '../src/utils/bytea.js';
 
 const BATCH_SIZE = 100;
 const execute = process.argv.includes('--execute');
@@ -70,9 +71,9 @@ async function run(): Promise<void> {
           .from('ultaura_reminders')
           .update({
             message: null,
-            message_ciphertext: encrypted.ciphertext,
-            message_iv: encrypted.iv,
-            message_tag: encrypted.tag,
+            message_ciphertext: encodeBytea(encrypted.ciphertext),
+            message_iv: encodeBytea(encrypted.iv),
+            message_tag: encodeBytea(encrypted.tag),
             message_alg: encrypted.alg,
             message_kid: encrypted.kid,
           })

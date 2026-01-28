@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Checkbox } from '~/core/ui/Checkbox';
+import { DatePicker } from '~/core/ui/DatePicker';
+import { TimePicker } from '~/core/ui/TimePicker';
 import { createReminder } from '~/lib/ultaura/reminders';
 
 export interface CreateReminderFormProps {
@@ -151,13 +153,12 @@ export function CreateReminderForm({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">Date</label>
-              <input
-                type="date"
+              <DatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={setDate}
                 min={today}
                 disabled={isSubmitting}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                placeholder="Select date"
               />
             </div>
 
@@ -165,12 +166,11 @@ export function CreateReminderForm({
               <label className="block text-sm font-medium text-foreground mb-2">
                 Time ({timezone.split('/').pop()?.replace('_', ' ')})
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
+                onChange={setTime}
                 disabled={isSubmitting}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                placeholder="Select time"
               />
             </div>
           </div>
@@ -219,7 +219,7 @@ export function CreateReminderForm({
                       value={interval}
                       onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
                       disabled={isSubmitting}
-                      className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
                     />
                   </div>
                 )}
@@ -266,7 +266,7 @@ export function CreateReminderForm({
                       value={dayOfMonth}
                       onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
                       disabled={isSubmitting}
-                      className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
                     />
                   </div>
                 )}
@@ -282,29 +282,21 @@ export function CreateReminderForm({
                     <span className="text-sm">Set an end date</span>
                   </label>
                   {hasEndDate && (
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      min={date || today}
-                      disabled={isSubmitting}
-                      className="mt-2 w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    />
+                    <div className="mt-2">
+                      <DatePicker
+                        value={endDate}
+                        onChange={setEndDate}
+                        min={date || today}
+                        disabled={isSubmitting}
+                        placeholder="Select end date"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Note */}
-          <div className="bg-muted/50 rounded-lg p-3 text-sm">
-            <p className="text-muted-foreground">
-              <strong className="text-foreground">Note:</strong> Reminder calls use 1 minute from
-              your plan.
-              {isRecurring && ' Each occurrence counts as a separate call.'}
-              {!isRecurring && ' The AI will deliver your message and check if they have questions.'}
-            </p>
-          </div>
         </div>
 
         <div className="flex gap-3 pt-4 flex-shrink-0">

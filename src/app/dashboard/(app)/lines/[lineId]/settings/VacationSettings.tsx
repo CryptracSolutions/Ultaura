@@ -12,6 +12,7 @@ import {
   modalPrimaryButtonClass,
   modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
+import { DatePicker } from '~/core/ui/DatePicker';
 
 export function VacationSettings({
   line,
@@ -33,7 +34,7 @@ export function VacationSettings({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const startDateInputRef = useRef<HTMLInputElement>(null);
+  const startDateInputRef = useRef<HTMLButtonElement>(null);
 
   const today = useMemo(() => {
     return DateTime.now().setZone(line.timezone).toISODate();
@@ -369,29 +370,25 @@ export function VacationSettings({
                   <label className="text-xs text-muted-foreground block mb-1">
                     Start date
                   </label>
-                  <input
+                  <DatePicker
                     ref={startDateInputRef}
-                    type="date"
                     value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
+                    onChange={setStartDate}
                     min={today ?? undefined}
                     disabled={disabled}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
+                    placeholder="Select start date"
                   />
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">
                     End date
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
+                    onChange={setEndDate}
                     min={startDate || today || undefined}
                     disabled={disabled}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    required
+                    placeholder="Select end date"
                   />
                 </div>
               </div>

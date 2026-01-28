@@ -23,7 +23,7 @@ const PopoverContent = forwardRef<
         alignOffset={alignOffset}
         className={classNames(
           `animate-in data-[side=bottom]:slide-in-from-top-2
-          data-[side=top]:slide-in-from-bottom-2 z-50 rounded-md border
+          data-[side=top]:slide-in-from-bottom-2 z-[100] rounded-md border
           border-border bg-popover p-2 shadow-lg outline-none`,
           className
         )}
