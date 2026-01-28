@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import {
   Phone,
   Play,
-  Trash2,
   AlertTriangle,
   Calendar,
   PhoneCall,
@@ -18,7 +17,6 @@ import type {
   UsageSummary,
   CallSessionRow,
 } from '~/lib/ultaura/types';
-import { deleteLine } from '~/lib/ultaura/lines';
 import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
 import type { ActionError } from '@ultaura/schemas';
 import { TELEPHONY } from '~/lib/ultaura/constants';
@@ -27,7 +25,6 @@ import PhoneInput from '~/components/ultaura/PhoneInput';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { CallActivityList } from './components/CallActivityList';
 import { LinePageHeader } from './components/LinePageHeader';
-import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import Modal from '~/core/ui/Modal';
 
@@ -35,7 +32,6 @@ const CARD_CLASS = 'bg-card rounded-xl border border-border p-6';
 const CARD_HEADER_CLASS = 'flex items-center gap-2';
 const BTN_PRIMARY_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const BTN_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50';
-const BTN_DESTRUCTIVE_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 interface StatCardProps {
   icon: React.ReactNode;
   label: string;
@@ -105,7 +101,6 @@ export function LineDetailClient({
 }: LineDetailClientProps) {
   const router = useRouter();
   const { openManualCall } = useManualCall();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isTestCalling, setIsTestCalling] = useState(false);
   const [isTestCallModalOpen, setIsTestCallModalOpen] = useState(false);
   const [testCallTarget, setTestCallTarget] = useState<'line' | 'alternate'>('line');
@@ -151,18 +146,6 @@ export function LineDetailClient({
     }
 
     return error.message || 'Failed to initiate test call';
-  };
-
-  const handleDelete = async () => {
-    if (isReadOnly) return;
-
-    const result = await deleteLine(line.id);
-    if (!result.success) {
-      toast.error(result.error.message || 'Failed to delete line');
-      throw new Error('Delete failed');
-    }
-    toast.success('Line deleted');
-    router.push('/dashboard/lines');
   };
 
   const handleTestCall = async () => {
@@ -321,7 +304,7 @@ export function LineDetailClient({
         status={line.status}
         isVerified={!!line.phone_verified_at}
         actions={
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
             {isFamilyManaged && (
               <button
                 onClick={() => openManualCall({ preselectedLineId: line.id })}
@@ -343,14 +326,6 @@ export function LineDetailClient({
             >
               <Play className="w-3 h-3" />
               Test Call
-            </button>
-            <button
-              onClick={() => setDeleteDialogOpen(true)}
-              disabled={isReadOnly}
-              className={`${BTN_DESTRUCTIVE_OUTLINE_CLASS} w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm`}
-            >
-              <Trash2 className="w-3 h-3" />
-              Delete Line
             </button>
           </div>
         }
@@ -542,17 +517,6 @@ export function LineDetailClient({
           </div>
         </div>
       </Modal>
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Delete Line"
-        description="Are you sure you want to delete this line? This cannot be undone."
-        confirmLabel="Delete"
-        variant="destructive"
-        onConfirm={handleDelete}
-      />
     </div>
   );
 }

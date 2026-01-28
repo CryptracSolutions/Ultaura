@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { LineTabNav } from './LineTabNav';
+import MobileAppNavigation from '~/components/MobileAppNavigation';
 
 interface LinePageHeaderProps {
   lineName: string;
@@ -17,6 +18,14 @@ interface LinePageHeaderProps {
 export function LinePageHeader({ lineName, lineShortId, actions }: LinePageHeaderProps) {
   return (
     <div className="mb-6 pt-3 sm:pt-0 md:pt-3">
+      {/* Title row with mobile nav */}
+      <div className="flex items-center space-x-2 mb-2">
+        <div className="lg:hidden">
+          <MobileAppNavigation />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">{lineName}</h1>
+      </div>
+
       {/* Back link */}
       <Link
         href="/dashboard/lines"
@@ -26,13 +35,8 @@ export function LinePageHeader({ lineName, lineShortId, actions }: LinePageHeade
         Back to Lines
       </Link>
 
-      {/* Line info row */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{lineName}</h1>
-        </div>
-        {actions ? <div className="w-full sm:w-auto">{actions}</div> : null}
-      </div>
+      {/* Action buttons */}
+      {actions ? <div className="w-full sm:w-auto mb-4">{actions}</div> : null}
 
       {/* Tab navigation */}
       <LineTabNav lineShortId={lineShortId} />
