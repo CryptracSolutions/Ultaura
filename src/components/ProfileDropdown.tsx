@@ -60,8 +60,9 @@ const ProfileDropdown: React.FCC<{
           className,
           {
             ['items-center space-x-2.5 rounded-lg border border-gray-100' +
-            ' dark:border-dark-900 p-2 transition-colors' +
-            ' hover:bg-gray-50 dark:hover:bg-dark-800/40']: displayName,
+            ' dark:border-dark-900 p-2 transition-colors transition-shadow' +
+            ' hover:shadow-[0_0_0_1px_oklch(0.696_0.119_180.426_/_0.35)]' +
+            ' dark:hover:shadow-[0_0_0_1px_oklch(0.75_0.12_180.426_/_0.35)]']: displayName,
           },
         )}
       >

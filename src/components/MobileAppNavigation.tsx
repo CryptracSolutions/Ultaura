@@ -145,27 +145,27 @@ const MobileAppNavigation = () => {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <Logo
               href="/"
-              className="h-10"
+              className="h-8"
               label="Home"
               showWordmark
-              wordmarkClassName="text-2xl font-semibold leading-none text-primary"
+              wordmarkClassName="text-xl font-semibold leading-none text-primary"
             />
             <div className="flex items-center gap-2">
               <button
                 onClick={openMobile}
-                className="p-2 hover:bg-muted rounded-md transition-colors"
+                className="p-1.5 hover:bg-muted rounded-md transition-colors"
                 aria-label="Search"
                 aria-haspopup="dialog"
                 aria-expanded={isMobileOpen}
               >
-                <MagnifyingGlassIcon className="h-6 w-6" />
+                <MagnifyingGlassIcon className="h-5 w-5" />
               </button>
               <button
                 onClick={closeMenu}
-                className="p-2 hover:bg-muted rounded-md transition-colors"
+                className="p-1.5 hover:bg-muted rounded-md transition-colors"
                 aria-label="Close menu"
               >
-                <XMarkIcon className="h-6 w-6" />
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
           </div>

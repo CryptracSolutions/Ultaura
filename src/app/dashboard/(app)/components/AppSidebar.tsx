@@ -33,10 +33,14 @@ const AppSidebar: React.FC = () => {
         <div className={ctx.collapsed ? 'flex w-full justify-center' : ''}>
           <Logo
             href={'/'}
-            className={'h-10'}
+            className="h-8"
             label={'Dashboard'}
             showWordmark={!ctx.collapsed}
-            wordmarkClassName={'text-2xl font-semibold leading-none text-primary'}
+            wordmarkClassName={
+              ctx.collapsed
+                ? 'text-2xl font-semibold leading-none text-primary'
+                : 'text-xl font-semibold leading-none text-primary'
+            }
           />
         </div>
       </SidebarContent>
