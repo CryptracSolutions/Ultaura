@@ -1153,7 +1153,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                   placeholder="Select time"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Snoozes the next call. If the time is earlier than now, we'll schedule for tomorrow.
+                  Snoozes the next call. If the time is earlier than now, we&apos;ll schedule for tomorrow.
                 </p>
                 {snoozePreview && (
                   <p className="text-xs text-muted-foreground mt-2">
