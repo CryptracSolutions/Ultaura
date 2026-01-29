@@ -16,11 +16,14 @@ import {
   CalendarIcon,
   LifebuoyIcon,
   MagnifyingGlassIcon,
+  UserIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 import Trans from '~/core/ui/Trans';
 
 import NAVIGATION_CONFIG from '../navigation.config';
+import configuration from '~/configuration';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import useSignOut from '~/core/hooks/use-sign-out';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
@@ -72,8 +75,7 @@ const MobileAppNavigation = () => {
   }
 
   const handleHelpClick = () => {
-    closeMenu();
-    setTimeout(() => openHelp(), 200);
+    openHelp();
   };
 
   const handleFeedbackClick = () => {
@@ -248,6 +250,18 @@ const MobileAppNavigation = () => {
 
             {/* Account Section */}
             <MenuSection label="Account">
+              <MenuLink
+                Icon={UserIcon}
+                path={`${configuration.paths.appPrefix}/${configuration.paths.settings.profile}`}
+                label="common:profileSettingsTabLabel"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                Icon={CreditCardIcon}
+                path={`${configuration.paths.appPrefix}/${configuration.paths.settings.subscription}`}
+                label="common:subscriptionSettingsTabLabel"
+                onClick={closeMenu}
+              />
               <SignOutButton onSignOut={closeMenu} />
             </MenuSection>
           </div>
@@ -279,10 +293,10 @@ function MenuLink({
     <Link
       href={path}
       onClick={onClick}
-      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors"
+      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
     >
-      <Icon className="h-6 w-6 text-muted-foreground" />
-      <span className="text-foreground">
+      <Icon className="h-[22px] w-[22px] text-primary" />
+      <span className="text-[14.5px] text-foreground">
         <Trans i18nKey={label} defaults={label} />
       </span>
     </Link>
@@ -301,10 +315,10 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors"
+      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
     >
-      <Icon className="h-6 w-6 text-muted-foreground" />
-      <span className="text-foreground">{label}</span>
+      <Icon className="h-[22px] w-[22px] text-primary" />
+      <span className="text-[14.5px] text-foreground">{label}</span>
     </button>
   );
 }
@@ -320,10 +334,10 @@ function SignOutButton({ onSignOut }: { onSignOut: () => void }) {
   return (
     <button
       onClick={handleSignOut}
-      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors"
+      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
     >
-      <ArrowLeftOnRectangleIcon className="h-6 w-6 text-muted-foreground" />
-      <span className="text-foreground">
+      <ArrowLeftOnRectangleIcon className="h-[22px] w-[22px] text-primary" />
+      <span className="text-[14.5px] text-foreground">
         <Trans i18nKey="common:signOut" defaults="Sign out" />
       </span>
     </button>
@@ -339,7 +353,7 @@ function MenuSection({
 }) {
   return (
     <div className="py-2">
-      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="px-[14px] py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       {children}

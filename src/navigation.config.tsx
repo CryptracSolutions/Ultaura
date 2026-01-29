@@ -4,8 +4,6 @@ import {
   PhoneIcon,
   CalendarDaysIcon,
   BellIcon,
-  UserIcon,
-  CreditCardIcon,
   ShieldCheckIcon,
   ExclamationTriangleIcon,
   EyeIcon,
@@ -120,26 +118,6 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
       Icon: ({ className }: { className: string }) => {
         return <ShieldCheckIcon className={className} />;
       },
-    },
-    {
-      label: 'Settings',
-      collapsible: false,
-      children: [
-        {
-          label: 'Profile',
-          path: getPath('settings/profile'),
-          Icon: ({ className }: { className: string }) => {
-            return <UserIcon className={className} />;
-          },
-        },
-        {
-          label: 'Subscription',
-          path: getPath('settings/subscription'),
-          Icon: ({ className }: { className: string }) => {
-            return <CreditCardIcon className={className} />;
-          },
-        },
-      ],
     },
   );
 
