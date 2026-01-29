@@ -4,3 +4,10 @@ packages:
   - 'plugins/cookie-banner'
   - 'packages/*'
   - 'telephony'
+onlyBuiltDependencies:
+  - contentlayer
+  - cypress
+  - esbuild
+  - protobufjs
+  - sharp
+  - unrs-resolver

@@ -284,7 +284,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
                 }
 
                 const date = new Date(viewYear, viewMonth, day);
-                const isSelected = selectedDate && isSameDay(date, selectedDate);
+                const isSelected = selectedDate ? isSameDay(date, selectedDate) : false;
                 const isToday = isSameDay(date, today);
                 const isDisabled = isDateDisabled(date, min, max);
 
