@@ -48,9 +48,15 @@ import { decodeBytea, encodeBytea, type ByteaInput } from './bytea';
 const logger = getLogger();
 
 interface EncryptedPayload {
-  ciphertext: Uint8Array;
-  iv: Uint8Array;
-  tag: Uint8Array;
+  ciphertext: Buffer;
+  iv: Buffer;
+  tag: Buffer;
+}
+
+interface EncryptedPayloadInput {
+  ciphertext: ByteaInput;
+  iv: ByteaInput;
+  tag: ByteaInput;
 }
 
 const INSIGHTS_ALG = 'aes-256-gcm';
@@ -77,6 +83,17 @@ function decodeByteaOrThrow(
     throw new Error(`Invalid ${label} length`);
   }
   return Buffer.from(decoded);
+}
+
+function decodeEncryptedPayload(
+  labelPrefix: string,
+  encrypted: EncryptedPayloadInput
+): EncryptedPayload {
+  return {
+    ciphertext: decodeByteaOrThrow(`${labelPrefix}.ciphertext`, encrypted.ciphertext),
+    iv: decodeByteaOrThrow(`${labelPrefix}.iv`, encrypted.iv, 12),
+    tag: decodeByteaOrThrow(`${labelPrefix}.tag`, encrypted.tag, 16),
+  };
 }
 
 function getKEK(): Buffer {
@@ -459,15 +476,16 @@ async function decryptInsights(
   accountId: string,
   lineId: string,
   callSessionId: string,
-  encrypted: EncryptedPayload
+  encrypted: EncryptedPayloadInput
 ): Promise<CallInsights> {
   const dek = await getOrCreateAccountDEK(client, accountId);
   const aad = buildInsightsAAD(accountId, lineId, callSessionId);
+  const decoded = decodeEncryptedPayload('insights', encrypted);
   return decryptValue(
     dek,
-    Buffer.from(encrypted.ciphertext),
-    Buffer.from(encrypted.iv),
-    Buffer.from(encrypted.tag),
+    decoded.ciphertext,
+    decoded.iv,
+    decoded.tag,
     aad
   ) as CallInsights;
 }
@@ -479,11 +497,11 @@ async function decryptWeeklySummary(
   summary: WeeklySummaryRow
 ): Promise<WeeklySummaryData> {
   const dek = await getOrCreateAccountDEK(client, accountId);
-  const encrypted = {
-    ciphertext: Buffer.from(summary.summary_ciphertext),
-    iv: Buffer.from(summary.summary_iv),
-    tag: Buffer.from(summary.summary_tag),
-  };
+  const encrypted = decodeEncryptedPayload('weekly_summary', {
+    ciphertext: summary.summary_ciphertext,
+    iv: summary.summary_iv,
+    tag: summary.summary_tag,
+  });
 
   try {
     const aad = buildWeeklySummaryAAD(accountId, lineId, summary.week_start_date);
