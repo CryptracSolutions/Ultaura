@@ -78,7 +78,7 @@ Implement a universal search bar in the dashboard header that enables users to:
 │  │ Search Input │ │ QuickActions | Docs | Help | Feedback   │  │
 │  └──────────────┘ └─────────────────────────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────┤
-│  Mobile: Floating Search Button (left of menu button)          │
+│  Mobile: Floating Search Button (bottom-right)                 │
 └─────────────────────────────────────────────────────────────────┘
            │
            ▼
@@ -111,10 +111,11 @@ Implement a universal search bar in the dashboard header that enables users to:
            ▼ (on database search)
 ┌─────────────────────────────────────────────────────────────────┐
 │                    /api/search Route Handler                     │
-│  - Accepts: query string, accountId (from session)              │
-│  - Returns: { lines, reminders, schedules, contacts, calls }    │
+│  - Accepts: query string                                         │
+│  - Resolves org from cookie + session                            │
+│  - Returns: normalized results by category                       │
 │  - Decrypts reminder messages server-side                        │
-│  - RLS enforced via can_access_ultaura_account()                │
+│  - RLS enforced via Supabase session client                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -126,10 +127,10 @@ Implement a universal search bar in the dashboard header that enables users to:
 
 #### Step 1.1: Install cmdk
 ```bash
-npm install cmdk
+pnpm add -w cmdk
 ```
 
-**Files touched**: `package.json`, `package-lock.json`
+**Files touched**: `package.json`, `pnpm-lock.yaml`
 
 #### Step 1.2: Create SearchContext
 Create context to manage search state globally.
@@ -137,11 +138,12 @@ Create context to manage search state globally.
 **New file**: `/src/lib/contexts/SearchContext.tsx`
 ```typescript
 // Exports: SearchProvider, useSearch (with open, close, toggle, isOpen)
+// SearchProvider also renders <SearchCommandPalette /> once at the layout root
 ```
 
 #### Step 1.3: Add SearchContext to Layout
 **File**: `/src/app/dashboard/(app)/components/OrganizationScopeLayout.tsx`
-- Add `<SearchProvider>` wrapping the layout
+- Add `<SearchProvider>` wrapping the layout so the palette is available globally
 
 ---
 
@@ -152,20 +154,72 @@ Create context to manage search state globally.
 
 **Functionality**:
 - Accept `GET ?q=<query>`
-- Authenticate user via session
-- Query multiple tables in parallel:
-  - `ultaura_lines`: match on `display_name`, `phone_e164`
-  - `ultaura_reminders`: match on decrypted `message`, `status`
-  - `ultaura_schedules`: match on time/day description
-  - `ultaura_trusted_contacts`: match on `name`, `phone_e164`
-  - `ultaura_call_sessions`: match on status, date
-  - `ultaura_safety_events`: match on tier, date
-- Return structured results with navigation URLs
+- Authenticate user via Supabase session (no redirects; return 401 JSON on failure)
+- Resolve current organization from cookie + membership (no client-supplied accountId)
+  - `const { data: user } = await supabase.auth.getUser()`
+  - `const organizationUid = await parseOrganizationIdCookie(user.id)`
+  - `const { organization } = await getCurrentOrganization({ organizationUid, userId: user.id })`
+  - `const account = await getUltauraAccount(organization.id)` → `accountId`
+- Query multiple tables in parallel (RLS enforced via session client)
+- Return normalized results with labels, subtitles, hrefs, timestamps
 - Limit: 5 results per category
+- Enforce `q` length: trim, clamp to 100 chars, return empty results when `q.length < 2`
+- Disable caching (`export const dynamic = 'force-dynamic'`, `revalidate = 0`,
+  `Cache-Control: no-store`)
+- API returns only DB-backed categories; client merges navigation/docs into the same shape
+  (navigation/documentation arrays can be returned as empty arrays for consistency)
+
+**Response Shape**:
+```ts
+type SearchCategory =
+  | 'navigation'
+  | 'documentation'
+  | 'lines'
+  | 'reminders'
+  | 'schedules'
+  | 'contacts'
+  | 'calls'
+  | 'safety_events';
+
+type SearchItem = {
+  id: string;
+  label: string;
+  subtitle?: string;
+  href: string;
+  category: SearchCategory;
+  timestamp?: string; // ISO string for sorting in UI
+};
+
+type SearchResponse = {
+  query: string;
+  results: Record<SearchCategory, SearchItem[]>;
+};
+```
+
+**Entity-specific matching (schema-correct)**:
+- `ultaura_lines`: match `display_name`, `phone_e164`; order by `created_at desc`
+- `ultaura_trusted_contacts`: match `name`, `phone_e164`; order by `created_at desc`
+- `ultaura_reminders`: fetch recent reminders by `account_id` (limit 50), decrypt via
+  `decryptReminderMessagesForLine`, then filter by message or line display name; order by
+  `due_at desc` or `created_at desc`, then take top 5
+- `ultaura_schedules`: fetch by `account_id`, build display string from
+  `days_of_week`, `time_of_day`, `timezone`, filter by query; order by
+  `next_run_at desc` or `created_at desc`, then take top 5
+- `ultaura_call_sessions`: match `status`, `direction`, `twilio_from`, `twilio_to`;
+  order by `created_at desc`
+- `ultaura_safety_events`: match `tier`, `category`; order by `created_at desc`
+
+**Join Strategy (for subtitles/links)**:
+- For reminders, schedules, calls, safety events, and contacts, include line context by
+  selecting `ultaura_lines(display_name, short_id)` in the query result to build
+  subtitles and hrefs.
 
 **Dependencies**:
 - `/src/lib/ultaura/reminders.ts` (decryption logic)
 - `/src/lib/ultaura/lines.ts`
+- `/src/lib/server/cookies/organization.cookie.ts` (organization cookie)
+- `/src/lib/server/organizations/get-current-organization.ts`
+- `/src/lib/ultaura/accounts.ts` (`getUltauraAccount`)
 - Supabase server client
 
 ---
@@ -177,31 +231,35 @@ Create context to manage search state globally.
 
 **Structure**:
 ```tsx
-<Command.Dialog>
-  <Command.Input placeholder="Search..." />
-  <Command.List>
-    <Command.Empty>No results found</Command.Empty>
+<Dialog open={isOpen} onOpenChange={setOpen}>
+  <DialogContent>
+    <Command>
+      <Command.Input placeholder="Search..." />
+      <Command.List>
+        <Command.Empty>No results found</Command.Empty>
 
-    {/* Static navigation items */}
-    <Command.Group heading="Navigation">
-      <Command.Item>Home</Command.Item>
-      <Command.Item>Lines</Command.Item>
-      ...
-    </Command.Group>
+        {/* Static navigation items */}
+        <Command.Group heading="Navigation">
+          <Command.Item>Home</Command.Item>
+          <Command.Item>Lines</Command.Item>
+          ...
+        </Command.Group>
 
-    {/* Documentation (from contentlayer) */}
-    <Command.Group heading="Documentation">
-      {filteredDocs.map(doc => <Command.Item>...)}
-    </Command.Group>
+        {/* Documentation (from docs-index) */}
+        <Command.Group heading="Documentation">
+          {filteredDocs.map(doc => <Command.Item>...)}
+        </Command.Group>
 
-    {/* Dynamic database results */}
-    {loading && <Command.Loading>Searching...</Command.Loading>}
-    {results.lines.length > 0 && (
-      <Command.Group heading="Lines">...</Command.Group>
-    )}
-    ...
-  </Command.List>
-</Command.Dialog>
+        {/* Dynamic database results */}
+        {loading && <Command.Loading>Searching...</Command.Loading>}
+        {results.lines.length > 0 && (
+          <Command.Group heading="Lines">...</Command.Group>
+        )}
+        ...
+      </Command.List>
+    </Command>
+  </DialogContent>
+</Dialog>
 ```
 
 **Styling**:
@@ -210,7 +268,8 @@ Create context to manage search state globally.
 - Keyboard hint badge (⌘K) in input
 
 **Behavior**:
-- Static items (navigation, docs) filter client-side immediately
+- Disable cmdk fuzzy filtering (`shouldFilter={false}`) and apply simple substring
+  matching for static items (navigation, docs)
 - Database search debounced (300ms), triggered when query length >= 2
 - Navigate on select, close palette
 - Support keyboard navigation (up/down/enter/escape)
@@ -227,9 +286,10 @@ Create context to manage search state globally.
 **New file**: `/src/lib/search/docs-index.ts`
 
 **Contents**:
-- Load `allDocumentationPages` from contentlayer
+- Load `allDocumentationPages` from contentlayer and map to a minimal index
 - Flatten tree for search
-- Export as searchable array with title, label, path
+- Export as a searchable array **without** MDX body content (avoid bundling full docs)
+- Shape example: `{ title, label, resolvedPath, section, keywords[] }`
 
 ---
 
@@ -270,12 +330,14 @@ Create context to manage search state globally.
 **Styling**: Match existing input styles, include ⌘K badge
 
 #### Step 4.3: Add Mobile Search Button
-**File**: `/src/components/MobileAppNavigation.tsx`
+**File**: `/src/app/dashboard/(app)/components/OrganizationScopeLayout.tsx`
 
 **Changes**:
-- Add floating MagnifyingGlassIcon button
-- Position left of the hamburger menu button
-- Opens same SearchCommandPalette (renders as bottom sheet on mobile)
+- Add `SearchFloatingButton` rendered once at the layout root
+- Use `fixed` positioning with `lg:hidden` (e.g., `bottom-4 right-4`)
+- Opens same SearchCommandPalette (Dialog bottom sheet on mobile)
+
+**New file**: `/src/components/SearchFloatingButton.tsx`
 
 #### Step 4.4: Add Global Keyboard Shortcut
 **File**: `/src/components/SearchCommandPalette.tsx` (or dedicated hook)
@@ -284,6 +346,14 @@ Create context to manage search state globally.
 ```typescript
 useEffect(() => {
   const handler = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    const isEditable =
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        (target as HTMLElement).isContentEditable);
+    if (isEditable) return;
+
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault();
       toggle();
@@ -332,7 +402,10 @@ useEffect(() => {
 - `navigation.config.tsx` - Source for navigation items
 - `allDocumentationPages` - Contentlayer docs data
 - `/src/lib/ultaura/*.ts` - Database queries
-- `OrganizationScopeLayout` - Context provider integration
+- `/src/lib/server/cookies/organization.cookie.ts` - Organization context
+- `/src/lib/server/organizations/get-current-organization.ts` - Membership verification
+- `/src/lib/ultaura/accounts.ts` - Account lookup
+- `OrganizationScopeLayout` - Context provider + global palette + floating button
 
 ---
 
@@ -354,6 +427,7 @@ None required for initial implementation.
 | `/src/app/api/search/route.ts` | Database search endpoint |
 | `/src/components/SearchCommandPalette.tsx` | Main command palette component |
 | `/src/components/SearchTrigger.tsx` | Desktop header search input |
+| `/src/components/SearchFloatingButton.tsx` | Mobile floating search button |
 | `/src/lib/search/navigation-registry.ts` | Static navigation items |
 | `/src/lib/search/docs-index.ts` | Documentation index helper |
 
@@ -364,9 +438,9 @@ None required for initial implementation.
 | File Path | Changes |
 |-----------|---------|
 | `package.json` | Add cmdk dependency |
-| `/src/app/dashboard/(app)/components/OrganizationScopeLayout.tsx` | Add SearchProvider |
+| `pnpm-lock.yaml` | Lockfile update for cmdk |
+| `/src/app/dashboard/(app)/components/OrganizationScopeLayout.tsx` | Add SearchProvider + render palette + floating button |
 | `/src/components/TopNavBar.tsx` | Add SearchTrigger, update layout |
-| `/src/components/MobileAppNavigation.tsx` | Add floating search button |
 
 ---
 
@@ -377,10 +451,12 @@ None required for initial implementation.
 | API search fails | Show error toast, keep static results visible |
 | Decryption fails | Use placeholder text `[Unable to decrypt]` (existing pattern) |
 | No results | Show "No results found" with suggestion to try different query |
-| User not authenticated | Redirect to login (API returns 401) |
+| User not authenticated | API returns 401; client keeps static results and prompts login |
 | Slow network | Show loading skeleton, debounce queries |
 | Very long query | Truncate at 100 chars on API side |
 | Large result set | Limit to 5 per category, show "View all" link |
+| Query length < 2 | Return empty result set from API |
+| Cache leakage | Force `no-store` headers to avoid caching PII |
 
 ---
 
@@ -389,7 +465,7 @@ None required for initial implementation.
 - **RLS enforced**: All database queries go through Supabase with user session, RLS policies apply
 - **Server-side decryption**: Reminder messages decrypted only on server, never exposed in API response as ciphertext
 - **No sensitive data in URLs**: Result items link to pages, not embed sensitive data in URL params
-- **CSRF protection**: API route uses existing CSRF middleware
+- **No caching of PII**: Force `dynamic` route and `Cache-Control: no-store` headers
 - **Rate limiting**: Consider adding rate limiting for search API (future enhancement)
 
 ---
@@ -419,6 +495,7 @@ None required for initial implementation.
 - API route: Empty query returns empty
 - API route: Unauthorized returns 401
 - API route: Decryption works for reminders
+- API route: Query length < 2 returns empty result set
 
 ### E2E Tests (Cypress/Playwright)
 - Open command palette with Cmd+K
@@ -476,7 +553,8 @@ None required for initial implementation.
 ## 17. Assumptions
 
 1. Users have dashboard access (authenticated, organization member)
-2. Contentlayer documentation is built at deploy time (search index always current)
-3. Database changes are reflected immediately (no separate search index needed)
-4. cmdk works well with existing Radix primitives
-5. 5 results per category is sufficient for initial implementation
+2. Organization UID cookie is present for dashboard sessions (set by layout)
+3. Contentlayer documentation is built at deploy time (search index always current)
+4. Database changes are reflected immediately (no separate search index needed)
+5. cmdk works well with existing Radix primitives
+6. 5 results per category is sufficient for initial implementation

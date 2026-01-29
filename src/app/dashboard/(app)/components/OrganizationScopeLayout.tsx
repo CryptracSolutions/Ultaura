@@ -22,7 +22,11 @@ import { ManualCallProvider } from '~/lib/contexts/ManualCallContext';
 import { AddReminderProvider } from '~/lib/contexts/AddReminderContext';
 import { AddScheduleProvider } from '~/lib/contexts/AddScheduleContext';
 import { AddLineProvider } from '~/lib/contexts/AddLineContext';
+import { SearchProvider } from '~/lib/contexts/SearchContext';
+import SearchCommandPalette from '~/components/SearchCommandPalette';
+import SearchFloatingButton from '~/components/SearchFloatingButton';
 import I18nProvider from '~/i18n/I18nProvider';
+import type { DocsIndexItem } from '~/lib/search/types';
 
 import { setCookie } from '~/core/generic/cookies';
 import AuthChangeListener from '~/components/AuthChangeListener';
@@ -33,7 +37,8 @@ import { cva } from 'cva';
 const OrganizationScopeLayout: React.FCC<{
   data: Awaited<ReturnType<typeof loadAppData>>;
   ultauraAccountId?: string | null;
-}> = ({ data, ultauraAccountId, children }) => {
+  docsIndex: DocsIndexItem[];
+}> = ({ data, ultauraAccountId, docsIndex, children }) => {
   const userSessionContext: UserSession = useMemo(() => {
     return {
       auth: data.auth,
@@ -83,16 +88,20 @@ const OrganizationScopeLayout: React.FCC<{
                     <AddReminderProvider>
                       <AddScheduleProvider>
                         <AddLineProvider>
-                          <main>
-                            <Toaster richColors={false} />
+                          <SearchProvider>
+                            <main>
+                              <Toaster richColors={false} />
 
-                            <RouteShellWithSidebar
-                              collapsed={data.ui.sidebarState === 'collapsed'}
-                              ultauraAccountId={ultauraAccountId}
-                            >
-                              {children}
-                            </RouteShellWithSidebar>
-                          </main>
+                              <RouteShellWithSidebar
+                                collapsed={data.ui.sidebarState === 'collapsed'}
+                                ultauraAccountId={ultauraAccountId}
+                              >
+                                {children}
+                              </RouteShellWithSidebar>
+                            </main>
+                            <SearchFloatingButton />
+                            <SearchCommandPalette docsIndex={docsIndex} />
+                          </SearchProvider>
                         </AddLineProvider>
                       </AddScheduleProvider>
                     </AddReminderProvider>
