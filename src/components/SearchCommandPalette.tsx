@@ -10,7 +10,6 @@ import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
   LifebuoyIcon,
-  MagnifyingGlassIcon,
   PhoneArrowUpRightIcon,
   PhoneIcon,
   PlusCircleIcon,
@@ -42,8 +41,16 @@ type QuickAction = {
   action: () => void;
 };
 
-export const SearchPanel = ({ isOpen }: { isOpen: boolean }) => {
-  const { docsIndex, close } = useSearch();
+export const SearchPanel = ({
+  isOpen,
+  query: externalQuery,
+  onQueryChange: externalOnQueryChange
+}: {
+  isOpen: boolean;
+  query?: string;
+  onQueryChange?: (query: string) => void;
+}) => {
+  const { docsIndex, close, prefillQuery, clearPrefillQuery } = useSearch();
   const { data: account } = useUltauraAccount();
   const { t } = useTranslation();
   const router = useRouter();
@@ -53,7 +60,11 @@ export const SearchPanel = ({ isOpen }: { isOpen: boolean }) => {
   const { openManualCall } = useManualCall();
   const { open: openHelp } = useHelpPanel();
 
-  const [query, setQuery] = useState('');
+  // Use external query/onQueryChange if provided (desktop), otherwise use internal state (mobile)
+  const [internalQuery, setInternalQuery] = useState('');
+  const query = externalQuery !== undefined ? externalQuery : internalQuery;
+  const onQueryChange = externalOnQueryChange || setInternalQuery;
+
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState<SearchResponse['results']>(
     buildEmptyResults,
@@ -70,12 +81,20 @@ export const SearchPanel = ({ isOpen }: { isOpen: boolean }) => {
 
   useEffect(() => {
     if (!isOpen) {
-      setQuery('');
+      if (!externalQuery) {
+        onQueryChange('');
+      }
       setDebouncedQuery('');
       setResults(buildEmptyResults());
       setIsLoading(false);
     }
-  }, [isOpen]);
+  }, [isOpen, externalQuery, onQueryChange]);
+
+  useEffect(() => {
+    if (!isOpen || !prefillQuery || externalQuery !== undefined) return;
+    onQueryChange(prefillQuery);
+    clearPrefillQuery();
+  }, [clearPrefillQuery, isOpen, prefillQuery, externalQuery, onQueryChange]);
 
   useEffect(() => {
     const term = debouncedQuery.trim();
@@ -189,7 +208,7 @@ export const SearchPanel = ({ isOpen }: { isOpen: boolean }) => {
       },
       {
         id: 'help-panel',
-        label: 'Open help',
+        label: 'Help',
         subtitle: 'Get answers and guidance',
         keywords: ['help', 'support', 'faq', 'guide'],
         icon: <LifebuoyIcon className="h-4 w-4" />,
@@ -229,7 +248,7 @@ export const SearchPanel = ({ isOpen }: { isOpen: boolean }) => {
 
   const handleSelect = (item: SearchItem | { href: string }) => {
     close();
-    setQuery('');
+    onQueryChange('');
     if ('href' in item) {
       router.push(item.href);
     }
@@ -237,26 +256,22 @@ export const SearchPanel = ({ isOpen }: { isOpen: boolean }) => {
 
   const handleAction = (action: QuickAction) => {
     close();
-    setQuery('');
+    onQueryChange('');
     action.action();
   };
 
   return (
     <Command shouldFilter={false} className="flex h-full w-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <MagnifyingGlassIcon className="h-4 w-4 text-muted-foreground" />
+      {externalQuery === undefined && (
         <Command.Input
           value={query}
-          onValueChange={setQuery}
-          placeholder="Search lines, reminders, schedules, docs..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          onValueChange={onQueryChange}
+          className="flex h-11 w-full rounded-md bg-background px-3 py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          placeholder="Search..."
+          aria-label="Search"
           autoFocus
         />
-        <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-          ⌘K
-        </kbd>
-      </div>
-
+      )}
       <Command.List className="max-h-[60vh] overflow-y-auto py-2">
         {isLoading ? (
           <div className="px-4 py-2 text-xs text-muted-foreground">Searching...</div>

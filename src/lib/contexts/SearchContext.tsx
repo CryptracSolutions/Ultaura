@@ -11,10 +11,13 @@ interface SearchContextValue {
   isDesktopOpen: boolean;
   isMobileOpen: boolean;
   openDesktop: () => void;
+  openDesktopWithQuery: (query: string) => void;
   openMobile: () => void;
   close: () => void;
   toggleDesktop: () => void;
   docsIndex: DocsIndexItem[];
+  prefillQuery: string;
+  clearPrefillQuery: () => void;
 }
 
 const SearchContext = createContext<SearchContextValue | undefined>(undefined);
@@ -27,13 +30,22 @@ export function SearchProvider({
   docsIndex: DocsIndexItem[];
 }) {
   const [openMode, setOpenMode] = useState<OpenMode>(null);
+  const [prefillQuery, setPrefillQuery] = useState('');
 
-  const openDesktop = useCallback(() => setOpenMode('desktop'), []);
+  const openDesktop = useCallback(() => {
+    setPrefillQuery('');
+    setOpenMode('desktop');
+  }, []);
+  const openDesktopWithQuery = useCallback((query: string) => {
+    setPrefillQuery(query);
+    setOpenMode('desktop');
+  }, []);
   const openMobile = useCallback(() => setOpenMode('mobile'), []);
   const close = useCallback(() => setOpenMode(null), []);
   const toggleDesktop = useCallback(() => {
     setOpenMode((current) => (current === 'desktop' ? null : 'desktop'));
   }, []);
+  const clearPrefillQuery = useCallback(() => setPrefillQuery(''), []);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -48,12 +60,24 @@ export function SearchProvider({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         toggleDesktop();
+        return;
+      }
+
+      const isTypingShortcut =
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        event.key.length === 1;
+
+      if (isTypingShortcut) {
+        event.preventDefault();
+        openDesktopWithQuery(event.key);
       }
     };
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [toggleDesktop]);
+  }, [openDesktopWithQuery, toggleDesktop]);
 
   const value = useMemo(
     () => ({
@@ -62,12 +86,25 @@ export function SearchProvider({
       isDesktopOpen: openMode === 'desktop',
       isMobileOpen: openMode === 'mobile',
       openDesktop,
+      openDesktopWithQuery,
       openMobile,
       close,
       toggleDesktop,
       docsIndex,
+      prefillQuery,
+      clearPrefillQuery,
     }),
-    [close, docsIndex, openDesktop, openMode, openMobile, toggleDesktop]
+    [
+      clearPrefillQuery,
+      close,
+      docsIndex,
+      openDesktop,
+      openDesktopWithQuery,
+      openMode,
+      openMobile,
+      prefillQuery,
+      toggleDesktop,
+    ]
   );
 
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>;
