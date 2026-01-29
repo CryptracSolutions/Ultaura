@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const rawType = url.searchParams.get('type') ?? '';
   const typeFilter = normalizeTypeFilter(rawType);
 
-  const shouldFetchLines = !typeFilter || typeFilter === 'lines';
+  const shouldFetchLines = !typeFilter || typeFilter === 'lines' || typeFilter === 'navigation';
   const shouldFetchContacts = !typeFilter || typeFilter === 'contacts';
   const shouldFetchReminders = !typeFilter || typeFilter === 'reminders';
   const shouldFetchSchedules = !typeFilter || typeFilter === 'schedules';
@@ -107,9 +107,8 @@ export async function GET(request: Request) {
           .from('ultaura_lines')
           .select('id, display_name, phone_e164, short_id, created_at')
           .eq('account_id', accountId)
-          .or(`display_name.ilike.%${query}%,phone_e164.ilike.%${query}%`)
           .order('created_at', { ascending: false })
-          .limit(5)
+          .limit(10)
       : emptyResponse,
     shouldFetchContacts
       ? supabase

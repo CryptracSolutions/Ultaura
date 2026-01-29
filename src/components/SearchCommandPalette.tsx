@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent } from '~/core/ui/Dialog';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { getNavigationItems } from '~/lib/search/navigation-registry';
+import { buildLineNavigationItems } from '~/lib/search/line-navigation';
 import type { SearchItem, SearchResponse } from '~/lib/search/types';
 import { SEARCH_CATEGORIES } from '~/lib/search/types';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
@@ -125,7 +126,7 @@ export const SearchPanel = ({
     }
 
     const shouldFetch =
-      !typeFilter || !['actions', 'navigation', 'documentation'].includes(typeFilter);
+      !typeFilter || !['actions', 'documentation'].includes(typeFilter);
 
     if (!shouldFetch) {
       setResults(buildEmptyResults());
@@ -170,16 +171,23 @@ export const SearchPanel = ({
       ? account.user_type
       : undefined;
 
+  const lineNavigationItems = useMemo(
+    () => buildLineNavigationItems(results.lines),
+    [results.lines]
+  );
+
   const navigationItems = useMemo(() => {
     const items = getNavigationItems(
       account ? { userType, accountId: account.id } : undefined,
     );
 
-    return items.map((item) => ({
+    const translated = items.map((item) => ({
       ...item,
       label: t(item.label, { defaultValue: item.label }),
     }));
-  }, [account, t, userType]);
+
+    return [...translated, ...lineNavigationItems];
+  }, [account, t, userType, lineNavigationItems]);
 
   const normalizedQuery = normalizeText(cleanQuery);
   const queryTokens = useMemo(() => tokenizeText(normalizedQuery), [normalizedQuery]);
@@ -400,117 +408,10 @@ export const SearchPanel = ({
     }));
   }, [scoredDocs]);
 
-  const topMatch = useMemo(() => {
-    if (!hasQuery) return null;
-    const candidates: Array<{
-      kind: 'action' | 'item';
-      score: number;
-      action?: QuickAction;
-      item?: SearchItem;
-    }> = [];
-
-    if (isCategoryAllowed('actions') && scoredActions.length > 0) {
-      candidates.push({
-        kind: 'action',
-        score: scoredActions[0].score + 4,
-        action: scoredActions[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('navigation') && scoredNavigationItems.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredNavigationItems[0].score + 2,
-        item: scoredNavigationItems[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('documentation') && scoredDocItems.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredDocItems[0].score + 1.5,
-        item: scoredDocItems[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('lines') && scoredLines.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredLines[0].score + 1,
-        item: scoredLines[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('reminders') && scoredReminders.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredReminders[0].score,
-        item: scoredReminders[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('schedules') && scoredSchedules.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredSchedules[0].score,
-        item: scoredSchedules[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('contacts') && scoredContacts.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredContacts[0].score,
-        item: scoredContacts[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('calls') && scoredCalls.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredCalls[0].score,
-        item: scoredCalls[0].item,
-      });
-    }
-
-    if (isCategoryAllowed('safety_events') && scoredSafetyEvents.length > 0) {
-      candidates.push({
-        kind: 'item',
-        score: scoredSafetyEvents[0].score,
-        item: scoredSafetyEvents[0].item,
-      });
-    }
-
-    return candidates.sort((a, b) => b.score - a.score)[0] ?? null;
-  }, [
-    hasQuery,
-    scoredActions,
-    scoredCalls,
-    scoredContacts,
-    scoredDocItems,
-    scoredLines,
-    scoredNavigationItems,
-    scoredReminders,
-    isCategoryAllowed,
-    scoredSafetyEvents,
-    scoredSchedules,
-  ]);
-
-  const topMatchKey = useMemo(() => {
-    if (!topMatch) return null;
-    if (topMatch.kind === 'action' && topMatch.action) {
-      return `action:${topMatch.action.id}`;
-    }
-    if (topMatch.kind === 'item' && topMatch.item) {
-      return `item:${topMatch.item.id ?? topMatch.item.href}`;
-    }
-    return null;
-  }, [topMatch]);
   const isMobileSearch = externalQuery === undefined;
   const shouldShowResults =
     !isMobileSearch || hasQuery || isLoading || recents.length > 0 || Boolean(typeFilter);
   const filterLabel = typeFilter ? getFilterLabel(typeFilter) : null;
-  const topAction = topMatch?.kind === 'action' ? topMatch.action : undefined;
 
   const handleSelect = (
     item: SearchItem | { href: string; label?: string; subtitle?: string; category?: string; id?: string }
@@ -544,6 +445,9 @@ export const SearchPanel = ({
 
     close();
     onQueryChange('');
+    if (openMode === 'desktop') {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
     if (href) {
       router.push(href);
     }
@@ -569,6 +473,9 @@ export const SearchPanel = ({
 
     close();
     onQueryChange('');
+    if (openMode === 'desktop') {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
     action.action();
   };
 
@@ -593,33 +500,6 @@ export const SearchPanel = ({
             <div className="px-4 py-3 text-xs text-muted-foreground">
               Type to search {filterLabel}.
             </div>
-          ) : null}
-
-          {topMatch ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Best match
-                </span>
-              }
-              className="px-2"
-            >
-              {topAction ? (
-                <ActionItem
-                  action={topAction}
-                  onSelect={() => handleAction(topAction)}
-                  tokens={queryTokens}
-                />
-              ) : null}
-              {topMatch.kind === 'item' && topMatch.item ? (
-                <SearchResultItem
-                  item={topMatch.item}
-                  icon={getCategoryIcon(topMatch.item.category)}
-                  onSelect={handleSelect}
-                  highlightTokens={queryTokens}
-                />
-              ) : null}
-            </Command.Group>
           ) : null}
 
           {!hasQuery && !typeFilter && recents.length > 0 ? (
@@ -668,8 +548,7 @@ export const SearchPanel = ({
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('actions') &&
-          scoredActions.filter((entry) => topMatchKey !== `action:${entry.item.id}`).length > 0 ? (
+          {isCategoryAllowed('actions') && scoredActions.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -678,21 +557,18 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredActions
-                .filter((entry) => topMatchKey !== `action:${entry.item.id}`)
-                .map((entry) => (
-                  <ActionItem
-                    key={entry.item.id}
-                    action={entry.item}
-                    onSelect={() => handleAction(entry.item)}
-                    tokens={queryTokens}
-                  />
-                ))}
+              {scoredActions.map((entry) => (
+                <ActionItem
+                  key={entry.item.id}
+                  action={entry.item}
+                  onSelect={() => handleAction(entry.item)}
+                  tokens={queryTokens}
+                />
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('navigation') &&
-          scoredNavigation.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('navigation') && scoredNavigation.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -701,41 +577,38 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredNavigation
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <Command.Item
-                    key={entry.item.id}
-                    value={entry.item.label}
-                    onSelect={() =>
-                      handleSelect({
-                        id: entry.item.id,
-                        label: entry.item.label,
-                        href: entry.item.href,
-                        category: 'navigation',
-                      })
-                    }
-                    className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      {entry.item.Icon ? (
-                        <entry.item.Icon className="h-4 w-4" />
-                      ) : (
-                        getCategoryIcon('navigation')
-                      )}
-                    </span>
-                    <HighlightedText
-                      text={entry.item.label}
-                      tokens={queryTokens}
-                      className="truncate text-sm font-medium text-foreground"
-                    />
-                  </Command.Item>
-                ))}
+              {scoredNavigation.map((entry) => (
+                <Command.Item
+                  key={entry.item.id}
+                  value={entry.item.label}
+                  onSelect={() =>
+                    handleSelect({
+                      id: entry.item.id,
+                      label: entry.item.label,
+                      href: entry.item.href,
+                      category: 'navigation',
+                    })
+                  }
+                  className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    {entry.item.Icon ? (
+                      <entry.item.Icon className="h-4 w-4" />
+                    ) : (
+                      getCategoryIcon('navigation')
+                    )}
+                  </span>
+                  <HighlightedText
+                    text={entry.item.label}
+                    tokens={queryTokens}
+                    className="truncate text-sm font-medium text-foreground"
+                  />
+                </Command.Item>
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('documentation') &&
-          scoredDocItems.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('documentation') && scoredDocItems.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -744,39 +617,36 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredDocItems
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <Command.Item
-                    key={entry.item.id}
-                    value={entry.item.label}
-                    onSelect={() => handleSelect(entry.item)}
-                    className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      {getCategoryIcon('documentation')}
-                    </span>
-                    <div className="flex min-w-0 flex-col">
+              {scoredDocItems.map((entry) => (
+                <Command.Item
+                  key={entry.item.id}
+                  value={entry.item.label}
+                  onSelect={() => handleSelect(entry.item)}
+                  className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    {getCategoryIcon('documentation')}
+                  </span>
+                  <div className="flex min-w-0 flex-col">
+                    <HighlightedText
+                      text={entry.item.label}
+                      tokens={queryTokens}
+                      className="truncate text-sm font-medium text-foreground"
+                    />
+                    {entry.item.subtitle ? (
                       <HighlightedText
-                        text={entry.item.label}
+                        text={entry.item.subtitle}
                         tokens={queryTokens}
-                        className="truncate text-sm font-medium text-foreground"
+                        className="truncate text-xs text-muted-foreground"
                       />
-                      {entry.item.subtitle ? (
-                        <HighlightedText
-                          text={entry.item.subtitle}
-                          tokens={queryTokens}
-                          className="truncate text-xs text-muted-foreground"
-                        />
-                      ) : null}
-                    </div>
-                  </Command.Item>
-                ))}
+                    ) : null}
+                  </div>
+                </Command.Item>
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('lines') &&
-          scoredLines.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('lines') && scoredLines.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -785,22 +655,19 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredLines
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <SearchResultItem
-                    key={entry.item.id}
-                    item={entry.item}
-                    icon={<PhoneIcon className="h-4 w-4" />}
-                    onSelect={handleSelect}
-                    highlightTokens={queryTokens}
-                  />
-                ))}
+              {scoredLines.map((entry) => (
+                <SearchResultItem
+                  key={entry.item.id}
+                  item={entry.item}
+                  icon={<PhoneIcon className="h-4 w-4" />}
+                  onSelect={handleSelect}
+                  highlightTokens={queryTokens}
+                />
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('reminders') &&
-          scoredReminders.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('reminders') && scoredReminders.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -809,22 +676,19 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredReminders
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <SearchResultItem
-                    key={entry.item.id}
-                    item={entry.item}
-                    icon={<BellIcon className="h-4 w-4" />}
-                    onSelect={handleSelect}
-                    highlightTokens={queryTokens}
-                  />
-                ))}
+              {scoredReminders.map((entry) => (
+                <SearchResultItem
+                  key={entry.item.id}
+                  item={entry.item}
+                  icon={<BellIcon className="h-4 w-4" />}
+                  onSelect={handleSelect}
+                  highlightTokens={queryTokens}
+                />
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('schedules') &&
-          scoredSchedules.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('schedules') && scoredSchedules.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -833,22 +697,19 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredSchedules
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <SearchResultItem
-                    key={entry.item.id}
-                    item={entry.item}
-                    icon={<CalendarDaysIcon className="h-4 w-4" />}
-                    onSelect={handleSelect}
-                    highlightTokens={queryTokens}
-                  />
-                ))}
+              {scoredSchedules.map((entry) => (
+                <SearchResultItem
+                  key={entry.item.id}
+                  item={entry.item}
+                  icon={<CalendarDaysIcon className="h-4 w-4" />}
+                  onSelect={handleSelect}
+                  highlightTokens={queryTokens}
+                />
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('contacts') &&
-          scoredContacts.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('contacts') && scoredContacts.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -857,22 +718,19 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredContacts
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <SearchResultItem
-                    key={entry.item.id}
-                    item={entry.item}
-                    icon={<UserIcon className="h-4 w-4" />}
-                    onSelect={handleSelect}
-                    highlightTokens={queryTokens}
-                  />
-                ))}
+              {scoredContacts.map((entry) => (
+                <SearchResultItem
+                  key={entry.item.id}
+                  item={entry.item}
+                  icon={<UserIcon className="h-4 w-4" />}
+                  onSelect={handleSelect}
+                  highlightTokens={queryTokens}
+                />
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('calls') &&
-          scoredCalls.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('calls') && scoredCalls.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -881,22 +739,19 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredCalls
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <SearchResultItem
-                    key={entry.item.id}
-                    item={entry.item}
-                    icon={<PhoneArrowUpRightIcon className="h-4 w-4" />}
-                    onSelect={handleSelect}
-                    highlightTokens={queryTokens}
-                  />
-                ))}
+              {scoredCalls.map((entry) => (
+                <SearchResultItem
+                  key={entry.item.id}
+                  item={entry.item}
+                  icon={<PhoneArrowUpRightIcon className="h-4 w-4" />}
+                  onSelect={handleSelect}
+                  highlightTokens={queryTokens}
+                />
+              ))}
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('safety_events') &&
-          scoredSafetyEvents.filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`).length > 0 ? (
+          {isCategoryAllowed('safety_events') && scoredSafetyEvents.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -905,17 +760,15 @@ export const SearchPanel = ({
               }
               className="px-2"
             >
-              {scoredSafetyEvents
-                .filter((entry) => topMatchKey !== `item:${entry.item.id ?? entry.item.href}`)
-                .map((entry) => (
-                  <SearchResultItem
-                    key={entry.item.id}
-                    item={entry.item}
-                    icon={<ExclamationTriangleIcon className="h-4 w-4" />}
-                    onSelect={handleSelect}
-                    highlightTokens={queryTokens}
-                  />
-                ))}
+              {scoredSafetyEvents.map((entry) => (
+                <SearchResultItem
+                  key={entry.item.id}
+                  item={entry.item}
+                  icon={<ExclamationTriangleIcon className="h-4 w-4" />}
+                  onSelect={handleSelect}
+                  highlightTokens={queryTokens}
+                />
+              ))}
             </Command.Group>
           ) : null}
 
@@ -997,7 +850,7 @@ function HighlightedText({
         part.match ? (
           <span
             key={`${part.text}-${index}`}
-            className="rounded-sm bg-primary/10 px-0.5 text-primary"
+            className="text-primary font-semibold"
           >
             {part.text}
           </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '~/core/ui/Popover';
 import { useSearch } from '~/lib/contexts/SearchContext';
@@ -10,6 +10,8 @@ const SearchTrigger = () => {
   const { openDesktop, close, isDesktopOpen, prefillQuery, clearPrefillQuery } = useSearch();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isDesktopOpen && inputRef.current) {
@@ -26,37 +28,60 @@ const SearchTrigger = () => {
 
   const handleInputChange = (value: string) => {
     setQuery(value);
-    if (!isDesktopOpen) {
+    if (value.trim().length > 0 && !isDesktopOpen) {
       openDesktop();
+    }
+    if (value.trim().length === 0 && isDesktopOpen) {
+      close();
+    }
+  };
+
+  const handleClose = useCallback(() => {
+    close();
+    setQuery('');
+    inputRef.current?.blur();
+  }, [close]);
+
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      if (query.trim().length > 0) {
+        openDesktop();
+      } else {
+        close();
+      }
+    } else {
+      handleClose();
     }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
-      close();
-      setQuery('');
+      handleClose();
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (open) {
-      openDesktop();
-    } else {
-      close();
-      setQuery('');
-    }
-  };
+  useEffect(() => {
+    if (!isDesktopOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (triggerRef.current?.contains(target)) return;
+      if (contentRef.current?.contains(target)) return;
+      handleClose();
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [handleClose, isDesktopOpen]);
 
   return (
     <Popover open={isDesktopOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <div className="relative flex h-10 w-full max-w-xs items-center">
+        <div ref={triggerRef} className="relative flex h-10 w-full max-w-xs items-center">
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => handleInputChange(e.target.value)}
-            onFocus={() => openDesktop()}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
             className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background pl-10 pr-12 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -73,9 +98,12 @@ const SearchTrigger = () => {
         </div>
       </PopoverTrigger>
       <PopoverContent
+        ref={contentRef}
         align="start"
         className="w-[var(--radix-popover-trigger-width)] max-w-[var(--radix-popover-trigger-width)] p-0"
         onOpenAutoFocus={(event) => event.preventDefault()}
+        onInteractOutside={() => handleClose()}
+        onEscapeKeyDown={() => handleClose()}
       >
         <SearchPanel isOpen={isDesktopOpen} query={query} onQueryChange={handleInputChange} />
       </PopoverContent>
