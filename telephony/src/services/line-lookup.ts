@@ -206,16 +206,16 @@ export function isInQuietHours(line: LineRow): boolean {
 }
 
 // Update line's last successful call
-export async function updateLineLastCall(lineId: string): Promise<void> {
+export async function updateLineLastCall(lineId: string, endedAt: string): Promise<void> {
   const supabase = getSupabaseClient();
 
   const { error } = await supabase
     .from('ultaura_lines')
-    .update({ last_successful_call_at: new Date().toISOString() })
+    .update({ last_successful_call_at: endedAt })
     .eq('id', lineId);
 
   if (error) {
-    logger.error({ error, lineId }, 'Failed to update line last call');
+    logger.error({ error, lineId, endedAt }, 'Failed to update line last call');
   }
 }
 

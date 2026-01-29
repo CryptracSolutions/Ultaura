@@ -3097,6 +3097,7 @@ export type Database = {
           processing_claimed_at: string | null
           processing_claimed_by: string | null
           rrule: string | null
+          search_tokens: string[] | null
           snoozed_until: string | null
           status: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day: string | null
@@ -3131,6 +3132,7 @@ export type Database = {
           processing_claimed_at?: string | null
           processing_claimed_by?: string | null
           rrule?: string | null
+          search_tokens?: string[] | null
           snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day?: string | null
@@ -3165,6 +3167,7 @@ export type Database = {
           processing_claimed_at?: string | null
           processing_claimed_by?: string | null
           rrule?: string | null
+          search_tokens?: string[] | null
           snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day?: string | null
@@ -5363,4 +5366,3 @@ export const Constants = {
     },
   },
 } as const
-

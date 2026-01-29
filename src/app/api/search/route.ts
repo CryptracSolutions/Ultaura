@@ -5,10 +5,11 @@ import getLogger from '~/core/logger';
 import { parseOrganizationIdCookie } from '~/lib/server/cookies/organization.cookie';
 import getCurrentOrganization from '~/lib/server/organizations/get-current-organization';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
-import { decryptReminderMessagesForLine } from '~/lib/ultaura/reminder-crypto';
+import { buildReminderSearchTokens, decryptReminderMessagesForLine, hashReminderQueryTokens } from '~/lib/ultaura/reminder-crypto';
 import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
 import type { SearchItem, SearchResponse } from '~/lib/search/types';
 import { SEARCH_CATEGORIES } from '~/lib/search/types';
+import { expandTokens, scoreMatch, tokenizeText } from '~/lib/search/match';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -29,6 +30,17 @@ export async function GET(request: Request) {
       { headers: { 'Cache-Control': 'no-store' } }
     );
   }
+
+  const queryTokens = expandTokens(tokenizeText(query, { minLength: 2, maxTokens: 12 }));
+  const rawType = url.searchParams.get('type') ?? '';
+  const typeFilter = normalizeTypeFilter(rawType);
+
+  const shouldFetchLines = !typeFilter || typeFilter === 'lines';
+  const shouldFetchContacts = !typeFilter || typeFilter === 'contacts';
+  const shouldFetchReminders = !typeFilter || typeFilter === 'reminders';
+  const shouldFetchSchedules = !typeFilter || typeFilter === 'schedules';
+  const shouldFetchCalls = !typeFilter || typeFilter === 'calls';
+  const shouldFetchSafety = !typeFilter || typeFilter === 'safety_events';
 
   const supabase = getSupabaseServerComponentClient();
   const adminClient = getSupabaseServerComponentClient({ admin: true });
@@ -60,6 +72,28 @@ export async function GET(request: Request) {
 
   const accountId = account.id;
 
+  const hashedQueryTokens =
+    shouldFetchReminders && queryTokens.length
+      ? await hashReminderQueryTokens(adminClient, accountId, queryTokens)
+      : [];
+
+  const remindersQuery = shouldFetchReminders
+    ? supabase
+        .from('ultaura_reminders')
+        .select(
+          'id, line_id, message, message_ciphertext, message_iv, message_tag, due_at, created_at, search_tokens, ultaura_lines(display_name, short_id, created_at)'
+        )
+        .eq('account_id', accountId)
+        .order('due_at', { ascending: false })
+        .limit(50)
+    : null;
+
+  if (remindersQuery && hashedQueryTokens.length > 0) {
+    remindersQuery.overlaps('search_tokens', hashedQueryTokens);
+  }
+
+  const emptyResponse = Promise.resolve({ data: [], error: null });
+
   const [
     linesResponse,
     contactsResponse,
@@ -68,54 +102,57 @@ export async function GET(request: Request) {
     callsResponse,
     safetyResponse,
   ] = await Promise.all([
-    supabase
-      .from('ultaura_lines')
-      .select('id, display_name, phone_e164, short_id, created_at')
-      .eq('account_id', accountId)
-      .or(`display_name.ilike.%${query}%,phone_e164.ilike.%${query}%`)
-      .order('created_at', { ascending: false })
-      .limit(5),
-    supabase
-      .from('ultaura_trusted_contacts')
-      .select('id, name, phone_e164, line_id, created_at, ultaura_lines(display_name, short_id)')
-      .eq('account_id', accountId)
-      .or(`name.ilike.%${query}%,phone_e164.ilike.%${query}%`)
-      .order('created_at', { ascending: false })
-      .limit(5),
-    supabase
-      .from('ultaura_reminders')
-      .select(
-        'id, line_id, message, message_ciphertext, message_iv, message_tag, due_at, created_at, ultaura_lines(display_name, short_id, created_at)'
-      )
-      .eq('account_id', accountId)
-      .order('due_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('ultaura_schedules')
-      .select(
-        'id, line_id, days_of_week, time_of_day, timezone, next_run_at, created_at, ultaura_lines(display_name, short_id)'
-      )
-      .eq('account_id', accountId)
-      .order('next_run_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('ultaura_call_sessions')
-      .select(
-        'id, line_id, status, direction, twilio_from, twilio_to, created_at, ultaura_lines(display_name, short_id)'
-      )
-      .eq('account_id', accountId)
-      .or(
-        `status.ilike.%${query}%,direction.ilike.%${query}%,twilio_from.ilike.%${query}%,twilio_to.ilike.%${query}%`
-      )
-      .order('created_at', { ascending: false })
-      .limit(5),
-    supabase
-      .from('ultaura_safety_events')
-      .select('id, line_id, tier, category, created_at, ultaura_lines(display_name, short_id)')
-      .eq('account_id', accountId)
-      .or(`tier.ilike.%${query}%,category.ilike.%${query}%`)
-      .order('created_at', { ascending: false })
-      .limit(5),
+    shouldFetchLines
+      ? supabase
+          .from('ultaura_lines')
+          .select('id, display_name, phone_e164, short_id, created_at')
+          .eq('account_id', accountId)
+          .or(`display_name.ilike.%${query}%,phone_e164.ilike.%${query}%`)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      : emptyResponse,
+    shouldFetchContacts
+      ? supabase
+          .from('ultaura_trusted_contacts')
+          .select('id, name, phone_e164, line_id, created_at, ultaura_lines(display_name, short_id)')
+          .eq('account_id', accountId)
+          .or(`name.ilike.%${query}%,phone_e164.ilike.%${query}%`)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      : emptyResponse,
+    remindersQuery ?? emptyResponse,
+    shouldFetchSchedules
+      ? supabase
+          .from('ultaura_schedules')
+          .select(
+            'id, line_id, days_of_week, time_of_day, timezone, next_run_at, created_at, ultaura_lines(display_name, short_id)'
+          )
+          .eq('account_id', accountId)
+          .order('next_run_at', { ascending: false })
+          .limit(50)
+      : emptyResponse,
+    shouldFetchCalls
+      ? supabase
+          .from('ultaura_call_sessions')
+          .select(
+            'id, line_id, status, direction, twilio_from, twilio_to, created_at, ultaura_lines(display_name, short_id)'
+          )
+          .eq('account_id', accountId)
+          .or(
+            `status.ilike.%${query}%,direction.ilike.%${query}%,twilio_from.ilike.%${query}%,twilio_to.ilike.%${query}%`
+          )
+          .order('created_at', { ascending: false })
+          .limit(5)
+      : emptyResponse,
+    shouldFetchSafety
+      ? supabase
+          .from('ultaura_safety_events')
+          .select('id, line_id, tier, category, created_at, ultaura_lines(display_name, short_id)')
+          .eq('account_id', accountId)
+          .or(`tier.ilike.%${query}%,category.ilike.%${query}%`)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      : emptyResponse,
   ]);
 
   if (linesResponse.error) {
@@ -154,10 +191,33 @@ export async function GET(request: Request) {
     });
   }
 
+  let reminderFallbackUsed = false;
+
   if (remindersResponse.error) {
     logger.error({ error: remindersResponse.error }, 'Search reminders failed');
+  } else if (!shouldFetchReminders) {
+    results.reminders = [];
   } else {
-    const reminders = remindersResponse.data ?? [];
+    let reminders = remindersResponse.data ?? [];
+
+    if (hashedQueryTokens.length > 0 && reminders.length === 0) {
+      const fallbackResponse = await supabase
+        .from('ultaura_reminders')
+        .select(
+          'id, line_id, message, message_ciphertext, message_iv, message_tag, due_at, created_at, search_tokens, ultaura_lines(display_name, short_id, created_at)'
+        )
+        .eq('account_id', accountId)
+        .order('due_at', { ascending: false })
+        .limit(20);
+
+      if (!fallbackResponse.error) {
+        reminders = fallbackResponse.data ?? [];
+        reminderFallbackUsed = true;
+      } else {
+        logger.error({ error: fallbackResponse.error }, 'Search reminders fallback failed');
+      }
+    }
+
     const byLine = new Map<string, typeof reminders>();
     const lineCreatedAtById = new Map<string, string | null>();
 
@@ -199,8 +259,9 @@ export async function GET(request: Request) {
     }
 
     const matched: SearchItem[] = [];
+    const remindersToBackfill: Array<{ id: string; tokens: string[] }> = [];
 
-    reminders.forEach((reminder) => {
+    for (const reminder of reminders) {
       const line = reminder.ultaura_lines as
         | { display_name: string; short_id: string }
         | null
@@ -211,9 +272,25 @@ export async function GET(request: Request) {
         : decrypted?.decryptFailed
           ? DECRYPTION_PLACEHOLDER
           : reminder.message ?? DECRYPTION_PLACEHOLDER;
+
+      if (
+        (!reminder.search_tokens || reminder.search_tokens.length === 0) &&
+        !decrypted?.decryptFailed &&
+        message !== DECRYPTION_PLACEHOLDER
+      ) {
+        try {
+          const tokens = await buildReminderSearchTokens(adminClient, accountId, message);
+          if (tokens.length > 0) {
+            remindersToBackfill.push({ id: reminder.id, tokens });
+          }
+        } catch (error) {
+          logger.error({ error, reminderId: reminder.id }, 'Failed to backfill reminder search tokens');
+        }
+      }
+
       const haystack = [message, line?.display_name].filter(Boolean).join(' ');
       if (!matchesQuery(query, haystack)) {
-        return;
+        continue;
       }
 
       matched.push({
@@ -226,7 +303,23 @@ export async function GET(request: Request) {
         category: 'reminders',
         timestamp: reminder.due_at ?? reminder.created_at,
       });
-    });
+    }
+
+    if (remindersToBackfill.length > 0) {
+      await Promise.all(
+        remindersToBackfill.map((entry) =>
+          adminClient
+            .from('ultaura_reminders')
+            .update({ search_tokens: entry.tokens })
+            .eq('id', entry.id)
+            .then(({ error }) => {
+              if (error) {
+                logger.error({ error, reminderId: entry.id }, 'Failed to backfill reminder search tokens');
+              }
+            })
+        )
+      );
+    }
 
     results.reminders = matched
       .sort((a, b) => (b.timestamp ?? '').localeCompare(a.timestamp ?? ''))
@@ -327,6 +420,9 @@ export async function GET(request: Request) {
   logger.info(
     {
       queryLength: query.length,
+      queryTokenCount: queryTokens.length,
+      hashedTokenCount: hashedQueryTokens.length,
+      typeFilter,
       results: {
         lines: results.lines.length,
         reminders: results.reminders.length,
@@ -335,6 +431,7 @@ export async function GET(request: Request) {
         calls: results.calls.length,
         safetyEvents: results.safety_events.length,
       },
+      reminderFallbackUsed,
     },
     'Search query completed'
   );
@@ -354,7 +451,7 @@ function buildEmptyResults(): SearchResponse['results'] {
 
 function matchesQuery(query: string, haystack: string | undefined | null): boolean {
   if (!haystack) return false;
-  return haystack.toLowerCase().includes(query.toLowerCase());
+  return scoreMatch(query, haystack) > 0;
 }
 
 function formatScheduleSummary(options: {
@@ -374,4 +471,33 @@ function formatScheduleSummary(options: {
   const timezone = options.timezone ? ` (${options.timezone})` : '';
 
   return `${dayLabel} · ${timeLabel}${timezone}`;
+}
+
+function normalizeTypeFilter(raw: string | null): string | null {
+  if (!raw) return null;
+  const token = raw.trim().toLowerCase();
+  const map: Record<string, string> = {
+    action: 'actions',
+    actions: 'actions',
+    nav: 'navigation',
+    navigation: 'navigation',
+    doc: 'documentation',
+    docs: 'documentation',
+    documentation: 'documentation',
+    line: 'lines',
+    lines: 'lines',
+    reminder: 'reminders',
+    reminders: 'reminders',
+    schedule: 'schedules',
+    schedules: 'schedules',
+    contact: 'contacts',
+    contacts: 'contacts',
+    call: 'calls',
+    calls: 'calls',
+    safety: 'safety_events',
+    safety_event: 'safety_events',
+    safety_events: 'safety_events',
+  };
+
+  return map[token] ?? null;
 }

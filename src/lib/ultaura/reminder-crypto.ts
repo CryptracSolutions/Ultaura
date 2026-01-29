@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import getLogger from '~/core/logger';
 import { decodeBytea, encodeBytea, type ByteaInput } from './bytea';
+import { buildShingles, tokenizeText } from '~/lib/search/match';
 
 const logger = getLogger();
 
@@ -12,6 +13,7 @@ const TAG_LENGTH = 16;
 const IV_LENGTH = 12;
 const REMINDER_ALG = 'AES-256-GCM';
 const REMINDER_KID = 'kek_v1';
+const SEARCH_TOKEN_CONTEXT = 'reminder_search_token_v1';
 
 const DEFAULT_DEK_CUTOFF = '2026-03-01T00:00:00Z';
 const PER_LINE_DEK_ENABLED = process.env.ULTAURA_PER_LINE_DEK_ENABLED !== 'false';
@@ -297,6 +299,40 @@ async function getReminderDEK(
   }
 
   return getOrCreateLineDEK(client, accountId, lineId);
+}
+
+function hashSearchToken(key: Buffer, token: string): string {
+  return crypto
+    .createHmac('sha256', key)
+    .update(`${SEARCH_TOKEN_CONTEXT}:${token}`)
+    .digest('hex');
+}
+
+export async function buildReminderSearchTokens(
+  client: SupabaseClient,
+  accountId: string,
+  message: string
+): Promise<string[]> {
+  const baseTokens = tokenizeText(message, { minLength: 2, maxTokens: 32 });
+  const shingles = buildShingles(baseTokens);
+  const combined = Array.from(new Set([...baseTokens, ...shingles]));
+
+  if (combined.length === 0) {
+    return [];
+  }
+
+  const key = await getOrCreateAccountDEK(client, accountId);
+  return combined.map((token) => hashSearchToken(key, token));
+}
+
+export async function hashReminderQueryTokens(
+  client: SupabaseClient,
+  accountId: string,
+  tokens: string[]
+): Promise<string[]> {
+  if (tokens.length === 0) return [];
+  const key = await getOrCreateAccountDEK(client, accountId);
+  return Array.from(new Set(tokens)).map((token) => hashSearchToken(key, token));
 }
 
 export async function encryptReminderMessage(

@@ -11,6 +11,7 @@ import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 import { encryptReminderMessage } from '../../utils/reminder-crypto.js';
+import { buildReminderSearchTokens } from '../../utils/search-tokens.js';
 import { encodeBytea } from '../../utils/bytea.js';
 import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
@@ -176,6 +177,15 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         reminder.id,
         trimmedMessage
       );
+      try {
+        updates.search_tokens = await buildReminderSearchTokens(
+          supabase,
+          reminder.account_id,
+          trimmedMessage
+        );
+      } catch (error) {
+        logger.error({ error, reminderId: reminder.id }, 'Failed to update reminder search tokens');
+      }
       updates.message = null;
       updates.message_ciphertext = encodeBytea(encryptedMessage.ciphertext);
       updates.message_iv = encodeBytea(encryptedMessage.iv);

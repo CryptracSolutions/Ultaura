@@ -51,6 +51,12 @@ type FakeWebSocket = InstanceType<typeof FakeWebSocketClass>;
 
 vi.mock('ws', () => ({
   WebSocket: FakeWebSocketClass,
+  WebSocketServer: class FakeWebSocketServer {
+    constructor(_options?: any) {}
+    on(_event: string, _listener: (...args: any[]) => any) {
+      return this;
+    }
+  },
 }));
 
 vi.mock('../../utils/logger.js', () => ({
@@ -62,9 +68,20 @@ vi.mock('../../utils/logger.js', () => ({
   },
 }));
 
+vi.mock('../../server.js', () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
 vi.mock('../../observability/tracing.js', () => ({
   SpanKind: { SERVER: 1, CLIENT: 2, INTERNAL: 3 },
   SpanStatusCode: { OK: 1, ERROR: 2 },
+  initTracing: () => undefined,
+  shutdownTracing: async () => {},
   startSpan: () => undefined,
   runWithSpan: (_span: any, fn: any) => fn(),
   withSpan: (_name: string, _opts: any, fn: any) => fn(undefined),

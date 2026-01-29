@@ -16,6 +16,7 @@ import { RATE_LIMITS } from '../../services/rate-limit-config.js';
 import { localToUtc, validateTimezone } from '../../utils/timezone.js';
 import { encryptReminderMessage } from '../../utils/reminder-crypto.js';
 import { encodeBytea } from '../../utils/bytea.js';
+import { buildReminderSearchTokens } from '../../utils/search-tokens.js';
 import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool-helpers.js';
 
 export const setReminderRouter = Router();
@@ -319,12 +320,24 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
 
     // Create the reminder
     const reminderId = crypto.randomUUID();
+    const messageForStorage = finalMessage.slice(0, 500);
     const encryptedMessage = await encryptReminderMessage(
       session.account_id,
       effectiveLineId,
       reminderId,
-      finalMessage.slice(0, 500)
+      messageForStorage
     );
+
+    let searchTokens: string[] = [];
+    try {
+      searchTokens = await buildReminderSearchTokens(
+        supabase,
+        session.account_id,
+        messageForStorage
+      );
+    } catch (error) {
+      logger.error({ error, reminderId }, 'Failed to build reminder search tokens');
+    }
 
     const insertPayload: Record<string, unknown> = {
       id: reminderId,
@@ -341,6 +354,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       delivery_method: 'outbound_call',
       status: 'scheduled',
       privacy_scope: privacyScope,
+      search_tokens: searchTokens,
       created_by_call_session_id: callSessionId,
       // Recurrence fields
       is_recurring: isRecurring,

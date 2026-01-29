@@ -24,7 +24,7 @@ import { getUltauraAccountById, withTrialCheck } from './helpers';
 import { logReminderEvent } from './reminder-events';
 import { parseVacationRanges } from './vacation-utils';
 import type { ReminderRow, UltauraAccountRow } from './types';
-import { decryptReminderMessagesForLine, encryptReminderMessage } from './reminder-crypto';
+import { buildReminderSearchTokens, decryptReminderMessagesForLine, encryptReminderMessage } from './reminder-crypto';
 import { encodeBytea } from './bytea';
 
 const logger = getLogger();
@@ -330,6 +330,7 @@ const createReminderWithTrial = withTrialCheck(async (
   const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
   const reminderId = crypto.randomUUID();
   const trimmedMessage = parsed.data.message.trim();
+  let searchTokens: string[] = [];
 
   let encryptedMessage;
   try {
@@ -349,6 +350,16 @@ const createReminderWithTrial = withTrialCheck(async (
     };
   }
 
+  try {
+    searchTokens = await buildReminderSearchTokens(
+      adminClient,
+      account.id,
+      trimmedMessage
+    );
+  } catch (error) {
+    logger.error({ error, reminderId }, 'Failed to build reminder search tokens');
+  }
+
   const insertPayload: Database['public']['Tables']['ultaura_reminders']['Insert'] = {
     id: reminderId,
     account_id: account.id,
@@ -364,6 +375,7 @@ const createReminderWithTrial = withTrialCheck(async (
     delivery_method: 'outbound_call',
     status: 'scheduled',
     privacy_scope: 'line_only',
+    search_tokens: searchTokens,
     is_recurring: isRecurring,
     rrule,
     interval_days: intervalDays,
@@ -945,6 +957,15 @@ export async function editReminder(
           success: false,
           error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to encrypt reminder'),
         };
+      }
+      try {
+        updates.search_tokens = await buildReminderSearchTokens(
+          adminClient,
+          inputData.reminder.account_id,
+          trimmedMessage
+        );
+      } catch (error) {
+        logger.error({ error, reminderId }, 'Failed to update reminder search tokens');
       }
       updates.message = null;
       updates.message_ciphertext = encodeBytea(encryptedMessage.ciphertext);

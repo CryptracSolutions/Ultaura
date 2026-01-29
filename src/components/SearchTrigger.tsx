@@ -26,11 +26,8 @@ const SearchTrigger = () => {
 
   const handleInputChange = (value: string) => {
     setQuery(value);
-    if (value && !isDesktopOpen) {
+    if (!isDesktopOpen) {
       openDesktop();
-    }
-    if (!value && isDesktopOpen) {
-      close();
     }
   };
 
@@ -43,11 +40,7 @@ const SearchTrigger = () => {
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      if (query.trim().length > 0) {
-        openDesktop();
-      } else {
-        close();
-      }
+      openDesktop();
     } else {
       close();
       setQuery('');
@@ -63,6 +56,7 @@ const SearchTrigger = () => {
             type="text"
             value={query}
             onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => openDesktop()}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
             className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background pl-10 pr-12 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

@@ -451,6 +451,10 @@ export async function completeCallSession(
   await updateLineCallOutcome(session, { endReason, secondsConnected, endedAt });
   await updateInsightsDuration(sessionId, secondsConnected);
 
+  if (!session.is_test_call && !session.is_preview_mode) {
+    await updateLineLastCall(session.line_id, endedAt);
+  }
+
   // Record usage if call was long enough (or if it's a reminder call - always bill at least 1 min)
   const shouldRecordUsage = secondsConnected >= 30 || session.is_reminder_call;
   if (shouldRecordUsage) {
@@ -463,8 +467,6 @@ export async function completeCallSession(
       isReminderCall: session.is_reminder_call,
     });
 
-    // Update line's last successful call
-    await updateLineLastCall(session.line_id);
   }
 
   if (!session.is_reminder_call && !session.is_test_call) {
