@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const query = rawQuery.trim().slice(0, MAX_QUERY_LENGTH);
   const results = buildEmptyResults();
 
-  if (query.length < 2) {
+  if (query.length < 1) {
     return NextResponse.json(
       { query, results },
       { headers: { 'Cache-Control': 'no-store' } }

@@ -23,8 +23,7 @@ import { AddReminderProvider } from '~/lib/contexts/AddReminderContext';
 import { AddScheduleProvider } from '~/lib/contexts/AddScheduleContext';
 import { AddLineProvider } from '~/lib/contexts/AddLineContext';
 import { SearchProvider } from '~/lib/contexts/SearchContext';
-import SearchCommandPalette from '~/components/SearchCommandPalette';
-import SearchFloatingButton from '~/components/SearchFloatingButton';
+import SearchBottomSheet from '~/components/SearchCommandPalette';
 import I18nProvider from '~/i18n/I18nProvider';
 import type { DocsIndexItem } from '~/lib/search/types';
 
@@ -88,7 +87,7 @@ const OrganizationScopeLayout: React.FCC<{
                     <AddReminderProvider>
                       <AddScheduleProvider>
                         <AddLineProvider>
-                          <SearchProvider>
+                          <SearchProvider docsIndex={docsIndex}>
                             <main>
                               <Toaster richColors={false} />
 
@@ -99,8 +98,7 @@ const OrganizationScopeLayout: React.FCC<{
                                 {children}
                               </RouteShellWithSidebar>
                             </main>
-                            <SearchFloatingButton />
-                            <SearchCommandPalette docsIndex={docsIndex} />
+                            <SearchBottomSheet />
                           </SearchProvider>
                         </AddLineProvider>
                       </AddScheduleProvider>

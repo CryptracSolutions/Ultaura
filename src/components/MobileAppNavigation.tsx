@@ -15,6 +15,7 @@ import {
   PhoneArrowUpRightIcon,
   CalendarIcon,
   LifebuoyIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
 import Trans from '~/core/ui/Trans';
@@ -31,6 +32,7 @@ import { useAddLine } from '~/lib/contexts/AddLineContext';
 import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
 import Logo from '~/core/ui/Logo';
+import { useSearch } from '~/lib/contexts/SearchContext';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
@@ -40,6 +42,7 @@ const MobileAppNavigation = () => {
   const { openAddSchedule } = useAddSchedule();
   const { openAddLine } = useAddLine();
   const { open: openHelp } = useHelpPanel();
+  const { openMobile, isMobileOpen } = useSearch();
   const [isVisible, setIsVisible] = useState(false);
   const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -147,13 +150,24 @@ const MobileAppNavigation = () => {
               showWordmark
               wordmarkClassName="text-2xl font-semibold leading-none text-primary"
             />
-            <button
-              onClick={closeMenu}
-              className="p-2 hover:bg-muted rounded-md transition-colors"
-              aria-label="Close menu"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={openMobile}
+                className="p-2 hover:bg-muted rounded-md transition-colors"
+                aria-label="Search"
+                aria-haspopup="dialog"
+                aria-expanded={isMobileOpen}
+              >
+                <MagnifyingGlassIcon className="h-6 w-6" />
+              </button>
+              <button
+                onClick={closeMenu}
+                className="p-2 hover:bg-muted rounded-md transition-colors"
+                aria-label="Close menu"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
           </div>
 
           {/* Menu Content */}

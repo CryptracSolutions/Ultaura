@@ -24,14 +24,35 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Accessibility Settings**: Hearing and cognitive support adaptations
 - **Privacy Center**: Consent management, data export, account deletion
 
-## Codex Multi-Agent Preferences
+## Claude Code Agent Preferences
 
-Collaborating Agents Rules
-- ALWAYS wait for all subagents to complete before yielding
-Spawn subagents automatically when:
-- Parallelizable work (e.g., install + verify, npm test + typecheck, multiple tasks from plan)
-- Long-running or blocking tasks where a worker can run independently
-- Isolation for risky changes or checks
+When using the Task tool to spawn agents, always use `model: "opus"` for all agent types including:
+- Explore
+- Plan
+- code-simplifier
+- feature-dev agents
+- Any other subagent types
+
+This ensures thorough analysis and higher quality reasoning for all automated tasks.
+
+### Auto-Invoke Skills
+
+Automatically use the Skill tool to invoke these skills when the context matches:
+
+| Skill | Trigger When |
+|-------|--------------|
+| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
+| `remotion-best-practices` | Working with Remotion video code |
+| `better-auth-best-practices` | Implementing authentication with Better Auth |
+| `copywriting` | Writing or improving marketing copy for pages |
+| `copy-editing` | Editing, reviewing, or proofreading existing copy |
+| `seo-audit` | Auditing SEO, diagnosing ranking issues |
+| `programmatic-seo` | Building SEO pages at scale, template pages |
+| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
+| `marketing-psychology` | Applying psychological principles to marketing |
+| `pricing-strategy` | Pricing decisions, packaging, monetization |
+| `page-cro` | Optimizing page conversions, CRO analysis |
+| `skill-creator` | Creating new skills for Claude Code or Codex |
 
 ## Architecture
 
@@ -78,7 +99,7 @@ Spawn subagents automatically when:
    - Rate limiting with Upstash Redis
 
 3. **Database** (`/supabase/migrations/`)
-   - 68 migration files with RLS policies
+   - Migration files with RLS policies
    - Core, billing, safety, insights, privacy, and personalization tables
    - Distributed scheduler coordination
    - Vector embeddings for semantic memory search
@@ -393,7 +414,7 @@ The telephony backend includes 33 service modules:
 
 ## Operations Notes
 
-- See `telephony/OBSERVABILITY.md` for logging, metrics, tracing, and dashboards/alerts (PromQL) details.
+- See `telephony/OBSERVABILITY.md` for logging, metrics, and tracing details.
 - WebSocket media streams require sticky sessions; ingress should hash on the `callSessionId` query param.
 - Scheduler leases include: `schedules`, `reminders`, `weekly-summaries`, `recording-deletions`, `embeddings`, `decay-job`.
 - Telephony pods drain active WebSocket calls on SIGTERM/SIGINT (30s max) before exit.
