@@ -2,6 +2,7 @@ import type { CallInsights, ConcernCode, TopicCode } from '@ultaura/types';
 import type { LogCallInsightsInput } from '@ultaura/schemas/telephony';
 import { getSupabaseClient } from '../utils/supabase.js';
 import { encryptInsights } from '../utils/insights-crypto.js';
+import { encodeBytea } from '../utils/bytea.js';
 import { getPrivateTopics } from './insight-state.js';
 
 export type LogCallInsightsData = Omit<LogCallInsightsInput, 'callSessionId' | 'lineId'>;
@@ -90,9 +91,9 @@ export async function storeCallInsights(
       call_session_id: callSessionId,
       line_id: lineId,
       account_id: accountId,
-      insights_ciphertext: encrypted.ciphertext,
-      insights_iv: encrypted.iv,
-      insights_tag: encrypted.tag,
+      insights_ciphertext: encodeBytea(encrypted.ciphertext),
+      insights_iv: encodeBytea(encrypted.iv),
+      insights_tag: encodeBytea(encrypted.tag),
       insights_alg: encrypted.alg,
       insights_kid: encrypted.kid,
       extraction_method: options.extractionMethod,

@@ -18,15 +18,17 @@ export function LinePageHeader({
 }: LinePageHeaderProps) {
   return (
     <div className="mb-5 space-y-3">
-      {actions ? <div className="w-full sm:w-auto">{actions}</div> : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {actions ? <div className="w-full sm:w-auto">{actions}</div> : null}
 
-      {lines.length > 1 ? (
-        <LineSelectorTabs
-          lines={lines}
-          currentLineShortId={currentLineShortId}
-          section="lines"
-        />
-      ) : null}
+        {lines.length > 1 ? (
+          <LineSelectorTabs
+            lines={lines}
+            currentLineShortId={currentLineShortId}
+            section="lines"
+          />
+        ) : null}
+      </div>
 
       {showTabs ? <LineTabNav lineShortId={currentLineShortId} /> : null}
     </div>

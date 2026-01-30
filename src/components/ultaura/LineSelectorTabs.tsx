@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
-import NavigationItem from '~/core/ui/Navigation/NavigationItem';
+import { Check, ChevronDown } from 'lucide-react';
+import classNames from 'clsx';
 import type { LineStatus } from '~/lib/ultaura/types';
 
 export interface LineSelectorLine {
@@ -39,6 +41,7 @@ function buildLineLabel(line: LineSelectorLine) {
 export function LineSelectorTabs({ lines, currentLineShortId, section }: LineSelectorTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const detailsRef = useRef<HTMLDetailsElement | null>(null);
 
   const buildLinePath = (shortId: string) => {
     const fallback = `/dashboard/${section}/${shortId}`;
@@ -68,19 +71,127 @@ export function LineSelectorTabs({ lines, currentLineShortId, section }: LineSel
     return query ? `${nextPath}?${query}` : nextPath;
   };
 
+  const currentLine = lines.find((line) => line.short_id === currentLineShortId) ?? lines[0];
+  const currentLabel = currentLine ? buildLineLabel(currentLine) : 'Select a line';
+
+  const buildBadges = (line: LineSelectorLine) => {
+    const badges: string[] = [];
+    if (line.status !== 'active') badges.push(STATUS_LABELS[line.status]);
+    if (line.insights_enabled === false) badges.push('Insights Off');
+    return badges;
+  };
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const details = detailsRef.current;
+      if (!details?.open) return;
+      if (!details.contains(event.target as Node)) {
+        details.open = false;
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, []);
+
   return (
-    <NavigationMenu pill scrollable>
-      {lines.map((line) => (
-        <NavigationItem
-          key={line.id}
-          active={line.short_id === currentLineShortId}
-          className={line.short_id === currentLineShortId ? 'text-primary' : undefined}
-          link={{
-            path: buildLinePath(line.short_id),
-            label: buildLineLabel(line),
-          }}
-        />
-      ))}
-    </NavigationMenu>
+    <details ref={detailsRef} className="group relative w-full sm:w-[16rem] sm:max-w-none">
+      <summary
+        aria-label="Select line"
+        className={classNames(
+          'flex w-full select-none items-center justify-between gap-3',
+          'rounded-xl border border-border bg-card/70 px-3 py-2',
+          'text-sm font-medium text-foreground shadow-sm backdrop-blur',
+          'transition-colors hover:bg-card/90',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          '[&::-webkit-details-marker]:hidden'
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate">{currentLabel}</span>
+
+        <span className="flex items-center gap-2">
+          {currentLine ? (
+            <span className="hidden sm:flex items-center gap-1.5">
+              {buildBadges(currentLine).map((badge) => (
+                <span
+                  key={badge}
+                  className="rounded-full border border-border bg-background/40 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground"
+                >
+                  {badge}
+                </span>
+              ))}
+            </span>
+          ) : null}
+
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+        </span>
+      </summary>
+
+      <div
+        className={classNames(
+          'absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-border',
+          'bg-popover/95 shadow-xl backdrop-blur',
+          'animate-in fade-in-0 zoom-in-95'
+        )}
+      >
+        <ul className="max-h-72 overflow-auto py-1">
+          {lines.map((line) => {
+            const isActive = line.short_id === currentLineShortId;
+            const label = buildLineLabel(line);
+            const badges = buildBadges(line);
+
+            return (
+              <li key={line.id}>
+                <Link
+                  href={buildLinePath(line.short_id)}
+                  onClick={(event) => {
+                    if (!isActive) return;
+                    event.preventDefault();
+                    if (detailsRef.current) {
+                      detailsRef.current.open = false;
+                    }
+                  }}
+                  className={classNames(
+                    'flex w-full items-center justify-between gap-3 px-3 py-2.5',
+                    'text-sm transition-colors',
+                    'hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
+                    isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  <span
+                    className={classNames(
+                      'min-w-0 flex-1 truncate',
+                      isActive ? 'font-semibold text-foreground' : 'font-medium text-foreground'
+                    )}
+                  >
+                    {label}
+                  </span>
+
+                  <span className="flex items-center gap-2">
+                    {badges.length ? (
+                      <span className="hidden sm:flex items-center gap-1.5">
+                        {badges.map((badge) => (
+                          <span
+                            key={badge}
+                            className="rounded-full border border-border bg-background/30 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground"
+                          >
+                            {badge}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+
+                    {isActive ? <Check className="h-4 w-4 text-primary" /> : null}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </details>
   );
 }
