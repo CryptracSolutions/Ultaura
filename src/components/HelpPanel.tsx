@@ -22,7 +22,7 @@ interface HelpPanelProps {
 const INITIAL_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hi! I'm here to help you with any questions about ${configuration.site.siteName}. What can I help you with today?`,
+  content: `Hi! What can I help you with today? You can ask me anything.`,
 };
 
 export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
@@ -77,20 +77,18 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
     >
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="px-4 py-3 flex border-b border-border justify-between items-center">
+        <div className="px-4 py-3 flex justify-between items-center">
           <div className="flex flex-col">
             <span className="font-semibold text-foreground">Help</span>
-            <span className="text-xs text-sidebar-foreground">
-              Ask us anything
-            </span>
+            <span className="text-xs text-sidebar-foreground">Get assistance</span>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1 hover:bg-muted rounded-md transition-colors"
-            aria-label="Close help panel"
+            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            aria-label="Close"
           >
-            <XMarkIcon className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+            <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
@@ -121,7 +119,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               className={classNames(
                 'p-4 h-14 w-full outline-none resize-none text-sm bg-sidebar',
                 'text-foreground placeholder:text-sidebar-foreground/60',
-                'pr-12 focus:ring-2 focus:ring-ring transition-all'
+                'pr-12 focus:ring-1 focus:ring-ring transition-all'
               )}
               placeholder="Ask a question..."
             />
@@ -130,6 +128,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               disabled={isLoading}
               type="submit"
               className="absolute right-4 top-4 bg-transparent disabled:opacity-50"
+              aria-label="Send message"
             >
               <PaperAirplaneIcon className="h-5 w-5 text-primary" />
             </button>
@@ -157,14 +156,14 @@ function ChatMessage({ message }: { message: Message }) {
             'text-right': isUser,
           })}
         >
-          {isBot ? 'AI' : 'You'}
+          {isBot ? 'Ultaura' : 'You'}
         </span>
 
         <div
           className={classNames(
             'px-3 py-2 rounded-lg text-sm',
             {
-              'bg-muted text-foreground': isBot,
+              'bg-primary/10 text-foreground': isBot,
               'bg-primary text-primary-foreground': isUser,
             }
           )}
@@ -210,8 +209,8 @@ function BubbleAnimation() {
   return (
     <div className="flex justify-start">
       <div className="flex flex-col space-y-1">
-        <span className="text-xs font-medium text-muted-foreground">AI</span>
-        <div className="bg-muted rounded-lg px-3 py-2">
+        <span className="text-xs font-medium text-muted-foreground">Ultaura</span>
+        <div className="bg-primary/10 rounded-lg px-3 py-2">
           <div className="flex space-x-1">
             <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
             <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0.1s]" />
