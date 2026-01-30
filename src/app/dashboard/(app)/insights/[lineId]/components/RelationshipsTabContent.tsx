@@ -20,6 +20,9 @@ export function RelationshipsTabContent({
   if (!allowConcerns) {
     return (
       <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">
+          People and relationships mentioned in conversations.
+        </p>
         <TierGateNotice title="Relationships" requiredTier="tier_4" lineName={lineName} />
       </div>
     );
@@ -27,6 +30,9 @@ export function RelationshipsTabContent({
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        People and relationships mentioned in conversations.
+      </p>
       <Relationships relationships={relationships} timezone={timezone} />
     </div>
   );

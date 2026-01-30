@@ -1,8 +1,10 @@
 'use client';
 
+import classNames from 'clsx';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
-import NavigationItem from '~/core/ui/Navigation/NavigationItem';
+import { useEffect, useMemo, useRef } from 'react';
+import Trans from '~/core/ui/Trans';
 
 interface InsightsTabNavProps {
   lineShortId: string;
@@ -21,6 +23,7 @@ const INSIGHTS_TABS = [
 export function InsightsTabNav({ lineShortId }: InsightsTabNavProps) {
   const pathname = usePathname();
   const basePath = `/dashboard/insights/${lineShortId}`;
+  const tabRefs = useRef<(HTMLLIElement | null)[]>([]);
 
   const getIsActive = (pathSuffix: string) => {
     const fullPath = `${basePath}${pathSuffix}`;
@@ -32,18 +35,62 @@ export function InsightsTabNav({ lineShortId }: InsightsTabNavProps) {
     return pathname.startsWith(fullPath);
   };
 
+  const activeIndex = useMemo(() => {
+    return INSIGHTS_TABS.findIndex((tab) => getIsActive(tab.pathSuffix));
+  }, [pathname, basePath]);
+
+  useEffect(() => {
+    let rafId1: number;
+    let rafId2: number;
+
+    rafId1 = requestAnimationFrame(() => {
+      rafId2 = requestAnimationFrame(() => {
+        const activeTab = tabRefs.current[activeIndex];
+        if (activeTab) {
+          activeTab.scrollIntoView({
+            behavior: 'instant',
+            inline: 'center',
+            block: 'nearest',
+          });
+        }
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId1);
+      cancelAnimationFrame(rafId2);
+    };
+  }, [activeIndex]);
+
   return (
-    <NavigationMenu bordered scrollable>
-      {INSIGHTS_TABS.map((tab) => (
-        <NavigationItem
-          key={tab.key}
-          active={getIsActive(tab.pathSuffix)}
-          link={{
-            path: `${basePath}${tab.pathSuffix}`,
-            label: tab.label,
-          }}
-        />
-      ))}
-    </NavigationMenu>
+    <ul className="w-full items-center flex gap-2 lg:gap-3 border-b border-border pb-1 overflow-x-auto flex-nowrap scrollbar-hide">
+      {INSIGHTS_TABS.map((tab, index) => {
+        const isActive = getIsActive(tab.pathSuffix);
+        return (
+          <li
+            key={tab.key}
+            ref={(el) => {
+              tabRefs.current[index] = el;
+            }}
+            className={classNames(
+              'flex items-center justify-center font-medium lg:justify-start rounded-md text-sm transition colors transform *:active:translate-y-[2px]',
+              '*:p-1 *:lg:px-2.5 *:s-full *:flex *:items-center',
+              'relative h-10 flex-none whitespace-nowrap',
+              isActive
+                ? 'relative rounded-none bg-transparent text-primary after:absolute after:inset-x-0 after:-bottom-[0.125rem] after:h-1 after:bg-primary after:content-[\'\']'
+                : 'hover:bg-muted hover:text-primary active:bg-muted/80 transition-colors rounded-lg border-transparent text-muted-foreground'
+            )}
+          >
+            <Link
+              className="transition-transform duration-500 justify-center lg:justify-start w-full h-full flex items-center"
+              href={`${basePath}${tab.pathSuffix}`}
+              shallow={isActive}
+            >
+              <Trans i18nKey={tab.label} defaults={tab.label} />
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

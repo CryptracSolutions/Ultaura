@@ -114,6 +114,18 @@ function getNavigationMenuItemClassBuilder() {
           bordered: true,
           className: `relative rounded-none bg-transparent text-primary after:absolute after:inset-x-0 after:-bottom-[0.125rem] after:h-1 after:bg-primary after:content-['']`,
         },
+        // not active - subtle
+        {
+          active: false,
+          subtle: true,
+          className: `text-muted-foreground hover:text-foreground`,
+        },
+        // active - subtle
+        {
+          active: true,
+          subtle: true,
+          className: `text-foreground underline underline-offset-4 decoration-primary/60 hover:text-foreground`,
+        },
         // active - secondary
         {
           active: true,
@@ -130,6 +142,9 @@ function getNavigationMenuItemClassBuilder() {
         },
         bordered: {
           true: `relative h-10`,
+        },
+        subtle: {
+          true: `relative h-9`,
         },
         secondary: {
           true: ``,

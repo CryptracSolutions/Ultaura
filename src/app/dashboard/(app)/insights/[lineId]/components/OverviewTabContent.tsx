@@ -31,6 +31,9 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Weekly insights and call activity patterns at a glance.
+      </p>
       {/* AI Disclaimer - always shown */}
       <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
         <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />

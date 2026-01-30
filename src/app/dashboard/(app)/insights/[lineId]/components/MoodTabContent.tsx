@@ -30,6 +30,9 @@ export function MoodTabContent({
   if (!allowMood) {
     return (
       <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">
+          Emotional trends and mood patterns over time.
+        </p>
         <TierGateNotice title="Mood Trend" requiredTier="tier_2" lineName={lineName} />
         <div className="grid gap-6 lg:grid-cols-2">
           <TierGateNotice title="Emotional trends" requiredTier="tier_2" lineName={lineName} />
@@ -44,6 +47,9 @@ export function MoodTabContent({
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Emotional trends and mood patterns over time.
+      </p>
       {/* Mood Trend + Engagement Trend */}
       {dashboard && (
         <div className={showEngagement ? 'grid gap-6 lg:grid-cols-2' : 'grid gap-6'}>

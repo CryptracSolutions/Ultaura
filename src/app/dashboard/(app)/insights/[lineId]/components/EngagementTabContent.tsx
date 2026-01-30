@@ -28,6 +28,9 @@ export function EngagementTabContent({
   if (!allowMood) {
     return (
       <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">
+          Engagement features, story arcs, and retention insights.
+        </p>
         <TierGateNotice title="Engagement Features" requiredTier="tier_2" lineName={lineName} />
         <TierGateNotice title="Retention Insights" requiredTier="tier_2" lineName={lineName} />
       </div>
@@ -36,6 +39,9 @@ export function EngagementTabContent({
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Engagement features, story arcs, and retention insights.
+      </p>
       {/* Engagement Features */}
       {segmentStats && (
         <EngagementFeatures

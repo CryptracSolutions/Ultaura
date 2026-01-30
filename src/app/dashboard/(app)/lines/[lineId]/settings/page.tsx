@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
-import { getLine } from '~/lib/ultaura/lines';
+import { getLine, getLines } from '~/lib/ultaura/lines';
 import { getInsightPrivacy, getNotificationPreferences } from '~/lib/ultaura/insights';
 import { getAccessibilitySettings } from '~/lib/ultaura/accessibility';
 import { getLineVoiceConsent } from '~/lib/ultaura/privacy';
@@ -12,6 +12,7 @@ import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
+import AppHeader from '../../../components/AppHeader';
 import { LinePageHeader } from '../components/LinePageHeader';
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default async function LineSettingsPage({ params }: PageProps) {
     accessibilitySettings,
     voiceConsent,
     account,
+    lines,
   ] = await Promise.all([
     getTrialInfo(line.account_id),
     getInsightPrivacy(line.id),
@@ -52,6 +54,7 @@ export default async function LineSettingsPage({ params }: PageProps) {
     getAccessibilitySettings(line.id),
     getLineVoiceConsent(line.id),
     getUltauraAccountById(line.account_id),
+    getLines(line.account_id),
   ]);
   const isTrialExpired = trialInfo?.isExpired ?? false;
   const trialPlanId = trialInfo?.trialPlanId ?? null;
@@ -59,27 +62,26 @@ export default async function LineSettingsPage({ params }: PageProps) {
   const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
 
   return (
-    <PageBody>
-      <div className="space-y-6">
-        <LinePageHeader
-          lineName={line.display_name}
-          lineShortId={line.short_id}
-          phoneE164={line.phone_e164}
-          timezone={line.timezone}
-          status={line.status}
-          isVerified={!!line.phone_verified_at}
-        />
-        {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-        <SettingsClient
-          line={line}
-          insightPrivacy={insightPrivacy}
-          notificationPreferences={notificationPreferences}
-          accessibilitySettings={accessibilitySettings}
-          voiceConsent={voiceConsent}
-          userType={(account?.user_type ?? 'family_managed') as 'self' | 'family_managed'}
-          disabled={isTrialExpired}
-        />
-      </div>
-    </PageBody>
+    <>
+      <AppHeader title="Lines" />
+      <PageBody>
+        <div className="space-y-6">
+          <LinePageHeader
+            lines={lines}
+            currentLineShortId={line.short_id}
+          />
+          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+          <SettingsClient
+            line={line}
+            insightPrivacy={insightPrivacy}
+            notificationPreferences={notificationPreferences}
+            accessibilitySettings={accessibilitySettings}
+            voiceConsent={voiceConsent}
+            userType={(account?.user_type ?? 'family_managed') as 'self' | 'family_managed'}
+            disabled={isTrialExpired}
+          />
+        </div>
+      </PageBody>
+    </>
   );
 }

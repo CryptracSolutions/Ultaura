@@ -307,3 +307,7 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.card-border-accent {
+  border: 1px solid var(--accent);
+}

@@ -20,6 +20,9 @@ export function MemoryTabContent({
   if (!allowConcerns) {
     return (
       <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">
+          Memory activity and what Ultaura remembers.
+        </p>
         <TierGateNotice title="Memory activity" requiredTier="tier_4" lineName={lineName} />
       </div>
     );
@@ -27,6 +30,9 @@ export function MemoryTabContent({
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Memory activity and what Ultaura remembers.
+      </p>
       {memoryActivity ? (
         <MemoryActivity data={memoryActivity} timezone={timezone} />
       ) : (

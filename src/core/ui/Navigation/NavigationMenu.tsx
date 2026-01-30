@@ -20,7 +20,15 @@ type Scrollable = {
   scrollable?: boolean;
 };
 
-export type NavigationMenuProps = Vertical & (Bordered | Pill) & Scrollable;
+type Subtle = {
+  subtle?: boolean;
+};
+
+type Centered = {
+  centered?: boolean;
+};
+
+export type NavigationMenuProps = Vertical & (Bordered | Pill) & Scrollable & Subtle & Centered;
 
 function NavigationMenu(props: PropsWithChildren<NavigationMenuProps>) {
   const className = getNavigationMenuClassBuilder()(props);
@@ -45,6 +53,12 @@ function getNavigationMenuClassBuilder() {
       },
       bordered: {
         true: `gap-2 lg:gap-3 border-b border-border pb-1.5`,
+      },
+      subtle: {
+        true: `gap-1.5 lg:gap-2`,
+      },
+      centered: {
+        true: `justify-center`,
       },
       scrollable: {
         true: `overflow-x-auto flex-nowrap scrollbar-hide`,

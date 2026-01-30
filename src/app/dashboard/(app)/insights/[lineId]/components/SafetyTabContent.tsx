@@ -21,6 +21,9 @@ export function SafetyTabContent({
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Safety alerts and wellbeing observations from recent calls.
+      </p>
       {/* Safety Alerts - always visible */}
       <SafetyAlertsCard
         events={safetyEvents}

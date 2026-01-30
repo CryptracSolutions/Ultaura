@@ -23,6 +23,9 @@ export function ConversationsTabContent({
   if (!allowTopics) {
     return (
       <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">
+          Conversation highlights and topics from recent calls.
+        </p>
         <TierGateNotice title="Topics discussed" requiredTier="tier_3" lineName={lineName} />
         <TierGateNotice title="Conversation highlights" requiredTier="tier_3" lineName={lineName} />
       </div>
@@ -31,6 +34,9 @@ export function ConversationsTabContent({
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Conversation highlights and topics from recent calls.
+      </p>
       {/* Topics Chart */}
       {dashboard && <TopicsChart topics={dashboard.topics} />}
 

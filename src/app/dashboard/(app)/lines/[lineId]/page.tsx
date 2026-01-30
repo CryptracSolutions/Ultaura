@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
-import { getLine } from '~/lib/ultaura/lines';
+import { getLine, getLines } from '~/lib/ultaura/lines';
 import { getUltauraAccountById } from '~/lib/ultaura/helpers';
 import { getSchedules } from '~/lib/ultaura/schedules';
 import { getUsageSummary, getCallSessions } from '~/lib/ultaura/usage';
@@ -13,6 +13,7 @@ import { LineDetailClient } from './LineDetailClient';
 import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { PLANS } from '~/lib/ultaura/constants';
+import AppHeader from '../../components/AppHeader';
 import type { PlanId } from '~/lib/ultaura/types';
 
 // Helper to get counts without fetching full data
@@ -56,10 +57,11 @@ export default async function LineDetailPage({ params }: PageProps) {
     redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
-  const [usage, callSessions, counts] = await Promise.all([
+  const [usage, callSessions, counts, lines] = await Promise.all([
     getUsageSummary(line.account_id),
     getCallSessions(line.id, 500),
     getScheduleAndReminderCounts(line.id),
+    getLines(line.account_id),
   ]);
 
   const account = await getUltauraAccountById(line.account_id);
@@ -71,23 +73,29 @@ export default async function LineDetailPage({ params }: PageProps) {
   const trialPlanKey = (trialInfo?.trialPlanId ?? 'free_trial') as PlanId;
   const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
 
+  const headerDescription = 'Manage settings and review activity for this line';
+
   return (
-    <PageBody>
-      <div className="space-y-6">
-        {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
-        <LineDetailClient
-          line={line}
-          usage={usage}
-          callSessions={callSessions}
-          activeSchedulesCount={counts.activeSchedulesCount}
-          pendingRemindersCount={counts.pendingRemindersCount}
-          milestonesCount={counts.milestonesCount}
-          trustedContactsCount={counts.trustedContactsCount}
-          isReadOnly={isTrialExpired}
-          isTrialActive={isTrialActive}
-          isFamilyManaged={isFamilyManaged}
-        />
-      </div>
-    </PageBody>
+    <>
+      <AppHeader title="Lines" description={headerDescription} />
+      <PageBody>
+        <div className="space-y-6">
+          {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
+          <LineDetailClient
+            line={line}
+            lines={lines}
+            usage={usage}
+            callSessions={callSessions}
+            activeSchedulesCount={counts.activeSchedulesCount}
+            pendingRemindersCount={counts.pendingRemindersCount}
+            milestonesCount={counts.milestonesCount}
+            trustedContactsCount={counts.trustedContactsCount}
+            isReadOnly={isTrialExpired}
+            isTrialActive={isTrialActive}
+            isFamilyManaged={isFamilyManaged}
+          />
+        </div>
+      </PageBody>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
-import { getLine } from '~/lib/ultaura/lines';
+import { getLine, getLines } from '~/lib/ultaura/lines';
 import { getSchedules } from '~/lib/ultaura/schedules';
 import { getUpcomingExceptions } from '~/lib/ultaura/schedule-exceptions';
 import { ScheduleClient } from './ScheduleClient';
@@ -9,6 +9,7 @@ import { isUUID } from '~/lib/ultaura/short-id';
 import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { PLANS } from '~/lib/ultaura/constants';
+import AppHeader from '../../../components/AppHeader';
 import type { PlanId } from '~/lib/ultaura/types';
 import { LinePageHeader } from '../components/LinePageHeader';
 
@@ -36,10 +37,11 @@ export default async function SchedulePage({ params }: PageProps) {
     redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
-  const [schedules, trialInfo, exceptions] = await Promise.all([
+  const [schedules, trialInfo, exceptions, lines] = await Promise.all([
     getSchedules(line.id),
     getTrialInfo(line.account_id),
     getUpcomingExceptions(line.id),
+    getLines(line.account_id),
   ]);
 
   const isTrialExpired = trialInfo?.isExpired ?? false;
@@ -48,25 +50,24 @@ export default async function SchedulePage({ params }: PageProps) {
   const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
 
   return (
-    <PageBody>
-      <div className="space-y-6">
-        <LinePageHeader
-          lineName={line.display_name}
-          lineShortId={line.short_id}
-          phoneE164={line.phone_e164}
-          timezone={line.timezone}
-          status={line.status}
-          isVerified={!!line.phone_verified_at}
-          showTabs={false}
-        />
-        {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-        <ScheduleClient
-          line={line}
-          schedules={schedules}
-          exceptions={exceptions}
-          disabled={isTrialExpired}
-        />
-      </div>
-    </PageBody>
+    <>
+      <AppHeader title="Lines" />
+      <PageBody>
+        <div className="space-y-6">
+          <LinePageHeader
+            lines={lines}
+            currentLineShortId={line.short_id}
+            showTabs={false}
+          />
+          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+          <ScheduleClient
+            line={line}
+            schedules={schedules}
+            exceptions={exceptions}
+            disabled={isTrialExpired}
+          />
+        </div>
+      </PageBody>
+    </>
   );
 }

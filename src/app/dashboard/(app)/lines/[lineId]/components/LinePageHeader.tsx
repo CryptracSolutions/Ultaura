@@ -1,51 +1,34 @@
 'use client';
 
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { LineTabNav } from './LineTabNav';
-import MobileAppNavigation from '~/components/MobileAppNavigation';
+import { LineSelectorTabs, type LineSelectorLine } from '~/components/ultaura/LineSelectorTabs';
 
 interface LinePageHeaderProps {
-  lineName: string;
-  lineShortId: string;
-  phoneE164: string;
-  timezone: string;
-  status: string;
-  isVerified: boolean;
+  lines: LineSelectorLine[];
+  currentLineShortId: string;
   actions?: React.ReactNode;
   showTabs?: boolean;
 }
 
 export function LinePageHeader({
-  lineName,
-  lineShortId,
+  lines,
+  currentLineShortId,
   actions,
   showTabs = true,
 }: LinePageHeaderProps) {
   return (
-    <div className="mb-6 pt-3 sm:pt-0 md:pt-3">
-      {/* Title row with mobile nav */}
-      <div className="flex items-center space-x-2 mb-2">
-        <div className="lg:hidden">
-          <MobileAppNavigation />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">{lineName}</h1>
-      </div>
+    <div className="mb-5 space-y-3">
+      {actions ? <div className="w-full sm:w-auto">{actions}</div> : null}
 
-      {/* Back link */}
-      <Link
-        href="/dashboard/lines"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Lines
-      </Link>
+      {lines.length > 1 ? (
+        <LineSelectorTabs
+          lines={lines}
+          currentLineShortId={currentLineShortId}
+          section="lines"
+        />
+      ) : null}
 
-      {/* Action buttons */}
-      {actions ? <div className="w-full sm:w-auto mb-4">{actions}</div> : null}
-
-      {/* Tab navigation */}
-      {showTabs ? <LineTabNav lineShortId={lineShortId} /> : null}
+      {showTabs ? <LineTabNav lineShortId={currentLineShortId} /> : null}
     </div>
   );
 }
