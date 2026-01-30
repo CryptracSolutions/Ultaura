@@ -136,6 +136,10 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
         <div
           ref={scrollingDiv}
           className="flex-1 overflow-y-auto p-4 space-y-4 bg-card"
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(10, 186, 181, 0.18) 0%, rgba(10, 186, 181, 0) 85%)',
+          }}
         >
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
