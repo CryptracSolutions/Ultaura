@@ -3,8 +3,10 @@
 import {
   ChatBubbleLeftIcon,
   LifebuoyIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 
+import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import IconButton from '~/core/ui/IconButton';
 import { FeedbackPopupContainer } from '~/plugins/feedback-popup/FeedbackPopup';
@@ -22,6 +24,17 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
 
       <div className="flex items-center gap-2">
         <QuickActionsDropdown />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href="/docs">
+              <IconButton label="Documentation">
+                <QuestionMarkCircleIcon className="h-5 w-5" />
+              </IconButton>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>Documentation</TooltipContent>
+        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>

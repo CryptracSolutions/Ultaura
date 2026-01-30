@@ -10,10 +10,7 @@ import {
   XMarkIcon,
   PaperAirplaneIcon,
   SparklesIcon,
-  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
-
-import Link from 'next/link';
 import If from '~/core/ui/If';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import configuration from '~/configuration';
@@ -111,20 +108,9 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
           </div>
 
           <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link href="/docs">
-                  <button className="p-2 rounded-lg text-foreground hover:text-primary hover:bg-primary/10 transition-colors">
-                    <QuestionMarkCircleIcon className="h-5 w-5" />
-                  </button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>Documentation</TooltipContent>
-            </Tooltip>
-
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="rounded-full bg-transparent h-8 w-8 flex items-center justify-center ring-ring transition-all outline-none focus:ring-2 hover:bg-primary/10 hover:border-primary/30 dark:hover:bg-primary/20 dark:hover:border-primary/30 disabled:cursor-not-allowed disabled:opacity-50 active:bg-primary/20 dark:active:bg-primary/30"
               aria-label="Close"
             >
               <XMarkIcon className="h-5 w-5" />
