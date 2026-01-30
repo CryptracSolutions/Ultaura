@@ -9,9 +9,13 @@ import ReactMarkdown from 'react-markdown';
 import {
   XMarkIcon,
   PaperAirplaneIcon,
+  SparklesIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 
+import Link from 'next/link';
 import If from '~/core/ui/If';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import configuration from '~/configuration';
 
 interface HelpPanelProps {
@@ -27,6 +31,7 @@ const INITIAL_MESSAGE: Message = {
 
 export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   const scrollingDiv = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     messages,
@@ -56,12 +61,34 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
     }
   }, [isOpen, setMessages]);
 
+  const resetTextareaHeight = useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (input.trim()) {
+          const form = e.currentTarget.form;
+          if (form) {
+            form.requestSubmit();
+          }
+        }
+      }
+    },
+    [input]
+  );
+
   const onSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       handleSubmit(e);
+      resetTextareaHeight();
     },
-    [handleSubmit]
+    [handleSubmit, resetTextareaHeight]
   );
 
   return (
@@ -77,25 +104,38 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
     >
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="px-4 py-3 flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className="font-semibold text-foreground">Help</span>
-            <span className="text-xs text-sidebar-foreground">Get assistance</span>
+        <div className="px-4 py-3 flex justify-between items-center border-b border-border bg-sidebar">
+          <div className="flex items-center gap-2">
+            <SparklesIcon className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-foreground">Assistant</span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-            aria-label="Close"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/docs">
+                  <button className="p-2 rounded-lg text-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                    <QuestionMarkCircleIcon className="h-5 w-5" />
+                  </button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>Documentation</TooltipContent>
+            </Tooltip>
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg text-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              aria-label="Close"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Messages */}
         <div
           ref={scrollingDiv}
-          className="flex-1 overflow-y-auto p-4 space-y-4"
+          className="flex-1 overflow-y-auto p-4 space-y-4 bg-card"
         >
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
@@ -106,34 +146,47 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
           </If>
         </div>
 
-        {/* Input */}
-        <form onSubmit={onSubmit} className="border-t border-border">
-          <div className="flex relative">
-            <input
-              disabled={isLoading}
-              autoComplete="off"
-              required
-              value={input}
-              onChange={handleInputChange}
-              name="message"
-              className={classNames(
-                'p-4 h-14 w-full outline-none resize-none text-sm bg-sidebar',
-                'text-foreground placeholder:text-sidebar-foreground/60',
-                'pr-12 focus:ring-1 focus:ring-ring transition-all'
-              )}
-              placeholder="Ask a question..."
-            />
-
-            <button
-              disabled={isLoading}
-              type="submit"
-              className="absolute right-4 top-4 bg-transparent disabled:opacity-50"
-              aria-label="Send message"
+        {/* Input Card */}
+        <div className="p-4 bg-card">
+          <form onSubmit={onSubmit}>
+            <div
+              className="relative flex items-center bg-card rounded-xl border-[1.4px] shadow-sm shadow-[0_0_0_1px_rgba(10,186,181,0.6)]"
+              style={{ borderColor: '#0ABAB5' }}
             >
-              <PaperAirplaneIcon className="h-5 w-5 text-primary" />
-            </button>
-          </div>
-        </form>
+              <textarea
+                ref={textareaRef}
+                disabled={isLoading}
+                autoComplete="off"
+                required
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onInput={(e) => {
+                  const target = e.currentTarget;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+                name="message"
+                className={classNames(
+                  'w-full px-4 py-2 pr-12 outline-none resize-none text-sm bg-transparent rounded-xl leading-6',
+                  'text-foreground placeholder:text-foreground',
+                  'min-h-[36px] max-h-48 overflow-y-auto'
+                )}
+                placeholder="Ask a question..."
+                rows={1}
+              />
+
+              <button
+                disabled={isLoading}
+                type="submit"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                aria-label="Send message"
+              >
+                <PaperAirplaneIcon className="h-4 w-4 text-primary" />
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -152,7 +205,7 @@ function ChatMessage({ message }: { message: Message }) {
     >
       <div className="flex flex-col space-y-1 max-w-[85%]">
         <span
-          className={classNames('text-xs font-medium text-muted-foreground', {
+          className={classNames('text-xs font-medium text-foreground', {
             'text-right': isUser,
           })}
         >

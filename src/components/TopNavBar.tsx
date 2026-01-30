@@ -1,8 +1,6 @@
 'use client';
 
-import Link from 'next/link';
 import {
-  QuestionMarkCircleIcon,
   ChatBubbleLeftIcon,
   LifebuoyIcon,
 } from '@heroicons/react/24/outline';
@@ -24,17 +22,6 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
 
       <div className="flex items-center gap-2">
         <QuickActionsDropdown />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link href="/docs">
-              <IconButton label="Documentation">
-                <QuestionMarkCircleIcon className="h-5 w-5" />
-              </IconButton>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent>Documentation</TooltipContent>
-        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
