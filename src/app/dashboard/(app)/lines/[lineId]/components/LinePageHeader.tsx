@@ -18,7 +18,7 @@ export function LinePageHeader({
 }: LinePageHeaderProps) {
   return (
     <div className="mb-5 space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-[14.4px] sm:flex-row sm:items-center sm:justify-between">
         {actions ? <div className="w-full sm:w-auto">{actions}</div> : null}
 
         {lines.length > 1 ? (

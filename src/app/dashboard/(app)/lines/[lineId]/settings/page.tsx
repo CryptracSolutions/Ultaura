@@ -63,7 +63,7 @@ export default async function LineSettingsPage({ params }: PageProps) {
 
   return (
     <>
-      <AppHeader title="Lines" />
+      <AppHeader title="Lines" description="Manage settings for this line" />
       <PageBody>
         <div className="space-y-6">
           <LinePageHeader

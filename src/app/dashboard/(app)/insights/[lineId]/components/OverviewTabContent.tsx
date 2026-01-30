@@ -5,7 +5,6 @@ import { Info } from 'lucide-react';
 import type { InsightsDashboard, CallSessionRow } from '~/lib/ultaura/types';
 import { InsightsSummary } from '../../components/InsightsSummary';
 import { CallMetrics } from '../../components/CallMetrics';
-import { RetentionInsightsCard } from '../../components/RetentionInsightsCard';
 import { CallActivityList } from '../../../lines/[lineId]/components/CallActivityList';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/core/ui/Accordion';
 import { SHARING_TIER_LABELS, type TierAccess } from './shared';
@@ -85,9 +84,6 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-
-          {/* Retention Highlights */}
-          <RetentionInsightsCard retention={dashboard.retention} />
         </>
       )}
 

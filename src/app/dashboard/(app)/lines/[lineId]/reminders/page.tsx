@@ -49,7 +49,7 @@ export default async function RemindersPage({ params }: PageProps) {
 
   return (
     <>
-      <AppHeader title="Lines" />
+      <AppHeader title="Lines" description="Manage settings for this line" />
       <PageBody>
         <div className="space-y-6">
           <LinePageHeader

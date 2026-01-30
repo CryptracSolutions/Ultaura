@@ -73,7 +73,7 @@ export default async function LineDetailPage({ params }: PageProps) {
   const trialPlanKey = (trialInfo?.trialPlanId ?? 'free_trial') as PlanId;
   const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
 
-  const headerDescription = 'Manage settings and review activity for this line';
+  const headerDescription = 'Manage settings for this line';
 
   return (
     <>
