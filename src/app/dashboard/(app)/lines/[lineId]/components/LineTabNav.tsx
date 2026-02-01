@@ -34,8 +34,11 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
     if (pathSuffix === '') {
       return pathname === basePath || pathname === `${basePath}/`;
     }
-    if (pathSuffix.startsWith('/settings')) {
-      return pathname.startsWith(`${basePath}/settings`) && !tabParam;
+    if (pathSuffix === '/settings') {
+      return (
+        pathname.startsWith(`${basePath}/settings`) &&
+        (tabParam === 'settings' || !tabParam)
+      );
     }
     return pathname.startsWith(fullPath);
   };
