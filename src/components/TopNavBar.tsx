@@ -27,17 +27,6 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Link href="/docs">
-              <IconButton label="Documentation">
-                <QuestionMarkCircleIcon className="h-5 w-5" />
-              </IconButton>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent>Documentation</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
             <IconButton label="Help" onClick={onHelpToggle}>
               <LifebuoyIcon className="h-5 w-5" />
             </IconButton>
@@ -47,16 +36,20 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <div>
-              <FeedbackPopupContainer>
-                <IconButton label="Send Feedback">
-                  <ChatBubbleLeftIcon className="h-5 w-5" />
-                </IconButton>
-              </FeedbackPopupContainer>
-            </div>
+            <Link href="/docs">
+              <IconButton label="Documentation">
+                <QuestionMarkCircleIcon className="h-5 w-5" />
+              </IconButton>
+            </Link>
           </TooltipTrigger>
-          <TooltipContent>Feedback</TooltipContent>
+          <TooltipContent>Documentation</TooltipContent>
         </Tooltip>
+
+        <FeedbackPopupContainer tooltipContent="Feedback">
+          <IconButton label="Send Feedback">
+            <ChatBubbleLeftIcon className="h-5 w-5" />
+          </IconButton>
+        </FeedbackPopupContainer>
       </div>
     </div>
   );

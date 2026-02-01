@@ -1,7 +1,7 @@
 'use client';
 
 import classNames from 'clsx';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useFormStatus, useFormState } from 'react-dom';
 
@@ -22,12 +22,6 @@ import Textarea from '~/core/ui/Textarea';
 
 import { Popover, PopoverContent, PopoverTrigger } from '~/core/ui/Popover';
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '~/core/ui/Dropdown';
 
 import TextField, { TextFieldHint, TextFieldInput } from '~/core/ui/TextField';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
@@ -40,17 +34,28 @@ enum FeedbackType {
 
 type FeedbackPopupContainerProps = React.PropsWithChildren<{
   metadata?: UnknownObject;
+  tooltipContent?: React.ReactNode;
 }>;
 
 export function FeedbackPopupContainer({
   children,
   metadata = {},
+  tooltipContent,
 }: FeedbackPopupContainerProps) {
   const [open, setOpen] = useState(false);
 
+  const trigger = <PopoverTrigger asChild>{children}</PopoverTrigger>;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      {tooltipContent && !open ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+          <TooltipContent>{tooltipContent}</TooltipContent>
+        </Tooltip>
+      ) : (
+        trigger
+      )}
 
       <PopoverContent
         collisionPadding={50}
@@ -351,46 +356,71 @@ function DeviceInfo() {
 }
 
 function AttachmentButton() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachment, setAttachment] = useState<{
     image: string;
     file: File;
   }>();
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const image = reader.result as string;
+      setAttachment({ image, file });
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <>
-      <DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <div className={'flex space-x-2 items-center'}>
-                <Button type={'button'} size={'icon'} variant={'ghost'}>
-                  <PaperClipIcon className={'h-4'} />
-                </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={'flex space-x-2 items-center'}>
+            <Button
+              type={'button'}
+              size={'icon'}
+              variant={'ghost'}
+              onClick={handleButtonClick}
+            >
+              <PaperClipIcon className={'h-4'} />
+            </Button>
+            <input
+              ref={fileInputRef}
+              type={'file'}
+              className={'hidden'}
+              name={'attachment'}
+              accept="image/*"
+              onChange={handleFileChange}
+            />
 
-                <If condition={attachment}>
-                  {(attachment) => (
-                    <Image
-                      className={'object-cover'}
-                      alt={'Preview'}
-                      width={75}
-                      height={75}
-                      src={attachment.image}
-                    />
-                  )}
-                </If>
-              </div>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
+            <If condition={attachment}>
+              {(attachment) => (
+                <Image
+                  className={'object-cover'}
+                  alt={'Preview'}
+                  width={75}
+                  height={75}
+                  src={attachment.image}
+                />
+              )}
+            </If>
+          </div>
+        </TooltipTrigger>
 
-          <TooltipContent>Attach file or screenshot</TooltipContent>
-        </Tooltip>
-
-        <DropdownMenuContent>
-          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-            <UploadImageButton onChange={setAttachment} />
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <TooltipContent className="z-[150]">Attach file or screenshot</TooltipContent>
+      </Tooltip>
 
       <If condition={attachment}>
         {(attachment) => {
@@ -440,41 +470,3 @@ function HiddenInput(
   return <input type={'hidden'} name={props.name} value={props.value} />;
 }
 
-function UploadImageButton(
-  props: React.PropsWithChildren<{
-    onChange: (params: { file: File; image: string }) => void;
-  }>,
-) {
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-
-    const file = e.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const image = reader.result as string;
-
-      props.onChange({ image, file });
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  return (
-    <label>
-      Upload Image{' '}
-      <input
-        type={'file'}
-        className={'hidden'}
-        name={'attachment'}
-        accept="image/*"
-        onChange={onChange}
-      />
-    </label>
-  );
-}

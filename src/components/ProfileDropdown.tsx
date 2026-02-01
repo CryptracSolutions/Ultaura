@@ -61,10 +61,10 @@ const ProfileDropdown: React.FCC<{
           'flex cursor-pointer focus:outline-none group items-center',
           className,
           {
-            ['items-center space-x-2.5 rounded-lg border border-gray-100' +
-            ' dark:border-dark-900 p-2 transition-colors transition-shadow' +
-            ' hover:shadow-[0_0_0_1px_oklch(0.696_0.119_180.426_/_0.35)]' +
-            ' dark:hover:shadow-[0_0_0_1px_oklch(0.75_0.12_180.426_/_0.35)]']: displayName,
+            ['items-center space-x-2.5 rounded-lg border border-primary' +
+            ' p-2 transition-colors transition-shadow' +
+            ' shadow-[0_0_0_1px_oklch(0.696_0.119_180.426)]' +
+            ' dark:shadow-[0_0_0_1px_oklch(0.75_0.12_180.426)]']: displayName,
           },
         )}
       >
