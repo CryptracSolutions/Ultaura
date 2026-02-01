@@ -125,7 +125,7 @@ export function CreateReminderForm({
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pb-6">
           {/* Message */}
           <div>
             <label

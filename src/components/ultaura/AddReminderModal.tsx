@@ -93,7 +93,7 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
     <>
       <Dialog open={open} onOpenChange={(openState) => { if (!openState) handleClose(); }}>
         <DialogContent
-          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-hidden"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -140,7 +140,7 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
 
           {/* Step 1: Line Picker */}
           {step === 1 && showLinePicker && (
-            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 py-2">
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 py-2 pb-6">
               {lines.map((line, index) => (
                 <button
                   key={line.id}
