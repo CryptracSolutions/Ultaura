@@ -17,7 +17,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const INSIGHTS_ALG = 'aes-256-gcm';
 const IV_LENGTH = 12;
@@ -165,11 +165,11 @@ function seedFromString(input: string): () => number {
   };
 }
 
-function pick<T>(rng: () => number, items: T[]): T {
+function pick<T>(rng: () => number, items: readonly T[]): T {
   return items[Math.floor(rng() * items.length)];
 }
 
-function pickMany<T>(rng: () => number, items: T[], count: number): T[] {
+function pickMany<T>(rng: () => number, items: readonly T[], count: number): T[] {
   const pool = [...items];
   const result: T[] = [];
   while (pool.length > 0 && result.length < count) {
@@ -254,7 +254,7 @@ function buildSyntheticInsights(rng: () => number) {
 }
 
 async function getOrCreateAccountDEK(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, 'public', any>,
   accountId: string
 ): Promise<Buffer> {
   const { data: existing, error } = await supabase
@@ -268,9 +268,9 @@ async function getOrCreateAccountDEK(
   }
 
   if (existing) {
-    const wrapped = decodeBytea(existing.dek_wrapped);
-    const iv = decodeBytea(existing.dek_wrap_iv);
-    const tag = decodeBytea(existing.dek_wrap_tag);
+    const wrapped = decodeBytea(existing.dek_wrapped as ByteaInput);
+    const iv = decodeBytea(existing.dek_wrap_iv as ByteaInput);
+    const tag = decodeBytea(existing.dek_wrap_tag as ByteaInput);
     if (!wrapped || !iv || !tag) {
       throw new Error('Failed to decode account DEK payloads');
     }
