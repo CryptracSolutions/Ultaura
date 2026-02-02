@@ -230,16 +230,16 @@ const MobileAppNavigation = () => {
 
             {/* Support Section */}
             <MenuSection label="Support">
+              <MenuButton
+                Icon={LifebuoyIcon}
+                label="Help"
+                onClick={handleHelpClick}
+              />
               <MenuLink
                 Icon={QuestionMarkCircleIcon}
                 path="/docs"
                 label="Documentation"
                 onClick={closeMenu}
-              />
-              <MenuButton
-                Icon={LifebuoyIcon}
-                label="Help"
-                onClick={handleHelpClick}
               />
               <MenuButton
                 Icon={ChatBubbleLeftIcon}

@@ -124,8 +124,7 @@ export function CreateReminderForm({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pb-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
           {/* Message */}
           <div>
             <label
@@ -297,9 +296,7 @@ export function CreateReminderForm({
             )}
           </div>
 
-        </div>
-
-        <div className="flex gap-3 pt-4 flex-shrink-0">
+        <div className="flex gap-3 pt-4">
           <button
             type="button"
             onClick={onCancel}

@@ -30,6 +30,18 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   const scrollingDiv = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Lock body scroll on mobile when open
+  useEffect(() => {
+    if (isOpen && window.innerWidth < 1024) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   const {
     messages,
     input,
@@ -91,7 +103,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   return (
     <div
       className={classNames(
-        'fixed top-0 right-0 h-full w-full lg:w-[350px] bg-sidebar border-l border-border shadow-xl z-50',
+        'fixed top-0 right-0 h-screen h-[100dvh] w-full lg:w-[350px] bg-sidebar border-l border-border shadow-xl z-50 overflow-hidden',
         'transform transition-transform duration-300 ease-in-out',
         {
           'translate-x-0': isOpen,
@@ -121,7 +133,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
         {/* Messages */}
         <div
           ref={scrollingDiv}
-          className="flex-1 overflow-y-auto p-4 space-y-4 bg-card"
+          className="flex-1 overflow-y-auto p-4 space-y-4 bg-card overscroll-contain"
           style={{
             backgroundImage:
               'linear-gradient(180deg, rgba(10, 186, 181, 0.18) 0%, rgba(10, 186, 181, 0) 85%)',
