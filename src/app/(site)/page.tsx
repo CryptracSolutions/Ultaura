@@ -27,13 +27,13 @@ function Home() {
     <div className={'flex flex-col space-y-[0.055rem]'}>
       {/* Hero Section */}
       <Container>
-        <div className="relative my-12 lg:my-20">
+        <div className="relative my-6 lg:my-10">
           <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
-          <div className="relative grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-            <div className="flex flex-col space-y-6">
+          <div className="relative grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+            <div className="flex flex-col space-y-4">
               <Pill>
                 <span>
                   AI-powered <span className="text-primary">companionship</span>{' '}
@@ -205,10 +205,10 @@ function Home() {
       <Testimonials />
 
       {/* Pricing Section */}
-      <section className="bg-surface-accent py-16">
+      <section className="bg-surface-accent py-8">
         <Container>
-          <div className="flex flex-col items-center justify-center space-y-16">
-            <div className="flex flex-col items-center space-y-8 text-center">
+          <div className="flex flex-col items-center justify-center space-y-8">
+            <div className="flex flex-col items-center space-y-4 text-center">
               <Pill>Simple, transparent pricing</Pill>
 
               <div className="flex flex-col space-y-2.5">
@@ -228,13 +228,13 @@ function Home() {
       </section>
 
       {/* FAQ Section */}
-      <section className="bg-surface-subtle py-16">
+      <section className="bg-surface-subtle pt-20 pb-8">
         <Container>
-          <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="flex flex-col justify-between gap-8">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="flex flex-col justify-between gap-6">
               <div className="space-y-4">
                 <Pill>Support that feels human</Pill>
-                <Heading type={2}>Frequently asked questions</Heading>
+                <Heading type={2}>Frequently asked <span className="text-primary">questions</span></Heading>
                 <SubHeading className="max-w-md">
                   Quick answers about setup, privacy, and how Ultaura keeps
                   conversations respectful.
@@ -388,10 +388,10 @@ function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className="relative bg-surface-accent py-16 overflow-hidden">
+      <section className="relative bg-surface-accent py-8 overflow-hidden">
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
         <Container>
-          <div className="relative flex flex-col items-center text-center space-y-6">
+          <div className="relative flex flex-col items-center text-center space-y-4">
             <Heading type={2}>Give the gift of conversation</Heading>
             <SubHeading className="max-w-xl">
               Start your 3-day free trial today and give your loved one a companion

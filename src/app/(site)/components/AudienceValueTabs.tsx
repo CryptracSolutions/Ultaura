@@ -115,11 +115,11 @@ export function AudienceValueTabs() {
   );
 
   return (
-    <section className="py-24">
+    <section className="py-12">
       <Container>
-        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 py-16 lg:px-12">
+        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 py-10 lg:px-12">
           <div className="relative">
-            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-4 text-center">
+            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-3 text-center">
               <Pill>
                 Peace of mind for familes, companionship for seniors, and
                 support for caregivers
@@ -132,7 +132,7 @@ export function AudienceValueTabs() {
               </SubHeading>
             </div>
 
-            <div className="mx-auto mt-10 flex max-w-4xl flex-wrap items-center justify-center gap-3">
+            <div className="mx-auto mt-6 flex max-w-4xl flex-wrap items-center justify-center gap-3">
               {ALWAYS_INCLUDED.map((item) => (
                 <div
                   key={item}
@@ -144,7 +144,7 @@ export function AudienceValueTabs() {
               ))}
             </div>
 
-            <div className="mx-auto mt-10 w-full max-w-[28rem]">
+            <div className="mx-auto mt-6 w-full max-w-[28rem]">
               <div
                 role="tablist"
                 aria-label="Choose audience"
@@ -185,7 +185,7 @@ export function AudienceValueTabs() {
               role="tabpanel"
               id={`audience-panel-${active}`}
               aria-labelledby={`audience-tab-${active}`}
-              className="mx-auto mt-10 w-full max-w-6xl"
+              className="mx-auto mt-6 w-full max-w-6xl"
             >
               <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                 <CardShell>
@@ -372,7 +372,7 @@ export function AudienceValueTabs() {
               </div>
             </div>
 
-            <div className="mx-auto mt-10 w-full max-w-6xl rounded-2xl border border-border/60 bg-sidebar p-5 shadow-xl">
+            <div className="mx-auto mt-6 w-full max-w-6xl rounded-2xl border border-border/60 bg-sidebar p-5 shadow-xl">
               <div className="grid place-items-center gap-3 text-center text-sm text-muted-foreground md:grid-cols-3">
                 {PROMISES.map((item) => (
                   <div key={item} className="flex items-center justify-center gap-2">

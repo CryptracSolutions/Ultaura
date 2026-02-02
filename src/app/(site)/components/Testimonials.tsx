@@ -126,9 +126,9 @@ export function Testimonials() {
   }, [pageIndex]);
 
   return (
-    <section className="py-24">
+    <section className="py-12">
       <Container>
-        <div className="relative flex flex-col items-center space-y-12">
+        <div className="relative flex flex-col items-center space-y-6">
           <div className="w-full max-w-6xl space-y-4 text-right">
             <Heading type={2}>
               Loved by <span className="text-primary">families</span>
@@ -143,7 +143,7 @@ export function Testimonials() {
               <div
                 key={index}
                 className={
-                  'group flex h-full flex-col space-y-6 rounded-2xl border border-border/60' +
+                  'group flex h-full flex-col space-y-4 rounded-2xl border border-border/60' +
                   ' bg-sidebar p-8 shadow-xl'
                 }
               >

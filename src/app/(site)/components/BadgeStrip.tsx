@@ -47,7 +47,7 @@ export function BadgeStrip() {
   }, []);
 
   return (
-    <section className="py-12 overflow-hidden relative isolate bg-background" style={{ zIndex: 10 }}>
+    <section className="py-6 overflow-hidden relative isolate bg-background" style={{ zIndex: 10 }}>
       <style jsx>{`
         @keyframes marquee {
           0% {
@@ -81,7 +81,7 @@ export function BadgeStrip() {
             <div
               key={`group-${groupIndex}`}
               ref={groupIndex === 0 ? groupRef : undefined}
-              className="flex shrink-0 items-center gap-20 pr-20"
+              className="flex shrink-0 items-center gap-12 pr-12"
               aria-hidden={groupIndex !== 0}
             >
               {badges.map((badge, index) => (

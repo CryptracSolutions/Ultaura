@@ -49,10 +49,10 @@ const TRUST_POINTS = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="bg-surface-subtle py-24">
+    <section id="how-it-works" className="bg-surface-subtle py-12">
       <Container>
-        <div className="relative grid gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
-          <div className="flex flex-col space-y-6">
+        <div className="relative grid gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
+          <div className="flex flex-col space-y-4">
             <div className="space-y-4">
               <div className="inline-flex w-fit items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
                 Fast setup. Real connection.

@@ -258,23 +258,6 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
         </div>
       </div>
 
-      {/* FAQ Preview */}
-      <div className="mt-16 max-w-3xl mx-auto text-center">
-        <h2 className="text-2xl font-semibold text-foreground mb-4">
-          Questions?
-        </h2>
-        <p className="text-muted-foreground mb-6">
-          Our team is here to help you find the right plan for your family.
-          Call us or email support@ultaura.com
-        </p>
-        <a
-          href="/contact"
-          className="inline-flex items-center gap-2 text-primary hover:underline font-medium"
-        >
-          Contact Us
-          <span aria-hidden="true">→</span>
-        </a>
-      </div>
     </div>
   );
 }
