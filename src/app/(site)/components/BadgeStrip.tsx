@@ -3,12 +3,12 @@
 import Image from 'next/image';
 
 const badges = [
-  { src: '/badges/1-hipaa-compliant.png', alt: 'HIPAA Compliant', height: 120 },
-  { src: '/badges/2-soc2-compliant.png', alt: 'SOC 2 Compliant', height: 120 },
-  { src: '/badges/3-aarp-logo.png', alt: 'AARP', height: 80 },
-  { src: '/badges/4-ncoa-logo.png', alt: 'National Council on Aging', height: 80 },
+  { src: '/badges/1-hipaa-compliant.png', alt: 'HIPAA Compliant', height: 144 },
   { src: '/badges/5-age-friendly-badge.png', alt: 'Age Friendly', height: 120 },
+  { src: '/badges/3-aarp-logo.png', alt: 'AARP', height: 96 },
   { src: '/badges/6-certified-provider.png', alt: 'Certified Provider', height: 120 },
+  { src: '/badges/4-ncoa-logo.png', alt: 'National Council on Aging', height: 96 },
+  { src: '/badges/2-soc2-compliant.png', alt: 'SOC 2 Compliant', height: 120 },
 ];
 
 export function BadgeStrip() {
@@ -46,7 +46,7 @@ export function BadgeStrip() {
               height={badge.height}
               sizes="100vw"
               quality={100}
-              className="w-auto hover:scale-105 transition-transform duration-300"
+              className="w-auto"
               style={{ height: badge.height }}
             />
           ))}
@@ -62,7 +62,7 @@ export function BadgeStrip() {
               height={badge.height}
               sizes="100vw"
               quality={100}
-              className="w-auto hover:scale-105 transition-transform duration-300"
+              className="w-auto"
               style={{ height: badge.height }}
             />
           ))}
