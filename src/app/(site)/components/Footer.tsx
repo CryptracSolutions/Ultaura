@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PlayCircleIcon } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
 import Logo from '~/core/ui/Logo';
@@ -9,6 +10,22 @@ function Footer() {
   return (
     <footer className={'py-8 lg:py-24 border-t border-border'}>
       <Container>
+        <div className="mb-8 flex flex-col items-center justify-center gap-4 border-b border-border pb-8 text-center sm:flex-row sm:gap-6">
+          <Link
+            href="/demo"
+            className="inline-flex min-h-[44px] items-center gap-2 text-sm font-medium text-primary hover:underline"
+          >
+            <PlayCircleIcon className="h-4 w-4" />
+            Hear a sample call →
+          </Link>
+          <span className="text-muted-foreground">|</span>
+          <Link
+            href="/onboarding?type=family"
+            className="inline-flex min-h-[44px] items-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            Setting up for a parent? Start here →
+          </Link>
+        </div>
         <div className={'flex flex-col space-y-8 lg:flex-row lg:space-y-0'}>
           <div
             className={

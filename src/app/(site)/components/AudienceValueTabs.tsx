@@ -121,7 +121,7 @@ export function AudienceValueTabs() {
           <div className="relative">
             <div className="mx-auto flex max-w-3xl flex-col items-center space-y-3 text-center">
               <Pill>
-                Peace of mind for familes, companionship for seniors, and
+                Peace of mind for families, companionship for seniors, and
                 support for caregivers
               </Pill>
               <Heading type={2}>
@@ -162,12 +162,19 @@ export function AudienceValueTabs() {
                       id={`audience-tab-${audience.id}`}
                       onClick={() => setActive(audience.id)}
                       className={classNames(
-                        'rounded-xl px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'hover:bg-primary/5',
                         selected
                           ? 'text-primary'
                           : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
+                      <audience.icon
+                        className={classNames(
+                          'h-5 w-5 transition-transform',
+                          selected && 'scale-110',
+                        )}
+                      />
                       {audience.label}
                     </button>
                   );
@@ -388,4 +395,3 @@ export function AudienceValueTabs() {
     </section>
   );
 }
-

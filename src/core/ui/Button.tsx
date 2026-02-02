@@ -11,7 +11,7 @@ import Spinner from '~/core/ui/Spinner';
 type Size = 'default' | 'small' | 'large' | 'custom' | 'sm' | 'lg';
 
 const large = `[&>*]:py-2.5 [&>*]:px-6 h-14 text-lg`;
-const small = `[&>*]:py-2 [&>*]:px-3 text-xs`;
+const small = `min-h-[44px] min-w-[44px] [&>*]:py-2 [&>*]:px-3 text-xs`;
 
 const buttonVariants = cva(
   `inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors
@@ -36,12 +36,12 @@ const buttonVariants = cva(
         custom: '',
       },
       size: {
-        default: `text-sm h-10 [&>*]:py-2 [&>*]:px-4`,
+        default: `text-sm h-[44px] min-w-[44px] [&>*]:py-2 [&>*]:px-4`,
         small,
         sm: small,
         large,
         lg: large,
-        icon: 'h-10 w-10',
+        icon: 'h-[44px] w-[44px]',
         custom: ``,
       },
     },

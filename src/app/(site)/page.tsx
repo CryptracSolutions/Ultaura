@@ -3,6 +3,7 @@ import {
   MicrophoneIcon,
   PlayCircleIcon,
 } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
@@ -15,12 +16,20 @@ import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
+import { BeforeAfterTimeline } from '~/app/(site)/components/BeforeAfterTimeline';
+import { ReassuranceChecklist } from '~/app/(site)/components/ReassuranceChecklist';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '~/core/ui/Accordion';
+import { VOICE_DEMO } from '~/lib/ultaura/constants';
+
+const VOICE_CHIPS = (['Ara', 'Rex', 'Sal', 'Eve', 'Leo'] as const).map((name) => ({
+  name,
+  trait: VOICE_DEMO.VOICE_INFO[name].traits[0],
+}));
 
 function Home() {
   return (
@@ -35,27 +44,24 @@ function Home() {
           <div className="relative grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
             <div className="flex flex-col space-y-4">
               <Pill>
-                <span>
-                  AI-powered <span className="text-primary">companionship</span>{' '}
-                  for your loved ones
-                </span>
+                <span>Built for families and caregivers</span>
               </Pill>
 
               <h1 className="text-4xl font-heading font-medium text-foreground md:text-5xl xl:text-6xl 2xl:text-7xl">
                 <span className="block leading-[1.1]">
-                  <span className="text-primary">Companionship</span>
+                  Warm, reassuring
                 </span>
-                <span className="block leading-[1.1]">for your</span>
+                <span className="block leading-[1.1]">
+                  <span className="text-primary">phone calls</span> for seniors
+                </span>
                 <span className="block leading-[1.1] text-transparent bg-gradient-to-br bg-clip-text from-primary to-primary/70">
-                  loved ones
+                  — every day
                 </span>
               </h1>
 
               <SubHeading className={'max-w-2xl'}>
-                <span>Peace of mind for caregivers.</span>
-                <span>
-                  Warm, natural phone calls to your parent or grandparent — no app required
-                </span>
+                An AI companion that checks in by phone, remembers what matters,
+                and keeps families informed — no apps required.
               </SubHeading>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -72,6 +78,25 @@ function Home() {
                     Try the voices
                   </span>
                 </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <span>I&apos;m setting this up</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href="/onboarding?type=self"
+                    className="inline-flex min-h-[44px] items-center underline underline-offset-4 hover:text-foreground"
+                  >
+                    for myself
+                  </Link>
+                  <span>or</span>
+                  <Link
+                    href="/onboarding?type=family"
+                    className="inline-flex min-h-[44px] items-center underline underline-offset-4 hover:text-foreground"
+                  >
+                    for someone I care for
+                  </Link>
+                </div>
               </div>
 
               <span className={'text-xs text-muted-foreground'}>
@@ -99,6 +124,9 @@ function Home() {
             </div>
 
             <div className="relative">
+              <span className="absolute -top-6 left-0 text-xs text-muted-foreground">
+                Example caregiver view
+              </span>
               <div className="rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="uppercase tracking-[0.18em]">Live call</span>
@@ -139,17 +167,20 @@ function Home() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    {['Ara', 'Rex', 'Sal', 'Eve', 'Leo'].map((chip) => (
+                    {VOICE_CHIPS.map((chip) => (
                       <span
-                        key={chip}
+                        key={chip.name}
                         className={
                           'rounded-full border border-border bg-background px-3 py-1' +
-                          (chip === 'Ara'
+                          (chip.name === 'Ara'
                             ? ' border-primary/40 bg-primary/10 text-primary'
                             : '')
                         }
                       >
-                        {chip}
+                        {chip.name}
+                        <span className="ml-1 text-[10px] text-muted-foreground">
+                          · {chip.trait}
+                        </span>
                       </span>
                     ))}
                   </div>
@@ -197,10 +228,14 @@ function Home() {
 
       <BadgeStrip />
 
+      <BeforeAfterTimeline />
+
       <AudienceValueTabs />
 
       {/* How It Works */}
       <HowItWorks />
+
+      <ReassuranceChecklist />
 
       <Testimonials />
 

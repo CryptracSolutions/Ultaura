@@ -161,7 +161,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
               key={planId}
               className={`relative flex flex-col rounded-xl border bg-card p-6 transition-all ${
                 isPopular && !isCurrent
-                  ? 'border-primary shadow-xl shadow-primary/20 ring-1 ring-primary lg:scale-105 z-10'
+                  ? 'border-primary shadow-2xl shadow-primary/30 ring-2 ring-primary lg:scale-110 z-10 bg-primary/5'
                   : isCurrent
                   ? 'border-2 border-primary bg-primary/5'
                   : 'border-border hover:border-primary/50 hover:shadow-md cursor-pointer'
@@ -169,8 +169,8 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
             >
               {isPopular && !isCurrent && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground">
-                    Most Popular
+                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-primary-foreground shadow-lg">
+                    ★ Most Popular
                   </span>
                 </div>
               )}

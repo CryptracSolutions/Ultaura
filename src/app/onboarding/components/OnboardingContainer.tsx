@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSearchParams } from 'next/navigation';
 
 import If from '~/core/ui/If';
 import CsrfTokenContext from '~/lib/contexts/csrf';
@@ -71,6 +72,7 @@ function OnboardingContainer(
     csrfToken: string | null;
   }>,
 ) {
+  const searchParams = useSearchParams();
   const [isCompleting, setIsCompleting] = useState(false);
   const form = useForm({
     defaultValues: {
@@ -198,6 +200,29 @@ function OnboardingContainer(
     // Default to showing SELF_USER_STEPS as preview before user selects type
     return SELF_USER_STEPS;
   }, [userType]);
+
+  useEffect(() => {
+    if (!searchParams) {
+      return;
+    }
+
+    const param = searchParams.get('type');
+    const currentUserType = form.getValues('data.userType');
+    const currentStep = form.getValues('currentStep');
+
+    if (!param || currentUserType || currentStep !== 0) {
+      return;
+    }
+
+    const mappedType: UserType | null =
+      param === 'self' ? 'self' : param === 'family' ? 'family_managed' : null;
+
+    if (!mappedType) {
+      return;
+    }
+
+    onUserTypeSubmitted({ userType: mappedType });
+  }, [form, onUserTypeSubmitted, searchParams]);
 
   useEffect(() => {
     if (currentStep >= steps.length) {

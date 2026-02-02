@@ -2,14 +2,45 @@
 
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 const badges = [
-  { src: '/badges/1-hipaa-compliant.png', alt: 'HIPAA Compliant', height: 90 },
-  { src: '/badges/5-age-friendly-badge.png', alt: 'Age Friendly', height: 76 },
-  { src: '/badges/3-aarp-logo.png', alt: 'AARP', height: 83 },
-  { src: '/badges/6-certified-provider.png', alt: 'Certified Provider', height: 76 },
-  { src: '/badges/4-ncoa-logo.png', alt: 'National Council on Aging', height: 83 },
-  { src: '/badges/2-soc2-compliant.png', alt: 'SOC 2 Compliant', height: 99 },
+  {
+    src: '/badges/1-hipaa-compliant.png',
+    alt: 'HIPAA Compliant',
+    height: 90,
+    tooltip: 'We follow strict healthcare privacy standards.',
+  },
+  {
+    src: '/badges/5-age-friendly-badge.png',
+    alt: 'Age Friendly',
+    height: 76,
+    tooltip: 'Designed specifically for seniors.',
+  },
+  {
+    src: '/badges/3-aarp-logo.png',
+    alt: 'AARP',
+    height: 83,
+    tooltip: 'Recognized by AARP.',
+  },
+  {
+    src: '/badges/6-certified-provider.png',
+    alt: 'Certified Provider',
+    height: 76,
+    tooltip: 'Certified senior care provider.',
+  },
+  {
+    src: '/badges/4-ncoa-logo.png',
+    alt: 'National Council on Aging',
+    height: 83,
+    tooltip: 'Partner of NCOA.',
+  },
+  {
+    src: '/badges/2-soc2-compliant.png',
+    alt: 'SOC 2 Compliant',
+    height: 99,
+    tooltip: 'Enterprise-grade security.',
+  },
 ];
 
 export function BadgeStrip() {
@@ -85,21 +116,27 @@ export function BadgeStrip() {
               aria-hidden={groupIndex !== 0}
             >
               {badges.map((badge, index) => (
-                <img
-                  key={`${groupIndex}-${index}`}
-                  src={badge.src}
-                  alt={badge.alt}
-                  height={badge.height}
-                  className="w-auto"
-                  style={{
-                    height: badge.height,
-                    filter: 'none',
-                    transform: 'translateZ(0)',
-                    imageRendering: '-webkit-optimize-contrast',
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden',
-                  }}
-                />
+                <Tooltip key={`${groupIndex}-${index}`}>
+                  <TooltipTrigger asChild>
+                    <img
+                      src={badge.src}
+                      alt={badge.alt}
+                      title={badge.tooltip}
+                      height={badge.height}
+                      tabIndex={0}
+                      className="w-auto"
+                      style={{
+                        height: badge.height,
+                        filter: 'none',
+                        transform: 'translateZ(0)',
+                        imageRendering: '-webkit-optimize-contrast',
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                      }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{badge.tooltip}</TooltipContent>
+                </Tooltip>
               ))}
             </div>
           ))}

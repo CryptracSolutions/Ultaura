@@ -18,7 +18,12 @@ async function SiteLayout(props: React.PropsWithChildren) {
       <SiteHeaderSessionProvider data={session} />
 
       <div className="overflow-x-hidden">
-        {props.children}
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
+        <main id="main-content">
+          {props.children}
+        </main>
 
         <Footer />
       </div>
