@@ -8,18 +8,21 @@ const Logo: React.FCC<{
   label?: string;
   showWordmark?: boolean;
   wordmarkClassName?: string;
+  onClick?: () => void;
 }> = ({
   href,
   label,
   className,
   showWordmark = false,
   wordmarkClassName,
+  onClick,
 }) => {
   return (
     <Link
       aria-label={label ?? 'Home Page'}
       href={href ?? '/'}
       className={'inline-flex items-center gap-2'}
+      onClick={onClick}
     >
       <LogoImage className={className} />
 

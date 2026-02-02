@@ -122,6 +122,7 @@ function MobileMenu() {
               label="Home"
               showWordmark
               wordmarkClassName="text-2xl font-semibold leading-none text-primary"
+              onClick={closeMenu}
             />
             <button
               onClick={closeMenu}
