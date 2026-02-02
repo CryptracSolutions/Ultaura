@@ -111,7 +111,7 @@ module.exports = {
         },
         marquee: {
           '0%': { transform: 'translateX(0)' },
-          '100%': { transform: 'translateX(-50%)' },
+          '100%': { transform: 'translateX(-100%)' },
         },
         'fade-in-up': {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
@@ -125,7 +125,7 @@ module.exports = {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        marquee: 'marquee 30s linear infinite',
+        marquee: 'marquee 40s linear infinite',
         'fade-in-up': 'fade-in-up 0.3s ease-out',
         'fade-in': 'fade-in 0.3s ease-out',
       },
