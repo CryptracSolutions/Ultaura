@@ -24,7 +24,7 @@ import {
 
 function Home() {
   return (
-    <div className={'flex flex-col space-y-[0.22rem]'}>
+    <div className={'flex flex-col space-y-[0.055rem]'}>
       {/* Hero Section */}
       <Container>
         <div className="relative my-12 lg:my-20">
