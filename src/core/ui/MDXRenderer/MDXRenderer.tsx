@@ -1,4 +1,4 @@
-import { getMDXComponent } from 'next-contentlayer/hooks';
+import { getMDXComponent } from 'next-contentlayer2/hooks';
 import type { MDXComponents } from 'mdx/types';
 import styles from './MDXRenderer.module.css';
 import Components from './MDXComponents';
