@@ -67,7 +67,7 @@ export const HookScene: React.FC = () => {
   );
 
   return (
-    <SceneLayout background={<GradientBackground variant="aurora" />}>
+    <SceneLayout background={<GradientBackground variant="aurora" showParticles={false} />}>
       <ContentArea>
         {/* Ringing phone icon */}
         <div
@@ -137,29 +137,16 @@ export const HookScene: React.FC = () => {
       </ContentArea>
 
       <TextArea>
-        <Sequence from={45} layout="none">
+        <Sequence from={35} layout="none">
           <AnimatedText
-            text="What if your loved one"
+            text="A daily voice companion for seniors."
             style={{
-              fontSize: 46,
-              fontWeight: 600,
+              fontSize: 40,
+              fontWeight: 700,
+              color: theme.colors.textPrimary,
               lineHeight: 1.3,
             }}
             animationType="wordReveal"
-          />
-        </Sequence>
-        <Sequence from={75} layout="none">
-          <AnimatedText
-            text="never felt alone?"
-            style={{
-              fontSize: 46,
-              fontWeight: 700,
-              color: theme.colors.primary,
-              lineHeight: 1.3,
-              marginTop: 10,
-            }}
-            animationType="glowReveal"
-            highlightWord="alone"
           />
         </Sequence>
       </TextArea>

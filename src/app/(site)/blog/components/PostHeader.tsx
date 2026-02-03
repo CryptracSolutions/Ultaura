@@ -1,4 +1,4 @@
-import type { Post } from 'contentlayer/generated';
+import type { posts } from '@/.velite';
 
 import If from '~/core/ui/If';
 import SubHeading from '~/core/ui/SubHeading';
@@ -52,3 +52,5 @@ const PostHeader: React.FC<{
 };
 
 export default PostHeader;
+
+type Post = (typeof posts)[number];

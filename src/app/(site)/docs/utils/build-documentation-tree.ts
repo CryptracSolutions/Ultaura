@@ -1,9 +1,9 @@
-import type { DocumentationPage } from 'contentlayer/generated';
+import type { documentationPages } from '@/.velite';
 import { cache } from 'react';
 
 export interface ProcessedDocumentationPage extends DocumentationPage {
   collapsible: boolean;
-  pathSegments: Array<string>;
+  pathSegments: DocumentationPage['pathSegments'];
   nextPage: ProcessedDocumentationPage | DocumentationPage | null;
   previousPage: ProcessedDocumentationPage | DocumentationPage | null;
   children: DocsTree;
@@ -41,7 +41,8 @@ export const buildDocumentationTree = cache(
 
       return {
         ...doc,
-        pathSegments: doc.pathSegments || ([] as string[]),
+        pathSegments:
+          doc.pathSegments || ([] as DocumentationPage['pathSegments']),
         collapsible: children.length > 0,
         nextPage: children[0] || pages[index + 1],
         previousPage: pages[index - 1],
@@ -50,3 +51,5 @@ export const buildDocumentationTree = cache(
     });
   },
 );
+
+type DocumentationPage = (typeof documentationPages)[number];

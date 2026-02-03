@@ -1,4 +1,4 @@
-import { allDocumentationPages } from 'contentlayer/generated';
+import { documentationPages } from '@/.velite';
 
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
@@ -14,7 +14,7 @@ export const metadata = {
 };
 
 function DocsPage() {
-  const tree = buildDocumentationTree(allDocumentationPages);
+  const tree = buildDocumentationTree(documentationPages);
 
   return (
     <div className={'flex flex-col space-y-16 my-8'}>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Post as PostType } from 'contentlayer/generated';
+import type { posts } from '@/.velite';
 
 import PostHeader from './PostHeader';
 import MDXRenderer from '~/core/ui/MDXRenderer/MDXRenderer';
@@ -20,3 +20,5 @@ const Post: React.FCC<{
 };
 
 export default Post;
+
+type PostType = (typeof posts)[number];

@@ -1,7 +1,4 @@
-import {
-  allDocumentationPages,
-  DocumentationPage,
-} from 'contentlayer/generated';
+import { documentationPages } from '@/.velite';
 
 import DocsNavigation from './components/DocsNavigation';
 import Container from '~/core/ui/Container';
@@ -10,7 +7,7 @@ import { buildDocumentationTree } from './utils/build-documentation-tree';
 
 function DocsLayout({ children }: React.PropsWithChildren) {
   const tree = buildDocumentationTree(
-    allDocumentationPages as DocumentationPage[],
+    documentationPages as DocumentationPage[],
   );
 
   return (
@@ -29,3 +26,5 @@ function DocsLayout({ children }: React.PropsWithChildren) {
 }
 
 export default DocsLayout;
+
+type DocumentationPage = (typeof documentationPages)[number];

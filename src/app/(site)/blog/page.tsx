@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { allPosts } from 'contentlayer/generated';
+import { posts } from '@/.velite';
 
 import BlogList from '~/app/(site)/blog/components/BlogList';
 import Container from '~/core/ui/Container';
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 async function BlogPage() {
-  const livePosts = allPosts.filter((post) => {
+  const livePosts = posts.filter((post) => {
     const isProduction = configuration.production;
     return isProduction ? true : post.live;
   });

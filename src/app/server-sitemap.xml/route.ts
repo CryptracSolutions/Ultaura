@@ -1,5 +1,5 @@
 import { getServerSideSitemap } from 'next-sitemap';
-import { allPosts, allDocumentationPages } from 'contentlayer/generated';
+import { posts, documentationPages } from '@/.velite';
 import configuration from '~/configuration';
 
 const siteUrl = configuration.site.siteUrl as string;
@@ -28,7 +28,7 @@ function getSiteUrls() {
 }
 
 function getPostsSitemap() {
-  return allPosts.map((post) => {
+  return posts.map((post) => {
     return {
       loc: new URL(post.url, siteUrl).href,
       lastmod: new Date().toISOString(),
@@ -37,7 +37,7 @@ function getPostsSitemap() {
 }
 
 function getDocsSitemap() {
-  return allDocumentationPages.map((page) => {
+  return documentationPages.map((page) => {
     return {
       loc: new URL(page.url, siteUrl).href,
       lastmod: new Date().toISOString(),

@@ -5,7 +5,6 @@ packages:
   - 'packages/*'
   - 'telephony'
 onlyBuiltDependencies:
-  - contentlayer
   - cypress
   - esbuild
   - protobufjs

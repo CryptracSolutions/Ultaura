@@ -121,14 +121,14 @@ export const CTAScene: React.FC = () => {
           </div>
         </Sequence>
 
-        {/* Urgency text */}
+        {/* Trial highlight */}
         <Sequence from={35} layout="none">
           <div
             style={{
               fontFamily: theme.fonts.body,
               fontSize: 18,
               fontWeight: 600,
-              color: theme.colors.warning,
+              color: theme.colors.primary,
               opacity: interpolate(frame - 35, [0, 15], [0, 1], {
                 extrapolateRight: "clamp",
               }),
@@ -137,8 +137,7 @@ export const CTAScene: React.FC = () => {
               gap: 8,
             }}
           >
-            <span style={{ fontSize: 20 }}>⚡</span>
-            Limited Time: 3-Day Free Trial
+            Free 3 day trial
           </div>
         </Sequence>
 
@@ -205,7 +204,7 @@ export const CTAScene: React.FC = () => {
                   zIndex: 1,
                 }}
               >
-                Start Free Trial
+                Free 3 day trial
               </div>
             </div>
 

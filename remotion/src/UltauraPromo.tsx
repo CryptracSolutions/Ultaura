@@ -13,11 +13,11 @@ import { wipe } from "@remotion/transitions/wipe";
 import { theme, easings, TRANSITION_DURATION_FRAMES } from "./theme";
 import {
   HookScene,
-  VoiceSelectionScene,
+  SeniorViewScene,
   RemindersScene,
-  ScheduleScene,
-  InsightsSafetyScene,
-  CallsScene,
+  FamilyDashboardScene,
+  InsightsScene,
+  PeaceOfMindScene,
   CTAScene,
 } from "./scenes";
 
@@ -66,7 +66,7 @@ export const UltauraPromo: React.FC = () => {
           <HookScene />
         </TransitionSeries.Sequence>
 
-        {/* Transition: Hook -> VoiceSelection (slide from bottom) */}
+        {/* Transition: Hook -> Senior View (slide from bottom) */}
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-bottom" })}
           timing={linearTiming({
@@ -75,12 +75,12 @@ export const UltauraPromo: React.FC = () => {
           })}
         />
 
-        {/* Scene 2: Voice Selection */}
-        <TransitionSeries.Sequence durationInFrames={sections.voiceSelection.duration}>
-          <VoiceSelectionScene />
+        {/* Scene 2: Senior View */}
+        <TransitionSeries.Sequence durationInFrames={sections.seniorView.duration}>
+          <SeniorViewScene />
         </TransitionSeries.Sequence>
 
-        {/* Transition: VoiceSelection -> Reminders (wipe from left) */}
+        {/* Transition: Senior View -> Reminders (wipe from left) */}
         <TransitionSeries.Transition
           presentation={wipe({ direction: "from-left" })}
           timing={linearTiming({
@@ -94,7 +94,7 @@ export const UltauraPromo: React.FC = () => {
           <RemindersScene />
         </TransitionSeries.Sequence>
 
-        {/* Transition: Reminders -> Schedule (fade) */}
+        {/* Transition: Reminders -> Family Dashboard (fade) */}
         <TransitionSeries.Transition
           presentation={fade()}
           timing={linearTiming({
@@ -103,12 +103,12 @@ export const UltauraPromo: React.FC = () => {
           })}
         />
 
-        {/* Scene 4: Schedule */}
-        <TransitionSeries.Sequence durationInFrames={sections.schedule.duration}>
-          <ScheduleScene />
+        {/* Scene 4: Family Dashboard */}
+        <TransitionSeries.Sequence durationInFrames={sections.familyView.duration}>
+          <FamilyDashboardScene />
         </TransitionSeries.Sequence>
 
-        {/* Transition: Schedule -> InsightsSafety (slide from right) */}
+        {/* Transition: Family Dashboard -> Insights (slide from right) */}
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-right" })}
           timing={linearTiming({
@@ -117,12 +117,12 @@ export const UltauraPromo: React.FC = () => {
           })}
         />
 
-        {/* Scene 5: Insights + Safety */}
-        <TransitionSeries.Sequence durationInFrames={sections.insightsSafety.duration}>
-          <InsightsSafetyScene />
+        {/* Scene 5: Insights */}
+        <TransitionSeries.Sequence durationInFrames={sections.insights.duration}>
+          <InsightsScene />
         </TransitionSeries.Sequence>
 
-        {/* Transition: InsightsSafety -> Calls (slide from top) */}
+        {/* Transition: Insights -> Peace of Mind (slide from top) */}
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-top" })}
           timing={linearTiming({
@@ -131,12 +131,12 @@ export const UltauraPromo: React.FC = () => {
           })}
         />
 
-        {/* Scene 6: Calls */}
-        <TransitionSeries.Sequence durationInFrames={sections.calls.duration}>
-          <CallsScene />
+        {/* Scene 6: Peace of Mind */}
+        <TransitionSeries.Sequence durationInFrames={sections.peace.duration}>
+          <PeaceOfMindScene />
         </TransitionSeries.Sequence>
 
-        {/* Transition: Calls -> CTA (premium fade) */}
+        {/* Transition: Peace of Mind -> CTA (premium fade) */}
         <TransitionSeries.Transition
           presentation={fade()}
           timing={linearTiming({

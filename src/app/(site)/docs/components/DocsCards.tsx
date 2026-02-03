@@ -1,4 +1,4 @@
-import type { DocumentationPage } from 'contentlayer/generated';
+import type { documentationPages } from '@/.velite';
 import DocsCard from './DocsCard';
 
 function DocsCards({ pages }: { pages: DocumentationPage[] }) {
@@ -22,3 +22,5 @@ function DocsCards({ pages }: { pages: DocumentationPage[] }) {
 }
 
 export default DocsCards;
+
+type DocumentationPage = (typeof documentationPages)[number];

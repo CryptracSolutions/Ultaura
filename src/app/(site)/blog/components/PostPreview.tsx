@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Post } from 'contentlayer/generated';
+import type { posts } from '@/.velite';
 
 import If from '~/core/ui/If';
 
@@ -68,3 +68,5 @@ function PostPreview({
 }
 
 export default PostPreview;
+
+type Post = (typeof posts)[number];

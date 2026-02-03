@@ -1,5 +1,4 @@
 const withAnalyzer = require('@next/bundle-analyzer');
-const { withContentlayer } = require('next-contentlayer');
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,11 +11,33 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['sharp', 'onnxruntime-node'],
   },
+  webpack: (config) => {
+    config.plugins.push(new VeliteWebpackPlugin());
+    return config;
+  },
 };
 
 module.exports = withAnalyzer({
   enabled: process.env.ANALYZE === 'true',
-})(withContentlayer(nextConfig));
+})(nextConfig);
+
+class VeliteWebpackPlugin {
+  static started = false;
+
+  apply(compiler) {
+    compiler.hooks.beforeCompile.tapPromise(
+      'VeliteWebpackPlugin',
+      async () => {
+        if (VeliteWebpackPlugin.started) return;
+        VeliteWebpackPlugin.started = true;
+
+        const dev = compiler.options.mode === 'development';
+        const { build } = await import('velite');
+        await build({ watch: dev, clean: !dev });
+      },
+    );
+  }
+}
 
 function getRemotePatterns() {
   // add here the remote patterns for your images

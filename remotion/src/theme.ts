@@ -8,7 +8,7 @@ const { fontFamily } = loadFont("normal", {
 });
 
 // Transition configuration (30fps) - faster for TikTok/Reels pacing
-export const TRANSITION_DURATION_FRAMES = 15; // 0.5s (was 0.6s)
+export const TRANSITION_DURATION_FRAMES = 10; // 0.33s for crisp social pacing
 export const TRANSITION_COUNT = 6;
 
 // Spring configurations for different animation types
@@ -49,37 +49,37 @@ export const easings = {
   gentle: Easing.bezier(0.25, 0.1, 0.25, 1),
 } as const;
 
-// Ultaura Brand Theme
+// Ultaura Brand Theme (derived from src/app/globals.css)
 export const theme = {
   colors: {
     // Primary brand color - Tiffany Blue
-    primary: "#0ABAB5",
-    primaryLight: "#3DD4CF",
-    primaryDark: "#089A96",
+    primary: "#24b5a1",
+    primaryLight: "#3dc6b1",
+    primaryDark: "#0e9b89",
 
     // Backgrounds
-    background: "#0A0A0F",
-    backgroundLight: "#121218",
-    backgroundCard: "#1A1A22",
-    surface: "#1A1A22",
+    background: "#f8f8f7",
+    backgroundLight: "#ffffff",
+    backgroundCard: "#ffffff",
+    surface: "#f4f3f1",
 
     // Text
-    textPrimary: "#FFFFFF",
-    textSecondary: "#A0A0B0",
-    textMuted: "#6B6B7B",
+    textPrimary: "#0c0a09",
+    textSecondary: "#79716b",
+    textMuted: "#a6a09b",
 
     // Semantic
-    success: "#22C55E",
-    warning: "#F59E0B",
-    error: "#EF4444",
-    info: "#3B82F6",
+    success: "#00bc7d",
+    warning: "#ffb900",
+    error: "#e7000b",
+    info: "#2b7fff",
 
     // Accent for variety
-    accent: "#8B5CF6",
+    accent: "#2b7fff",
 
     // Gradients
-    gradientStart: "#0ABAB5",
-    gradientEnd: "#089A96",
+    gradientStart: "#24b5a1",
+    gradientEnd: "#0e9b89",
   },
 
   fonts: {
@@ -97,22 +97,22 @@ export const theme = {
   // 30 FPS standard
   fps: 30,
 
-  // Section timings in frames (at 30fps) - optimized for TikTok/Reels pacing
+  // Section timings in frames (at 30fps) - 30s total after transitions
   sections: {
-    hook: { start: 0, duration: 150 },               // 5s (was 6s)
-    voiceSelection: { start: 150, duration: 165 },   // 5.5s (was 7s)
-    reminders: { start: 315, duration: 165 },        // 5.5s (was 7s)
-    schedule: { start: 480, duration: 165 },         // 5.5s (was 7s)
-    insightsSafety: { start: 645, duration: 240 },   // 8s (was 12s)
-    calls: { start: 885, duration: 210 },            // 7s (was 9s)
-    cta: { start: 1095, duration: 210 },             // 7s (was 7.6s)
+    hook: { start: 0, duration: 90 },          // 3s
+    seniorView: { start: 90, duration: 135 },  // 4.5s
+    reminders: { start: 225, duration: 120 },  // 4s
+    familyView: { start: 345, duration: 135 }, // 4.5s
+    insights: { start: 480, duration: 165 },   // 5.5s
+    peace: { start: 645, duration: 105 },      // 3.5s
+    cta: { start: 750, duration: 210 },        // 7s
   },
 
   // Total raw duration before overlap subtraction
-  totalRawDuration: 1305,
+  totalRawDuration: 960,
 
-  // Final output duration: ~40.5 seconds = 1215 frames (was 52s/1560f)
-  totalDuration: 1215,
+  // Final output duration: 30 seconds = 900 frames (subtract transitions)
+  totalDuration: 900,
 } as const;
 
 export type Theme = typeof theme;

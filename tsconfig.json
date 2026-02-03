@@ -31,7 +31,8 @@
       "~/plugins/*": [
         "./plugins/*"
       ],
-      "contentlayer/generated": ["./.contentlayer/generated"]
+      "@/.velite": ["./.velite"],
+      "@/.velite/*": ["./.velite/*"]
     }
   },
   "include": [
@@ -39,7 +40,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".contentlayer/generated"
+    ".velite"
   ],
   "exclude": [
     "node_modules",

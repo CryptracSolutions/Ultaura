@@ -1,8 +1,5 @@
 import { cache } from 'react';
-import {
-  allDocumentationPages,
-  DocumentationPage,
-} from 'contentlayer/generated';
+import { documentationPages } from '@/.velite';
 
 import { buildDocumentationTree } from './build-documentation-tree';
 
@@ -13,7 +10,7 @@ import { buildDocumentationTree } from './build-documentation-tree';
  * @returns {DocumentationPageWithChildren | undefined} The documentation page found in the tree, if any.
  */
 const getPageTree = cache((pagePath: string) => {
-  const tree = buildDocumentationTree(allDocumentationPages);
+  const tree = buildDocumentationTree(documentationPages);
 
   type DocumentationPageWithChildren = DocumentationPage & {
     previousPage?: DocumentationPage | null;
@@ -46,3 +43,5 @@ const getPageTree = cache((pagePath: string) => {
 });
 
 export default getPageTree;
+
+type DocumentationPage = (typeof documentationPages)[number];

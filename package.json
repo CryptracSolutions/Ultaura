@@ -25,7 +25,7 @@
     "stripe:listen": "docker run --rm -it --name=stripe -v ~/.config/stripe:/root/.config/stripe stripe/stripe-cli:latest listen --forward-to http://host.docker.internal:3000/api/stripe/webhook",
     "stripe:mock-server": "docker run --rm -it -p 12111-12112:12111-12112 stripe/stripe-mock:latest",
     "typegen": "node scripts/supabase-cli.js gen types typescript --local > src/database.types.ts",
-    "pretypecheck": "pnpm build:packages",
+    "pretypecheck": "pnpm build:packages && pnpm velite build --clean",
     "typecheck": "tsc -b && tsc -b cypress",
     "test:unit": "vitest",
     "test:e2e": "sh ./scripts/test.sh",
@@ -64,7 +64,6 @@
     "@ultaura/types": "workspace:*",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "contentlayer2": "0.5.8",
     "cva": "npm:class-variance-authority@^0.7.0",
     "date-fns": "^3.6.0",
     "edge-csrf": "^1.0.9",
@@ -78,7 +77,6 @@
     "luxon": "^3.5.0",
     "nanoid": "^5.0.7",
     "next": "14.2.5",
-    "next-contentlayer2": "0.5.8",
     "next-sitemap": "^4.2.3",
     "nodemailer": "^6.9.13",
     "pino": "^9.1.0",
@@ -119,6 +117,7 @@
     "prettier": "3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.12",
     "typescript": "5.4.3",
+    "velite": "^0.2.0",
     "vitest": "^1.6.0"
   },
   "engines": {

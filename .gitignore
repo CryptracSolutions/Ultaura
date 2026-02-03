@@ -41,6 +41,7 @@ next-env.d.ts
 cypress/screenshots
 
 .contentlayer
+.velite
 
 public/robots.txt
 public/sitemap.xml

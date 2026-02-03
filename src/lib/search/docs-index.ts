@@ -1,9 +1,9 @@
 import 'server-only';
 
-import { allDocumentationPages } from 'contentlayer/generated';
+import { documentationPages } from '@/.velite';
 import type { DocsIndexItem } from './types';
 
-const docsIndex: DocsIndexItem[] = allDocumentationPages.map((page) => {
+const docsIndex: DocsIndexItem[] = documentationPages.map((page) => {
   const pathSegments = Array.isArray(page.pathSegments) ? page.pathSegments : [];
   const sectionSlug = pathSegments[0]?.pathName ?? 'docs';
   const section = toTitleCase(sectionSlug.replace(/-/g, ' '));
@@ -20,7 +20,7 @@ const docsIndex: DocsIndexItem[] = allDocumentationPages.map((page) => {
   }
 
   return {
-    id: page._id,
+    id: page.id,
     title: page.title,
     label: page.label,
     resolvedPath: page.resolvedPath,

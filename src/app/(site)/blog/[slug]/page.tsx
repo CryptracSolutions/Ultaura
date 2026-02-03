@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Script from 'next/script';
 
-import { allPosts } from 'contentlayer/generated';
+import { posts } from '@/.velite';
 import Post from '~/app/(site)/blog/components/Post';
 
 import Container from '~/core/ui/Container';
@@ -15,7 +15,7 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata | undefined> {
-  const post = allPosts.find((post) => post.slug === params.slug);
+  const post = posts.find((post) => post.slug === params.slug);
 
   if (!post) {
     return;
@@ -51,7 +51,7 @@ export async function generateMetadata({
 }
 
 async function BlogPost({ params }: { params: { slug: string } }) {
-  const post = allPosts.find((post) => post.slug === params.slug);
+  const post = posts.find((post) => post.slug === params.slug);
 
   if (!post) {
     notFound();
@@ -63,7 +63,7 @@ async function BlogPost({ params }: { params: { slug: string } }) {
         {JSON.stringify(post.structuredData)}
       </Script>
 
-      <Post post={post} content={post.body.code} />
+      <Post post={post} content={post.body} />
     </Container>
   );
 }

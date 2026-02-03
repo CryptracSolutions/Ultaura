@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 
-import { allDocumentationPages } from 'contentlayer/generated';
+import { documentationPages } from '@/.velite';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
@@ -18,7 +18,7 @@ import DocumentationPageLink from '../components/DocumentationPageLink';
 import { Breadcrumbs } from '~/core/ui/Breadcrumbs';
 
 const getPageBySlug = cache((slug: string) => {
-  return allDocumentationPages.find((post) => post.resolvedPath === slug);
+  return documentationPages.find((post) => post.resolvedPath === slug);
 });
 
 interface PageParams {
@@ -57,7 +57,7 @@ function DocumentationPage({ params }: PageParams) {
   const breadcrumbs = params.slug.reduce<{ label: string; href: string }[]>(
     (acc, segment, index) => {
       const path = params.slug.slice(0, index + 1).join('/');
-      const page = allDocumentationPages.find((p) => p.resolvedPath === path);
+      const page = documentationPages.find((p) => p.resolvedPath === path);
 
       acc.push({
         label:
@@ -80,7 +80,7 @@ function DocumentationPage({ params }: PageParams) {
           <SubHeading>{description}</SubHeading>
         </div>
 
-        <MDXRenderer code={page.body.code} />
+        <MDXRenderer code={page.body} />
 
         <Divider />
 

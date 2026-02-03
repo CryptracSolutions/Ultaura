@@ -74,7 +74,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
         opacity,
         transform: `translateX(${translateX}px)`,
         border: `1px solid ${color}30`,
-        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.22), 0 0 ${40 * glowIntensity}px ${color}25`,
+        boxShadow: `0 10px 24px rgba(15, 23, 42, 0.08), 0 0 ${32 * glowIntensity}px ${color}20`,
         maxWidth: 700,
         width: "100%",
       }}
@@ -291,28 +291,16 @@ export const RemindersScene: React.FC = () => {
       </ContentArea>
 
       <TextArea>
-        <Sequence from={100} layout="none">
+        <Sequence from={90} layout="none">
           <AnimatedText
-            text="Set reminders."
+            text="Reminders that feel human."
             style={{
-              fontSize: 36,
-              fontWeight: 600,
+              fontSize: 34,
+              fontWeight: 700,
               color: theme.colors.textPrimary,
-              lineHeight: 1.4,
+              lineHeight: 1.35,
             }}
             animationType="wordReveal"
-          />
-        </Sequence>
-        <Sequence from={125} layout="none">
-          <AnimatedText
-            text="Never miss a thing."
-            style={{
-              fontSize: 36,
-              fontWeight: 700,
-              color: theme.colors.primary,
-              lineHeight: 1.4,
-            }}
-            animationType="glowReveal"
           />
         </Sequence>
       </TextArea>

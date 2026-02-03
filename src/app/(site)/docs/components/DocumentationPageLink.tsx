@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import classNames from 'clsx';
-import type { DocumentationPage } from 'contentlayer/generated';
+import type { documentationPages } from '@/.velite';
 import If from '~/core/ui/If';
 
 function DocumentationPageLink({
@@ -58,3 +58,5 @@ function DocumentationPageLink({
 }
 
 export default DocumentationPageLink;
+
+type DocumentationPage = (typeof documentationPages)[number];

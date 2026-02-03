@@ -1,7 +1,7 @@
 export { HookScene } from "./HookScene";
-export { VoiceSelectionScene } from "./VoiceSelectionScene";
+export { SeniorViewScene } from "./SeniorViewScene";
 export { RemindersScene } from "./RemindersScene";
-export { ScheduleScene } from "./ScheduleScene";
-export { InsightsSafetyScene } from "./InsightsSafetyScene";
-export { CallsScene } from "./CallsScene";
+export { FamilyDashboardScene } from "./FamilyDashboardScene";
+export { InsightsScene } from "./InsightsScene";
+export { PeaceOfMindScene } from "./PeaceOfMindScene";
 export { CTAScene } from "./CTAScene";
