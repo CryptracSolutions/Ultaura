@@ -1,6 +1,8 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getLogger from '~/core/logger';
 import { parseOrganizationIdCookie } from '~/lib/server/cookies/organization.cookie';
 import getCurrentOrganization from '~/lib/server/organizations/get-current-organization';
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid event' }, { status: 400 });
   }
 
-  const supabase = getSupabaseServerComponentClient();
+  const supabase = getSupabaseRouteHandlerClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
   if (userError || !userData?.user) {
