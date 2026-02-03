@@ -1,6 +1,5 @@
 import 'server-only';
 
-import { cache } from 'react';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
@@ -29,7 +28,7 @@ import getLanguageCookie from '~/i18n/get-language-cookie';
  * from the server-side, used in the (app) layout. The data is cached for
  * the request lifetime, which allows you to call the same across layouts.
  */
-const loadAppData = cache(async (organizationUid: string) => {
+const loadAppData = async (organizationUid: string) => {
   const logger = getLogger();
 
   try {
@@ -125,7 +124,7 @@ const loadAppData = cache(async (organizationUid: string) => {
     // to avoid any potential infinite loop
     return redirectToHomePage();
   }
-});
+};
 
 /**
  * @name loadAppDataForUser
@@ -133,7 +132,7 @@ const loadAppData = cache(async (organizationUid: string) => {
  * authenticated user instead of from URL parameters. Used when organizations
  * are not included in the URL structure (1:1 user:organization mapping).
  */
-export const loadAppDataForUser = cache(async () => {
+export const loadAppDataForUser = async () => {
   const logger = getLogger();
 
   try {
@@ -239,7 +238,7 @@ export const loadAppDataForUser = cache(async () => {
 
     return redirectToHomePage();
   }
-});
+};
 
 function redirectToOnboarding() {
   return redirect(configuration.paths.onboarding);

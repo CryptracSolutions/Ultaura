@@ -1,7 +1,5 @@
 import 'server-only';
 
-import { cache } from 'react';
-
 import { getOrganizationByUid } from '~/lib/organizations/database/queries';
 import { getUserMembershipByOrganization } from '~/lib/memberships/queries';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
@@ -29,17 +27,17 @@ export default async function getCurrentOrganization(params: {
  * @name fetchOrganization
  * @description Fetch an organization by its ID.
  */
-const fetchOrganization = cache(async (uid: string) => {
+const fetchOrganization = async (uid: string) => {
   const client = getSupabaseServerComponentClient();
 
   return getOrganizationByUid(client, uid);
-});
+};
 
 /**
  * @name fetchUserRole
  * @description Fetch the role of a user in an organization.
  */
-const fetchUserRole = cache(async (organizationUid: string, userId: string) => {
+const fetchUserRole = async (organizationUid: string, userId: string) => {
   const client = getSupabaseServerComponentClient();
 
   const data = await getUserMembershipByOrganization(client, {
@@ -48,4 +46,4 @@ const fetchUserRole = cache(async (organizationUid: string, userId: string) => {
   });
 
   return data?.role;
-});
+};
