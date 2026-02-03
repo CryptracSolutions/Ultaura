@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { unsubscribeNotificationRecipient } from '~/lib/ultaura/notification-recipients';
 
