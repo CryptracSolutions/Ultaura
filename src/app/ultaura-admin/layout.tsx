@@ -1,6 +1,8 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import requireSession from '~/lib/user/require-session';
 import GlobalRole from '~/core/session/types/global-role';
