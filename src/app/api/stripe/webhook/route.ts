@@ -1,7 +1,6 @@
 import type { Stripe } from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import getStripeInstance from '~/core/stripe/get-stripe';
@@ -28,6 +27,8 @@ import {
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import { setOrganizationSubscriptionData } from '~/lib/organizations/database/mutations';
 
+export const dynamic = 'force-dynamic';
+
 const STRIPE_SIGNATURE_HEADER = 'stripe-signature';
 
 const webhookSecretKey = process.env.STRIPE_WEBHOOK_SECRET as string;
@@ -37,7 +38,7 @@ const webhookSecretKey = process.env.STRIPE_WEBHOOK_SECRET as string;
  */
 export async function POST(request: Request) {
   const logger = getLogger();
-  const signature = headers().get(STRIPE_SIGNATURE_HEADER);
+  const signature = request.headers.get(STRIPE_SIGNATURE_HEADER);
 
   logger.info(`[Stripe] Received Stripe Webhook`);
 

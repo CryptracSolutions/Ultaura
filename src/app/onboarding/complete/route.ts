@@ -1,8 +1,9 @@
 'use server';
 
+export const dynamic = 'force-dynamic';
+
 import { z } from 'zod';
 
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 import getLogger from '~/core/logger';
@@ -239,14 +240,14 @@ export const POST = async (req: NextRequest) => {
     `Onboarding successfully completed for user`,
   );
 
-  (await cookies()).set(createOrganizationIdCookie({ userId, organizationUid }));
-
   const returnUrl = `/dashboard/lines/${shortId}/verify`;
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     success: true,
     returnUrl,
   });
+  response.cookies.set(createOrganizationIdCookie({ userId, organizationUid }));
+  return response;
 };
 
 function getOnboardingBodySchema() {
