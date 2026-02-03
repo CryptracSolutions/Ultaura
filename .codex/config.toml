@@ -1,0 +1,9 @@
+# Project-scoped Codex configuration (trusted projects).
+# MCP servers configured here are shared by the Codex CLI and IDE extension.
+
+[mcp_servers.playwright]
+command = "npx"
+# Use `-y` so `npx` won't prompt to install the package.
+args = ["-y", "@playwright/mcp@latest"]
+enabled = true
+
