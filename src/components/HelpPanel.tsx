@@ -170,7 +170,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
                 }}
                 name="message"
                 className={classNames(
-                  'w-full px-4 py-2 pr-12 outline-none resize-none text-sm bg-transparent rounded-xl leading-6',
+                  'w-full px-4 py-2 pr-12 outline-none focus-visible:!outline-none focus-visible:ring-0 resize-none text-sm bg-transparent rounded-xl leading-6',
                   'text-foreground placeholder:text-foreground',
                   'min-h-[36px] max-h-48 overflow-y-auto'
                 )}

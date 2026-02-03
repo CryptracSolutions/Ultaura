@@ -84,7 +84,7 @@ const SearchTrigger = () => {
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background pl-10 pr-12 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background pl-10 pr-12 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
             aria-label="Search"
             aria-haspopup="listbox"
             aria-expanded={isDesktopOpen}

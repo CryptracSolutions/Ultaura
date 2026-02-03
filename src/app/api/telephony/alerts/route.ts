@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import sendEmail from '~/core/email/send-email';
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 
 const RECOMMENDED_ACTIONS: Record<string, string> = {
   repeated_hits:
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     recommendedAction,
   });
 
-  const supabase = getSupabaseServerComponentClient({ admin: true });
+  const supabase = getSupabaseRouteHandlerClient({ admin: true });
   const recipientSet = new Set<string>();
 
   if (accountIds.length > 0) {

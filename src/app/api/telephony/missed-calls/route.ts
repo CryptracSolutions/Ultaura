@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import sendEmail from '~/core/email/send-email';
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import renderMissedCallsAlertEmail from '~/lib/emails/missed-calls-alert';
 import { buildNotificationRecipientToken } from '~/lib/ultaura/notification-tokens';
 
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing EMAIL_SENDER configuration' }, { status: 500 });
   }
 
-  const supabase = getSupabaseServerComponentClient({ admin: true });
+  const supabase = getSupabaseRouteHandlerClient({ admin: true });
   const { data: line, error: lineError } = await supabase
     .from('ultaura_lines')
     .select('id, account_id, display_name')

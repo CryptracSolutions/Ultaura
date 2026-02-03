@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getLogger from '~/core/logger';
 import { parseOrganizationIdCookie } from '~/lib/server/cookies/organization.cookie';
 import getCurrentOrganization from '~/lib/server/organizations/get-current-organization';
@@ -42,8 +42,8 @@ export async function GET(request: Request) {
   const shouldFetchCalls = !typeFilter || typeFilter === 'calls';
   const shouldFetchSafety = !typeFilter || typeFilter === 'safety_events';
 
-  const supabase = getSupabaseServerComponentClient();
-  const adminClient = getSupabaseServerComponentClient({ admin: true });
+  const supabase = getSupabaseRouteHandlerClient();
+  const adminClient = getSupabaseRouteHandlerClient({ admin: true });
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
 

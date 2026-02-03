@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import sendEmail from '~/core/email/send-email';
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import renderSafetyAlertEmail from '~/lib/emails/safety-alert';
 
 interface SafetyAlertPayload {
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing EMAIL_SENDER configuration' }, { status: 500 });
   }
 
-  const supabase = getSupabaseServerComponentClient({ admin: true });
+  const supabase = getSupabaseRouteHandlerClient({ admin: true });
   const { data: account, error: accountError } = await supabase
     .from('ultaura_accounts')
     .select('billing_email')

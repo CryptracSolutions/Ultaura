@@ -1,7 +1,7 @@
 import type { Stripe } from 'stripe';
 import { NextResponse } from 'next/server';
 import configuration from '~/configuration';
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getStripeInstance from '~/core/stripe/get-stripe';
 import sendEmail from '~/core/email/send-email';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
   }
 
-  const client = getSupabaseServerComponentClient({ admin: true });
+  const client = getSupabaseRouteHandlerClient({ admin: true });
   const { data: account, error: accountError } = await client
     .from('ultaura_accounts')
     .select('organization_id, billing_email')
