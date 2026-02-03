@@ -1,6 +1,7 @@
 'use client';
 
 import type { User } from '@supabase/supabase-js';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { UserPlusIcon } from '@heroicons/react/24/outline';
 

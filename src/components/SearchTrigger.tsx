@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '~/core/ui/Popover';
 import { useSearch } from '~/lib/contexts/SearchContext';
@@ -12,6 +12,7 @@ const SearchTrigger = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
 
   useEffect(() => {
     if (isDesktopOpen && inputRef.current) {
@@ -86,8 +87,11 @@ const SearchTrigger = () => {
             placeholder="Search..."
             className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background pl-10 pr-12 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
             aria-label="Search"
+            role="combobox"
             aria-haspopup="listbox"
+            aria-controls={listId}
             aria-expanded={isDesktopOpen}
+            aria-autocomplete="list"
           />
           <MagnifyingGlassIcon className="absolute left-3 h-4 w-4 text-primary pointer-events-none" />
           {!query && (
@@ -105,7 +109,12 @@ const SearchTrigger = () => {
         onInteractOutside={() => handleClose()}
         onEscapeKeyDown={() => handleClose()}
       >
-        <SearchPanel isOpen={isDesktopOpen} query={query} onQueryChange={handleInputChange} />
+        <SearchPanel
+          isOpen={isDesktopOpen}
+          query={query}
+          onQueryChange={handleInputChange}
+          listId={listId}
+        />
       </PopoverContent>
     </Popover>
   );

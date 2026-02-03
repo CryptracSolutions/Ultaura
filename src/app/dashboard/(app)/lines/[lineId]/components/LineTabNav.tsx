@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import classNames from 'clsx';
 import Trans from '~/core/ui/Trans';
 
@@ -25,7 +25,7 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
   const basePath = `/dashboard/lines/${lineShortId}`;
   const tabRefs = useRef<(HTMLLIElement | null)[]>([]);
 
-  const getIsActive = (pathSuffix: string) => {
+  const getIsActive = useCallback((pathSuffix: string) => {
     const fullPath = `${basePath}${pathSuffix}`;
     const tabParam = searchParams.get('tab');
     if (pathSuffix === '/settings?tab=call-controls') {
@@ -41,11 +41,11 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
       );
     }
     return pathname.startsWith(fullPath);
-  };
+  }, [basePath, pathname, searchParams]);
 
   const activeIndex = useMemo(() => {
     return LINE_TABS.findIndex((tab) => getIsActive(tab.pathSuffix));
-  }, [pathname, searchParams, basePath]);
+  }, [getIsActive]);
 
   // Scroll active tab into view on mount/navigation (for mobile)
   useEffect(() => {

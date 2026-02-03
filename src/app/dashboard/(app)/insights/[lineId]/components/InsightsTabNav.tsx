@@ -3,7 +3,7 @@
 import classNames from 'clsx';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Trans from '~/core/ui/Trans';
 
 interface InsightsTabNavProps {
@@ -25,7 +25,7 @@ export function InsightsTabNav({ lineShortId }: InsightsTabNavProps) {
   const basePath = `/dashboard/insights/${lineShortId}`;
   const tabRefs = useRef<(HTMLLIElement | null)[]>([]);
 
-  const getIsActive = (pathSuffix: string) => {
+  const getIsActive = useCallback((pathSuffix: string) => {
     const fullPath = `${basePath}${pathSuffix}`;
     if (pathSuffix === '') {
       // Overview tab - active only when exactly on the base path
@@ -33,11 +33,11 @@ export function InsightsTabNav({ lineShortId }: InsightsTabNavProps) {
     }
     // Other tabs - active when pathname starts with the tab path
     return pathname.startsWith(fullPath);
-  };
+  }, [basePath, pathname]);
 
   const activeIndex = useMemo(() => {
     return INSIGHTS_TABS.findIndex((tab) => getIsActive(tab.pathSuffix));
-  }, [pathname, basePath]);
+  }, [getIsActive]);
 
   useEffect(() => {
     let rafId1: number;

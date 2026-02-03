@@ -292,6 +292,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
                   <button
                     key={`day-${day}`}
                     type="button"
+                    role="gridcell"
                     onClick={() => handleSelectDate(viewYear, viewMonth, day)}
                     disabled={isDisabled}
                     aria-label={formatAriaDate(date)}

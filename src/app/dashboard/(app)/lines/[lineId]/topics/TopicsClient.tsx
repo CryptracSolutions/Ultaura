@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Pencil, Plus, X } from 'lucide-react';
@@ -30,16 +30,27 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
   const [isSaving, setIsSaving] = useState(false);
 
   // Parse stored topics (already arrays from DB)
-  const storedEnjoyTopics = line.seed_interests ?? [];
-  const storedAvoidTopics = line.seed_avoid_topics ?? [];
+  const storedEnjoyTopics = useMemo(
+    () => line.seed_interests ?? [],
+    [line.seed_interests]
+  );
+  const storedAvoidTopics = useMemo(
+    () => line.seed_avoid_topics ?? [],
+    [line.seed_avoid_topics]
+  );
 
   // Separate curated from custom topics for the form
-  const initialSelectedTopics = storedEnjoyTopics.filter((t) =>
-    INTEREST_TOPIC_OPTIONS.includes(t)
+  const initialSelectedTopics = useMemo(
+    () => storedEnjoyTopics.filter((t) => INTEREST_TOPIC_OPTIONS.includes(t)),
+    [storedEnjoyTopics]
   );
-  const initialCustomTopics = storedEnjoyTopics
-    .filter((t) => !INTEREST_TOPIC_OPTIONS.includes(t))
-    .join(', ');
+  const initialCustomTopics = useMemo(
+    () =>
+      storedEnjoyTopics
+        .filter((t) => !INTEREST_TOPIC_OPTIONS.includes(t))
+        .join(', '),
+    [storedEnjoyTopics]
+  );
 
   // Edit form state
   const [selectedTopics, setSelectedTopics] = useState<string[]>(initialSelectedTopics);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -62,11 +62,13 @@ const RECENTS_LIMIT = 6;
 export const SearchPanel = ({
   isOpen,
   query: externalQuery,
-  onQueryChange: externalOnQueryChange
+  onQueryChange: externalOnQueryChange,
+  listId: externalListId,
 }: {
   isOpen: boolean;
   query?: string;
   onQueryChange?: (query: string) => void;
+  listId?: string;
 }) => {
   const { docsIndex, close, prefillQuery, clearPrefillQuery, openMode } = useSearch();
   const { data: account } = useUltauraAccount();
@@ -78,6 +80,9 @@ export const SearchPanel = ({
   const { openManualCall } = useManualCall();
   const { open: openHelp } = useHelpPanel();
   const { recents, addRecent } = useSearchRecents(isOpen);
+
+  const generatedListId = useId();
+  const listId = externalListId ?? generatedListId;
 
   // Use external query/onQueryChange if provided (desktop), otherwise use internal state (mobile)
   const [internalQuery, setInternalQuery] = useState('');
@@ -488,11 +493,19 @@ export const SearchPanel = ({
           className="mx-3 mt-3 flex h-11 w-[calc(100%-1.5rem)] rounded-md border border-input bg-background px-3 py-3 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:cursor-not-allowed disabled:opacity-50"
           placeholder="Search..."
           aria-label="Search"
+          role="combobox"
+          aria-controls={listId}
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
           autoFocus
         />
       )}
       {shouldShowResults ? (
-        <Command.List className="max-h-[60vh] overflow-y-auto py-2">
+        <Command.List
+          id={listId}
+          role="listbox"
+          className="max-h-[60vh] overflow-y-auto py-2"
+        >
           {isLoading ? (
             <div className="px-4 py-2 text-xs text-muted-foreground">Searching...</div>
           ) : null}
