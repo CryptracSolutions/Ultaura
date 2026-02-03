@@ -10,6 +10,8 @@ import Fonts from '~/components/Fonts';
 
 import configuration from '~/configuration';
 
+export const dynamic = 'force-dynamic';
+
 export default async function RootLayout({
   children,
 }: {
