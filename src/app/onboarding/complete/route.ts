@@ -1,5 +1,3 @@
-'use server';
-
 export const dynamic = 'force-dynamic';
 
 import { z } from 'zod';
