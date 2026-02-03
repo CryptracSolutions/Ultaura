@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
@@ -28,14 +30,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const result = await inviteNotificationRecipient(parsed.data.accountId, {
-    name: parsed.data.name,
-    email: parsed.data.email,
-    phoneE164: parsed.data.phoneE164,
-    relationship: parsed.data.relationship,
-    addAsTrustedContact: parsed.data.addAsTrustedContact,
-    allowReinvite: parsed.data.allowReinvite,
-  });
+  const result = await inviteNotificationRecipient(
+    parsed.data.accountId,
+    {
+      name: parsed.data.name,
+      email: parsed.data.email,
+      phoneE164: parsed.data.phoneE164,
+      relationship: parsed.data.relationship,
+      addAsTrustedContact: parsed.data.addAsTrustedContact,
+      allowReinvite: parsed.data.allowReinvite,
+    },
+    { client: supabase }
+  );
 
   if (!result.success) {
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });

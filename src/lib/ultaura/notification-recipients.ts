@@ -5,6 +5,8 @@ import getLogger from '~/core/logger';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '~/database.types';
 import type { NotificationRecipient } from './types';
 import sendEmail from '~/core/email/send-email';
 import renderNotificationInviteEmail from '~/lib/emails/notification-invite';
@@ -17,19 +19,22 @@ function getSiteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
 
-async function resolveAccountContext(accountId: string): Promise<{
+async function resolveAccountContext(
+  accountId: string,
+  client?: SupabaseClient<Database>
+): Promise<{
   accountName: string;
   lineName: string;
   inviterName: string;
 }> {
-  const client = getSupabaseServerComponentClient();
-  const { data: account } = await client
+  const clientInstance = client ?? getSupabaseServerComponentClient();
+  const { data: account } = await clientInstance
     .from('ultaura_accounts')
     .select('name')
     .eq('id', accountId)
     .single();
 
-  const { data: lines } = await client
+  const { data: lines } = await clientInstance
     .from('ultaura_lines')
     .select('display_name, created_at')
     .eq('account_id', accountId)
@@ -38,12 +43,12 @@ async function resolveAccountContext(accountId: string): Promise<{
   const accountName = account?.name || 'Ultaura';
   const lineName = lines && lines.length === 1 ? lines[0].display_name : 'your loved one';
 
-  const { data: user } = await client.auth.getUser();
+  const { data: user } = await clientInstance.auth.getUser();
   const userId = user.user?.id;
   let inviterName = 'Ultaura';
 
   if (userId) {
-    const userRecord = await getUserDataById(client, userId).catch(() => null);
+    const userRecord = await getUserDataById(clientInstance, userId).catch(() => null);
     inviterName = userRecord?.displayName?.trim() || accountName;
   }
 
@@ -95,9 +100,12 @@ export async function inviteNotificationRecipient(
     relationship?: string;
     addAsTrustedContact?: boolean;
     allowReinvite?: boolean;
-  }
+  },
+  options: {
+    client?: SupabaseClient<Database>;
+  } = {}
 ): Promise<ActionResult<NotificationRecipient>> {
-  const client = getSupabaseServerComponentClient();
+  const client = options.client ?? getSupabaseServerComponentClient();
   const email = input.email.trim().toLowerCase();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -162,6 +170,7 @@ export async function inviteNotificationRecipient(
       recipientEmail: updated.email,
       accountId,
       token,
+      client,
     });
 
     revalidatePath('/dashboard/privacy', 'page');
@@ -210,6 +219,7 @@ export async function inviteNotificationRecipient(
     recipientEmail: updated.email,
     accountId,
     token,
+    client,
   });
 
   revalidatePath('/dashboard/privacy', 'page');
@@ -290,13 +300,17 @@ async function sendInviteEmail(options: {
   recipientEmail: string;
   accountId: string;
   token: string;
+  client?: SupabaseClient<Database>;
 }) {
   const emailFrom = process.env.EMAIL_SENDER;
   if (!emailFrom) {
     throw new Error('Missing EMAIL_SENDER configuration');
   }
 
-  const { accountName, lineName, inviterName } = await resolveAccountContext(options.accountId);
+  const { accountName, lineName, inviterName } = await resolveAccountContext(
+    options.accountId,
+    options.client
+  );
   const confirmLink = `${getSiteUrl()}/api/ultaura/confirm/${options.token}`;
   const subject = `You've been invited to receive updates from ${accountName}`;
 
