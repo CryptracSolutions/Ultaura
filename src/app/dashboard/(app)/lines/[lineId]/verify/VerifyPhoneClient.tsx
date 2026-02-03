@@ -193,7 +193,7 @@ export function VerifyPhoneClient({
               onChange={(e) => handleCodeChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               disabled={isLoading}
-              className="w-12 h-14 text-center text-xl font-semibold border border-input rounded-lg bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 transition-colors"
+              className="w-12 h-14 text-center text-xl font-semibold border border-input rounded-lg bg-background text-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
             />
           ))}
         </div>

@@ -485,7 +485,7 @@ export const SearchPanel = ({
         <Command.Input
           value={query}
           onValueChange={onQueryChange}
-          className="mx-3 mt-3 flex h-11 w-[calc(100%-1.5rem)] rounded-md border border-input bg-background px-3 py-3 text-sm shadow-sm outline-none placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mx-3 mt-3 flex h-11 w-[calc(100%-1.5rem)] rounded-md border border-input bg-background px-3 py-3 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:cursor-not-allowed disabled:opacity-50"
           placeholder="Search..."
           aria-label="Search"
           autoFocus

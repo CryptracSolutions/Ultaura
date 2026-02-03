@@ -187,7 +187,7 @@ export function TopicPreferencesForm({
             onChange={(e) => onCustomTopicsChange(e.target.value)}
             placeholder="e.g., baseball, baking, church"
             disabled={customDisabled}
-            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 disabled:opacity-50"
+            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
           />
           {customDisabled && !disabled ? (
             <p className="text-xs text-muted-foreground">
@@ -213,7 +213,7 @@ export function TopicPreferencesForm({
             placeholder="e.g., politics, health issues..."
             rows={2}
             disabled={disabled}
-            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 resize-none disabled:opacity-50"
+            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
           />
         </div>
       )}

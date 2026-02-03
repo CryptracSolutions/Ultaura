@@ -152,8 +152,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
         <div className="p-4 bg-card">
           <form onSubmit={onSubmit}>
             <div
-              className="relative flex items-center bg-card rounded-xl border-[1.4px] shadow-sm shadow-[0_0_0_1px_rgba(10,186,181,0.6)]"
-              style={{ borderColor: '#0ABAB5' }}
+              className="relative flex items-end bg-card rounded-xl border border-input shadow-sm transition-colors focus-within:!border-primary"
             >
               <textarea
                 ref={textareaRef}
@@ -170,7 +169,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
                 }}
                 name="message"
                 className={classNames(
-                  'w-full px-4 py-2 pr-12 outline-none focus-visible:!outline-none focus-visible:ring-0 resize-none text-sm bg-transparent rounded-xl leading-6',
+                  'w-full px-4 py-2 pr-12 outline-none focus-visible:!outline-none resize-none text-sm bg-transparent rounded-xl leading-6',
                   'text-foreground placeholder:text-foreground',
                   'min-h-[36px] max-h-48 overflow-y-auto'
                 )}
@@ -181,7 +180,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               <button
                 disabled={isLoading}
                 type="submit"
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                className="absolute right-3 bottom-2 p-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 disabled:opacity-50 transition-colors"
                 aria-label="Send message"
               >
                 <PaperAirplaneIcon className="h-4 w-4 text-primary" />

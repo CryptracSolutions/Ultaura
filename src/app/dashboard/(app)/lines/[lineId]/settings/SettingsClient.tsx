@@ -1035,16 +1035,14 @@ export function SettingsClient({
                         <p className="text-sm text-muted-foreground">
                           {line.display_name} controls this setting. Request a change and we&apos;ll ask on the next call.
                         </p>
-                        <Button
+                        <button
                           type="button"
-                          variant="outline"
-                          size="sm"
                           onClick={handleRequestInsightsRePrompt}
                           disabled={disabled || insightsRepromptRequested || isRequestingInsightsChange}
-                          className="shrink-0"
+                          className="inline-flex items-center justify-center border border-input bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-xs gap-1 rounded-sm shrink-0"
                         >
                           {insightsRepromptRequested ? 'Requested' : 'Request Change'}
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -1080,7 +1078,7 @@ export function SettingsClient({
                                 onChange={(e) => setPausedReason(e.target.value)}
                                 placeholder="e.g., Traveling this week"
                                 disabled={disabled}
-                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
                               />
                             </div>
                           )}
@@ -1294,7 +1292,7 @@ export function SettingsClient({
                           }
                         }}
                         disabled={disabled}
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
                       />
                       <p className="text-xs text-muted-foreground mt-1">1.0 is normal pace.</p>
                     </div>
@@ -1316,7 +1314,7 @@ export function SettingsClient({
                           }
                         }}
                         disabled={disabled}
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         How many recent calls Ultaura can reference.

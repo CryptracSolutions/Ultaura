@@ -293,7 +293,7 @@ export function LineHeaderActions({
                     );
                   }}
                   placeholder="(555) 555-1234"
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
                 />
                 {alternatePhoneError && (
                   <p className="text-xs text-destructive">{alternatePhoneError}</p>

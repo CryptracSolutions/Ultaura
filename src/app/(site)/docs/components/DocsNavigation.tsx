@@ -216,7 +216,7 @@ export default function DocsNavigation({
 
 function getNavLinkClassName(isCurrent: boolean, isFirstLevel: boolean) {
   return classNames(
-    'group flex h-8 items-center justify-between space-x-2 whitespace-nowrap rounded-md px-3 text-sm leading-none transition-colors',
+    'group flex h-8 items-center justify-between space-x-2 whitespace-nowrap rounded-md px-3 text-sm transition-colors',
     {
       [`bg-primary/5 text-primary dark:bg-primary/30 dark:text-primary-foreground`]:
         isCurrent,

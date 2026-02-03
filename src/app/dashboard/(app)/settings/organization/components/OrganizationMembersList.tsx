@@ -148,18 +148,16 @@ function InviteMembersLinkButton(
   }
 
   return (
-    <Button
-      variant={'outline'}
-      block
+    <Link
       data-cy={'invite-form-link'}
-      type="button"
       href={props.href}
+      className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
     >
-      <UserPlusIcon className="h-5 mr-2" />
+      <UserPlusIcon className="h-3 w-3" />
 
       <span>
         <Trans i18nKey={'organization:inviteMembersButtonLabel'} />
       </span>
-    </Button>
+    </Link>
   );
 }

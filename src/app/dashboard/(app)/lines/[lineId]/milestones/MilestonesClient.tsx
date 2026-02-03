@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Plus, X } from 'lucide-react';
-import Button from '~/core/ui/Button';
 import { Input } from '~/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { Switch } from '~/core/ui/Switch';
@@ -207,10 +206,14 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         <p className="text-sm text-muted-foreground">
           Track birthdays, anniversaries, memorial dates, and special achievements so Ultaura can celebrate with you.
         </p>
-        <Button onClick={openAddForm} disabled={disabled} size="small">
-          <Plus className="h-4 w-4 mr-2" />
+        <button
+          onClick={openAddForm}
+          disabled={disabled}
+          className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+        >
+          <Plus className="h-3 w-3" />
           Add Milestone
-        </Button>
+        </button>
       </div>
 
       <Dialog

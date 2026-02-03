@@ -853,13 +853,14 @@ export function PrivacyCenterClient({
                     When enabled, you can invite family members to receive weekly summaries and
                     wellness alerts. Only data after you enable sharing will be shared.
                   </p>
-                  <Button
+                  <button
                     type="button"
                     onClick={() => handleSharingToggle(true)}
                     disabled={isSaving || isSharingUpdating}
+                    className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
                   >
                     Enable family sharing
-                  </Button>
+                  </button>
                 </SectionBody>
               </Section>
             ) : null}
@@ -1489,9 +1490,9 @@ export function PrivacyCenterClient({
                             <button
                               type="button"
                               disabled
-                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium opacity-50 cursor-not-allowed"
+                              className="inline-flex items-center justify-center bg-primary text-primary-foreground font-medium opacity-50 cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
                             >
-                              <Plus className="w-4 h-4" />
+                              <Plus className="w-3 h-3" />
                               Invite Recipient
                             </button>
                           </span>
@@ -1506,9 +1507,9 @@ export function PrivacyCenterClient({
                           setShowInviteModal(true);
                         }}
                         disabled={isInviting}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3 h-3" />
                         Invite Recipient
                       </button>
                     )}
@@ -1761,9 +1762,14 @@ export function PrivacyCenterClient({
                     <p className="text-sm text-muted-foreground">
                       Your existing settings and data will be preserved.
                     </p>
-                    <Button type="button" onClick={handleUpgrade} disabled={isSharingUpdating}>
+                    <button
+                      type="button"
+                      onClick={handleUpgrade}
+                      disabled={isSharingUpdating}
+                      className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+                    >
                       Upgrade to Family Mode
-                    </Button>
+                    </button>
                   </SectionBody>
                 </Section>
               )}

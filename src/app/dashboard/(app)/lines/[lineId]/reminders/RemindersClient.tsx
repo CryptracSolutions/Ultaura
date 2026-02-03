@@ -361,9 +361,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
         {!disabled && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
+            className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3 h-3" />
             New Reminder
           </button>
         )}
@@ -610,9 +610,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
           {!disabled && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3" />
               Create First Reminder
             </button>
           )}
@@ -671,7 +671,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 rows={3}
                 maxLength={500}
                 disabled={isEditSubmitting}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary resize-none disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {editMessage.length}/500 characters

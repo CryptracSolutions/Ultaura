@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Pencil, Plus, X } from 'lucide-react';
-import Button from '~/core/ui/Button';
 import { updateLine } from '~/lib/ultaura/lines';
 import type { LineRow, UserType } from '~/lib/ultaura/types';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
@@ -114,14 +113,18 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
               : 'Topics Ultaura uses to personalize your conversations. You can update these during calls.'}
           </p>
           {canEdit ? (
-            <Button onClick={handleOpenEdit} disabled={disabled} size="small">
+            <button
+              onClick={handleOpenEdit}
+              disabled={disabled}
+              className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+            >
               {hasAnyTopics ? (
-                <Pencil className="h-4 w-4 mr-2" />
+                <Pencil className="h-3 w-3" />
               ) : (
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3" />
               )}
               {hasAnyTopics ? 'Edit Topics' : 'Add Topics'}
-            </Button>
+            </button>
           ) : null}
         </div>
 

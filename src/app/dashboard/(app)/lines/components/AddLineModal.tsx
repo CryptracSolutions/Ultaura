@@ -250,7 +250,7 @@ export function AddLineModal({
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder={isSelfUser ? 'e.g., My phone' : 'e.g., Mom, Dad, Carmen'}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
                       required
                     />
                     <p className="text-xs text-muted-foreground">
@@ -278,7 +278,7 @@ export function AddLineModal({
                           setPhoneError(getUsPhoneValidationError(event.target.value, { required: true }));
                         }}
                         placeholder="(555) 123-4567"
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
                         required
                       />
                       {phoneError ? (
