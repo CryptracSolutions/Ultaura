@@ -76,11 +76,11 @@ const documentationPages = defineCollection({
       const filePath = getContentRelativePath(meta);
       const slug = getSlug(filePath);
       const rawContent = meta.content ?? '';
-      const path = getDocsPath(filePath);
       const pathSegments = getPathSegments(filePath).map(getMetaFromFolderName);
       const resolvedPath = pathSegments
         .map(({ pathName }) => pathName)
         .join('/');
+      const path = resolvedPath ? `/docs/${resolvedPath}` : '/docs';
       const url = path;
 
       return {
@@ -113,6 +113,9 @@ const documentationPages = defineCollection({
 export default defineConfig({
   root: 'src/content',
   collections: { posts, documentationPages },
+  output: {
+    data: 'src/.velite',
+  },
   mdx: {
     rehypePlugins: [
       rehypeSlug,
@@ -154,7 +157,9 @@ function getDocsPath(filePath: string) {
     return '/docs';
   }
 
-  return urlFromFilePath(normalizedPath);
+  const urlPath = urlFromFilePath(normalizedPath);
+
+  return urlPath.replace(/\/index$/, '');
 }
 
 function urlFromFilePath(filePath: string) {
@@ -176,9 +181,12 @@ function getMetaFromFolderName(dirName: string) {
 }
 
 function getPathSegments(filePath: string) {
-  return urlFromFilePath(filePath)
+  const docsPath = getDocsPath(filePath);
+
+  return docsPath
+    .replace(/^\/docs\/?/, '')
     .split('/')
-    .slice(2);
+    .filter(Boolean);
 }
 
 function normalizePath(filePath: string) {

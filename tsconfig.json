@@ -31,8 +31,8 @@
       "~/plugins/*": [
         "./plugins/*"
       ],
-      "@/.velite": ["./.velite"],
-      "@/.velite/*": ["./.velite/*"]
+      "@/.velite": ["./src/.velite"],
+      "@/.velite/*": ["./src/.velite/*"]
     }
   },
   "include": [
@@ -40,7 +40,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".velite"
+    "src/.velite"
   ],
   "exclude": [
     "node_modules",

@@ -1,7 +1,7 @@
-const withAnalyzer = require('@next/bundle-analyzer');
+const createAnalyzer = require('@next/bundle-analyzer');
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -11,32 +11,13 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['sharp', 'onnxruntime-node'],
   },
-  webpack: (config) => {
-    config.plugins.push(new VeliteWebpackPlugin());
-    return config;
-  },
 };
 
-module.exports = withAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-})(nextConfig);
-
-class VeliteWebpackPlugin {
-  static started = false;
-
-  apply(compiler) {
-    compiler.hooks.beforeCompile.tapPromise(
-      'VeliteWebpackPlugin',
-      async () => {
-        if (VeliteWebpackPlugin.started) return;
-        VeliteWebpackPlugin.started = true;
-
-        const dev = compiler.options.mode === 'development';
-        const { build } = await import('velite');
-        await build({ watch: dev, clean: !dev });
-      },
-    );
-  }
+if (process.env.ANALYZE === 'true') {
+  const withAnalyzer = createAnalyzer({ enabled: true });
+  module.exports = withAnalyzer(nextConfig);
+} else {
+  module.exports = nextConfig;
 }
 
 function getRemotePatterns() {
