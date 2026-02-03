@@ -10,6 +10,7 @@ import type { LineRow } from '~/lib/ultaura/types';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 export const metadata: Metadata = {
   title: 'Insights - Ultaura',
@@ -57,7 +58,7 @@ export default async function InsightsPage() {
             </p>
             <Link
               href="/dashboard/settings/subscription"
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               Start 3-day free trial
             </Link>
@@ -91,12 +92,14 @@ export default async function InsightsPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Add a phone line to start collecting insights and weekly summaries.
             </p>
-            <Link
-              href="/dashboard/lines?action=add"
-              className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Add a Phone Line
-            </Link>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/lines?action=add"
+                className={COMPACT_PRIMARY_BUTTON_CLASS}
+              >
+                Add a Phone Line
+              </Link>
+            </div>
           </div>
         </PageBody>
       </>

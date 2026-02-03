@@ -3,14 +3,13 @@
 import { useFormStatus } from 'react-dom';
 import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
 
-import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
 import Heading from '~/core/ui/Heading';
 import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import {
   TextFieldHint,
@@ -71,13 +70,13 @@ function DeleteOrganizationContainer() {
         <Modal
           heading={<Trans i18nKey={'organization:deletingOrganization'} />}
           Trigger={
-            <Button
+            <button
               data-cy={'delete-organization-button'}
               type={'button'}
-              variant={'destructive'}
+              className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
             >
               <Trans i18nKey={'organization:deleteOrganization'} />
-            </Button>
+            </button>
           }
         >
           <If condition={organization}>
@@ -152,11 +151,11 @@ function DeleteOrganizationSubmitButton() {
       data-cy={'confirm-delete-organization-button'}
       type="submit"
       disabled={pending}
-      className={modalDestructiveButtonClass}
+      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
     >
       {pending ? (
         <>
-          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
           <Trans i18nKey={'organization:deleteOrganization'} />
         </>
       ) : (
@@ -192,13 +191,13 @@ function LeaveOrganizationContainer() {
             <Trans i18nKey={'organization:leavingOrganizationModalHeading'} />
           }
           Trigger={
-            <Button
+            <button
               data-cy={'leave-organization-button'}
               type={'button'}
-              variant={'destructive'}
+              className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
             >
               <Trans i18nKey={'organization:leaveOrganization'} />
-            </Button>
+            </button>
           }
         >
           <ErrorBoundary fallback={<LeaveOrganizationErrorAlert />}>
@@ -235,11 +234,11 @@ function LeaveOrganizationSubmitButton() {
       data-cy={'confirm-leave-organization-button'}
       type="submit"
       disabled={pending}
-      className={modalDestructiveButtonClass}
+      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
     >
       {pending ? (
         <>
-          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
           <Trans i18nKey={'organization:leaveOrganization'} />
         </>
       ) : (
@@ -280,7 +279,7 @@ function DeleteOrganizationActions() {
         <button
           type="button"
           disabled={pending}
-          className={modalSecondaryButtonClass}
+          className={COMPACT_OUTLINE_BUTTON_CLASS}
         >
           <Trans i18nKey={'common:cancel'} />
         </button>
@@ -300,7 +299,7 @@ function LeaveOrganizationActions() {
         <button
           type="button"
           disabled={pending}
-          className={modalSecondaryButtonClass}
+          className={COMPACT_OUTLINE_BUTTON_CLASS}
         >
           <Trans i18nKey={'common:cancel'} />
         </button>

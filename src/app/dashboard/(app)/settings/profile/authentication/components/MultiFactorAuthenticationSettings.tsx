@@ -13,15 +13,15 @@ import useFetchAuthFactors from '~/core/hooks/use-fetch-factors';
 import Spinner from '~/core/ui/Spinner';
 import Alert from '~/core/ui/Alert';
 import If from '~/core/ui/If';
-import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import Badge from '~/core/ui/Badge';
 import IconButton from '~/core/ui/IconButton';
 import Trans from '~/core/ui/Trans';
 import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import useSupabase from '~/core/hooks/use-supabase';
 import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
@@ -141,9 +141,9 @@ function SetupMfaButton(
 ) {
   return (
     <div>
-      <Button onClick={props.onClick}>
+      <button onClick={props.onClick} className={COMPACT_PRIMARY_BUTTON_CLASS}>
         <Trans i18nKey={'profile:setupMfaButtonLabel'} />
-      </Button>
+      </button>
     </div>
   );
 }
@@ -190,7 +190,7 @@ function ConfirmUnenrollFactorModal(
             type="button"
             onClick={() => props.setIsModalOpen(false)}
             disabled={unEnroll.isMutating}
-            className={modalSecondaryButtonClass}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <Trans i18nKey={'common:cancel'} />
           </button>
@@ -199,11 +199,11 @@ function ConfirmUnenrollFactorModal(
             type="button"
             onClick={() => onUnenrollRequested(props.factorId)}
             disabled={unEnroll.isMutating}
-            className={modalDestructiveButtonClass}
+            className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
           >
             {unEnroll.isMutating ? (
               <>
-                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                 <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
               </>
             ) : (

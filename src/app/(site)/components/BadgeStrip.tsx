@@ -118,6 +118,7 @@ export function BadgeStrip() {
               {badges.map((badge, index) => (
                 <Tooltip key={`${groupIndex}-${index}`}>
                   <TooltipTrigger asChild>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={badge.src}
                       alt={badge.alt}

@@ -20,8 +20,8 @@ import { Dialog, DialogContent } from '~/core/ui/Dialog';
 import IconButton from '~/core/ui/IconButton';
 import If from '~/core/ui/If';
 import LogoImage from '~/core/ui/Logo/LogoImage';
-import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
+import { COMPACT_OUTLINE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
@@ -101,9 +101,9 @@ function EmbeddedCheckoutPopup({
             <div className={'flex justify-between items-center'}>
               <LogoImage />
 
-              <Button onClick={close} variant={'outline'}>
+              <button onClick={close} className={COMPACT_OUTLINE_BUTTON_CLASS}>
                 <Trans i18nKey={'common:cancel'} />
-              </Button>
+              </button>
             </div>
           </div>
         </If>

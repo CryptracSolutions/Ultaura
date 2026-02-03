@@ -12,9 +12,11 @@ import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 import { createMilestone, updateMilestone, deleteMilestone } from '~/lib/ultaura/milestones';
 import { MilestoneCalendar } from './MilestoneCalendar';
@@ -209,7 +211,7 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         <button
           onClick={openAddForm}
           disabled={disabled}
-          className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+          className={COMPACT_PRIMARY_BUTTON_CLASS}
         >
           <Plus className="h-3 w-3" />
           Add Milestone
@@ -390,18 +392,18 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
               <button
                 type="button"
                 onClick={resetForm}
-                className={modalSecondaryButtonClass}
+                className={COMPACT_OUTLINE_BUTTON_CLASS}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={modalPrimaryButtonClass}
+                className={COMPACT_PRIMARY_BUTTON_CLASS}
               >
                 {isSubmitting ? (
                   <>
-                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                     Saving
                   </>
                 ) : (

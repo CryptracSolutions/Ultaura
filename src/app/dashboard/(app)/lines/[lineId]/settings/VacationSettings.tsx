@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import {
   modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 import { DatePicker } from '~/core/ui/DatePicker';
 
 export function VacationSettings({
@@ -216,9 +218,9 @@ export function VacationSettings({
             <button
               type="button"
               onClick={openAddModal}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3" />
               {pastVacations.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
             </button>
           ) : null}
@@ -350,14 +352,14 @@ export function VacationSettings({
                 <button
                   type="button"
                   onClick={handleAddAnother}
-                  className={modalSecondaryButtonClass}
+                  className={COMPACT_OUTLINE_BUTTON_CLASS}
                 >
                   Add another
                 </button>
                 <button
                   type="button"
                   onClick={closeModal}
-                  className={modalPrimaryButtonClass}
+                  className={COMPACT_PRIMARY_BUTTON_CLASS}
                 >
                   Done
                 </button>
@@ -399,14 +401,14 @@ export function VacationSettings({
                 <button
                   type="button"
                   onClick={attemptCloseVacation}
-                  className={modalSecondaryButtonClass}
+                  className={COMPACT_OUTLINE_BUTTON_CLASS}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={disabled}
-                  className={modalPrimaryButtonClass}
+                  className={COMPACT_PRIMARY_BUTTON_CLASS}
                 >
                   Add Vacation
                 </button>

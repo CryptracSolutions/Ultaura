@@ -10,9 +10,11 @@ import { updateNotificationPreferences } from '~/lib/ultaura/insights';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 import { useRouter } from 'next/navigation';
 
 interface AlertSettingsEntry {
@@ -346,18 +348,18 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
                 type="button"
                 onClick={attemptClose}
                 disabled={isSaving}
-                className={modalSecondaryButtonClass}
+                className={COMPACT_OUTLINE_BUTTON_CLASS}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className={modalPrimaryButtonClass}
+                className={COMPACT_PRIMARY_BUTTON_CLASS}
               >
                 {isSaving ? (
                   <>
-                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                     Saving
                   </>
                 ) : (

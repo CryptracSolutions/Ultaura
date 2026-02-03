@@ -10,9 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui
 import { X } from 'lucide-react';
 import {
   modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import { createNewOrganizationAction } from '~/lib/organizations/actions';
 
@@ -100,7 +102,7 @@ function CreateOrganizationForm({
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className={modalSecondaryButtonClass}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <Trans i18nKey={'common:cancel'} />
           </button>
@@ -120,11 +122,11 @@ function SubmitButton() {
       data-cy={'confirm-create-organization-button'}
       type="submit"
       disabled={pending}
-      className={modalPrimaryButtonClass}
+      className={COMPACT_PRIMARY_BUTTON_CLASS}
     >
       {pending ? (
         <>
-          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
           <Trans i18nKey={'organization:createOrganizationSubmitLabel'} />
         </>
       ) : (

@@ -13,6 +13,7 @@ import { getUpcomingScheduledCalls } from '~/lib/ultaura/schedules';
 import { getUpcomingReminders } from '~/lib/ultaura/reminders';
 import { getLineActivity, getUsageSummary } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -100,12 +101,14 @@ async function DashboardPage() {
                 Start a 3-day free trial to add a loved one, set schedules, and view
                 call activity in one place.
               </p>
-              <Link
-                href="/dashboard/settings/subscription"
-                className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                Start 3-day free trial
-              </Link>
+              <div className="mt-4">
+                <Link
+                  href="/dashboard/settings/subscription"
+                  className={COMPACT_PRIMARY_BUTTON_CLASS}
+                >
+                  Start 3-day free trial
+                </Link>
+              </div>
             </div>
           </div>
         </PageBody>
@@ -321,19 +324,19 @@ async function DashboardPage() {
                 <div className="grid gap-2">
                   <Link
                     href="/dashboard/calls"
-                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className={COMPACT_PRIMARY_BUTTON_CLASS}
                   >
                     View call schedules
                   </Link>
                   <Link
                     href="/dashboard/reminders"
-                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className={COMPACT_PRIMARY_BUTTON_CLASS}
                   >
                     View reminders
                   </Link>
                   <Link
                     href="/dashboard/lines"
-                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className={COMPACT_PRIMARY_BUTTON_CLASS}
                   >
                     View lines
                   </Link>

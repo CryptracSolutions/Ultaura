@@ -6,9 +6,9 @@ import Trans from '~/core/ui/Trans';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
 import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import { transferOrganizationOwnershipAction } from '~/lib/organizations/actions';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
@@ -97,7 +97,7 @@ function TransferOrganizationOwnershipForm({
         <button
           type="button"
           onClick={() => setIsOpen(false)}
-          className={modalSecondaryButtonClass}
+          className={COMPACT_OUTLINE_BUTTON_CLASS}
           disabled={pending}
         >
           <Trans i18nKey={'common:cancel'} />
@@ -107,11 +107,11 @@ function TransferOrganizationOwnershipForm({
           type="submit"
           data-cy={'confirm-transfer-ownership-button'}
           disabled={pending}
-          className={modalDestructiveButtonClass}
+          className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
         >
           {pending ? (
             <>
-              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
               <Trans i18nKey={'organization:transferringOwnership'} />
             </>
           ) : (

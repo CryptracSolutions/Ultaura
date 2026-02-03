@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
-import Button from '~/core/ui/Button';
 import { Input } from '~/components/ui/input';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { Card, CardContent } from '~/components/ui/card';
@@ -11,8 +10,6 @@ import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
 import { Phone, Trash2, Plus, X } from 'lucide-react';
 import {
@@ -22,6 +19,11 @@ import {
 } from '~/lib/ultaura/contacts';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import { toast } from 'sonner';
+import {
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface TrustedContact {
   id: string;
@@ -152,7 +154,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
         <button
           onClick={() => setIsAdding(true)}
           disabled={disabled}
-          className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+          className={COMPACT_PRIMARY_BUTTON_CLASS}
         >
           <Plus className="h-3 w-3" />
           Add Contact
@@ -254,7 +256,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
               <button
                 type="button"
                 onClick={resetAddForm}
-                className={modalSecondaryButtonClass}
+                className={COMPACT_OUTLINE_BUTTON_CLASS}
                 disabled={isSubmitting}
               >
                 Cancel
@@ -262,11 +264,11 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
               <button
                 type="submit"
                 disabled={!consentAcknowledged || isSubmitting}
-                className={modalPrimaryButtonClass}
+                className={COMPACT_PRIMARY_BUTTON_CLASS}
               >
                 {isSubmitting ? (
                   <>
-                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                     Saving
                   </>
                 ) : (
@@ -294,15 +296,15 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                   </p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
+                type="button"
                 onClick={() => handleRemoveContact(contact.id)}
                 disabled={disabled}
                 aria-label={`Remove ${contact.name}`}
+                className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+                <Trash2 className="h-3 w-3" />
+              </button>
             </CardContent>
           </Card>
         ))}

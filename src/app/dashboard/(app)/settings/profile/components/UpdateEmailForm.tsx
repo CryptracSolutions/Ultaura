@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import type { User } from '@supabase/supabase-js';
 
-import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
 import If from '~/core/ui/If';
 import Alert from '~/core/ui/Alert';
@@ -17,6 +16,10 @@ import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 import configuration from '~/configuration';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
   const { t } = useTranslation();
@@ -143,22 +146,27 @@ const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
 
         <div>
           <div className={'flex flex-col gap-3 md:flex-row'}>
-            <Button
+            <button
               type={'button'}
-              variant={'outline'}
-              className={'w-full md:w-auto'}
+              className={COMPACT_OUTLINE_BUTTON_CLASS}
               onClick={() => reset()}
               disabled={!hasChanges || updateUserMutation.isMutating}
             >
               Discard changes
-            </Button>
-            <Button
-              className={'w-full md:w-auto'}
-              loading={updateUserMutation.isMutating}
+            </button>
+            <button
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
               disabled={!hasChanges || updateUserMutation.isMutating}
             >
-              <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
-            </Button>
+              {updateUserMutation.isMutating ? (
+                <>
+                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
+                </>
+              ) : (
+                <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
+              )}
+            </button>
           </div>
         </div>
       </div>

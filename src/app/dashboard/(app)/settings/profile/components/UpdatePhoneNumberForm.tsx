@@ -10,18 +10,18 @@ import TextField from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
 import If from '~/core/ui/If';
 
-import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import AuthErrorMessage from '~/app/auth/components/AuthErrorMessage';
 import useSupabase from '~/core/hooks/use-supabase';
-import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
 
 import configuration from '~/configuration';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
+import {
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface UpdatePhoneNumberFormProps {
   session: UserSession;
@@ -124,18 +124,27 @@ function UpdatePhoneNumberForm({
         </TextField>
 
         <div className={'flex flex-col gap-3 md:flex-row'}>
-          <Button
+          <button
             type={'button'}
-            variant={'outline'}
-            className={'w-full md:w-auto'}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
             onClick={resetForm}
             disabled={!hasChanges || isMutating}
           >
             Discard changes
-          </Button>
-          <Button loading={isMutating} disabled={!hasChanges || isMutating}>
-            <Trans i18nKey={'profile:updatePhoneNumber'} />
-          </Button>
+          </button>
+          <button
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            disabled={!hasChanges || isMutating}
+          >
+            {isMutating ? (
+              <>
+                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <Trans i18nKey={'profile:updatePhoneNumber'} />
+              </>
+            ) : (
+              <Trans i18nKey={'profile:updatePhoneNumber'} />
+            )}
+          </button>
         </div>
       </div>
     </form>
@@ -168,16 +177,15 @@ function RemovePhoneNumberButton({
 
   return (
     <>
-      <Button
+      <button
         type={'button'}
-        variant={'ghost'}
-        size={'small'}
         onClick={() => setIsModalOpen(true)}
+        className={COMPACT_OUTLINE_BUTTON_CLASS}
       >
         <span className={'text-xs font-normal'}>
           <Trans i18nKey={'profile:removePhoneNumber'} />
         </span>
-      </Button>
+      </button>
 
       <Modal
         heading={<Trans i18nKey={'profile:removePhoneNumber'} />}
@@ -200,7 +208,7 @@ function RemovePhoneNumberButton({
               type="button"
               onClick={() => setIsModalOpen(false)}
               disabled={isMutating}
-              className={modalSecondaryButtonClass}
+              className={COMPACT_OUTLINE_BUTTON_CLASS}
             >
               <Trans i18nKey={'common:cancel'} />
             </button>
@@ -209,11 +217,11 @@ function RemovePhoneNumberButton({
               type="button"
               onClick={onUnlinkPhoneNumber}
               disabled={isMutating}
-              className={modalDestructiveButtonClass}
+              className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
             >
               {isMutating ? (
                 <>
-                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                   <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
                 </>
               ) : (

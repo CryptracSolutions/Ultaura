@@ -19,6 +19,10 @@ import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/reminders';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddReminderModal } from '~/components/ultaura/AddReminderModal';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface Reminder {
   reminderId: string;
@@ -194,9 +198,9 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
         <div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3 h-3" />
             Add Reminder
           </button>
         </div>
@@ -213,9 +217,9 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
           {!disabled && (
             <Link
               href="/dashboard/lines?action=add"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3" />
               Add a Phone Line
             </Link>
           )}
@@ -245,7 +249,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                     </div>
                     <Link
                       href={`/dashboard/lines/${line.short_id}/reminders`}
-                      className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      className={COMPACT_OUTLINE_BUTTON_CLASS}
                     >
                       View All
                     </Link>
@@ -259,13 +263,15 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                       <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No reminders set up yet</p>
                       {!disabled && (
-                        <button
-                          onClick={() => handleOpenForLine(line.id)}
-                          className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Create your first reminder
-                        </button>
+                        <div className="mt-2">
+                          <button
+                            onClick={() => handleOpenForLine(line.id)}
+                            className={COMPACT_PRIMARY_BUTTON_CLASS}
+                          >
+                            <Plus className="w-3 h-3" />
+                            Create your first reminder
+                          </button>
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -414,14 +420,14 @@ function ReminderRow({
             className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
             title="Edit reminder"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3 h-3" />
           </Link>
           <button
             onClick={onCancel}
             className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Cancel reminder"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3 h-3" />
           </button>
         </div>
       )}

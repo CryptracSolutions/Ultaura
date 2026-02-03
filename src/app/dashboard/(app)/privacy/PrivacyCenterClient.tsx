@@ -22,7 +22,6 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import classNames from 'clsx';
 
-import Button from '~/core/ui/Button';
 import { Switch } from '~/core/ui/Switch';
 import { Checkbox } from '~/core/ui/Checkbox';
 import TextField from '~/core/ui/TextField';
@@ -36,8 +35,6 @@ import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
@@ -71,6 +68,11 @@ import { InvitedFamilyList } from './components/InvitedFamilyList';
 import { TELEPHONY } from '~/lib/ultaura/constants';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
+import {
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface PrivacyCenterClientProps {
   account: UltauraAccountRow;
@@ -857,7 +859,7 @@ export function PrivacyCenterClient({
                     type="button"
                     onClick={() => handleSharingToggle(true)}
                     disabled={isSaving || isSharingUpdating}
-                    className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+                    className={COMPACT_PRIMARY_BUTTON_CLASS}
                   >
                     Enable family sharing
                   </button>
@@ -980,9 +982,9 @@ export function PrivacyCenterClient({
 
                         <div className="flex flex-wrap gap-2">
                           {canRequestRecording ? (
-                            <Button
+                            <button
                               type="button"
-                              variant="outline"
+                              className={COMPACT_OUTLINE_BUTTON_CLASS}
                               onClick={() => handleRecordingReenable(line.id)}
                               disabled={
                                 recordingReenableRequestedAt !== null ||
@@ -992,12 +994,12 @@ export function PrivacyCenterClient({
                               {recordingReenableRequestedAt
                                 ? 'Re-enable requested'
                                 : 'Re-enable recording'}
-                            </Button>
+                            </button>
                           ) : null}
                           {canRequestSharing ? (
-                            <Button
+                            <button
                               type="button"
-                              variant="outline"
+                              className={COMPACT_OUTLINE_BUTTON_CLASS}
                               onClick={() => handleSharingRePrompt(line.id)}
                               disabled={
                                 sharingRePromptRequestedAt !== null ||
@@ -1007,7 +1009,7 @@ export function PrivacyCenterClient({
                               {sharingRePromptRequestedAt
                                 ? 'Change requested'
                                 : 'Request change'}
-                            </Button>
+                            </button>
                           ) : null}
                         </div>
 
@@ -1139,13 +1141,13 @@ export function PrivacyCenterClient({
                     Permanently delete AI-generated memories, call insights, and recorded audio.
                     Call session metadata and user-created reminders are preserved.
                   </p>
-                  <Button
+                  <button
                     type="button"
-                    variant="destructive"
+                    className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
                     onClick={() => setDeleteDialogOpen(true)}
                   >
                     Delete privacy data
-                  </Button>
+                  </button>
                 </div>
               </SectionBody>
             </Section>
@@ -1184,17 +1186,21 @@ export function PrivacyCenterClient({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
-                  <Button
+                  <button
                     type="button"
                     onClick={handleExportRequest}
                     disabled={isExporting || exportInProgress}
+                    className={COMPACT_PRIMARY_BUTTON_CLASS}
                   >
-                    {isExporting
-                      ? 'Requesting...'
-                      : exportInProgress
-                        ? 'Export in progress'
-                        : 'Request export'}
-                  </Button>
+                    {isExporting ? (
+                      <>
+                        <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Requesting...
+                      </>
+                    ) : exportInProgress
+                      ? 'Export in progress'
+                      : 'Request export'}
+                  </button>
                   <p className="text-xs text-muted-foreground">
                     Exports are available for 48 hours and include {lineCount} line
                     {lineCount === 1 ? '' : 's'}.
@@ -1414,27 +1420,25 @@ export function PrivacyCenterClient({
                       Showing {auditStartIndex}-{auditEndIndex} of {filteredAuditLog.length}
                     </p>
                     <div className="flex items-center gap-2">
-                      <Button
+                      <button
                         type="button"
-                        variant="outline"
-                        size="sm"
+                        className={COMPACT_OUTLINE_BUTTON_CLASS}
                         onClick={() => setAuditPage(Math.max(1, auditPageSafe - 1))}
                         disabled={auditPageSafe <= 1}
                       >
                         Previous
-                      </Button>
+                      </button>
                       <span className="text-xs text-muted-foreground">
                         Page {auditPageSafe} of {auditTotalPages}
                       </span>
-                      <Button
+                      <button
                         type="button"
-                        variant="outline"
-                        size="sm"
+                        className={COMPACT_OUTLINE_BUTTON_CLASS}
                         onClick={() => setAuditPage(Math.min(auditTotalPages, auditPageSafe + 1))}
                         disabled={auditPageSafe >= auditTotalPages}
                       >
                         Next
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 ) : null}
@@ -1490,7 +1494,7 @@ export function PrivacyCenterClient({
                             <button
                               type="button"
                               disabled
-                              className="inline-flex items-center justify-center bg-primary text-primary-foreground font-medium opacity-50 cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+                              className={COMPACT_PRIMARY_BUTTON_CLASS}
                             >
                               <Plus className="w-3 h-3" />
                               Invite Recipient
@@ -1507,7 +1511,7 @@ export function PrivacyCenterClient({
                           setShowInviteModal(true);
                         }}
                         disabled={isInviting}
-                        className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+                        className={COMPACT_PRIMARY_BUTTON_CLASS}
                       >
                         <Plus className="w-3 h-3" />
                         Invite Recipient
@@ -1656,18 +1660,18 @@ export function PrivacyCenterClient({
                             type="button"
                             onClick={attemptCloseInvite}
                             disabled={isInviting}
-                            className={modalSecondaryButtonClass}
+                            className={COMPACT_OUTLINE_BUTTON_CLASS}
                           >
                             Cancel
                           </button>
                           <button
                             type="submit"
                             disabled={isInviting}
-                            className={modalPrimaryButtonClass}
+                            className={COMPACT_PRIMARY_BUTTON_CLASS}
                           >
                             {isInviting ? (
                               <>
-                                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                                 Sending
                               </>
                             ) : (
@@ -1762,14 +1766,14 @@ export function PrivacyCenterClient({
                     <p className="text-sm text-muted-foreground">
                       Your existing settings and data will be preserved.
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleUpgrade}
-                      disabled={isSharingUpdating}
-                      className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
-                    >
-                      Upgrade to Family Mode
-                    </button>
+                      <button
+                        type="button"
+                        onClick={handleUpgrade}
+                        disabled={isSharingUpdating}
+                        className={COMPACT_PRIMARY_BUTTON_CLASS}
+                      >
+                        Upgrade to Family Mode
+                      </button>
                   </SectionBody>
                 </Section>
               )}
@@ -1787,6 +1791,31 @@ export function PrivacyCenterClient({
   return (
     <div className="flex flex-col gap-6 pb-24">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={resetFormState}
+            disabled={isSaving || !hasChanges}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
+          >
+            Discard changes
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving || !hasChanges}
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
+          >
+            {isSaving ? (
+              <>
+                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </button>
+        </div>
+
         <NavigationMenu bordered scrollable>
           {privacyTabs.map((tab) => (
             <NavigationItem
@@ -1818,23 +1847,6 @@ export function PrivacyCenterClient({
           </div>
         </div>
 
-        <div className="mt-6 flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={resetFormState}
-            disabled={isSaving || !hasChanges}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-input px-4 py-2 text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Discard changes
-          </button>
-          <button
-            type="submit"
-            disabled={isSaving || !hasChanges}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
       </form>
 
       <ConfirmationDialog

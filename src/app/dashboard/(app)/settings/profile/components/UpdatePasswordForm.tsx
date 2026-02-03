@@ -9,7 +9,6 @@ import { useForm } from 'react-hook-form';
 
 import useUpdateUserMutation from '~/core/hooks/use-update-user-mutation';
 
-import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
 import Alert from '~/core/ui/Alert';
 import If from '~/core/ui/If';
@@ -18,6 +17,10 @@ import Trans from '~/core/ui/Trans';
 import configuration from '~/configuration';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 const UpdatePasswordForm = ({ user }: { user: User }) => {
   const { t } = useTranslation();
@@ -182,22 +185,27 @@ const UpdatePasswordForm = ({ user }: { user: User }) => {
 
         <div>
           <div className={'flex flex-col gap-3 md:flex-row'}>
-            <Button
+            <button
               type={'button'}
-              variant={'outline'}
-              className={'w-full md:w-auto'}
+              className={COMPACT_OUTLINE_BUTTON_CLASS}
               onClick={resetForm}
               disabled={!hasChanges || isMutating}
             >
               Discard changes
-            </Button>
-            <Button
-              className={'w-full md:w-auto'}
-              loading={isMutating}
+            </button>
+            <button
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
               disabled={!hasChanges || isMutating}
             >
-              <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
-            </Button>
+              {isMutating ? (
+                <>
+                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
+                </>
+              ) : (
+                <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
+              )}
+            </button>
           </div>
         </div>
       </div>

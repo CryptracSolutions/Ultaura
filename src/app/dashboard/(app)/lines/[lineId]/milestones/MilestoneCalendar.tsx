@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { DateTime } from 'luxon';
 import { CalendarDays, ChevronLeft, ChevronRight, Edit2, Trash2, Star } from 'lucide-react';
-import Button from '~/core/ui/Button';
 import { Popover, PopoverTrigger, PopoverContent } from '~/core/ui/Popover';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 

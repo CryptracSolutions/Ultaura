@@ -9,6 +9,7 @@ import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 export const metadata: Metadata = {
   title: 'Reminders - Ultaura',
@@ -43,7 +44,7 @@ export default async function RemindersPage() {
             </p>
             <a
               href="/dashboard/settings/subscription"
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               Start 3-day free trial
             </a>

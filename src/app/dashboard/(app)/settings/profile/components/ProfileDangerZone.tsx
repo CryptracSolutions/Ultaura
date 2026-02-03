@@ -4,16 +4,15 @@ import { useFormStatus } from 'react-dom';
 import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
 
 import Modal from '~/core/ui/Modal';
-import Button from '~/core/ui/Button';
 import Heading from '~/core/ui/Heading';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
 import ErrorBoundary from '~/core/ui/ErrorBoundary';
 import { deleteUserAccountAction } from '~/lib/user/actions.server';
 import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 function ProfileDangerZone() {
   return <DeleteProfileContainer />;
@@ -46,9 +45,12 @@ function DeleteProfileModal() {
     <Modal
       heading={<Trans i18nKey={'profile:deleteAccount'} />}
       Trigger={
-        <Button data-cy={'delete-account-button'} variant={'destructive'}>
+        <button
+          data-cy={'delete-account-button'}
+          className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+        >
           <Trans i18nKey={'profile:deleteAccount'} />
-        </Button>
+        </button>
       }
     >
       <ErrorBoundary fallback={<DeleteProfileErrorAlert />}>
@@ -106,11 +108,11 @@ function DeleteAccountSubmitButton() {
       value={'delete'}
       type="submit"
       disabled={pending}
-      className={modalDestructiveButtonClass}
+      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
     >
       {pending ? (
         <>
-          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
           <Trans i18nKey={'profile:deleteAccount'} />
         </>
       ) : (
@@ -140,7 +142,7 @@ function DeleteAccountActions() {
         <button
           type="button"
           disabled={pending}
-          className={modalSecondaryButtonClass}
+          className={COMPACT_OUTLINE_BUTTON_CLASS}
         >
           <Trans i18nKey={'common:cancel'} />
         </button>

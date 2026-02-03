@@ -18,6 +18,10 @@ import { deleteSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddScheduleModal } from '~/components/ultaura/AddScheduleModal';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface Schedule {
   scheduleId: string;
@@ -130,9 +134,9 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         <div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3 h-3" />
             Add Schedule
           </button>
         </div>
@@ -149,9 +153,9 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
           {!disabled && (
             <Link
               href="/dashboard/lines?action=add"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3" />
               Add a Phone Line
             </Link>
           )}
@@ -181,7 +185,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                     </div>
                     <Link
                       href={`/dashboard/lines/${line.short_id}/schedule`}
-                      className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      className={COMPACT_OUTLINE_BUTTON_CLASS}
                     >
                       View All
                     </Link>
@@ -195,13 +199,15 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                       <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground">No schedules set up yet</p>
                       {!disabled && (
-                        <button
-                          onClick={() => handleOpenForLine(line.id)}
-                          className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Create your first schedule
-                        </button>
+                        <div className="mt-2">
+                          <button
+                            onClick={() => handleOpenForLine(line.id)}
+                            className={COMPACT_PRIMARY_BUTTON_CLASS}
+                          >
+                            <Plus className="w-3 h-3" />
+                            Create your first schedule
+                          </button>
+                        </div>
                       )}
                     </div>
                   ) : (

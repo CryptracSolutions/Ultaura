@@ -18,6 +18,11 @@ import { createScheduleException, deleteScheduleException } from '~/lib/ultaura/
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
 import { extractOriginalTimeOfDay, normalizeTimeOfDay } from '~/lib/ultaura/schedule-helpers';
 import { CreateScheduleForm } from '~/components/ultaura/CreateScheduleForm';
+import {
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface ScheduleClientProps {
   line: LineRow;
@@ -635,7 +640,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         {!disabled && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             <Plus className="w-3 h-3" />
             New Schedule
@@ -706,7 +711,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                             className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                             title="Edit schedule"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-3 h-3" />
                           </Link>
 
                           <button
@@ -720,11 +725,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                             title={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
                           >
                             {isToggling ? (
-                              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                             ) : schedule.enabled ? (
-                              <Pause className="w-4 h-4" />
+                              <Pause className="w-3 h-3" />
                             ) : (
-                              <Play className="w-4 h-4" />
+                              <Play className="w-3 h-3" />
                             )}
                           </button>
 
@@ -738,9 +743,9 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                             title="Delete schedule"
                           >
                             {isDeleting ? (
-                              <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                             ) : (
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3 h-3" />
                             )}
                           </button>
                         </>
@@ -803,9 +808,9 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                           title="Delete schedule"
                         >
                           {isDeleting ? (
-                            <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                           ) : (
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3" />
                           )}
                         </button>
                       </div>
@@ -823,7 +828,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
           {!disabled && (
             <button
               onClick={openExceptionModal}
-              className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               <Plus className="w-3 h-3" />
               New exception
@@ -864,9 +869,9 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                   {!disabled && (
                     <button
                       onClick={() => setExceptionToDelete(exception)}
-                      className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-destructive"
+                      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3 h-3" />
                       Remove
                     </button>
                   )}
@@ -889,7 +894,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
           {!disabled && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               <Plus className="w-3 h-3" />
               Create First Schedule
@@ -945,7 +950,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3" />
             </button>
           </div>
 
@@ -1024,24 +1029,24 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                 type="button"
                 onClick={discardEditChanges}
                 disabled={disabled || isEditLoading || isEditSaving}
-                className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
+                className={COMPACT_OUTLINE_BUTTON_CLASS}
               >
                 Discard changes
               </button>
               <button
                 type="submit"
                 disabled={disabled || isEditLoading || isEditSaving || editSelectedDays.length === 0}
-                className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={COMPACT_PRIMARY_BUTTON_CLASS}
               >
                 <span className="inline-flex w-full items-center justify-center gap-2">
                   {isEditLoading ? (
                     <>
-                      <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                       Loading...
                     </>
                   ) : isEditSaving ? (
                     <>
-                      <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                       Saving...
                     </>
                   ) : (
@@ -1081,7 +1086,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3" />
             </button>
           </div>
 
@@ -1200,7 +1205,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
               <button
                 type="button"
                 onClick={discardExceptionChanges}
-                className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors"
+                className={COMPACT_OUTLINE_BUTTON_CLASS}
                 disabled={exceptionLoading}
               >
                 Discard changes
@@ -1208,11 +1213,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
               <button
                 type="submit"
                 disabled={exceptionLoading}
-                className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                className={COMPACT_PRIMARY_BUTTON_CLASS}
               >
                 {exceptionLoading ? (
                   <>
-                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                     Saving...
                   </>
                 ) : (
@@ -1244,7 +1249,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3" />
             </button>
           </div>
 

@@ -8,6 +8,10 @@ import { Checkbox } from '~/core/ui/Checkbox';
 import { DatePicker } from '~/core/ui/DatePicker';
 import { TimePicker } from '~/core/ui/TimePicker';
 import { createReminder } from '~/lib/ultaura/reminders';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 export interface CreateReminderFormProps {
   lineId: string;
@@ -301,18 +305,18 @@ export function CreateReminderForm({
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             Discard changes
           </button>
           <button
             type="submit"
             disabled={isSubmitting || !message.trim() || !date || !time}
-            className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             {isSubmitting ? (
               <>
-                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                 Saving...
               </>
             ) : (

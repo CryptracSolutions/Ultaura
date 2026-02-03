@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, MessageSquare, Phone, ArrowLeft, CheckCircle } from 'lucide-react';
 import { startPhoneVerification, checkPhoneVerification } from '~/lib/ultaura/verification';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface VerifyPhoneClientProps {
   lineId: string;
@@ -44,12 +48,14 @@ export function VerifyPhoneClient({
         <p className="text-muted-foreground mt-2">
           Subscribe to verify this phone number and continue using Ultaura.
         </p>
-        <Link
-          href="/dashboard/settings/subscription"
-          className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-3 text-primary-foreground font-medium hover:bg-primary/90 transition-colors mt-6"
-        >
-          Choose a Plan
-        </Link>
+        <div className="mt-6">
+          <Link
+            href="/dashboard/settings/subscription"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
+          >
+            Choose a Plan
+          </Link>
+        </div>
       </div>
     );
   }
@@ -156,14 +162,16 @@ export function VerifyPhoneClient({
   if (step === 'enter') {
     return (
       <div className="max-w-md w-full mx-auto">
-        <button
-          onClick={() => setStep('choose')}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-          aria-label="Go back to channel selection"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back</span>
-        </button>
+        <div className="mb-6">
+          <button
+            onClick={() => setStep('choose')}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
+            aria-label="Go back to channel selection"
+          >
+            <ArrowLeft className="w-3 h-3" />
+            <span>Back</span>
+          </button>
+        </div>
 
         <div className="text-center mb-8">
           <h2 className="text-2xl font-semibold text-foreground">Enter verification code</h2>
@@ -201,21 +209,30 @@ export function VerifyPhoneClient({
         <button
           onClick={() => handleVerify(code.join(''))}
           disabled={isLoading || code.some((d) => !d)}
-          className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={COMPACT_PRIMARY_BUTTON_CLASS}
         >
-          {isLoading ? 'Verifying...' : 'Verify'}
+          {isLoading ? (
+            <>
+              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Verifying...
+            </>
+          ) : (
+            'Verify'
+          )}
         </button>
 
         <p className="text-center text-sm text-muted-foreground mt-4">
-          Didn&apos;t receive a code?{' '}
+          Didn&apos;t receive a code?
+        </p>
+        <div className="mt-2 flex justify-center">
           <button
             onClick={handleResend}
             disabled={isLoading}
-            className="text-primary hover:underline disabled:opacity-50"
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             Resend
           </button>
-        </p>
+        </div>
       </div>
     );
   }
@@ -240,21 +257,21 @@ export function VerifyPhoneClient({
       )}
 
       <div className="space-y-4">
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={() => handleSendCode('sms')}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-input bg-background text-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
-            <MessageSquare className="w-5 h-5" />
+            <MessageSquare className="w-3 h-3" />
             Text me
           </button>
           <button
             onClick={() => handleSendCode('call')}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-input bg-background text-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
-            <Phone className="w-5 h-5" />
+            <Phone className="w-3 h-3" />
             Call me
           </button>
         </div>

@@ -11,9 +11,10 @@ import PhoneInput from '~/components/ultaura/PhoneInput';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import Modal from '~/core/ui/Modal';
-
-const BTN_PRIMARY_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
-const BTN_OUTLINE_CLASS = 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-input text-foreground hover:bg-muted transition-colors disabled:opacity-50';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface LineHeaderActionsProps {
   line: LineRow;
@@ -200,7 +201,7 @@ export function LineHeaderActions({
           <button
             onClick={() => openManualCall({ preselectedLineId: line.id })}
             disabled={isReadOnly}
-            className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm`}
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             <PhoneCall className="w-3 h-3" />
             Manual Call
@@ -213,7 +214,7 @@ export function LineHeaderActions({
             setAlternatePhoneError(null);
           }}
           disabled={isReadOnly}
-          className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto px-2.5 py-1 text-xs gap-1 rounded-sm`}
+          className={COMPACT_PRIMARY_BUTTON_CLASS}
         >
           <Play className="w-3 h-3" />
           Test Call
@@ -339,7 +340,7 @@ export function LineHeaderActions({
             <button
               type="button"
               onClick={() => setIsTestCallModalOpen(false)}
-              className={`${BTN_OUTLINE_CLASS} w-full sm:w-auto`}
+              className={COMPACT_OUTLINE_BUTTON_CLASS}
             >
               Cancel
             </button>
@@ -347,7 +348,7 @@ export function LineHeaderActions({
               type="button"
               onClick={handleTestCall}
               disabled={isTestCalling || cooldownSeconds > 0 || isReadOnly}
-              className={`${BTN_PRIMARY_CLASS} w-full sm:w-auto`}
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               {cooldownSeconds > 0
                 ? `Try again in ${cooldownSeconds}s`

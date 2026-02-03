@@ -3,9 +3,9 @@ import { useCallback, useState, useTransition } from 'react';
 import Trans from '~/core/ui/Trans';
 import Modal from '~/core/ui/Modal';
 import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
+  COMPACT_OUTLINE_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import { deleteMemberAction } from '~/lib/memberships/actions';
 import If from '~/core/ui/If';
@@ -75,7 +75,7 @@ function RemoveMemberForm({
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className={modalSecondaryButtonClass}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
             disabled={isSubmitting}
           >
             <Trans i18nKey={'common:cancel'} />
@@ -85,11 +85,11 @@ function RemoveMemberForm({
             data-cy={'confirm-remove-member'}
             type="submit"
             disabled={isSubmitting}
-            className={modalDestructiveButtonClass}
+            className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
           >
             {isSubmitting ? (
               <>
-                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                 <Trans i18nKey={'organization:removeMemberSubmitLabel'} />
               </>
             ) : (

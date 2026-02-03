@@ -8,6 +8,7 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { InsightsPageHeader } from '../components/InsightsPageHeader';
 import { RelationshipsTabContent } from '../components/RelationshipsTabContent';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 import { computeTierAccess } from '../components/tier-utils';
 import { loadInsightsPageData } from '../loader';
 
@@ -37,7 +38,7 @@ export default async function InsightsRelationshipsPage({ params }: PageProps) {
             </p>
             <Link
               href="/dashboard/settings/subscription"
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               Start 3-day free trial
             </Link>

@@ -9,7 +9,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import OrganizationContext from '~/lib/contexts/organization';
 import useUpdateOrganizationMutation from '~/lib/organizations/hooks/use-update-organization-mutation';
 
-import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
 import ImageUploader from '~/core/ui/ImageUploader';
@@ -18,6 +17,10 @@ import useSupabase from '~/core/hooks/use-supabase';
 import type Organization from '~/lib/organizations/types/organization';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 const UpdateOrganizationForm = () => {
   const { organization, setOrganization } = useContext(OrganizationContext);
@@ -123,23 +126,28 @@ const UpdateOrganizationForm = () => {
         </TextField>
 
         <div className={'flex flex-col gap-3 md:flex-row'}>
-          <Button
+          <button
             type={'button'}
-            variant={'outline'}
-            className={'w-full md:w-auto'}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
             onClick={resetForm}
             disabled={!hasChanges || updateOrganizationMutation.isMutating}
           >
             Discard changes
-          </Button>
-          <Button
-            className={'w-full md:w-auto'}
+          </button>
+          <button
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
             data-cy={'update-organization-submit-button'}
-            loading={updateOrganizationMutation.isMutating}
             disabled={!hasChanges || updateOrganizationMutation.isMutating}
           >
-            <Trans i18nKey={'organization:updateOrganizationSubmitLabel'} />
-          </Button>
+            {updateOrganizationMutation.isMutating ? (
+              <>
+                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <Trans i18nKey={'organization:updateOrganizationSubmitLabel'} />
+              </>
+            ) : (
+              <Trans i18nKey={'organization:updateOrganizationSubmitLabel'} />
+            )}
+          </button>
         </div>
       </form>
 

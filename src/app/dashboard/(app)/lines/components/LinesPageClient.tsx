@@ -8,6 +8,7 @@ import type { LineRow, UserType } from '~/lib/ultaura/types';
 import { LineCard } from './LineCard';
 import { AddLineModal } from './AddLineModal';
 import useSupabase from '~/core/hooks/use-supabase';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface LinesPageClientProps {
   accountId: string;
@@ -107,7 +108,7 @@ export function LinesPageClient({
         ) : canAddLine ? (
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             <Plus className="w-3 h-3" />
             {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
@@ -154,7 +155,7 @@ export function LinesPageClient({
           <button
             onClick={() => setIsAddModalOpen(true)}
             disabled={disabled}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             <Plus className="w-3 h-3" />
             {isSelfUser ? 'Add My Phone' : 'Add First Line'}

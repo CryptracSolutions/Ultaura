@@ -4,6 +4,7 @@ const LogoImage: React.FCC<{
   className?: string;
 }> = ({ className }) => {
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/logos/logo.svg"
       alt="Ultaura"

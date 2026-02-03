@@ -12,9 +12,9 @@ import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
 import {
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
 import VerificationCodeInput from '~/app/auth/components/VerificationCodeInput';
@@ -106,7 +106,7 @@ function MultiFactorAuthSetupForm({
         <button
           type="button"
           onClick={onCancel}
-          className={modalSecondaryButtonClass}
+          className={COMPACT_OUTLINE_BUTTON_CLASS}
           disabled={state.loading}
         >
           <Trans i18nKey={'common:cancel'} />
@@ -149,7 +149,7 @@ function MultiFactorAuthSetupForm({
                 type="button"
                 onClick={onCancel}
                 disabled={state.loading}
-                className={modalSecondaryButtonClass}
+                className={COMPACT_OUTLINE_BUTTON_CLASS}
               >
                 <Trans i18nKey={'common:cancel'} />
               </button>
@@ -157,11 +157,11 @@ function MultiFactorAuthSetupForm({
               <button
                 type="submit"
                 disabled={!verificationCode || state.loading}
-                className={modalPrimaryButtonClass}
+                className={COMPACT_PRIMARY_BUTTON_CLASS}
               >
                 {state.loading ? (
                   <>
-                    <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                     <Trans i18nKey={'profile:verifyingCode'} />
                   </>
                 ) : (
@@ -232,7 +232,7 @@ function FactorQrCode({
         <button
           type="button"
           onClick={onCancel}
-          className={modalSecondaryButtonClass}
+          className={COMPACT_OUTLINE_BUTTON_CLASS}
         >
           <Trans i18nKey={'common:cancel'} />
         </button>
@@ -301,14 +301,14 @@ function FactorNameForm(
           <button
             type="button"
             onClick={props.onCancel}
-            className={modalSecondaryButtonClass}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <Trans i18nKey={'common:cancel'} />
           </button>
 
           <button
             type="submit"
-            className={modalPrimaryButtonClass}
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             <Trans i18nKey={'profile:factorNameSubmitLabel'} />
           </button>

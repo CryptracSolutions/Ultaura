@@ -9,9 +9,11 @@ import type { LineRow, UserType } from '~/lib/ultaura/types';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import {
   modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
 } from '~/core/ui/modal-button-classes';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 import {
   TopicPreferencesForm,
   INTEREST_TOPIC_OPTIONS,
@@ -127,7 +129,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
             <button
               onClick={handleOpenEdit}
               disabled={disabled}
-              className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               {hasAnyTopics ? (
                 <Pencil className="h-3 w-3" />
@@ -231,7 +233,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
               type="button"
               onClick={handleCloseEdit}
               disabled={isSaving}
-              className={modalSecondaryButtonClass}
+              className={COMPACT_OUTLINE_BUTTON_CLASS}
             >
               Cancel
             </button>
@@ -239,9 +241,16 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
               type="button"
               onClick={handleSave}
               disabled={isSaving || !hasChanges}
-              className={modalPrimaryButtonClass}
+              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? (
+                <>
+                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </button>
           </div>
         </DialogContent>

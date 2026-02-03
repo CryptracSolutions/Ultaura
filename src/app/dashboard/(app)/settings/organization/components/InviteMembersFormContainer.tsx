@@ -10,9 +10,9 @@ import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organi
 import MembershipRole from '~/lib/organizations/types/membership-role';
 import InviteMembersForm from './InviteMembersForm';
 
-import Button from '~/core/ui/Button';
 import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 const InviteMembersFormContainer = () => {
   const { t } = useTranslation('organization');
@@ -56,20 +56,23 @@ const InviteMembersFormContainer = () => {
 
   const SubmitButton = (
     <div>
-      <Button
-        className={'w-full lg:w-auto'}
+      <button
+        className={COMPACT_PRIMARY_BUTTON_CLASS}
         data-cy={'send-invites-button'}
         type={'submit'}
-        loading={isSubmitting}
+        disabled={isSubmitting}
       >
         <If condition={!isSubmitting}>
           <Trans i18nKey={'organization:inviteMembersSubmitLabel'} />
         </If>
 
         <If condition={isSubmitting}>
-          <Trans i18nKey={'organization:inviteMembersLoading'} />
+          <>
+            <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <Trans i18nKey={'organization:inviteMembersLoading'} />
+          </>
         </If>
-      </Button>
+      </button>
     </div>
   );
 

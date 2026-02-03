@@ -10,9 +10,9 @@ import MembershipRole from '~/lib/organizations/types/membership-role';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import TextField from '~/core/ui/TextField';
-import Button from '~/core/ui/Button';
 import IconButton from '~/core/ui/IconButton';
 import Trans from '~/core/ui/Trans';
+import { COMPACT_OUTLINE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import MembershipRoleSelector from './MembershipRoleSelector';
 
@@ -140,21 +140,20 @@ const InviteMembersForm = ({
         })}
 
         <div>
-          <Button
+          <button
             data-cy={'append-new-invite-button'}
             type={'button'}
-            variant={'ghost'}
-            size={'sm'}
             onClick={() => append(memberFactory())}
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <span className={'flex items-center space-x-2'}>
-              <PlusCircleIcon className={'h-5'} />
+              <PlusCircleIcon className={'h-3 w-3'} />
 
               <span>
                 <Trans i18nKey={'organization:addAnotherMemberButtonLabel'} />
               </span>
             </span>
-          </Button>
+          </button>
         </div>
       </div>
 

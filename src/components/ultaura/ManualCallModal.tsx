@@ -9,6 +9,10 @@ import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import { initiateManualCall } from '~/lib/ultaura/usage';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ActionError } from '@ultaura/schemas';
+import {
+  COMPACT_OUTLINE_BUTTON_CLASS,
+  COMPACT_PRIMARY_BUTTON_CLASS,
+} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 type ManualCallModalProps = {
   isOpen: boolean;
@@ -257,7 +261,7 @@ export default function ManualCallModal({
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-input px-4 py-2 text-foreground transition-colors hover:bg-muted"
+              className={COMPACT_OUTLINE_BUTTON_CLASS}
             >
               Change line
             </button>
@@ -265,7 +269,7 @@ export default function ManualCallModal({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-input px-4 py-2 text-foreground transition-colors hover:bg-muted"
+            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             Cancel
           </button>
@@ -273,7 +277,7 @@ export default function ManualCallModal({
             type="button"
             onClick={handleStartCall}
             disabled={!selectedLineId || isCalling || isLoading}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             {isCalling ? 'Calling…' : 'Start call'}
           </button>

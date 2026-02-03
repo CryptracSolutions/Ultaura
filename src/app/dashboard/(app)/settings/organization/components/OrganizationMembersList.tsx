@@ -9,7 +9,6 @@ import If from '~/core/ui/If';
 import Badge from '~/core/ui/Badge';
 import RoleBadge from './RoleBadge';
 import Trans from '~/core/ui/Trans';
-import Button from '~/core/ui/Button';
 import { TextFieldInput } from '~/core/ui/TextField';
 
 import { canUpdateUser } from '~/lib/organizations/permissions';
@@ -20,6 +19,7 @@ import ProfileAvatar from '~/components/ProfileAvatar';
 import useUserId from '~/core/hooks/use-user-id';
 import useUserCanInviteUsers from '~/lib/organizations/hooks/use-user-can-invite-users';
 import { useTranslation } from 'react-i18next';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 function OrganizationMembersList({
   members,
@@ -152,7 +152,7 @@ function InviteMembersLinkButton(
     <Link
       data-cy={'invite-form-link'}
       href={props.href}
-      className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-4 py-2 text-xs gap-1 rounded-sm"
+      className={COMPACT_PRIMARY_BUTTON_CLASS}
     >
       <UserPlusIcon className="h-3 w-3" />
 

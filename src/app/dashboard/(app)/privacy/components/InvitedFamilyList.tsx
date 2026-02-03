@@ -4,8 +4,8 @@ import { useMemo } from 'react';
 import { Trash2 } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
-import Button from '~/core/ui/Button';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
+import { COMPACT_DESTRUCTIVE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface InvitedFamilyListProps {
   recipients: NotificationRecipient[];
@@ -54,16 +54,15 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
                   <span className={`text-xs font-medium ${status.className}`}>{status.label}</span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
+                    className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
                     onClick={() => onRemove(recipient.id)}
                     disabled={disabled}
                     aria-label={`Remove ${recipient.name}`}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </TableCell>
               </TableRow>
             );
