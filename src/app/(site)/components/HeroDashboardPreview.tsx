@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  BellAlertIcon,
   CheckCircleIcon,
   ClockIcon,
+  ExclamationTriangleIcon,
   ShieldCheckIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
@@ -53,6 +55,8 @@ const MEMORY_ENTRIES = [
   { text: 'Enjoyed gardening yesterday', time: 'Today' },
   { text: 'Grandson visited last weekend', time: 'Mon' },
   { text: 'Favorite song is Moon River', time: 'Sun' },
+  { text: 'Mentioned wanting to bake cookies', time: 'Sat' },
+  { text: 'Talked about old neighborhood', time: 'Fri' },
 ];
 
 const CHAT_MESSAGES: Array<{ sender: 'ara' | 'senior'; text: string }> = [
@@ -66,8 +70,21 @@ const CHAT_MESSAGES: Array<{ sender: 'ara' | 'senior'; text: string }> = [
   },
   {
     sender: 'ara',
-    text: 'That\u2019s lovely. Did you manage to catch the new episode today?',
+    text: 'That\u2019s lovely! By the way, just a reminder \u2014 it\u2019s time for your evening medication.',
   },
+  {
+    sender: 'senior',
+    text: 'Oh right, thank you for reminding me. I\u2019ll take it now.',
+  },
+  {
+    sender: 'ara',
+    text: 'Of course! It was so nice chatting with you. Talk soon, Mom!',
+  },
+];
+
+const WELLNESS_ALERTS = [
+  { title: 'Mood dip detected', severity: 'info' as const, time: 'Tue' },
+  { title: 'Missed medication reminder', severity: 'warning' as const, time: 'Mon' },
 ];
 
 const MAX_BAR = Math.max(...WEEKLY_BARS.map((b) => b.value));
@@ -80,7 +97,11 @@ export function HeroDashboardPreview() {
   const [isLiveCall, setIsLiveCall] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [visibleMessages, setVisibleMessages] = useState(0);
+  const [contentHeight, setContentHeight] = useState<number | undefined>(
+    undefined,
+  );
   const contentRef = useRef<HTMLDivElement>(null);
+  const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   /* Auto-cycle tabs */
   useEffect(() => {
@@ -110,6 +131,19 @@ export function HeroDashboardPreview() {
     }, 1800);
     return () => clearInterval(id);
   }, [isLiveCall]);
+
+  /* Measure active panel height for smooth container sizing */
+  useEffect(() => {
+    const panel = panelRefs.current[activeTab];
+    if (!panel) return;
+
+    const measure = () => setContentHeight(panel.scrollHeight);
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [activeTab]);
 
   const handleTabClick = useCallback((index: number) => {
     setActiveTab(index);
@@ -243,18 +277,20 @@ export function HeroDashboardPreview() {
             {/* Tab content */}
             <div
               ref={contentRef}
-              className="mt-4 overflow-hidden"
+              className="mt-4 overflow-hidden transition-[height] duration-300 ease-in-out"
+              style={contentHeight !== undefined ? { height: contentHeight } : undefined}
               onMouseEnter={() => setIsAutoPlaying(false)}
               onMouseLeave={() => setIsAutoPlaying(true)}
             >
               <div
-                className="flex transition-transform duration-300 ease-in-out"
+                className="flex items-start transition-transform duration-300 ease-in-out"
                 style={{
                   transform: `translateX(-${activeTab * 100}%)`,
                 }}
               >
                 {/* Activity Panel */}
                 <div
+                  ref={(el) => { panelRefs.current[0] = el; }}
                   role="tabpanel"
                   id="hero-panel-activity"
                   aria-labelledby="hero-tab-activity"
@@ -318,6 +354,7 @@ export function HeroDashboardPreview() {
 
                 {/* Insights Panel */}
                 <div
+                  ref={(el) => { panelRefs.current[1] = el; }}
                   role="tabpanel"
                   id="hero-panel-insights"
                   aria-labelledby="hero-tab-insights"
@@ -345,35 +382,28 @@ export function HeroDashboardPreview() {
                       <div className="mb-2 text-xs text-muted-foreground">
                         Call duration
                       </div>
-                      <div
-                        className="flex items-end gap-1.5"
-                        style={{ height: BAR_HEIGHT }}
-                      >
+                      <div className="flex items-end gap-1.5">
                         {WEEKLY_BARS.map((bar, i) => {
                           const h = (bar.value / MAX_BAR) * BAR_HEIGHT;
                           const isTallest = bar.value === MAX_BAR;
                           return (
                             <div
                               key={i}
-                              className="group relative flex flex-1 flex-col items-center"
-                              style={{ height: BAR_HEIGHT }}
+                              className="flex flex-1 flex-col items-center gap-1"
                             >
-                              {/* Tooltip */}
-                              <span className="pointer-events-none absolute -top-5 whitespace-nowrap rounded bg-foreground px-1 py-0.5 text-[10px] text-background opacity-0 transition-opacity group-hover:opacity-100">
-                                {bar.label}
+                              <span className="text-[9px] tabular-nums text-muted-foreground">
+                                {bar.value}
                               </span>
-                              <div className="flex flex-1 items-end">
-                                <div
-                                  className={cn(
-                                    'w-full rounded-sm transition-colors duration-200',
-                                    isTallest
-                                      ? 'bg-primary'
-                                      : 'bg-primary/40 group-hover:bg-primary',
-                                  )}
-                                  style={{ height: h }}
-                                />
-                              </div>
-                              <span className="mt-1 text-[9px] text-muted-foreground">
+                              <div
+                                className={cn(
+                                  'w-full rounded-sm',
+                                  isTallest
+                                    ? 'bg-primary'
+                                    : 'bg-primary/40',
+                                )}
+                                style={{ height: h }}
+                              />
+                              <span className="text-[9px] text-muted-foreground">
                                 {bar.day}
                               </span>
                             </div>
@@ -386,6 +416,7 @@ export function HeroDashboardPreview() {
 
                 {/* Memory Panel */}
                 <div
+                  ref={(el) => { panelRefs.current[2] = el; }}
                   role="tabpanel"
                   id="hero-panel-memory"
                   aria-labelledby="hero-tab-memory"
@@ -419,6 +450,7 @@ export function HeroDashboardPreview() {
 
                 {/* Safety Panel */}
                 <div
+                  ref={(el) => { panelRefs.current[3] = el; }}
                   role="tabpanel"
                   id="hero-panel-safety"
                   aria-labelledby="hero-tab-safety"
@@ -426,6 +458,24 @@ export function HeroDashboardPreview() {
                   className="w-full shrink-0"
                 >
                   <div className="space-y-3">
+                    {/* Distress Detection */}
+                    <div className="rounded-2xl border border-border/60 bg-background p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Distress Detection
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          Active
+                        </span>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background px-4 py-3">
                       <div className="flex items-center gap-2">
                         <ShieldCheckIcon className="h-4 w-4 text-success" />
@@ -450,19 +500,42 @@ export function HeroDashboardPreview() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-                        </span>
-                        <span className="text-xs font-medium text-foreground">
-                          Distress Detection
-                        </span>
+                    {/* Wellness Alerts */}
+                    <div className="rounded-2xl border border-border/60 bg-background p-3">
+                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Wellness Alerts
                       </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        Active
-                      </span>
+                      {WELLNESS_ALERTS.map((alert, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            'flex items-center justify-between py-1.5',
+                            i !== WELLNESS_ALERTS.length - 1 &&
+                              'border-b border-border/30',
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {alert.severity === 'warning' ? (
+                              <ExclamationTriangleIcon className="h-3 w-3 text-amber-500" />
+                            ) : (
+                              <BellAlertIcon className="h-3 w-3 text-primary" />
+                            )}
+                            <span className="text-xs text-foreground">
+                              {alert.title}
+                            </span>
+                          </div>
+                          <span
+                            className={cn(
+                              'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                              alert.severity === 'warning'
+                                ? 'bg-amber-500/10 text-amber-600'
+                                : 'bg-primary/10 text-primary',
+                            )}
+                          >
+                            {alert.time}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
