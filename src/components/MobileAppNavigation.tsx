@@ -10,6 +10,11 @@ import {
   XMarkIcon,
   QuestionMarkCircleIcon,
   ChatBubbleLeftIcon,
+  PlusIcon,
+  PhoneIcon,
+  BellIcon,
+  PhoneArrowUpRightIcon,
+  CalendarIcon,
   LifebuoyIcon,
   MagnifyingGlassIcon,
   UserIcon,
@@ -23,21 +28,30 @@ import configuration from '~/configuration';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import useSignOut from '~/core/hooks/use-sign-out';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
+import { useManualCall } from '~/lib/contexts/ManualCallContext';
+import { useAddReminder } from '~/lib/contexts/AddReminderContext';
+import { useAddSchedule } from '~/lib/contexts/AddScheduleContext';
+import { useAddLine } from '~/lib/contexts/AddLineContext';
 
 import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
 import Logo from '~/core/ui/Logo';
 import { useSearch } from '~/lib/contexts/SearchContext';
-import QuickActionsDropdown from '~/components/QuickActionsDropdown';
+import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
   const { data: ultauraAccount } = useUltauraAccount();
+  const { openManualCall } = useManualCall();
+  const { openAddReminder } = useAddReminder();
+  const { openAddSchedule } = useAddSchedule();
+  const { openAddLine } = useAddLine();
   const { open: openHelp } = useHelpPanel();
   const { openMobile, isMobileOpen } = useSearch();
   const [isVisible, setIsVisible] = useState(false);
   const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
   const openMenu = () => {
     setIsVisible(true);
@@ -70,6 +84,12 @@ const MobileAppNavigation = () => {
   const handleFeedbackClick = () => {
     closeMenu();
     setTimeout(() => setFeedbackOpen(true), 200);
+  };
+
+  const handleQuickAction = (action: () => void) => {
+    setQuickActionsOpen(false);
+    closeMenu();
+    setTimeout(() => action(), 200);
   };
 
   // Extract navigation items and settings from config
@@ -118,7 +138,13 @@ const MobileAppNavigation = () => {
               wordmarkClassName="text-xl font-semibold leading-none text-primary"
             />
             <div className="flex items-center gap-2">
-              <QuickActionsDropdown onAction={closeMenu} />
+              <button
+                onClick={() => setQuickActionsOpen(true)}
+                className="p-1.5 hover:bg-muted rounded-md transition-colors"
+                aria-label="Quick Actions"
+              >
+                <PlusIcon className="h-5 w-5" />
+              </button>
               <button
                 onClick={openMobile}
                 className="p-1.5 hover:bg-muted rounded-md transition-colors"
@@ -199,6 +225,38 @@ const MobileAppNavigation = () => {
         isOpen={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
       />
+
+      <Dialog open={quickActionsOpen} onOpenChange={setQuickActionsOpen}>
+        <DialogContent className="z-[60] p-0" overlayClassName="z-[60]" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold">
+            Quick Actions
+          </DialogTitle>
+          <div className="pb-2">
+            <MenuButton
+              Icon={BellIcon}
+              label="Add Reminder"
+              onClick={() => handleQuickAction(openAddReminder)}
+            />
+            <MenuButton
+              Icon={CalendarIcon}
+              label="Schedule Call"
+              onClick={() => handleQuickAction(openAddSchedule)}
+            />
+            {userType === 'family_managed' && (
+              <MenuButton
+                Icon={PhoneArrowUpRightIcon}
+                label="Place Call"
+                onClick={() => handleQuickAction(openManualCall)}
+              />
+            )}
+            <MenuButton
+              Icon={PhoneIcon}
+              label="Add Line"
+              onClick={() => handleQuickAction(openAddLine)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

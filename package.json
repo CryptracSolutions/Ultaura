@@ -6,7 +6,6 @@
   "scripts": {
     "analyze": "ANALYZE=true next build",
     "dev": "next dev --turbo | pino-pretty",
-    "dev:lan": "next dev --turbo --hostname 0.0.0.0 --port 3000 | pino-pretty",
     "dev:phone": "bash scripts/dev-phone.sh",
     "dev:webpack": "next dev | pino-pretty",
     "predev": "pnpm build:packages && pnpm velite build --clean",

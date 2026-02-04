@@ -272,6 +272,14 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 ::selection {
   background: oklch(0.696 0.119 180.426 / 0.22);
   color: var(--foreground);

@@ -22,6 +22,7 @@ import { deleteLine } from '~/lib/ultaura/lines';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '~/core/ui/Dropdown';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
+import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
 
 interface LineCardProps {
   line: LineRow;
@@ -38,6 +39,7 @@ export function LineCard({
 }: LineCardProps) {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const handleDelete = async () => {
@@ -52,6 +54,11 @@ export function LineCard({
 
   const openDeleteDialog = () => {
     setIsMenuOpen(false);
+    setDeleteDialogOpen(true);
+  };
+
+  const openDeleteFromSheet = () => {
+    setIsSheetOpen(false);
     setDeleteDialogOpen(true);
   };
 
@@ -181,7 +188,16 @@ export function LineCard({
             </div>
           </div>
           <div className="relative pointer-events-auto flex flex-col items-end gap-2">
-            <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <DropdownMenu
+              open={isMenuOpen}
+              onOpenChange={(open) => {
+                if (open && typeof window !== 'undefined' && !window.matchMedia('(min-width: 640px)').matches) {
+                  setIsSheetOpen(true);
+                } else {
+                  setIsMenuOpen(open);
+                }
+              }}
+            >
               <Tooltip>
                 <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
@@ -272,6 +288,41 @@ export function LineCard({
         variant="destructive"
         onConfirm={handleDelete}
       />
+
+      <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <DialogContent className="z-[60] p-0" overlayClassName="z-[60]" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold">
+            {line.display_name}
+          </DialogTitle>
+          <div className="pb-2">
+            <Link
+              href={`/dashboard/lines/${shortId}`}
+              onClick={() => setIsSheetOpen(false)}
+              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+            >
+              <Eye className="h-[22px] w-[22px] text-primary" />
+              <span className="text-[14.5px] text-foreground">View Details</span>
+            </Link>
+            <Link
+              href={`/dashboard/lines/${shortId}/settings`}
+              onClick={() => setIsSheetOpen(false)}
+              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+            >
+              <Settings className="h-[22px] w-[22px] text-primary" />
+              <span className="text-[14.5px] text-foreground">Settings</span>
+            </Link>
+            {!disabled && (
+              <button
+                onClick={openDeleteFromSheet}
+                className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+              >
+                <Trash2 className="h-[22px] w-[22px] text-destructive" />
+                <span className="text-[14.5px] text-destructive">Delete Line</span>
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
