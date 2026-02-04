@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
@@ -128,13 +128,50 @@ const TESTIMONIALS = [
 
 export function Testimonials() {
   const [pageIndex, setPageIndex] = useState(0);
-  const pageSize = 3;
+  const [pageSize, setPageSize] = useState(3);
   const pageCount = Math.ceil(TESTIMONIALS.length / pageSize);
 
   const visibleTestimonials = useMemo(() => {
     const start = pageIndex * pageSize;
     return TESTIMONIALS.slice(start, start + pageSize);
-  }, [pageIndex]);
+  }, [pageIndex, pageSize]);
+
+  const visiblePageIndices = useMemo(() => {
+    if (pageSize > 1) {
+      return Array.from({ length: pageCount }, (_, index) => index);
+    }
+
+    const start = Math.max(0, pageIndex - 1);
+    const end = Math.min(pageCount - 1, start + 2);
+    const windowStart = Math.max(0, end - 2);
+
+    return Array.from(
+      { length: end - windowStart + 1 },
+      (_, idx) => windowStart + idx,
+    );
+  }, [pageCount, pageIndex, pageSize]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)');
+
+    const updatePageSize = () => {
+      setPageSize(media.matches ? 3 : 1);
+    };
+
+    updatePageSize();
+
+    if (media.addEventListener) {
+      media.addEventListener('change', updatePageSize);
+      return () => media.removeEventListener('change', updatePageSize);
+    }
+
+    media.addListener(updatePageSize);
+    return () => media.removeListener(updatePageSize);
+  }, []);
+
+  useEffect(() => {
+    setPageIndex((current) => Math.min(current, Math.max(pageCount - 1, 0)));
+  }, [pageCount]);
 
   return (
     <section className="py-12">
@@ -185,7 +222,7 @@ export function Testimonials() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-3 sm:flex sm:w-auto sm:flex-wrap sm:justify-center">
             <Button
               variant="outline"
               size="sm"
@@ -194,18 +231,19 @@ export function Testimonials() {
                 setPageIndex((current) => Math.max(current - 1, 0))
               }
               disabled={pageIndex === 0}
+              className="justify-self-start"
             >
               Previous
             </Button>
 
-            <div className="flex items-center gap-2">
-              {Array.from({ length: pageCount }).map((_, index) => (
+            <div className="flex items-center justify-center gap-2 justify-self-center px-1 py-1">
+              {visiblePageIndices.map((index) => (
                 <button
                   key={`testimonial-page-${index}`}
                   type="button"
                   aria-label={`Go to testimonials page ${index + 1}`}
                   onClick={() => setPageIndex(index)}
-                  className="flex h-[44px] w-[44px] items-center justify-center"
+                  className="flex h-8 w-8 items-center justify-center sm:h-[44px] sm:w-[44px]"
                 >
                   <span
                     className={
@@ -229,6 +267,7 @@ export function Testimonials() {
                 )
               }
               disabled={pageIndex === pageCount - 1}
+              className="justify-self-end"
             >
               Next
             </Button>

@@ -1,0 +1,72 @@
+[  410526ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_dev_client_dcbd7d._.js:112
+[  410630ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_dev_client_dcbd7d._.js:112
+[  411656ms] [ERROR] Failed to fetch RSC payload for http://localhost:3000/. Falling back to browser navigation. TypeError: Failed to fetch
+    at fetchServerResponse (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:365:27)
+    at fastRefreshReducerImpl (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:3123:67)
+    at clientReducer (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:3480:67)
+    at Object.action (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:592:55)
+    at runAction (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:498:38)
+    at runRemainingActions (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:472:13)
+    at handleResult (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:508:9) @ http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:13389
+[  442101ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_dev_client_dcbd7d._.js:112
+[  442667ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_dev_client_dcbd7d._.js:112
+[  444199ms] [ERROR] Failed to fetch RSC payload for http://localhost:3000/. Falling back to browser navigation. TypeError: Failed to fetch
+    at fetchServerResponse (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:365:27)
+    at fastRefreshReducerImpl (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:3123:67)
+    at clientReducer (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:3480:67)
+    at Object.action (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:592:55)
+    at runAction (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:498:38)
+    at runRemainingActions (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:472:13)
+    at handleResult (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:508:9) @ http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:13389
+[  483000ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_dev_client_dcbd7d._.js:112
+[  483710ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_dev_client_dcbd7d._.js:112
+[  484776ms] [ERROR] Failed to fetch RSC payload for http://localhost:3000/. Falling back to browser navigation. TypeError: Failed to fetch
+    at fetchServerResponse (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:365:27)
+    at fastRefreshReducerImpl (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:3123:67)
+    at clientReducer (http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:3480:67)
+    at Object.action (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:592:55)
+    at runAction (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:498:38)
+    at runRemainingActions (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:472:13)
+    at handleResult (http://localhost:3000/_next/static/chunks/fc97a_next_dist_7138d7._.js:508:9) @ http://localhost:3000/_next/static/chunks/fc97a_next_dist_client_260848._.js:13389

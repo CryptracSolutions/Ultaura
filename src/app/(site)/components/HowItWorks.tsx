@@ -49,14 +49,11 @@ const TRUST_POINTS = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="bg-surface-subtle py-12">
+    <section id="how-it-works" className="bg-surface-subtle pt-4 pb-12">
       <Container>
         <div className="relative grid gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
           <div className="flex flex-col space-y-4">
             <div className="space-y-4">
-              <div className="inline-flex w-fit items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-                Fast setup. Real connection.
-              </div>
               <Heading type={2}>
                 <span className="text-primary">How</span> it works
               </Heading>
@@ -66,7 +63,7 @@ export function HowItWorks() {
               </SubHeading>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               {TRUST_POINTS.map((item) => (
                 <div
                   key={item}

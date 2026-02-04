@@ -105,8 +105,7 @@ export function CreateScheduleForm({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
           {/* Day Selection */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-3">
@@ -229,9 +228,7 @@ export function CreateScheduleForm({
               )}
             </p>
           </div>
-        </div>
-
-        <div className="flex gap-3 pt-4 flex-shrink-0">
+        <div className="flex gap-3 pt-4">
           <button
             type="button"
             onClick={onCancel}

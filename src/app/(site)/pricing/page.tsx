@@ -1,3 +1,5 @@
+import { CheckCircleIcon } from '@heroicons/react/24/outline';
+
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
@@ -15,9 +17,14 @@ function PricingPage() {
         <div className={'flex flex-col items-center space-y-4'}>
           <Heading type={1}>Simple, Transparent Pricing</Heading>
 
-          <SubHeading>
-            Choose the plan that fits your family’s needs. All plans include a
-            3-day free trial to get started.
+          <SubHeading className="text-sm sm:text-base">
+            <span className="flex flex-col items-center gap-1 text-muted-foreground sm:flex-row sm:gap-2">
+              <span className="inline-flex items-center gap-2">
+                <CheckCircleIcon className="h-4 w-4 text-primary" />
+                All plans include a 3-day free trial
+              </span>
+              <span className="text-muted-foreground/80">No credit card required to start</span>
+            </span>
           </SubHeading>
         </div>
 

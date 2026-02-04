@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Clock, Users, Zap, Shield, Heart, Loader2 } from 'lucide-react';
+import { Check, Clock, Users, Zap, Heart, Loader2 } from 'lucide-react';
 import { PLANS, BILLING } from '~/lib/ultaura/constants';
 import { createUltauraCheckout } from '~/lib/ultaura/checkout';
 
@@ -118,13 +118,13 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
 
       {/* Billing Toggle */}
       <div className="flex justify-center mb-12">
-        <div className="inline-flex items-center p-1 bg-muted rounded-lg">
+        <div className="inline-flex items-center rounded-xl border border-border bg-background/70 p-1">
           <button
             onClick={() => setBillingPeriod('monthly')}
             className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
               billingPeriod === 'monthly'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
             }`}
           >
             Monthly
@@ -133,12 +133,18 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
             onClick={() => setBillingPeriod('annual')}
             className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
               billingPeriod === 'annual'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
             }`}
           >
             Annual
-            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+            <span
+              className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                billingPeriod === 'annual'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-success/10 text-success'
+              }`}
+            >
               Save {Math.round(BILLING.ANNUAL_DISCOUNT * 100)}%
             </span>
           </button>
@@ -246,16 +252,6 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
             </div>
           );
         })}
-      </div>
-
-      {/* Free Trial Banner */}
-      <div className="mt-12 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary">
-          <Shield className="w-4 h-4" />
-          <span className="text-sm font-medium">
-            All plans include a 3-day free trial • No credit card required to start
-          </span>
-        </div>
       </div>
 
     </div>

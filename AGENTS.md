@@ -44,14 +44,6 @@ Spawn subagents automatically when:
 - Long-running or blocking tasks where a worker can run independently
 - Isolation for risky changes or checks
 
-### UI/UX Workflow (Required)
-
-When the user requests any UI/UX changes (styling, layout, interaction, responsive behavior, accessibility, or visual polish):
-- Use the Playwright MCP server (`playwright`) configured in `.codex/config.toml`.
-- Validate changes in a real (headed) browser with slowed-down actions so humans can watch what’s happening (see `playwright-cli.json`).
-- Default to accessibility snapshots (`browser_snapshot`) after every navigation/click/submit and cite the page URL + title + the element ref used.
-- Do not take screenshots unless the user explicitly asks (prefer snapshots + traces).
-
 ### Lessons Learned
 
 Document mistakes and patterns here. After an agent makes an error, have it update this section.

@@ -1,29 +1,2 @@
 # Project-scoped Codex configuration (trusted projects).
 # MCP servers configured here are shared by the Codex CLI and IDE extension.
-
-[mcp_servers.playwright]
-command = "npx"
-# Use `-y` so `npx` won't prompt to install the package.
-#
-# Notes:
-# - Pin the MCP version so behavior doesn't change unexpectedly between runs.
-# - Add a config file that enables slowMo so browser actions are visible.
-# - Omit image responses to reduce the chance of screenshot-like artifacts.
-args = [
-  "-y",
-  "@playwright/mcp@0.0.63",
-  "--browser",
-  "chrome",
-  "--config",
-  "playwright-cli.json",
-  "--timeout-action",
-  "15000",
-  "--snapshot-mode",
-  "full",
-  "--image-responses",
-  "omit",
-  "--output-dir",
-  "output/playwright/mcp",
-  "--save-trace",
-]
-enabled = true

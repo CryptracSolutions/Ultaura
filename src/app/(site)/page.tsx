@@ -29,12 +29,12 @@ function Home() {
     <div className={'flex flex-col space-y-[0.055rem]'}>
       {/* Hero Section */}
       <Container>
-        <div className="relative my-6 lg:my-10">
+        <div className="relative mt-6 mb-4 lg:mt-10 lg:mb-6">
           <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
-          <div className="relative grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+          <div className="relative grid grid-cols-1 items-start gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-10">
             <div className="flex flex-col space-y-5">
               <Pill>
                 <span>Built for families and caregivers</span>
@@ -114,7 +114,9 @@ function Home() {
               </div>
             </div>
 
-            <HeroDashboardPreview />
+            <div className="mt-6 sm:mt-10 lg:mt-0">
+              <HeroDashboardPreview />
+            </div>
           </div>
 
         </div>
@@ -141,8 +143,14 @@ function Home() {
               <div className="flex flex-col space-y-2.5">
                 <Heading type={2}>Choose the <span className="text-primary">plan</span> that fits your family</Heading>
 
-                <SubHeading>
-                  All plans include a 3-day free trial to get started.
+                <SubHeading className="text-sm sm:text-base">
+                  <span className="flex flex-col items-center gap-1 text-muted-foreground sm:flex-row sm:gap-2">
+                    <span className="inline-flex items-center gap-2">
+                      <CheckCircleIcon className="h-4 w-4 text-primary" />
+                      All plans include a 3-day free trial
+                    </span>
+                    <span className="text-muted-foreground/80">No credit card required to start</span>
+                  </span>
                 </SubHeading>
               </div>
             </div>
@@ -160,7 +168,6 @@ function Home() {
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="flex flex-col justify-between gap-6">
               <div className="space-y-4">
-                <Pill>Support that feels human</Pill>
                 <Heading type={2}>Frequently asked <span className="text-primary">questions</span></Heading>
                 <SubHeading className="max-w-md">
                   Quick answers about setup, privacy, and how Ultaura keeps
@@ -173,6 +180,12 @@ function Home() {
                   <h3 className="text-lg font-semibold text-foreground">
                     Still need help?
                   </h3>
+                  <Link
+                    href="/faq"
+                    className="mt-2 inline-flex items-center text-sm font-medium text-primary hover:underline"
+                  >
+                    FAQ →
+                  </Link>
                   <p className="mt-2 text-sm text-muted-foreground">
                     We&apos;re happy to talk through voice options, schedules, or
                     anything else. Expect a quick, thoughtful response.
@@ -200,22 +213,6 @@ function Home() {
                   </Button>
                 </div>
 
-                <div className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm">
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    For care teams
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Running an assisted living community or care team? We&apos;ll
-                    help you fit check-ins into real schedules and routines.
-                  </p>
-                  <Button
-                    variant="link"
-                    href="/contact"
-                    className="mt-3 h-auto px-0 text-primary"
-                  >
-                    Talk to us →
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -287,27 +284,6 @@ function Home() {
                   </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem value="cost">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    How much does it cost?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    Plans start at $39/month for one line with 300 minutes included.
-                    Additional minutes are $0.15 each. We offer annual plans with
-                    15% savings, and usage-based options for larger families.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="customize">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    Can I customize the call schedule?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    Absolutely! Set custom call times, quiet hours, and recurring
-                    schedules that fit your loved one&apos;s routine. You can pause,
-                    skip, or adjust calls anytime through your dashboard.
-                  </AccordionContent>
-                </AccordionItem>
               </Accordion>
             </div>
           </div>

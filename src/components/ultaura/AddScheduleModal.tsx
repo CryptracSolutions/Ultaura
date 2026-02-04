@@ -101,7 +101,7 @@ export function AddScheduleModal({
     <>
       <Dialog open={open} onOpenChange={(openState) => { if (!openState) handleClose(); }}>
         <DialogContent
-          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -148,7 +148,7 @@ export function AddScheduleModal({
 
           {/* Step 1: Line Picker */}
           {step === 1 && showLinePicker && (
-            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 py-2">
+            <div className="space-y-3 py-2">
               {lines.map((line, index) => (
                 <button
                   key={line.id}
@@ -173,7 +173,6 @@ export function AddScheduleModal({
 
           {/* Step 2: Create Schedule Form */}
           {step === 2 && selectedLine && (
-            <div className="flex-1 min-h-0 flex flex-col">
               <CreateScheduleForm
                 lineId={selectedLine.id}
                 accountId={selectedLine.accountId}
@@ -185,7 +184,6 @@ export function AddScheduleModal({
                 onDirtyChange={setFormDirty}
                 firstDayButtonRef={firstDayButtonRef}
               />
-            </div>
           )}
         </DialogContent>
       </Dialog>

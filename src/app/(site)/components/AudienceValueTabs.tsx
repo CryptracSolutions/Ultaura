@@ -116,9 +116,9 @@ export function AudienceValueTabs() {
   );
 
   return (
-    <section className="py-12">
+    <section className="pt-1 pb-12">
       <Container>
-        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 py-10 lg:px-12">
+        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-2 lg:px-12 lg:py-4">
           <div className="relative">
             <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center">
               <Pill>
@@ -130,7 +130,7 @@ export function AudienceValueTabs() {
               </Heading>
             </div>
 
-            <div className="mx-auto mt-6 flex max-w-4xl flex-wrap items-center justify-center gap-3">
+            <div className="mx-auto mt-6 flex max-w-4xl flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
               {ALWAYS_INCLUDED.map((item) => (
                 <div
                   key={item}

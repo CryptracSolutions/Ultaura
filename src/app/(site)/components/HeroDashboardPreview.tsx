@@ -161,7 +161,7 @@ export function HeroDashboardPreview() {
 
   return (
     <div className="relative min-w-0">
-      <span className="absolute -top-6 left-0 text-xs text-muted-foreground">
+      <span className="absolute -top-6 right-0 text-right text-xs text-muted-foreground">
         Caregiver View
       </span>
 
