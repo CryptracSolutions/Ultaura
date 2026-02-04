@@ -36,29 +36,27 @@ function Home() {
           <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
           <div className="relative grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
-            <div className="flex flex-col space-y-4">
+            <div className="flex flex-col space-y-5">
               <Pill>
                 <span>Built for families and caregivers</span>
               </Pill>
 
               <h1 className="text-4xl font-heading font-medium text-foreground md:text-5xl xl:text-6xl 2xl:text-7xl">
                 <span className="block leading-[1.1]">
-                  Warm, reassuring
-                </span>
-                <span className="block leading-[1.1]">
-                  <span className="text-primary">phone calls</span> for seniors
+                  You can&apos;t call every day.
                 </span>
                 <span className="block leading-[1.1] text-transparent bg-gradient-to-br bg-clip-text from-primary to-primary/70">
-                  — every day
+                  We can.
                 </span>
               </h1>
 
               <SubHeading className={'max-w-2xl'}>
-                An AI companion that checks in by phone, remembers what matters,
-                and keeps families informed — no apps required.
+                A friendly voice companion that calls your loved one daily,
+                remembers what matters, and keeps you informed — no apps or
+                smartphones needed.
               </SubHeading>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <MainCallToActionButton />
                 <Button
                   variant="outline"
@@ -93,7 +91,7 @@ function Home() {
                 </div>
               </div>
 
-              <span className={'text-xs text-muted-foreground'}>
+              <span className={'mt-8 text-xs text-muted-foreground'}>
                 3-day free trial • no credit card • cancel anytime
               </span>
 
