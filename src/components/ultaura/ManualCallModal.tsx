@@ -256,7 +256,7 @@ export default function ManualCallModal({
           </div>
         )}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex gap-3">
           {step === 2 && (
             <button
               type="button"
