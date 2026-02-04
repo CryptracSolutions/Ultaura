@@ -206,7 +206,7 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       snoozeMinutes,
     }, { skipDebugLog: true });
 
-    const timezone = reminder.timezone || line.timezone || 'UTC';
+    const timezone = line.timezone || reminder.timezone || 'UTC';
     const scheduleInfo = formatReminderSchedule(newDueAt, timezone);
     const remainingSnoozes = MAX_SNOOZE_COUNT - (reminder.current_snooze_count + 1);
     const snoozeNote = remainingSnoozes > 0

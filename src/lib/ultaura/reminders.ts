@@ -18,6 +18,7 @@ import {
   ErrorCodes,
   type ActionResult,
 } from '@ultaura/schemas';
+import { TELEPHONY } from './constants';
 import { localToUtc, getNextReminderOccurrence } from './timezone';
 import { getLine } from './lines';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
@@ -240,7 +241,14 @@ const createReminderWithTrial = withTrialCheck(async (
   }
 
   const lineShortId = line.short_id;
-  const timezone = parsed.data.timezone || line.timezone;
+  const lineTimezone = line.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+  if (parsed.data.timezone && parsed.data.timezone !== lineTimezone) {
+    logger.warn(
+      { lineId: line.id, inputTimezone: parsed.data.timezone, lineTimezone },
+      'Reminder timezone overridden by line timezone'
+    );
+  }
+  const timezone = lineTimezone;
 
   let dueAtUtc: Date;
   try {
@@ -473,6 +481,16 @@ export async function cancelReminder(reminderId: string, lineShortId: string): P
     };
   }
 
+  const line = await getLine(reminder.line_id);
+  if (!line) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Line not found'),
+    };
+  }
+
+  const lineTimezone = line.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+
   const account = await getUltauraAccountById(reminder.account_id);
   if (!account) {
     return {
@@ -522,16 +540,17 @@ export async function cancelReminder(reminderId: string, lineShortId: string): P
   return cancelWithTrial(account, { reminder });
 }
 
-function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
-  if (!reminder.is_recurring || !reminder.rrule || !reminder.time_of_day) {
+function calculateNextReminderOccurrence(reminder: ReminderRow, timezone: string): string | null {
+  if (!reminder.is_recurring || !reminder.rrule) {
     return null;
   }
 
   try {
+    const timeOfDay = getLocalTimeOfDay(new Date(reminder.due_at), timezone);
     const next = getNextReminderOccurrence({
       rrule: reminder.rrule,
-      timezone: reminder.timezone,
-      timeOfDay: reminder.time_of_day,
+      timezone,
+      timeOfDay,
       currentDueAt: new Date(reminder.due_at),
       daysOfWeek: reminder.days_of_week,
       dayOfMonth: reminder.day_of_month,
@@ -555,6 +574,16 @@ export async function skipNextOccurrence(reminderId: string, lineShortId: string
       error: createError(ErrorCodes.NOT_FOUND, 'Reminder not found'),
     };
   }
+
+  const line = await getLine(reminder.line_id);
+  if (!line) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Line not found'),
+    };
+  }
+
+  const lineTimezone = line.timezone || TELEPHONY.DEFAULT_TIMEZONE;
 
   const account = await getUltauraAccountById(reminder.account_id);
   if (!account) {
@@ -582,7 +611,7 @@ export async function skipNextOccurrence(reminderId: string, lineShortId: string
       };
     }
 
-    const nextDueAt = calculateNextReminderOccurrence(input.reminder);
+    const nextDueAt = calculateNextReminderOccurrence(input.reminder, lineTimezone);
 
     if (!nextDueAt) {
       return {
@@ -595,11 +624,20 @@ export async function skipNextOccurrence(reminderId: string, lineShortId: string
       return cancelReminder(reminderId, lineShortId);
     }
 
+    const updates: Record<string, unknown> = {
+      due_at: nextDueAt,
+    };
+
+    if (input.reminder.timezone !== lineTimezone) {
+      updates.timezone = lineTimezone;
+      if (input.reminder.is_recurring) {
+        updates.time_of_day = getLocalTimeOfDay(new Date(nextDueAt), lineTimezone);
+      }
+    }
+
     const { error } = await client
       .from('ultaura_reminders')
-      .update({
-        due_at: nextDueAt,
-      })
+      .update(updates)
       .eq('id', input.reminder.id);
 
     if (error) {
@@ -932,6 +970,7 @@ export async function editReminder(
     const metadata: Record<string, unknown> = { oldValues, newValues };
     const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
     let legacyPlaintextMessage: string | null = null;
+    const lineTimezone = line.timezone || TELEPHONY.DEFAULT_TIMEZONE;
 
     if (inputData.updates.message !== undefined) {
       if (!inputData.updates.message.trim()) {
@@ -982,7 +1021,7 @@ export async function editReminder(
     if (inputData.updates.dueAt !== undefined) {
       let dueAtUtc: Date;
       try {
-        dueAtUtc = parseInputDateTime(inputData.updates.dueAt, inputData.reminder.timezone);
+        dueAtUtc = parseInputDateTime(inputData.updates.dueAt, lineTimezone);
       } catch (error) {
         return {
           success: false,
@@ -1002,7 +1041,7 @@ export async function editReminder(
       newValues.dueAt = updates.due_at;
 
       if (inputData.reminder.is_recurring) {
-        updates.time_of_day = getLocalTimeOfDay(dueAtUtc, inputData.reminder.timezone);
+        updates.time_of_day = getLocalTimeOfDay(dueAtUtc, lineTimezone);
       }
     }
 
@@ -1067,7 +1106,7 @@ export async function editReminder(
             newValues.endsAt = null;
           } else {
             try {
-              const endsAtUtc = parseInputDateTime(endsAt, inputData.reminder.timezone);
+              const endsAtUtc = parseInputDateTime(endsAt, lineTimezone);
               updates.ends_at = endsAtUtc.toISOString();
               newValues.endsAt = updates.ends_at;
             } catch (error) {
@@ -1078,6 +1117,13 @@ export async function editReminder(
             }
           }
         }
+      }
+    }
+
+    if (inputData.reminder.timezone !== lineTimezone) {
+      updates.timezone = lineTimezone;
+      if (inputData.reminder.is_recurring && updates.time_of_day === undefined) {
+        updates.time_of_day = getLocalTimeOfDay(new Date(inputData.reminder.due_at), lineTimezone);
       }
     }
 
@@ -1188,6 +1234,7 @@ export async function getUpcomingReminders(accountId: string): Promise<{
   message: string;
   dueAt: string;
   timezone: string;
+  lineTimezone: string | null;
   isRecurring: boolean;
   rrule: string | null;
   intervalDays: number | null;
@@ -1264,6 +1311,7 @@ export async function getUpcomingReminders(accountId: string): Promise<{
       message: resolveDecryptedMessage(reminder.message ?? null, messageMap.get(reminder.id)),
       dueAt: reminder.due_at,
       timezone: reminder.timezone,
+      lineTimezone: reminder.ultaura_lines?.timezone ?? reminder.timezone,
       isRecurring: reminder.is_recurring,
       rrule: reminder.rrule,
       intervalDays: reminder.interval_days,

@@ -423,7 +423,7 @@ async function DashboardPage() {
                               {item.displayName}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {formatDateTime(item.nextRunAt)}
+                              {formatDateTime(item.nextRunAt, item.lineTimezone)}
                             </div>
                           </div>
                           {(item.isOneTime || item.rescheduledFrom) && (
@@ -470,7 +470,7 @@ async function DashboardPage() {
                     <p className="mt-3 text-sm text-muted-foreground">
                       No reminders scheduled.{' '}
                       <Link href="/dashboard/reminders" className="text-primary hover:underline">
-                        Add a reminder
+                        Set a reminder
                       </Link>{' '}
                       for medication, appointments, or important tasks.
                     </p>
@@ -486,7 +486,7 @@ async function DashboardPage() {
                               {reminder.displayName}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {formatDateTime(reminder.dueAt)}
+                              {formatDateTime(reminder.dueAt, reminder.lineTimezone)}
                             </div>
                           </div>
                           <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
@@ -523,14 +523,29 @@ async function DashboardPage() {
 
 export default withI18n(DashboardPage);
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, timezone?: string | null) {
   const date = new Date(iso);
-  return new Intl.DateTimeFormat('en-US', {
+  const options: Intl.DateTimeFormatOptions = {
     month: 'short',
     day: '2-digit',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(date);
+  };
+
+  if (timezone) {
+    options.timeZone = timezone;
+  }
+
+  try {
+    return new Intl.DateTimeFormat('en-US', options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(date);
+  }
 }
 
 function formatDuration(seconds: number) {

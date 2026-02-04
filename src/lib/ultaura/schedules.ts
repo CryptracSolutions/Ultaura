@@ -15,6 +15,7 @@ import { DAYS_OF_WEEK, TELEPHONY, formatTime } from './constants';
 import { extractOriginalTimeOfDay, normalizeTimeOfDay } from './schedule-helpers';
 import { getNextOccurrence } from './timezone';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
+import { getLine } from './lines';
 import { logScheduleEvent } from './schedule-events';
 import { parseVacationRanges } from './vacation-utils';
 import type { ScheduleRow, UltauraAccountRow } from './types';
@@ -201,9 +202,32 @@ const createScheduleWithTrial = withTrialCheck(async (
     };
   }
 
+  const line = await getLine(parsed.data.lineId);
+  if (!line) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Line not found'),
+    };
+  }
+
+  if (line.account_id !== account.id) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.UNAUTHORIZED, 'Access denied'),
+    };
+  }
+
+  const lineTimezone = line.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+  if (parsed.data.timezone && parsed.data.timezone !== lineTimezone) {
+    logger.warn(
+      { lineId: line.id, inputTimezone: parsed.data.timezone, lineTimezone },
+      'Schedule timezone overridden by line timezone'
+    );
+  }
+
   let next: Date;
   try {
-    next = getNextRunAt(parsed.data.timeOfDay, parsed.data.timezone, parsed.data.daysOfWeek);
+    next = getNextRunAt(parsed.data.timeOfDay, lineTimezone, parsed.data.daysOfWeek);
   } catch (error) {
     return {
       success: false,
@@ -219,7 +243,7 @@ const createScheduleWithTrial = withTrialCheck(async (
       account_id: input.accountId,
       line_id: parsed.data.lineId,
       enabled: true,
-      timezone: parsed.data.timezone,
+      timezone: lineTimezone,
       days_of_week: parsed.data.daysOfWeek,
       time_of_day: parsed.data.timeOfDay,
       next_run_at: next.toISOString(),
@@ -247,7 +271,7 @@ const createScheduleWithTrial = withTrialCheck(async (
     metadata: {
       time_of_day: parsed.data.timeOfDay,
       days_of_week: parsed.data.daysOfWeek,
-      timezone: parsed.data.timezone,
+      timezone: lineTimezone,
     },
   });
 
@@ -378,21 +402,40 @@ export async function updateSchedule(
     };
   }
 
+  const line = await getLine(schedule.line_id);
+  if (!line) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Line not found'),
+    };
+  }
+
+  const lineTimezone = line.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+  if (parsed.data.timezone && parsed.data.timezone !== lineTimezone) {
+    logger.warn(
+      { lineId: line.id, inputTimezone: parsed.data.timezone, lineTimezone },
+      'Schedule timezone overridden by line timezone'
+    );
+  }
+
   const updates: Record<string, unknown> = {};
 
   if (parsed.data.enabled !== undefined) updates.enabled = parsed.data.enabled;
-  if (parsed.data.timezone !== undefined) updates.timezone = parsed.data.timezone;
   if (parsed.data.daysOfWeek !== undefined) updates.days_of_week = parsed.data.daysOfWeek;
   if (parsed.data.timeOfDay !== undefined) updates.time_of_day = parsed.data.timeOfDay;
   if (parsed.data.retryPolicy !== undefined) updates.retry_policy = parsed.data.retryPolicy;
 
-  if (parsed.data.daysOfWeek || parsed.data.timeOfDay || parsed.data.timezone) {
+  const shouldNormalizeTimezone = schedule.timezone !== lineTimezone;
+  if (shouldNormalizeTimezone) {
+    updates.timezone = lineTimezone;
+  }
+
+  if (parsed.data.daysOfWeek || parsed.data.timeOfDay || parsed.data.timezone || shouldNormalizeTimezone) {
     const daysOfWeek = parsed.data.daysOfWeek || schedule.days_of_week || [];
     const timeOfDay = parsed.data.timeOfDay || schedule.time_of_day || '18:00';
-    const timezone = parsed.data.timezone || schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE;
 
     try {
-      const next = getNextRunAt(timeOfDay, timezone, daysOfWeek);
+      const next = getNextRunAt(timeOfDay, lineTimezone, daysOfWeek);
       updates.next_run_at = next.toISOString();
     } catch (error) {
       return {
@@ -461,6 +504,7 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
   lineId: string;
   lineShortId: string;
   displayName: string;
+  lineTimezone: string | null;
   nextRunAt: string;
   timeOfDay: string;
   daysOfWeek: number[];
@@ -527,7 +571,7 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
         vacation_ranges?: unknown;
         timezone?: string;
       };
-      const timezone = schedule.timezone || line?.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+      const timezone = line?.timezone || schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE;
       const localDate = DateTime.fromISO(schedule.next_run_at).setZone(timezone).toISODate();
       if (!localDate) return false;
 
@@ -544,7 +588,7 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
     })
     .map((schedule) => {
       const line = schedule.ultaura_lines as { short_id: string; display_name: string; timezone?: string };
-      const timezone = schedule.timezone || line?.timezone || TELEPHONY.DEFAULT_TIMEZONE;
+      const timezone = line?.timezone || schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE;
       const isOneTime = schedule.is_one_time || schedule.days_of_week.length === 0;
       const rescheduleSource = isOneTime ? rescheduleSourceMap.get(schedule.id) : null;
       const rescheduledFrom = rescheduleSource
@@ -560,6 +604,7 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
         lineId: schedule.line_id,
         lineShortId: line.short_id,
         displayName: line.display_name,
+        lineTimezone: line?.timezone ?? schedule.timezone ?? TELEPHONY.DEFAULT_TIMEZONE,
         nextRunAt: schedule.next_run_at!,
         timeOfDay: schedule.time_of_day,
         daysOfWeek: schedule.days_of_week,
@@ -596,7 +641,8 @@ export async function getAllSchedules(accountId: string): Promise<{
       is_one_time,
       ultaura_lines!inner (
         display_name,
-        short_id
+        short_id,
+        timezone
       )
     `)
     .eq('account_id', accountId)
@@ -618,19 +664,21 @@ export async function getAllSchedules(accountId: string): Promise<{
   return scheduleList.map((schedule) => {
     const isOneTime = schedule.is_one_time || schedule.days_of_week.length === 0;
     const rescheduleSource = isOneTime ? rescheduleSourceMap.get(schedule.id) : null;
+    const line = schedule.ultaura_lines as { short_id: string; display_name: string; timezone?: string };
+    const timezone = line?.timezone || schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE;
     const rescheduledFrom = rescheduleSource
       ? formatRescheduledFrom(
         rescheduleSource.exceptionDate,
         rescheduleSource.originalTimeOfDay,
-        schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE
+        timezone
       )
       : null;
 
     return {
       scheduleId: schedule.id,
       lineId: schedule.line_id,
-      lineShortId: (schedule.ultaura_lines as { short_id: string }).short_id,
-      displayName: (schedule.ultaura_lines as { display_name: string }).display_name,
+      lineShortId: line.short_id,
+      displayName: line.display_name,
       enabled: schedule.enabled,
       nextRunAt: schedule.next_run_at,
       timeOfDay: schedule.time_of_day,

@@ -8,8 +8,12 @@ export function normalizeTimeOfDay(timeOfDay: string): string {
   return match ? match[1] : timeOfDay;
 }
 
-export function calculateNextRun(schedule: Pick<ScheduleRow, 'days_of_week' | 'time_of_day' | 'timezone' | 'next_run_at'>): string | null {
+export function calculateNextRun(
+  schedule: Pick<ScheduleRow, 'days_of_week' | 'time_of_day' | 'timezone' | 'next_run_at'>,
+  timezoneOverride?: string
+): string | null {
   const { days_of_week, time_of_day, timezone, next_run_at } = schedule;
+  const effectiveTimezone = timezoneOverride || timezone;
   if (!days_of_week || days_of_week.length === 0) {
     return null;
   }
@@ -17,7 +21,7 @@ export function calculateNextRun(schedule: Pick<ScheduleRow, 'days_of_week' | 't
   try {
     const next = getNextOccurrence({
       timeOfDay: time_of_day,
-      timezone,
+      timezone: effectiveTimezone,
       daysOfWeek: days_of_week,
       afterDate: next_run_at ? new Date(next_run_at) : undefined,
     });

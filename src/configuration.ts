@@ -108,7 +108,6 @@ const configuration = {
       },
       {
         name: 'Comfort',
-        badge: 'Most Popular',
         recommended: true,
         description: 'Ideal for couples or checking in on two family members',
         features: [

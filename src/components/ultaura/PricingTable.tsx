@@ -174,9 +174,9 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
               }`}
             >
               {isPopular && !isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-primary-foreground shadow-lg">
-                    ★ Most Popular
+                <div className="absolute top-3 right-3">
+                  <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground shadow-lg text-sm">
+                    ★
                   </span>
                 </div>
               )}

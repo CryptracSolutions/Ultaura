@@ -125,6 +125,15 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const defaultTimezone = process.env.ULTAURA_DEFAULT_TIMEZONE || 'America/Los_Angeles';
+    const lineTimezone = line.timezone || defaultTimezone;
+    if (timezone && timezone !== lineTimezone) {
+      logger.warn(
+        { callSessionId, lineId, inputTimezone: timezone, lineTimezone },
+        'Reminder timezone overridden by line timezone'
+      );
+    }
+
     // Get the reminder
     const { data: reminder, error: reminderError } = await supabase
       .from('ultaura_reminders')
@@ -200,7 +209,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (newTimeLocal) {
-      const tz = timezone || line.timezone || reminder.timezone;
+      const tz = lineTimezone;
       try {
         validateTimezone(tz);
       } catch (error) {
@@ -235,6 +244,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
 
         oldValues.dueAt = reminder.due_at;
         updates.due_at = newDueAt.toISOString();
+        updates.timezone = lineTimezone;
 
         if (reminder.is_recurring) {
           const [, , hourStr, minuteStr] = timeMatch;
@@ -323,8 +333,7 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
 
     let timeInfo = '';
     if (updates.due_at) {
-      const tz = timezone || line.timezone || reminder.timezone;
-      const scheduleInfo = formatReminderSchedule(updates.due_at as string, tz);
+      const scheduleInfo = formatReminderSchedule(updates.due_at as string, lineTimezone);
       timeInfo = ` It's now set for ${scheduleInfo}.`;
     }
 

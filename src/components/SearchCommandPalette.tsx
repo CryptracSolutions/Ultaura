@@ -228,10 +228,10 @@ export const SearchPanel = ({
     () => [
       {
         id: 'add-reminder',
-        label: 'Add reminder',
-        subtitle: 'Create a new reminder',
+        label: 'Set reminder',
+        subtitle: 'Set a new reminder',
         keywords: [
-          'add reminder',
+          'set reminder',
           'new reminder',
           'create reminder',
           'set reminder',
@@ -787,7 +787,7 @@ export const SearchPanel = ({
 
           {hasQuery && !isLoading && !hasAnyResults ? (
             <div className="px-4 py-6 text-sm text-muted-foreground">
-              No results found. Try a different search or use a quick action like &quot;Add reminder&quot;.
+              No results found. Try a different search or use a quick action like &quot;Set reminder&quot;.
             </div>
           ) : null}
         </Command.List>

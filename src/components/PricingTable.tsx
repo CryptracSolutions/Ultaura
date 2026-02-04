@@ -118,6 +118,18 @@ function PricingItem(
         },
       )}
     >
+      <If condition={recommended}>
+        <div className={'absolute top-3 right-3'}>
+          <span
+            className={
+              'inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md text-sm'
+            }
+            aria-hidden="true"
+          >
+            ★
+          </span>
+        </div>
+      </If>
       <div className={'flex flex-col space-y-2.5'}>
         <div className={'flex items-center space-x-6'}>
           <Heading type={3}>

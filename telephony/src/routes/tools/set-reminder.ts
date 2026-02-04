@@ -199,7 +199,14 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const defaultTimezone = process.env.ULTAURA_DEFAULT_TIMEZONE || 'America/Los_Angeles';
-    const tz = timezone || line.timezone || defaultTimezone;
+    const lineTimezone = line.timezone || defaultTimezone;
+    if (timezone && timezone !== lineTimezone) {
+      logger.warn(
+        { callSessionId, lineId, inputTimezone: timezone, lineTimezone },
+        'Reminder timezone overridden by line timezone'
+      );
+    }
+    const tz = lineTimezone;
 
     let finalMessage = message?.trim() || '';
     let messageDefaulted = false;

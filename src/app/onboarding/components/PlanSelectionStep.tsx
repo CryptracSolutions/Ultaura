@@ -116,9 +116,9 @@ const PlanSelectionStep: React.FCC<{
               }`}
             >
               {isPopular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground">
-                    Most Popular
+                <div className="absolute top-3 right-3">
+                  <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground shadow-md text-xs">
+                    ★
                   </span>
                 </div>
               )}

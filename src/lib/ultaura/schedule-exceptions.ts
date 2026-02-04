@@ -68,8 +68,8 @@ async function updateLineNextScheduledCallAt(
     .eq('id', lineId);
 }
 
-function calculateNextRun(schedule: ScheduleRow): string | null {
-  const { days_of_week, time_of_day, timezone, next_run_at } = schedule;
+function calculateNextRun(schedule: ScheduleRow, timezone: string): string | null {
+  const { days_of_week, time_of_day, next_run_at } = schedule;
   if (!days_of_week || days_of_week.length === 0) {
     return null;
   }
@@ -192,6 +192,8 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
     };
   }
 
+  const lineTimezone = line.timezone;
+
   if (line.account_id !== account.id) {
     return {
       success: false,
@@ -199,7 +201,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
     };
   }
 
-  if (isExceptionDateInPast(exceptionDate, line.timezone)) {
+  if (isExceptionDateInPast(exceptionDate, lineTimezone)) {
     return {
       success: false,
       error: createError(ErrorCodes.INVALID_INPUT, 'Cannot create exception for past dates'),
@@ -222,7 +224,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
     };
   }
 
-  const createdAtLocal = DateTime.now().setZone(line.timezone).toISO({ suppressMilliseconds: true });
+  const createdAtLocal = DateTime.now().setZone(lineTimezone).toISO({ suppressMilliseconds: true });
   const originalTimeOfDay = normalizeTimeOfDay(schedule.time_of_day);
   const baseMetadata: Record<string, unknown> = {
     original_time_of_day: originalTimeOfDay,
@@ -239,7 +241,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
     if (newDatetime) {
       let parsedNew: Date;
       try {
-        parsedNew = parseInputDateTime(newDatetime, line.timezone);
+        parsedNew = parseInputDateTime(newDatetime, lineTimezone);
       } catch (error) {
         return {
           success: false,
@@ -298,7 +300,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
 
     let parsedNew: Date;
     try {
-      parsedNew = parseInputDateTime(newDatetime, line.timezone);
+      parsedNew = parseInputDateTime(newDatetime, lineTimezone);
     } catch (error) {
       return {
         success: false,
@@ -326,7 +328,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
 
   const shouldAdvanceNextRun =
     schedule.next_run_at &&
-    getScheduleLocalDate(schedule.next_run_at, schedule.timezone) === exceptionDate;
+    getScheduleLocalDate(schedule.next_run_at, lineTimezone) === exceptionDate;
 
   let updatedNextRunAt: string | null = schedule.next_run_at;
 
@@ -334,12 +336,12 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
     if (exceptionType === 'snooze' && exceptionNewDatetime) {
       updatedNextRunAt = exceptionNewDatetime;
     } else {
-      updatedNextRunAt = calculateNextRun(schedule);
+      updatedNextRunAt = calculateNextRun(schedule, lineTimezone);
     }
   }
 
   if (exceptionType === 'reschedule' && exceptionNewDatetime) {
-    const newLocal = DateTime.fromISO(exceptionNewDatetime).setZone(schedule.timezone);
+    const newLocal = DateTime.fromISO(exceptionNewDatetime).setZone(lineTimezone);
     const timeOfDay = newLocal.toFormat('HH:mm');
 
     const { data: oneTimeSchedule, error: oneTimeError } = await client
@@ -348,7 +350,7 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
         account_id: schedule.account_id,
         line_id: schedule.line_id,
         enabled: true,
-        timezone: schedule.timezone,
+        timezone: lineTimezone,
         days_of_week: [],
         time_of_day: timeOfDay,
         next_run_at: exceptionNewDatetime,

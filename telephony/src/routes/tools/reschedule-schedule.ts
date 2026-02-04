@@ -129,14 +129,14 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const newIso = newUtc.toISOString();
-    const localDate = DateTime.fromISO(schedule.next_run_at).setZone(schedule.timezone).toISODate();
+    const localDate = DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
     if (!localDate) {
       await recordFailure();
       res.status(400).json({ error: 'Invalid schedule date' });
       return;
     }
 
-    const oneTimeLocal = DateTime.fromJSDate(newUtc).setZone(schedule.timezone);
+    const oneTimeLocal = DateTime.fromJSDate(newUtc).setZone(line.timezone);
     const timeOfDay = oneTimeLocal.toFormat('HH:mm');
 
     const { data: oneTimeSchedule, error: oneTimeError } = await supabase
@@ -145,7 +145,7 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
         account_id: session.account_id,
         line_id: lineId,
         enabled: true,
-        timezone: schedule.timezone,
+        timezone: line.timezone,
         days_of_week: [],
         time_of_day: timeOfDay,
         next_run_at: newIso,
@@ -203,9 +203,9 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const shouldAdvance = localDate === DateTime.fromISO(schedule.next_run_at).setZone(schedule.timezone).toISODate();
+    const shouldAdvance = localDate === DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
     if (shouldAdvance) {
-      const nextRun = calculateNextRun(schedule);
+      const nextRun = calculateNextRun(schedule, line.timezone);
       await supabase
         .from('ultaura_schedules')
         .update({ next_run_at: nextRun, retry_count: 0 })

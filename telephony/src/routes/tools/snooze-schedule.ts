@@ -105,7 +105,7 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const localDate = DateTime.fromISO(schedule.next_run_at).setZone(schedule.timezone).toISODate();
+    const localDate = DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
     if (!localDate) {
       await recordFailure();
       res.status(400).json({ error: 'Invalid schedule date' });
@@ -157,7 +157,7 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const shouldAdvance = localDate === DateTime.fromISO(schedule.next_run_at).setZone(schedule.timezone).toISODate();
+    const shouldAdvance = localDate === DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
     if (shouldAdvance) {
       await supabase
         .from('ultaura_schedules')

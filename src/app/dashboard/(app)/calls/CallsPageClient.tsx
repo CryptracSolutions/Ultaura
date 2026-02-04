@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { DateTime } from 'luxon';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -58,6 +59,10 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     quietHoursEnd: line.quiet_hours_end,
     phoneE164: line.phone_e164,
   }));
+  const lineTimezoneById = lines.reduce((acc, line) => {
+    acc[line.id] = line.timezone;
+    return acc;
+  }, {} as Record<string, string>);
 
   const handleOpenForLine = (lineId: string) => {
     setPreselectedLineId(lineId);
@@ -105,26 +110,33 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
       .join(', ');
   };
 
-  const formatNextCall = (nextRunAt: string | null) => {
+  const formatNextCall = (nextRunAt: string | null, timezone?: string) => {
     if (!nextRunAt) return 'Not scheduled';
-    const date = new Date(nextRunAt);
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
+    const next = timezone
+      ? DateTime.fromISO(nextRunAt, { zone: timezone })
+      : DateTime.fromISO(nextRunAt);
+    if (!next.isValid) {
+      const fallback = new Date(nextRunAt);
+      return fallback.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
 
-    if (diff < 0) return 'Soon';
-    if (diff < 24 * 60 * 60 * 1000) {
-      return `Today, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    const now = timezone ? DateTime.now().setZone(timezone) : DateTime.now();
+    if (next.toMillis() < now.toMillis()) return 'Soon';
+
+    if (next.hasSame(now, 'day')) {
+      return `Today, ${next.toFormat('h:mm a')}`;
     }
-    if (diff < 48 * 60 * 60 * 1000) {
-      return `Tomorrow, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    if (next.hasSame(now.plus({ days: 1 }), 'day')) {
+      return `Tomorrow, ${next.toFormat('h:mm a')}`;
     }
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+
+    return next.toFormat('EEE, MMM d, h:mm a');
   };
 
   return (
@@ -220,6 +232,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                           onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                           formatDays={formatDays}
                           formatNextCall={formatNextCall}
+                          lineTimezone={lineTimezoneById[schedule.lineId]}
                           disabled={disabled}
                         />
                       ))}
@@ -239,6 +252,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                           onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                           formatDays={formatDays}
                           formatNextCall={formatNextCall}
+                          lineTimezone={lineTimezoneById[schedule.lineId]}
                           disabled={disabled}
                         />
                       ))}
@@ -275,7 +289,8 @@ interface ScheduleRowProps {
   schedule: Schedule;
   onDelete: () => void;
   formatDays: (days: number[]) => string;
-  formatNextCall: (nextRunAt: string | null) => string;
+  formatNextCall: (nextRunAt: string | null, timezone?: string) => string;
+  lineTimezone?: string;
   disabled?: boolean;
 }
 
@@ -284,10 +299,13 @@ function ScheduleRow({
   onDelete,
   formatDays,
   formatNextCall,
+  lineTimezone,
   disabled = false,
 }: ScheduleRowProps) {
   const isOneTime = schedule.isOneTime;
-  const nextCallLabel = schedule.nextRunAt ? formatNextCall(schedule.nextRunAt) : 'Scheduled time: TBD';
+  const nextCallLabel = schedule.nextRunAt
+    ? formatNextCall(schedule.nextRunAt, lineTimezone)
+    : 'Scheduled time: TBD';
 
   return (
     <div
@@ -333,7 +351,7 @@ function ScheduleRow({
                 {formatDays(schedule.daysOfWeek)}
                 {schedule.enabled && schedule.nextRunAt && (
                   <span className="ml-2">
-                    &middot; Next: {formatNextCall(schedule.nextRunAt)}
+                    &middot; Next: {formatNextCall(schedule.nextRunAt, lineTimezone)}
                   </span>
                 )}
               </>

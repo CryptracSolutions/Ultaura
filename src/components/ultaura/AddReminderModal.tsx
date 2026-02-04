@@ -118,7 +118,7 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
               )}
               <div className="min-w-0">
                 <DialogTitle className="truncate">
-                  {step === 1 ? 'Select a Line' : 'Create Reminder'}
+                  {step === 1 ? 'Select a Line' : 'Set Reminder'}
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground">
                   {step === 1
@@ -163,7 +163,7 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
             </div>
           )}
 
-          {/* Step 2: Create Reminder Form */}
+          {/* Step 2: Set Reminder Form */}
           {step === 2 && selectedLine && (
             <CreateReminderForm
                 lineId={selectedLine.id}

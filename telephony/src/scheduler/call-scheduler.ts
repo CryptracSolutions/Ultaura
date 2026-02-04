@@ -77,18 +77,21 @@ const leaseExistenceCache = new Map<string, boolean>();
  * Calculate the next occurrence for a recurring reminder.
  * Returns ISO string in UTC, or null if no next occurrence.
  */
-function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
-  const { rrule, interval_days, days_of_week, day_of_month, time_of_day, timezone, due_at } = reminder;
+function calculateNextReminderOccurrence(reminder: ReminderRow, timezone?: string): string | null {
+  const { rrule, interval_days, days_of_week, day_of_month, due_at } = reminder;
 
-  if (!reminder.is_recurring || !rrule || !time_of_day) {
+  if (!reminder.is_recurring || !rrule) {
     return null;
   }
 
+  const effectiveTimezone = timezone || reminder.timezone || 'UTC';
+
   try {
+    const timeOfDay = DateTime.fromISO(due_at).setZone(effectiveTimezone).toFormat('HH:mm');
     const nextUtc = getNextReminderOccurrence({
       rrule,
-      timezone,
-      timeOfDay: time_of_day,
+      timezone: effectiveTimezone,
+      timeOfDay,
       currentDueAt: new Date(due_at),
       daysOfWeek: days_of_week,
       dayOfMonth: day_of_month,
@@ -96,7 +99,7 @@ function calculateNextReminderOccurrence(reminder: ReminderRow): string | null {
     });
     return nextUtc ? nextUtc.toISOString() : null;
   } catch (error) {
-    logger.error({ error, reminderId: reminder.id, timezone }, 'Failed to calculate next reminder occurrence');
+    logger.error({ error, reminderId: reminder.id, timezone: effectiveTimezone }, 'Failed to calculate next reminder occurrence');
     return null;
   }
 }
@@ -425,7 +428,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
   // Check if line is on vacation for this occurrence
   if (schedule.next_run_at && isDateWithinVacation(schedule.next_run_at, line)) {
     logger.info({ scheduleId: schedule.id, lineId: schedule.line_id }, 'Line on vacation, suppressing call');
-    const nextRun = calculateNextRun(schedule);
+    const nextRun = calculateNextRun(schedule, line.timezone);
     const completed = await completeScheduleWithResult(schedule, 'suppressed_vacation', nextRun, true);
     if (completed && nextRun) {
       await supabase
@@ -439,14 +442,14 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
   // Check if line is opted out
   if (line.do_not_call) {
     logger.info({ scheduleId: schedule.id }, 'Line opted out, skipping');
-    await completeScheduleWithResult(schedule, 'suppressed_quiet_hours', calculateNextRun(schedule), false);
+    await completeScheduleWithResult(schedule, 'suppressed_quiet_hours', calculateNextRun(schedule, line.timezone), false);
     return;
   }
 
   // Check quiet hours
   if (isInQuietHours(line)) {
     logger.info({ scheduleId: schedule.id }, 'In quiet hours, skipping');
-    await completeScheduleWithResult(schedule, 'suppressed_quiet_hours', calculateNextRun(schedule), false);
+    await completeScheduleWithResult(schedule, 'suppressed_quiet_hours', calculateNextRun(schedule, line.timezone), false);
     return;
   }
 
@@ -454,12 +457,12 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
   const accessCheck = await checkLineAccess(line, account, 'outbound');
   if (!accessCheck.allowed) {
     logger.info({ scheduleId: schedule.id, reason: accessCheck.reason }, 'Access denied, skipping');
-    await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule), false);
+    await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule, line.timezone), false);
     return;
   }
 
   const localDate = schedule.next_run_at
-    ? DateTime.fromISO(schedule.next_run_at).setZone(schedule.timezone).toISODate()
+    ? DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate()
     : null;
 
   if (localDate) {
@@ -514,7 +517,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
 
     if (blockException) {
       logger.info({ scheduleId: schedule.id, exceptionType: blockException.exception_type }, 'Schedule exception blocked call');
-      const nextRun = calculateNextRun(schedule);
+      const nextRun = calculateNextRun(schedule, line.timezone);
       const completed = await completeScheduleWithResult(schedule, 'skipped', nextRun, true);
       if (completed && nextRun) {
         await supabase
@@ -549,7 +552,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
       // Check for idempotency conflict (already processed)
       if (errorData.code === 'DUPLICATE_SCHEDULED_CALL') {
         logger.warn({ scheduleId: schedule.id, idempotencyKey }, 'Duplicate scheduled call, already processed');
-        const nextRun = calculateNextRun(schedule);
+        const nextRun = calculateNextRun(schedule, line.timezone);
         const completed = await completeScheduleWithResult(schedule, 'success', nextRun, true);
         if (completed && nextRun) {
           await supabase
@@ -567,7 +570,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
     logger.info({ scheduleId: schedule.id, sessionId: result.sessionId }, 'Scheduled call initiated');
 
     // Update schedule
-    const nextRun = calculateNextRun(schedule);
+    const nextRun = calculateNextRun(schedule, line.timezone);
     const completed = await completeScheduleWithResult(schedule, 'success', nextRun, true);
 
     // Update line's next scheduled call
@@ -601,7 +604,7 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
       }
     } else {
       // Max retries exceeded, move to next scheduled time
-      await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule), true);
+      await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule, line.timezone), true);
       logger.warn({ scheduleId: schedule.id }, 'Max retries exceeded for scheduled call');
     }
   }
@@ -643,8 +646,8 @@ async function completeScheduleWithResult(
 /**
  * Calculate next run time based on schedule settings.
  */
-function calculateNextRun(schedule: ScheduleRow): string | null {
-  const { days_of_week, time_of_day, timezone } = schedule;
+function calculateNextRun(schedule: ScheduleRow, timezone: string): string | null {
+  const { days_of_week, time_of_day } = schedule;
 
   if (!days_of_week || days_of_week.length === 0) {
     return null;
@@ -736,7 +739,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
   // Check if line is opted out
   if (line.do_not_call) {
     logger.info({ reminderId: reminder.id }, 'Line opted out, marking reminder missed');
-    await handleReminderFailure(supabase, reminder, 'missed');
+    await handleReminderFailure(supabase, reminder, 'missed', line.timezone);
     return;
   }
 
@@ -745,7 +748,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
     reminderOutcomesTotal.inc({ outcome: 'suppressed_vacation' });
 
     if (reminder.is_recurring) {
-      const nextDueAt = calculateNextReminderOccurrence(reminder);
+      const nextDueAt = calculateNextReminderOccurrence(reminder, line.timezone);
 
       if (nextDueAt && (!reminder.ends_at || new Date(nextDueAt) <= new Date(reminder.ends_at))) {
         const { data: updated, error: updateError } = await supabase
@@ -868,7 +871,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
   const accessCheck = await checkLineAccess(line, account, 'outbound');
   if (!accessCheck.allowed) {
     logger.info({ reminderId: reminder.id, reason: accessCheck.reason }, 'Access denied for reminder');
-    await handleReminderFailure(supabase, reminder, 'missed');
+    await handleReminderFailure(supabase, reminder, 'missed', line.timezone);
     return;
   }
 
@@ -899,7 +902,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
         reminderOutcomesTotal.inc({ outcome: 'success' });
         // Still need to handle recurring logic
         if (reminder.is_recurring) {
-          const updated = await handleRecurringReminderSuccess(supabase, reminder);
+          const updated = await handleRecurringReminderSuccess(supabase, reminder, line.timezone);
           if (updated) {
             await releaseReminderClaim(reminder.id);
           }
@@ -936,7 +939,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 
     // Handle recurring vs one-time reminders
     if (reminder.is_recurring) {
-      const updated = await handleRecurringReminderSuccess(supabase, reminder);
+      const updated = await handleRecurringReminderSuccess(supabase, reminder, line.timezone);
       if (!updated) {
         return;
       }
@@ -982,7 +985,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 
   } catch (error) {
     logger.error({ error, reminderId: reminder.id }, 'Failed to initiate reminder call');
-    await handleReminderFailure(supabase, reminder, 'missed');
+    await handleReminderFailure(supabase, reminder, 'missed', line.timezone);
   }
 }
 
@@ -1016,9 +1019,10 @@ async function releaseReminderClaim(reminderId: string): Promise<boolean> {
  */
 async function handleRecurringReminderSuccess(
   supabase: ReturnType<typeof getSupabaseClient>,
-  reminder: ReminderRow
+  reminder: ReminderRow,
+  timezone: string
 ): Promise<boolean> {
-  const nextDueAt = calculateNextReminderOccurrence(reminder);
+  const nextDueAt = calculateNextReminderOccurrence(reminder, timezone);
 
   // Check if series should end (past end date or no next occurrence)
   if (!nextDueAt) {
@@ -1152,7 +1156,8 @@ async function handleRecurringReminderSuccess(
 async function handleReminderFailure(
   supabase: ReturnType<typeof getSupabaseClient>,
   reminder: ReminderRow,
-  status: 'missed' | 'canceled'
+  status: 'missed' | 'canceled',
+  timezone?: string
 ): Promise<void> {
   const eventType = status === 'missed' ? 'no_answer' : 'failed';
   const outcome = status === 'missed' ? 'missed' : 'failed';
@@ -1160,7 +1165,7 @@ async function handleReminderFailure(
 
   if (reminder.is_recurring) {
     // For recurring reminders that fail, still advance to next occurrence
-    const nextDueAt = calculateNextReminderOccurrence(reminder);
+    const nextDueAt = calculateNextReminderOccurrence(reminder, timezone);
 
     if (nextDueAt && (!reminder.ends_at || new Date(nextDueAt) <= new Date(reminder.ends_at))) {
       const { data: updated, error: updateError } = await supabase

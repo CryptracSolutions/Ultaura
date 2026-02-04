@@ -121,6 +121,10 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
     timezone: line.timezone,
     phoneE164: line.phone_e164,
   }));
+  const lineTimezoneById = lines.reduce((acc, line) => {
+    acc[line.id] = line.timezone;
+    return acc;
+  }, {} as Record<string, string>);
 
   const handleOpenForLine = (lineId: string) => {
     setPreselectedLineId(lineId);
@@ -154,17 +158,21 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
     router.refresh();
   };
 
-  const formatDateTime = (isoString: string, timezone: string) => {
+  const formatDateTime = (isoString: string, lineId: string, fallbackTimezone: string) => {
     const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
+    const resolvedTimezone = lineTimezoneById[lineId] ?? fallbackTimezone;
+    const options: Intl.DateTimeFormatOptions = {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
-      timeZone: timezone,
-    });
+    };
+    if (resolvedTimezone) {
+      options.timeZone = resolvedTimezone;
+    }
+    return date.toLocaleString('en-US', options);
   };
 
   const formatRelativeTime = (isoString: string) => {
@@ -193,7 +201,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Add Reminder Button */}
+      {/* Set Reminder Button */}
       {!disabled && lines.length > 0 && (
         <div>
           <button
@@ -201,7 +209,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
             className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             <Plus className="w-3 h-3" />
-            Add Reminder
+            Set Reminder
           </button>
         </div>
       )}
@@ -352,7 +360,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
 interface ReminderRowProps {
   reminder: Reminder;
   onCancel: () => void;
-  formatDateTime: (isoString: string, timezone: string) => string;
+  formatDateTime: (isoString: string, lineId: string, fallbackTimezone: string) => string;
   formatRelativeTime: (isoString: string) => string;
   isPast?: boolean;
   disabled?: boolean;
@@ -391,7 +399,7 @@ function ReminderRow({
           <p className="text-foreground line-clamp-2">{reminder.message}</p>
           <div className="flex flex-wrap items-center gap-2 mt-2 text-sm">
             <span className="text-muted-foreground">
-              {formatDateTime(reminder.dueAt, reminder.timezone)}
+              {formatDateTime(reminder.dueAt, reminder.lineId, reminder.timezone)}
             </span>
             {reminder.status === 'scheduled' && (
               <span className="text-primary font-medium">

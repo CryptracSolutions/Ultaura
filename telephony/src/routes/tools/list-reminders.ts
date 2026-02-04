@@ -134,7 +134,7 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
     const formattedReminders = reminders.map((r, i) => {
       const resolved = messageLookup.get(r.id);
       const resolvedMessage = resolved?.message ?? 'a reminder';
-      const schedule = formatReminderSchedule(r.due_at, r.timezone || line.timezone || 'UTC');
+      const schedule = formatReminderSchedule(r.due_at, line.timezone || r.timezone || 'UTC');
 
       let status = '';
       if (r.is_paused) {

@@ -390,7 +390,11 @@ describe('call-scheduler', () => {
         ends_at: null,
       };
 
-      const updated = await handleRecurringReminderSuccess({ rpc: rpcMock, from: fromMock } as any, reminder as any);
+      const updated = await handleRecurringReminderSuccess(
+        { rpc: rpcMock, from: fromMock } as any,
+        reminder as any,
+        'America/New_York'
+      );
 
       expect(updated).toBe(false);
       expect(logger.warn).toHaveBeenCalledWith(
@@ -424,7 +428,11 @@ describe('call-scheduler', () => {
         ends_at: null,
       };
 
-      const updated = await handleRecurringReminderSuccess({ rpc: rpcMock, from: fromMock } as any, reminder as any);
+      const updated = await handleRecurringReminderSuccess(
+        { rpc: rpcMock, from: fromMock } as any,
+        reminder as any,
+        'America/New_York'
+      );
 
       expect(updated).toBe(true);
       const eventInsertCalls = fromMock.mock.calls.filter(
@@ -455,7 +463,11 @@ describe('call-scheduler', () => {
         ends_at: null,
       };
 
-      const updated = await handleRecurringReminderSuccess({ rpc: rpcMock, from: fromMock } as any, reminder as any);
+      const updated = await handleRecurringReminderSuccess(
+        { rpc: rpcMock, from: fromMock } as any,
+        reminder as any,
+        'America/New_York'
+      );
 
       expect(updated).toBe(true);
       expect(reminderBuilder.update).toHaveBeenCalledWith(

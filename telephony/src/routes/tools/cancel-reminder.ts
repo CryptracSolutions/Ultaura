@@ -131,7 +131,7 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       : '';
     const scheduleInfo = formatReminderSchedule(
       reminder.due_at,
-      reminder.timezone || line.timezone || 'UTC'
+      line.timezone || reminder.timezone || 'UTC'
     );
 
     res.json({

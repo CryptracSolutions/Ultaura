@@ -51,7 +51,7 @@ const QuickActionsDropdown: React.FC = () => {
           onClick={() => openAddReminder()}
         >
           <BellIcon className="h-5" />
-          <span>Add Reminder</span>
+          <span>Set Reminder</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />

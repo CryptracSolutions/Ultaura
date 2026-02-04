@@ -234,7 +234,7 @@ const MobileAppNavigation = () => {
           <div className="pb-2">
             <MenuButton
               Icon={BellIcon}
-              label="Add Reminder"
+              label="Set Reminder"
               onClick={() => handleQuickAction(openAddReminder)}
             />
             <MenuButton

@@ -129,7 +129,15 @@ scheduleCallRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const supabase = getSupabaseClient();
-    const tz = timezone || line.timezone;
+    const defaultTimezone = process.env.ULTAURA_DEFAULT_TIMEZONE || 'America/Los_Angeles';
+    const lineTimezone = line.timezone || defaultTimezone;
+    if (timezone && timezone !== lineTimezone) {
+      logger.warn(
+        { callSessionId, lineId, inputTimezone: timezone, lineTimezone },
+        'Schedule timezone overridden by line timezone'
+      );
+    }
+    const tz = lineTimezone;
     try {
       validateTimezone(tz);
     } catch (error) {
