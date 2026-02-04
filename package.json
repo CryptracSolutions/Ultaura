@@ -28,7 +28,7 @@
     "stripe:listen": "docker run --rm -it --name=stripe -v ~/.config/stripe:/root/.config/stripe stripe/stripe-cli:latest listen --forward-to http://host.docker.internal:3000/api/stripe/webhook",
     "stripe:mock-server": "docker run --rm -it -p 12111-12112:12111-12112 stripe/stripe-mock:latest",
     "typegen": "node scripts/supabase-cli.js gen types typescript --local > src/database.types.ts",
-    "pretypecheck": "pnpm build:packages && pnpm velite build --clean",
+    "pretypecheck": "pnpm build:packages && pnpm velite build",
     "typecheck": "tsc -b && tsc -b cypress",
     "test:unit": "vitest",
     "test:e2e": "sh ./scripts/test.sh",
