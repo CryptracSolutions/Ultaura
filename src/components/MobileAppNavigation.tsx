@@ -10,10 +10,6 @@ import {
   XMarkIcon,
   QuestionMarkCircleIcon,
   ChatBubbleLeftIcon,
-  PhoneIcon,
-  BellIcon,
-  PhoneArrowUpRightIcon,
-  CalendarIcon,
   LifebuoyIcon,
   MagnifyingGlassIcon,
   UserIcon,
@@ -27,23 +23,16 @@ import configuration from '~/configuration';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import useSignOut from '~/core/hooks/use-sign-out';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
-import { useManualCall } from '~/lib/contexts/ManualCallContext';
-import { useAddReminder } from '~/lib/contexts/AddReminderContext';
-import { useAddSchedule } from '~/lib/contexts/AddScheduleContext';
-import { useAddLine } from '~/lib/contexts/AddLineContext';
 
 import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
 import Logo from '~/core/ui/Logo';
 import { useSearch } from '~/lib/contexts/SearchContext';
+import QuickActionsDropdown from '~/components/QuickActionsDropdown';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
   const { data: ultauraAccount } = useUltauraAccount();
-  const { openManualCall } = useManualCall();
-  const { openAddReminder } = useAddReminder();
-  const { openAddSchedule } = useAddSchedule();
-  const { openAddLine } = useAddLine();
   const { open: openHelp } = useHelpPanel();
   const { openMobile, isMobileOpen } = useSearch();
   const [isVisible, setIsVisible] = useState(false);
@@ -81,26 +70,6 @@ const MobileAppNavigation = () => {
   const handleFeedbackClick = () => {
     closeMenu();
     setTimeout(() => setFeedbackOpen(true), 200);
-  };
-
-  const handleManualCallClick = () => {
-    closeMenu();
-    setTimeout(() => openManualCall(), 200);
-  };
-
-  const handleAddReminderClick = () => {
-    closeMenu();
-    setTimeout(() => openAddReminder(), 200);
-  };
-
-  const handleAddScheduleClick = () => {
-    closeMenu();
-    setTimeout(() => openAddSchedule(), 200);
-  };
-
-  const handleAddLineClick = () => {
-    closeMenu();
-    setTimeout(() => openAddLine(), 200);
   };
 
   // Extract navigation items and settings from config
@@ -149,6 +118,7 @@ const MobileAppNavigation = () => {
               wordmarkClassName="text-xl font-semibold leading-none text-primary"
             />
             <div className="flex items-center gap-2">
+              <QuickActionsDropdown onAction={closeMenu} />
               <button
                 onClick={openMobile}
                 className="p-1.5 hover:bg-muted rounded-md transition-colors"
@@ -184,32 +154,6 @@ const MobileAppNavigation = () => {
                 ))}
               </MenuSection>
             ))}
-
-            {/* Quick Actions Section */}
-            <MenuSection label="Quick Actions">
-              <MenuButton
-                Icon={BellIcon}
-                label="Add Reminder"
-                onClick={handleAddReminderClick}
-              />
-              <MenuButton
-                Icon={CalendarIcon}
-                label="Schedule Call"
-                onClick={handleAddScheduleClick}
-              />
-              {userType === 'family_managed' && (
-                <MenuButton
-                  Icon={PhoneArrowUpRightIcon}
-                  label="Place Call"
-                  onClick={handleManualCallClick}
-                />
-              )}
-              <MenuButton
-                Icon={PhoneIcon}
-                label="Add Line"
-                onClick={handleAddLineClick}
-              />
-            </MenuSection>
 
             {/* Support Section */}
             <MenuSection label="Support">

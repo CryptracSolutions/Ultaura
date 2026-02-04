@@ -24,7 +24,9 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import IconButton from '~/core/ui/IconButton';
 
-const QuickActionsDropdown: React.FC = () => {
+const QuickActionsDropdown: React.FC<{ onAction?: () => void }> = ({
+  onAction,
+}) => {
   const { data: account } = useUltauraAccount();
   const { openManualCall } = useManualCall();
   const { openAddReminder } = useAddReminder();
@@ -48,7 +50,10 @@ const QuickActionsDropdown: React.FC = () => {
       <DropdownMenuContent align="end" sideOffset={8} className="min-w-[12rem]">
         <DropdownMenuItem
           className="flex w-full items-center space-x-2"
-          onClick={() => openAddReminder()}
+          onClick={() => {
+            onAction?.();
+            openAddReminder();
+          }}
         >
           <BellIcon className="h-5" />
           <span>Add Reminder</span>
@@ -58,7 +63,10 @@ const QuickActionsDropdown: React.FC = () => {
 
         <DropdownMenuItem
           className="flex w-full items-center space-x-2"
-          onClick={() => openAddSchedule()}
+          onClick={() => {
+            onAction?.();
+            openAddSchedule();
+          }}
         >
           <CalendarIcon className="h-5" />
           <span>Schedule Call</span>
@@ -69,7 +77,10 @@ const QuickActionsDropdown: React.FC = () => {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="flex w-full items-center space-x-2"
-              onClick={() => openManualCall()}
+              onClick={() => {
+                onAction?.();
+                openManualCall();
+              }}
             >
               <PhoneArrowUpRightIcon className="h-5" />
               <span>Place Call</span>
@@ -81,7 +92,10 @@ const QuickActionsDropdown: React.FC = () => {
 
         <DropdownMenuItem
           className="flex w-full items-center space-x-2"
-          onClick={() => openAddLine()}
+          onClick={() => {
+            onAction?.();
+            openAddLine();
+          }}
         >
           <PhoneIcon className="h-5" />
           <span>Add Line</span>
