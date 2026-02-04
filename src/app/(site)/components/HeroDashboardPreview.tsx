@@ -90,7 +90,7 @@ const CHAT_MESSAGES: Array<{ sender: 'ara' | 'senior'; text: string }> = [
 ];
 
 const WELLNESS_ALERTS = [
-  { title: 'Mood dip detected', severity: 'info' as const, time: 'Tue' },
+  { title: 'Mood change detected', severity: 'info' as const, time: 'Tue' },
   { title: 'Missed medication reminder', severity: 'warning' as const, time: 'Mon' },
 ];
 

@@ -1,15 +1,18 @@
 import { CheckCircle2 } from 'lucide-react';
+import { PlayCircleIcon } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
+import Button from '~/core/ui/Button';
+import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 
 const REASSURANCES = [
-  { text: 'No app required', detail: 'Works on any phone, including landlines' },
-  { text: 'Cancel anytime', detail: 'No contracts, no cancellation fees' },
-  { text: 'Always discloses AI', detail: 'Transparent about being an AI companion' },
-  { text: 'Privacy-first', detail: 'No transcripts stored by default' },
-  { text: '3-day free trial', detail: 'Try before you commit' },
-  { text: 'Quiet hours respected', detail: 'You control when calls happen' },
+  { text: 'They can opt out anytime', detail: 'If they ever want to stop, they just say so. No complicated process, no guilt.' },
+  { text: 'Works on their existing phone', detail: 'Landlines, cell phones, even flip phones. No downloads, no setup on their end.' },
+  { text: 'You pick the voice they\u2019ll like', detail: 'Five warm, distinct voices. Choose the one that feels right for their personality.' },
+  { text: 'Built with elder care professionals', detail: 'Designed alongside geriatricians, social workers, and family caregivers.' },
+  { text: 'Safety monitoring included', detail: 'If they sound distressed, Ultaura gently helps and alerts your trusted contacts.' },
+  { text: 'No commitment, no risk', detail: '3-day free trial. No credit card. Cancel in one click.' },
 ];
 
 export function ReassuranceChecklist() {
@@ -27,6 +30,22 @@ export function ReassuranceChecklist() {
               <span className="mt-1 text-[11px] text-muted-foreground sm:text-xs">{item.detail}</span>
             </div>
           ))}
+        </div>
+
+        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <MainCallToActionButton />
+          <Button
+            variant="outline"
+            size="lg"
+            round
+            href="/demo"
+            className="border-primary/30 text-primary hover:bg-primary/5"
+          >
+            <span className="flex items-center gap-2">
+              <PlayCircleIcon className="h-5 w-5" />
+              Try the voices
+            </span>
+          </Button>
         </div>
       </Container>
     </section>

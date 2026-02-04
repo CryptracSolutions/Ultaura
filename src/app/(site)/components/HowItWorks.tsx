@@ -1,8 +1,7 @@
 import {
+  BellIcon,
   CalendarIcon,
   ChartBarIcon,
-  CheckCircleIcon,
-  PlayCircleIcon,
   SparklesIcon,
   UserPlusIcon,
 } from '@heroicons/react/24/outline';
@@ -10,123 +9,85 @@ import {
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
-import Button from '~/core/ui/Button';
-import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 
 const HOW_IT_WORKS_STEPS = [
   {
-    title: 'Add your loved one',
+    title: 'Tell us about them',
     description:
-      "Create an account, add their phone number, and share a few preferences so calls feel familiar.",
+      "Their name, their phone number, a few things they love talking about. That's all we need to make the first call feel personal.",
     icon: UserPlusIcon,
   },
   {
-    title: 'Pick timing and a voice',
+    title: 'Choose a voice and a time',
     description:
-      'Choose when Ultaura calls and select a voice that feels warm and natural to them.',
+      'Pick from five distinct voices and set a daily call window that fits their routine. They just answer the phone.',
     icon: CalendarIcon,
   },
   {
-    title: 'Natural conversations',
+    title: 'Add helpful reminders',
     description:
-      'Ultaura chats about their day, memories, and interests — responding in real-time with expressive, human-like voice.',
+      'Medications, appointments, birthdays — Ultaura gently reminds them during the call so nothing slips through the cracks.',
+    icon: BellIcon,
+  },
+  {
+    title: 'Real conversations, every day',
+    description:
+      'They talk about their day, their memories, whatever\u2019s on their mind \u2014 and chat about today\u2019s news, sports, or weather. Ultaura listens, remembers, and brings it up next time.',
     icon: SparklesIcon,
   },
   {
-    title: 'Stay in the loop',
+    title: 'You stay informed',
     description:
-      'Review call activity and duration from your dashboard without reading transcripts.',
+      'See when they talked, how long, and how they\u2019re doing \u2014 all from your dashboard. No recordings, no eavesdropping. Just reassurance.',
     icon: ChartBarIcon,
   },
 ];
 
-const TRUST_POINTS = [
-  'Works on any phone',
-  'Setup in under 2 minutes',
-  'No app required',
-  'Cancel anytime',
-];
 
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="bg-surface-subtle pt-4 pb-12">
       <Container>
-        <div className="relative grid gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
-          <div className="flex flex-col space-y-4">
-            <div className="space-y-4">
-              <Heading type={2}>
-                <span className="text-primary">How</span> it works
-              </Heading>
-              <SubHeading className="max-w-xl">
-                A simple, respectful flow that keeps your loved one engaged and
-                you informed.
-              </SubHeading>
-            </div>
+        {/* Header - centered */}
+        <div className="mx-auto max-w-2xl text-center space-y-4">
+          <Heading type={2}>
+            <span className="text-primary">How</span> it works
+          </Heading>
+          <SubHeading>
+            Set up in 5 minutes. Your loved one gets their first call today.
+          </SubHeading>
+        </div>
 
-            <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-              {TRUST_POINTS.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted-foreground"
-                >
-                  <CheckCircleIcon className="h-4 w-4 text-primary" />
-                  <span>{item}</span>
+        {/* Steps - centered timeline */}
+        <div className="mx-auto mt-10 max-w-xl lg:max-w-6xl">
+          <ol
+            className="relative space-y-6"
+            style={{ '--hiw-track-x': '1.75rem' } as React.CSSProperties}
+          >
+            <div className="pointer-events-none absolute left-[var(--hiw-track-x)] top-4 h-[calc(100%-32px)] w-px -translate-x-1/2 bg-primary" />
+            {HOW_IT_WORKS_STEPS.map((step, index) => (
+              <li key={step.title} className="relative pl-16">
+                <div className="absolute left-[var(--hiw-track-x)] top-1/2 z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-primary bg-background text-xs font-semibold text-primary shadow-sm">
+                  {index + 1}
                 </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <MainCallToActionButton />
-              <Button
-                variant="outline"
-                size="lg"
-                round
-                href="/demo"
-                className="border-primary/30 text-primary hover:bg-primary/5"
-              >
-                <span className="flex items-center gap-2">
-                  <PlayCircleIcon className="h-5 w-5" />
-                  Try the voices
-                </span>
-              </Button>
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              Voice demo is coming soon. We&apos;ll make it easy to hear and pick
-              the tone that feels right before you invite a loved one.
-            </p>
-          </div>
-
-          <div className="relative">
-            <ol
-              className="relative space-y-6"
-              style={{ '--hiw-track-x': '1.75rem' } as React.CSSProperties}
-            >
-              <div className="pointer-events-none absolute left-[var(--hiw-track-x)] top-4 h-[calc(100%-32px)] w-px -translate-x-1/2 bg-primary" />
-              {HOW_IT_WORKS_STEPS.map((step, index) => (
-                <li key={step.title} className="relative pl-16">
-                  <div className="absolute left-[var(--hiw-track-x)] top-1/2 z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-primary bg-background text-xs font-semibold text-primary shadow-sm">
-                    {index + 1}
-                  </div>
-                  <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
-                    <div className="flex items-start gap-4">
-                      <div className="group rounded-xl border border-primary/10 bg-primary/10 p-3 transition-colors duration-200 hover:border-primary hover:bg-primary">
-                        <step.icon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="text-base font-semibold text-foreground">
-                          {step.title}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {step.description}
-                        </p>
-                      </div>
+                <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
+                  <div className="flex items-start gap-4">
+                    <div className="group rounded-xl border border-primary/10 bg-primary/10 p-3 transition-colors duration-200 hover:border-primary hover:bg-primary">
+                      <step.icon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-base font-semibold text-foreground">
+                        {step.title}
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        {step.description}
+                      </p>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ol>
-          </div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </Container>
     </section>

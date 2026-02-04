@@ -37,22 +37,23 @@ function Home() {
           <div className="relative grid grid-cols-1 items-start gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-10">
             <div className="flex flex-col space-y-5">
               <Pill>
-                <span>Built for families and caregivers</span>
+                <span>Designed with elder care professionals and family caregivers</span>
               </Pill>
 
-              <h1 className="text-4xl font-heading font-medium text-foreground md:text-5xl xl:text-6xl 2xl:text-7xl">
+              <h1 className="text-[2.0625rem] font-heading font-medium text-foreground md:text-[2.475rem] xl:text-[3.3rem] 2xl:text-[4.125rem]">
                 <span className="block leading-[1.1]">
-                  You can&apos;t call every day.
+                  The call they look forward to.
                 </span>
                 <span className="block leading-[1.1] text-transparent bg-gradient-to-br bg-clip-text from-primary to-primary/70">
-                  We can.
+                  The peace of mind you need.
                 </span>
               </h1>
 
               <SubHeading className={'max-w-2xl'}>
-                A friendly voice companion that calls your loved one daily,
-                remembers what matters, and keeps you informed — no apps or
-                smartphones needed.
+                Know they&apos;re okay, connected, and looking forward to
+                tomorrow — without rearranging your schedule. Ultaura calls
+                your loved one at the time you choose, reminds them of anything
+                they need, holds great conversations, and keeps you informed.
               </SubHeading>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -71,24 +72,22 @@ function Home() {
                 </Button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <span>I&apos;m setting this up</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href="/onboarding?type=self"
-                    className="inline-flex min-h-[44px] items-center underline underline-offset-4 hover:text-foreground"
-                  >
-                    for myself
-                  </Link>
-                  <span>or</span>
-                  <Link
-                    href="/onboarding?type=family"
-                    className="inline-flex min-h-[44px] items-center underline underline-offset-4 hover:text-foreground"
-                  >
-                    for someone I care for
-                  </Link>
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                I&apos;m setting this up{' '}
+                <Link
+                  href="/onboarding?type=self"
+                  className="underline underline-offset-4 hover:text-foreground"
+                >
+                  for myself
+                </Link>
+                {' '}or{' '}
+                <Link
+                  href="/onboarding?type=family"
+                  className="underline underline-offset-4 hover:text-foreground"
+                >
+                  for someone I care for
+                </Link>
+              </p>
 
               <span className={'mt-8 text-xs text-muted-foreground'}>
                 3-day free trial • no credit card • cancel anytime
@@ -96,25 +95,25 @@ function Home() {
 
               <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-4 w-4 text-primary" />
-                  Always discloses AI
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
+                  Always identifies as AI — never pretends to be human
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-4 w-4 text-primary" />
-                  No transcripts stored by default
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
+                  Conversations stay private — no recordings, no transcripts
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-4 w-4 text-primary" />
-                  Works on any phone (landlines included)
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
+                  Works on any phone, including landlines
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-4 w-4 text-primary" />
-                  Quiet hours and scheduling control
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
+                  Control when calls happen — quiet hours built in
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 sm:mt-10 lg:mt-0">
+            <div className="mt-10 lg:mt-0">
               <HeroDashboardPreview />
             </div>
           </div>
@@ -124,10 +123,10 @@ function Home() {
 
       <BadgeStrip />
 
-      <AudienceValueTabs />
-
       {/* How It Works */}
       <HowItWorks />
+
+      <AudienceValueTabs />
 
       <ReassuranceChecklist />
 
@@ -141,7 +140,7 @@ function Home() {
               <Pill>Simple, transparent pricing</Pill>
 
               <div className="flex flex-col space-y-2.5">
-                <Heading type={2}>Choose the <span className="text-primary">plan</span> that fits your family</Heading>
+                <Heading type={2}>Choose a <span className="text-primary">plan</span> that fits your needs</Heading>
 
                 <SubHeading className="text-sm sm:text-base">
                   <span className="flex flex-col items-center gap-1 text-muted-foreground sm:flex-row sm:gap-2">
@@ -152,6 +151,9 @@ function Home() {
                     <span className="text-muted-foreground/80">No credit card required to start</span>
                   </span>
                 </SubHeading>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Home care aides average $30/hour. Ultaura starts at $39/month.
+                </p>
               </div>
             </div>
 
@@ -209,7 +211,7 @@ function Home() {
                     href="/contact"
                     className="mt-6 w-fit bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    Contact Us
+                    Chat with us
                   </Button>
                 </div>
 
@@ -220,12 +222,12 @@ function Home() {
               <Accordion>
                 <AccordionItem value="line">
                   <AccordionTrigger className="hover:bg-transparent">
-                    What is a line?
+                    What does &ldquo;line&rdquo; mean?
                   </AccordionTrigger>
                   <AccordionContent>
-                    A line is a verified phone number for one person. Each line
-                    represents one loved one who will receive calls from
-                    Ultaura.
+                    Each person who receives calls needs their own line — think
+                    of it like a phone plan. One line per person. The Care plan
+                    includes 1 line, Comfort includes 2, and Family includes 4.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -234,9 +236,9 @@ function Home() {
                     Can they call anytime?
                   </AccordionTrigger>
                   <AccordionContent>
-                    Yes! Your loved one can call Ultaura 24/7 for inbound calls.
-                    Scheduled outbound calls respect quiet hours that you
-                    configure.
+                    Yes. Your loved one can call Ultaura anytime, day or night.
+                    Scheduled outbound calls follow the times you set, and quiet
+                    hours are always respected.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -245,9 +247,9 @@ function Home() {
                     Is it a real person?
                   </AccordionTrigger>
                   <AccordionContent>
-                    No, Ultaura is an AI voice companion. We always disclose
-                    this at the start of each conversation. Ultaura is designed
-                    to provide friendly, natural conversation — not to deceive.
+                    No — Ultaura is an AI voice companion. Every call starts
+                    with a clear disclosure that it&apos;s AI. The conversations
+                    are warm and natural, but always honest about what they are.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -256,10 +258,10 @@ function Home() {
                     What about emergencies?
                   </AccordionTrigger>
                   <AccordionContent>
-                    If Ultaura detects distress or concerning language, it
-                    gently encourages contacting 988 (mental health crisis
-                    line) or 911 for emergencies. Ultaura is not a replacement
-                    for emergency services.
+                    If your loved one sounds distressed, Ultaura gently
+                    encourages them to reach out for help and notifies your
+                    trusted contacts. For immediate emergencies, it directs them
+                    to 911. Ultaura is a companion, not a medical service.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -268,9 +270,9 @@ function Home() {
                     Do you store conversations?
                   </AccordionTrigger>
                   <AccordionContent>
-                    No transcripts are stored by default. We only keep basic
-                    call information (time, duration) visible in your dashboard.
-                    Your loved one&apos;s privacy is paramount.
+                    No. We don&apos;t record or transcribe calls. Your dashboard
+                    shows the time, date, and duration of each call — nothing
+                    more. Your loved one&apos;s conversations are private.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -281,6 +283,28 @@ function Home() {
                   <AccordionContent>
                     Yes! Ultaura works with any phone — landlines, cell phones,
                     even flip phones. No smartphone or app is needed.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="dont-want-to-talk">
+                  <AccordionTrigger className="hover:bg-transparent">
+                    What if they don&apos;t want to talk?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    That&apos;s completely fine. If your loved one doesn&apos;t
+                    want to chat, Ultaura wraps up politely. They can also opt
+                    out entirely — just by saying so. No pressure, ever.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="after-trial">
+                  <AccordionTrigger className="hover:bg-transparent">
+                    What happens after the free trial?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    After 3 days, you choose a plan or walk away — no automatic
+                    charges. If you continue, billing starts on the plan you
+                    select. You can change plans or cancel anytime.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -297,10 +321,13 @@ function Home() {
           <div className="relative flex flex-col items-center text-center space-y-4">
             <Heading type={2}>Give the gift of conversation</Heading>
             <SubHeading className="max-w-xl">
-              Start your 3-day free trial today and give your loved one a companion
-              who&apos;s always there to listen.
+              Set up in 5 minutes. No credit card, no commitment. Their first
+              call can happen today.
             </SubHeading>
             <MainCallToActionButton />
+            <span className="text-xs text-muted-foreground">
+              Free for 3 days · Cancel anytime · Works on any phone
+            </span>
           </div>
         </Container>
       </section>

@@ -9,6 +9,7 @@ const AppHeader: React.FCC<{
     <PageHeader
       title={title}
       description={description}
+      showDescriptionOnMobile
       mobileNavigation={<MobileAppNavigation />}
     >
       {children}

@@ -26,19 +26,19 @@ const AUDIENCES: Array<{
   {
     id: 'families',
     label: 'Families',
-    short: 'Peace of mind without hovering.',
+    short: 'Stay connected without the worry.',
     icon: UserGroupIcon,
   },
   {
     id: 'seniors',
     label: 'Seniors',
-    short: 'A warm, respectful daily routine.',
+    short: 'A friendly voice, whenever you want one.',
     icon: HeartIcon,
   },
   {
     id: 'care-teams',
     label: 'Caregivers',
-    short: 'Designed for multi-resident workflows.',
+    short: 'Less workload. More connection for your residents.',
     icon: ClockIcon,
   },
 ];
@@ -46,14 +46,14 @@ const AUDIENCES: Array<{
 const ALWAYS_INCLUDED = [
   'Daily check-in calls',
   'Medication & routine reminders',
-  'Caregiver dashboard summaries',
-  'Safety protocols + trusted contacts',
+  'At-a-glance summaries for family',
+  'Safety alerts to people they trust',
 ];
 
 const PROMISES = [
-  'No manipulation or deception.',
-  'Never pretend to be human.',
-  'No upsells or pressure tactics.',
+  'Honest by design — no hidden agendas, ever.',
+  'Always identifies as AI — no pretending, no confusion.',
+  'No pressure, no upsells — just genuine conversation.',
 ];
 
 function Pill(props: React.PropsWithChildren) {
@@ -126,7 +126,7 @@ export function AudienceValueTabs() {
                 support for caregivers
               </Pill>
               <Heading type={2}>
-                <span className="text-primary">Why</span> choose Ultaura?
+                Peace of mind starts with a <span className="text-primary">daily call</span>
               </Heading>
             </div>
 
@@ -156,15 +156,15 @@ export function AudienceValueTabs() {
                     <ul className="space-y-1.5 text-xs text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>Worry between check-ins</span>
+                        <span>Wondering if they&apos;re okay between your calls</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>Missed calls, uncertainty</span>
+                        <span>Guilt when you can&apos;t check in</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>No insight into daily life</span>
+                        <span>No way to know how their day really went</span>
                       </li>
                     </ul>
                   </div>
@@ -184,15 +184,15 @@ export function AudienceValueTabs() {
                     <ul className="space-y-1.5 text-xs text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                        <span>Daily routine & connection</span>
+                        <span>They have someone to talk to every day</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                        <span>Instant summaries & insights</span>
+                        <span>You see that they&apos;re doing well — without hovering</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                        <span>Alerts when something is off</span>
+                        <span>Gentle alerts only when something needs your attention</span>
                       </li>
                     </ul>
                   </div>
@@ -207,9 +207,9 @@ export function AudienceValueTabs() {
                 </div>
               </div>
 
-              <div className="mt-6 text-center">
+              <div className="mt-16 text-center">
                 <SubHeading as={'h3'}>
-                  Tailored experience through your perspective
+                  See how Ultaura works for you
                 </SubHeading>
               </div>
             </div>
@@ -294,15 +294,15 @@ export function AudienceValueTabs() {
                       </div>
                       <div className="mt-2 flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        See cadence and comfort signals at a glance.
+                        See how their calls are going at a glance — duration, mood, and timing.
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        Get notified only when something needs attention.
+                        Get a quiet alert only when something seems off.
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        Maintain meaningful connections without daily intrusion.
+                        Stay close to their life without needing to call every day.
                       </div>
                     </div>
                   ) : null}
@@ -323,15 +323,15 @@ export function AudienceValueTabs() {
                       </div>
                       <div className="mt-2 flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        Respectful conversations that honor independence.
+                        Talk about your day, your memories, whatever&apos;s on your mind.
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        Natural AI conversations that feel genuinely caring.
+                        Gentle reminders for medications and appointments — so you don&apos;t have to keep track.
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        24/7 availability for comfort and companionship.
+                        Call anytime, day or night. There&apos;s always someone happy to listen.
                       </div>
                     </div>
                   ) : null}
@@ -352,16 +352,15 @@ export function AudienceValueTabs() {
                       </div>
                       <div className="mt-2 flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        Designed for multi-resident routines and staffing
-                        changes.
+                        Daily calls that fit around your facility&apos;s schedule and routines.
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        Reduces daily check-in workload for care teams.
+                        Frees up staff time without reducing the quality of check-ins.
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                        Maintains consistent care quality during staff transitions.
+                        Consistent care across shift changes — every resident gets the same warmth.
                       </div>
                     </div>
                   ) : null}
@@ -373,22 +372,23 @@ export function AudienceValueTabs() {
                       <CardShell>
                         <CardTitle>
                           <IconBadge icon={ShieldCheckIcon} />
-                          Privacy-first by design
+                          Privacy that respects both of you
                         </CardTitle>
                         <p className="mt-3 text-sm text-muted-foreground">
-                          You get activity and duration — not transcripts — so
-                          you can stay informed without being intrusive.
+                          You see when they talked and for how long — never what
+                          they said. They keep their independence. You keep your
+                          peace of mind.
                         </p>
                       </CardShell>
 
                       <CardShell>
                         <CardTitle>
                           <IconBadge icon={ClockIcon} />
-                          Quiet hours & scheduling control
+                          Their schedule, their terms
                         </CardTitle>
                         <p className="mt-3 text-sm text-muted-foreground">
-                          Set a predictable routine with respectful boundaries,
-                          including quiet hours.
+                          Calls happen when they prefer. Quiet hours are built
+                          in. They&apos;re in control of their routine.
                         </p>
                       </CardShell>
                     </>
@@ -399,22 +399,25 @@ export function AudienceValueTabs() {
                       <CardShell>
                         <CardTitle>
                           <IconBadge icon={HeartIcon} />
-                          Friendly companionship
+                          A conversation worth having
                         </CardTitle>
                         <p className="mt-3 text-sm text-muted-foreground">
-                          A bright spot in the day — gentle questions and
-                          meaningful conversation.
+                          Not a script. Not a checklist. A real conversation
+                          about the things you care about — your garden, your
+                          grandkids, that recipe you&apos;ve been thinking about.
+                          Ask about yesterday&apos;s game, today&apos;s headlines, or the weather.
                         </p>
                       </CardShell>
 
                       <CardShell>
                         <CardTitle>
                           <IconBadge icon={ShieldCheckIcon} />
-                          Clear AI disclosure
+                          Always honest, always respectful
                         </CardTitle>
                         <p className="mt-3 text-sm text-muted-foreground">
-                          Every call begins with transparency, so it always
-                          feels respectful and safe.
+                          Ultaura tells you it&apos;s AI from the start. No
+                          tricks, no confusion. Just a warm voice and a good
+                          chat.
                         </p>
                       </CardShell>
                     </>
@@ -425,22 +428,22 @@ export function AudienceValueTabs() {
                       <CardShell>
                         <CardTitle>
                           <IconBadge icon={ClockIcon} />
-                          Operationally practical
+                          Fits your schedule, not the other way around
                         </CardTitle>
                         <p className="mt-3 text-sm text-muted-foreground">
-                          Scheduling windows and quiet hours help fit real
-                          facility routines.
+                          Set call windows, quiet hours, and routines that match
+                          how your facility actually runs.
                         </p>
                       </CardShell>
 
                       <CardShell>
                         <CardTitle>
                           <IconBadge icon={UserGroupIcon} />
-                          Built for caregivers
+                          Support that scales
                         </CardTitle>
                         <p className="mt-3 text-sm text-muted-foreground">
-                          Designed to support staff and families with a
-                          consistent, low-lift check-in cadence.
+                          Whether you have 5 residents or 50, every person gets
+                          a daily conversation that feels personal.
                         </p>
                       </CardShell>
                     </>

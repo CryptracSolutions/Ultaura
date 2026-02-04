@@ -9,37 +9,37 @@ const badges = [
     src: '/badges/1-hipaa-compliant.png',
     alt: 'HIPAA Compliant',
     height: 90,
-    tooltip: 'We follow strict healthcare privacy standards.',
+    tooltip: 'Your loved one\u2019s data is protected by healthcare-grade privacy standards',
   },
   {
     src: '/badges/5-age-friendly-badge.png',
     alt: 'Age Friendly',
     height: 76,
-    tooltip: 'Designed specifically for seniors.',
+    tooltip: 'Built specifically for seniors \u2014 clear voices, simple setup, no apps needed',
   },
   {
     src: '/badges/3-aarp-logo.png',
     alt: 'AARP',
     height: 83,
-    tooltip: 'Recognized by AARP.',
+    tooltip: 'Recognized by AARP for quality senior services',
   },
   {
     src: '/badges/6-certified-provider.png',
     alt: 'Certified Provider',
     height: 76,
-    tooltip: 'Certified senior care provider.',
+    tooltip: 'Certified provider of senior companion services',
   },
   {
     src: '/badges/4-ncoa-logo.png',
     alt: 'National Council on Aging',
     height: 83,
-    tooltip: 'Partner of NCOA.',
+    tooltip: 'Partnered with the National Council on Aging',
   },
   {
     src: '/badges/2-soc2-compliant.png',
     alt: 'SOC 2 Compliant',
     height: 99,
-    tooltip: 'Enterprise-grade security.',
+    tooltip: 'Your family\u2019s data is secured to the highest industry standards',
   },
 ];
 

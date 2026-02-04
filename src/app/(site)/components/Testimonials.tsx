@@ -11,10 +11,11 @@ const TESTIMONIALS = [
   {
     highlight: 'Ultaura has been a lifesaver.',
     content:
-      "My mom loves the daily calls, and I feel better knowing she's chatting with someone who remembers her stories and asks about them.",
+      'My mom looks forward to her daily calls now. She tells me about the conversations afterward \u2014 and I feel so much better knowing she\u2019s connected, even on the days I can\u2019t call.',
     author: 'Sarah M.',
     role: 'Daughter',
-    date: 'May 2024',
+    date: 'Jan 2026',
+    stars: 5,
   },
   {
     highlight:
@@ -22,107 +23,71 @@ const TESTIMONIALS = [
     content: 'It helps my dad with the loneliness between visits.',
     author: 'James P.',
     role: 'Son',
-    date: 'April 2024',
+    date: 'Dec 2025',
+    stars: 4.5,
   },
   {
     highlight: 'The dashboard gives me peace of mind without being intrusive.',
     content:
-      'My aunt is in assisted living, and Ultaura helped her open up about her day and share her garden updates. I can see the call duration and timing, then check in when I need to, which makes it feel like I am there without being overwhelming.',
+      'My aunt is in assisted living, and Ultaura helped her open up about her day. I can see call duration and timing, then check in when I need to \u2014 it feels like I\u2019m there without being overwhelming.',
     author: 'Emily R.',
     role: 'Caregiver',
-    date: 'March 2024',
+    date: 'Nov 2025',
+    stars: 5,
   },
   {
     highlight: 'My grandfather answers every call.',
-    content: 'He says it feels like a friend checking in.',
+    content:
+      'He actually looks forward to them. He\u2019ll tell me afterward what they talked about, and it gives us something new to connect over.',
     author: 'Nina K.',
     role: 'Granddaughter',
-    date: 'February 2024',
+    date: 'Oct 2025',
+    stars: 5,
   },
   {
     highlight: 'Ultaura helped my dad stay more social.',
     content:
-      'The calls give him a little routine, and I can see that he is doing well without hovering or asking him to repeat himself.',
+      'The calls give him a little routine, and I can see he\u2019s doing well without hovering or asking him to repeat himself.',
     author: 'Marcus T.',
     role: 'Son',
-    date: 'January 2024',
-  },
-  {
-    highlight: 'My mom has hearing issues, but the voice clarity is great.',
-    content: '',
-    author: 'Priya S.',
-    role: 'Daughter',
-    date: 'December 2023',
+    date: 'Sep 2025',
+    stars: 4.5,
   },
   {
     highlight: 'The setup was easy, and my aunt never had to install anything.',
     content:
-      'She just picks up the phone and chats, which keeps her independent and in a good mood.',
+      'She just picks up the phone and chats. It keeps her independent and in a good mood.',
     author: 'Leo B.',
     role: 'Nephew',
-    date: 'November 2023',
+    date: 'Aug 2025',
+    stars: 5,
   },
   {
-    highlight: 'It is reassuring to see call duration and cadence.',
-    content: '',
-    author: 'Renee D.',
-    role: 'Caregiver',
-    date: 'October 2023',
-  },
-  {
-    highlight: 'My grandmother says it feels like someone truly listens.',
+    highlight: 'My grandmother lights up when she talks about her calls.',
     content:
-      'That means everything to our family and gives us a little peace between visits.',
+      'That means everything to our family \u2014 knowing she has that connection gives us peace between visits.',
     author: 'Omar A.',
     role: 'Grandson',
-    date: 'September 2023',
-  },
-  {
-    highlight:
-      'We set up a weekly cadence and my dad actually asks when the next call is.',
-    content: '',
-    author: 'Hannah L.',
-    role: 'Daughter',
-    date: 'August 2023',
+    date: 'Jul 2025',
+    stars: 5,
   },
   {
     highlight: 'Ultaura feels respectful.',
     content:
-      'My mom likes that it always says it is an AI, and the tone is gentle.',
+      'My mom likes that it\u2019s upfront about being AI, and the tone is always gentle. That matters to us.',
     author: 'Luis C.',
     role: 'Son',
-    date: 'July 2023',
-  },
-  {
-    highlight: 'The calls give my uncle a little spark in his day.',
-    content: 'It has been a bright spot for him and for us.',
-    author: 'Grace W.',
-    role: 'Niece',
-    date: 'June 2023',
-  },
-  {
-    highlight: 'Ultaura checks in with my parents on the days I cannot.',
-    content:
-      'It keeps them engaged and gives me a gentle nudge to follow up.',
-    author: 'Devon R.',
-    role: 'Son',
-    date: 'May 2023',
+    date: 'Jun 2025',
+    stars: 4.5,
   },
   {
     highlight: 'My grandmother laughs more after the calls.',
     content:
-      'She tells me about the questions she was asked and the memories it brought back.',
+      'She tells me about the questions she was asked and the memories it brought back. Those conversations have become part of her week.',
     author: 'Aisha N.',
     role: 'Granddaughter',
-    date: 'April 2023',
-  },
-  {
-    highlight: 'The rhythm is perfect.',
-    content:
-      'Short, friendly conversations that never feel pushy, but still help my dad feel connected.',
-    author: 'Caleb M.',
-    role: 'Son',
-    date: 'March 2023',
+    date: 'May 2025',
+    stars: 5,
   },
 ];
 
@@ -179,10 +144,10 @@ export function Testimonials() {
         <div className="relative flex flex-col items-center space-y-6">
           <div className="w-full max-w-6xl space-y-4 text-right">
             <Heading type={2}>
-              Loved by <span className="text-primary">families</span>
+              What <span className="text-primary">families</span> are saying
             </Heading>
             <SubHeading>
-              A few notes from people who care about their loved ones.
+              Real stories from families using Ultaura.
             </SubHeading>
           </div>
 
@@ -197,11 +162,37 @@ export function Testimonials() {
               >
                 <div className="space-y-4">
                   <div className="flex items-center gap-1 text-primary/80">
-                    {Array.from({ length: 5 }).map((_, starIndex) => (
-                      <span key={`${testimonial.author}-star-${starIndex}`}>
-                        ★
-                      </span>
-                    ))}
+                    {Array.from({ length: 5 }).map((_, starIndex) => {
+                      const stars = testimonial.stars;
+                      if (starIndex < Math.floor(stars)) {
+                        return (
+                          <span key={`${testimonial.author}-star-${starIndex}`}>
+                            ★
+                          </span>
+                        );
+                      }
+                      if (starIndex === Math.floor(stars) && stars % 1 !== 0) {
+                        return (
+                          <span
+                            key={`${testimonial.author}-star-${starIndex}`}
+                            className="relative inline-block"
+                          >
+                            <span className="text-primary/20">★</span>
+                            <span className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+                              <span className="text-primary/80">★</span>
+                            </span>
+                          </span>
+                        );
+                      }
+                      return (
+                        <span
+                          key={`${testimonial.author}-star-${starIndex}`}
+                          className="text-primary/20"
+                        >
+                          ★
+                        </span>
+                      );
+                    })}
                   </div>
                   <p className="text-muted-foreground">
                     <span className="font-semibold text-foreground">

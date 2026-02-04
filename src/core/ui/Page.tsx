@@ -42,10 +42,12 @@ export function PageHeader({
   title,
   description,
   mobileNavigation,
+  showDescriptionOnMobile = false,
 }: React.PropsWithChildren<{
   title: string | React.ReactNode;
   description?: string | React.ReactNode;
   mobileNavigation?: React.ReactNode;
+  showDescriptionOnMobile?: boolean;
 }>) {
   return (
     <div className={'flex items-start justify-between p-container'}>
@@ -63,7 +65,10 @@ export function PageHeader({
           </span>
         </Heading>
 
-        <Heading type={5} className={'hidden lg:block'}>
+        <Heading
+          type={5}
+          className={showDescriptionOnMobile ? 'block' : 'hidden lg:block'}
+        >
           <span className={'dark:text-gray-400 text-gray-600 font-normal'}>
             {description}
           </span>
