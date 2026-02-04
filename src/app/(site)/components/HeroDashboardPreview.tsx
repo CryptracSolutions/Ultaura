@@ -141,6 +141,8 @@ export function HeroDashboardPreview() {
 
   /* Measure active panel height for smooth container sizing */
   useEffect(() => {
+    if (isLiveCall) return;
+
     const panel = panelRefs.current[activeTab];
     if (!panel) return;
 
@@ -150,7 +152,7 @@ export function HeroDashboardPreview() {
     const observer = new ResizeObserver(measure);
     observer.observe(panel);
     return () => observer.disconnect();
-  }, [activeTab]);
+  }, [activeTab, isLiveCall]);
 
   const handleTabClick = useCallback((index: number) => {
     setActiveTab(index);
@@ -367,7 +369,7 @@ export function HeroDashboardPreview() {
                             {r.label}
                           </span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                           {r.time}
                         </span>
                       </div>
@@ -574,9 +576,12 @@ export function HeroDashboardPreview() {
             {/* Avatar + waveform */}
             <div className="flex flex-col items-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60">
-                <span className="text-xl font-bold text-primary-foreground">
-                  A
-                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logos/logo.svg"
+                  alt="Ultaura"
+                  className="h-9 w-9 brightness-0 invert"
+                />
               </div>
 
               {/* Waveform */}
