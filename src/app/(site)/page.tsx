@@ -1,6 +1,5 @@
 import {
   CheckCircleIcon,
-  MicrophoneIcon,
   PlayCircleIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -24,12 +23,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '~/core/ui/Accordion';
-import { VOICE_DEMO } from '~/lib/ultaura/constants';
-
-const VOICE_CHIPS = (['Ara', 'Rex', 'Sal', 'Eve', 'Leo'] as const).map((name) => ({
-  name,
-  trait: VOICE_DEMO.VOICE_INFO[name].traits[0],
-}));
+import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
 
 function Home() {
   return (
@@ -123,104 +117,7 @@ function Home() {
               </div>
             </div>
 
-            <div className="relative">
-              <span className="absolute -top-6 left-0 text-xs text-muted-foreground">
-                Example caregiver view
-              </span>
-              <div className="rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="uppercase tracking-[0.18em]">Live call</span>
-                  <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                    In progress
-                  </span>
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  <div className="rounded-2xl border border-border/60 bg-background p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-end gap-1">
-                        {[3, 7, 4, 8, 5, 10, 6, 9, 4, 7, 3, 8].map((height, i) => (
-                          <span
-                            key={i}
-                            className="w-2 rounded-full bg-primary"
-                            style={{ height: `${height + 6}px` }}
-                          />
-                        ))}
-                      </div>
-
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        02:18
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex w-full items-center justify-start gap-4 rounded-2xl bg-background p-4 text-left">
-                    <div className="rounded-xl border border-primary/10 bg-primary/10 p-3 text-primary">
-                      <MicrophoneIcon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Warm voice</div>
-                      <div className="text-xs text-muted-foreground">
-                        Soft, friendly cadence
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    {VOICE_CHIPS.map((chip) => (
-                      <span
-                        key={chip.name}
-                        className={
-                          'rounded-full border border-border bg-background px-3 py-1' +
-                          (chip.name === 'Ara'
-                            ? ' border-primary/40 bg-primary/10 text-primary'
-                            : '')
-                        }
-                      >
-                        {chip.name}
-                        <span className="ml-1 text-[10px] text-muted-foreground">
-                          · {chip.trait}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="rounded-2xl border border-border/60 bg-background p-4">
-                    <div className="text-xs text-muted-foreground">
-                      Recent activity
-                    </div>
-                    <div className="mt-2 flex items-center gap-3 text-xs">
-                      <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                        Today 6:30 PM
-                      </span>
-                      <span className="text-muted-foreground">Tue 6:30 PM</span>
-                      <span className="text-muted-foreground">Sun 5:00 PM</span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-border/60 bg-background p-4">
-                    <div className="text-xs text-muted-foreground">
-                      Caregiver view
-                    </div>
-                    <div className="mt-1 text-sm font-semibold text-foreground">
-                      18 min call • calm mood
-                    </div>
-                  </div>
-
-                  <div className="hidden rounded-2xl border border-border/60 bg-background p-4 lg:block">
-                    <div className="text-xs text-muted-foreground">
-                      Weekly trend
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-2 w-20 rounded-full bg-primary/30" />
-                      <div className="h-2 w-12 rounded-full bg-primary/60" />
-                      <div className="h-2 w-6 rounded-full bg-primary" />
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
+            <HeroDashboardPreview />
           </div>
 
         </div>
