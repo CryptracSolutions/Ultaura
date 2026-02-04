@@ -213,8 +213,8 @@ export function HeroDashboardPreview() {
         {!isLiveCall && (
           <div className="mt-5">
             {/* Stat cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02] lg:order-1">
                 <div className="text-xs text-muted-foreground">
                   Next call
                 </div>
@@ -229,31 +229,31 @@ export function HeroDashboardPreview() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background p-3">
-                <div className="text-xs text-muted-foreground">Actions</div>
-                <div className="mt-1.5 flex flex-col gap-1">
-                  <button type="button" className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
-                    <CalendarIcon className="h-2.5 w-2.5" />
-                    Schedule call
-                  </button>
-                  <button type="button" className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
-                    <PlusCircleIcon className="h-2.5 w-2.5" />
-                    Create reminder
-                  </button>
-                  <button type="button" className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
-                    <PhoneIcon className="h-2.5 w-2.5" />
-                    Place call
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
+              <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02] lg:order-3">
                 <div className="text-xs text-muted-foreground">Mood</div>
                 <div className="mt-1 flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-primary" />
                   <span className="text-sm font-semibold text-foreground">
                     Calm
                   </span>
+                </div>
+              </div>
+
+              <div className="col-span-2 rounded-2xl border border-border/60 bg-background p-3 lg:col-span-1 lg:order-2">
+                <div className="text-xs text-muted-foreground">Actions</div>
+                <div className="mt-1.5 flex flex-row gap-1.5 lg:flex-col lg:gap-1">
+                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
+                    <CalendarIcon className="h-2.5 w-2.5" />
+                    Schedule call
+                  </button>
+                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
+                    <PlusCircleIcon className="h-2.5 w-2.5" />
+                    Create reminder
+                  </button>
+                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
+                    <PhoneIcon className="h-2.5 w-2.5" />
+                    Place call
+                  </button>
                 </div>
               </div>
             </div>
