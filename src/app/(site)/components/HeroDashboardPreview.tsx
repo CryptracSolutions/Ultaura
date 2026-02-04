@@ -3,9 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   BellAlertIcon,
+  CalendarIcon,
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  PhoneIcon,
+  PlusCircleIcon,
   ShieldCheckIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
@@ -21,9 +24,9 @@ const TABS = [
 ] as const;
 
 const ACTIVITY_ENTRIES = [
-  { time: '6:30 PM', name: 'Mom', duration: '18 min', mood: 'Calm' },
-  { time: '6:30 PM', name: 'Mom', duration: '22 min', mood: 'Happy' },
-  { time: '5:00 PM', name: 'Mom', duration: '14 min', mood: 'Reflective' },
+  { time: '6:30 PM', name: 'Mom', duration: '18 min' },
+  { time: '6:30 PM', name: 'Grandpa', duration: '22 min' },
+  { time: '5:00 PM', name: 'Margaret', duration: '14 min' },
 ];
 
 const UPCOMING_REMINDERS = [
@@ -79,6 +82,10 @@ const CHAT_MESSAGES: Array<{ sender: 'ara' | 'senior'; text: string }> = [
   {
     sender: 'ara',
     text: 'Of course! It was so nice chatting with you. Talk soon, Mom!',
+  },
+  {
+    sender: 'senior',
+    text: 'Goodbye, dear. Talk to you tomorrow!',
   },
 ];
 
@@ -206,10 +213,9 @@ export function HeroDashboardPreview() {
         {!isLiveCall && (
           <div className="mt-5">
             {/* Stat cards */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02]">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <ClockIcon className="h-3.5 w-3.5" />
+                <div className="text-xs text-muted-foreground">
                   Next call
                 </div>
                 <div className="mt-1 flex items-center gap-2">
@@ -220,6 +226,24 @@ export function HeroDashboardPreview() {
                   <span className="text-sm font-semibold text-foreground">
                     2h 14m
                   </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/60 bg-background p-3">
+                <div className="text-xs text-muted-foreground">Actions</div>
+                <div className="mt-1.5 flex flex-col gap-1">
+                  <button type="button" className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+                    <CalendarIcon className="h-2.5 w-2.5" />
+                    Schedule call
+                  </button>
+                  <button type="button" className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+                    <PlusCircleIcon className="h-2.5 w-2.5" />
+                    Create reminder
+                  </button>
+                  <button type="button" className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+                    <PhoneIcon className="h-2.5 w-2.5" />
+                    Place call
+                  </button>
                 </div>
               </div>
 
@@ -307,18 +331,17 @@ export function HeroDashboardPreview() {
                             'border-b border-border/40',
                         )}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-foreground">
-                            {entry.name}
+                        <span className="text-xs font-medium text-foreground">
+                          {entry.name}
+                        </span>
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                            {entry.time}
                           </span>
-                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
-                            {entry.mood}
+                          <span className="text-muted-foreground">·</span>
+                          <span className="font-medium text-foreground">
+                            {entry.duration}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <span>{entry.time}</span>
-                          <span>·</span>
-                          <span>{entry.duration}</span>
                         </div>
                       </div>
                     ))}
@@ -379,7 +402,8 @@ export function HeroDashboardPreview() {
 
                     {/* Bar chart */}
                     <div>
-                      <div className="mb-2 text-xs text-muted-foreground">
+                      <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <ClockIcon className="h-3 w-3 text-primary" />
                         Call duration
                       </div>
                       <div className="flex items-end gap-1.5">
@@ -461,18 +485,18 @@ export function HeroDashboardPreview() {
                     {/* Distress Detection */}
                     <div className="rounded-2xl border border-border/60 bg-background p-3">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Distress Detection
+                        </span>
+                        <div className="flex items-center gap-1.5">
                           <span className="relative flex h-2 w-2">
                             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
                             <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
                           </span>
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Distress Detection
+                          <span className="text-[10px] text-muted-foreground">
+                            Active
                           </span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
-                          Active
-                        </span>
                       </div>
                     </div>
 
@@ -610,15 +634,21 @@ export function HeroDashboardPreview() {
                   </div>
                 );
               })}
-              {visibleMessages < CHAT_MESSAGES.length && (
-                <div className="flex justify-start">
-                  <div className="flex items-center gap-1 rounded-2xl bg-primary/10 px-3 py-2">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:0.2s]" />
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:0.4s]" />
+              {visibleMessages < CHAT_MESSAGES.length && (() => {
+                const nextIsAra = CHAT_MESSAGES[visibleMessages]?.sender === 'ara';
+                return (
+                  <div className={cn('flex', nextIsAra ? 'justify-start' : 'justify-end')}>
+                    <div className={cn(
+                      'flex items-center gap-1 rounded-2xl px-3 py-2',
+                      nextIsAra ? 'bg-primary/10' : 'bg-primary',
+                    )}>
+                      <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full', nextIsAra ? 'bg-primary' : 'bg-primary-foreground')} />
+                      <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.2s]', nextIsAra ? 'bg-primary' : 'bg-primary-foreground')} />
+                      <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.4s]', nextIsAra ? 'bg-primary' : 'bg-primary-foreground')} />
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         )}
