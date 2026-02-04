@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import classNames from 'clsx';
 import {
+  ArrowDownIcon,
   CheckCircleIcon,
   ClockIcon,
   HeartIcon,
@@ -119,7 +120,7 @@ export function AudienceValueTabs() {
       <Container>
         <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 py-10 lg:px-12">
           <div className="relative">
-            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-3 text-center">
+            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center">
               <Pill>
                 Peace of mind for families, companionship for seniors, and
                 support for caregivers
@@ -127,9 +128,6 @@ export function AudienceValueTabs() {
               <Heading type={2}>
                 <span className="text-primary">Why</span> choose Ultaura?
               </Heading>
-              <SubHeading as={'h3'}>
-                Tailored experience through your perspective
-              </SubHeading>
             </div>
 
             <div className="mx-auto mt-6 flex max-w-4xl flex-wrap items-center justify-center gap-3">
@@ -142,6 +140,78 @@ export function AudienceValueTabs() {
                   <span>{item}</span>
                 </div>
               ))}
+            </div>
+
+            <div className="mx-auto mt-8 max-w-3xl">
+              <div className="mb-4 text-center text-sm font-medium text-muted-foreground">
+                From worry to <span className="text-primary">peace of mind</span>
+              </div>
+
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
+                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground">
+                      Before
+                    </h3>
+                    <ul className="space-y-1.5 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
+                        <span>Worry between check-ins</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
+                        <span>Missed calls, uncertainty</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
+                        <span>No insight into daily life</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <ArrowDownIcon className="h-3 w-3 -rotate-90" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold text-primary">
+                      With Ultaura
+                    </h3>
+                    <ul className="space-y-1.5 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                        <span>Daily routine & connection</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                        <span>Instant summaries & insights</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                        <span>Alerts when something is off</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative mt-5">
+                <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-border" />
+                <div className="relative flex items-center justify-between">
+                  <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                </div>
+              </div>
+
+              <div className="mt-6 text-center">
+                <SubHeading as={'h3'}>
+                  Tailored experience through your perspective
+                </SubHeading>
+              </div>
             </div>
 
             <div className="mx-auto mt-6 w-full max-w-[28rem]">

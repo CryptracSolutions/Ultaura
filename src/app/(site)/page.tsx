@@ -15,7 +15,6 @@ import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
-import { BeforeAfterTimeline } from '~/app/(site)/components/BeforeAfterTimeline';
 import { ReassuranceChecklist } from '~/app/(site)/components/ReassuranceChecklist';
 import {
   Accordion,
@@ -122,8 +121,6 @@ function Home() {
       </Container>
 
       <BadgeStrip />
-
-      <BeforeAfterTimeline />
 
       <AudienceValueTabs />
 

@@ -1,0 +1,12 @@
+{
+  "browser": {
+    "launchOptions": {
+      "headless": false,
+      "slowMo": 250,
+      "args": ["--window-size=1400,900"]
+    },
+    "contextOptions": {
+      "viewport": { "width": 1400, "height": 900 }
+    }
+  }
+}
