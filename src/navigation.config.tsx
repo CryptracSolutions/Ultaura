@@ -45,81 +45,101 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
   const isSelfUser = context?.userType === 'self';
   const items: NavigationItem[] = [
     {
-      label: 'Home',
-      path: getPath(''),
-      Icon: ({ className }: { className: string }) => {
-        return <Squares2X2Icon className={className} />;
-      },
-      end: true,
+      label: 'Dashboard',
+      collapsible: false,
+      children: [
+        {
+          label: 'Home',
+          path: getPath(''),
+          Icon: ({ className }: { className: string }) => {
+            return <Squares2X2Icon className={className} />;
+          },
+          end: true,
+        },
+      ],
     },
     {
-      label: isSelfUser ? 'My Line' : 'Lines',
-      path: getPath('lines'),
-      Icon: ({ className }: { className: string }) => {
-        return <PhoneIcon className={className} />;
-      },
-      activeMatch: (currentPath: string) =>
-        isLineRouteActive(currentPath),
-    },
-    {
-      label: 'Reminders',
-      path: getPath('reminders'),
-      Icon: ({ className }: { className: string }) => {
-        return <BellIcon className={className} />;
-      },
-      activeMatch: (currentPath: string) =>
-        isRemindersRouteActive(currentPath),
-    },
-    {
-      label: 'Calls',
-      path: getPath('calls'),
-      Icon: ({ className }: { className: string }) => {
-        return <CalendarDaysIcon className={className} />;
-      },
-      activeMatch: (currentPath: string) =>
-        isCallsRouteActive(currentPath),
+      label: 'Manage',
+      collapsible: false,
+      children: [
+        {
+          label: isSelfUser ? 'My Line' : 'Lines',
+          path: getPath('lines'),
+          Icon: ({ className }: { className: string }) => {
+            return <PhoneIcon className={className} />;
+          },
+          activeMatch: (currentPath: string) =>
+            isLineRouteActive(currentPath),
+        },
+        {
+          label: 'Reminders',
+          path: getPath('reminders'),
+          Icon: ({ className }: { className: string }) => {
+            return <BellIcon className={className} />;
+          },
+          activeMatch: (currentPath: string) =>
+            isRemindersRouteActive(currentPath),
+        },
+        {
+          label: 'Calls',
+          path: getPath('calls'),
+          Icon: ({ className }: { className: string }) => {
+            return <CalendarDaysIcon className={className} />;
+          },
+          activeMatch: (currentPath: string) =>
+            isCallsRouteActive(currentPath),
+        },
+      ],
     },
   ];
 
   if (!isSelfUser) {
-    items.push(
-      {
-        label: 'Insights',
-        path: getPath('insights'),
-        Icon: ({ className }: { className: string }) => {
-          return <EyeIcon className={className} />;
+    items.push({
+      label: 'Care',
+      collapsible: false,
+      children: [
+        {
+          label: 'Insights',
+          path: getPath('insights'),
+          Icon: ({ className }: { className: string }) => {
+            return <EyeIcon className={className} />;
+          },
+          activeMatch: (currentPath: string) =>
+            isInsightsRouteActive(currentPath),
         },
-        activeMatch: (currentPath: string) =>
-          isInsightsRouteActive(currentPath),
-      },
-      {
-        label: 'Alerts',
-        path: getPath('alerts'),
-        Icon: ({ className }: { className: string }) => {
-          return <ExclamationTriangleIcon className={className} />;
+        {
+          label: 'Alerts',
+          path: getPath('alerts'),
+          Icon: ({ className }: { className: string }) => {
+            return <ExclamationTriangleIcon className={className} />;
+          },
+          activeMatch: (currentPath: string) =>
+            isAlertsRouteActive(currentPath),
         },
-        activeMatch: (currentPath: string) =>
-          isAlertsRouteActive(currentPath),
-      },
-    );
+      ],
+    });
   }
 
-  items.push(
-    {
-      label: 'Usage',
-      path: getPath('usage'),
-      Icon: ({ className }: { className: string }) => {
-        return <ChartBarIcon className={className} />;
+  items.push({
+    label: 'Account',
+    collapsible: false,
+    children: [
+      {
+        label: 'Usage',
+        path: getPath('usage'),
+        Icon: ({ className }: { className: string }) => {
+          return <ChartBarIcon className={className} />;
+        },
       },
-    },
-    {
-      label: 'common:privacyTabLabel',
-      path: getPath('privacy'),
-      Icon: ({ className }: { className: string }) => {
-        return <ShieldCheckIcon className={className} />;
+      {
+        label: 'common:privacyTabLabel',
+        path: getPath('privacy'),
+        Icon: ({ className }: { className: string }) => {
+          return <ShieldCheckIcon className={className} />;
+        },
       },
-    },
-  );
+    ],
+  });
 
   return { items };
 };

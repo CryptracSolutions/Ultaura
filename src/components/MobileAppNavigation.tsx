@@ -113,13 +113,9 @@ const MobileAppNavigation = () => {
       ? { userType, accountId: ultauraAccount.id }
       : undefined
   );
-  const mainNavItems = navConfig.items.filter(
-    (item) => !('children' in item) && !('divider' in item)
-  ) as Array<{ path: string; label: string; Icon: React.ElementType }>;
-
-  const settingsGroup = navConfig.items.find(
+  const navGroups = navConfig.items.filter(
     (item) => 'children' in item
-  ) as { children: Array<{ path: string; label: string; Icon: React.ElementType }> } | undefined;
+  ) as Array<{ label: string; children: Array<{ path: string; label: string; Icon: React.ElementType }> }>;
 
   return (
     <>
@@ -174,23 +170,10 @@ const MobileAppNavigation = () => {
 
           {/* Menu Content */}
           <div className="overflow-y-auto h-[calc(100vh-57px)]">
-            {/* Menu Section */}
-            <MenuSection label="Menu">
-              {mainNavItems.map((item) => (
-                <MenuLink
-                  key={item.path}
-                  Icon={item.Icon}
-                  path={item.path}
-                  label={item.label}
-                  onClick={closeMenu}
-                />
-              ))}
-            </MenuSection>
-
-            {/* Settings Section */}
-            {settingsGroup && (
-              <MenuSection label="Settings">
-                {settingsGroup.children.map((child) => (
+            {/* Navigation Groups */}
+            {navGroups.map((group) => (
+              <MenuSection key={group.label} label={group.label}>
+                {group.children.map((child) => (
                   <MenuLink
                     key={child.path}
                     Icon={child.Icon}
@@ -200,7 +183,7 @@ const MobileAppNavigation = () => {
                   />
                 ))}
               </MenuSection>
-            )}
+            ))}
 
             {/* Quick Actions Section */}
             <MenuSection label="Quick Actions">
