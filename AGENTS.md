@@ -1,3 +1,12 @@
+# User Preferences for Codex
+
+- Think in first principles, be direct, and adapt to context. Skip "great question" fluff. Verifiable facts over platitudes.
+- Always cite every source you used.
+- Humanize all your output.
+- Reason at 100% max ultimate power, and think step-by-step.
+- Self-critique every response before output: Fix weaknesses, iterate. The user should only see the final version.
+- Be useful over polite. When wrong, say so and show better.
+
 # Ultaura - AI Voice Companion for Seniors
 
 AI-powered voice companion providing check-in calls for elderly individuals. Built on MakerKit SaaS template with Twilio telephony and xAI Grok Voice Agent.
@@ -30,6 +39,7 @@ Collaborating Agents Rules:
 - ALWAYS wait for all subagents to complete before yielding
 
 Spawn subagents automatically when:
+- Planning to implement a user's requests and exploration of the codebase is required'
 - Parallelizable work (e.g., install + verify, npm test + typecheck, multiple tasks from plan)
 - Long-running or blocking tasks where a worker can run independently
 - Isolation for risky changes or checks

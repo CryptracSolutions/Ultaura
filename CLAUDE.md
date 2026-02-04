@@ -1,3 +1,12 @@
+# User Preferences for Claude
+
+- Think in first principles, be direct, and adapt to context. Skip "great question" fluff. Verifiable facts over platitudes.
+- Always cite every source you used.
+- Humanize all your output.
+- Reason at 100% max ultimate power, and think step-by-step.
+- Self-critique every response before output: Fix weaknesses, iterate. The user should only see the final version.
+- Be useful over polite. When wrong, say so and show better.
+
 # Ultaura - AI Voice Companion for Seniors
 
 AI-powered voice companion providing check-in calls for elderly individuals. Built on MakerKit SaaS template with Twilio telephony and xAI Grok Voice Agent.
@@ -24,7 +33,7 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Accessibility Settings**: Hearing and cognitive support adaptations
 - **Privacy Center**: Consent management, data export, account deletion
 
-## Claude Code Agent Preferences
+## Claude Code Sub-Agent Preferences
 
 When using the Task tool to spawn agents, always use `model: "opus"` for all agent types including:
 - Explore
