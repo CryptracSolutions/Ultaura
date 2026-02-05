@@ -229,6 +229,9 @@ export function HeroDashboardPreview() {
                     2h 14m
                   </span>
                 </div>
+                <div className="mt-2 text-[10px] text-muted-foreground">
+                  Today at 2:30 PM · with <span className="text-primary">Ara</span>
+                </div>
               </div>
 
               <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02] lg:order-3">
@@ -238,6 +241,15 @@ export function HeroDashboardPreview() {
                   <span className="text-sm font-semibold text-foreground">
                     Calm
                   </span>
+                  <span className="text-[10px] text-success">↑ Improving</span>
+                </div>
+                <div className="mt-2 flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground">Last 5:</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 </div>
               </div>
 
