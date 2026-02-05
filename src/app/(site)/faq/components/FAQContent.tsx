@@ -48,7 +48,7 @@ export function FAQContent({ categories }: FAQContentProps) {
       {noResults ? (
         <div className="mt-12 text-center">
           <p className="text-muted-foreground mb-4">
-            No questions found matching "{query}"
+            No questions found matching &ldquo;{query}&rdquo;
           </p>
           <button
             type="button"

@@ -10,11 +10,11 @@ async function importTranslationNamespace(
   locale: string,
   namespace: string,
 ): Promise<TranslationDictionary> {
-  const module = (await import(
+  const translationModule = (await import(
     `../../public/locales/${locale}/${namespace}.json`
   )) as TranslationModule;
 
-  return module.default ?? {};
+  return translationModule.default ?? {};
 }
 
 export async function loadTranslationNamespace(
