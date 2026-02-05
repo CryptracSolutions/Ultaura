@@ -154,7 +154,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
         <button
           onClick={() => setIsAdding(true)}
           disabled={disabled}
-          className={COMPACT_PRIMARY_BUTTON_CLASS}
+          className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
         >
           <Plus className="h-3 w-3" />
           Add Contact
@@ -303,7 +303,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 aria-label={`Remove ${contact.name}`}
                 className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-5 w-5" />
               </button>
             </CardContent>
           </Card>

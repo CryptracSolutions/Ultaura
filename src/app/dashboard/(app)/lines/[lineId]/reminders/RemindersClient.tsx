@@ -365,7 +365,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
         {!disabled && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
           >
             <Plus className="w-3 h-3" />
             New Reminder
@@ -433,7 +433,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 </div>
 
                 {!disabled && (
-                  <div className="flex items-center gap-1 shrink-0 flex-wrap">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     {/* Edit button */}
                     <button
                       onClick={() => openEditModal(reminder)}
@@ -441,7 +441,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                       title="Edit reminder"
                       aria-label="Edit reminder"
                     >
-                      <Edit2 className="w-3 h-3" />
+                      <Edit2 className="w-5 h-5" />
                     </button>
 
                     {/* Pause/Resume button */}
@@ -454,9 +454,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         aria-label="Resume reminder"
                       >
                         {resumingId === reminder.id ? (
-                          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                         ) : (
-                          <Play className="w-3 h-3" />
+                          <Play className="w-5 h-5" />
                         )}
                       </button>
                     ) : (
@@ -468,9 +468,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         aria-label="Pause reminder"
                       >
                         {pausingId === reminder.id ? (
-                          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                         ) : (
-                          <Pause className="w-3 h-3" />
+                          <Pause className="w-5 h-5" />
                         )}
                       </button>
                     )}
@@ -491,9 +491,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                             aria-label="Snooze reminder"
                           >
                             {snoozingId === reminder.id ? (
-                              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                             ) : (
-                              <AlarmClock className="w-3 h-3" />
+                              <AlarmClock className="w-5 h-5" />
                             )}
                           </button>
                         </DropdownMenuTrigger>
@@ -528,9 +528,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                         aria-label="Skip next occurrence"
                       >
                         {skippingId === reminder.id ? (
-                          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                         ) : (
-                          <SkipForward className="w-3 h-3" />
+                          <SkipForward className="w-5 h-5" />
                         )}
                       </button>
                     )}
@@ -544,9 +544,9 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                       aria-label={reminder.is_recurring ? "Cancel entire series" : "Cancel reminder"}
                     >
                       {cancelingId === reminder.id ? (
-                        <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                       ) : (
-                        <X className="w-3 h-3" />
+                        <X className="w-5 h-5" />
                       )}
                     </button>
                   </div>
@@ -614,7 +614,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
           {!disabled && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+              className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
             >
               <Plus className="w-3 h-3" />
               Create First Reminder

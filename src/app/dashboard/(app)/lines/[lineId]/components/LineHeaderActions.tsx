@@ -201,7 +201,7 @@ export function LineHeaderActions({
           <button
             onClick={() => openManualCall({ preselectedLineId: line.id })}
             disabled={isReadOnly}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
           >
             <PhoneCall className="w-3 h-3" />
             Manual Call
@@ -214,7 +214,7 @@ export function LineHeaderActions({
             setAlternatePhoneError(null);
           }}
           disabled={isReadOnly}
-          className={COMPACT_PRIMARY_BUTTON_CLASS}
+          className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
         >
           <Play className="w-3 h-3" />
           Test Call

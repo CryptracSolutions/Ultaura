@@ -1353,7 +1353,7 @@ export function SettingsClient({
                 type="button"
                 onClick={resetFormState}
                 disabled={disabled || isLoading || !hasSaveableChanges}
-                className={COMPACT_OUTLINE_BUTTON_CLASS}
+                className={`${COMPACT_OUTLINE_BUTTON_CLASS} sm:w-auto`}
               >
                 Discard changes
               </button>
@@ -1361,7 +1361,7 @@ export function SettingsClient({
                 type="submit"
                 form="line-settings-form"
                 disabled={disabled || isLoading || !hasSaveableChanges}
-                className={COMPACT_PRIMARY_BUTTON_CLASS}
+                className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
               >
                 {isLoading ? (
                   <>

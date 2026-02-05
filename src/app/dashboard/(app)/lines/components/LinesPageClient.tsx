@@ -108,7 +108,7 @@ export function LinesPageClient({
         ) : canAddLine ? (
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
           >
             <Plus className="w-3 h-3" />
             {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
@@ -155,7 +155,7 @@ export function LinesPageClient({
           <button
             onClick={() => setIsAddModalOpen(true)}
             disabled={disabled}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
           >
             <Plus className="w-3 h-3" />
             {isSelfUser ? 'Add My Phone' : 'Add First Line'}

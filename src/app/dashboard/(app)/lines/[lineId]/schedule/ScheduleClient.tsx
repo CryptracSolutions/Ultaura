@@ -640,7 +640,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         {!disabled && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
           >
             <Plus className="w-3 h-3" />
             New Schedule
@@ -703,7 +703,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0 flex-wrap">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
                       {!disabled && (
                         <>
                           <Link
@@ -711,7 +711,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                             className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                             title="Edit schedule"
                           >
-                            <Edit2 className="w-3 h-3" />
+                            <Edit2 className="w-5 h-5" />
                           </Link>
 
                           <button
@@ -725,11 +725,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                             title={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
                           >
                             {isToggling ? (
-                              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                             ) : schedule.enabled ? (
-                              <Pause className="w-3 h-3" />
+                              <Pause className="w-5 h-5" />
                             ) : (
-                              <Play className="w-3 h-3" />
+                              <Play className="w-5 h-5" />
                             )}
                           </button>
 
@@ -743,9 +743,9 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                             title="Delete schedule"
                           >
                             {isDeleting ? (
-                              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                             ) : (
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-5 h-5" />
                             )}
                           </button>
                         </>
@@ -797,7 +797,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                       ) : null}
                     </div>
                     {!disabled && (
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => {
                             setScheduleToDelete(schedule.id);
@@ -808,9 +808,9 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                           title="Delete schedule"
                         >
                           {isDeleting ? (
-                            <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
                           ) : (
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-5 h-5" />
                           )}
                         </button>
                       </div>
@@ -828,7 +828,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
           {!disabled && (
             <button
               onClick={openExceptionModal}
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+              className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
             >
               <Plus className="w-3 h-3" />
               New exception
@@ -894,7 +894,7 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
           {!disabled && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+              className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
             >
               <Plus className="w-3 h-3" />
               Create First Schedule

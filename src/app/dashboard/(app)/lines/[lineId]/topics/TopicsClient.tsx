@@ -129,7 +129,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
             <button
               onClick={handleOpenEdit}
               disabled={disabled}
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+              className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
             >
               {hasAnyTopics ? (
                 <Pencil className="h-3 w-3" />

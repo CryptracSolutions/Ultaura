@@ -61,7 +61,7 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
                     disabled={disabled}
                     aria-label={`Remove ${recipient.name}`}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-5 w-5" />
                   </button>
                 </TableCell>
               </TableRow>

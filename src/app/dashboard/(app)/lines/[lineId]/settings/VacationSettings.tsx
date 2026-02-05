@@ -272,7 +272,7 @@ export function VacationSettings({
                   className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-destructive disabled:opacity-50"
                   title={status === 'past' ? 'Past vacations cannot be removed' : 'Remove vacation'}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5" />
                   Remove
                 </button>
               </div>

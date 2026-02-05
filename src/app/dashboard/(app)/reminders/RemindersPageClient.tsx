@@ -8,7 +8,7 @@ import {
   Bell,
   Plus,
   Clock,
-  X,
+  Trash2,
   Edit2,
   CheckCircle,
   AlertCircle,
@@ -19,10 +19,7 @@ import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/reminders';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddReminderModal } from '~/components/ultaura/AddReminderModal';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface Reminder {
   reminderId: string;
@@ -206,7 +203,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
         <div>
           <button
             onClick={() => setShowAddModal(true)}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
           >
             <Plus className="w-3 h-3" />
             Set Reminder
@@ -257,9 +254,9 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                     </div>
                     <Link
                       href={`/dashboard/lines/${line.short_id}/reminders`}
-                      className={COMPACT_OUTLINE_BUTTON_CLASS}
+                      className="text-sm text-primary hover:underline"
                     >
-                      View All
+                      View all
                     </Link>
                   </div>
                 </div>
@@ -422,20 +419,20 @@ function ReminderRow({
       </div>
 
       {reminder.status === 'scheduled' && !disabled && (
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             href={`/dashboard/lines/${reminder.lineShortId}/reminders?edit=${reminder.reminderId}`}
             className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
             title="Edit reminder"
           >
-            <Edit2 className="w-3 h-3" />
+            <Edit2 className="w-5 h-5" />
           </Link>
           <button
             onClick={onCancel}
             className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Cancel reminder"
           >
-            <X className="w-3 h-3" />
+            <Trash2 className="w-5 h-5" />
           </button>
         </div>
       )}

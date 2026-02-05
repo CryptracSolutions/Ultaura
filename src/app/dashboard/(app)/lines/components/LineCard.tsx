@@ -214,7 +214,7 @@ export function LineCard({
                     href={`/dashboard/lines/${shortId}`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Eye className="w-4 h-4 mr-2" />
+                    <Eye className="w-5 h-5 mr-2" />
                     View Details
                   </Link>
                 </DropdownMenuItem>
@@ -223,7 +223,7 @@ export function LineCard({
                     href={`/dashboard/lines/${shortId}/settings`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Settings className="w-4 h-4 mr-2" />
+                    <Settings className="w-5 h-5 mr-2" />
                     Settings
                   </Link>
                 </DropdownMenuItem>
@@ -238,7 +238,7 @@ export function LineCard({
                       }}
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <Trash2 className="w-5 h-5 mr-2" />
                       Delete Line
                     </DropdownMenuItem>
                   </>

@@ -73,7 +73,7 @@ function AlertSettingsCard({
             onClick={() => onEdit(line, preferences)}
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-5 h-5" />
             Edit
           </button>
         ) : null}

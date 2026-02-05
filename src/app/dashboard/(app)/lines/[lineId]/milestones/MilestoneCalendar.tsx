@@ -303,14 +303,14 @@ export function MilestoneCalendar({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => onEdit(milestone)}
                         disabled={disabled}
                         className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                         title="Edit milestone"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Edit2 className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => onDelete(milestone)}
@@ -318,7 +318,7 @@ export function MilestoneCalendar({
                         className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                         title="Delete milestone"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>

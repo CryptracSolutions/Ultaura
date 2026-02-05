@@ -19,10 +19,7 @@ import { deleteSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddScheduleModal } from '~/components/ultaura/AddScheduleModal';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface Schedule {
   scheduleId: string;
@@ -146,7 +143,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         <div>
           <button
             onClick={() => setShowAddModal(true)}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
           >
             <Plus className="w-3 h-3" />
             Add Schedule
@@ -197,9 +194,9 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                     </div>
                     <Link
                       href={`/dashboard/lines/${line.short_id}/schedule`}
-                      className={COMPACT_OUTLINE_BUTTON_CLASS}
+                      className="text-sm text-primary hover:underline"
                     >
-                      View All
+                      View all
                     </Link>
                   </div>
                 </div>
@@ -373,7 +370,7 @@ function ScheduleRow({
               className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               title="Edit schedule"
             >
-              <Edit2 className="w-4 h-4" />
+              <Edit2 className="w-5 h-5" />
             </Link>
           )}
           <button
@@ -381,7 +378,7 @@ function ScheduleRow({
             className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Delete schedule"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5" />
           </button>
         </div>
       )}
