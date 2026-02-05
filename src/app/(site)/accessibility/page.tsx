@@ -197,6 +197,10 @@ function AccessibilityPage() {
                 dashboard), and the part of the experience that was difficult.
               </p>
               <p>
+                You can also reach us by mail at Ultaura, 725 Joralemon St Unit
+                127, Belleville, NJ 07109.
+              </p>
+              <p>
                 We review every report and prioritize changes that increase
                 clarity, reduce confusion, or improve comfort for seniors and
                 caregivers.

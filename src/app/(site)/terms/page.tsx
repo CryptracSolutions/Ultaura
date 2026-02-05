@@ -359,6 +359,61 @@ function TermsPage() {
           </section>
 
           <section className="space-y-4">
+            <Heading type={2}>Arbitration Agreement</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                Except as noted below, any dispute, claim, or controversy
+                arising out of or relating to these terms or the service will
+                be resolved by binding individual arbitration under the Federal
+                Arbitration Act. Arbitration will be administered by a
+                recognized provider and may take place by phone, video, or in
+                a location reasonably convenient to you.
+              </p>
+              <p>
+                You may opt out of arbitration by emailing{' '}
+                <a className="underline" href="mailto:support@ultaura.com">
+                  support@ultaura.com
+                </a>{' '}
+                within 30 days of first accepting these terms (or within 30
+                days of any material update). Your request must include your
+                name, the account email, and a clear statement that you want to
+                opt out of arbitration.
+              </p>
+              <p>
+                Exceptions: Either party may bring an individual claim in small
+                claims court, and either party may seek injunctive or equitable
+                relief to protect intellectual property or prevent misuse of
+                the service.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Class Action Waiver</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                To the maximum extent permitted by law, you and Ultaura agree
+                that disputes will be brought only in an individual capacity
+                and not as a plaintiff or class member in any purported class,
+                collective, consolidated, or representative action.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Governing Law & Venue</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                These terms are governed by the laws of the State of New
+                Jersey, excluding its conflict of law rules. If a dispute is
+                not subject to arbitration or you opt out, you and Ultaura
+                agree to the exclusive jurisdiction and venue of the state or
+                federal courts located in New Jersey.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <Heading type={2}>Termination & Suspension</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
@@ -393,6 +448,9 @@ function TermsPage() {
                 support@ultaura.com
               </a>
               .
+            </p>
+            <p className="text-lg text-muted-foreground">
+              Ultaura, 725 Joralemon St Unit 127, Belleville, NJ 07109.
             </p>
           </section>
         </div>

@@ -8,6 +8,7 @@ import {
   HandRaisedIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
@@ -36,32 +37,92 @@ function VisionPage() {
         </Container>
       </section>
 
+      {/* Wave Divider */}
+      <img
+        src="/illustrations/wave-divider.svg"
+        alt=""
+        aria-hidden="true"
+        className="w-full h-auto -mb-1"
+      />
+
+      {/* Stats Section */}
+      <section className="bg-muted/30 py-16 md:py-20">
+        <Container>
+          <div className="max-w-5xl mx-auto">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                stat="1 in 3"
+                context="older adults face loneliness"
+                source="AARP/National Academies"
+              />
+              <StatCard
+                stat="15 cigarettes"
+                context="Loneliness mortality risk equivalent"
+                source="Holt-Lunstad"
+              />
+              <StatCard
+                stat="16 million"
+                context="seniors live alone in the US"
+                source="Census Bureau"
+              />
+              <StatCard
+                stat="$39/mo"
+                context="vs $30/hr for home aides"
+                source="Care.com/Genworth"
+              />
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      {/* Wave Divider */}
+      <img
+        src="/illustrations/wave-divider.svg"
+        alt=""
+        aria-hidden="true"
+        className="w-full h-auto rotate-180 -mt-1"
+      />
+
       {/* Founder Story */}
       <section className="py-16 md:py-20">
         <Container>
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-8">
-              I Saw It Every Day
-            </h2>
-            <div className="space-y-6 text-muted-foreground text-lg leading-relaxed">
-              <p>
-                Before Ultaura, I worked in elder care. I saw what loneliness
-                does — not dramatically, but quietly. The woman who stopped
-                getting dressed because no one was coming. The man who called
-                the front desk just to hear a voice.
-              </p>
-              <p>
-                Apps couldn&apos;t help them. Too many buttons, too much
-                frustration. But they all knew how to answer a phone.
-              </p>
-              <blockquote className="border-l-4 border-primary pl-6 py-2 my-8 text-foreground font-medium italic">
-                &ldquo;They all knew how to answer a phone.&rdquo;
-              </blockquote>
-              <p>
-                That gap — between what seniors need and what technology
-                offers — is why Ultaura exists. Not to replace family. To fill
-                the silence between visits.
-              </p>
+          <div className="max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-[1fr_380px] gap-8 lg:gap-12 items-center">
+              <div>
+                <p className="text-sm font-medium text-primary mb-2">Joseph Silvagnoli, Founder</p>
+                <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-8">
+                  I Saw It Every Day
+                </h2>
+                <div className="space-y-6 text-muted-foreground text-lg leading-relaxed">
+                  <p>
+                    Before Ultaura, I worked in elder care. I saw what loneliness
+                    does — not dramatically, but quietly. The woman who stopped
+                    getting dressed because no one was coming. The man who called
+                    the front desk just to hear a voice.
+                  </p>
+                  <p>
+                    Apps couldn&apos;t help them. Too many buttons, too much
+                    frustration. But they all knew how to answer a phone.
+                  </p>
+                  <blockquote className="border-l-4 border-primary pl-6 py-2 my-8 text-primary font-medium italic text-xl">
+                    &ldquo;Loneliness isn&apos;t cured by technology. It&apos;s cured by presence.&rdquo;
+                  </blockquote>
+                  <p>
+                    That gap — between what seniors need and what technology
+                    offers — is why Ultaura exists. Not to replace family. To fill
+                    the silence between visits.
+                  </p>
+                </div>
+              </div>
+              <div className="hidden md:block">
+                <Image
+                  src="/illustrations/connection.svg"
+                  alt="Illustration of two people connected through a phone call"
+                  width={380}
+                  height={380}
+                  className="w-full h-auto"
+                />
+              </div>
             </div>
           </div>
         </Container>
@@ -138,44 +199,57 @@ function VisionPage() {
       {/* Built With Care */}
       <section className="bg-muted/30 py-16 md:py-20">
         <Container>
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-8 text-center">
-              Designed With People Who Know
-            </h2>
-            <div className="space-y-6 text-muted-foreground text-lg leading-relaxed">
-              <p>
-                Ultaura wasn&apos;t built in isolation. We consulted elder care
-                professionals, geriatric nurses, and family caregivers
-                throughout development. Their input shaped everything — from how
-                Ultaura speaks (slower, clearer, patient) to what it watches for
-                (confusion, distress, sudden changes).
-              </p>
-              <p>
-                We also listened to seniors themselves. What makes a
-                conversation feel good? What feels patronizing? What would make
-                them actually want to answer the phone?
-              </p>
-              <p>
-                The result is a companion that adapts to hearing needs, respects
-                cognitive differences, and never rushes.
-              </p>
-            </div>
+          <div className="max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-[340px_1fr] gap-8 lg:gap-12 items-center">
+              <div className="hidden md:block">
+                <Image
+                  src="/illustrations/collaboration.svg"
+                  alt="Illustration of professionals collaborating on elder care"
+                  width={340}
+                  height={340}
+                  className="w-full h-auto"
+                />
+              </div>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-8">
+                  Designed With People Who Know
+                </h2>
+                <div className="space-y-6 text-muted-foreground text-lg leading-relaxed">
+                  <p>
+                    Ultaura wasn&apos;t built in isolation. We consulted elder care
+                    professionals, geriatric nurses, and family caregivers
+                    throughout development. Their input shaped everything — from how
+                    Ultaura speaks (slower, clearer, patient) to what it watches for
+                    (confusion, distress, sudden changes).
+                  </p>
+                  <p>
+                    We also listened to seniors themselves. What makes a
+                    conversation feel good? What feels patronizing? What would make
+                    them actually want to answer the phone?
+                  </p>
+                  <p>
+                    The result is a companion that adapts to hearing needs, respects
+                    cognitive differences, and never rushes.
+                  </p>
+                </div>
 
-            <div className="mt-10 flex flex-wrap justify-center gap-3">
-              <CredentialBadge>Elder care professionals</CredentialBadge>
-              <CredentialBadge>Geriatric nurses</CredentialBadge>
-              <CredentialBadge>Family caregivers</CredentialBadge>
-              <CredentialBadge>Accessibility specialists</CredentialBadge>
+                <div className="mt-10 flex flex-wrap gap-3">
+                  <CredentialBadge>Elder care professionals</CredentialBadge>
+                  <CredentialBadge>Geriatric nurses</CredentialBadge>
+                  <CredentialBadge>Family caregivers</CredentialBadge>
+                  <CredentialBadge>Accessibility specialists</CredentialBadge>
+                </div>
+              </div>
             </div>
           </div>
         </Container>
       </section>
 
       {/* Not a Replacement */}
-      <section className="py-16 md:py-20">
-        <Container>
-          <div className="max-w-3xl mx-auto">
-            <div className="p-8 md:p-12 rounded-2xl bg-primary/5 border border-primary/10 text-center space-y-6">
+      <section className="py-12 md:py-16">
+        <div className="bg-primary/5 border-y border-primary/10">
+          <Container>
+            <div className="max-w-4xl mx-auto py-10 md:py-14 text-center space-y-5">
               <Heading type={3}>Not a Replacement</Heading>
               <p className="text-lg text-muted-foreground leading-relaxed">
                 Ultaura isn&apos;t a substitute for family, friends, or human
@@ -188,8 +262,8 @@ function VisionPage() {
                 always glad they called.
               </p>
             </div>
-          </div>
-        </Container>
+          </Container>
+        </div>
       </section>
 
       {/* CTA */}
@@ -265,9 +339,27 @@ function PrincipleCard({
 
 function CredentialBadge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-sidebar border border-border/60 text-sm text-muted-foreground">
+    <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary font-medium">
       {children}
     </span>
+  );
+}
+
+function StatCard({
+  stat,
+  context,
+  source,
+}: {
+  stat: string;
+  context: string;
+  source: string;
+}) {
+  return (
+    <div className="text-center space-y-2">
+      <div className="text-3xl md:text-4xl font-bold text-primary">{stat}</div>
+      <div className="text-sm md:text-base text-foreground">{context}</div>
+      <div className="text-xs text-muted-foreground">Source: {source}</div>
+    </div>
   );
 }
 

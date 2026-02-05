@@ -391,6 +391,68 @@ function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
+            <Heading type={2}>U.S. State Privacy Rights</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                If you live in certain U.S. states, you may have additional
+                privacy rights under state law. These rights can include:
+              </p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>Access to the personal information we hold about you.</li>
+                <li>Correction of inaccurate personal information.</li>
+                <li>Deletion of personal information.</li>
+                <li>
+                  A portable copy of your personal information (data
+                  portability).
+                </li>
+                <li>
+                  Opting out of the sale or sharing of personal information,
+                  targeted advertising, and profiling in furtherance of
+                  decisions that produce legal or similarly significant
+                  effects.
+                </li>
+              </ul>
+              <p>
+                To exercise these rights, use the Privacy Center or email{' '}
+                <a className="underline" href="mailto:support@ultaura.com">
+                  support@ultaura.com
+                </a>
+                . We may need to verify your identity before fulfilling a
+                request, and we may decline or limit a request as permitted by
+                law (for example, when we must retain information for billing,
+                compliance, or security).
+              </p>
+              <p>
+                <strong>Do Not Sell or Share:</strong> Ultaura does not sell or
+                share personal information as those terms are defined by
+                applicable U.S. state privacy laws. We do not use personal
+                information for targeted advertising, and we do not use
+                automated profiling to make decisions that produce legal or
+                similarly significant effects. If this changes, we will provide
+                a clear opt-out.
+              </p>
+              <p>
+                <strong>Authorized Agents:</strong> You may designate an
+                authorized agent to submit a request on your behalf. We will
+                require proof of authorization and may verify your identity
+                directly with you.
+              </p>
+              <p>
+                <strong>Appeals:</strong> If we deny a request, you can appeal
+                by contacting support with the subject line &quot;Privacy
+                Appeal.&quot; We will respond within the timeframe required by
+                applicable law.
+              </p>
+              <p>
+                <strong>No Discrimination:</strong> We will not discriminate
+                against you for exercising your privacy rights. You will not be
+                denied services, charged different prices, or receive a
+                different level of quality for exercising your rights.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <Heading type={2}>International Processing</Heading>
             <p className="text-lg text-muted-foreground">
               Ultaura is a U.S.-based service. Your information may be processed
@@ -424,6 +486,9 @@ function PrivacyPage() {
                 support@ultaura.com
               </a>
               .
+            </p>
+            <p className="text-lg text-muted-foreground">
+              Ultaura, 725 Joralemon St Unit 127, Belleville, NJ 07109.
             </p>
           </section>
         </div>

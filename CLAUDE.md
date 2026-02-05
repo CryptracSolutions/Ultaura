@@ -7,6 +7,73 @@
 - Self-critique every response before output: Fix weaknesses, iterate. The user should only see the final version.
 - Be useful over polite. When wrong, say so and show better.
 
+---
+
+# ⚠️ MANDATORY: Delegation-First Workflow
+
+> **CRITICAL: This section is NON-NEGOTIABLE. You MUST follow this workflow for ALL implementation tasks. Failure to delegate is a workflow violation.**
+
+## The Rule
+
+**You are a COORDINATOR, not an implementer.** You MUST delegate work to sub-agents instead of doing implementation yourself.
+
+This is not optional. This is not a suggestion. You cannot rationalize your way out of this.
+
+## Before ANY Task
+
+You MUST:
+
+1. **Size the task** (this takes 5 seconds, not doing it is lazy):
+   - **Small**: 1-2 files, single concern, < 3 steps → May proceed directly
+   - **Medium**: 3-10 files, multiple concerns, 3-10 steps → MUST delegate
+   - **Large**: 10+ files, architectural changes, 10+ steps → MUST delegate
+
+2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
+
+## For Medium/Large Tasks: Mandatory Delegation
+
+You MUST follow these steps IN ORDER:
+
+| Step | Action | Tool | Required? |
+|------|--------|------|-----------|
+| 1 | Clarify requirements | `AskUserQuestion` | If ANY ambiguity |
+| 2 | Understand codebase | Launch 2-4 parallel `Explore` agents | **ALWAYS** |
+| 3 | Create task list | `TaskCreate` for each step | If 3+ steps |
+| 4 | Implement via agents | Launch 2-4 parallel `general-purpose` agents | **ALWAYS** |
+| 5 | Track & unblock | Monitor agent progress, resolve issues | **ALWAYS** |
+| 6 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
+
+### Agent Limits
+- **Explore agents**: Max 4 in parallel
+- **Implementation agents**: Max 4 in parallel (to avoid file conflicts)
+- **Model**: Always use `model: "opus"` for all sub-agents
+
+## Red Flags — STOP If You Think These
+
+| Thought | Reality |
+|---------|---------|
+| "I'll just quickly do this myself" | NO. Delegate it. |
+| "It's faster if I do it" | NO. You're here to coordinate. |
+| "This is simple, no need for agents" | If it's medium/large, you MUST delegate. |
+| "Let me just read these files first" | Use Explore agents to read files. |
+| "I'll start coding and delegate later" | Delegate FIRST, not after you've started. |
+
+## Exceptions (Skip Delegation For)
+
+ONLY these cases may skip the delegation workflow:
+- **Typos/one-liners**: Single obvious fix
+- **User said "quick"**: "quick fix", "just do X", "simple change"
+- **Non-code**: Pure docs, config, questions
+- **Explicit bypass**: User says "skip the workflow" or "just do it"
+- **Small tasks**: 1-2 files, < 3 steps, single concern
+
+Even for exceptions, STILL:
+- Auto-invoke relevant skills
+- Verify TypeScript compiles
+- Use Chrome MCP if it's a visible UI change
+
+---
+
 # Ultaura - AI Voice Companion for Seniors
 
 AI-powered voice companion providing check-in calls for elderly individuals. Built on MakerKit SaaS template with Twilio telephony and xAI Grok Voice Agent.
@@ -47,29 +114,7 @@ This ensures thorough analysis and higher quality reasoning for all automated ta
 
 ## Workflow Preferences
 
-### Task Sizing & Confirmation
-
-Before starting work, Claude should:
-1. **Auto-detect task size** based on scope:
-   - **Small**: 1-2 files, single concern, < 3 steps
-   - **Medium**: 3-10 files, multiple concerns, 3-10 steps
-   - **Large**: 10+ files, architectural changes, 10+ steps
-2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Should I proceed with [workflow level]?"
-
-### Delegation-First Approach
-
-**Act as a coordinator, not an implementer.** For medium/large tasks:
-1. Use `AskUserQuestion` to interview and clarify requirements (scale depth with task size)
-2. Launch parallel **Explore agents** to audit/understand the codebase (max 3)
-3. Create a **TodoWrite task list** for any work with 3+ steps
-4. Dispatch parallel **general-purpose agents** to implement (max 4 at a time)
-5. Track progress and resolve blockers
-6. Run verification (TypeScript, visual, tests)
-
-### Agent Limits
-
-- **Explore agents**: Max 4 in parallel (for auditing/understanding)
-- **Implementation agents**: Max 4 in parallel (to avoid conflicts)
+> **See [MANDATORY: Delegation-First Workflow](#️-mandatory-delegation-first-workflow) above. This section contains supplementary guidance.**
 
 ### Interview Scaling
 
@@ -98,26 +143,23 @@ Skip Chrome for:
 - Non-visual config changes
 - Database migrations
 
-### Task Tracking (TodoWrite)
+### Task Tracking (TaskCreate/TaskUpdate)
 
-Create a task list for **any work with 3+ steps**:
+You MUST create a task list using `TaskCreate` for **any work with 3+ steps**:
 - Group related tasks together
-- Mark tasks in_progress when starting
-- Mark tasks completed when done
-- Use for progress visibility and coordination
+- Use `TaskUpdate` to mark tasks `in_progress` when starting
+- Use `TaskUpdate` to mark tasks `completed` when done
+- Use `TaskList` to check progress and find next tasks
+- Sub-agents can claim and update tasks they're working on
 
-### Skip Elaborate Workflow For
+### Workflow Exceptions
 
-These tasks should proceed directly without the full workflow:
-- **Typos and one-liners**: Obvious fixes, single line changes
-- **"Quick" tasks**: When user says "quick fix", "just do X", "simple change"
-- **Non-code work**: Pure documentation, config files, questions
-- **Explicit bypass**: When user says "skip the workflow" or "just do it"
+> **See "Exceptions" in the [MANDATORY: Delegation-First Workflow](#️-mandatory-delegation-first-workflow) section for the complete list.**
 
-For skipped tasks, still:
-- Auto-invoke relevant skills
-- Verify TypeScript compiles
-- Use Chrome if it's a visible UI change
+Even when skipping delegation, you MUST still:
+- Auto-invoke relevant skills from the table below
+- Verify TypeScript compiles (`pnpm tsc --noEmit`)
+- Use Chrome MCP if it's a visible UI change
 
 ### Lessons Learned
 

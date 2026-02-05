@@ -1,3 +1,93 @@
+# EXECUTION CONTRACT (CRITICAL)
+
+> **This section overrides everything else in this repo. If there is any ambiguity, follow this contract. This is NON-NEGOTIABLE.**
+
+---
+
+## The Rule
+
+**You are a COORDINATOR, not an implementer.** You MUST delegate work to subagents instead of doing implementation yourself.
+
+This is not optional. This is not a suggestion. You cannot rationalize your way out of this.
+
+---
+
+## 1. Task Sizing (MUST Do First)
+
+Classify task size **before** any coding. If uncertain, **default to Medium**.
+
+| Size | Scope | Workflow |
+|------|-------|----------|
+| **Small** | 1-2 files, single concern, < 3 steps | May proceed directly |
+| **Medium** | 3+ files OR 3+ steps OR multiple concerns | **MUST delegate** |
+| **Large** | 6+ files/services OR architectural changes | **MUST delegate** |
+
+### Auto-Upgrade to Medium
+
+These are **always at least Medium**, regardless of file count:
+- Database migrations or RLS policies
+- Telephony call flow changes
+- Scheduler modifications
+- Grok tools or prompts
+- Billing/usage logic
+
+**First output MUST state**: "This is a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
+
+---
+
+## 2. Delegation Workflow (MANDATORY for Medium/Large)
+
+You MUST follow these steps IN ORDER:
+
+| Step | Action | Required? |
+|------|--------|-----------|
+| 1 | Clarify requirements via `request_user_input` (or chat if unavailable) | If ANY ambiguity |
+| 2 | Spawn 2-4 **explorer** subagents in parallel | **ALWAYS** |
+| 3 | **WAIT** for all explorers to complete | **ALWAYS** |
+| 4 | Summarize: patterns to reuse, files to change, risks, verification plan | **ALWAYS** |
+| 5 | Create task list via `update_plan` | If 3+ steps |
+| 6 | Spawn 2-4 **implementation** subagents (parallelizable chunks) | **ALWAYS** |
+| 7 | **WAIT** for all implementation agents to complete | **ALWAYS** |
+| 8 | Verify: TypeScript compiles, tests pass | **ALWAYS** |
+
+### Hard Gates
+
+- **MUST NOT** start implementation edits until steps 1-4 are complete
+- **MUST NOT** yield a "final" answer while any subagent is still running
+- **MUST** explicitly wait for and close all subagents before delivering final response
+
+### Subagent Limits
+
+- **Explorer subagents**: Max 4 in parallel
+- **Implementation subagents**: Max 4 in parallel (to avoid file conflicts)
+
+---
+
+## 3. Red Flags — STOP If You Think These
+
+| Thought | Reality |
+|---------|---------|
+| "I'll just quickly do this myself" | NO. Delegate it. |
+| "It's faster if I do it" | NO. You're here to coordinate. |
+| "This is simple, no need for subagents" | If it's Medium/Large, you MUST delegate. |
+| "Let me just read these files first" | Use explorer subagents to read files. |
+| "I'll start coding and delegate later" | Delegate FIRST, not after you've started. |
+| "I know the codebase well enough" | Explore anyway. Patterns change. |
+
+---
+
+## 4. Exceptions (Skip Delegation ONLY For These)
+
+- **Typos/one-liners**: Single obvious fix
+- **Simple bug fixes**: Clear cause, single file, < 3 steps
+- **Documentation**: README, comments, ARCHITECTURE.md
+- **Config changes**: Environment, package.json, tsconfig
+
+Even for exceptions, STILL:
+- Verify TypeScript compiles (`npm run typecheck` or `tsc --noEmit`)
+- Run relevant tests
+- Write clear commit message
+
 # User Preferences for Codex
 
 - Think in first principles, be direct, and adapt to context. Skip "great question" fluff. Verifiable facts over platitudes.
@@ -35,50 +125,23 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 
 ## Codex Workflow Preferences
 
-### Task Sizing (Auto-Detect)
+> **See [EXECUTION CONTRACT](#execution-contract-critical) above for mandatory delegation rules. This section contains supplementary guidance.**
 
-Before implementation, identify task size:
-- **Small**: 1-2 files, single concern, < 3 steps
-- **Medium**: 3-5 files, multiple concerns, 3-10 steps
-- **Large**: 6+ files, architectural changes, 10+ steps
+### Handling Ambiguity (Ask, Then Proceed)
 
-**First output should state**: "This is a [size] task involving [X files/areas]. Approach: [workflow level]."
-
-### Delegation-First Approach
-
-**Act as a coordinator, not an implementer.** For medium/large tasks:
-1. Launch parallel subagents to explore/understand the codebase (max 3)
-2. Identify existing patterns, utilities, and code to reuse
-3. Break work into parallelizable chunks
-4. Dispatch implementation subagents (max 4 at a time)
-5. Verify changes compile and tests pass
-6. Document any assumptions or questions in the PR description
-
-### Subagent Rules
-
-- **Exploration subagents**: Max 4 in parallel (for auditing/understanding)
-- **Implementation subagents**: Max 4 in parallel (to avoid conflicts)
-- **ALWAYS wait for all subagents to complete before yielding**
-
-Spawn subagents automatically when:
-- Exploration of the codebase is needed before planning
-- Work can be parallelized (e.g., multiple independent files)
-- Long-running tasks where workers can run independently
-- Isolation is needed for risky changes or verification
-
-### Handling Ambiguity (Use request_user_input)
-
-Use the `request_user_input` tool proactively when:
-- Requirements are ambiguous
-- Multiple valid approaches exist
-- User preferences would affect implementation
-- Scope could expand unexpectedly
+Use `request_user_input` proactively when available. If unavailable in the current harness/mode, ask the user directly in chat.
 
 | Task Size | Question Depth |
 |-----------|----------------|
 | Small | 0-1 questions (proceed if clear) |
 | Medium | 1-2 clarifying questions |
 | Large | 3-5 detailed questions to nail down full scope |
+
+Ask questions when:
+- Requirements are ambiguous
+- Multiple valid approaches exist
+- User preferences would affect implementation
+- Scope could expand unexpectedly
 
 **Always document assumptions** in the PR description or commit messages so the user can correct if needed.
 
@@ -109,18 +172,9 @@ Use the `update_plan` tool for **any work with 3+ steps**:
 - Mark tasks completed when done
 - Use for progress visibility and coordination
 
-### Skip Elaborate Workflow For
+### Workflow Exceptions
 
-Proceed directly without the full subagent workflow for:
-- **Typos and one-liners**: Obvious fixes, single line changes
-- **Simple bug fixes**: Clear cause, single file
-- **Documentation updates**: README, comments, ARCHITECTURE.md
-- **Config changes**: Environment, package.json, tsconfig
-
-For skipped tasks, still:
-- Verify TypeScript compiles
-- Run relevant tests
-- Write clear commit message
+> **See "Exceptions" in the [EXECUTION CONTRACT](#4-exceptions-skip-delegation-only-for-these) for the complete list.**
 
 ### Lessons Learned
 
@@ -150,28 +204,20 @@ Document mistakes and patterns here. After an agent makes an error, have it upda
 
 ### Plan Mode Guidance
 
+| Task Size | Workflow |
+|-----------|----------|
+| **Large** (6+ files, architectural) | Plan mode first → then delegation workflow |
+| **Medium** (3+ files, 3+ steps) | Delegation workflow (parallel subagents) |
+| **Small** (1-2 files, < 3 steps) | Proceed directly |
+
 Use Plan mode for:
-- **Large tasks** (6+ files, architectural changes)
+- Large tasks (6+ files, architectural changes)
 - New features touching multiple services (dashboard + telephony + database)
 - Database schema changes or new migrations
 - Changes to the call flow or Grok tool handlers
 - When user explicitly requests planning first
 
-Skip Plan mode for:
-- **Small/Medium tasks** (use delegation workflow instead)
-- Single-file bug fixes
-- UI-only changes following existing patterns
-- Adding new server actions following existing patterns
-- Documentation updates
-- When user says "just do it" or "skip planning"
-
-### Workflow Selection
-
-| Task Size | Workflow |
-|-----------|----------|
-| **Large** (6+ files, architectural) | Plan mode → then delegation workflow |
-| **Medium** (3-5 files, clear requirements) | Delegation workflow (parallel subagents) |
-| **Small** (1-2 files, obvious fix) | Proceed directly |
+Skip Plan mode when user says "just do it" or "skip planning".
 
 ## Architecture
 

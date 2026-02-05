@@ -79,9 +79,18 @@ function ContactPage() {
               </InfoCard>
 
               <InfoCard
-                title="Safety Note"
-                description="Ultaura isn&apos;t an emergency service. If someone is in immediate danger, call 911. For mental health crises, call or text 988."
-              />
+                title="Mailing Address"
+                description="For official correspondence."
+              >
+                <p className="text-sm text-foreground">
+                  Ultaura
+                  <br />
+                  725 Joralemon St Unit 127
+                  <br />
+                  Belleville, NJ 07109
+                </p>
+              </InfoCard>
+
             </div>
           </div>
         </div>
