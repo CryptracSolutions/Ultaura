@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'clsx';
 import { useChat } from 'ai/react';
 import type { ChatRequestOptions, Message } from 'ai';
@@ -35,6 +35,9 @@ function ChatBotContainer(
   const scrollingDiv = useRef<HTMLDivElement>();
   const scrollToBottom = useScrollToBottom(scrollingDiv);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
+  const [mobileViewportTop, setMobileViewportTop] = useState(0);
+  const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false);
 
   const {
     messages,
@@ -61,19 +64,95 @@ function ChatBotContainer(
     chatbotMessagesStore.saveMessages(messages);
   }, [messages, scrollToBottom]);
 
+  // Match HelpPanel behavior on mobile to avoid viewport jump/lift when keyboard opens.
+  useEffect(() => {
+    if (state.isOpen && window.innerWidth < 1024) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [state.isOpen]);
+
+  useEffect(() => {
+    if (!state.isOpen) {
+      setMobileViewportHeight(null);
+      setMobileViewportTop(0);
+      setIsMobileKeyboardOpen(false);
+      return;
+    }
+
+    const updateViewportMetrics = () => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      const isMobile = window.innerWidth < 1024;
+      if (!isMobile) {
+        setMobileViewportHeight(null);
+        setMobileViewportTop(0);
+        setIsMobileKeyboardOpen(false);
+        return;
+      }
+
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      const top = viewport?.offsetTop ?? 0;
+      const keyboardDelta = window.innerHeight - height;
+
+      setMobileViewportHeight(height);
+      setMobileViewportTop(top);
+      setIsMobileKeyboardOpen(keyboardDelta > 120);
+    };
+
+    updateViewportMetrics();
+
+    const viewport = window.visualViewport;
+    viewport?.addEventListener('resize', updateViewportMetrics);
+    viewport?.addEventListener('scroll', updateViewportMetrics);
+    window.addEventListener('resize', updateViewportMetrics);
+    window.addEventListener('orientationchange', updateViewportMetrics);
+
+    return () => {
+      viewport?.removeEventListener('resize', updateViewportMetrics);
+      viewport?.removeEventListener('scroll', updateViewportMetrics);
+      window.removeEventListener('resize', updateViewportMetrics);
+      window.removeEventListener('orientationchange', updateViewportMetrics);
+    };
+  }, [state.isOpen]);
+
+  const mobileViewportStyle = useMemo(() => {
+    if (mobileViewportHeight === null) {
+      return undefined;
+    }
+
+    return {
+      height: `${Math.round(mobileViewportHeight)}px`,
+      top: `${Math.round(mobileViewportTop)}px`,
+    };
+  }, [mobileViewportHeight, mobileViewportTop]);
+
   if (!state.isOpen) {
     return <ChatBotBubble onOpenChange={onOpenChange} />;
   }
 
   return (
     <div
-      className={
-        'animate-in fade-in z-50 slide-in-from-bottom-16 duration-200' +
-        ' bg-sidebar mobile-form-sheet' +
-        ' fixed md:right-8 md:rounded-xl ease-out slide-out-to-bottom-8' +
-        ' bottom-0 md:bottom-8 w-full h-[60vh] md:w-[40vw] xl:w-[26vw]' +
-        ' shadow-xl zoom-in-95 border border-border'
-      }
+      className={classNames(
+        'mobile-form-sheet fixed inset-0 lg:inset-auto lg:right-8 lg:bottom-8 z-50',
+        'w-full h-full lg:h-[60vh] lg:w-[40vw] xl:w-[26vw]',
+        'bg-sidebar border border-border shadow-xl overflow-hidden',
+        'lg:rounded-xl',
+        'animate-in fade-in slide-in-from-bottom-16 ease-out',
+        {
+          'duration-200': !isMobileKeyboardOpen,
+          'duration-0': isMobileKeyboardOpen,
+        },
+      )}
+      style={mobileViewportStyle}
     >
       <div className={'flex flex-col h-full'}>
         <ChatBotHeader
@@ -86,7 +165,7 @@ function ChatBotContainer(
 
         <div
           ref={(div) => { scrollingDiv.current = div ?? undefined; }}
-          className={'overflow-y-auto flex flex-col flex-1 bg-card overscroll-contain'}
+          className={'overflow-y-auto flex flex-col flex-1 min-h-0 bg-card overscroll-contain'}
           style={{
             backgroundImage:
               'linear-gradient(180deg, rgba(10, 186, 181, 0.18) 0%, rgba(10, 186, 181, 0) 85%)',
@@ -316,7 +395,7 @@ function ChatBotInput({
 
   return (
     <form onSubmit={onSubmit}>
-      <div className={'p-4 bg-card pb-[calc(env(safe-area-inset-bottom)+1rem)]'}>
+      <div className={'shrink-0 p-4 bg-card pb-[max(1rem,env(safe-area-inset-bottom,0px))]'}>
         <If condition={siteKey}>
           <Turnstile ref={ref} siteKey={siteKey as string} />
         </If>

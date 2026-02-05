@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, memo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { useChat } from 'ai/react';
 import type { Message } from 'ai';
 import classNames from 'clsx';
@@ -30,6 +30,9 @@ const INITIAL_MESSAGE: Message = {
 export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   const scrollingDiv = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
+  const [mobileViewportTop, setMobileViewportTop] = useState(0);
+  const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false);
 
   // Lock body scroll on mobile when open
   useEffect(() => {
@@ -42,6 +45,64 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setMobileViewportHeight(null);
+      setMobileViewportTop(0);
+      setIsMobileKeyboardOpen(false);
+      return;
+    }
+
+    const updateViewportMetrics = () => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      const isMobile = window.innerWidth < 1024;
+      if (!isMobile) {
+        setMobileViewportHeight(null);
+        setMobileViewportTop(0);
+        setIsMobileKeyboardOpen(false);
+        return;
+      }
+
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      const top = viewport?.offsetTop ?? 0;
+      const keyboardDelta = window.innerHeight - height;
+
+      setMobileViewportHeight(height);
+      setMobileViewportTop(top);
+      setIsMobileKeyboardOpen(keyboardDelta > 120);
+    };
+
+    updateViewportMetrics();
+
+    const viewport = window.visualViewport;
+    viewport?.addEventListener('resize', updateViewportMetrics);
+    viewport?.addEventListener('scroll', updateViewportMetrics);
+    window.addEventListener('resize', updateViewportMetrics);
+    window.addEventListener('orientationchange', updateViewportMetrics);
+
+    return () => {
+      viewport?.removeEventListener('resize', updateViewportMetrics);
+      viewport?.removeEventListener('scroll', updateViewportMetrics);
+      window.removeEventListener('resize', updateViewportMetrics);
+      window.removeEventListener('orientationchange', updateViewportMetrics);
+    };
+  }, [isOpen]);
+
+  const mobileViewportStyle = useMemo(() => {
+    if (mobileViewportHeight === null) {
+      return undefined;
+    }
+
+    return {
+      height: `${Math.round(mobileViewportHeight)}px`,
+      top: `${Math.round(mobileViewportTop)}px`,
+    };
+  }, [mobileViewportHeight, mobileViewportTop]);
 
   const {
     messages,
@@ -105,12 +166,17 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
     <div
       className={classNames(
         'fixed inset-0 lg:inset-auto lg:top-0 lg:right-0 lg:bottom-0 w-full lg:w-[350px] bg-sidebar border-l border-border shadow-xl z-50 overflow-hidden',
-        'transform transition-transform duration-300 ease-in-out',
+        'transform ease-in-out',
+        {
+          'transition-transform duration-300': !isMobileKeyboardOpen,
+          'transition-none': isMobileKeyboardOpen,
+        },
         {
           'translate-x-0': isOpen,
           'translate-x-full': !isOpen,
         }
       )}
+      style={mobileViewportStyle}
     >
       <div className="flex flex-col h-full">
         {/* Header */}
