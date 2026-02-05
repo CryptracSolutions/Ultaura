@@ -103,21 +103,44 @@ export function HeroDashboardPreview() {
   const [activeTab, setActiveTab] = useState(0);
   const [isLiveCall, setIsLiveCall] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isInView, setIsInView] = useState(true);
   const [visibleMessages, setVisibleMessages] = useState(0);
   const [contentHeight, setContentHeight] = useState<number | undefined>(
     undefined,
   );
+  const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  /* Pause auto-cycle when the hero preview isn't visible */
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        const inView = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+        setIsInView(inView);
+      },
+      { threshold: [0, 0.5, 1] },
+    );
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   /* Auto-cycle tabs */
   useEffect(() => {
-    if (!isAutoPlaying || isLiveCall) return;
+    if (!isAutoPlaying || isLiveCall || !isInView) return;
     const id = setInterval(() => {
       setActiveTab((prev) => (prev + 1) % TABS.length);
     }, 3000);
     return () => clearInterval(id);
-  }, [isAutoPlaying, isLiveCall]);
+  }, [isAutoPlaying, isLiveCall, isInView]);
 
   /* Sequential message reveal for live call */
   useEffect(() => {
@@ -160,7 +183,7 @@ export function HeroDashboardPreview() {
   }, []);
 
   return (
-    <div className="relative min-w-0">
+    <div ref={containerRef} className="relative min-w-0">
       <span className="absolute -top-6 right-0 text-right text-xs text-muted-foreground">
         Caregiver View
       </span>
