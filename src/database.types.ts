@@ -4219,6 +4219,13 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: number
       }
+      get_ultaura_total_usage: {
+        Args: { p_account_id: string }
+        Returns: {
+          total_minutes: number
+          total_cost_cents: number
+        }[]
+      }
       get_ultaura_usage_summary: {
         Args: { p_account_id: string }
         Returns: {

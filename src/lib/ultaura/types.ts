@@ -600,6 +600,11 @@ export interface UsageSummary {
   cycleEnd: string | null;
 }
 
+export interface TotalUsageSummary {
+  totalMinutes: number;
+  totalCostCents: number;
+}
+
 export interface LineActivity {
   lineId: string;
   lineShortId: string;

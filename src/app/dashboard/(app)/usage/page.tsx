@@ -1,15 +1,14 @@
-import { AlertTriangle, Clock, DollarSign, ShieldAlert, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
-import { getUsageSummary } from '~/lib/ultaura/usage';
+import { getUsageSummary, getTotalUsage } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
-import UsageCapControl from './components/UsageCapControl';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
+import UsageTabsClient from './components/UsageTabsClient';
 
 export const metadata = {
   title: 'Usage - Ultaura',
@@ -17,13 +16,13 @@ export const metadata = {
 
 const RATE_CENTS = BILLING.OVERAGE_RATE_CENTS;
 
-function formatCurrency(cents: number) {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 function formatCycleDate(value: string | null) {
   if (!value) return null;
-  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const d = new Date(value);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${mm}/${dd}/${yy}`;
 }
 
 export default async function UsagePage() {
@@ -62,10 +61,14 @@ export default async function UsagePage() {
     );
   }
 
-  const usage = await getUsageSummary(account.id);
+  const [usage, totalUsage] = await Promise.all([
+    getUsageSummary(account.id),
+    getTotalUsage(account.id),
+  ]);
+
   const plan = PLANS[account.plan_id as keyof typeof PLANS];
   const isPayg = account.plan_id === 'payg';
-  const planName = isPayg ? 'Pay as you go' : plan?.displayName ?? 'Plan';
+  const planName = plan?.displayName ?? 'Plan';
 
   const isOnTrial = account.status === 'trial';
   const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
@@ -111,223 +114,53 @@ export default async function UsagePage() {
       <PageBody>
         <div className="flex flex-col gap-6 pb-24">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <div className="grid gap-6">
-            <div
-              className={`rounded-xl border bg-card p-6 shadow-sm ${
-                hasOverage ? 'border-warning/40' : 'border-border'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                      isOnTrial || isPayg
-                        ? 'bg-primary/10 text-primary'
-                        : hasOverage
-                        ? 'bg-warning/10 text-warning'
-                        : 'bg-muted text-foreground'
-                    }`}
-                  >
-                    {isOnTrial ? <Clock className="h-5 w-5" /> : isPayg ? <Zap className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">
-                      {isOnTrial ? `${trialPlanName} trial` : `${planName} plan`}
-                    </div>
-                    <h2 className="text-lg font-semibold text-foreground">Usage this cycle</h2>
-                  </div>
-                </div>
-                {hasOverage && (
-                  <div className="inline-flex items-center gap-2 rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Overage active
-                  </div>
-                )}
-              </div>
 
-              {usage ? (
-                <div className="mt-6 space-y-4">
-                  {isOnTrial ? (
-                    <>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-lg border border-border/60 bg-background p-4">
-                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                            Minutes used
-                          </div>
-                          <div className="mt-2 text-3xl font-semibold text-foreground">
-                            {minutesUsed}
-                          </div>
-                        </div>
-                        <div className="rounded-lg border border-border/60 bg-background p-4">
-                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                            Cost during trial
-                          </div>
-                          <div className="mt-2 text-3xl font-semibold text-foreground">
-                            {formatCurrency(0)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        Unlimited minutes during trial.
-                      </div>
-                      {cycleEnd && (
-                        <div className="text-xs text-muted-foreground">
-                          {isTrialActive ? `Trial ends ${cycleEnd}.` : `Trial ended ${cycleEnd}.`}
-                        </div>
-                      )}
-                      <Link
-                        href="/dashboard/settings/subscription"
-                        className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-                      >
-                        Choose a plan →
-                      </Link>
-                    </>
-                  ) : isPayg ? (
-                    <>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-lg border border-border/60 bg-background p-4">
-                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                            Minutes used
-                          </div>
-                          <div className="mt-2 text-3xl font-semibold text-foreground">
-                            {minutesUsed}
-                          </div>
-                        </div>
-                        <div className="rounded-lg border border-border/60 bg-background p-4">
-                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                            Estimated cost
-                          </div>
-                          <div className="mt-2 text-3xl font-semibold text-foreground">
-                            {formatCurrency(paygCostCents)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <DollarSign className="h-4 w-4" />
-                        Usage-based billing at {formatCurrency(RATE_CENTS)} per minute.
-                      </div>
-                      {cycleEnd && (
-                        <div className="text-xs text-muted-foreground">
-                          Current cycle ends {cycleEnd}.
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap justify-between gap-4">
-                        <div>
-                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                            Minutes used
-                          </div>
-                          <div className="mt-2 text-3xl font-semibold text-primary">
-                            {minutesUsed}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                            Minutes remaining
-                          </div>
-                          <div className="mt-2 text-2xl font-semibold text-foreground">
-                            {minutesRemaining}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="relative h-3 w-full overflow-visible rounded-full bg-muted">
-                          <div className="absolute inset-0 flex overflow-visible">
-                            <div
-                              className={`h-3 ${hasOverage ? 'rounded-l-full' : 'rounded-full'} bg-primary`}
-                              style={{ width: `${includedUsagePercent}%` }}
-                            />
-                            {hasOverage && (
-                              <div
-                                className="h-3 rounded-r-full bg-warning"
-                                style={{ width: `${overagePercent}%` }}
-                              />
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {hasOverage ? `${overageMinutes} over • ` : ''}
-                          {cycleEnd ? `Resets ${cycleEnd}` : ''}
-                        </div>
-                        <Link
-                          href="/dashboard/settings/subscription"
-                          className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-                        >
-                          Change Plan →
-                        </Link>
-                      </div>
-
-                      {hasOverage && (
-                        <div className="rounded-lg border border-warning/30 bg-warning/10 p-4">
-                          <div className="flex items-center gap-2 text-sm font-medium text-warning">
-                            <AlertTriangle className="h-4 w-4" />
-                            Overage cost
-                          </div>
-                          <div className="mt-2 text-2xl font-semibold text-foreground">
-                            {formatCurrency(overageCostCents)}
-                          </div>
-                          <div className="mt-1 text-sm text-muted-foreground">
-                            Billed at {formatCurrency(RATE_CENTS)} per minute over your included
-                            minutes.
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-6 text-sm text-muted-foreground">Usage not available yet.</div>
-              )}
-            </div>
-
-            <div
-              className={`rounded-xl border bg-card p-6 shadow-sm flex flex-col ${
-                capReached ? 'border-warning/40' : 'border-border'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">Spending cap</h3>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {isTrialActive
-                  ? 'Spending caps apply after you subscribe.'
-                  : 'Stop all calls when usage hits your monthly cap.'}
-              </p>
-
-              <div className="mt-4">
-                <UsageCapControl accountId={account.id} capCents={capCents} disabled={isTrialExpired} />
-              </div>
-
-              <div className="mt-6 space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{capCents > 0 ? `Cap at ${formatCurrency(capCents)}` : 'No cap set'}</span>
-                  {capCents > 0 && <span>{formatCurrency(usageCostCents)} used</span>}
-                </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={`h-full ${capReached ? 'bg-warning' : 'bg-primary'}`}
-                    style={{ width: `${capPercent}%` }}
-                  />
-                </div>
-                {capCents === 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    Usage continues without a spending limit.
-                  </div>
-                )}
-                {capReached && capCents > 0 && (
-                  <div className="flex items-center gap-2 text-xs text-warning">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Cap reached. Calls are blocked until the next cycle or cap update.
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Plan info strip */}
+          <div className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-foreground">
+              {isOnTrial ? `${trialPlanName} trial` : `${planName} plan`}
+            </span>
+            {!isOnTrial && (
+              <Link
+                href="/dashboard/settings/subscription"
+                className="text-primary hover:underline"
+              >
+                Change plan
+              </Link>
+            )}
           </div>
+
+          {usage ? (
+            <UsageTabsClient
+              planName={planName}
+              isOnTrial={isOnTrial}
+              isTrialActive={isTrialActive}
+              isTrialExpired={isTrialExpired}
+              isPayg={isPayg}
+              trialPlanName={trialPlanName}
+              trialDaysRemaining={trialDaysRemaining}
+              minutesUsed={minutesUsed}
+              minutesIncluded={minutesIncluded}
+              minutesRemaining={minutesRemaining}
+              overageMinutes={overageMinutes}
+              overageCostCents={overageCostCents}
+              paygCostCents={paygCostCents}
+              usageCostCents={usageCostCents}
+              cycleEnd={cycleEnd}
+              hasOverage={hasOverage}
+              includedUsagePercent={includedUsagePercent}
+              overagePercent={overagePercent}
+              rateCents={RATE_CENTS}
+              totalMinutes={totalUsage.totalMinutes}
+              totalCostCents={totalUsage.totalCostCents}
+              accountId={account.id}
+              capCents={capCents}
+              capReached={capReached}
+              capPercent={capPercent}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground">Usage not available yet.</div>
+          )}
         </div>
       </PageBody>
     </>
