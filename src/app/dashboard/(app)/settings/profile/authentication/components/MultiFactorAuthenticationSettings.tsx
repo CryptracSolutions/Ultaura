@@ -6,6 +6,7 @@ import { Factor } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { Info } from 'lucide-react';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
@@ -99,13 +100,17 @@ function MultiFactorAuthFactorsList({
   if (!allFactors.length) {
     return (
       <div className={'flex flex-col space-y-4'}>
-        <Alert type={'info'}>
-          <Alert.Heading>
-            <Trans i18nKey={'profile:multiFactorAuthHeading'} />
-          </Alert.Heading>
-
-          <Trans i18nKey={'profile:multiFactorAuthDescription'} />
-        </Alert>
+        <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
+          <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-xs text-primary leading-snug">
+              <Trans i18nKey={'profile:multiFactorAuthHeading'} />
+            </p>
+            <p className="text-xs text-primary leading-snug">
+              <Trans i18nKey={'profile:multiFactorAuthDescription'} />
+            </p>
+          </div>
+        </div>
 
         <SetupMfaButton onClick={onEnrollRequested} />
       </div>

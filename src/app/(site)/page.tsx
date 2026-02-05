@@ -16,12 +16,6 @@ import { MainCallToActionButton } from '~/app/(site)/components/MainCallToAction
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
 import { ReassuranceChecklist } from '~/app/(site)/components/ReassuranceChecklist';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '~/core/ui/Accordion';
 import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
 
 function Home() {
@@ -164,151 +158,47 @@ function Home() {
         </Container>
       </section>
 
-      {/* FAQ Section */}
-      <section className="bg-surface-subtle pt-20 pb-8">
+      {/* Need Help Section */}
+      <section className="bg-surface-subtle py-16">
         <Container>
-          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="flex flex-col justify-between gap-6">
-              <div className="space-y-4">
-                <Heading type={2}>Frequently asked <span className="text-primary">questions</span></Heading>
-                <SubHeading className="max-w-md">
-                  Quick answers about setup, privacy, and how Ultaura keeps
-                  conversations respectful.
-                </SubHeading>
-              </div>
+          <div className="flex flex-col items-center text-center">
+            <Heading type={2}>Questions<span className="text-primary">?</span></Heading>
+            <Link
+              href="/faq"
+              className="mt-4 inline-flex items-center text-2xl font-medium text-primary hover:underline"
+            >
+              FAQ →
+            </Link>
 
-              <div className="space-y-6">
-                <div className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Still need help?
-                  </h3>
-                  <Link
-                    href="/faq"
-                    className="mt-2 inline-flex items-center text-sm font-medium text-primary hover:underline"
-                  >
-                    FAQ →
-                  </Link>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    We&apos;re happy to talk through voice options, schedules, or
-                    anything else. Expect a quick, thoughtful response.
-                  </p>
-                  <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-primary" />
-                      Voice demos and recommendations
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-primary" />
-                      Billing and line setup questions
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-primary" />
-                      Privacy and safety policies
-                    </div>
-                  </div>
-                  <Button
-                    round
-                    href="/contact"
-                    className="mt-6 w-fit bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    Chat with us
-                  </Button>
+            <div className="mt-8 w-full max-w-7xl rounded-2xl border border-border/60 bg-sidebar px-4 py-5 sm:px-8 shadow-sm">
+              <h3 className="text-xl font-semibold text-foreground">
+                Still need help?
+              </h3>
+              <p className="mt-4 text-sm text-muted-foreground">
+                We&apos;re happy to talk through voice options, schedules, or
+                anything else. Expect a quick, thoughtful response.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-6">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  Voice demos and recommendations
                 </div>
-
+                <div className="flex items-center justify-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  Billing and line setup questions
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  Privacy and safety policies
+                </div>
               </div>
-            </div>
-
-            <div className="rounded-3xl border border-border/60 bg-background p-6 shadow-sm">
-              <Accordion>
-                <AccordionItem value="line">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    What does &ldquo;line&rdquo; mean?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    Each person who receives calls needs their own line — think
-                    of it like a phone plan. One line per person. The Care plan
-                    includes 1 line, Comfort includes 2, and Family includes 4.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="call-anytime">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    Can they call anytime?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    Yes. Your loved one can call Ultaura anytime, day or night.
-                    Scheduled outbound calls follow the times you set, and quiet
-                    hours are always respected.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="real-person">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    Is it a real person?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    No — Ultaura is an AI voice companion. Every call starts
-                    with a clear disclosure that it&apos;s AI. The conversations
-                    are warm and natural, but always honest about what they are.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="emergencies">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    What about emergencies?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    If your loved one sounds distressed, Ultaura gently
-                    encourages them to reach out for help and notifies your
-                    trusted contacts. For immediate emergencies, it directs them
-                    to 911. Ultaura is a companion, not a medical service.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="store">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    Do you store conversations?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    No. We don&apos;t record or transcribe calls. Your dashboard
-                    shows the time, date, and duration of each call — nothing
-                    more. Your loved one&apos;s conversations are private.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="landlines">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    Does it work with landlines?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    Yes! Ultaura works with any phone — landlines, cell phones,
-                    even flip phones. No smartphone or app is needed.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="dont-want-to-talk">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    What if they don&apos;t want to talk?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    That&apos;s completely fine. If your loved one doesn&apos;t
-                    want to chat, Ultaura wraps up politely. They can also opt
-                    out entirely — just by saying so. No pressure, ever.
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="after-trial">
-                  <AccordionTrigger className="hover:bg-transparent">
-                    What happens after the free trial?
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    After 3 days, you choose a plan or walk away — no automatic
-                    charges. If you continue, billing starts on the plan you
-                    select. You can change plans or cancel anytime.
-                  </AccordionContent>
-                </AccordionItem>
-
-              </Accordion>
+              <Button
+                round
+                href="/contact"
+                className="mt-8 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Chat with us
+              </Button>
             </div>
           </div>
         </Container>

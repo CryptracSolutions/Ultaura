@@ -1451,15 +1451,15 @@ export function PrivacyCenterClient({
       }
       case 'family': {
         const familyNote = (
-          <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
-            <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-primary">
+          <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
+            <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-primary leading-snug">
               Family sharing lets you invite family members to receive weekly summaries and
               wellness alerts. What is shared follows your loved one&apos;s sharing preferences
               during calls.
               <a
                 href="/docs/insights-and-reports/sharing-with-family"
-                className="text-primary hover:underline ml-1"
+                className="text-xs text-primary leading-snug underline ml-1"
               >
                 Learn more →
               </a>

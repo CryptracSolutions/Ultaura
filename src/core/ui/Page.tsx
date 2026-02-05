@@ -51,19 +51,16 @@ export function PageHeader({
 }>) {
   return (
     <div className={'flex items-start justify-between p-container'}>
-      <div
-        className={
-          'flex space-x-2 items-center lg:items-start lg:flex-col' +
-          ' lg:space-x-0'
-        }
-      >
-        <div className={'flex items-center lg:hidden'}>{mobileNavigation}</div>
+      <div className="flex flex-col">
+        <div className="flex items-center space-x-2">
+          <div className={'flex items-center lg:hidden'}>{mobileNavigation}</div>
 
-        <Heading type={3}>
-          <span className={'flex items-center space-x-0.5 lg:space-x-2'}>
-            <span className={'font-semibold dark:text-white'}>{title}</span>
-          </span>
-        </Heading>
+          <Heading type={3}>
+            <span className={'flex items-center space-x-0.5 lg:space-x-2'}>
+              <span className={'font-semibold dark:text-white'}>{title}</span>
+            </span>
+          </Heading>
+        </div>
 
         <Heading
           type={5}

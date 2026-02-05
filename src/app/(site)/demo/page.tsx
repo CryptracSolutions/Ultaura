@@ -190,14 +190,14 @@ export default function DemoPage() {
       <section className="relative overflow-hidden">
         <div className="ultaura-surface-wash">
           <Container>
-            <div className="relative py-20 sm:py-24">
+            <div className="relative pt-6 pb-20 lg:pt-10 sm:pb-24">
               <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
               <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
               <div className="absolute -right-10 top-0 h-56 w-56 rounded-full bg-primary/5 blur-3xl" />
 
               <div className="relative grid items-start gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
                 <div className="flex flex-col space-y-6">
-                  <div className="inline-flex items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+                  <div className="inline-flex w-fit items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
                     Hear the difference
                   </div>
 
