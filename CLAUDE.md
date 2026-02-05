@@ -30,23 +30,44 @@ You MUST:
 
 2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
 
-## For Medium/Large Tasks: Mandatory Delegation
+## For Medium/Large Tasks: Mandatory Delegation via Agent Teams
+
+You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large tasks. Teams give agents shared task boards, inter-agent messaging, and persistent context — producing correct implementations over cheap ones.
 
 You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
 | 1 | Clarify requirements | `AskUserQuestion` | If ANY ambiguity |
-| 2 | Understand codebase | Launch 2-4 parallel `Explore` agents | **ALWAYS** |
-| 3 | Create task list | `TaskCreate` for each step | If 3+ steps |
-| 4 | Implement via agents | Launch 2-4 parallel `general-purpose` agents | **ALWAYS** |
-| 5 | Track & unblock | Monitor agent progress, resolve issues | **ALWAYS** |
-| 6 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
+| 2 | Spawn a team | `Teammate` with `spawnTeam` | **ALWAYS** |
+| 3 | Understand codebase | Launch 2-4 `Explore` agents as teammates | **ALWAYS** |
+| 4 | Create shared task list | `TaskCreate` for each step | If 3+ steps |
+| 5 | Spawn implementation teammates | Launch 2-4 `general-purpose` teammates | **ALWAYS** |
+| 6 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
+| 7 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
+| 8 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
+| 9 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
 
-### Agent Limits
-- **Explore agents**: Max 4 in parallel
-- **Implementation agents**: Max 4 in parallel (to avoid file conflicts)
-- **Model**: Always use `model: "opus"` for all sub-agents
+### Agent Teams Guidelines
+
+- **Always use `model: "opus"`** for all teammates
+- **Max 4 teammates** in parallel (to avoid file conflicts)
+- **Use `SendMessage`** to coordinate — teammates can't hear your plain text
+- **Teammates persist** — reassign them to new tasks instead of spawning new agents
+- **Teammates go idle after each turn** — this is normal, send a message to wake them
+- **Use `TaskList`/`TaskUpdate`** as the shared coordination board
+- **Shutdown gracefully** — send `shutdown_request` to each teammate when done, then call `Teammate` cleanup
+
+### When to Use Teams vs. One-Shot Task Agents
+
+| Scenario | Use |
+|----------|-----|
+| Independent parallel research (explore codebase) | Either — `Task` with `Explore` is fine for pure research |
+| Medium task (3-10 files, multiple concerns) | **Teams** — agents need shared context |
+| Large task (10+ files, architectural) | **Teams** — agents need to coordinate |
+| Interdependent work (frontend needs backend's API shape) | **Teams** — agents must communicate |
+| Sequential dependencies across agents | **Teams** — agents hand off context |
+| Single isolated question or search | `Task` agent (one-shot) is sufficient |
 
 ## Red Flags — STOP If You Think These
 
@@ -102,12 +123,11 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 
 ## Claude Code Sub-Agent Preferences
 
-When using the Task tool to spawn agents, always use `model: "opus"` for all agent types including:
-- Explore
-- Plan
-- Task
-- code-simplifier
-- feature-dev agents
+When using the `Task` tool or spawning teammates via `Teammate`, always use `model: "opus"` for all agent types including:
+- Explore teammates
+- Plan agents
+- general-purpose implementation teammates
+- code-simplifier agents
 - Any other subagent types
 
 This ensures thorough analysis and higher quality reasoning for all automated tasks.
@@ -143,14 +163,15 @@ Skip Chrome for:
 - Non-visual config changes
 - Database migrations
 
-### Task Tracking (TaskCreate/TaskUpdate)
+### Task Tracking (Shared Task Board)
 
 You MUST create a task list using `TaskCreate` for **any work with 3+ steps**:
 - Group related tasks together
-- Use `TaskUpdate` to mark tasks `in_progress` when starting
-- Use `TaskUpdate` to mark tasks `completed` when done
+- Use `TaskUpdate` with `owner` to assign tasks to specific teammates
+- Use `TaskUpdate` to mark tasks `in_progress` when starting, `completed` when done
 - Use `TaskList` to check progress and find next tasks
-- Sub-agents can claim and update tasks they're working on
+- Teammates can claim and update their own tasks
+- The task board is the single source of truth — use `SendMessage` for real-time coordination on top of it
 
 ### Workflow Exceptions
 

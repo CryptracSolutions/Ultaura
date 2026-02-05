@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   PlayCircleIcon,
   StopCircleIcon,
@@ -13,12 +13,24 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
+import Textarea from '~/core/ui/Textarea';
+import LanguageDropdownSwitcher from '~/components/LanguageDropdownSwitcher';
+import {
+  FALLBACK_LOCALE,
+  normalizeLocale,
+  toLanguageCode,
+} from '~/i18n/locales';
 import { VOICE_DEMO, GROK } from '~/lib/ultaura/constants';
+import {
+  type DemoPresetId,
+  getDemoPresetsForLocale,
+} from '~/lib/ultaura/demo-presets';
 
 type Voice = (typeof GROK.VOICES)[number];
 
@@ -55,13 +67,23 @@ const TECH_FEATURES = [
   },
 ];
 
-
 type PlayState = 'idle' | 'loading' | 'playing' | 'error';
 
 export default function DemoPage() {
+  const { i18n } = useTranslation();
+
   // Text input state
   const [customText, setCustomText] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<DemoPresetId | null>(
+    null,
+  );
+  const [selectedLocale, setSelectedLocale] = useState(() => {
+    return (
+      normalizeLocale(
+        i18n.resolvedLanguage ?? i18n.language ?? FALLBACK_LOCALE,
+      ) ?? FALLBACK_LOCALE
+    );
+  });
 
   // Playback state
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
@@ -71,24 +93,50 @@ export default function DemoPage() {
   // Audio ref for playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  useEffect(() => {
+    setSelectedLocale(
+      normalizeLocale(
+        i18n.resolvedLanguage ?? i18n.language ?? FALLBACK_LOCALE,
+      ) ?? FALLBACK_LOCALE,
+    );
+  }, [i18n.language, i18n.resolvedLanguage]);
+
+  const demoPresets = getDemoPresetsForLocale(selectedLocale);
+
   // Get the current text to play
-  const currentText = selectedPreset
-    ? VOICE_DEMO.PRESET_PHRASES.find((p) => p.id === selectedPreset)?.text || ''
-    : customText;
+  const currentText = customText;
 
   // Handle preset selection
-  const handlePresetClick = (presetId: string) => {
-    if (selectedPreset === presetId) {
-      setSelectedPreset(null);
-    } else {
-      setSelectedPreset(presetId);
-      setCustomText(''); // Clear custom text when preset is selected
+  const handlePresetClick = (presetId: DemoPresetId) => {
+    const selectedPhrase = demoPresets.find((preset) => preset.id === presetId);
+
+    if (!selectedPhrase) {
+      return;
     }
+
+    setSelectedPreset(presetId);
+    setCustomText(selectedPhrase.text);
     setErrorMessage(null);
   };
 
+  useEffect(() => {
+    if (!selectedPreset) {
+      return;
+    }
+
+    const localizedPreset = demoPresets.find(
+      (preset) => preset.id === selectedPreset,
+    );
+
+    if (localizedPreset) {
+      setCustomText(localizedPreset.text);
+    }
+  }, [demoPresets, selectedPreset]);
+
   // Handle custom text change
-  const handleCustomTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleCustomTextChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
     setCustomText(e.target.value);
     setSelectedPreset(null); // Clear preset when typing custom text
     setErrorMessage(null);
@@ -110,7 +158,9 @@ export default function DemoPage() {
 
       // Check if there's text to play
       if (!currentText.trim()) {
-        setErrorMessage('Please enter some text or select a preset phrase first.');
+        setErrorMessage(
+          'Please enter some text or select a preset phrase first.',
+        );
         return;
       }
 
@@ -119,12 +169,15 @@ export default function DemoPage() {
       setErrorMessage(null);
 
       try {
+        const locale = normalizeLocale(selectedLocale) ?? FALLBACK_LOCALE;
         const response = await fetch('/api/voice-demo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: currentText,
             voice: voice,
+            language: toLanguageCode(locale),
+            locale,
           }),
         });
 
@@ -134,20 +187,24 @@ export default function DemoPage() {
           // API not yet available - show friendly message
           setPlayState('idle');
           setErrorMessage(
-            'Voice demo coming soon! We\'re waiting for the xAI TTS API to launch.',
+            "Voice demo coming soon! We're waiting for the xAI TTS API to launch.",
           );
           return;
         }
 
         if (response.status === 429) {
           setPlayState('error');
-          setErrorMessage('Too many requests. Please wait a moment and try again.');
+          setErrorMessage(
+            'Too many requests. Please wait a moment and try again.',
+          );
           return;
         }
 
         if (!response.ok) {
           setPlayState('error');
-          setErrorMessage(data.error || 'Something went wrong. Please try again.');
+          setErrorMessage(
+            data.error || 'Something went wrong. Please try again.',
+          );
           return;
         }
 
@@ -163,10 +220,12 @@ export default function DemoPage() {
       } catch (error) {
         console.error('Voice demo error:', error);
         setPlayState('error');
-        setErrorMessage('Failed to connect. Please check your internet connection.');
+        setErrorMessage(
+          'Failed to connect. Please check your internet connection.',
+        );
       }
     },
-    [currentText, selectedVoice, playState],
+    [currentText, playState, selectedLocale, selectedVoice],
   );
 
   // Handle audio end
@@ -195,7 +254,10 @@ export default function DemoPage() {
                     Hear the difference
                   </div>
 
-                  <Heading type={1} className="text-4xl md:text-5xl xl:text-6xl">
+                  <Heading
+                    type={1}
+                    className="text-4xl md:text-5xl xl:text-6xl"
+                  >
                     <span className="block leading-[1.1]">Meet the voices</span>
                     <span className="block leading-[1.1]">
                       of{' '}
@@ -206,8 +268,8 @@ export default function DemoPage() {
                   </Heading>
 
                   <SubHeading className="max-w-2xl">
-                    Five distinct voice personalities, each designed to feel warm,
-                    natural, and genuinely engaging.
+                    Five distinct voice personalities, each designed to feel
+                    warm, natural, and genuinely engaging.
                   </SubHeading>
 
                   <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -233,9 +295,19 @@ export default function DemoPage() {
                     <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                       Demo studio
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {VOICE_DEMO.MAX_TEXT_LENGTH} characters max
-                    </span>
+                    <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+                      <LanguageDropdownSwitcher
+                        onChange={(locale) =>
+                          setSelectedLocale(
+                            normalizeLocale(locale) ?? FALLBACK_LOCALE,
+                          )
+                        }
+                        className="w-auto"
+                        triggerClassName="!w-auto h-8 min-h-[32px] min-w-[8.5rem] border-border/70 bg-background/80 px-2 py-1 text-[11px] shadow-sm sm:h-9 sm:min-h-[36px] sm:text-xs"
+                        contentClassName="!w-[calc(var(--radix-select-trigger-width)+8px)] !min-w-[calc(var(--radix-select-trigger-width)+8px)]"
+                        ariaLabel="Select demo language"
+                      />
+                    </div>
                   </div>
 
                   <div className="mt-6 space-y-8">
@@ -249,11 +321,11 @@ export default function DemoPage() {
                         </Heading>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Choose a preset phrase or write your own
+                        Choose a preset phrase
                       </p>
 
                       <div className="flex flex-wrap gap-2">
-                        {VOICE_DEMO.PRESET_PHRASES.map((phrase) => (
+                        {demoPresets.map((phrase) => (
                           <button
                             key={phrase.id}
                             onClick={() => handlePresetClick(phrase.id)}
@@ -270,38 +342,22 @@ export default function DemoPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <div className="relative">
-                          <textarea
-                            value={selectedPreset ? '' : customText}
-                            onChange={handleCustomTextChange}
-                            placeholder={
-                              selectedPreset
-                                ? VOICE_DEMO.PRESET_PHRASES.find(
-                                    (p) => p.id === selectedPreset,
-                                  )?.text
-                                : 'Or type your own text here...'
-                            }
-                            disabled={!!selectedPreset}
-                            maxLength={VOICE_DEMO.MAX_TEXT_LENGTH}
-                            rows={3}
-                            className={
-                              'w-full rounded-xl border bg-background px-4 py-3 min-h-[44px] text-base sm:text-sm text-foreground' +
-                              ' placeholder:text-muted-foreground focus:outline-none focus:ring-2' +
-                              ' focus:ring-ring resize-none transition-colors' +
-                              (selectedPreset
-                                ? ' border-primary/30 bg-primary/5'
-                                : ' border-border')
-                            }
-                          />
-                          <div className="absolute bottom-2 right-3 text-xs text-muted-foreground">
-                            {(selectedPreset
-                              ? VOICE_DEMO.PRESET_PHRASES.find(
-                                  (p) => p.id === selectedPreset,
-                                )?.text.length || 0
-                              : customText.length)}{' '}
-                            / {VOICE_DEMO.MAX_TEXT_LENGTH}
-                          </div>
-                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          or write your own
+                        </p>
+                        <Textarea
+                          value={customText}
+                          onChange={handleCustomTextChange}
+                          placeholder="Type your own text here..."
+                          maxLength={VOICE_DEMO.MAX_TEXT_LENGTH}
+                          rows={3}
+                          className={
+                            'min-h-[96px] resize-none rounded-xl bg-background px-4 py-3 text-base sm:text-sm' +
+                            (selectedPreset
+                              ? ' border-primary/30 bg-primary/5'
+                              : '')
+                          }
+                        />
 
                         {errorMessage && (
                           <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
@@ -328,8 +384,10 @@ export default function DemoPage() {
                         {GROK.VOICES.map((voice) => {
                           const voiceInfo = VOICE_DEMO.VOICE_INFO[voice];
                           const isSelected = selectedVoice === voice;
-                          const isLoading = isSelected && playState === 'loading';
-                          const isPlaying = isSelected && playState === 'playing';
+                          const isLoading =
+                            isSelected && playState === 'loading';
+                          const isPlaying =
+                            isSelected && playState === 'playing';
 
                           return (
                             <button
@@ -381,14 +439,6 @@ export default function DemoPage() {
                             </button>
                           );
                         })}
-                      </div>
-
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground inline-flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                          Interactive voice demo coming soon — API integration in
-                          progress
-                        </p>
                       </div>
                     </div>
                   </div>

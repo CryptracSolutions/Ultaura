@@ -1,8 +1,13 @@
 import configuration from '~/configuration';
 import { InitOptions } from 'i18next';
+import {
+  FALLBACK_LOCALE,
+  SUPPORTED_I18N_LOCALES,
+  normalizeLocale,
+} from './locales';
 
-const fallbackLng = configuration.site.locale ?? 'en';
-const languages: string[] = [fallbackLng];
+const configuredLocale = normalizeLocale(configuration.site.locale ?? '');
+const defaultLocale = configuredLocale ?? FALLBACK_LOCALE;
 
 export const I18N_COOKIE_NAME = 'lang';
 
@@ -26,19 +31,11 @@ function getI18nSettings(
   language: Maybe<string>,
   ns: string | string[] = defaultI18nNamespaces,
 ): InitOptions {
-  let lng = language ?? fallbackLng;
-
-  if (!languages.includes(lng)) {
-    console.warn(
-      `Language "${lng}" is not supported. Falling back to "${fallbackLng}"`,
-    );
-
-    lng = fallbackLng;
-  }
+  const lng = normalizeLocale(language ?? '') ?? defaultLocale;
 
   return {
-    supportedLngs: languages,
-    fallbackLng,
+    supportedLngs: SUPPORTED_I18N_LOCALES,
+    fallbackLng: FALLBACK_LOCALE,
     lng,
     fallbackNS: defaultI18nNamespaces,
     defaultNS: defaultI18nNamespaces,

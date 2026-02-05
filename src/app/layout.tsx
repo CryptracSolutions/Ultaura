@@ -88,6 +88,12 @@ function getLanguageCookie() {
   return cookies().get(I18N_COOKIE_NAME)?.value;
 }
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover' as const,
+};
+
 export const metadata = {
   title: configuration.site.name,
   description: configuration.site.description,

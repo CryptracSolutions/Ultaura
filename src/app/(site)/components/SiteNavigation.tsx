@@ -138,7 +138,7 @@ function MobileMenu() {
           </div>
 
           {/* Menu Content */}
-          <div className="overflow-y-auto h-[calc(100vh-57px)]">
+          <div className="overflow-y-auto h-[calc(100dvh-57px)]">
             {/* Navigate Section */}
             <MenuSection label="Navigate">
               {navLinks.map((item) => (

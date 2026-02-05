@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -12,26 +12,41 @@ import {
 } from '~/core/ui/Select';
 
 import useRefresh from '~/core/hooks/use-refresh';
+import { setCookie } from '~/core/generic/cookies';
 
 const LanguageDropdownSwitcher: React.FC<{
   onChange?: (locale: string) => unknown;
-}> = ({ onChange }) => {
+  triggerClassName?: string;
+  contentClassName?: string;
+  className?: string;
+  ariaLabel?: string;
+}> = ({
+  onChange,
+  triggerClassName,
+  contentClassName,
+  className,
+  ariaLabel,
+}) => {
   const { i18n } = useTranslation();
   const refresh = useRefresh();
 
-  const { language: currentLanguage, options } = i18n;
+  const { options } = i18n;
 
   const locales = (options.supportedLngs as string[]).filter(
     (locale) => locale.toLowerCase() !== 'cimode',
   );
 
   const languageNames = useMemo(() => {
-    return new Intl.DisplayNames([currentLanguage], {
+    return new Intl.DisplayNames(['en'], {
       type: 'language',
     });
-  }, [currentLanguage]);
+  }, []);
 
   const [value, setValue] = useState(i18n.language);
+
+  useEffect(() => {
+    setValue(i18n.language);
+  }, [i18n.language]);
 
   const languageChanged = useCallback(
     async (locale: string) => {
@@ -42,34 +57,37 @@ const LanguageDropdownSwitcher: React.FC<{
       }
 
       await i18n.changeLanguage(locale);
+      setCookie('lang', locale, { path: '/', sameSite: 'lax' });
       await refresh();
     },
     [i18n, onChange, refresh],
   );
 
   return (
-    <Select value={value} onValueChange={languageChanged}>
-      <SelectTrigger>
-        <SelectValue />
-      </SelectTrigger>
+    <div className={className}>
+      <Select value={value} onValueChange={languageChanged}>
+        <SelectTrigger className={triggerClassName} aria-label={ariaLabel}>
+          <SelectValue />
+        </SelectTrigger>
 
-      <SelectContent>
-        {locales.map((locale) => {
-          const label = capitalize(languageNames.of(locale) ?? locale);
+        <SelectContent className={contentClassName}>
+          {locales.map((locale) => {
+            const label = capitalize(languageNames.of(locale) ?? locale);
 
-          const option = {
-            value: locale,
-            label,
-          };
+            const option = {
+              value: locale,
+              label,
+            };
 
-          return (
-            <SelectItem value={option.value} key={option.value}>
-              {option.label}
-            </SelectItem>
-          );
-        })}
-      </SelectContent>
-    </Select>
+            return (
+              <SelectItem value={option.value} key={option.value}>
+                {option.label}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+    </div>
   );
 };
 

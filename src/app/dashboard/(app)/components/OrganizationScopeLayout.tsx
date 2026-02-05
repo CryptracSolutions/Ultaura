@@ -88,9 +88,8 @@ const OrganizationScopeLayout: React.FCC<{
                       <AddScheduleProvider>
                         <AddLineProvider>
                           <SearchProvider docsIndex={docsIndex}>
+                            <Toaster richColors={false} />
                             <main>
-                              <Toaster richColors={false} />
-
                               <RouteShellWithSidebar
                                 collapsed={data.ui.sidebarState === 'collapsed'}
                                 ultauraAccountId={ultauraAccountId}

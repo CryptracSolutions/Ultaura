@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeLocale, toLanguageCode } from '~/i18n/locales';
 
 // Valid voices from Grok Voice API
 const VALID_VOICES = ['Ara', 'Eve', 'Leo', 'Rex', 'Sal'] as const;
@@ -9,6 +10,13 @@ const requestCounts: Map<string, { count: number; resetAt: number }> = new Map()
 const MAX_REQUESTS_PER_MINUTE = 10;
 const WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_TEXT_LENGTH = 200;
+
+type VoiceDemoRequestBody = {
+  text?: unknown;
+  voice?: unknown;
+  language?: unknown;
+  locale?: unknown;
+};
 
 function getClientIP(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -33,8 +41,91 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+function canonicalizeLocale(input: string): string | null {
+  const trimmed = input.trim().replace(/_/g, '-');
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const [canonical] = Intl.getCanonicalLocales(trimmed);
+    return canonical ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function validateLanguage(
+  language: unknown,
+): { normalizedLanguage: string | null; error: string | null } {
+  if (language === undefined || language === null) {
+    return { normalizedLanguage: null, error: null };
+  }
+
+  if (typeof language !== 'string') {
+    return {
+      normalizedLanguage: null,
+      error: 'Invalid language format. Language must be a string or null.',
+    };
+  }
+
+  const canonicalLanguage = canonicalizeLocale(language);
+  if (!canonicalLanguage) {
+    return {
+      normalizedLanguage: null,
+      error:
+        'Invalid language format. Use a valid ISO 639/BCP-47 language code (e.g., "en").',
+    };
+  }
+
+  const normalizedLanguageLocale = normalizeLocale(canonicalLanguage);
+  if (!normalizedLanguageLocale) {
+    return {
+      normalizedLanguage: null,
+      error: `Unsupported language "${canonicalLanguage}".`,
+    };
+  }
+
+  const normalizedLanguage = toLanguageCode(normalizedLanguageLocale);
+  return { normalizedLanguage, error: null };
+}
+
+function validateLocale(
+  locale: unknown,
+): { normalizedLocale: string | null; error: string | null } {
+  if (locale === undefined) {
+    return { normalizedLocale: null, error: null };
+  }
+
+  if (typeof locale !== 'string') {
+    return {
+      normalizedLocale: null,
+      error: 'Invalid locale format. Locale must be a string if provided.',
+    };
+  }
+
+  const canonicalLocale = canonicalizeLocale(locale);
+  if (!canonicalLocale) {
+    return {
+      normalizedLocale: null,
+      error:
+        'Invalid locale format. Use a valid BCP-47 locale (e.g., "en-US").',
+    };
+  }
+
+  const normalizedLocale = normalizeLocale(canonicalLocale);
+  if (!normalizedLocale) {
+    return {
+      normalizedLocale: null,
+      error: `Unsupported locale "${canonicalLocale}".`,
+    };
+  }
+
+  return { normalizedLocale, error: null };
+}
+
 // Cleanup old entries periodically
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   requestCounts.forEach((record, ip) => {
     if (now > record.resetAt) {
@@ -42,6 +133,8 @@ setInterval(() => {
     }
   });
 }, 60 * 1000);
+
+(cleanupInterval as ReturnType<typeof setInterval> & { unref?: () => void }).unref?.();
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { text, voice } = body as { text?: string; voice?: string };
+    const { text, voice, language, locale } = body as VoiceDemoRequestBody;
 
     // Validate voice
     if (!voice || !VALID_VOICES.includes(voice as Voice)) {
@@ -79,6 +172,31 @@ export async function POST(request: NextRequest) {
         { error: `Text must be ${MAX_TEXT_LENGTH} characters or less` },
         { status: 400 }
       );
+    }
+
+    const { normalizedLanguage, error: languageError } = validateLanguage(
+      language,
+    );
+    if (languageError) {
+      return NextResponse.json({ error: languageError }, { status: 400 });
+    }
+
+    const { normalizedLocale, error: localeError } = validateLocale(locale);
+    if (localeError) {
+      return NextResponse.json({ error: localeError }, { status: 400 });
+    }
+
+    if (normalizedLanguage && normalizedLocale) {
+      const normalizedLocaleLanguage = toLanguageCode(normalizedLocale);
+      if (normalizedLocaleLanguage !== normalizedLanguage) {
+        return NextResponse.json(
+          {
+            error:
+              'Locale language does not match the requested language. Use matching values (e.g., "en" + "en-US").',
+          },
+          { status: 400 },
+        );
+      }
     }
 
     // Sanitize text (basic XSS prevention)
@@ -110,6 +228,8 @@ export async function POST(request: NextRequest) {
         message: 'Voice demo coming soon! The xAI TTS API is not yet available.',
         requestedVoice: voice,
         requestedText: sanitizedText,
+        requestedLanguage: normalizedLanguage,
+        requestedLocale: normalizedLocale,
       },
       { status: 503 }
     );

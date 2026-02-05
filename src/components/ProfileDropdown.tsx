@@ -40,6 +40,7 @@ const ProfileDropdown: React.FCC<{
 }> = ({ userSession, signOutRequested, displayName, className, accountName }) => {
   const { data: user } = useUser();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const signedInAsLabel = useMemo(() => {
     const email = userSession?.auth?.user.email || undefined;
@@ -62,6 +63,7 @@ const ProfileDropdown: React.FCC<{
   return (
     <>
       <DropdownMenu
+        open={isMenuOpen}
         onOpenChange={(open) => {
           if (
             open &&
@@ -69,6 +71,8 @@ const ProfileDropdown: React.FCC<{
             !window.matchMedia('(min-width: 640px)').matches
           ) {
             setIsSheetOpen(true);
+          } else {
+            setIsMenuOpen(open);
           }
         }}
       >
@@ -215,47 +219,47 @@ const ProfileDropdown: React.FCC<{
             <Link
               href={configuration.paths.appHome}
               onClick={() => setIsSheetOpen(false)}
-              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+              className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
             >
-              <Squares2X2Icon className="h-[22px] w-[22px] text-primary" />
-              <span className="text-[14.5px] text-foreground">Home</span>
+              <Squares2X2Icon className="h-6 w-6 text-primary" />
+              <span className="text-foreground">Home</span>
             </Link>
 
             <Link
               href={`${configuration.paths.appPrefix}/${configuration.paths.settings.profile}`}
               onClick={() => setIsSheetOpen(false)}
-              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+              className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
             >
-              <UserIcon className="h-[22px] w-[22px] text-primary" />
-              <span className="text-[14.5px] text-foreground">Profile Settings</span>
+              <UserIcon className="h-6 w-6 text-primary" />
+              <span className="text-foreground">Profile</span>
             </Link>
 
             <Link
               href={`${configuration.paths.appPrefix}/${configuration.paths.settings.subscription}`}
               onClick={() => setIsSheetOpen(false)}
-              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+              className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
             >
-              <CreditCardIcon className="h-[22px] w-[22px] text-primary" />
-              <span className="text-[14.5px] text-foreground">Subscription Settings</span>
+              <CreditCardIcon className="h-6 w-6 text-primary" />
+              <span className="text-foreground">Subscription</span>
             </Link>
 
             {isSuperAdmin && (
               <Link
                 href="/admin"
                 onClick={() => setIsSheetOpen(false)}
-                className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+                className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
               >
-                <BuildingLibraryIcon className="h-[22px] w-[22px] text-primary" />
-                <span className="text-[14.5px] text-foreground">Admin</span>
+                <BuildingLibraryIcon className="h-6 w-6 text-primary" />
+                <span className="text-foreground">Admin</span>
               </Link>
             )}
 
             <button
               onClick={handleSignOut}
-              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+              className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
             >
-              <ArrowLeftOnRectangleIcon className="h-[22px] w-[22px] text-primary" />
-              <span className="text-[14.5px] text-foreground">Sign Out</span>
+              <ArrowLeftOnRectangleIcon className="h-6 w-6 text-primary" />
+              <span className="text-foreground">Sign Out</span>
             </button>
           </div>
         </DialogContent>

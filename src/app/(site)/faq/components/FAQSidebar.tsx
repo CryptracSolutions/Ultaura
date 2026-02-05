@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface FAQSidebarProps {
@@ -17,8 +17,22 @@ export function FAQSidebar({
   variant = 'desktop',
 }: FAQSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const activeCategory = categories.find((cat) => cat.id === activeId);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   const handleCategoryClick = (id: string) => {
     setIsOpen(false);
@@ -27,7 +41,7 @@ export function FAQSidebar({
 
   if (variant === 'mobile') {
     return (
-      <div className="relative z-40">
+      <div ref={dropdownRef} className="relative z-10">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
@@ -40,7 +54,7 @@ export function FAQSidebar({
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
             {categories.map((category) => {
               const isActive = category.id === activeId;
               return (

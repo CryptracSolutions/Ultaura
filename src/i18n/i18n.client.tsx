@@ -5,6 +5,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 
 import getI18nSettings, { I18N_COOKIE_NAME } from './i18n.settings';
 import resourcesToBackend from 'i18next-resources-to-backend';
+import { loadTranslationNamespace } from './translation-loader';
 
 let promise: Promise<i18n>;
 
@@ -19,9 +20,9 @@ function initializeI18nClient(lng?: Maybe<string>, ns?: string[]) {
     return i18next
       .use(initReactI18next)
       .use(
-        resourcesToBackend((language: string, namespace: string) => {
-          return import(`../../public/locales/${language}/${namespace}.json`);
-        }),
+        resourcesToBackend((language: string, namespace: string) =>
+          loadTranslationNamespace(language, namespace),
+        ),
       )
       .use(LanguageDetector)
       .init(

@@ -104,7 +104,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   return (
     <div
       className={classNames(
-        'fixed top-0 right-0 h-screen h-[100dvh] w-full lg:w-[350px] bg-sidebar border-l border-border shadow-xl z-50 overflow-hidden',
+        'fixed inset-0 lg:inset-auto lg:top-0 lg:right-0 lg:bottom-0 w-full lg:w-[350px] bg-sidebar border-l border-border shadow-xl z-50 overflow-hidden',
         'transform transition-transform duration-300 ease-in-out',
         {
           'translate-x-0': isOpen,
@@ -134,7 +134,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
         {/* Messages */}
         <div
           ref={scrollingDiv}
-          className="flex-1 overflow-y-auto p-4 space-y-4 bg-card overscroll-contain"
+          className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 bg-card overscroll-contain"
           style={{
             backgroundImage:
               'linear-gradient(180deg, rgba(10, 186, 181, 0.18) 0%, rgba(10, 186, 181, 0) 85%)',
@@ -150,7 +150,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
         </div>
 
         {/* Input Card */}
-        <div className="p-4 bg-card">
+        <div className="shrink-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] bg-card">
           <form onSubmit={onSubmit}>
             <div
               className="relative flex items-end bg-card rounded-xl border border-input shadow-sm transition-colors focus-within:!border-primary"

@@ -114,7 +114,7 @@ const MobileAppNavigation = () => {
         className="p-1 -ml-1"
         aria-label="Open menu"
       >
-        <Bars3Icon className="h-8 w-8" />
+        <Bars3Icon className="h-9 w-9" />
       </button>
 
       {/* Full Screen Menu */}
@@ -132,40 +132,40 @@ const MobileAppNavigation = () => {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <Logo
               href="/"
-              className="h-8"
+              className="h-10"
               label="Home"
               showWordmark
-              wordmarkClassName="text-xl font-semibold leading-none text-primary"
+              wordmarkClassName="text-2xl font-semibold leading-none text-primary"
             />
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setQuickActionsOpen(true)}
-                className="p-1.5 hover:bg-muted rounded-md transition-colors"
+                className="p-2 hover:bg-muted rounded-md transition-colors"
                 aria-label="Quick Actions"
               >
-                <PlusIcon className="h-5 w-5" />
+                <PlusIcon className="h-6 w-6" />
               </button>
               <button
                 onClick={openMobile}
-                className="p-1.5 hover:bg-muted rounded-md transition-colors"
+                className="p-2 hover:bg-muted rounded-md transition-colors"
                 aria-label="Search"
                 aria-haspopup="dialog"
                 aria-expanded={isMobileOpen}
               >
-                <MagnifyingGlassIcon className="h-5 w-5" />
+                <MagnifyingGlassIcon className="h-6 w-6" />
               </button>
               <button
                 onClick={closeMenu}
-                className="p-1.5 hover:bg-muted rounded-md transition-colors"
+                className="p-2 hover:bg-muted rounded-md transition-colors"
                 aria-label="Close menu"
               >
-                <XMarkIcon className="h-5 w-5" />
+                <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
           </div>
 
           {/* Menu Content */}
-          <div className="overflow-y-auto h-[calc(100vh-57px)]">
+          <div className="overflow-y-auto h-[calc(100dvh-57px)]">
             {/* Navigation Groups */}
             {navGroups.map((group) => (
               <MenuSection key={group.label} label={group.label}>
@@ -280,10 +280,10 @@ function MenuLink({
     <Link
       href={path}
       onClick={onClick}
-      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
     >
-      <Icon className="h-[22px] w-[22px] text-primary" />
-      <span className="text-[14.5px] text-foreground">
+      <Icon className="h-6 w-6 text-primary" />
+      <span className="text-foreground">
         <Trans i18nKey={label} defaults={label} />
       </span>
     </Link>
@@ -302,10 +302,10 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
     >
-      <Icon className="h-[22px] w-[22px] text-primary" />
-      <span className="text-[14.5px] text-foreground">{label}</span>
+      <Icon className="h-6 w-6 text-primary" />
+      <span className="text-foreground">{label}</span>
     </button>
   );
 }
@@ -321,10 +321,10 @@ function SignOutButton({ onSignOut }: { onSignOut: () => void }) {
   return (
     <button
       onClick={handleSignOut}
-      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
     >
-      <ArrowLeftOnRectangleIcon className="h-[22px] w-[22px] text-primary" />
-      <span className="text-[14.5px] text-foreground">
+      <ArrowLeftOnRectangleIcon className="h-6 w-6 text-primary" />
+      <span className="text-foreground">
         <Trans i18nKey="common:signOut" defaults="Sign out" />
       </span>
     </button>
@@ -340,7 +340,7 @@ function MenuSection({
 }) {
   return (
     <div className="py-2">
-      <div className="px-[14px] py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       {children}
