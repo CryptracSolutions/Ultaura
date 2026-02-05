@@ -27,7 +27,7 @@ const navLinks = [
   { label: 'Documentation', path: '/docs', Icon: BookOpenIcon },
   { label: 'Demo', path: '/demo', Icon: PlayCircleIcon },
   { label: 'Pricing', path: '/pricing', Icon: CurrencyDollarIcon },
-  { label: 'About', path: '/about', Icon: InformationCircleIcon },
+  { label: 'Vision', path: '/vision', Icon: InformationCircleIcon },
   { label: 'FAQ', path: '/faq', Icon: QuestionMarkCircleIcon },
 ];
 
@@ -42,7 +42,7 @@ const links = {
   Docs: { label: 'Documentation', path: '/docs' },
   Demo: { label: 'Demo', path: '/demo' },
   Pricing: { label: 'Pricing', path: '/pricing' },
-  About: { label: 'About', path: '/about' },
+  Vision: { label: 'Vision', path: '/vision' },
   FAQ: { label: 'FAQ', path: '/faq' },
 };
 
@@ -57,7 +57,7 @@ const SiteNavigation = () => {
           <NavigationMenuItem className={className} link={links.Docs} />
           <NavigationMenuItem className={className} link={links.Demo} />
           <NavigationMenuItem className={className} link={links.Pricing} />
-          <NavigationMenuItem className={className} link={links.About} />
+          <NavigationMenuItem className={className} link={links.Vision} />
           <NavigationMenuItem className={className} link={links.FAQ} />
         </NavigationMenu>
       </div>

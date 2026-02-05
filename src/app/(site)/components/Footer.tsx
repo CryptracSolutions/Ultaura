@@ -71,7 +71,7 @@ function Footer() {
 
                 <FooterSectionList>
                   <FooterLink>
-                    <Link href={'/about'}>About Us</Link>
+                    <Link href={'/vision'}>Our Vision</Link>
                   </FooterLink>
                   <FooterLink>
                     <Link href={'/blog'}>Blog</Link>
