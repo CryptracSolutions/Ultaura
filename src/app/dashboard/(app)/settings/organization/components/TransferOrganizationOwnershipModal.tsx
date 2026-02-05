@@ -5,10 +5,7 @@ import { useCallback, useState, useTransition } from 'react';
 import Trans from '~/core/ui/Trans';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 import { transferOrganizationOwnershipAction } from '~/lib/organizations/actions';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
@@ -94,30 +91,29 @@ function TransferOrganizationOwnershipForm({
       </p>
 
       <div className="flex gap-3 pt-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="small"
           onClick={() => setIsOpen(false)}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
           disabled={pending}
         >
           <Trans i18nKey={'common:cancel'} />
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="submit"
+          variant="destructive"
+          size="small"
           data-cy={'confirm-transfer-ownership-button'}
-          disabled={pending}
-          className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+          loading={pending}
         >
           {pending ? (
-            <>
-              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-              <Trans i18nKey={'organization:transferringOwnership'} />
-            </>
+            <Trans i18nKey={'organization:transferringOwnership'} />
           ) : (
             <Trans i18nKey={'organization:transferOwnership'} />
           )}
-        </button>
+        </Button>
       </div>
     </form>
   );

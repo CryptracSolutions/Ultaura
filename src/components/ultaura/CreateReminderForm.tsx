@@ -8,10 +8,9 @@ import { Checkbox } from '~/core/ui/Checkbox';
 import { DatePicker } from '~/core/ui/DatePicker';
 import { TimePicker } from '~/core/ui/TimePicker';
 import { createReminder } from '~/lib/ultaura/reminders';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
+import Textarea from '~/core/ui/Textarea';
+import TextField from '~/core/ui/TextField';
 
 export interface CreateReminderFormProps {
   lineId: string;
@@ -137,17 +136,17 @@ export function CreateReminderForm({
             >
               Reminder Message
             </label>
-            <textarea
+            <Textarea
               ref={messageTextareaRef}
               data-autofocus
               id="reminder-message"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
               placeholder="e.g., Time to take your afternoon medication"
               rows={3}
               maxLength={500}
               disabled={isSubmitting}
-              className="w-full px-3 py-2 min-h-[44px] rounded-lg border border-input bg-background text-base sm:text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
+              className="resize-none"
             />
             <p className="text-xs text-muted-foreground mt-1">{message.length}/500 characters</p>
           </div>
@@ -215,14 +214,14 @@ export function CreateReminderForm({
                 {frequency === 'custom' && (
                   <div>
                     <label className="block text-sm font-medium mb-2">Every how many days?</label>
-                    <input
+                    <TextField.Input
                       type="number"
                       min={1}
                       max={365}
                       value={interval}
                       onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
                       disabled={isSubmitting}
-                      className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
+                      className="w-24"
                     />
                   </div>
                 )}
@@ -262,14 +261,14 @@ export function CreateReminderForm({
                     <label className="block text-sm font-medium mb-2">
                       On which day of the month?
                     </label>
-                    <input
+                    <TextField.Input
                       type="number"
                       min={1}
                       max={31}
                       value={dayOfMonth}
                       onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
                       disabled={isSubmitting}
-                      className="w-24 px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
+                      className="w-24"
                     />
                   </div>
                 )}
@@ -300,29 +299,25 @@ export function CreateReminderForm({
             )}
           </div>
 
-        <div className="flex gap-3 pt-4">
-          <button
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
+          <Button
             type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
             onClick={onCancel}
             disabled={isSubmitting}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             Discard changes
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="default"
+            className="w-full sm:w-auto"
             disabled={isSubmitting || !message.trim() || !date || !time}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            loading={isSubmitting}
           >
-            {isSubmitting ? (
-              <>
-                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Saving...
-              </>
-            ) : (
-              'Save Reminder'
-            )}
-          </button>
+            {isSubmitting ? 'Saving...' : 'Save Reminder'}
+          </Button>
         </div>
       </form>
     </>

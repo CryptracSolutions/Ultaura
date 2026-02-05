@@ -16,13 +16,8 @@ import Alert from '~/core/ui/Alert';
 import If from '~/core/ui/If';
 import Modal from '~/core/ui/Modal';
 import Badge from '~/core/ui/Badge';
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import useSupabase from '~/core/hooks/use-supabase';
 import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
@@ -146,9 +141,9 @@ function SetupMfaButton(
 ) {
   return (
     <div>
-      <button onClick={props.onClick} className={COMPACT_PRIMARY_BUTTON_CLASS}>
+      <Button variant="default" onClick={props.onClick}>
         <Trans i18nKey={'profile:setupMfaButtonLabel'} />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -191,30 +186,24 @@ function ConfirmUnenrollFactorModal(
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={() => props.setIsModalOpen(false)}
             disabled={unEnroll.isMutating}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <Trans i18nKey={'common:cancel'} />
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="destructive"
             type="button"
             onClick={() => onUnenrollRequested(props.factorId)}
             disabled={unEnroll.isMutating}
-            className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+            loading={unEnroll.isMutating}
           >
-            {unEnroll.isMutating ? (
-              <>
-                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
-              </>
-            ) : (
-              <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
-            )}
-          </button>
+            <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
+          </Button>
         </div>
       </div>
     </Modal>
@@ -272,9 +261,13 @@ function FactorsTable({
             <TableCell className={'flex justify-end'}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <IconButton onClick={() => setUnenrolling(factor.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setUnenrolling(factor.id)}
+                  >
                     <XMarkIcon className={'h-4'} />
-                  </IconButton>
+                  </Button>
                 </TooltipTrigger>
 
                 <TooltipContent>

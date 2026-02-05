@@ -12,6 +12,7 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 import If from '~/core/ui/If';
+import Textarea from '~/core/ui/Textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import configuration from '~/configuration';
 
@@ -154,7 +155,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
             <div
               className="relative flex items-end bg-card rounded-xl border border-input shadow-sm transition-colors focus-within:!border-primary"
             >
-              <textarea
+              <Textarea
                 ref={textareaRef}
                 disabled={isLoading}
                 autoComplete="off"
@@ -162,17 +163,9 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                onInput={(e) => {
-                  const target = e.currentTarget;
-                  target.style.height = 'auto';
-                  target.style.height = `${target.scrollHeight}px`;
-                }}
+                autoResize
                 name="message"
-                className={classNames(
-                  'w-full px-4 py-2 pr-12 outline-none focus-visible:!outline-none resize-none text-base sm:text-sm bg-transparent rounded-xl leading-6',
-                  'text-foreground placeholder:text-foreground',
-                  'min-h-[44px] max-h-48 overflow-y-auto'
-                )}
+                className="w-full px-4 py-2 pr-12 resize-none bg-transparent rounded-xl leading-6 text-foreground placeholder:text-foreground max-h-48 overflow-y-auto border-0"
                 placeholder="Ask a question..."
                 rows={1}
               />
@@ -180,10 +173,10 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               <button
                 disabled={isLoading}
                 type="submit"
-                className="absolute right-2 bottom-2 min-h-[44px] min-w-[44px] rounded-lg bg-primary/10 hover:bg-primary/20 disabled:opacity-50 transition-colors touch-manipulation flex items-center justify-center"
+                className="absolute right-3 bottom-1/2 translate-y-1/2 h-8 w-8 rounded-md text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors touch-manipulation flex items-center justify-center"
                 aria-label="Send message"
               >
-                <PaperAirplaneIcon className="h-4 w-4 text-primary" />
+                <PaperAirplaneIcon className="h-4 w-4" />
               </button>
             </div>
           </form>

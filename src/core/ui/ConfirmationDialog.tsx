@@ -8,12 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '~/core/ui/Dialog';
-import {
-  modalDestructiveButtonClass,
-  modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+import Button from '~/core/ui/Button';
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -73,45 +68,34 @@ export function ConfirmationDialog({
               {description}
             </DialogDescription>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleCancel}
             disabled={isLoading}
-            className={modalIconButtonClass + ' disabled:opacity-50'}
             aria-label="Close"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
             onClick={handleCancel}
             disabled={isLoading}
-            className={modalSecondaryButtonClass}
           >
             {cancelLabel}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={variant === 'destructive' ? 'destructive' : 'default'}
+            className="w-full sm:w-auto"
             onClick={handleConfirm}
-            disabled={isLoading}
-            className={
-              variant === 'destructive'
-                ? modalDestructiveButtonClass
-                : modalPrimaryButtonClass
-            }
+            loading={isLoading}
           >
-            {isLoading ? (
-              <>
-                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                {confirmLabel}
-              </>
-            ) : (
-              confirmLabel
-            )}
-          </button>
+            {confirmLabel}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

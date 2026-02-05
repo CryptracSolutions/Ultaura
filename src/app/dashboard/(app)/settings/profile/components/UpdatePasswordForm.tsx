@@ -17,10 +17,7 @@ import Trans from '~/core/ui/Trans';
 import configuration from '~/configuration';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 const UpdatePasswordForm = ({ user }: { user: User }) => {
   const { t } = useTranslation();
@@ -185,27 +182,23 @@ const UpdatePasswordForm = ({ user }: { user: User }) => {
 
         <div>
           <div className={'flex flex-col gap-3 md:flex-row'}>
-            <button
+            <Button
               type={'button'}
-              className={COMPACT_OUTLINE_BUTTON_CLASS}
+              variant={'outline'}
+              size={'small'}
               onClick={resetForm}
               disabled={!hasChanges || isMutating}
             >
               Discard changes
-            </button>
-            <button
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+            </Button>
+            <Button
+              variant={'default'}
+              size={'small'}
               disabled={!hasChanges || isMutating}
+              loading={isMutating}
             >
-              {isMutating ? (
-                <>
-                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
-                </>
-              ) : (
-                <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
-              )}
-            </button>
+              <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
+            </Button>
           </div>
         </div>
       </div>

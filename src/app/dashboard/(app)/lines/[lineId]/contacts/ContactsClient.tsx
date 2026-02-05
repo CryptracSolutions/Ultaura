@@ -8,9 +8,7 @@ import { Checkbox } from '~/core/ui/Checkbox';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
-import {
-  modalIconButtonClass,
-} from '~/core/ui/modal-button-classes';
+import Button from '~/core/ui/Button';
 import { Phone, Trash2, Plus, X } from 'lucide-react';
 import {
   getTrustedContacts,
@@ -19,11 +17,6 @@ import {
 } from '~/lib/ultaura/contacts';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import { toast } from 'sonner';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 interface TrustedContact {
   id: string;
@@ -151,14 +144,16 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
             Learn more →
           </a>
         </p>
-        <button
+        <Button
           onClick={() => setIsAdding(true)}
           disabled={disabled}
-          className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+          variant="default"
+          size="sm"
+          className="sm:w-auto"
         >
           <Plus className="h-3 w-3" />
           Add Contact
-        </button>
+        </Button>
       </div>
 
       <Dialog
@@ -180,14 +175,15 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 Trusted contacts receive SMS alerts when Ultaura detects distress.
               </DialogDescription>
             </div>
-            <button
+            <Button
               type="button"
               onClick={resetAddForm}
-              className={modalIconButtonClass}
+              variant="ghost"
+              size="icon"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           <form onSubmit={handleAddContact} className="space-y-4">
@@ -253,28 +249,24 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
               </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="button"
                 onClick={resetAddForm}
-                className={COMPACT_OUTLINE_BUTTON_CLASS}
+                variant="outline"
+                size="sm"
                 disabled={isSubmitting}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={!consentAcknowledged || isSubmitting}
-                className={COMPACT_PRIMARY_BUTTON_CLASS}
+                variant="default"
+                size="sm"
+                loading={isSubmitting}
               >
-                {isSubmitting ? (
-                  <>
-                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving
-                  </>
-                ) : (
-                  'Add Contact'
-                )}
-              </button>
+                {isSubmitting ? 'Saving' : 'Add Contact'}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -296,15 +288,16 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                   </p>
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => handleRemoveContact(contact.id)}
                 disabled={disabled}
                 aria-label={`Remove ${contact.name}`}
-                className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+                variant="destructive"
+                size="icon"
               >
                 <Trash2 className="h-5 w-5" />
-              </button>
+              </Button>
             </CardContent>
           </Card>
         ))}

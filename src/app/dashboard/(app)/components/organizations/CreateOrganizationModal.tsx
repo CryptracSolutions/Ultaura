@@ -7,14 +7,8 @@ import TextField from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
 import If from '~/core/ui/If';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import Button from '~/core/ui/Button';
 import { X } from 'lucide-react';
-import {
-  modalIconButtonClass,
-} from '~/core/ui/modal-button-classes';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import { createNewOrganizationAction } from '~/lib/organizations/actions';
 
@@ -37,14 +31,15 @@ const CreateOrganizationModal: React.FC<{
               Create a new workspace for billing and team access.
             </DialogDescription>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setIsOpen(false)}
-            className={modalIconButtonClass}
             aria-label="Close"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         <CreateOrganizationForm setIsOpen={setIsOpen} />
@@ -99,13 +94,13 @@ function CreateOrganizationForm({
         </TextField>
 
         <div className="flex gap-3 pt-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => setIsOpen(false)}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <Trans i18nKey={'common:cancel'} />
-          </button>
+          </Button>
 
           <SubmitButton />
         </div>
@@ -118,20 +113,13 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button
+    <Button
       data-cy={'confirm-create-organization-button'}
       type="submit"
-      disabled={pending}
-      className={COMPACT_PRIMARY_BUTTON_CLASS}
+      variant="default"
+      loading={pending}
     >
-      {pending ? (
-        <>
-          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <Trans i18nKey={'organization:createOrganizationSubmitLabel'} />
-        </>
-      ) : (
-        <Trans i18nKey={'organization:createOrganizationSubmitLabel'} />
-      )}
-    </button>
+      <Trans i18nKey={'organization:createOrganizationSubmitLabel'} />
+    </Button>
   );
 }

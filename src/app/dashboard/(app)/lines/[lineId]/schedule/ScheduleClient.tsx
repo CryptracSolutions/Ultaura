@@ -18,11 +18,8 @@ import { createScheduleException, deleteScheduleException } from '~/lib/ultaura/
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
 import { extractOriginalTimeOfDay, normalizeTimeOfDay } from '~/lib/ultaura/schedule-helpers';
 import { CreateScheduleForm } from '~/components/ultaura/CreateScheduleForm';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
+import Button from '~/core/ui/Button';
 
 interface ScheduleClientProps {
   line: LineRow;
@@ -638,13 +635,15 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         </div>
 
         {!disabled && (
-          <button
+          <Button
             onClick={() => setShowCreateModal(true)}
-            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+            variant="default"
+            size="small"
+            className="w-full sm:w-auto gap-1"
           >
             <Plus className="w-3 h-3" />
             New Schedule
-          </button>
+          </Button>
         )}
       </div>
 
@@ -703,54 +702,35 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                      {!disabled && (
-                        <>
-                          <Link
-                            href={`/dashboard/lines/${line.short_id}/schedule?edit=${schedule.id}`}
-                            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            title="Edit schedule"
-                          >
-                            <Edit2 className="w-5 h-5" />
-                          </Link>
-
-                          <button
-                            onClick={() => handleToggleEnabled(schedule)}
-                            disabled={isToggling}
-                            className={`p-2 rounded-lg text-muted-foreground transition-colors disabled:opacity-50 ${
-                              schedule.enabled
-                                ? 'hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-                                : 'hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
-                            }`}
-                            title={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
-                          >
-                            {isToggling ? (
-                              <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                            ) : schedule.enabled ? (
-                              <Pause className="w-5 h-5" />
-                            ) : (
-                              <Play className="w-5 h-5" />
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => {
+                    {!disabled && (
+                      <ResponsiveActionMenu
+                        title={`${days || 'Custom days'} at ${timeLabel}`}
+                        disabled={isToggling || isDeleting}
+                        actions={[
+                          {
+                            label: 'Edit',
+                            icon: <Edit2 className="w-5 h-5" />,
+                            onClick: () => {
+                              window.location.href = `/dashboard/lines/${line.short_id}/schedule?edit=${schedule.id}`;
+                            },
+                          },
+                          {
+                            label: schedule.enabled ? 'Pause' : 'Resume',
+                            icon: schedule.enabled ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />,
+                            onClick: () => handleToggleEnabled(schedule),
+                          },
+                          {
+                            label: 'Delete',
+                            icon: <Trash2 className="w-5 h-5" />,
+                            onClick: () => {
                               setScheduleToDelete(schedule.id);
-                              toast.message('Confirm delete schedule');
-                            }}
-                            disabled={isDeleting}
-                            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                            title="Delete schedule"
-                          >
-                            {isDeleting ? (
-                              <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                            ) : (
-                              <Trash2 className="w-5 h-5" />
-                            )}
-                          </button>
-                        </>
-                      )}
-                    </div>
+                            },
+                            variant: 'destructive' as const,
+                            separator: true,
+                          },
+                        ]}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -826,13 +806,15 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="font-semibold text-lg">Schedule exceptions</h2>
           {!disabled && (
-            <button
+            <Button
               onClick={openExceptionModal}
-              className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+              variant="default"
+              size="small"
+              className="w-full sm:w-auto gap-1"
             >
               <Plus className="w-3 h-3" />
               New exception
-            </button>
+            </Button>
           )}
         </div>
 
@@ -867,13 +849,15 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
                     </div>
                   </div>
                   {!disabled && (
-                    <button
+                    <Button
                       onClick={() => setExceptionToDelete(exception)}
-                      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+                      variant="destructive"
+                      size="small"
+                      className="w-full gap-1"
                     >
                       <Trash2 className="w-3 h-3" />
                       Remove
-                    </button>
+                    </Button>
                   )}
                 </div>
               );
@@ -892,13 +876,15 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
             Create a schedule for regular check-in calls. Times are in {line.timezone}.
           </p>
           {!disabled && (
-            <button
+            <Button
               onClick={() => setShowCreateModal(true)}
-              className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+              variant="default"
+              size="small"
+              className="w-full sm:w-auto gap-1"
             >
               <Plus className="w-3 h-3" />
               Create First Schedule
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -1025,35 +1011,26 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="button"
                 onClick={discardEditChanges}
                 disabled={disabled || isEditLoading || isEditSaving}
-                className={COMPACT_OUTLINE_BUTTON_CLASS}
+                variant="outline"
+                size="small"
+                block
               >
                 Discard changes
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={disabled || isEditLoading || isEditSaving || editSelectedDays.length === 0}
-                className={COMPACT_PRIMARY_BUTTON_CLASS}
+                variant="default"
+                size="small"
+                block
+                loading={isEditLoading || isEditSaving}
               >
-                <span className="inline-flex w-full items-center justify-center gap-2">
-                  {isEditLoading ? (
-                    <>
-                      <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Loading...
-                    </>
-                  ) : isEditSaving ? (
-                    <>
-                      <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Changes'
-                  )}
-                </span>
-              </button>
+                {isEditLoading ? 'Loading...' : isEditSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -1202,28 +1179,26 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
             )}
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="button"
                 onClick={discardExceptionChanges}
-                className={COMPACT_OUTLINE_BUTTON_CLASS}
+                variant="outline"
+                size="small"
+                block
                 disabled={exceptionLoading}
               >
                 Discard changes
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={exceptionLoading}
-                className={COMPACT_PRIMARY_BUTTON_CLASS}
+                variant="default"
+                size="small"
+                block
+                loading={exceptionLoading}
               >
-                {exceptionLoading ? (
-                  <>
-                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Exception'
-                )}
-              </button>
+                {exceptionLoading ? 'Saving...' : 'Save Exception'}
+              </Button>
             </div>
           </form>
         </DialogContent>

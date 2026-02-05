@@ -17,11 +17,6 @@ import Button from '~/core/ui/Button';
 import Textarea from '~/core/ui/Textarea';
 import If from '~/core/ui/If';
 import TextField, { TextFieldHint, TextFieldInput } from '~/core/ui/TextField';
-import {
-  modalIconButtonClass,
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
 
 enum FeedbackType {
   Bug = 'bug',
@@ -43,13 +38,14 @@ export function MobileFeedbackModal({ isOpen, onClose }: MobileFeedbackModalProp
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-lg font-semibold">Send Feedback</h2>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className={modalIconButtonClass}
             aria-label="Close"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -247,32 +243,30 @@ function SubmitButtons({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex gap-3 pt-4">
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={onClose}
         disabled={pending}
-        className={modalSecondaryButtonClass}
       >
         Cancel
-      </button>
+      </Button>
 
-      <button
+      <Button
         type="submit"
+        variant="default"
         disabled={pending}
-        className={modalPrimaryButtonClass}
+        loading={pending}
       >
         {pending ? (
-          <>
-            <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Sending
-          </>
+          'Sending'
         ) : (
           <span className="flex space-x-1 items-center">
             <span>Send</span>
             <ChevronRightIcon className="h-4" />
           </span>
         )}
-      </button>
+      </Button>
     </div>
   );
 }

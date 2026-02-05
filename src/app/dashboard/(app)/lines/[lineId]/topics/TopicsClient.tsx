@@ -7,13 +7,7 @@ import { Pencil, Plus, X } from 'lucide-react';
 import { updateLine } from '~/lib/ultaura/lines';
 import type { LineRow, UserType } from '~/lib/ultaura/types';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
-import {
-  modalIconButtonClass,
-} from '~/core/ui/modal-button-classes';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 import {
   TopicPreferencesForm,
   INTEREST_TOPIC_OPTIONS,
@@ -126,10 +120,12 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
               : 'Topics Ultaura uses to personalize your conversations. You can update these during calls.'}
           </p>
           {canEdit ? (
-            <button
+            <Button
+              variant="default"
+              size="sm"
               onClick={handleOpenEdit}
               disabled={disabled}
-              className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+              className="sm:w-auto"
             >
               {hasAnyTopics ? (
                 <Pencil className="h-3 w-3" />
@@ -137,7 +133,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
                 <Plus className="h-3 w-3" />
               )}
               {hasAnyTopics ? 'Edit Topics' : 'Add Topics'}
-            </button>
+            </Button>
           ) : null}
         </div>
 
@@ -207,15 +203,16 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
                 Update conversation topics for {line.display_name}.
               </DialogDescription>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               type="button"
               onClick={handleCloseEdit}
               disabled={isSaving}
-              className={modalIconButtonClass}
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           <TopicPreferencesForm
@@ -229,29 +226,25 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
           />
 
           <div className="flex gap-3 pt-4">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               type="button"
               onClick={handleCloseEdit}
               disabled={isSaving}
-              className={COMPACT_OUTLINE_BUTTON_CLASS}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
               type="button"
               onClick={handleSave}
               disabled={isSaving || !hasChanges}
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+              loading={isSaving}
             >
-              {isSaving ? (
-                <>
-                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </button>
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

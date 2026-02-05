@@ -9,7 +9,7 @@ import { PageBody } from '~/core/ui/Page';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
-import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 export const metadata: Metadata = {
   title: 'Calls - Ultaura',
@@ -42,12 +42,9 @@ export default async function CallsPage() {
             <p className="text-muted-foreground mb-6">
               Set up phone companionship with Ultaura. Start with a 3-day free trial.
             </p>
-            <a
-              href="/dashboard/settings/subscription"
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
-            >
+            <Button variant="default" href="/dashboard/settings/subscription">
               Start 3-day free trial
-            </a>
+            </Button>
           </div>
         </PageBody>
       </>

@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
 import { DateTime } from 'luxon';
 import AppHeader from '../../../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
@@ -12,7 +11,7 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { InsightsPageHeader } from '../components/InsightsPageHeader';
 import { MoodTabContent } from '../components/MoodTabContent';
-import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 import { computeTierAccess } from '../components/tier-utils';
 import { loadInsightsPageData } from '../loader';
 
@@ -40,12 +39,9 @@ export default async function InsightsMoodPage({ params }: PageProps) {
             <p className="text-muted-foreground mb-6">
               Start a 3-day free trial to unlock insights and weekly summaries.
             </p>
-            <Link
-              href="/dashboard/settings/subscription"
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
-            >
+            <Button variant="default" href="/dashboard/settings/subscription">
               Start 3-day free trial
-            </Link>
+            </Button>
           </div>
         </PageBody>
       </>

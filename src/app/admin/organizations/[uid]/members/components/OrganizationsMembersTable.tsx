@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '~/core/ui/Dropdown';
 
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 
 type Data = {
   id: Membership['id'];
@@ -73,10 +73,10 @@ const columns: ColumnDef<Data>[] = [
         <div className={'flex'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <IconButton>
+              <Button variant="ghost" size="icon">
                 <span className="sr-only">Open menu</span>
                 <EllipsisHorizontalIcon className="h-4 w-4" />
-              </IconButton>
+              </Button>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end">

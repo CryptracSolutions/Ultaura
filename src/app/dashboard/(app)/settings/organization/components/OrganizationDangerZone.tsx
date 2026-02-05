@@ -6,10 +6,7 @@ import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
 import Heading from '~/core/ui/Heading';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 import {
   TextFieldHint,
@@ -70,13 +67,14 @@ function DeleteOrganizationContainer() {
         <Modal
           heading={<Trans i18nKey={'organization:deletingOrganization'} />}
           Trigger={
-            <button
+            <Button
               data-cy={'delete-organization-button'}
               type={'button'}
-              className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+              variant="destructive"
+              size="small"
             >
               <Trans i18nKey={'organization:deleteOrganization'} />
-            </button>
+            </Button>
           }
         >
           <If condition={organization}>
@@ -147,21 +145,16 @@ function DeleteOrganizationSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button
+    <Button
       data-cy={'confirm-delete-organization-button'}
       type="submit"
       disabled={pending}
-      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+      loading={pending}
+      variant="destructive"
+      size="small"
     >
-      {pending ? (
-        <>
-          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <Trans i18nKey={'organization:deleteOrganization'} />
-        </>
-      ) : (
-        <Trans i18nKey={'organization:deleteOrganization'} />
-      )}
-    </button>
+      <Trans i18nKey={'organization:deleteOrganization'} />
+    </Button>
   );
 }
 
@@ -191,13 +184,14 @@ function LeaveOrganizationContainer() {
             <Trans i18nKey={'organization:leavingOrganizationModalHeading'} />
           }
           Trigger={
-            <button
+            <Button
               data-cy={'leave-organization-button'}
               type={'button'}
-              className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+              variant="destructive"
+              size="small"
             >
               <Trans i18nKey={'organization:leaveOrganization'} />
-            </button>
+            </Button>
           }
         >
           <ErrorBoundary fallback={<LeaveOrganizationErrorAlert />}>
@@ -230,21 +224,16 @@ function LeaveOrganizationSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button
+    <Button
       data-cy={'confirm-leave-organization-button'}
       type="submit"
       disabled={pending}
-      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+      loading={pending}
+      variant="destructive"
+      size="small"
     >
-      {pending ? (
-        <>
-          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <Trans i18nKey={'organization:leaveOrganization'} />
-        </>
-      ) : (
-        <Trans i18nKey={'organization:leaveOrganization'} />
-      )}
-    </button>
+      <Trans i18nKey={'organization:leaveOrganization'} />
+    </Button>
   );
 }
 
@@ -276,13 +265,9 @@ function DeleteOrganizationActions() {
   return (
     <div className="flex gap-3 pt-2">
       <DialogPrimitiveClose asChild>
-        <button
-          type="button"
-          disabled={pending}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
-        >
+        <Button type="button" disabled={pending} variant="outline" size="small">
           <Trans i18nKey={'common:cancel'} />
-        </button>
+        </Button>
       </DialogPrimitiveClose>
 
       <DeleteOrganizationSubmitButton />
@@ -296,13 +281,9 @@ function LeaveOrganizationActions() {
   return (
     <div className="flex gap-3 pt-2">
       <DialogPrimitiveClose asChild>
-        <button
-          type="button"
-          disabled={pending}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
-        >
+        <Button type="button" disabled={pending} variant="outline" size="small">
           <Trans i18nKey={'common:cancel'} />
-        </button>
+        </Button>
       </DialogPrimitiveClose>
 
       <LeaveOrganizationSubmitButton />

@@ -1,7 +1,6 @@
 'use client';
 
 import type { User } from '@supabase/supabase-js';
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { UserPlusIcon } from '@heroicons/react/24/outline';
 
@@ -19,7 +18,7 @@ import ProfileAvatar from '~/components/ProfileAvatar';
 import useUserId from '~/core/hooks/use-user-id';
 import useUserCanInviteUsers from '~/lib/organizations/hooks/use-user-can-invite-users';
 import { useTranslation } from 'react-i18next';
-import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 function OrganizationMembersList({
   members,
@@ -149,16 +148,18 @@ function InviteMembersLinkButton(
   }
 
   return (
-    <Link
+    <Button
       data-cy={'invite-form-link'}
       href={props.href}
-      className={COMPACT_PRIMARY_BUTTON_CLASS}
+      variant="default"
+      size="small"
+      className="gap-1 rounded-sm"
     >
       <UserPlusIcon className="h-3 w-3" />
 
       <span>
         <Trans i18nKey={'organization:inviteMembersButtonLabel'} />
       </span>
-    </Link>
+    </Button>
   );
 }

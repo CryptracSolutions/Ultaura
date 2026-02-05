@@ -13,7 +13,7 @@ import { getUpcomingScheduledCalls } from '~/lib/ultaura/schedules';
 import { getUpcomingReminders } from '~/lib/ultaura/reminders';
 import { getLineActivity, getUsageSummary } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
-import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -102,12 +102,9 @@ async function DashboardPage() {
                 call activity in one place.
               </p>
               <div className="mt-4">
-                <Link
-                  href="/dashboard/settings/subscription"
-                  className={COMPACT_PRIMARY_BUTTON_CLASS}
-                >
+                <Button variant="default" href="/dashboard/settings/subscription">
                   Start 3-day free trial
-                </Link>
+                </Button>
               </div>
             </div>
           </div>
@@ -322,24 +319,15 @@ async function DashboardPage() {
             <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col justify-center flex-1">
                 <div className="grid gap-2">
-                  <Link
-                    href="/dashboard/calls"
-                    className={COMPACT_PRIMARY_BUTTON_CLASS}
-                  >
+                  <Button variant="default" href="/dashboard/calls">
                     View call schedules
-                  </Link>
-                  <Link
-                    href="/dashboard/reminders"
-                    className={COMPACT_PRIMARY_BUTTON_CLASS}
-                  >
+                  </Button>
+                  <Button variant="default" href="/dashboard/reminders">
                     View reminders
-                  </Link>
-                  <Link
-                    href="/dashboard/lines"
-                    className={COMPACT_PRIMARY_BUTTON_CLASS}
-                  >
+                  </Button>
+                  <Button variant="default" href="/dashboard/lines">
                     View lines
-                  </Link>
+                  </Button>
                 </div>
               </div>
             </div>

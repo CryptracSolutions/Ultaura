@@ -7,10 +7,7 @@ import { Clock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { createSchedule } from '~/lib/ultaura/schedules';
 import { DAYS_OF_WEEK, TIME_OPTIONS, formatTime } from '~/lib/ultaura/constants';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 export interface CreateScheduleFormProps {
   lineId: string;
@@ -228,29 +225,27 @@ export function CreateScheduleForm({
               )}
             </p>
           </div>
-        <div className="flex gap-3 pt-4">
-          <button
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
+          <Button
             type="button"
+            variant="outline"
+            size="small"
+            className="w-full sm:w-auto"
             onClick={onCancel}
             disabled={isLoading}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             Discard changes
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            disabled={isLoading || selectedDays.length === 0}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            variant="default"
+            size="small"
+            className="w-full sm:w-auto"
+            disabled={selectedDays.length === 0}
+            loading={isLoading}
           >
-            {isLoading ? (
-              <>
-                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Saving...
-              </>
-            ) : (
-              'Save Schedule'
-            )}
-          </button>
+            {isLoading ? 'Saving...' : 'Save Schedule'}
+          </Button>
         </div>
       </form>
     </>

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '~/core/ui/Dropdown';
 
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import configuration from '~/configuration';
 
 type Response = Awaited<ReturnType<typeof getOrganizations>>;
@@ -132,10 +132,10 @@ const columns: Array<ColumnDef<Organizations[0]>> = [
         <div className={'flex justify-end'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <IconButton>
+              <Button variant="ghost" size="icon">
                 <span className="sr-only">Open menu</span>
                 <EllipsisHorizontalIcon className="h-4 w-4" />
-              </IconButton>
+              </Button>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end">

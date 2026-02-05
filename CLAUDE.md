@@ -38,11 +38,86 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 When using the Task tool to spawn agents, always use `model: "opus"` for all agent types including:
 - Explore
 - Plan
+- Task
 - code-simplifier
 - feature-dev agents
 - Any other subagent types
 
 This ensures thorough analysis and higher quality reasoning for all automated tasks.
+
+## Workflow Preferences
+
+### Task Sizing & Confirmation
+
+Before starting work, Claude should:
+1. **Auto-detect task size** based on scope:
+   - **Small**: 1-2 files, single concern, < 3 steps
+   - **Medium**: 3-10 files, multiple concerns, 3-10 steps
+   - **Large**: 10+ files, architectural changes, 10+ steps
+2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Should I proceed with [workflow level]?"
+
+### Delegation-First Approach
+
+**Act as a coordinator, not an implementer.** For medium/large tasks:
+1. Use `AskUserQuestion` to interview and clarify requirements (scale depth with task size)
+2. Launch parallel **Explore agents** to audit/understand the codebase (max 3)
+3. Create a **TodoWrite task list** for any work with 3+ steps
+4. Dispatch parallel **general-purpose agents** to implement (max 4 at a time)
+5. Track progress and resolve blockers
+6. Run verification (TypeScript, visual, tests)
+
+### Agent Limits
+
+- **Explore agents**: Max 4 in parallel (for auditing/understanding)
+- **Implementation agents**: Max 4 in parallel (to avoid conflicts)
+
+### Interview Scaling
+
+| Task Size | Interview Depth |
+|-----------|-----------------|
+| Small | 0-1 questions (proceed if clear) |
+| Medium | 1-2 clarifying questions |
+| Large | 3-5 detailed questions to nail down full scope |
+
+Use `AskUserQuestion` proactively when:
+- Requirements are ambiguous
+- Multiple valid approaches exist
+- User preferences would affect implementation
+- Scope could expand unexpectedly
+
+### Chrome Visual Verification
+
+For **any UI/UX changes**, use Chrome MCP for visual verification (when made available by the user):
+- **Batch checkpoints**: After every 3-5 files, visually verify changes
+- **Before/after awareness**: Note current state before changes
+- **Mobile check**: Always verify at 375px viewport (seniors use tablets/phones)
+- **Interactive states**: Verify hover, focus, loading, error states
+
+Skip Chrome for:
+- Backend-only changes
+- Non-visual config changes
+- Database migrations
+
+### Task Tracking (TodoWrite)
+
+Create a task list for **any work with 3+ steps**:
+- Group related tasks together
+- Mark tasks in_progress when starting
+- Mark tasks completed when done
+- Use for progress visibility and coordination
+
+### Skip Elaborate Workflow For
+
+These tasks should proceed directly without the full workflow:
+- **Typos and one-liners**: Obvious fixes, single line changes
+- **"Quick" tasks**: When user says "quick fix", "just do X", "simple change"
+- **Non-code work**: Pure documentation, config files, questions
+- **Explicit bypass**: When user says "skip the workflow" or "just do it"
+
+For skipped tasks, still:
+- Auto-invoke relevant skills
+- Verify TypeScript compiles
+- Use Chrome if it's a visible UI change
 
 ### Lessons Learned
 
@@ -88,21 +163,24 @@ Automatically use the Skill tool to invoke these skills when the context matches
 | `pricing-strategy` | Pricing decisions, packaging, monetization |
 | `page-cro` | Optimizing page conversions, CRO analysis |
 | `skill-creator` | Creating new skills for Claude Code or Codex |
+| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
 
 ### Plan Mode Guidance
 
 Use plan mode (`/plan` or EnterPlanMode) for:
+- Medium/Large tasks (4+ files, architectural changes)
 - New features touching multiple services (dashboard + telephony + database)
 - Database schema changes or new migrations
 - Changes to the call flow or Grok tool handlers
-- New API endpoints that span Next.js and telephony
-- Refactoring that affects more than 3 files
+- When user explicitly requests planning first
 
 Skip plan mode for:
+- Small/medium tasks (use delegation workflow instead)
 - Single-file bug fixes
-- UI-only changes within existing components
+- UI-only changes (use /ultaura-ui skill + Chrome)
 - Adding new server actions following existing patterns
 - Documentation updates
+- When user says "just do it" or "skip planning"
 
 ## Architecture
 

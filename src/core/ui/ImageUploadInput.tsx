@@ -16,7 +16,7 @@ import { CloudArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 import Label from '~/core/ui/Label';
 import If from '~/core/ui/If';
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import classNames from 'clsx';
 
 type Props = Omit<React.InputHTMLAttributes<unknown>, 'value'> & {
@@ -201,9 +201,14 @@ const ImageUploadInput = forwardRef<React.ElementRef<'input'>, Props>(
           </If>
 
           <If condition={state.image}>
-            <IconButton className={'!h-5 !w-5'} onClick={imageRemoved}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="!h-5 !w-5"
+              onClick={imageRemoved}
+            >
               <XMarkIcon className="h-4" />
-            </IconButton>
+            </Button>
           </If>
         </div>
       </label>

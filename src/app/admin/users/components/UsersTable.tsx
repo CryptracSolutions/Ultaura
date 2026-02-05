@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '~/core/ui/Dropdown';
 
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import If from '~/core/ui/If';
 
@@ -153,10 +153,10 @@ const columns: Array<ColumnDef<UserRow>> = [
         <div className={'flex justify-end'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <IconButton>
+              <Button variant="ghost" size="icon">
                 <span className="sr-only">Open menu</span>
                 <EllipsisHorizontalIcon className="h-4 w-4" />
-              </IconButton>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '~/core/ui/Popover';
+import TextField from '~/core/ui/TextField';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { SearchPanel } from '~/components/SearchCommandPalette';
 
@@ -78,14 +79,14 @@ const SearchTrigger = () => {
     <Popover open={isDesktopOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <div ref={triggerRef} className="relative flex h-8 w-full max-w-sm items-center">
-          <input
+          <TextField.Input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background pl-10 pr-12 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
+            className="h-8 min-h-[32px] pl-10 pr-12 shadow-sm"
             aria-label="Search"
             role="combobox"
             aria-haspopup="listbox"

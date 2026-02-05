@@ -3,11 +3,8 @@
 import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import classNames from 'clsx';
-import {
-  modalIconButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
 
+import Button from '~/core/ui/Button';
 import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
 
@@ -67,9 +64,9 @@ const Modal: React.FC<Props> & {
 
             <If condition={useCloseButton}>
               <DialogPrimitiveClose asChild>
-                <button
-                  type="button"
-                  className={modalIconButtonClass}
+                <Button
+                  variant="ghost"
+                  size="icon"
                   aria-label="Close"
                   onClick={() => {
                     if (isControlled && props.setIsOpen) {
@@ -78,7 +75,7 @@ const Modal: React.FC<Props> & {
                   }}
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </Button>
               </DialogPrimitiveClose>
             </If>
           </div>
@@ -98,14 +95,14 @@ function CancelButton<Props extends React.ButtonHTMLAttributes<unknown>>(
   const { className, ...rest } = props;
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
       data-cy={'close-modal-button'}
-      className={classNames(modalSecondaryButtonClass, className)}
+      className={className}
       {...rest}
     >
       <Trans i18nKey={'common:cancel'} />
-    </button>
+    </Button>
   );
 }
 

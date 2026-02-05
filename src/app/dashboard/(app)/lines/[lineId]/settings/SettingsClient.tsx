@@ -49,10 +49,8 @@ import { VacationSettings } from './VacationSettings';
 import { getLanguageDisplayName } from '~/lib/ultaura/language';
 import { DEFAULT_GROK_VOICE, type GrokVoice, isGrokVoice } from '~/lib/ultaura/voices';
 import { VoiceSelector } from './components/VoiceSelector';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
+import TextField from '~/core/ui/TextField';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -1081,13 +1079,12 @@ export function SettingsClient({
                               <label className="text-xs text-muted-foreground block mb-1">
                                 Pause reason (optional)
                               </label>
-                              <input
+                              <TextField.Input
                                 type="text"
                                 value={pausedReason}
                                 onChange={(e) => setPausedReason(e.target.value)}
                                 placeholder="e.g., Traveling this week"
                                 disabled={disabled}
-                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
                               />
                             </div>
                           )}
@@ -1288,7 +1285,7 @@ export function SettingsClient({
                       <label className="text-xs text-muted-foreground block mb-1">
                         Speech Rate
                       </label>
-                      <input
+                      <TextField.Input
                         type="number"
                         min={0.7}
                         max={1.3}
@@ -1301,7 +1298,6 @@ export function SettingsClient({
                           }
                         }}
                         disabled={disabled}
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
                       />
                       <p className="text-xs text-muted-foreground mt-1">1.0 is normal pace.</p>
                     </div>
@@ -1310,7 +1306,7 @@ export function SettingsClient({
                       <label className="text-xs text-muted-foreground block mb-1">
                         Context Window (calls)
                       </label>
-                      <input
+                      <TextField.Input
                         type="number"
                         min={1}
                         max={20}
@@ -1323,7 +1319,6 @@ export function SettingsClient({
                           }
                         }}
                         disabled={disabled}
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         How many recent calls Ultaura can reference.
@@ -1349,29 +1344,25 @@ export function SettingsClient({
       {actionsContainer
         ? createPortal(
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={resetFormState}
                 disabled={disabled || isLoading || !hasSaveableChanges}
-                className={`${COMPACT_OUTLINE_BUTTON_CLASS} sm:w-auto`}
+                className="sm:w-auto"
               >
                 Discard changes
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                variant="default"
                 form="line-settings-form"
                 disabled={disabled || isLoading || !hasSaveableChanges}
-                className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+                loading={isLoading}
+                className="sm:w-auto"
               >
-                {isLoading ? (
-                  <>
-                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </button>
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>,
             actionsContainer,
           )

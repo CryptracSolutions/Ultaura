@@ -17,11 +17,7 @@ import useSupabase from '~/core/hooks/use-supabase';
 import configuration from '~/configuration';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 interface UpdatePhoneNumberFormProps {
   session: UserSession;
@@ -124,27 +120,23 @@ function UpdatePhoneNumberForm({
         </TextField>
 
         <div className={'flex flex-col gap-3 md:flex-row'}>
-          <button
+          <Button
             type={'button'}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
+            variant="outline"
+            size="small"
             onClick={resetForm}
             disabled={!hasChanges || isMutating}
           >
             Discard changes
-          </button>
-          <button
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+          </Button>
+          <Button
+            variant="default"
+            size="small"
             disabled={!hasChanges || isMutating}
+            loading={isMutating}
           >
-            {isMutating ? (
-              <>
-                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                <Trans i18nKey={'profile:updatePhoneNumber'} />
-              </>
-            ) : (
-              <Trans i18nKey={'profile:updatePhoneNumber'} />
-            )}
-          </button>
+            <Trans i18nKey={'profile:updatePhoneNumber'} />
+          </Button>
         </div>
       </div>
     </form>
@@ -177,15 +169,16 @@ function RemovePhoneNumberButton({
 
   return (
     <>
-      <button
+      <Button
         type={'button'}
+        variant="outline"
+        size="small"
         onClick={() => setIsModalOpen(true)}
-        className={COMPACT_OUTLINE_BUTTON_CLASS}
       >
         <span className={'text-xs font-normal'}>
           <Trans i18nKey={'profile:removePhoneNumber'} />
         </span>
-      </button>
+      </Button>
 
       <Modal
         heading={<Trans i18nKey={'profile:removePhoneNumber'} />}
@@ -204,30 +197,26 @@ function RemovePhoneNumberButton({
           <AuthErrorMessage error={error} />
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="small"
               onClick={() => setIsModalOpen(false)}
               disabled={isMutating}
-              className={COMPACT_OUTLINE_BUTTON_CLASS}
             >
               <Trans i18nKey={'common:cancel'} />
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="small"
               onClick={onUnlinkPhoneNumber}
               disabled={isMutating}
-              className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+              loading={isMutating}
             >
-              {isMutating ? (
-                <>
-                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
-                </>
-              ) : (
-                <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
-              )}
-            </button>
+              <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
+            </Button>
           </div>
         </div>
       </Modal>

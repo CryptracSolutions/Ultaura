@@ -15,13 +15,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from '~/core/ui/Dialog';
-import {
-  modalIconButtonClass,
-} from '~/core/ui/modal-button-classes';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
+import TextField from '~/core/ui/TextField';
 import {
   Select,
   SelectTrigger,
@@ -223,14 +218,15 @@ export function AddLineModal({
                   : 'Add topics, sharing preferences, and required consent.'}
               </DialogDescription>
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={discardAndClose}
-              className={modalIconButtonClass}
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           {error && (
@@ -247,12 +243,11 @@ export function AddLineModal({
                     <label className="block text-sm font-medium text-foreground">
                       Display Name
                     </label>
-                    <input
+                    <TextField.Input
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder={isSelfUser ? 'e.g., My phone' : 'e.g., Mom, Dad, Carmen'}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
                       required
                     />
                     <p className="text-xs text-muted-foreground">
@@ -447,15 +442,16 @@ export function AddLineModal({
             <div className="flex gap-3 pt-2">
               {step === 1 ? (
                 <>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={discardAndClose}
-                    className={COMPACT_OUTLINE_BUTTON_CLASS}
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="default"
                     onClick={() => {
                       const phoneValidationError = getUsPhoneValidationError(phoneNumber, { required: true });
                       if (phoneValidationError) {
@@ -465,34 +461,27 @@ export function AddLineModal({
                       setStep(2);
                     }}
                     disabled={!displayName || !phoneNumber || !!phoneError}
-                    className={COMPACT_PRIMARY_BUTTON_CLASS}
                   >
                     Continue
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => setStep(1)}
-                    className={COMPACT_OUTLINE_BUTTON_CLASS}
                   >
                     Back
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="default"
                     disabled={isLoading || !disclosure || !consent || !isVendorAcknowledged}
-                    className={COMPACT_PRIMARY_BUTTON_CLASS}
+                    loading={isLoading}
                   >
-                    {isLoading ? (
-                      <>
-                        <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        Creating
-                      </>
-                    ) : (
-                      'Add Line'
-                    )}
-                  </button>
+                    {isLoading ? 'Creating' : 'Add Line'}
+                  </Button>
                 </>
               )}
             </div>

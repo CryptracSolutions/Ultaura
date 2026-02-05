@@ -37,7 +37,7 @@ import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
 import Logo from '~/core/ui/Logo';
 import { useSearch } from '~/lib/contexts/SearchContext';
-import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/core/ui/Dialog';
 
 const MobileAppNavigation = () => {
   const currentOrganization = useCurrentOrganization();
@@ -228,9 +228,11 @@ const MobileAppNavigation = () => {
 
       <Dialog open={quickActionsOpen} onOpenChange={setQuickActionsOpen}>
         <DialogContent className="z-[60] p-0" overlayClassName="z-[60]" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold">
-            Quick Actions
-          </DialogTitle>
+          <DialogHeader className="px-5 pt-5 pb-2">
+            <DialogTitle className="text-base font-semibold">
+              Quick Actions
+            </DialogTitle>
+          </DialogHeader>
           <div className="pb-2">
             <MenuButton
               Icon={BellIcon}

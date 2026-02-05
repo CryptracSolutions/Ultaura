@@ -3,7 +3,7 @@
 import { ArrowUpRightIcon } from '@heroicons/react/24/outline';
 
 import { createBillingPortalSessionAction } from '~/lib/stripe/actions';
-import { COMPACT_OUTLINE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 const BillingPortalRedirectButton: React.FCC<{
   customerId: string;
@@ -13,19 +13,15 @@ const BillingPortalRedirectButton: React.FCC<{
     <form action={createBillingPortalSessionAction}>
       <input type={'hidden'} name={'customerId'} value={customerId} />
 
-      <button
+      <Button
         data-cy={'manage-billing-redirect-button'}
         type="submit"
-        className={[COMPACT_OUTLINE_BUTTON_CLASS, className]
-          .filter(Boolean)
-          .join(' ')}
+        variant="outline"
+        className={className}
       >
-        <span className={'flex items-center space-x-2'}>
-          <span>{children}</span>
-
-          <ArrowUpRightIcon className={'h-3 w-3'} />
-        </span>
-      </button>
+        <span>{children}</span>
+        <ArrowUpRightIcon className={'h-3 w-3 ml-2'} />
+      </Button>
     </form>
   );
 };

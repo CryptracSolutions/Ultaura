@@ -7,13 +7,7 @@ import type { LineRow } from '~/lib/ultaura/types';
 import type { VacationRange } from '~/lib/ultaura/vacation-utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import {
-  modalIconButtonClass,
-} from '~/core/ui/modal-button-classes';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 import { DatePicker } from '~/core/ui/DatePicker';
 
 export function VacationSettings({
@@ -215,14 +209,14 @@ export function VacationSettings({
             </>
           )}
           {!disabled ? (
-            <button
+            <Button
               type="button"
+              variant="default"
               onClick={openAddModal}
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
             >
               <Plus className="w-3 h-3" />
               {pastVacations.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : (
@@ -318,14 +312,15 @@ export function VacationSettings({
                 Pause all scheduled calls during this period.
               </DialogDescription>
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={attemptCloseVacation}
-              className={modalIconButtonClass}
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           {error && (
@@ -349,20 +344,20 @@ export function VacationSettings({
                 </p>
               </div>
               <div className="flex gap-3 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={handleAddAnother}
-                  className={COMPACT_OUTLINE_BUTTON_CLASS}
                 >
                   Add another
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="default"
                   onClick={closeModal}
-                  className={COMPACT_PRIMARY_BUTTON_CLASS}
                 >
                   Done
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -398,20 +393,20 @@ export function VacationSettings({
               <p className="text-xs text-muted-foreground">Dates are based on {line.timezone}.</p>
 
               <div className="flex gap-3 pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={attemptCloseVacation}
-                  className={COMPACT_OUTLINE_BUTTON_CLASS}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="default"
                   disabled={disabled}
-                  className={COMPACT_PRIMARY_BUTTON_CLASS}
                 >
                   Add Vacation
-                </button>
+                </Button>
               </div>
             </form>
           )}

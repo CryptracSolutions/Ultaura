@@ -8,13 +8,7 @@ import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { LineRow, NotificationPreferencesRow } from '~/lib/ultaura/types';
 import { updateNotificationPreferences } from '~/lib/ultaura/insights';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
-import {
-  modalIconButtonClass,
-} from '~/core/ui/modal-button-classes';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 import { useRouter } from 'next/navigation';
 
 interface AlertSettingsEntry {
@@ -255,15 +249,16 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
                 Configure which wellness alerts to receive.
               </DialogDescription>
             </div>
-            <button
+            <Button
               type="button"
               onClick={attemptClose}
               disabled={isSaving}
-              className={modalIconButtonClass}
+              variant="ghost"
+              size="icon"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           {error && (
@@ -344,28 +339,22 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="button"
                 onClick={attemptClose}
                 disabled={isSaving}
-                className={COMPACT_OUTLINE_BUTTON_CLASS}
+                variant="outline"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={isSaving}
-                className={COMPACT_PRIMARY_BUTTON_CLASS}
+                variant="default"
+                loading={isSaving}
               >
-                {isSaving ? (
-                  <>
-                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving
-                  </>
-                ) : (
-                  'Save changes'
-                )}
-              </button>
+                {isSaving ? 'Saving' : 'Save changes'}
+              </Button>
             </div>
           </form>
         </DialogContent>

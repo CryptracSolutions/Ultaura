@@ -11,10 +11,7 @@ import TextField from '~/core/ui/TextField';
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
 import VerificationCodeInput from '~/app/auth/components/VerificationCodeInput';
@@ -103,14 +100,15 @@ function MultiFactorAuthSetupForm({
           <Trans i18nKey={'profile:multiFactorSetupError'} />
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="small"
           onClick={onCancel}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
           disabled={state.loading}
         >
           <Trans i18nKey={'common:cancel'} />
-        </button>
+        </Button>
       </div>
     );
   }
@@ -145,29 +143,29 @@ function MultiFactorAuthSetupForm({
             </TextField.Label>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="small"
                 onClick={onCancel}
                 disabled={state.loading}
-                className={COMPACT_OUTLINE_BUTTON_CLASS}
               >
                 <Trans i18nKey={'common:cancel'} />
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="submit"
+                variant="default"
+                size="small"
                 disabled={!verificationCode || state.loading}
-                className={COMPACT_PRIMARY_BUTTON_CLASS}
+                loading={state.loading}
               >
                 {state.loading ? (
-                  <>
-                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    <Trans i18nKey={'profile:verifyingCode'} />
-                  </>
+                  <Trans i18nKey={'profile:verifyingCode'} />
                 ) : (
                   <Trans i18nKey={'profile:enableMfaFactor'} />
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </form>
@@ -229,13 +227,14 @@ function FactorQrCode({
           <Trans i18nKey={'profile:qrCodeError'} />
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="small"
           onClick={onCancel}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
         >
           <Trans i18nKey={'common:cancel'} />
-        </button>
+        </Button>
       </div>
     );
   }
@@ -298,20 +297,22 @@ function FactorNameForm(
         </TextField.Label>
 
         <div className="flex gap-3 pt-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="small"
             onClick={props.onCancel}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <Trans i18nKey={'common:cancel'} />
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="submit"
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
+            variant="default"
+            size="small"
           >
             <Trans i18nKey={'profile:factorNameSubmitLabel'} />
-          </button>
+          </Button>
         </div>
       </div>
     </form>

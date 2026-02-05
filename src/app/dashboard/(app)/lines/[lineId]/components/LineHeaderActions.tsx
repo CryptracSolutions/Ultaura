@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Phone, PhoneCall, Play } from 'lucide-react';
+import { AlertTriangle, Phone } from 'lucide-react';
 import type { ActionError } from '@ultaura/schemas';
 import type { LineRow, UsageSummary } from '~/lib/ultaura/types';
 import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
@@ -11,10 +11,7 @@ import PhoneInput from '~/components/ultaura/PhoneInput';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import Modal from '~/core/ui/Modal';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 interface LineHeaderActionsProps {
   line: LineRow;
@@ -198,27 +195,29 @@ export function LineHeaderActions({
     <>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
         {isFamilyManaged && (
-          <button
+          <Button
             onClick={() => openManualCall({ preselectedLineId: line.id })}
             disabled={isReadOnly}
-            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+            variant="default"
+            size="small"
+            className="w-full sm:w-auto"
           >
-            <PhoneCall className="w-3 h-3" />
-            Manual Call
-          </button>
+            Place Call
+          </Button>
         )}
-        <button
+        <Button
           onClick={() => {
             setIsTestCallModalOpen(true);
             setTestCallError(null);
             setAlternatePhoneError(null);
           }}
           disabled={isReadOnly}
-          className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+          variant="default"
+          size="small"
+          className="w-full sm:w-auto"
         >
-          <Play className="w-3 h-3" />
           Test Call
-        </button>
+        </Button>
       </div>
 
       <Modal
@@ -336,24 +335,28 @@ export function LineHeaderActions({
             </p>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-            <button
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button
               type="button"
               onClick={() => setIsTestCallModalOpen(false)}
-              className={COMPACT_OUTLINE_BUTTON_CLASS}
+              variant="outline"
+              size="small"
+              className="w-full sm:w-auto"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={handleTestCall}
               disabled={isTestCalling || cooldownSeconds > 0 || isReadOnly}
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+              variant="default"
+              size="small"
+              className="w-full sm:w-auto"
             >
               {cooldownSeconds > 0
                 ? `Try again in ${cooldownSeconds}s`
                 : (isTestCalling ? 'Calling...' : 'Start test call')}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>

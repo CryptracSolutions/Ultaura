@@ -6,10 +6,7 @@ import type { User } from '@supabase/supabase-js';
 
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
-import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+import Button from '~/core/ui/Button';
 
 import { impersonateUser } from '~/app/admin/users/@modal/[uid]/actions.server';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
@@ -99,30 +96,23 @@ function ImpersonateUserConfirmationModal({
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="button"
               onClick={onDismiss}
               disabled={pending}
-              className={modalSecondaryButtonClass}
+              variant="outline"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
               onClick={onConfirm}
-              disabled={pending}
-              className={modalDestructiveButtonClass}
+              loading={pending}
+              variant="destructive"
             >
-              {pending ? (
-                <>
-                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Impersonating
-                </>
-              ) : (
-                'Yes, let\'s do it'
-              )}
-            </button>
+              {pending ? 'Impersonating' : "Yes, let's do it"}
+            </Button>
           </div>
         </div>
       </If>

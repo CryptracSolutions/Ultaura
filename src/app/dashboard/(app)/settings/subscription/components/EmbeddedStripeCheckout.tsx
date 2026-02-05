@@ -17,11 +17,10 @@ import { StripeCheckoutDisplayMode } from '~/lib/stripe/types';
 import configuration from '~/configuration';
 
 import { Dialog, DialogContent } from '~/core/ui/Dialog';
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import If from '~/core/ui/If';
 import LogoImage from '~/core/ui/Logo/LogoImage';
 import Trans from '~/core/ui/Trans';
-import { COMPACT_OUTLINE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
@@ -101,25 +100,27 @@ function EmbeddedCheckoutPopup({
             <div className={'flex justify-between items-center'}>
               <LogoImage />
 
-              <button onClick={close} className={COMPACT_OUTLINE_BUTTON_CLASS}>
+              <Button onClick={close} variant="outline">
                 <Trans i18nKey={'common:cancel'} />
-              </button>
+              </Button>
             </div>
           </div>
         </If>
 
         <If condition={isPopup}>
           <DialogPrimitiveClose asChild>
-            <IconButton
-              className={'absolute top-2 right-4 flex items-center'}
-              label={'Close Checkout'}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={'absolute top-2 right-4'}
+              aria-label={'Close Checkout'}
               onClick={close}
             >
               <XMarkIcon className={'h-6 text-gray-900'} />
               <span className="sr-only">
                 <Trans i18nKey={'common:cancel'} />
               </span>
-            </IconButton>
+            </Button>
           </DialogPrimitiveClose>
         </If>
 

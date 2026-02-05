@@ -23,6 +23,7 @@ import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '~/core/ui/Dropdown';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
+import Button from '~/core/ui/Button';
 
 interface LineCardProps {
   line: LineRow;
@@ -201,9 +202,9 @@ export function LineCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                    <button className="p-2 rounded-md hover:bg-muted transition-colors pointer-events-auto">
+                    <Button variant="ghost" size="icon" className="pointer-events-auto">
                       <MoreVertical className="w-5 h-5 text-primary" />
-                    </button>
+                    </Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
                 <TooltipContent sideOffset={20}>Menu</TooltipContent>

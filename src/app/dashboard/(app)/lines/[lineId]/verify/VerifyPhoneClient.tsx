@@ -2,13 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { ShieldCheck, MessageSquare, Phone, ArrowLeft, CheckCircle } from 'lucide-react';
 import { startPhoneVerification, checkPhoneVerification } from '~/lib/ultaura/verification';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 interface VerifyPhoneClientProps {
   lineId: string;
@@ -49,12 +45,12 @@ export function VerifyPhoneClient({
           Subscribe to verify this phone number and continue using Ultaura.
         </p>
         <div className="mt-6">
-          <Link
+          <Button
+            variant="default"
             href="/dashboard/settings/subscription"
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             Choose a Plan
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -163,14 +159,14 @@ export function VerifyPhoneClient({
     return (
       <div className="max-w-md w-full mx-auto">
         <div className="mb-6">
-          <button
+          <Button
+            variant="outline"
             onClick={() => setStep('choose')}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
             aria-label="Go back to channel selection"
           >
             <ArrowLeft className="w-3 h-3" />
             <span>Back</span>
-          </button>
+          </Button>
         </div>
 
         <div className="text-center mb-8">
@@ -206,32 +202,27 @@ export function VerifyPhoneClient({
           ))}
         </div>
 
-        <button
+        <Button
+          variant="default"
+          block
           onClick={() => handleVerify(code.join(''))}
-          disabled={isLoading || code.some((d) => !d)}
-          className={COMPACT_PRIMARY_BUTTON_CLASS}
+          disabled={code.some((d) => !d)}
+          loading={isLoading}
         >
-          {isLoading ? (
-            <>
-              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Verifying...
-            </>
-          ) : (
-            'Verify'
-          )}
-        </button>
+          {isLoading ? 'Verifying...' : 'Verify'}
+        </Button>
 
         <p className="text-center text-sm text-muted-foreground mt-4">
           Didn&apos;t receive a code?
         </p>
         <div className="mt-2 flex justify-center">
-          <button
+          <Button
+            variant="outline"
             onClick={handleResend}
             disabled={isLoading}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             Resend
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -258,22 +249,22 @@ export function VerifyPhoneClient({
 
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <button
+          <Button
+            variant="outline"
             onClick={() => handleSendCode('sms')}
             disabled={isLoading}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <MessageSquare className="w-3 h-3" />
             Text me
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => handleSendCode('call')}
             disabled={isLoading}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             <Phone className="w-3 h-3" />
             Call me
-          </button>
+          </Button>
         </div>
 
       </div>

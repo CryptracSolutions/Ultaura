@@ -13,7 +13,7 @@ import {
 import { cva, VariantProps } from 'cva';
 import classNames from 'clsx';
 
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import If from '~/core/ui/If';
 
 type Type = VariantProps<typeof alertClassNameBuilder>['type'];
@@ -57,12 +57,14 @@ const Alert: React.FCC<{
 
         <If condition={useCloseButton ?? false}>
           <div>
-            <IconButton
+            <Button
+              variant="ghost"
+              size="icon"
               className={'dark:hover:bg-transparent h-6 w-6'}
               onClick={() => setVisible(false)}
             >
               <XMarkIcon className={'h-5'} />
-            </IconButton>
+            </Button>
           </div>
         </If>
       </div>

@@ -16,10 +16,7 @@ import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 import configuration from '~/configuration';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
   const { t } = useTranslation();
@@ -146,27 +143,22 @@ const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
 
         <div>
           <div className={'flex flex-col gap-3 md:flex-row'}>
-            <button
+            <Button
               type={'button'}
-              className={COMPACT_OUTLINE_BUTTON_CLASS}
+              variant={'outline'}
               onClick={() => reset()}
               disabled={!hasChanges || updateUserMutation.isMutating}
             >
               Discard changes
-            </button>
-            <button
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+            </Button>
+            <Button
+              type={'submit'}
+              variant={'default'}
               disabled={!hasChanges || updateUserMutation.isMutating}
+              loading={updateUserMutation.isMutating}
             >
-              {updateUserMutation.isMutating ? (
-                <>
-                  <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
-                </>
-              ) : (
-                <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
-              )}
-            </button>
+              <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
+            </Button>
           </div>
         </div>
       </div>

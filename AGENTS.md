@@ -33,16 +33,94 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Accessibility Settings**: Hearing and cognitive support adaptations
 - **Privacy Center**: Consent management, data export, account deletion
 
-## Codex Multi-Agent Preferences
+## Codex Workflow Preferences
 
-Collaborating Agents Rules:
-- ALWAYS wait for all subagents to complete before yielding
+### Task Sizing (Auto-Detect)
+
+Before implementation, identify task size:
+- **Small**: 1-2 files, single concern, < 3 steps
+- **Medium**: 3-5 files, multiple concerns, 3-10 steps
+- **Large**: 6+ files, architectural changes, 10+ steps
+
+**First output should state**: "This is a [size] task involving [X files/areas]. Approach: [workflow level]."
+
+### Delegation-First Approach
+
+**Act as a coordinator, not an implementer.** For medium/large tasks:
+1. Launch parallel subagents to explore/understand the codebase (max 3)
+2. Identify existing patterns, utilities, and code to reuse
+3. Break work into parallelizable chunks
+4. Dispatch implementation subagents (max 4 at a time)
+5. Verify changes compile and tests pass
+6. Document any assumptions or questions in the PR description
+
+### Subagent Rules
+
+- **Exploration subagents**: Max 4 in parallel (for auditing/understanding)
+- **Implementation subagents**: Max 4 in parallel (to avoid conflicts)
+- **ALWAYS wait for all subagents to complete before yielding**
 
 Spawn subagents automatically when:
-- Planning to implement a user's requests and exploration of the codebase is required'
-- Parallelizable work (e.g., install + verify, npm test + typecheck, multiple tasks from plan)
-- Long-running or blocking tasks where a worker can run independently
-- Isolation for risky changes or checks
+- Exploration of the codebase is needed before planning
+- Work can be parallelized (e.g., multiple independent files)
+- Long-running tasks where workers can run independently
+- Isolation is needed for risky changes or verification
+
+### Handling Ambiguity (Use request_user_input)
+
+Use the `request_user_input` tool proactively when:
+- Requirements are ambiguous
+- Multiple valid approaches exist
+- User preferences would affect implementation
+- Scope could expand unexpectedly
+
+| Task Size | Question Depth |
+|-----------|----------------|
+| Small | 0-1 questions (proceed if clear) |
+| Medium | 1-2 clarifying questions |
+| Large | 3-5 detailed questions to nail down full scope |
+
+**Always document assumptions** in the PR description or commit messages so the user can correct if needed.
+
+### UI/UX Changes (No Visual Verification)
+
+Without Chrome MCP, for any UI changes:
+- **Follow existing patterns**: Match styling from similar components
+- **Mobile-first**: Seniors use tablets/phones - ensure responsive design
+- **Describe expected result**: In PR, describe what the UI should look like
+- **Test compilation**: Ensure TypeScript passes
+- **Reference designs**: If Figma/screenshots provided in task, follow them exactly
+
+### Verification Checklist
+
+Before completing any task, verify:
+- [ ] TypeScript compiles (`npm run typecheck` or `tsc --noEmit`)
+- [ ] Tests pass if they exist (`npm test`)
+- [ ] No obvious regressions in related functionality
+- [ ] Commit messages are clear and descriptive
+- [ ] PR description documents approach and any assumptions
+
+### Task Tracking (update_plan)
+
+Use the `update_plan` tool for **any work with 3+ steps**:
+- Create a task list before starting implementation
+- Group related tasks together
+- Mark tasks in_progress when starting
+- Mark tasks completed when done
+- Use for progress visibility and coordination
+
+### Skip Elaborate Workflow For
+
+Proceed directly without the full subagent workflow for:
+- **Typos and one-liners**: Obvious fixes, single line changes
+- **Simple bug fixes**: Clear cause, single file
+- **Documentation updates**: README, comments, ARCHITECTURE.md
+- **Config changes**: Environment, package.json, tsconfig
+
+For skipped tasks, still:
+- Verify TypeScript compiles
+- Run relevant tests
+- Write clear commit message
 
 ### Lessons Learned
 
@@ -70,20 +148,30 @@ Document mistakes and patterns here. After an agent makes an error, have it upda
 
 *Add new lessons as they're discovered.*
 
-### Planning Guidance
+### Plan Mode Guidance
 
-Plan thoroughly before implementing:
+Use Plan mode for:
+- **Large tasks** (6+ files, architectural changes)
 - New features touching multiple services (dashboard + telephony + database)
 - Database schema changes or new migrations
 - Changes to the call flow or Grok tool handlers
-- New API endpoints that span Next.js and telephony
-- Refactoring that affects more than 3 files
+- When user explicitly requests planning first
 
-Proceed directly for:
+Skip Plan mode for:
+- **Small/Medium tasks** (use delegation workflow instead)
 - Single-file bug fixes
-- UI-only changes within existing components
+- UI-only changes following existing patterns
 - Adding new server actions following existing patterns
 - Documentation updates
+- When user says "just do it" or "skip planning"
+
+### Workflow Selection
+
+| Task Size | Workflow |
+|-----------|----------|
+| **Large** (6+ files, architectural) | Plan mode → then delegation workflow |
+| **Medium** (3-5 files, clear requirements) | Delegation workflow (parallel subagents) |
+| **Small** (1-2 files, obvious fix) | Proceed directly |
 
 ## Architecture
 

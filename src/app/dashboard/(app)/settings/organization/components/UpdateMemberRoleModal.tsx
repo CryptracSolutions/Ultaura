@@ -3,10 +3,7 @@ import Trans from '~/core/ui/Trans';
 
 import Modal from '~/core/ui/Modal';
 import If from '~/core/ui/If';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 import type MembershipRole from '~/lib/organizations/types/membership-role';
 import { updateMemberAction } from '~/lib/memberships/actions';
@@ -82,31 +79,25 @@ function UpdateMemberForm({
       </If>
 
       <div className="flex gap-3 pt-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => setIsOpen(false)}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
           disabled={isSubmitting}
         >
           <Trans i18nKey={'common:cancel'} />
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="default"
           data-cy={'confirm-update-member-role'}
           disabled={isSubmitting}
+          loading={isSubmitting}
           onClick={onRoleUpdated}
-          className={COMPACT_PRIMARY_BUTTON_CLASS}
         >
-          {isSubmitting ? (
-            <>
-              <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-              <Trans i18nKey={'organization:updateRoleSubmitLabel'} />
-            </>
-          ) : (
-            <Trans i18nKey={'organization:updateRoleSubmitLabel'} />
-          )}
-        </button>
+          <Trans i18nKey={'organization:updateRoleSubmitLabel'} />
+        </Button>
       </div>
     </div>
   );

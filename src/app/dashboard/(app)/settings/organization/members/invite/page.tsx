@@ -1,13 +1,12 @@
 import { redirect } from 'next/navigation';
 import ArrowLeftIcon from '@heroicons/react/24/outline/ArrowLeftIcon';
-import Link from 'next/link';
 
 import SettingsTile from '~/app/dashboard/(app)/settings/components/SettingsTile';
 import Trans from '~/core/ui/Trans';
 import { withI18n } from '~/i18n/with-i18n';
 import InviteMembersFormContainer from '../../components/InviteMembersFormContainer';
 import configuration from '~/configuration';
-import { COMPACT_OUTLINE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 export const metadata = {
   title: 'Invite Members',
@@ -41,14 +40,12 @@ export default withI18n(OrganizationMembersInvitePage);
 
 function GoBackToMembersButton() {
   return (
-    <Link href={'../members'} className={COMPACT_OUTLINE_BUTTON_CLASS}>
-      <span className={'flex items-center space-x-1'}>
-        <ArrowLeftIcon className={'h-3 w-3'} />
+    <Button variant="outline" size="small" href={'../members'}>
+      <ArrowLeftIcon className={'h-3 w-3'} />
 
-        <span>
-          <Trans i18nKey={'organization:goBackToMembersPage'} />
-        </span>
+      <span>
+        <Trans i18nKey={'organization:goBackToMembersPage'} />
       </span>
-    </Link>
+    </Button>
   );
 }

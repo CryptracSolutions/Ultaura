@@ -8,7 +8,7 @@ import type { LineRow, UserType } from '~/lib/ultaura/types';
 import { LineCard } from './LineCard';
 import { AddLineModal } from './AddLineModal';
 import useSupabase from '~/core/hooks/use-supabase';
-import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 interface LinesPageClientProps {
   accountId: string;
@@ -106,13 +106,16 @@ export function LinesPageClient({
             .
           </p>
         ) : canAddLine ? (
-          <button
+          <Button
+            variant="default"
+            size="small"
+            block
             onClick={() => setIsAddModalOpen(true)}
-            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+            className="sm:w-auto gap-1"
           >
             <Plus className="w-3 h-3" />
             {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
-          </button>
+          </Button>
         ) : (
           <p className="text-sm text-muted-foreground">
             You&apos;ve reached the line limit for your plan ({planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}).
@@ -152,14 +155,17 @@ export function LinesPageClient({
               ? 'Add your phone number to start receiving check-in calls.'
               : 'Add a phone line to start providing voice companionship for your loved one.'}
           </p>
-          <button
+          <Button
+            variant="default"
+            size="small"
+            block
             onClick={() => setIsAddModalOpen(true)}
             disabled={disabled}
-            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+            className="sm:w-auto gap-1"
           >
             <Plus className="w-3 h-3" />
             {isSelfUser ? 'Add My Phone' : 'Add First Line'}
-          </button>
+          </Button>
         </div>
       )}
 

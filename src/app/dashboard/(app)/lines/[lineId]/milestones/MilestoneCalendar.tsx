@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DateTime } from 'luxon';
 import { CalendarDays, ChevronLeft, ChevronRight, Edit2, Trash2, Star } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '~/core/ui/Popover';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 
 interface MilestoneCalendarProps {
@@ -303,24 +304,24 @@ export function MilestoneCalendar({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => onEdit(milestone)}
-                        disabled={disabled}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                        title="Edit milestone"
-                      >
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => onDelete(milestone)}
-                        disabled={disabled}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                        title="Delete milestone"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+                    <ResponsiveActionMenu
+                      title={milestone.title}
+                      disabled={disabled}
+                      actions={[
+                        {
+                          label: 'Edit',
+                          icon: <Edit2 className="w-5 h-5" />,
+                          onClick: () => onEdit(milestone),
+                        },
+                        {
+                          label: 'Delete',
+                          icon: <Trash2 className="w-5 h-5" />,
+                          onClick: () => onDelete(milestone),
+                          variant: 'destructive' as const,
+                          separator: true,
+                        },
+                      ]}
+                    />
                   </div>
                 </div>
               );

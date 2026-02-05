@@ -22,7 +22,7 @@ import {
 } from '~/core/ui/Dropdown';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 
 const QuickActionsDropdown: React.FC = () => {
   const { data: account } = useUltauraAccount();
@@ -37,9 +37,9 @@ const QuickActionsDropdown: React.FC = () => {
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <IconButton label="Quick Actions">
+            <Button variant="ghost" size="icon" aria-label="Quick Actions">
               <PlusIcon className="h-5 w-5 text-primary" />
-            </IconButton>
+            </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent>Quick Actions</TooltipContent>

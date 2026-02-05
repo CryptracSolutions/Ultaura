@@ -8,10 +8,7 @@ import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import Organization from '~/lib/organizations/types/organization';
 import { deleteOrganizationAction } from '~/app/admin/organizations/@modal/[uid]/actions.server';
-import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+import Button from '~/core/ui/Button';
 
 function DeleteOrganizationModal({
   organization,
@@ -74,29 +71,22 @@ function DeleteOrganizationModal({
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="button"
               onClick={onDismiss}
               disabled={pending}
-              className={modalSecondaryButtonClass}
+              variant="outline"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="submit"
-              disabled={pending}
-              className={modalDestructiveButtonClass}
+              loading={pending}
+              variant="destructive"
             >
-              {pending ? (
-                <>
-                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Deleting
-                </>
-              ) : (
-                'Yes, delete organization'
-              )}
-            </button>
+              {pending ? 'Deleting' : 'Yes, delete organization'}
+            </Button>
           </div>
         </div>
       </form>

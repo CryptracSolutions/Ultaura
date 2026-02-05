@@ -9,6 +9,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '~/core/ui/Dropdown';
+import TextField from '~/core/ui/TextField';
+import Textarea from '~/core/ui/Textarea';
 
 export const MAX_INTEREST_TOPICS = 5;
 
@@ -182,12 +184,11 @@ export function TopicPreferencesForm({
           <label className="block text-xs font-medium text-muted-foreground">
             Other topics (comma-separated)
           </label>
-          <input
+          <TextField.Input
             value={customTopics}
             onChange={(e) => onCustomTopicsChange(e.target.value)}
             placeholder="e.g., baseball, baking, church"
             disabled={customDisabled}
-            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:opacity-50"
           />
           {customDisabled && !disabled ? (
             <p className="text-xs text-muted-foreground">
@@ -207,13 +208,17 @@ export function TopicPreferencesForm({
           <label className="block text-sm font-medium text-foreground">
             {avoidLabel}
           </label>
-          <textarea
+          <Textarea
             value={avoidTopics}
-            onChange={(e) => onAvoidTopicsChange(e.target.value)}
+            onChange={(e) =>
+              onAvoidTopicsChange(
+                (e.target as HTMLTextAreaElement).value
+              )
+            }
             placeholder="e.g., politics, health issues..."
             rows={2}
             disabled={disabled}
-            className="w-full px-3 py-2 min-h-[44px] rounded-lg border border-input bg-background text-base sm:text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
+            className="resize-none"
           />
         </div>
       )}

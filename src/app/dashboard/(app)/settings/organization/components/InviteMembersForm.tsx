@@ -10,9 +10,8 @@ import MembershipRole from '~/lib/organizations/types/membership-role';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import TextField from '~/core/ui/TextField';
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
-import { COMPACT_OUTLINE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import MembershipRoleSelector from './MembershipRoleSelector';
 
@@ -115,18 +114,20 @@ const InviteMembersForm = ({
                 <div className={'w-[60px] flex justify-end'}>
                   <Tooltip className={'flex justify-center'}>
                     <TooltipTrigger asChild>
-                      <IconButton
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         type={'button'}
                         disabled={fields.length <= 1}
                         data-cy={'remove-invite-button'}
-                        label={t('removeInviteButtonLabel')}
+                        aria-label={t('removeInviteButtonLabel')}
                         onClick={() => {
                           remove(index);
                           clearErrors(emailInputName);
                         }}
                       >
                         <XMarkIcon className={'h-4 lg:h-5'} />
-                      </IconButton>
+                      </Button>
                     </TooltipTrigger>
 
                     <TooltipContent>
@@ -140,20 +141,19 @@ const InviteMembersForm = ({
         })}
 
         <div>
-          <button
+          <Button
+            variant="outline"
+            size="small"
             data-cy={'append-new-invite-button'}
             type={'button'}
             onClick={() => append(memberFactory())}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
-            <span className={'flex items-center space-x-2'}>
-              <PlusCircleIcon className={'h-3 w-3'} />
+            <PlusCircleIcon className={'h-3 w-3'} />
 
-              <span>
-                <Trans i18nKey={'organization:addAnotherMemberButtonLabel'} />
-              </span>
+            <span>
+              <Trans i18nKey={'organization:addAnotherMemberButtonLabel'} />
             </span>
-          </button>
+          </Button>
         </div>
       </div>
 

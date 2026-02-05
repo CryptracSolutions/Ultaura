@@ -9,10 +9,7 @@ import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import { initiateManualCall } from '~/lib/ultaura/usage';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ActionError } from '@ultaura/schemas';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 
 type ManualCallModalProps = {
   isOpen: boolean;
@@ -256,31 +253,37 @@ export default function ManualCallModal({
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
           {step === 2 && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="small"
+              className="w-full sm:w-auto"
               onClick={() => setStep(1)}
-              className={COMPACT_OUTLINE_BUTTON_CLASS}
             >
               Change line
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="small"
+            className="w-full sm:w-auto"
             onClick={() => onOpenChange(false)}
-            className={COMPACT_OUTLINE_BUTTON_CLASS}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="default"
+            size="small"
+            className="w-full sm:w-auto"
             onClick={handleStartCall}
             disabled={!selectedLineId || isCalling || isLoading}
-            className={COMPACT_PRIMARY_BUTTON_CLASS}
           >
             {isCalling ? 'Calling…' : 'Start call'}
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

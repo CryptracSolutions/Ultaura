@@ -7,10 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import Modal from '~/core/ui/Modal';
 import { reactivateUser } from '~/app/admin/users/@modal/[uid]/actions.server';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
-import {
-  modalPrimaryButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+import Button from '~/core/ui/Button';
 
 function ReactivateUserModal({
   user,
@@ -53,30 +50,23 @@ function ReactivateUserModal({
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
+          <Button
             type="button"
             onClick={onDismiss}
             disabled={pending}
-            className={modalSecondaryButtonClass}
+            variant="outline"
           >
             Cancel
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
             onClick={onConfirm}
-            disabled={pending}
-            className={modalPrimaryButtonClass}
+            loading={pending}
+            variant="default"
           >
-            {pending ? (
-              <>
-                <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Reactivating
-              </>
-            ) : (
-              'Yes, reactivate user'
-            )}
-          </button>
+            {pending ? 'Reactivating' : 'Yes, reactivate user'}
+          </Button>
         </div>
       </div>
     </Modal>

@@ -19,7 +19,8 @@ import type { LineRow } from '~/lib/ultaura/types';
 import { cancelReminder } from '~/lib/ultaura/reminders';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddReminderModal } from '~/components/ultaura/AddReminderModal';
-import { COMPACT_PRIMARY_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
+import Button from '~/core/ui/Button';
 
 interface Reminder {
   reminderId: string;
@@ -201,13 +202,15 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
       {/* Set Reminder Button */}
       {!disabled && lines.length > 0 && (
         <div>
-          <button
+          <Button
+            variant="default"
+            size="small"
             onClick={() => setShowAddModal(true)}
-            className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+            className="w-full sm:w-auto"
           >
             <Plus className="w-3 h-3" />
             Set Reminder
-          </button>
+          </Button>
         </div>
       )}
 
@@ -220,13 +223,15 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
             Add a phone line first, then you can set up reminders.
           </p>
           {!disabled && (
-            <Link
+            <Button
+              variant="default"
+              size="small"
               href="/dashboard/lines?action=add"
-              className={COMPACT_PRIMARY_BUTTON_CLASS}
+              block
             >
               <Plus className="w-3 h-3" />
               Add a Phone Line
-            </Link>
+            </Button>
           )}
         </div>
       )}
@@ -269,13 +274,15 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                       <p className="text-muted-foreground">No reminders set up yet</p>
                       {!disabled && (
                         <div className="mt-2">
-                          <button
+                          <Button
+                            variant="default"
+                            size="small"
                             onClick={() => handleOpenForLine(line.id)}
-                            className={COMPACT_PRIMARY_BUTTON_CLASS}
+                            block
                           >
                             <Plus className="w-3 h-3" />
                             Create your first reminder
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -419,22 +426,25 @@ function ReminderRow({
       </div>
 
       {reminder.status === 'scheduled' && !disabled && (
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href={`/dashboard/lines/${reminder.lineShortId}/reminders?edit=${reminder.reminderId}`}
-            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-            title="Edit reminder"
-          >
-            <Edit2 className="w-5 h-5" />
-          </Link>
-          <button
-            onClick={onCancel}
-            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Cancel reminder"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-        </div>
+        <ResponsiveActionMenu
+          title={reminder.message.slice(0, 30) + (reminder.message.length > 30 ? '...' : '')}
+          actions={[
+            {
+              label: 'Edit',
+              icon: <Edit2 className="w-5 h-5" />,
+              onClick: () => {
+                window.location.href = `/dashboard/lines/${reminder.lineShortId}/reminders?edit=${reminder.reminderId}`;
+              },
+            },
+            {
+              label: 'Cancel',
+              icon: <Trash2 className="w-5 h-5" />,
+              onClick: onCancel,
+              variant: 'destructive' as const,
+              separator: true,
+            },
+          ]}
+        />
       )}
     </div>
   );

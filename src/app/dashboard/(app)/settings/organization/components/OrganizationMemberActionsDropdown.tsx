@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
 } from '~/core/ui/Dropdown';
 
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import If from '~/core/ui/If';
 
 const OrganizationMemberActionsDropdown: React.FCC<{
@@ -28,13 +28,15 @@ const OrganizationMemberActionsDropdown: React.FCC<{
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={props.disabled}>
-        <IconButton
+        <Button
+          variant="ghost"
+          size="icon"
           data-cy={'member-actions-dropdown'}
           disabled={props.disabled}
-          label={'Open members actions menu'}
+          aria-label={'Open members actions menu'}
         >
           <EllipsisVerticalIcon className={'h-6'} />
-        </IconButton>
+        </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent collisionPadding={{ right: 50 }}>

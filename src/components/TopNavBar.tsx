@@ -8,7 +8,7 @@ import {
 
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import { FeedbackPopupContainer } from '~/plugins/feedback-popup/FeedbackPopup';
 import QuickActionsDropdown from '~/components/QuickActionsDropdown';
 import SearchTrigger from '~/components/SearchTrigger';
@@ -27,9 +27,9 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton label="Help" onClick={onHelpToggle}>
+            <Button variant="ghost" size="icon" onClick={onHelpToggle} aria-label="Help">
               <LifebuoyIcon className="h-5 w-5" />
-            </IconButton>
+            </Button>
           </TooltipTrigger>
           <TooltipContent>Help</TooltipContent>
         </Tooltip>
@@ -37,18 +37,18 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
         <Tooltip>
           <TooltipTrigger asChild>
             <Link href="/docs">
-              <IconButton label="Documentation">
+              <Button variant="ghost" size="icon" aria-label="Documentation">
                 <QuestionMarkCircleIcon className="h-5 w-5" />
-              </IconButton>
+              </Button>
             </Link>
           </TooltipTrigger>
           <TooltipContent>Documentation</TooltipContent>
         </Tooltip>
 
         <FeedbackPopupContainer tooltipContent="Feedback">
-          <IconButton label="Send Feedback">
+          <Button variant="ghost" size="icon" aria-label="Send Feedback">
             <ChatBubbleLeftIcon className="h-5 w-5" />
-          </IconButton>
+          </Button>
         </FeedbackPopupContainer>
       </div>
     </div>

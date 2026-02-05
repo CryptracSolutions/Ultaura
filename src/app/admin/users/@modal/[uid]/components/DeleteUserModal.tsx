@@ -8,10 +8,7 @@ import Modal from '~/core/ui/Modal';
 import { deleteUserAction } from '~/app/admin/users/@modal/[uid]/actions.server';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
-import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+import Button from '~/core/ui/Button';
 
 function DeleteUserModal({
   user,
@@ -71,29 +68,22 @@ function DeleteUserModal({
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="button"
               onClick={onDismiss}
               disabled={pending}
-              className={modalSecondaryButtonClass}
+              variant="outline"
             >
               Cancel
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="submit"
-              disabled={pending}
-              className={modalDestructiveButtonClass}
+              loading={pending}
+              variant="destructive"
             >
-              {pending ? (
-                <>
-                  <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Deleting
-                </>
-              ) : (
-                'Yes, delete user'
-              )}
-            </button>
+              {pending ? 'Deleting' : 'Yes, delete user'}
+            </Button>
           </div>
         </div>
       </form>

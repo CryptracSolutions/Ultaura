@@ -5,14 +5,11 @@ import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
 
 import Modal from '~/core/ui/Modal';
 import Heading from '~/core/ui/Heading';
+import Button from '~/core/ui/Button';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
 import ErrorBoundary from '~/core/ui/ErrorBoundary';
 import { deleteUserAccountAction } from '~/lib/user/actions.server';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 function ProfileDangerZone() {
   return <DeleteProfileContainer />;
@@ -45,12 +42,13 @@ function DeleteProfileModal() {
     <Modal
       heading={<Trans i18nKey={'profile:deleteAccount'} />}
       Trigger={
-        <button
+        <Button
           data-cy={'delete-account-button'}
-          className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+          variant="destructive"
+          size="small"
         >
           <Trans i18nKey={'profile:deleteAccount'} />
-        </button>
+        </Button>
       }
     >
       <ErrorBoundary fallback={<DeleteProfileErrorAlert />}>
@@ -102,23 +100,18 @@ function DeleteAccountSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button
+    <Button
       data-cy={'confirm-delete-account-button'}
       name={'action'}
       value={'delete'}
       type="submit"
       disabled={pending}
-      className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+      loading={pending}
+      variant="destructive"
+      size="small"
     >
-      {pending ? (
-        <>
-          <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <Trans i18nKey={'profile:deleteAccount'} />
-        </>
-      ) : (
-        <Trans i18nKey={'profile:deleteAccount'} />
-      )}
-    </button>
+      <Trans i18nKey={'profile:deleteAccount'} />
+    </Button>
   );
 }
 
@@ -139,13 +132,14 @@ function DeleteAccountActions() {
   return (
     <div className="flex gap-3 pt-2">
       <DialogPrimitiveClose asChild>
-        <button
+        <Button
           type="button"
           disabled={pending}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
+          variant="outline"
+          size="small"
         >
           <Trans i18nKey={'common:cancel'} />
-        </button>
+        </Button>
       </DialogPrimitiveClose>
 
       <DeleteAccountSubmitButton />

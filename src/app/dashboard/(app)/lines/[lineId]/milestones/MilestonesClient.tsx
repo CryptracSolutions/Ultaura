@@ -10,13 +10,7 @@ import { Switch } from '~/core/ui/Switch';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
-import {
-  modalIconButtonClass,
-} from '~/core/ui/modal-button-classes';
-import {
-  COMPACT_OUTLINE_BUTTON_CLASS,
-  COMPACT_PRIMARY_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
+import Button from '~/core/ui/Button';
 import type { LineRow, MilestoneRow } from '~/lib/ultaura/types';
 import { createMilestone, updateMilestone, deleteMilestone } from '~/lib/ultaura/milestones';
 import { MilestoneCalendar } from './MilestoneCalendar';
@@ -212,14 +206,16 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         <p className="text-sm text-muted-foreground">
           Track birthdays, anniversaries, memorial dates, and special achievements so Ultaura can celebrate with you.
         </p>
-        <button
+        <Button
           onClick={openAddForm}
           disabled={disabled}
-          className={`${COMPACT_PRIMARY_BUTTON_CLASS} sm:w-auto`}
+          variant="default"
+          size="small"
+          className="sm:w-auto"
         >
           <Plus className="h-3 w-3" />
           Add Milestone
-        </button>
+        </Button>
       </div>
 
       <Dialog
@@ -243,14 +239,15 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
                 These dates help Ultaura celebrate meaningful moments.
               </DialogDescription>
             </div>
-            <button
+            <Button
               type="button"
               onClick={resetForm}
-              className={modalIconButtonClass}
+              variant="ghost"
+              size="icon"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -396,27 +393,23 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="button"
                 onClick={resetForm}
-                className={COMPACT_OUTLINE_BUTTON_CLASS}
+                variant="outline"
+                size="small"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={isSubmitting}
-                className={COMPACT_PRIMARY_BUTTON_CLASS}
+                variant="default"
+                size="small"
+                loading={isSubmitting}
               >
-                {isSubmitting ? (
-                  <>
-                    <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving
-                  </>
-                ) : (
-                  editingMilestone ? 'Save changes' : 'Add milestone'
-                )}
-              </button>
+                {editingMilestone ? 'Save changes' : 'Add milestone'}
+              </Button>
             </div>
           </form>
         </DialogContent>

@@ -3,15 +3,11 @@
 import { useCallback, useState, useTransition } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
-import IconButton from '~/core/ui/IconButton';
+import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
 import Trans from '~/core/ui/Trans';
 import If from '~/core/ui/If';
 import { Close as DialogPrimitiveClose } from '@radix-ui/react-dialog';
-import {
-  COMPACT_DESTRUCTIVE_BUTTON_CLASS,
-  COMPACT_OUTLINE_BUTTON_CLASS,
-} from '~/app/dashboard/(app)/components/compact-action-classes';
 
 import { deleteMemberAction } from '~/lib/memberships/actions';
 
@@ -23,9 +19,14 @@ const DeleteInviteButton: React.FCC<{
     <Modal
       heading={<Trans i18nKey={'organization:deleteInviteModalHeading'} />}
       Trigger={
-        <IconButton data-cy={'delete-invite-button'} label={'Delete Invite'}>
+        <Button
+          variant="ghost"
+          size="icon"
+          data-cy={'delete-invite-button'}
+          aria-label={'Delete Invite'}
+        >
           <XMarkIcon className={'h-6'} />
-        </IconButton>
+        </Button>
       }
     >
       <DeleteInviteForm membershipId={membershipId} memberEmail={memberEmail} />
@@ -84,30 +85,20 @@ function DeleteInviteForm({
 
         <div className="flex gap-3 pt-2">
           <DialogPrimitiveClose asChild>
-            <button
-              type="button"
-              disabled={isSubmitting}
-              className={COMPACT_OUTLINE_BUTTON_CLASS}
-            >
+            <Button type="button" variant="outline" disabled={isSubmitting}>
               <Trans i18nKey={'common:cancel'} />
-            </button>
+            </Button>
           </DialogPrimitiveClose>
 
-          <button
+          <Button
             type="submit"
+            variant="destructive"
             data-cy={'confirm-delete-invite-button'}
             disabled={isSubmitting}
-            className={COMPACT_DESTRUCTIVE_BUTTON_CLASS}
+            loading={isSubmitting}
           >
-            {isSubmitting ? (
-              <>
-                <span className="w-3 h-3 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                <Trans i18nKey={'organization:deleteInviteSubmitLabel'} />
-              </>
-            ) : (
-              <Trans i18nKey={'organization:deleteInviteSubmitLabel'} />
-            )}
-          </button>
+            <Trans i18nKey={'organization:deleteInviteSubmitLabel'} />
+          </Button>
         </div>
       </div>
     </form>

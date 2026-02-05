@@ -2,12 +2,11 @@
 
 import type { Stripe } from 'stripe';
 import { CheckIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import Link from 'next/link';
 
 import Heading from '~/core/ui/Heading';
 import Trans from '~/core/ui/Trans';
+import Button from '~/core/ui/Button';
 import configuration from '~/configuration';
-import { COMPACT_OUTLINE_BUTTON_CLASS } from '~/app/dashboard/(app)/components/compact-action-classes';
 
 /**
  * Retrieves the session status for a Stripe checkout session.
@@ -73,19 +72,14 @@ function SuccessSessionStatus({
           </p>
         </div>
 
-        <Link
+        <Button
           data-cy={'checkout-success-back-button'}
           href={configuration.paths.appHome}
-          className={COMPACT_OUTLINE_BUTTON_CLASS}
+          variant="outline"
         >
-          <span className={'flex space-x-2.5 items-center'}>
-            <span>
-              <Trans i18nKey={'subscription:checkoutSuccessBackButton'} />
-            </span>
-
-            <ChevronRightIcon className={'h-3 w-3'} />
-          </span>
-        </Link>
+          <Trans i18nKey={'subscription:checkoutSuccessBackButton'} />
+          <ChevronRightIcon className={'h-3 w-3 ml-2'} />
+        </Button>
       </div>
     </section>
   );

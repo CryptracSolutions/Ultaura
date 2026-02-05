@@ -11,10 +11,7 @@ import Modal from '~/core/ui/Modal';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import ErrorBoundary from '~/core/ui/ErrorBoundary';
-import {
-  modalDestructiveButtonClass,
-  modalSecondaryButtonClass,
-} from '~/core/ui/modal-button-classes';
+import Button from '~/core/ui/Button';
 
 function BanUserModal({
   user,
@@ -76,20 +73,13 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button
+    <Button
       type="submit"
-      disabled={pending}
-      className={modalDestructiveButtonClass}
+      loading={pending}
+      variant="destructive"
     >
-      {pending ? (
-        <>
-          <span className="w-4 h-4 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-          Banning
-        </>
-      ) : (
-        'Yes, ban user'
-      )}
-    </button>
+      {pending ? 'Banning' : 'Yes, ban user'}
+    </Button>
   );
 }
 
@@ -109,14 +99,14 @@ function BanUserActions({ onDismiss }: { onDismiss: () => void }) {
 
   return (
     <div className="flex gap-3 pt-2">
-      <button
+      <Button
         type="button"
         onClick={onDismiss}
         disabled={pending}
-        className={modalSecondaryButtonClass}
+        variant="outline"
       >
         Cancel
-      </button>
+      </Button>
 
       <SubmitButton />
     </div>
