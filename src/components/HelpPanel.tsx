@@ -169,9 +169,9 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
                 }}
                 name="message"
                 className={classNames(
-                  'w-full px-4 py-2 pr-12 outline-none focus-visible:!outline-none resize-none text-sm bg-transparent rounded-xl leading-6',
+                  'w-full px-4 py-2 pr-12 outline-none focus-visible:!outline-none resize-none text-base sm:text-sm bg-transparent rounded-xl leading-6',
                   'text-foreground placeholder:text-foreground',
-                  'min-h-[36px] max-h-48 overflow-y-auto'
+                  'min-h-[44px] max-h-48 overflow-y-auto'
                 )}
                 placeholder="Ask a question..."
                 rows={1}
@@ -180,7 +180,7 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
               <button
                 disabled={isLoading}
                 type="submit"
-                className="absolute right-3 bottom-2 p-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                className="absolute right-2 bottom-2 min-h-[44px] min-w-[44px] rounded-lg bg-primary/10 hover:bg-primary/20 disabled:opacity-50 transition-colors touch-manipulation flex items-center justify-center"
                 aria-label="Send message"
               >
                 <PaperAirplaneIcon className="h-4 w-4 text-primary" />

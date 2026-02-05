@@ -228,7 +228,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="p-1.5 -mr-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                className="min-w-[44px] min-h-[44px] -mr-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation flex items-center justify-center"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -240,7 +240,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
               <button
                 type="button"
                 onClick={handlePrevMonth}
-                className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors touch-manipulation"
+                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors touch-manipulation"
                 aria-label="Previous month"
               >
                 <ChevronLeft className="h-5 w-5" />
@@ -251,7 +251,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
               <button
                 type="button"
                 onClick={handleNextMonth}
-                className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors touch-manipulation"
+                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors touch-manipulation"
                 aria-label="Next month"
               >
                 <ChevronRight className="h-5 w-5" />
@@ -301,7 +301,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
                     aria-current={isToday ? 'date' : undefined}
                     data-selected={isSelected ? 'true' : 'false'}
                     className={cn(
-                      'aspect-square min-h-[36px] w-full rounded-md text-sm font-medium transition-all',
+                      'aspect-square min-h-[44px] w-full rounded-md text-sm font-medium transition-all',
                       'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1',
                       'touch-manipulation select-none',
                       'data-[selected=true]:animate-[pulse_200ms_ease-out_1] motion-reduce:animate-none',

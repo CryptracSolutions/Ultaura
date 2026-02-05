@@ -213,7 +213,7 @@ export function TopicPreferencesForm({
             placeholder="e.g., politics, health issues..."
             rows={2}
             disabled={disabled}
-            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
+            className="w-full px-3 py-2 min-h-[44px] rounded-lg border border-input bg-background text-base sm:text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
           />
         </div>
       )}

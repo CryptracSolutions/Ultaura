@@ -18,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 
-import { Dialog, DialogContent } from '~/core/ui/Dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { getNavigationItems } from '~/lib/search/navigation-registry';
 import { buildLineNavigationItems } from '~/lib/search/line-navigation';
@@ -490,7 +490,7 @@ export const SearchPanel = ({
         <Command.Input
           value={query}
           onValueChange={onQueryChange}
-          className="mx-3 mt-3 flex h-11 w-[calc(100%-1.5rem)] rounded-md border border-input bg-background px-3 py-3 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:cursor-not-allowed disabled:opacity-50"
+          className="mx-3 mt-3 flex h-11 w-[calc(100%-1.5rem)] rounded-md border border-input bg-background px-3 py-3 text-base sm:text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary disabled:cursor-not-allowed disabled:opacity-50"
           placeholder="Search..."
           aria-label="Search"
           role="combobox"
@@ -504,7 +504,7 @@ export const SearchPanel = ({
         <Command.List
           id={listId}
           role="listbox"
-          className="max-h-[60vh] overflow-y-auto py-2"
+          className="max-h-[60vh] overflow-y-auto overscroll-contain touch-pan-y py-2"
         >
           {isLoading ? (
             <div className="px-4 py-2 text-xs text-muted-foreground">Searching...</div>
@@ -602,7 +602,7 @@ export const SearchPanel = ({
                       category: 'navigation',
                     })
                   }
-                  className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
+                  className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     {entry.item.Icon ? (
@@ -635,7 +635,7 @@ export const SearchPanel = ({
                   key={entry.item.id}
                   value={entry.item.label}
                   onSelect={() => handleSelect(entry.item)}
-                  className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
+                  className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     {getCategoryIcon('documentation')}
@@ -805,6 +805,10 @@ const SearchBottomSheet = () => {
         className="p-0 overflow-y-auto z-[60] h-[50vh] max-h-[50vh] border-t border-x border-b-0"
         overlayClassName="z-[60]"
       >
+        <DialogTitle className="sr-only">Search</DialogTitle>
+        <DialogDescription className="sr-only">
+          Search across navigation, reminders, schedules, contacts, calls, and documentation.
+        </DialogDescription>
         <SearchPanel isOpen={isMobileOpen} />
       </DialogContent>
     </Dialog>
@@ -824,8 +828,8 @@ function ActionItem({
     <Command.Item
       value={`${action.label} ${action.subtitle ?? ''}`}
       onSelect={onSelect}
-      className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
-    >
+                  className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
+                >
       <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
         {action.icon}
       </span>
@@ -912,7 +916,7 @@ function SearchResultItem({
     <Command.Item
       value={`${item.label} ${item.subtitle ?? ''}`}
       onSelect={() => onSelect(item)}
-      className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted"
+      className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
     >
       <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
         {icon}

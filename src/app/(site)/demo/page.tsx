@@ -291,7 +291,7 @@ export default function DemoPage() {
                             maxLength={VOICE_DEMO.MAX_TEXT_LENGTH}
                             rows={3}
                             className={
-                              'w-full rounded-xl border bg-background px-4 py-3 text-foreground' +
+                              'w-full rounded-xl border bg-background px-4 py-3 min-h-[44px] text-base sm:text-sm text-foreground' +
                               ' placeholder:text-muted-foreground focus:outline-none focus:ring-2' +
                               ' focus:ring-ring resize-none transition-colors' +
                               (selectedPreset

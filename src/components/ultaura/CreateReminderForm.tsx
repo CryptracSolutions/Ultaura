@@ -147,7 +147,7 @@ export function CreateReminderForm({
               rows={3}
               maxLength={500}
               disabled={isSubmitting}
-              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
+              className="w-full px-3 py-2 min-h-[44px] rounded-lg border border-input bg-background text-base sm:text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
             />
             <p className="text-xs text-muted-foreground mt-1">{message.length}/500 characters</p>
           </div>

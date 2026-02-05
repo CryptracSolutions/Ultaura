@@ -298,7 +298,7 @@ export function LineCard({
             <Link
               href={`/dashboard/lines/${shortId}`}
               onClick={() => setIsSheetOpen(false)}
-              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
             >
               <Eye className="h-[22px] w-[22px] text-primary" />
               <span className="text-[14.5px] text-foreground">View Details</span>
@@ -306,7 +306,7 @@ export function LineCard({
             <Link
               href={`/dashboard/lines/${shortId}/settings`}
               onClick={() => setIsSheetOpen(false)}
-              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
             >
               <Settings className="h-[22px] w-[22px] text-primary" />
               <span className="text-[14.5px] text-foreground">Settings</span>
@@ -314,7 +314,7 @@ export function LineCard({
             {!disabled && (
               <button
                 onClick={openDeleteFromSheet}
-                className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+                className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
               >
                 <Trash2 className="h-[22px] w-[22px] text-destructive" />
                 <span className="text-[14.5px] text-destructive">Delete Line</span>

@@ -54,7 +54,7 @@ interface MilestoneFormState {
   title: string;
   milestoneType: string;
   dateMonth: number;
-  dateDay: number;
+  dateDay: number | '';
   dateYear?: number | '';
   relatedPersonName: string;
   isRecurring: boolean;
@@ -142,6 +142,10 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
 
     if (!formState.title.trim()) {
       toast.error('Please enter a title');
+      return;
+    }
+    if (formState.dateDay === '') {
+      toast.error('Please enter a day');
       return;
     }
 
@@ -339,7 +343,10 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
                   max={31}
                   value={formState.dateDay}
                   onChange={(event) =>
-                    setFormState((prev) => ({ ...prev, dateDay: Number(event.target.value) }))
+                    setFormState((prev) => ({
+                      ...prev,
+                      dateDay: event.target.value === '' ? '' : Number(event.target.value),
+                    }))
                   }
                   required
                 />

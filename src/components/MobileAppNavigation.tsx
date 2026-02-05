@@ -278,7 +278,7 @@ function MenuLink({
     <Link
       href={path}
       onClick={onClick}
-      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
     >
       <Icon className="h-[22px] w-[22px] text-primary" />
       <span className="text-[14.5px] text-foreground">
@@ -300,7 +300,7 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
     >
       <Icon className="h-[22px] w-[22px] text-primary" />
       <span className="text-[14.5px] text-foreground">{label}</span>
@@ -319,7 +319,7 @@ function SignOutButton({ onSignOut }: { onSignOut: () => void }) {
   return (
     <button
       onClick={handleSignOut}
-      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors"
+      className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
     >
       <ArrowLeftOnRectangleIcon className="h-[22px] w-[22px] text-primary" />
       <span className="text-[14.5px] text-foreground">

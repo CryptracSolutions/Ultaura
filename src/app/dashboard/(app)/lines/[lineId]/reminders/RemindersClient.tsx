@@ -656,10 +656,10 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
               type="button"
               onClick={discardEditChanges}
               disabled={isEditSubmitting}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              className="min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 touch-manipulation flex items-center justify-center"
               aria-label="Close"
             >
-              <X className="w-3 h-3" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -675,7 +675,7 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
                 rows={3}
                 maxLength={500}
                 disabled={isEditSubmitting}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
+                className="w-full px-3 py-2 min-h-[44px] rounded-lg border border-input bg-background text-base sm:text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary resize-none disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {editMessage.length}/500 characters

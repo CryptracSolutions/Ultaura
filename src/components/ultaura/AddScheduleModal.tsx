@@ -118,7 +118,7 @@ export function AddScheduleModal({
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="min-h-[44px] min-w-[44px] -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation flex items-center justify-center"
                   aria-label="Back to line selection"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -139,7 +139,7 @@ export function AddScheduleModal({
             <button
               type="button"
               onClick={handleClose}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation flex items-center justify-center"
               aria-label="Close"
             >
               <X className="w-4 h-4" />

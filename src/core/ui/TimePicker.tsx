@@ -101,7 +101,7 @@ function ScrollColumn({ values, selected, onSelect, formatValue, label, onStep }
                 onClick={() => onSelect(value)}
                 data-selected={isSelected ? 'true' : 'false'}
                 className={cn(
-                  'w-full py-2 min-h-[36px] rounded-md text-sm font-medium transition-all snap-center',
+                  'w-full py-2 min-h-[44px] rounded-md text-sm font-medium transition-all snap-center',
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
                   'touch-manipulation select-none',
                   'data-[selected=true]:animate-[pulse_200ms_ease-out_1] motion-reduce:animate-none',
@@ -249,7 +249,7 @@ export const TimePicker = forwardRef<HTMLButtonElement, TimePickerProps>(functio
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="p-1.5 -mr-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                className="min-w-[44px] min-h-[44px] -mr-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation flex items-center justify-center"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -324,7 +324,7 @@ export const TimePicker = forwardRef<HTMLButtonElement, TimePickerProps>(functio
                       data-selected={selectedPeriod === p ? 'true' : 'false'}
                       onClick={() => setSelectedPeriod(p)}
                       className={cn(
-                        'w-full py-3 min-h-[40px] rounded-md text-sm font-semibold transition-all',
+                        'w-full py-3 min-h-[44px] rounded-md text-sm font-semibold transition-all',
                         'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
                         'touch-manipulation select-none',
                         'data-[selected=true]:animate-[pulse_200ms_ease-out_1] motion-reduce:animate-none',
@@ -344,14 +344,14 @@ export const TimePicker = forwardRef<HTMLButtonElement, TimePickerProps>(functio
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex-1 py-2 min-h-[40px] text-sm font-medium text-muted-foreground hover:text-foreground border border-input rounded-lg hover:bg-muted transition-colors touch-manipulation"
+                className="flex-1 py-2 min-h-[44px] text-sm font-medium text-muted-foreground hover:text-foreground border border-input rounded-lg hover:bg-muted transition-colors touch-manipulation"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="flex-1 py-2 min-h-[40px] text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 rounded-lg transition-colors touch-manipulation"
+                className="flex-1 py-2 min-h-[44px] text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 rounded-lg transition-colors touch-manipulation"
               >
                 Confirm
               </button>
