@@ -225,12 +225,12 @@ export function CreateScheduleForm({
               )}
             </p>
           </div>
-        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
           <Button
             type="button"
             variant="outline"
             size="small"
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={onCancel}
             disabled={isLoading}
           >
@@ -240,7 +240,7 @@ export function CreateScheduleForm({
             type="submit"
             variant="default"
             size="small"
-            className="w-full sm:w-auto"
+            className="w-full"
             disabled={selectedDays.length === 0}
             loading={isLoading}
           >

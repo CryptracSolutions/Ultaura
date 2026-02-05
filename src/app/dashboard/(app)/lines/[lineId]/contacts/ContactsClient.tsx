@@ -248,12 +248,13 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 </label>
               </div>
             </div>
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
               <Button
                 type="button"
                 onClick={resetAddForm}
                 variant="outline"
                 size="sm"
+                className="w-full"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -263,6 +264,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 disabled={!consentAcknowledged || isSubmitting}
                 variant="default"
                 size="sm"
+                className="w-full"
                 loading={isSubmitting}
               >
                 {isSubmitting ? 'Saving' : 'Add Contact'}

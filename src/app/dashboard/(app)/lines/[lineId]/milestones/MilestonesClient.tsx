@@ -392,12 +392,13 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
               <Button
                 type="button"
                 onClick={resetForm}
                 variant="outline"
                 size="small"
+                className="w-full"
               >
                 Cancel
               </Button>
@@ -406,6 +407,7 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
                 disabled={isSubmitting}
                 variant="default"
                 size="small"
+                className="w-full"
                 loading={isSubmitting}
               >
                 {editingMilestone ? 'Save changes' : 'Add milestone'}

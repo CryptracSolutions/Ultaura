@@ -299,11 +299,11 @@ export function CreateReminderForm({
             )}
           </div>
 
-        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
           <Button
             type="button"
             variant="outline"
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={onCancel}
             disabled={isSubmitting}
           >
@@ -312,7 +312,7 @@ export function CreateReminderForm({
           <Button
             type="submit"
             variant="default"
-            className="w-full sm:w-auto"
+            className="w-full"
             disabled={isSubmitting || !message.trim() || !date || !time}
             loading={isSubmitting}
           >

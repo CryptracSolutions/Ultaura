@@ -79,10 +79,10 @@ export function ConfirmationDialog({
           </Button>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
           <Button
             variant="outline"
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={handleCancel}
             disabled={isLoading}
           >
@@ -90,7 +90,7 @@ export function ConfirmationDialog({
           </Button>
           <Button
             variant={variant === 'destructive' ? 'destructive' : 'default'}
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={handleConfirm}
             loading={isLoading}
           >

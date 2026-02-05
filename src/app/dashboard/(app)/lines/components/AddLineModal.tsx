@@ -439,12 +439,13 @@ export function AddLineModal({
                 </>
               )}
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
               {step === 1 ? (
                 <>
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full"
                     onClick={discardAndClose}
                   >
                     Cancel
@@ -452,6 +453,7 @@ export function AddLineModal({
                   <Button
                     type="button"
                     variant="default"
+                    className="w-full"
                     onClick={() => {
                       const phoneValidationError = getUsPhoneValidationError(phoneNumber, { required: true });
                       if (phoneValidationError) {
@@ -470,6 +472,7 @@ export function AddLineModal({
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full"
                     onClick={() => setStep(1)}
                   >
                     Back
@@ -477,6 +480,7 @@ export function AddLineModal({
                   <Button
                     type="submit"
                     variant="default"
+                    className="w-full"
                     disabled={isLoading || !disclosure || !consent || !isVendorAcknowledged}
                     loading={isLoading}
                   >

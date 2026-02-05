@@ -253,13 +253,13 @@ export default function ManualCallModal({
           </div>
         )}
 
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
           {step === 2 && (
             <Button
               type="button"
               variant="outline"
               size="small"
-              className="w-full sm:w-auto"
+              className="w-full"
               onClick={() => setStep(1)}
             >
               Change line
@@ -269,7 +269,7 @@ export default function ManualCallModal({
             type="button"
             variant="outline"
             size="small"
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={() => onOpenChange(false)}
           >
             Cancel
@@ -278,7 +278,7 @@ export default function ManualCallModal({
             type="button"
             variant="default"
             size="small"
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={handleStartCall}
             disabled={!selectedLineId || isCalling || isLoading}
           >

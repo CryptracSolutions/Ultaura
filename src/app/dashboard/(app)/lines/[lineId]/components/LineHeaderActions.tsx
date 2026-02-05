@@ -335,13 +335,13 @@ export function LineHeaderActions({
             </p>
           )}
 
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
               type="button"
               onClick={() => setIsTestCallModalOpen(false)}
               variant="outline"
               size="small"
-              className="w-full sm:w-auto"
+              className="w-full"
             >
               Cancel
             </Button>
@@ -351,7 +351,7 @@ export function LineHeaderActions({
               disabled={isTestCalling || cooldownSeconds > 0 || isReadOnly}
               variant="default"
               size="small"
-              className="w-full sm:w-auto"
+              className="w-full"
             >
               {cooldownSeconds > 0
                 ? `Try again in ${cooldownSeconds}s`
