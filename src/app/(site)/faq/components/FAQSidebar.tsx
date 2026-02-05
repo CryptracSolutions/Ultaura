@@ -27,7 +27,7 @@ export function FAQSidebar({
 
   if (variant === 'mobile') {
     return (
-      <div className="relative">
+      <div className="relative z-40">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
@@ -40,7 +40,7 @@ export function FAQSidebar({
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-10 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
             {categories.map((category) => {
               const isActive = category.id === activeId;
               return (
