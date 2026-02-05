@@ -8,7 +8,14 @@ import { DateTime } from 'luxon';
 import { Clock, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  focusDialogAutofocusTarget,
+  gateDialogAutoFocus,
+} from '~/core/ui/Dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { DatePicker } from '~/core/ui/DatePicker';
 import { TimePicker } from '~/core/ui/TimePicker';
@@ -1207,8 +1214,11 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
       {/* Create Schedule Modal */}
       <Dialog open={showCreateModal} onOpenChange={(open) => { if (!open) handleCloseCreateModal(); }}>
         <DialogContent
-          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="mobile-form-sheet sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
+          onOpenAutoFocus={(event) => {
+            gateDialogAutoFocus(event, focusDialogAutofocusTarget);
+          }}
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">

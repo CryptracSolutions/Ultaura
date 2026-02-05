@@ -197,7 +197,7 @@ function MenuLink({
       onClick={onClick}
       className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors"
     >
-      <Icon className="h-6 w-6 text-muted-foreground" />
+      <Icon className="h-6 w-6 text-primary" />
       <span className="text-foreground">{label}</span>
     </Link>
   );

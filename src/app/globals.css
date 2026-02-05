@@ -273,11 +273,9 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-@media (max-width: 640px) {
-  input,
-  textarea,
-  select {
-    font-size: max(16px, 1em) !important;
+@media (max-width: 640px), (hover: none), (pointer: coarse) {
+  .mobile-form-sheet :is(input, textarea, select, [contenteditable="true"]) {
+    font-size: 16px !important;
   }
 }
 

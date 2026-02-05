@@ -5,7 +5,13 @@ import { DateTime } from 'luxon';
 import { CheckCircle, Palmtree, Plus, Trash2, X } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { VacationRange } from '~/lib/ultaura/vacation-utils';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  gateDialogAutoFocus,
+} from '~/core/ui/Dialog';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import Button from '~/core/ui/Button';
 import { DatePicker } from '~/core/ui/DatePicker';
@@ -286,7 +292,7 @@ export function VacationSettings({
         }}
       >
         <DialogContent
-          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onInteractOutside={(event) => {
             if (hasVacationFormChanges) {
@@ -301,8 +307,10 @@ export function VacationSettings({
             }
           }}
           onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            startDateInputRef.current?.focus();
+            gateDialogAutoFocus(event, () => {
+              event.preventDefault();
+              startDateInputRef.current?.focus();
+            });
           }}
         >
           <div className="flex items-start justify-between gap-4">

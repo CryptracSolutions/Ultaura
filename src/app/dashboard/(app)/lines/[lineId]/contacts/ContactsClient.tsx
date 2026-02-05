@@ -165,7 +165,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
         }}
       >
         <DialogContent
-          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
         >
           <div className="flex items-start justify-between gap-4">

@@ -1,4 +1,3 @@
-import MobileAppNavigation from '~/components/MobileAppNavigation';
 import { PageHeader } from '~/core/ui/Page';
 
 const AppHeader: React.FCC<{
@@ -10,7 +9,6 @@ const AppHeader: React.FCC<{
       title={title}
       description={description}
       showDescriptionOnMobile
-      mobileNavigation={<MobileAppNavigation />}
     >
       {children}
     </PageHeader>

@@ -32,7 +32,13 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  gateDialogAutoFocus,
+} from '~/core/ui/Dialog';
 import Button from '~/core/ui/Button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
@@ -1526,7 +1532,7 @@ export function PrivacyCenterClient({
                     }}
                   >
                     <DialogContent
-                      className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+                      className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
                       overlayClassName="bg-black/50 backdrop-blur-none"
                       onInteractOutside={(event) => {
                         if (isInviting || hasInviteChanges) {
@@ -1541,8 +1547,10 @@ export function PrivacyCenterClient({
                         }
                       }}
                       onOpenAutoFocus={(event) => {
-                        event.preventDefault();
-                        firstInputRef.current?.focus();
+                        gateDialogAutoFocus(event, () => {
+                          event.preventDefault();
+                          firstInputRef.current?.focus();
+                        });
                       }}
                     >
                       <div className="flex items-start justify-between gap-4">

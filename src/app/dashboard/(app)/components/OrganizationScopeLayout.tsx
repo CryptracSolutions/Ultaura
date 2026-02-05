@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import useCollapsible from '~/core/hooks/use-sidebar-state';
 import AppSidebar from '~/app/dashboard/(app)/components/AppSidebar';
 import TopNavBar from '~/components/TopNavBar';
+import MobileDashboardHeader from '~/components/MobileDashboardHeader';
+import MobileAppNavigation from '~/components/MobileAppNavigation';
 import HelpPanel from '~/components/HelpPanel';
 import Toaster from '~/components/Toaster';
 import SentryBrowserWrapper from '~/components/SentryProvider';
@@ -123,6 +125,7 @@ function RouteShellWithSidebar(
 ) {
   const [collapsed, setCollapsed] = useCollapsible(props.collapsed);
   const { isOpen: isHelpOpen, open: openHelp, close: closeHelp } = useHelpPanel();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const toggleHelp = () => {
     if (isHelpOpen) {
       closeHelp();
@@ -138,6 +141,7 @@ function RouteShellWithSidebar(
         contentContainerClassName={className}
         sidebar={<AppSidebar />}
       >
+        <MobileDashboardHeader onMenuOpen={() => setMobileMenuOpen(true)} />
         <TopNavBar onHelpToggle={toggleHelp} />
         {props.ultauraAccountId ? (
           <InProgressCallBanner accountId={props.ultauraAccountId} />
@@ -145,6 +149,10 @@ function RouteShellWithSidebar(
         {props.children}
       </Page>
 
+      <MobileAppNavigation
+        isOpen={mobileMenuOpen}
+        onOpenChange={setMobileMenuOpen}
+      />
       <HelpPanel isOpen={isHelpOpen} onClose={closeHelp} />
     </SidebarContext.Provider>
   );

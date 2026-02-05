@@ -6,7 +6,14 @@ import { toast } from 'sonner';
 import { Bell, Plus, Clock, X, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock, MoreVertical } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  focusDialogAutofocusTarget,
+  gateDialogAutoFocus,
+} from '~/core/ui/Dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -644,8 +651,11 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
         }}
       >
         <DialogContent
-          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="mobile-form-sheet sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
+          onOpenAutoFocus={(event) => {
+            gateDialogAutoFocus(event, focusDialogAutofocusTarget);
+          }}
         >
           <div className="flex items-start justify-between gap-4 flex-shrink-0">
             <div className="min-w-0">

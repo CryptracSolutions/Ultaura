@@ -19,7 +19,6 @@ export interface CreateReminderFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
-  messageTextareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
@@ -33,14 +32,8 @@ export function CreateReminderForm({
   onSuccess,
   onCancel,
   onDirtyChange,
-  messageTextareaRef,
 }: CreateReminderFormProps) {
   const router = useRouter();
-
-  // Focus message textarea when form mounts (for step transitions)
-  useEffect(() => {
-    messageTextareaRef?.current?.focus();
-  }, [messageTextareaRef]);
 
   // Form state
   const [message, setMessage] = useState('');
@@ -137,7 +130,6 @@ export function CreateReminderForm({
               Reminder Message
             </label>
             <Textarea
-              ref={messageTextareaRef}
               data-autofocus
               id="reminder-message"
               value={message}

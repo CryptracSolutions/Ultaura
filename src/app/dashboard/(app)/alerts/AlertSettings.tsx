@@ -7,7 +7,13 @@ import { Switch } from '~/core/ui/Switch';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { LineRow, NotificationPreferencesRow } from '~/lib/ultaura/types';
 import { updateNotificationPreferences } from '~/lib/ultaura/insights';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  gateDialogAutoFocus,
+} from '~/core/ui/Dialog';
 import Button from '~/core/ui/Button';
 import { useRouter } from 'next/navigation';
 
@@ -221,7 +227,7 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
         }}
       >
         <DialogContent
-          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onInteractOutside={(event) => {
             if (isSaving || hasChanges) {
@@ -236,8 +242,10 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
             }
           }}
           onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            firstSwitchRef.current?.focus();
+            gateDialogAutoFocus(event, () => {
+              event.preventDefault();
+              firstSwitchRef.current?.focus();
+            });
           }}
         >
           <div className="flex items-start justify-between gap-4">

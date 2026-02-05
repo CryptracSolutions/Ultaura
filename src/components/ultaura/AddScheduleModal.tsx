@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { X, ChevronLeft, Phone } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  focusDialogAutofocusTarget,
+  gateDialogAutoFocus,
+} from '~/core/ui/Dialog';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { CreateScheduleForm } from './CreateScheduleForm';
 
@@ -38,7 +45,6 @@ export function AddScheduleModal({
   const [selectedLine, setSelectedLine] = useState<LineForScheduleModal | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [formDirty, setFormDirty] = useState(false);
-  const firstDayButtonRef = useRef<HTMLButtonElement>(null!);
 
   // Auto-select if only one line or preselectedLineId provided
   useEffect(() => {
@@ -101,14 +107,10 @@ export function AddScheduleModal({
     <>
       <Dialog open={open} onOpenChange={(openState) => { if (!openState) handleClose(); }}>
         <DialogContent
-          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            // Focus first autofocus element (line button or day button depending on step)
-            const container = event.currentTarget as HTMLElement | null;
-            const target = container?.querySelector('[data-autofocus]') as HTMLElement | null;
-            target?.focus();
+            gateDialogAutoFocus(event, focusDialogAutofocusTarget);
           }}
         >
           {/* Header */}
@@ -182,7 +184,6 @@ export function AddScheduleModal({
                 onSuccess={handleSuccess}
                 onCancel={handleClose}
                 onDirtyChange={setFormDirty}
-                firstDayButtonRef={firstDayButtonRef}
               />
           )}
         </DialogContent>

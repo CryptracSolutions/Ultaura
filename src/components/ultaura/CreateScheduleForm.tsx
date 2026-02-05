@@ -18,7 +18,6 @@ export interface CreateScheduleFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
-  firstDayButtonRef?: React.RefObject<HTMLButtonElement>;
 }
 
 const DEFAULT_DAYS = [1, 2, 3, 4, 5]; // Weekdays
@@ -33,18 +32,12 @@ export function CreateScheduleForm({
   onSuccess,
   onCancel,
   onDirtyChange,
-  firstDayButtonRef,
 }: CreateScheduleFormProps) {
   const router = useRouter();
   const [selectedDays, setSelectedDays] = useState<number[]>(DEFAULT_DAYS);
   const [selectedTime, setSelectedTime] = useState(DEFAULT_TIME);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Focus first day button when form mounts (for step transitions)
-  useEffect(() => {
-    firstDayButtonRef?.current?.focus();
-  }, [firstDayButtonRef]);
 
   // Track dirty state
   const isDirty = selectedDays.join(',') !== DEFAULT_DAYS.join(',') || selectedTime !== DEFAULT_TIME;
@@ -112,7 +105,6 @@ export function CreateScheduleForm({
               {DAYS_OF_WEEK.map((day, index) => (
                 <button
                   key={day.value}
-                  ref={index === 0 ? firstDayButtonRef : undefined}
                   data-autofocus={index === 0 ? true : undefined}
                   type="button"
                   onClick={() => toggleDay(day.value)}

@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { X, ChevronLeft, Phone } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  focusDialogAutofocusTarget,
+  gateDialogAutoFocus,
+} from '~/core/ui/Dialog';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { CreateReminderForm } from './CreateReminderForm';
 
@@ -30,7 +37,6 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
   const [selectedLine, setSelectedLine] = useState<LineForReminderModal | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [formDirty, setFormDirty] = useState(false);
-  const messageTextareaRef = useRef<HTMLTextAreaElement>(null!);
 
   // Auto-select if only one line or preselectedLineId provided
   useEffect(() => {
@@ -93,14 +99,10 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
     <>
       <Dialog open={open} onOpenChange={(openState) => { if (!openState) handleClose(); }}>
         <DialogContent
-          className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+          className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            // Focus first autofocus element (line button or textarea depending on step)
-            const container = event.currentTarget as HTMLElement | null;
-            const target = container?.querySelector('[data-autofocus]') as HTMLElement | null;
-            target?.focus();
+            gateDialogAutoFocus(event, focusDialogAutofocusTarget);
           }}
         >
           {/* Header */}
@@ -172,7 +174,6 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
                 onSuccess={handleSuccess}
                 onCancel={handleClose}
                 onDirtyChange={setFormDirty}
-                messageTextareaRef={messageTextareaRef}
               />
           )}
         </DialogContent>

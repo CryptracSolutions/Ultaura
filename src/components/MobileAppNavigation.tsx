@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import classNames from 'clsx';
 
 import {
-  ArrowLeftOnRectangleIcon,
-  Bars3Icon,
   XMarkIcon,
   QuestionMarkCircleIcon,
   ChatBubbleLeftIcon,
@@ -17,16 +15,12 @@ import {
   CalendarIcon,
   LifebuoyIcon,
   MagnifyingGlassIcon,
-  UserIcon,
-  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 import Trans from '~/core/ui/Trans';
 
 import NAVIGATION_CONFIG from '../navigation.config';
-import configuration from '~/configuration';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
-import useSignOut from '~/core/hooks/use-sign-out';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { useAddReminder } from '~/lib/contexts/AddReminderContext';
@@ -39,7 +33,10 @@ import Logo from '~/core/ui/Logo';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/core/ui/Dialog';
 
-const MobileAppNavigation = () => {
+const MobileAppNavigation: React.FC<{
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}> = ({ isOpen, onOpenChange }) => {
   const currentOrganization = useCurrentOrganization();
   const { data: ultauraAccount } = useUltauraAccount();
   const { openManualCall } = useManualCall();
@@ -53,25 +50,29 @@ const MobileAppNavigation = () => {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
-  const openMenu = () => {
-    setIsVisible(true);
-    setAnimationState('opening');
-    // Small delay to ensure DOM renders before animation starts
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setAnimationState('open');
-      });
-    });
-  };
-
-  const closeMenu = () => {
+  const closeMenu = useCallback(() => {
     setAnimationState('closing');
-    // Wait for animation to complete before hiding
     setTimeout(() => {
       setIsVisible(false);
       setAnimationState('closed');
+      onOpenChange(false);
     }, 300);
-  };
+  }, [onOpenChange]);
+
+  // React to external open trigger
+  useEffect(() => {
+    if (isOpen && animationState === 'closed') {
+      setIsVisible(true);
+      setAnimationState('opening');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setAnimationState('open');
+        });
+      });
+    } else if (!isOpen && (animationState === 'open' || animationState === 'opening')) {
+      closeMenu();
+    }
+  }, [isOpen, animationState, closeMenu]);
 
   if (!currentOrganization?.uuid) {
     return null;
@@ -108,15 +109,6 @@ const MobileAppNavigation = () => {
 
   return (
     <>
-      {/* Hamburger Trigger */}
-      <button
-        onClick={openMenu}
-        className="p-1 -ml-1"
-        aria-label="Open menu"
-      >
-        <Bars3Icon className="h-9 w-9" />
-      </button>
-
       {/* Full Screen Menu */}
       {isVisible && (
         <div
@@ -166,7 +158,7 @@ const MobileAppNavigation = () => {
 
           {/* Menu Content */}
           <div className="overflow-y-auto h-[calc(100dvh-57px)]">
-            {/* Navigation Groups */}
+            {/* Navigation Groups (includes Account with Usage/Privacy from navConfig) */}
             {navGroups.map((group) => (
               <MenuSection key={group.label} label={group.label}>
                 {group.children.map((child) => (
@@ -199,23 +191,6 @@ const MobileAppNavigation = () => {
                 label="Feedback"
                 onClick={handleFeedbackClick}
               />
-            </MenuSection>
-
-            {/* Account Section */}
-            <MenuSection label="Account">
-              <MenuLink
-                Icon={UserIcon}
-                path={`${configuration.paths.appPrefix}/${configuration.paths.settings.profile}`}
-                label="common:profileSettingsTabLabel"
-                onClick={closeMenu}
-              />
-              <MenuLink
-                Icon={CreditCardIcon}
-                path={`${configuration.paths.appPrefix}/${configuration.paths.settings.subscription}`}
-                label="common:subscriptionSettingsTabLabel"
-                onClick={closeMenu}
-              />
-              <SignOutButton onSignOut={closeMenu} />
             </MenuSection>
           </div>
         </div>
@@ -306,27 +281,6 @@ function MenuButton({
     >
       <Icon className="h-6 w-6 text-primary" />
       <span className="text-foreground">{label}</span>
-    </button>
-  );
-}
-
-function SignOutButton({ onSignOut }: { onSignOut: () => void }) {
-  const signOut = useSignOut();
-
-  const handleSignOut = () => {
-    onSignOut();
-    signOut();
-  };
-
-  return (
-    <button
-      onClick={handleSignOut}
-      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
-    >
-      <ArrowLeftOnRectangleIcon className="h-6 w-6 text-primary" />
-      <span className="text-foreground">
-        <Trans i18nKey="common:signOut" defaults="Sign out" />
-      </span>
     </button>
   );
 }

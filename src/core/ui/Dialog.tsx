@@ -3,6 +3,42 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '~/core/generic/shadcn-utils';
 
+type DialogOpenAutoFocusHandler = NonNullable<
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onOpenAutoFocus']
+>;
+
+function isMobileOrTouchContext(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return (
+    window.matchMedia('(max-width: 640px)').matches ||
+    window.matchMedia('(pointer: coarse)').matches ||
+    window.matchMedia('(hover: none)').matches ||
+    navigator.maxTouchPoints > 0
+  );
+}
+
+export function gateDialogAutoFocus(
+  event: Parameters<DialogOpenAutoFocusHandler>[0],
+  desktopHandler?: DialogOpenAutoFocusHandler,
+): void {
+  if (isMobileOrTouchContext()) {
+    event.preventDefault();
+    return;
+  }
+
+  desktopHandler?.(event);
+}
+
+export const focusDialogAutofocusTarget: DialogOpenAutoFocusHandler = (event) => {
+  event.preventDefault();
+  const container = event.currentTarget as HTMLElement | null;
+  const target = container?.querySelector('[data-autofocus]') as HTMLElement | null;
+  target?.focus();
+};
+
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 

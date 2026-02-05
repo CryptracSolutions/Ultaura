@@ -53,7 +53,9 @@ export function PageHeader({
     <div className={'flex items-start justify-between p-container'}>
       <div className="flex flex-col">
         <div className="flex items-center space-x-2">
-          <div className={'flex items-center lg:hidden'}>{mobileNavigation}</div>
+          {mobileNavigation && (
+            <div className={'flex items-center lg:hidden'}>{mobileNavigation}</div>
+          )}
 
           <Heading type={3}>
             <span className={'flex items-center space-x-0.5 lg:space-x-2'}>
