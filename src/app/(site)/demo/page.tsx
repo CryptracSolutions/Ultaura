@@ -55,12 +55,6 @@ const TECH_FEATURES = [
   },
 ];
 
-const TRUST_POINTS = [
-  'Works on any phone',
-  'No app required',
-  'Privacy-first by design',
-  'Always discloses AI',
-];
 
 type PlayState = 'idle' | 'loading' | 'playing' | 'error';
 
@@ -445,23 +439,6 @@ export default function DemoPage() {
               <span className="h-2 w-2 rounded-full bg-primary" />
               <span>Powered by Grok Voice Agent</span>
             </div>
-          </div>
-        </Container>
-      </section>
-
-      {/* Trust Strip */}
-      <section className="py-12">
-        <Container>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
-            {TRUST_POINTS.map((item) => (
-              <span
-                key={item}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2"
-              >
-                <CheckCircleIcon className="h-4 w-4 text-primary" />
-                {item}
-              </span>
-            ))}
           </div>
         </Container>
       </section>
