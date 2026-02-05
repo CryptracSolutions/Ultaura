@@ -113,7 +113,7 @@ const MobileAppNavigation: React.FC<{
       {isVisible && (
         <div
           className={classNames(
-            'fixed inset-0 z-50 bg-background transition-transform duration-300 ease-out',
+            'fixed inset-0 z-50 bg-sidebar transition-transform duration-300 ease-out',
             {
               'translate-x-0': animationState === 'open',
               '-translate-x-full': animationState === 'opening' || animationState === 'closing',
@@ -121,7 +121,7 @@ const MobileAppNavigation: React.FC<{
           )}
         >
           {/* Header with Close Button */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
             <Logo
               href="/"
               className="h-10"
@@ -135,7 +135,7 @@ const MobileAppNavigation: React.FC<{
                 className="p-2 hover:bg-muted rounded-md transition-colors"
                 aria-label="Quick Actions"
               >
-                <PlusIcon className="h-6 w-6" />
+                <PlusIcon className="h-6 w-6 text-primary" />
               </button>
               <button
                 onClick={openMobile}

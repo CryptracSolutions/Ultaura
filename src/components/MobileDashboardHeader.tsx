@@ -15,7 +15,7 @@ const MobileDashboardHeader: React.FC<{
   const organization = useCurrentOrganization();
 
   return (
-    <div className="sticky top-0 z-40 bg-background lg:hidden px-container">
+    <div className="sticky top-0 z-40 bg-sidebar border-b border-border/60 shadow-xl lg:hidden px-container">
       <div className="flex items-center justify-between gap-4 pt-3 pb-1.5 px-1">
         <div className="shrink-0">
           <Logo

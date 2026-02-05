@@ -69,7 +69,7 @@ function ChatBotContainer(
     <div
       className={
         'animate-in fade-in z-50 slide-in-from-bottom-16 duration-200' +
-        ' bg-sidebar' +
+        ' bg-sidebar mobile-form-sheet' +
         ' fixed md:right-8 md:rounded-xl ease-out slide-out-to-bottom-8' +
         ' bottom-0 md:bottom-8 w-full h-[60vh] md:w-[40vw] xl:w-[26vw]' +
         ' shadow-xl zoom-in-95 border border-border'
@@ -339,7 +339,7 @@ function ChatBotInput({
             name={'message'}
             className={
               'w-full px-4 py-2 pr-12 resize-none bg-transparent rounded-xl leading-6' +
-              ' text-foreground placeholder:text-foreground max-h-48 overflow-y-auto border-0 text-sm'
+              ' text-foreground placeholder:text-foreground max-h-48 overflow-y-auto border-0 text-base sm:text-sm'
             }
             placeholder="Ask a question..."
             rows={1}

@@ -484,11 +484,6 @@ export default function DemoPage() {
                 </div>
               ))}
             </div>
-
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <span className="h-2 w-2 rounded-full bg-primary" />
-              <span>Powered by Grok Voice Agent</span>
-            </div>
           </div>
         </Container>
       </section>
