@@ -10,10 +10,12 @@ import {
   XMarkIcon,
   ArrowPathIcon,
   PaperAirplaneIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import If from '~/core/ui/If';
+import Textarea from '~/core/ui/Textarea';
 
 import { ChatBotMessageRole } from '../lib/types';
 import chatbotMessagesStore from '../lib/chatbot-messages-store';
@@ -67,10 +69,10 @@ function ChatBotContainer(
     <div
       className={
         'animate-in fade-in z-50 slide-in-from-bottom-16 duration-200' +
-        ' bg-white dark:bg-card' +
+        ' bg-sidebar' +
         ' fixed md:right-8 md:rounded-xl ease-out slide-out-to-bottom-8' +
         ' bottom-0 md:bottom-8 w-full h-[60vh] md:w-[40vw] xl:w-[26vw]' +
-        ' shadow-2xl shadow-primary-500/50 zoom-in-95 border dark:border-border'
+        ' shadow-xl zoom-in-95 border border-border'
       }
     >
       <div className={'flex flex-col h-full'}>
@@ -84,7 +86,11 @@ function ChatBotContainer(
 
         <div
           ref={(div) => { scrollingDiv.current = div ?? undefined; }}
-          className={'overflow-y-auto flex flex-col flex-1'}
+          className={'overflow-y-auto flex flex-col flex-1 bg-card overscroll-contain'}
+          style={{
+            backgroundImage:
+              'linear-gradient(180deg, rgba(10, 186, 181, 0.18) 0%, rgba(10, 186, 181, 0) 85%)',
+          }}
         >
           <ChatBotMessages
             isLoading={state.isLoading}
@@ -130,11 +136,12 @@ function ChatBotHeader(
     <div
       className={
         'px-4 py-3 flex border-b md:rounded-t-xl justify-between' +
-        ' items-center dark:border-border'
+        ' items-center border-border bg-sidebar'
       }
     >
-      <div className={'flex flex-col text-foreground'}>
-        <span className={'font-semibold'}>{configuration.site.siteName}</span>
+      <div className={'flex items-center gap-2'}>
+        <SparklesIcon className={'h-5 w-5 text-primary'} />
+        <span className={'font-semibold text-foreground'}>Assistant</span>
       </div>
 
       <div className={'flex space-x-4 items-center'}>
@@ -152,10 +159,11 @@ function ChatBotHeader(
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <button onClick={props.onClose}>
-              <XMarkIcon
-                className={'h-4 text-foreground dark:hover:text-white'}
-              />
+            <button
+              onClick={props.onClose}
+              className="rounded-full bg-transparent h-8 w-8 flex items-center justify-center ring-ring transition-all outline-none focus:ring-2 hover:bg-primary/10 hover:border-primary/30 dark:hover:bg-primary/20 dark:hover:border-primary/30 disabled:cursor-not-allowed disabled:opacity-50 active:bg-primary/20 dark:active:bg-primary/30"
+            >
+              <XMarkIcon className={'h-5 w-5 text-foreground'} />
             </button>
           </TooltipTrigger>
 
@@ -178,7 +186,7 @@ function ChatBotMessages(
   const shouldDisplayDefaultPrompts = props.messages.length < 2;
 
   return (
-    <div className={'flex-1 relative p-4 flex-col space-y-2'}>
+    <div className={'flex-1 relative p-4 flex-col space-y-4'}>
       {props.messages.map((message, index) => {
         return <ChatBotMessage key={index} message={message} />;
       })}
@@ -209,14 +217,6 @@ function ChatBotMessage({ message }: { message: Message }) {
   const isBot = message.role === ChatBotMessageRole.Assistant;
   const isUser = message.role === ChatBotMessageRole.User;
 
-  const className = classNames(
-    `px-2 py-1 flex space-x-2 inline-flex text-sm rounded-md items-center`,
-    {
-      'bg-gray-100 dark:bg-muted text-gray-900 dark:text-foreground': isBot,
-      [`bg-primary-500 text-primary-foreground`]: isUser,
-    },
-  );
-
   return (
     <div
       className={classNames(`flex`, {
@@ -224,17 +224,22 @@ function ChatBotMessage({ message }: { message: Message }) {
         'justify-start': isBot,
       })}
     >
-      <div className={'flex space-y-1.5 flex-col overflow-x-hidden'}>
+      <div className={'flex flex-col space-y-1 max-w-[85%]'}>
         <span
-          className={classNames('text-sm py-1 px-1 font-medium text-foreground', {
-            'text-right pr-2': isUser,
+          className={classNames('text-xs font-medium text-foreground', {
+            'text-right': isUser,
           })}
         >
-          {isBot ? `AI` : `You`}
+          {isBot ? 'Ultaura' : 'You'}
         </span>
 
-        <div className={className}>
-          <ChatMessageMarkdownRenderer className="overflow-x-hidden prose break-words dark:prose-invert prose-p:leading-relaxed prose-pre:p-0">
+        <div
+          className={classNames('px-3 py-2 rounded-lg text-sm', {
+            'bg-primary/10 text-foreground': isBot,
+            'bg-primary text-primary-foreground': isUser,
+          })}
+        >
+          <ChatMessageMarkdownRenderer className="prose prose-sm dark:prose-invert break-words max-w-none">
             {message.content}
           </ChatMessageMarkdownRenderer>
         </div>
@@ -255,11 +260,33 @@ function ChatBotInput({
     e: React.FormEvent<HTMLFormElement>,
     chatRequestOptions?: ChatRequestOptions,
   ) => void;
-  handleInputChange: React.ChangeEventHandler<HTMLInputElement>;
+  handleInputChange: React.ChangeEventHandler<HTMLTextAreaElement>;
 }>) {
   const { onLoadingChange } = useContext(ChatBotContext);
   const siteKey = process.env.NEXT_PUBLIC_CHATBOT_SITE_KEY;
   const ref = useRef<TurnstileInstance>();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const resetTextareaHeight = useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (input.trim()) {
+          const form = e.currentTarget.form;
+          if (form) {
+            form.requestSubmit();
+          }
+        }
+      }
+    },
+    [input],
+  );
 
   const onSubmit: React.FormEventHandler<HTMLFormElement> = useCallback(
     (e) => {
@@ -282,40 +309,55 @@ function ChatBotInput({
       }
 
       handleSubmit(e);
+      resetTextareaHeight();
     },
-    [handleSubmit, siteKey],
+    [handleSubmit, resetTextareaHeight, siteKey],
   );
 
   return (
     <form onSubmit={onSubmit}>
-      <div className={'flex relative'}>
+      <div className={'p-4 bg-card pb-[calc(env(safe-area-inset-bottom)+1rem)]'}>
         <If condition={siteKey}>
           <Turnstile ref={ref} siteKey={siteKey as string} />
         </If>
 
-        <input
-          disabled={isLoading}
-          autoComplete={'off'}
-          required
-          value={input}
-          onChange={handleInputChange}
-          name={'message'}
+        <div
           className={
-            'p-4 h-14 dark:text-foreground dark:placeholder:text-muted-foreground' +
-            ' rounded-bl-xl rounded-br-xl w-full outline-none' +
-            ' transition-colors resize-none border-t text-sm dark:bg-card' +
-            ' dark:border-border pr-8'
+            'relative flex items-end bg-card rounded-xl border border-input shadow-sm' +
+            ' transition-colors focus-within:!border-primary'
           }
-          placeholder="Ask our chatbot a question..."
-        />
-
-        <button
-          disabled={isLoading}
-          type={'submit'}
-          className={'absolute right-4 top-4 bg-transparent'}
         >
-          <PaperAirplaneIcon className={'h-6 text-primary-500'} />
-        </button>
+          <Textarea
+            ref={textareaRef}
+            disabled={isLoading}
+            autoComplete={'off'}
+            required
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            autoResize
+            name={'message'}
+            className={
+              'w-full px-4 py-2 pr-12 resize-none bg-transparent rounded-xl leading-6' +
+              ' text-foreground placeholder:text-foreground max-h-48 overflow-y-auto border-0 text-sm'
+            }
+            placeholder="Ask a question..."
+            rows={1}
+          />
+
+          <button
+            disabled={isLoading}
+            type={'submit'}
+            className={
+              'absolute right-3 bottom-1/2 translate-y-1/2 h-8 w-8 rounded-md' +
+              ' text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors' +
+              ' touch-manipulation flex items-center justify-center'
+            }
+            aria-label="Send message"
+          >
+            <PaperAirplaneIcon className={'h-4 w-4'} />
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -396,18 +438,19 @@ function ClickablePrompt(
 }
 
 function BubbleAnimation() {
-  const dotClassName = `rounded-full dark:bg-muted bg-gray-100 h-2.5 w-2.5`;
-
   return (
-    <div
-      className={
-        'animate-in slide-in-from-bottom-12 duration-1000 ease-out py-4'
-      }
-    >
-      <div className={'flex space-x-1 animate-bounce duration-750'}>
-        <div className={dotClassName} />
-        <div className={dotClassName} />
-        <div className={dotClassName} />
+    <div className="flex justify-start">
+      <div className="flex flex-col space-y-1">
+        <span className="text-xs font-medium text-muted-foreground">
+          Ultaura
+        </span>
+        <div className="bg-primary/10 rounded-lg px-3 py-2">
+          <div className="flex space-x-1">
+            <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
+            <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0.1s]" />
+            <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0.2s]" />
+          </div>
+        </div>
       </div>
     </div>
   );
