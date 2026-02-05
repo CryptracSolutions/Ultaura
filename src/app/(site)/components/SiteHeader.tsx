@@ -20,8 +20,8 @@ const SiteHeader = () => {
 
   return (
     <Container>
-      <div className="flex pt-3 pb-1.5 px-1 items-center justify-between">
-        <div className={'w-4/12'}>
+      <div className="flex pt-3 pb-1.5 px-1 items-center justify-between gap-4">
+        <div className={'shrink-0'}>
           <Logo
             className={'h-10'}
             showWordmark
@@ -29,11 +29,11 @@ const SiteHeader = () => {
           />
         </div>
 
-        <div className={'w-4/12 justify-center hidden lg:flex'}>
+        <div className={'flex-1 min-w-0 justify-center hidden lg:flex'}>
           <SiteNavigation />
         </div>
 
-        <div className={'flex flex-1 items-center justify-end space-x-4'}>
+        <div className={'flex shrink-0 items-center justify-end space-x-4'}>
           <If condition={userSession} fallback={<AuthButtons />}>
             {(session) => (
               <ProfileDropdown

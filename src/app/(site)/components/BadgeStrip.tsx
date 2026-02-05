@@ -112,7 +112,7 @@ export function BadgeStrip() {
             <div
               key={`group-${groupIndex}`}
               ref={groupIndex === 0 ? groupRef : undefined}
-              className="flex shrink-0 items-center gap-12 pr-12"
+              className="flex shrink-0 items-center gap-[7rem] pr-[7rem]"
               aria-hidden={groupIndex !== 0}
             >
               {badges.map((badge, index) => (

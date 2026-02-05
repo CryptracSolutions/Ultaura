@@ -13,6 +13,7 @@ import {
   CurrencyDollarIcon,
   InformationCircleIcon,
   QuestionMarkCircleIcon,
+  EnvelopeIcon,
   ArrowRightOnRectangleIcon,
   UserPlusIcon,
 } from '@heroicons/react/24/outline';
@@ -29,6 +30,7 @@ const navLinks = [
   { label: 'Pricing', path: '/pricing', Icon: CurrencyDollarIcon },
   { label: 'Vision', path: '/vision', Icon: InformationCircleIcon },
   { label: 'FAQ', path: '/faq', Icon: QuestionMarkCircleIcon },
+  { label: 'Contact', path: '/contact', Icon: EnvelopeIcon },
 ];
 
 const authLinks = [
@@ -44,6 +46,7 @@ const links = {
   Pricing: { label: 'Pricing', path: '/pricing' },
   Vision: { label: 'Vision', path: '/vision' },
   FAQ: { label: 'FAQ', path: '/faq' },
+  Contact: { label: 'Contact', path: '/contact' },
 };
 
 const SiteNavigation = () => {
@@ -52,13 +55,14 @@ const SiteNavigation = () => {
   return (
     <>
       <div className={'hidden items-center space-x-0.5 lg:flex'}>
-        <NavigationMenu>
+        <NavigationMenu scrollable centered>
           <NavigationMenuItem className={className} link={links.Blog} />
           <NavigationMenuItem className={className} link={links.Docs} />
           <NavigationMenuItem className={className} link={links.Demo} />
           <NavigationMenuItem className={className} link={links.Pricing} />
           <NavigationMenuItem className={className} link={links.Vision} />
           <NavigationMenuItem className={className} link={links.FAQ} />
+          <NavigationMenuItem className={className} link={links.Contact} />
         </NavigationMenu>
       </div>
 
