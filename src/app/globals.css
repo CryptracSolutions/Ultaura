@@ -350,6 +350,31 @@ body {
   display: none;
 }
 
+/* Floating fixed button helpers (mobile only) */
+@media (max-width: 1023px) {
+  .floating-safe-bottom-right,
+  .floating-safe-bottom-left {
+    --floating-safe-offset: 1rem;
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--floating-safe-offset));
+  }
+
+  .floating-safe-bottom-right {
+    right: calc(env(safe-area-inset-right, 0px) + var(--floating-safe-offset));
+  }
+
+  .floating-safe-bottom-left {
+    left: calc(env(safe-area-inset-left, 0px) + var(--floating-safe-offset));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .floating-safe-bottom-right,
+  .floating-safe-bottom-left {
+    --floating-safe-offset: 2rem;
+  }
+}
+
 /* Prevent Sonner toast from showing white gap on mobile */
 [data-sonner-toaster] {
   --normal-bg: var(--background) !important;

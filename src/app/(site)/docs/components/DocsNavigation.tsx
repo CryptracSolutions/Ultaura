@@ -346,9 +346,7 @@ function FloatingDocumentationNavigation({
 
       <Button
         round
-        className={
-          'fixed left-4 bottom-4 md:left-8 md:bottom-8 z-50 h-12 w-12 rounded-full'
-        }
+        className={'floating-safe-bottom-left z-50 h-12 w-12 rounded-full'}
         onClick={onClick}
       >
         <Bars3Icon className={'h-6 w-6'} />
