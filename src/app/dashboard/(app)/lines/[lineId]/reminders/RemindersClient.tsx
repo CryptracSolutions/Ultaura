@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { Bell, Plus, Clock, X, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock, MoreVertical } from 'lucide-react';
+import { Bell, X, AlertCircle, Repeat, SkipForward, Pause, Play, Edit2, AlarmClock } from 'lucide-react';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import {
@@ -14,16 +14,10 @@ import {
   focusDialogAutofocusTarget,
   gateDialogAutoFocus,
 } from '~/core/ui/Dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
-} from '~/core/ui/Dropdown';
+import { AutomationPageHeader, AutomationSection, AutomationItemCard, AutomationEmptyState } from '~/components/ultaura/automation';
+import type { StatusPillProps } from '~/components/ultaura/automation/StatusPill';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
+import type { ActionItem } from '~/components/ultaura/ResponsiveActionMenu';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { ReminderRow } from '~/lib/ultaura/types';
 import { cancelReminder, skipNextOccurrence, pauseReminder, resumeReminder, snoozeReminder, editReminder } from '~/lib/ultaura/reminders';
@@ -43,7 +37,7 @@ const SNOOZE_OPTIONS = [
 ];
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const FULL_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 
 function getOrdinalSuffix(n: number): string {
   if (n > 3 && n < 21) return 'th';
@@ -85,13 +79,6 @@ interface RemindersClientProps {
   disabled?: boolean;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  sent: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  missed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  canceled: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-};
-
 const STATUS_LABELS: Record<string, string> = {
   scheduled: 'Scheduled',
   sent: 'Delivered',
@@ -110,7 +97,6 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   const [pausingId, setPausingId] = useState<string | null>(null);
   const [resumingId, setResumingId] = useState<string | null>(null);
   const [snoozingId, setSnoozingId] = useState<string | null>(null);
-  const [snoozeDropdownId, setSnoozeDropdownId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reminderToCancel, setReminderToCancel] = useState<string | null>(null);
 
@@ -249,7 +235,6 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     if (disabled) return;
 
     setSnoozingId(reminderId);
-    setSnoozeDropdownId(null);
 
     const result = await snoozeReminder(reminderId, minutes, line.short_id);
 
@@ -355,33 +340,91 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   const scheduledReminders = reminders.filter(r => r.status === 'scheduled');
   const pastReminders = reminders.filter(r => r.status !== 'scheduled');
 
+  function buildReminderPills(reminder: ReminderRow, faded?: boolean): StatusPillProps[] {
+    const pills: StatusPillProps[] = [];
+    if (reminder.is_paused) {
+      pills.push({ variant: 'paused', label: 'Paused', icon: Pause, faded });
+    }
+    if (reminder.snoozed_until && !reminder.is_paused) {
+      pills.push({ variant: 'snoozed', label: `Snoozed (${reminder.current_snooze_count}/3)`, icon: AlarmClock, faded });
+    }
+    if (reminder.is_recurring) {
+      pills.push({ variant: 'recurring', label: formatRecurrence(reminder), icon: Repeat, faded });
+    }
+    if (!reminder.is_paused) {
+      pills.push({ variant: reminder.status as StatusPillProps['variant'], label: STATUS_LABELS[reminder.status] ?? reminder.status, faded });
+    }
+    return pills;
+  }
+
+  function buildReminderActions(reminder: ReminderRow): ActionItem[] {
+    const isAnyLoading = pausingId === reminder.id || resumingId === reminder.id ||
+      snoozingId === reminder.id || skippingId === reminder.id || cancelingId === reminder.id;
+
+    const actions: ActionItem[] = [
+      {
+        label: 'Edit',
+        icon: <Edit2 className="w-5 h-5" />,
+        onClick: () => openEditModal(reminder),
+      },
+    ];
+
+    if (reminder.is_paused) {
+      actions.push({
+        label: 'Resume',
+        icon: <Play className="w-5 h-5" />,
+        onClick: () => handleResume(reminder.id),
+      });
+    } else {
+      actions.push({
+        label: 'Pause',
+        icon: <Pause className="w-5 h-5" />,
+        onClick: () => handlePause(reminder.id),
+      });
+    }
+
+    const canSnooze = !reminder.is_paused && reminder.current_snooze_count < 3;
+    if (canSnooze) {
+      actions.push({
+        label: 'Snooze',
+        icon: <AlarmClock className="w-5 h-5" />,
+        subItems: SNOOZE_OPTIONS.map((o) => ({
+          label: o.label,
+          onClick: () => handleSnooze(reminder.id, o.value),
+        })),
+      });
+    }
+
+    const canSkip = reminder.is_recurring && !reminder.is_paused;
+    if (canSkip) {
+      actions.push({
+        label: 'Skip next',
+        icon: <SkipForward className="w-5 h-5" />,
+        onClick: () => handleSkip(reminder.id),
+      });
+    }
+
+    actions.push({
+      label: reminder.is_recurring ? 'Cancel series' : 'Cancel',
+      icon: <X className="w-5 h-5" />,
+      onClick: () => setReminderToCancel(reminder.id),
+      variant: 'destructive' as const,
+      separator: true,
+    });
+
+    return actions;
+  }
+
   return (
     <div className="w-full pb-12">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Bell className="w-6 h-6 text-primary" />
-          </div>
-
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Reminders</h1>
-            <p className="text-muted-foreground mt-2">
-              Set up reminders for {line.display_name} at {formatPhone(line.phone_e164)}
-            </p>
-          </div>
-        </div>
-
-        {!disabled && (
-          <Button
-            variant="default"
-            onClick={() => setShowCreateModal(true)}
-            className="sm:w-auto"
-          >
-            <Plus className="w-3 h-3" />
-            New Reminder
-          </Button>
-        )}
-      </div>
+      <AutomationPageHeader
+        icon={Bell}
+        title="Reminders"
+        subtitle={`Set up reminders for ${line.display_name} at ${formatPhone(line.phone_e164)}`}
+        ctaLabel="New Reminder"
+        onCtaClick={() => setShowCreateModal(true)}
+        disabled={disabled}
+      />
 
       {error && (
         <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
@@ -392,111 +435,44 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
       {/* Scheduled Reminders */}
       {scheduledReminders.length > 0 && (
-        <div className="mb-8">
-          <h2 className="font-semibold text-lg mb-4">Upcoming Reminders</h2>
-          <div className="space-y-3">
-            {scheduledReminders.map((reminder) => (
-              <div
+        <AutomationSection title="Upcoming Reminders">
+          {scheduledReminders.map((reminder) => {
+            const isAnyLoading = pausingId === reminder.id || resumingId === reminder.id ||
+              snoozingId === reminder.id || skippingId === reminder.id || cancelingId === reminder.id;
+
+            return (
+              <AutomationItemCard
                 key={reminder.id}
-                className={`p-4 rounded-lg border bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${
-                  reminder.is_paused ? 'border-yellow-300 dark:border-yellow-700' : 'border-input'
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-foreground">{reminder.message}</p>
-                  <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      {formatDateTime(reminder.due_at)}
-                    </span>
-
-                    {/* Paused badge */}
-                    {reminder.is_paused && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs font-medium">
-                        <Pause className="w-3 h-3" />
-                        Paused
-                      </span>
-                    )}
-
-                    {/* Snoozed badge */}
-                    {reminder.snoozed_until && !reminder.is_paused && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-medium">
-                        <AlarmClock className="w-3 h-3" />
-                        Snoozed ({reminder.current_snooze_count}/3)
-                      </span>
-                    )}
-
-                    {/* Recurrence badge */}
-                    {reminder.is_recurring && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
-                        <Repeat className="w-3 h-3" />
-                        {formatRecurrence(reminder)}
-                      </span>
-                    )}
-
-                    {!reminder.is_paused && (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[reminder.status]}`}>
-                        {STATUS_LABELS[reminder.status]}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {!disabled && (
-                  <ReminderActionMenu
-                    reminder={reminder}
-                    onEdit={() => openEditModal(reminder)}
-                    onPause={() => handlePause(reminder.id)}
-                    onResume={() => handleResume(reminder.id)}
-                    onSnooze={(minutes) => handleSnooze(reminder.id, minutes)}
-                    onSkip={() => handleSkip(reminder.id)}
-                    onCancel={() => setReminderToCancel(reminder.id)}
-                    isPausing={pausingId === reminder.id}
-                    isResuming={resumingId === reminder.id}
-                    isSnoozingId={snoozingId}
-                    isSkipping={skippingId === reminder.id}
-                    isCanceling={cancelingId === reminder.id}
+                title={reminder.message ?? ''}
+                dateTimeLabel={formatDateTime(reminder.due_at)}
+                pills={buildReminderPills(reminder)}
+                highlighted={reminder.is_paused}
+                actionMenu={!disabled ? (
+                  <ResponsiveActionMenu
+                    title={reminder.message?.slice(0, 50) + ((reminder.message?.length ?? 0) > 50 ? '...' : '')}
+                    loading={isAnyLoading}
+                    actions={buildReminderActions(reminder)}
                   />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+                ) : undefined}
+              />
+            );
+          })}
+        </AutomationSection>
       )}
 
       {/* Past Reminders */}
       {pastReminders.length > 0 && (
-        <div>
-          <h2 className="font-semibold text-lg mb-4">Past Reminders</h2>
-          <div className="space-y-3">
-            {pastReminders.map((reminder) => (
-              <div
-                key={reminder.id}
-                className="p-4 rounded-lg border border-input bg-card/50 opacity-75"
-              >
-                <p className="text-foreground">{reminder.message}</p>
-                <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {formatDateTime(reminder.due_at)}
-                  </span>
-
-                  {/* Recurrence badge for past reminders */}
-                  {reminder.is_recurring && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100/50 text-purple-800/70 dark:bg-purple-900/20 dark:text-purple-300/70 text-xs font-medium">
-                      <Repeat className="w-3 h-3" />
-                      {formatRecurrence(reminder)}
-                    </span>
-                  )}
-
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[reminder.status]}`}>
-                    {STATUS_LABELS[reminder.status]}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <AutomationSection title="Past Reminders">
+          {pastReminders.map((reminder) => (
+            <AutomationItemCard
+              key={reminder.id}
+              title={reminder.message ?? ''}
+              dateTimeLabel={formatDateTime(reminder.due_at)}
+              pills={buildReminderPills(reminder, true)}
+              faded
+            />
+          ))}
+        </AutomationSection>
       )}
 
       {/* Reminder Activity Timeline - for caregiver visibility */}
@@ -509,26 +485,14 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
       {/* Empty State */}
       {reminders.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-            <Bell className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-2">No reminders yet</h3>
-          <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-            Create reminders for medication, appointments, or any important tasks.
-            Each reminder call uses 1 minute.
-          </p>
-          {!disabled && (
-            <Button
-              variant="default"
-              onClick={() => setShowCreateModal(true)}
-              className="sm:w-auto"
-            >
-              <Plus className="w-3 h-3" />
-              Create First Reminder
-            </Button>
-          )}
-        </div>
+        <AutomationEmptyState
+          icon={Bell}
+          title="No reminders yet"
+          description="Create reminders for medication, appointments, or any important tasks. Each reminder call uses 1 minute."
+          ctaLabel="Create First Reminder"
+          onCtaClick={() => setShowCreateModal(true)}
+          disabled={disabled}
+        />
       )}
 
       <ConfirmationDialog
@@ -699,256 +663,3 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
   );
 }
 
-// Reminder Action Menu Component with desktop dropdown / mobile bottom sheet
-interface ReminderActionMenuProps {
-  reminder: ReminderRow;
-  onEdit: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onSnooze: (minutes: number) => void;
-  onSkip: () => void;
-  onCancel: () => void;
-  isPausing: boolean;
-  isResuming: boolean;
-  isSnoozingId: string | null;
-  isSkipping: boolean;
-  isCanceling: boolean;
-}
-
-function ReminderActionMenu({
-  reminder,
-  onEdit,
-  onPause,
-  onResume,
-  onSnooze,
-  onSkip,
-  onCancel,
-  isPausing,
-  isResuming,
-  isSnoozingId,
-  isSkipping,
-  isCanceling,
-}: ReminderActionMenuProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  const isAnyLoading = isPausing || isResuming || isSnoozingId === reminder.id || isSkipping || isCanceling;
-
-  const handleMenuOpenChange = (open: boolean) => {
-    if (open && typeof window !== 'undefined' && !window.matchMedia('(min-width: 640px)').matches) {
-      setIsSheetOpen(true);
-    } else {
-      setIsMenuOpen(open);
-    }
-  };
-
-  const canSnooze = !reminder.is_paused && reminder.current_snooze_count < 3;
-  const canSkip = reminder.is_recurring && !reminder.is_paused;
-
-  return (
-    <>
-      {/* Desktop Dropdown */}
-      <DropdownMenu open={isMenuOpen} onOpenChange={handleMenuOpenChange}>
-        <DropdownMenuTrigger asChild>
-          <button
-            disabled={isAnyLoading}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-            aria-label="Actions"
-          >
-            {isAnyLoading ? (
-              <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : (
-              <MoreVertical className="w-5 h-5" />
-            )}
-          </button>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent align="end" sideOffset={8} className="min-w-[160px]">
-          <DropdownMenuItem
-            className="cursor-pointer gap-2"
-            onSelect={() => {
-              setIsMenuOpen(false);
-              onEdit();
-            }}
-          >
-            <Edit2 className="w-4 h-4" />
-            Edit
-          </DropdownMenuItem>
-
-          {reminder.is_paused ? (
-            <DropdownMenuItem
-              className="cursor-pointer gap-2"
-              onSelect={() => {
-                setIsMenuOpen(false);
-                onResume();
-              }}
-            >
-              <Play className="w-4 h-4" />
-              Resume
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem
-              className="cursor-pointer gap-2"
-              onSelect={() => {
-                setIsMenuOpen(false);
-                onPause();
-              }}
-            >
-              <Pause className="w-4 h-4" />
-              Pause
-            </DropdownMenuItem>
-          )}
-
-          {canSnooze && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2">
-                <AlarmClock className="w-4 h-4" />
-                Snooze
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  {SNOOZE_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      className="cursor-pointer"
-                      onSelect={() => {
-                        setIsMenuOpen(false);
-                        onSnooze(option.value);
-                      }}
-                    >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-          )}
-
-          {canSkip && (
-            <DropdownMenuItem
-              className="cursor-pointer gap-2"
-              onSelect={() => {
-                setIsMenuOpen(false);
-                onSkip();
-              }}
-            >
-              <SkipForward className="w-4 h-4" />
-              Skip next
-            </DropdownMenuItem>
-          )}
-
-          <DropdownMenuItem
-            className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-            onSelect={() => {
-              setIsMenuOpen(false);
-              onCancel();
-            }}
-          >
-            <X className="w-4 h-4" />
-            {reminder.is_recurring ? 'Cancel series' : 'Cancel'}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Mobile Bottom Sheet */}
-      <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <DialogContent
-          className="sm:max-w-[468px]"
-          overlayClassName="bg-black/50 backdrop-blur-none"
-        >
-          <DialogTitle className="text-base font-semibold">
-            {reminder.message?.slice(0, 50)}{reminder.message && reminder.message.length > 50 ? '...' : ''}
-          </DialogTitle>
-          <DialogDescription className="sr-only">Reminder actions</DialogDescription>
-
-          <div className="flex flex-col -mx-6">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSheetOpen(false);
-                onEdit();
-              }}
-              className="flex items-center gap-3 px-6 h-[50px] text-left text-foreground hover:bg-muted transition-colors touch-manipulation"
-            >
-              <Edit2 className="w-5 h-5 text-muted-foreground" />
-              Edit
-            </button>
-
-            {reminder.is_paused ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSheetOpen(false);
-                  onResume();
-                }}
-                className="flex items-center gap-3 px-6 h-[50px] text-left text-foreground hover:bg-muted transition-colors touch-manipulation"
-              >
-                <Play className="w-5 h-5 text-muted-foreground" />
-                Resume
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSheetOpen(false);
-                  onPause();
-                }}
-                className="flex items-center gap-3 px-6 h-[50px] text-left text-foreground hover:bg-muted transition-colors touch-manipulation"
-              >
-                <Pause className="w-5 h-5 text-muted-foreground" />
-                Pause
-              </button>
-            )}
-
-            {canSnooze && (
-              <>
-                <div className="px-6 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
-                  Snooze
-                </div>
-                {SNOOZE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      setIsSheetOpen(false);
-                      onSnooze(option.value);
-                    }}
-                    className="flex items-center gap-3 px-6 pl-11 h-[44px] text-left text-foreground hover:bg-muted transition-colors touch-manipulation"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </>
-            )}
-
-            {canSkip && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSheetOpen(false);
-                  onSkip();
-                }}
-                className="flex items-center gap-3 px-6 h-[50px] text-left text-foreground hover:bg-muted transition-colors touch-manipulation"
-              >
-                <SkipForward className="w-5 h-5 text-muted-foreground" />
-                Skip next
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsSheetOpen(false);
-                onCancel();
-              }}
-              className="flex items-center gap-3 px-6 h-[50px] text-left text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
-            >
-              <X className="w-5 h-5" />
-              {reminder.is_recurring ? 'Cancel series' : 'Cancel'}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
-import { Clock, Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertCircle, Calendar, Pause, Play, ToggleLeft, ToggleRight, X, CalendarClock, AlarmClock, Clock } from 'lucide-react';
+import { AutomationPageHeader, AutomationSection, AutomationItemCard, AutomationEmptyState } from '~/components/ultaura/automation';
+import type { StatusPillProps } from '~/components/ultaura/automation/StatusPill';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import {
@@ -627,32 +628,14 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
 
   return (
     <div className="w-full">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Calendar className="w-6 h-6 text-primary" />
-          </div>
-
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Schedules</h1>
-            <p className="text-muted-foreground mt-2">
-              Set up recurring calls for {line.display_name} at {formatPhone(line.phone_e164)}
-            </p>
-          </div>
-        </div>
-
-        {!disabled && (
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            variant="default"
-            size="small"
-            className="w-full sm:w-auto gap-1"
-          >
-            <Plus className="w-3 h-3" />
-            New Schedule
-          </Button>
-        )}
-      </div>
+      <AutomationPageHeader
+        icon={Calendar}
+        title="Schedules"
+        subtitle={`Set up recurring calls for ${line.display_name} at ${formatPhone(line.phone_e164)}`}
+        ctaLabel="New Schedule"
+        onCtaClick={() => setShowCreateModal(true)}
+        disabled={disabled}
+      />
 
       {error && (
         <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
@@ -662,238 +645,166 @@ export function ScheduleClient({ line, schedules, exceptions, disabled = false }
       )}
 
       {recurringSchedules.length > 0 && (
-        <div className="mb-8">
-          <h2 className="font-semibold text-lg mb-4">Recurring schedules</h2>
-          <div className="space-y-3">
-            {recurringSchedules
-              .slice()
-              .sort((a, b) => {
-                if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
-                const aNext = a.next_run_at
-                  ? new Date(a.next_run_at).getTime()
-                  : Number.POSITIVE_INFINITY;
-                const bNext = b.next_run_at
-                  ? new Date(b.next_run_at).getTime()
-                  : Number.POSITIVE_INFINITY;
-                return aNext - bNext;
-              })
-              .map((schedule) => {
-                const { days, timeLabel } = getScheduleSummary(schedule);
-                const isToggling = togglingId === schedule.id;
-                const isDeleting = deletingId === schedule.id;
+        <AutomationSection title="Recurring schedules">
+          {recurringSchedules
+            .slice()
+            .sort((a, b) => {
+              if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+              const aNext = a.next_run_at
+                ? new Date(a.next_run_at).getTime()
+                : Number.POSITIVE_INFINITY;
+              const bNext = b.next_run_at
+                ? new Date(b.next_run_at).getTime()
+                : Number.POSITIVE_INFINITY;
+              return aNext - bNext;
+            })
+            .map((schedule) => {
+              const { days, timeLabel } = getScheduleSummary(schedule);
+              const isToggling = togglingId === schedule.id;
+              const isDeleting = deletingId === schedule.id;
 
-                return (
-                  <div
-                      key={schedule.id}
-                      className={`p-4 rounded-lg border bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${
-                        schedule.enabled
-                          ? 'border-input'
-                          : 'border-yellow-300 dark:border-yellow-700'
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground">{days || 'Custom days'} at {timeLabel}</p>
-                      <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {schedule.next_run_at
-                            ? `Next: ${formatDateTime(schedule.next_run_at)}`
-                            : 'Next run: TBD'}
-                        </span>
+              const pills: StatusPillProps[] = [];
+              if (!schedule.enabled) {
+                pills.push({ variant: 'paused', label: 'Paused' });
+              }
 
-                        {!schedule.enabled && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs font-medium">
-                            Paused
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {!disabled && (
-                      <ResponsiveActionMenu
-                        title={`${days || 'Custom days'} at ${timeLabel}`}
-                        disabled={isToggling || isDeleting}
-                        actions={[
-                          {
-                            label: 'Edit',
-                            icon: <Edit2 className="w-5 h-5" />,
-                            onClick: () => {
-                              window.location.href = `/dashboard/lines/${line.short_id}/schedule?edit=${schedule.id}`;
-                            },
+              return (
+                <AutomationItemCard
+                  key={schedule.id}
+                  title={`${days || 'Custom days'} at ${timeLabel}`}
+                  dateTimeLabel={schedule.next_run_at ? formatDateTime(schedule.next_run_at) : 'TBD'}
+                  dateTimePrefix="Next:"
+                  pills={pills}
+                  highlighted={!schedule.enabled}
+                  actionMenu={!disabled ? (
+                    <ResponsiveActionMenu
+                      title={`${days || 'Custom days'} at ${timeLabel}`}
+                      disabled={isToggling || isDeleting}
+                      actions={[
+                        {
+                          label: 'Edit',
+                          icon: <Edit2 className="w-5 h-5" />,
+                          onClick: () => {
+                            window.location.href = `/dashboard/lines/${line.short_id}/schedule?edit=${schedule.id}`;
                           },
-                          {
-                            label: schedule.enabled ? 'Pause' : 'Resume',
-                            icon: schedule.enabled ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />,
-                            onClick: () => handleToggleEnabled(schedule),
-                          },
-                          {
-                            label: 'Delete',
-                            icon: <Trash2 className="w-5 h-5" />,
-                            onClick: () => {
-                              setScheduleToDelete(schedule.id);
-                            },
-                            variant: 'destructive' as const,
-                            separator: true,
-                          },
-                        ]}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-          </div>
-        </div>
+                        },
+                        {
+                          label: schedule.enabled ? 'Pause' : 'Resume',
+                          icon: schedule.enabled ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />,
+                          onClick: () => handleToggleEnabled(schedule),
+                        },
+                        {
+                          label: 'Delete',
+                          icon: <Trash2 className="w-5 h-5" />,
+                          onClick: () => setScheduleToDelete(schedule.id),
+                          variant: 'destructive' as const,
+                          separator: true,
+                        },
+                      ]}
+                    />
+                  ) : undefined}
+                />
+              );
+            })}
+        </AutomationSection>
       )}
 
       {oneTimeSchedules.length > 0 && (
-        <div className="mb-8">
-          <h2 className="font-semibold text-lg mb-4">Upcoming one-time calls</h2>
-          <div className="space-y-3">
-            {oneTimeSchedules
-              .slice()
-              .sort((a, b) => {
-                const aNext = a.next_run_at ? new Date(a.next_run_at).getTime() : Number.POSITIVE_INFINITY;
-                const bNext = b.next_run_at ? new Date(b.next_run_at).getTime() : Number.POSITIVE_INFINITY;
-                return aNext - bNext;
-              })
-              .map((schedule) => {
-                const isDeleting = deletingId === schedule.id;
-                const rescheduledFrom = rescheduleSourceMap.get(schedule.id) ?? null;
-                return (
-                  <div
-                    key={schedule.id}
-                    className="p-4 rounded-lg border border-input bg-card flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <CalendarClock className="w-4 h-4 text-muted-foreground" />
-                        <p className="text-foreground font-medium">One-time call</p>
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {schedule.next_run_at
-                            ? `Scheduled: ${formatDateTime(schedule.next_run_at)}`
-                            : 'Scheduled time: TBD'}
-                        </span>
-                      </div>
-                      {rescheduledFrom ? (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {rescheduledFrom}
-                        </div>
-                      ) : null}
-                    </div>
-                    {!disabled && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => {
-                            setScheduleToDelete(schedule.id);
-                            toast.message('Confirm delete schedule');
-                          }}
-                          disabled={isDeleting}
-                          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                          title="Delete schedule"
-                        >
-                          {isDeleting ? (
-                            <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          ) : (
-                            <Trash2 className="w-5 h-5" />
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      <div className="mb-8">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="font-semibold text-lg">Schedule exceptions</h2>
-          {!disabled && (
-            <Button
-              onClick={openExceptionModal}
-              variant="default"
-              size="small"
-              className="w-full sm:w-auto gap-1"
-            >
-              <Plus className="w-3 h-3" />
-              New exception
-            </Button>
-          )}
-        </div>
-
-        {exceptions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No upcoming exceptions.</p>
-        ) : (
-          <div className="space-y-2">
-            {exceptions.map((exception) => {
-              const schedule = scheduleMap.get(exception.schedule_id);
-              const scheduleLabel = schedule ? getScheduleOptionLabel(schedule) : 'Schedule';
-              const newTime = exception.new_datetime
-                ? DateTime.fromISO(exception.new_datetime).setZone(line.timezone).toLocaleString(DateTime.DATETIME_FULL)
-                : null;
-
+        <AutomationSection title="Upcoming one-time calls">
+          {oneTimeSchedules
+            .slice()
+            .sort((a, b) => {
+              const aNext = a.next_run_at ? new Date(a.next_run_at).getTime() : Number.POSITIVE_INFINITY;
+              const bNext = b.next_run_at ? new Date(b.next_run_at).getTime() : Number.POSITIVE_INFINITY;
+              return aNext - bNext;
+            })
+            .map((schedule) => {
+              const isDeleting = deletingId === schedule.id;
+              const rescheduledFrom = rescheduleSourceMap.get(schedule.id) ?? null;
               return (
-                <div
-                  key={exception.id}
-                  className="rounded-lg border border-input bg-card px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      {exception.exception_type === 'snooze' ? (
-                        <AlarmClock className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                      )}
-                      {getExceptionTypeLabel(exception.exception_type)} &middot; {formatDate(exception.exception_date)}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {scheduleLabel}
-                      {newTime ? ` → ${newTime}` : null}
-                    </div>
-                  </div>
-                  {!disabled && (
-                    <Button
-                      onClick={() => setExceptionToDelete(exception)}
-                      variant="destructive"
-                      size="small"
-                      className="w-full gap-1"
+                <AutomationItemCard
+                  key={schedule.id}
+                  title="One-time call"
+                  titleIcon={CalendarClock}
+                  dateTimeLabel={schedule.next_run_at ? formatDateTime(schedule.next_run_at) : 'TBD'}
+                  dateTimePrefix="Scheduled:"
+                  secondaryText={rescheduledFrom ?? undefined}
+                  actionMenu={!disabled ? (
+                    <button
+                      onClick={() => {
+                        setScheduleToDelete(schedule.id);
+                        toast.message('Confirm delete schedule');
+                      }}
+                      disabled={isDeleting}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      title="Delete schedule"
                     >
-                      <Trash2 className="w-3 h-3" />
-                      Remove
-                    </Button>
-                  )}
-                </div>
+                      {isDeleting ? (
+                        <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Trash2 className="w-5 h-5" />
+                      )}
+                    </button>
+                  ) : undefined}
+                />
               );
             })}
-          </div>
-        )}
-      </div>
+        </AutomationSection>
+      )}
+
+      <AutomationSection
+        title="Schedule exceptions"
+        headerAction={!disabled ? (
+          <Button
+            onClick={openExceptionModal}
+            variant="default"
+            size="small"
+            className="w-full sm:w-auto gap-1"
+          >
+            <Plus className="w-3 h-3" />
+            New exception
+          </Button>
+        ) : undefined}
+        emptyMessage={exceptions.length === 0 ? "No upcoming exceptions." : undefined}
+      >
+        {exceptions.map((exception) => {
+          const schedule = scheduleMap.get(exception.schedule_id);
+          const scheduleLabel = schedule ? getScheduleOptionLabel(schedule) : 'Schedule';
+          const newTime = exception.new_datetime
+            ? DateTime.fromISO(exception.new_datetime).setZone(line.timezone).toLocaleString(DateTime.DATETIME_FULL)
+            : null;
+
+          return (
+            <AutomationItemCard
+              key={exception.id}
+              title={`${getExceptionTypeLabel(exception.exception_type)} \u00b7 ${formatDate(exception.exception_date)}`}
+              titleIcon={exception.exception_type === 'snooze' ? AlarmClock : Calendar}
+              dateTimeLabel={scheduleLabel + (newTime ? ` \u2192 ${newTime}` : '')}
+              actionMenu={!disabled ? (
+                <Button
+                  onClick={() => setExceptionToDelete(exception)}
+                  variant="destructive"
+                  size="small"
+                  className="w-full gap-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Remove
+                </Button>
+              ) : undefined}
+            />
+          );
+        })}
+      </AutomationSection>
 
       {schedules.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-            <Calendar className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-2">No schedules yet</h3>
-          <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-            Create a schedule for regular check-in calls. Times are in {line.timezone}.
-          </p>
-          {!disabled && (
-            <Button
-              onClick={() => setShowCreateModal(true)}
-              variant="default"
-              size="small"
-              className="w-full sm:w-auto gap-1"
-            >
-              <Plus className="w-3 h-3" />
-              Create First Schedule
-            </Button>
-          )}
-        </div>
+        <AutomationEmptyState
+          icon={Calendar}
+          title="No schedules yet"
+          description={`Create a schedule for regular check-in calls. Times are in ${line.timezone}.`}
+          ctaLabel="Create First Schedule"
+          onCtaClick={() => setShowCreateModal(true)}
+          disabled={disabled}
+        />
       )}
 
       <ConfirmationDialog
