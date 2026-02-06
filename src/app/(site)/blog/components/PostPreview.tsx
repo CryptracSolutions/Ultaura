@@ -5,6 +5,7 @@ import If from '~/core/ui/If';
 
 import DateFormatter from './DateFormatter';
 import CoverImage from './CoverImage';
+import BlogImageFrame from './BlogImageFrame';
 
 type Props = {
   post: Post;
@@ -27,12 +28,14 @@ function PostPreview({
       <If condition={image}>
         {(imageUrl) => (
           <div className="relative mb-2 w-full" style={{ height }}>
-            <Link href={post.url}>
-              <CoverImage
-                preloadImage={preloadImage}
-                title={title}
-                src={imageUrl}
-              />
+            <Link href={post.url} className="block h-full w-full">
+              <BlogImageFrame className="h-full">
+                <CoverImage
+                  preloadImage={preloadImage}
+                  title={title}
+                  src={imageUrl}
+                />
+              </BlogImageFrame>
             </Link>
           </div>
         )}

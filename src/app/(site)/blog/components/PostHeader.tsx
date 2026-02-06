@@ -5,6 +5,7 @@ import SubHeading from '~/core/ui/SubHeading';
 
 import DateFormatter from './DateFormatter';
 import CoverImage from './CoverImage';
+import BlogImageFrame from './BlogImageFrame';
 import Heading from '~/core/ui/Heading';
 
 const PostHeader: React.FC<{
@@ -38,12 +39,14 @@ const PostHeader: React.FC<{
       <If condition={displayImage && image}>
         {(imageUrl) => (
           <div className="relative mx-auto h-[378px] w-full justify-center">
-            <CoverImage
-              preloadImage={preloadImage}
-              className="rounded-md"
-              title={title}
-              src={imageUrl}
-            />
+            <BlogImageFrame className="h-full">
+              <CoverImage
+                preloadImage={preloadImage}
+                className="rounded-md"
+                title={title}
+                src={imageUrl}
+              />
+            </BlogImageFrame>
           </div>
         )}
       </If>
