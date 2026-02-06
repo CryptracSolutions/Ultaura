@@ -51,21 +51,19 @@ function PostPreview({
           </h3>
         </div>
 
-        <div className="mb-2 flex flex-row items-center space-x-2 px-1 text-sm">
+        <div className="mb-2 flex flex-row items-center space-x-2 px-1 text-sm text-primary">
           {author && (
             <>
-              <span className="text-gray-600 dark:text-gray-300">{author}</span>
-              <span className="text-gray-600 dark:text-gray-300">·</span>
+              <span>{author}</span>
+              <span>·</span>
             </>
           )}
 
-          <div className="text-gray-600 dark:text-gray-300">
-            <DateFormatter dateString={date} />
-          </div>
+          <DateFormatter dateString={date} />
 
-          <span className="text-gray-600 dark:text-gray-300">·</span>
+          <span>·</span>
 
-          <span className="text-gray-600 dark:text-gray-300">
+          <span>
             {readingTime} mins reading
           </span>
         </div>

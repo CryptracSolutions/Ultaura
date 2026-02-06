@@ -34,7 +34,10 @@ function Home() {
                 <span>Designed with elder care professionals and family caregivers</span>
               </Pill>
 
-              <h1 className="text-[2.0625rem] font-heading font-medium text-foreground md:text-[2.475rem] xl:text-[3.3rem] 2xl:text-[4.125rem]">
+              <Heading
+                type={1}
+                className="text-4xl md:text-[2.475rem] xl:text-[3.3rem] 2xl:text-[4.125rem]"
+              >
                 <span className="block leading-[1.1]">
                   <span className="block">The call they look</span>
                   <span className="block">forward to.</span>
@@ -43,7 +46,7 @@ function Home() {
                   <span className="block">The peace of mind</span>
                   <span className="block">you need.</span>
                 </span>
-              </h1>
+              </Heading>
 
               <SubHeading className={'max-w-2xl'}>
                 Know they&apos;re okay, connected, and looking forward to

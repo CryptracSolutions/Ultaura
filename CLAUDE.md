@@ -24,8 +24,8 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 You MUST:
 
 1. **Size the task** (this takes 5 seconds, not doing it is lazy):
-   - **Small**: 1-2 files, single/small concern/issue/bug, → May proceed directly
-   - **Medium**: 3-5 files, multiple concerns/issues/bugs, 4+ steps → MUST delegate
+   - **Small**: 1-2 files, single/small concern/issue/bug, 1-4 steps → May proceed directly
+   - **Medium**: 3-5 files, multiple concerns/issues/bugs, 5+ steps → MUST delegate
    - **Large**: 6+ files, architectural changes, 10+ steps → MUST delegate
 
 2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
