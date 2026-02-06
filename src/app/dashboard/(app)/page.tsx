@@ -218,16 +218,17 @@ async function DashboardPage() {
 
           {/* At a glance */}
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-2 mb-1">
+            <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
+              <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
+              <div className="relative flex items-center gap-2 mb-1">
                 <Phone className="h-4 w-4 text-muted-foreground" />
                 <div className="text-base font-medium text-foreground">Lines</div>
               </div>
-              <div className="text-3xl font-bold text-foreground">
+              <div className="relative text-3xl font-bold text-foreground">
                 {lines.length}
               </div>
-              <div className="flex-1" />
-              <div className="mt-auto space-y-2">
+              <div className="relative flex-1" />
+              <div className="relative mt-auto space-y-2">
                 <div className="text-xs text-muted-foreground">
                   {activeCount} active{pausedCount > 0 ? ` • ${pausedCount} paused` : ''}
                 </div>
@@ -240,12 +241,13 @@ async function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-2 mb-1">
+            <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
+              <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
+              <div className="relative flex items-center gap-2 mb-1">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <div className="text-base font-medium text-foreground">Minutes</div>
               </div>
-              <div className="text-3xl font-bold text-foreground">
+              <div className="relative text-3xl font-bold text-foreground">
                 {usage
                   ? isOnTrial
                     ? usage.minutesUsed
@@ -257,7 +259,7 @@ async function DashboardPage() {
                   : '—'}
               </div>
               {usage && (
-                <div className="text-xs text-muted-foreground mb-1">
+                <div className="relative text-xs text-muted-foreground mb-1">
                   {isOnTrial
                     ? 'minutes used'
                     : isPayg
@@ -268,7 +270,7 @@ async function DashboardPage() {
                 </div>
               )}
               {usage && !isOnTrial && (
-                <div className="mt-2">
+                <div className="relative mt-2">
                   {isPayg ? (
                     <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                       <div
@@ -294,8 +296,8 @@ async function DashboardPage() {
                   )}
                 </div>
               )}
-              <div className="flex-1" />
-              <div className="mt-auto space-y-2">
+              <div className="relative flex-1" />
+              <div className="relative mt-auto space-y-2">
                 <div className="text-xs text-muted-foreground">
                   {usage
                     ? isOnTrial
@@ -316,8 +318,9 @@ async function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex flex-col justify-center flex-1">
+            <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
+              <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
+              <div className="relative flex flex-col justify-center flex-1">
                 <div className="grid gap-2">
                   <Button variant="default" href="/dashboard/calls">
                     View call schedules

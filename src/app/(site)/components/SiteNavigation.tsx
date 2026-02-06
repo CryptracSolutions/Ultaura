@@ -50,7 +50,13 @@ const links = {
 };
 
 const SiteNavigation = () => {
-  const className = 'font-semibold';
+  const className = [
+    'font-semibold relative',
+    "after:content-[''] after:absolute after:bottom-0 after:left-[10px] after:right-[10px] after:h-[1px] after:bg-primary",
+    'after:[transform:scaleX(0)] after:[transform-origin:right_center]',
+    'after:[transition:transform_0.3s_cubic-bezier(0.25,1,0.5,1)]',
+    'hover:after:[transform:scaleX(1)] hover:after:[transform-origin:left_center]',
+  ].join(' ');
 
   return (
     <>
