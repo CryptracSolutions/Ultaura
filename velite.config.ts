@@ -23,6 +23,7 @@ const posts = defineCollection({
       live: s.boolean().default(false),
       image: s.string().optional(),
       description: s.string().optional(),
+      author: s.string().optional(),
       body: s.mdx(),
     })
     .transform((data, ctx) => {

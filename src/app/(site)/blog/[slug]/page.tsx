@@ -66,10 +66,10 @@ async function BlogPost({ params }: { params: { slug: string } }) {
       <Container>
         <Link
           href="/blog"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group mb-4"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group mt-6 mb-4"
         >
           <ArrowLeftIcon className="h-4 w-4 text-primary group-hover:text-primary/80 transition-colors" />
-          <span>Back to blog</span>
+          <span>Back to blogs</span>
         </Link>
 
         <Script id={'ld-json'} type="application/ld+json">

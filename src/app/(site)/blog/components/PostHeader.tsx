@@ -6,6 +6,7 @@ type Post = (typeof posts)[number];
 
 const PostHeader: React.FC<{ post: Post }> = ({ post }) => {
   const { title, date, readingTime, description } = post;
+  const author = (post as any).author as string | undefined;
 
   return (
     <div className="flex flex-col items-center text-center">
@@ -34,6 +35,14 @@ const PostHeader: React.FC<{ post: Post }> = ({ post }) => {
 
       {/* Meta */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4">
+        <If condition={author}>
+          {(name) => (
+            <>
+              <span>{name}</span>
+              <span>&middot;</span>
+            </>
+          )}
+        </If>
         <DateFormatter dateString={date} />
         <span>&middot;</span>
         <span>{readingTime} min read</span>
