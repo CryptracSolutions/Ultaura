@@ -350,6 +350,28 @@ body {
   display: none;
 }
 
+/* Prevent Sonner toast from showing white gap on mobile */
+[data-sonner-toaster] {
+  --normal-bg: var(--background) !important;
+  --normal-border: var(--border) !important;
+  --normal-text: var(--foreground) !important;
+  background: transparent !important;
+}
+
+section:has(> [data-sonner-toaster]) {
+  background: transparent !important;
+}
+
+[data-sonner-toaster][data-y-position='top'] {
+  top: env(safe-area-inset-top, 0px) !important;
+}
+
+@media (max-width: 600px) {
+  [data-sonner-toaster][data-y-position='top'] {
+    top: calc(env(safe-area-inset-top, 0px) + 14px) !important;
+  }
+}
+
 .card-border-accent {
   border: 1px solid var(--accent);
 }

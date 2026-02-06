@@ -24,9 +24,9 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 You MUST:
 
 1. **Size the task** (this takes 5 seconds, not doing it is lazy):
-   - **Small**: 1-2 files, single concern, < 3 steps → May proceed directly
-   - **Medium**: 3-10 files, multiple concerns, 3-10 steps → MUST delegate
-   - **Large**: 10+ files, architectural changes, 10+ steps → MUST delegate
+   - **Small**: 1-2 files, single concern/issue/bug, < 3 steps → May proceed directly
+   - **Medium**: 3-5 files, multiple concerns/issues/bugs, 3-10 steps → MUST delegate
+   - **Large**: 6+ files, architectural changes, 10+ steps → MUST delegate
 
 2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
 
@@ -140,9 +140,9 @@ This ensures thorough analysis and higher quality reasoning for all automated ta
 
 | Task Size | Interview Depth |
 |-----------|-----------------|
-| Small | 0-1 questions (proceed if clear) |
-| Medium | 1-2 clarifying questions |
-| Large | 3-5 detailed questions to nail down full scope |
+| Small | 0-6 questions (proceed if clear) |
+| Medium | 6-12 clarifying questions |
+| Large | 12+ detailed questions to nail down full scope |
 
 Use `AskUserQuestion` proactively when:
 - Requirements are ambiguous

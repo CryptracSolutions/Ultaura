@@ -18,8 +18,8 @@ Classify task size **before** any coding. If uncertain, **default to Medium**.
 
 | Size | Scope | Workflow |
 |------|-------|----------|
-| **Small** | 1-2 files, single concern, < 3 steps | May proceed directly |
-| **Medium** | 3+ files OR 3+ steps OR multiple concerns | **MUST delegate** |
+| **Small** | 1-2 files, single concern/issue/bug, < 3 steps | May proceed directly |
+| **Medium** | 3+ files OR 3+ steps OR multiple concerns/issues/bugs | **MUST delegate** |
 | **Large** | 6+ files/services OR architectural changes | **MUST delegate** |
 
 ### Auto-Upgrade to Medium
@@ -86,7 +86,6 @@ You MUST follow these steps IN ORDER:
 Even for exceptions, STILL:
 - Verify TypeScript compiles (`npm run typecheck` or `tsc --noEmit`)
 - Run relevant tests
-- Write clear commit message
 
 # User Preferences for Codex
 
@@ -131,11 +130,11 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 
 Use `request_user_input` proactively when available. If unavailable in the current harness/mode, ask the user directly in chat.
 
-| Task Size | Question Depth |
+| Task Size | Interview Depth |
 |-----------|----------------|
-| Small | 0-1 questions (proceed if clear) |
-| Medium | 1-2 clarifying questions |
-| Large | 3-5 detailed questions to nail down full scope |
+| Small | 0-6 questions (proceed if clear) |
+| Medium | 6-12 clarifying questions |
+| Large | 12+ detailed questions to nail down full scope |
 
 Ask questions when:
 - Requirements are ambiguous
@@ -147,7 +146,7 @@ Ask questions when:
 
 ### UI/UX Changes (No Visual Verification)
 
-Without Chrome MCP, for any UI changes:
+For any UI changes:
 - **Follow existing patterns**: Match styling from similar components
 - **Mobile-first**: Seniors use tablets/phones - ensure responsive design
 - **Describe expected result**: In PR, describe what the UI should look like
