@@ -28,18 +28,20 @@ function Home() {
           <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-primary/20 blur-3xl dark:bg-primary/10" />
           <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
-          <div className="relative grid grid-cols-1 items-start gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-10">
-            <div className="flex flex-col space-y-5">
+          <div className="relative grid grid-cols-1 items-start gap-8 sm:gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-10">
+            <div className="flex min-w-0 flex-col space-y-5">
               <Pill>
                 <span>Designed with elder care professionals and family caregivers</span>
               </Pill>
 
               <h1 className="text-[2.0625rem] font-heading font-medium text-foreground md:text-[2.475rem] xl:text-[3.3rem] 2xl:text-[4.125rem]">
                 <span className="block leading-[1.1]">
-                  The call they look forward to.
+                  <span className="block">The call they look</span>
+                  <span className="block">forward to.</span>
                 </span>
                 <span className="block leading-[1.1] text-transparent bg-gradient-to-br bg-clip-text from-primary to-primary/70">
-                  The peace of mind you need.
+                  <span className="block">The peace of mind</span>
+                  <span className="block">you need.</span>
                 </span>
               </h1>
 
@@ -107,8 +109,10 @@ function Home() {
               </div>
             </div>
 
-            <div className="mt-10 lg:mt-0">
-              <HeroDashboardPreview />
+            <div className="mt-10 w-full min-w-0 lg:mt-0">
+              <BlendedDemoFrame>
+                <HeroDashboardPreview />
+              </BlendedDemoFrame>
             </div>
           </div>
 
@@ -238,5 +242,41 @@ function Pill(props: React.PropsWithChildren) {
     >
       <span>{props.children}</span>
     </h2>
+  );
+}
+
+function BlendedDemoFrame(props: React.PropsWithChildren) {
+  const edgeFade =
+    'radial-gradient(128% 128% at 50% 46%, #000 62%, rgba(0,0,0,0.92) 72%, transparent 100%)';
+  const edgeMaskStyle: React.CSSProperties = {
+    WebkitMaskImage: edgeFade,
+    maskImage: edgeFade,
+  };
+
+  return (
+    <div className="relative isolate w-full">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -inset-6 rounded-[2rem] bg-[radial-gradient(ellipse_at_center,rgba(10,186,181,0.18)_0%,rgba(10,186,181,0.08)_38%,rgba(10,186,181,0)_72%)] blur-2xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-3 rounded-[1.7rem] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0)_62%)]"
+      />
+      <div className="relative rounded-[1.7rem] bg-gradient-to-br from-background/70 via-background/35 to-transparent p-2.5 ring-1 ring-primary/15 shadow-[0_20px_45px_-30px_rgba(10,186,181,0.55)]">
+        <div className="rounded-[1.35rem]">{props.children}</div>
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[10px] rounded-[1.35rem]"
+        style={edgeMaskStyle}
+      >
+        <div className="h-full w-full rounded-[1.35rem] shadow-[inset_0_0_0_999px_rgba(0,0,0,0.08)]" />
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-2 rounded-[1.8rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-30px_35px_rgba(15,23,42,0.12)]"
+      />
+    </div>
   );
 }

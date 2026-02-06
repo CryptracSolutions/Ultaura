@@ -2,8 +2,8 @@ import Link from 'next/link';
 
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
-import SubHeading from '~/core/ui/SubHeading';
 import { withI18n } from '~/i18n/with-i18n';
+import { PageHero, GradientText } from '~/app/(site)/components/PageHero';
 
 import ContactForm from './ContactForm';
 
@@ -18,24 +18,23 @@ const SUPPORT_EMAIL = 'support@ultaura.com';
 function ContactPage() {
   return (
     <div className="flex flex-col space-y-24 pb-24">
-      <div className="bg-primary/10 py-24">
-        <Container>
-          <div className="flex flex-col items-center text-center space-y-6">
-            <Heading type={1}>Contact Ultaura</Heading>
-            <SubHeading className="max-w-2xl mx-auto">
-              Tell us what you need and we&apos;ll get back to you quickly. We
-              typically respond in under 2 hours.
-            </SubHeading>
-            <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">
-              <span>Response time: &lt; 2 hours</span>
-              <span className="hidden sm:inline">•</span>
-              <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>
-                {SUPPORT_EMAIL}
-              </a>
-            </div>
-          </div>
-        </Container>
-      </div>
+      <PageHero
+        badge="GET IN TOUCH"
+        title={
+          <>
+            Contact <GradientText>Ultaura</GradientText>
+          </>
+        }
+        subtitle="Tell us what you need and we'll get back to you quickly. We typically respond in under 2 hours."
+      >
+        <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">
+          <span>Response time: &lt; 2 hours</span>
+          <span className="hidden sm:inline">•</span>
+          <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>
+            {SUPPORT_EMAIL}
+          </a>
+        </div>
+      </PageHero>
 
       <Container>
         <div className="grid gap-12 lg:grid-cols-2">

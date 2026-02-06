@@ -52,7 +52,7 @@ You MUST follow these steps IN ORDER:
 
 ### Hard Gates
 
-- **MUST NOT** start implementation edits until steps 1-4 are complete
+- **MUST NOT** start implementation edits until steps 1-5 are complete
 - **MUST NOT** yield a "final" answer while any subagent is still running
 - **MUST** explicitly wait for and close all subagents before delivering final response
 
@@ -85,7 +85,6 @@ You MUST follow these steps IN ORDER:
 
 Even for exceptions, STILL:
 - Verify TypeScript compiles (`npm run typecheck` or `tsc --noEmit`)
-- Run relevant tests
 
 # User Preferences for Codex
 

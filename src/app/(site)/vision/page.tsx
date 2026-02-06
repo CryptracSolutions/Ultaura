@@ -10,10 +10,10 @@ import {
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import Container from '~/core/ui/Container';
-import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
 import { withI18n } from '~/i18n/with-i18n';
+import { PageHero, GradientText } from '~/app/(site)/components/PageHero';
 
 export const metadata = {
   title: 'Our Vision - Ultaura',
@@ -25,17 +25,15 @@ function VisionPage() {
   return (
     <div className="flex flex-col">
       {/* Hero */}
-      <section className="bg-gradient-to-b from-primary/5 to-transparent py-16 md:py-24">
-        <Container>
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <Heading type={1}>Why We Built Ultaura</Heading>
-            <SubHeading className="text-lg md:text-xl">
-              A voice companion born from watching too many seniors slip into
-              silence — and knowing technology could do better.
-            </SubHeading>
-          </div>
-        </Container>
-      </section>
+      <PageHero
+        badge="OUR VISION"
+        title={
+          <>
+            Why We Built <GradientText>Ultaura</GradientText>
+          </>
+        }
+        subtitle="A voice companion born from watching too many seniors slip into silence — and knowing technology could do better."
+      />
 
       {/* Wave Divider */}
       <img
@@ -114,13 +112,10 @@ function VisionPage() {
                   </p>
                 </div>
               </div>
-              <div className="hidden md:block">
-                <Image
+              <div className="mx-auto w-full max-w-sm md:mx-0 md:max-w-none">
+                <VisionIllustration
                   src="/illustrations/connection.svg"
-                  alt="Illustration of two people connected through a phone call"
-                  width={380}
-                  height={380}
-                  className="w-full h-auto"
+                  alt="Isometric illustration of a senior in a cozy room by a window, phone to ear, with colorful sound waves filling the space with warmth"
                 />
               </div>
             </div>
@@ -201,18 +196,15 @@ function VisionPage() {
         <Container>
           <div className="max-w-5xl mx-auto">
             <div className="grid md:grid-cols-[340px_1fr] gap-8 lg:gap-12 items-center">
-              <div className="hidden md:block">
-                <Image
+              <div className="mx-auto w-full max-w-sm md:mx-0 md:max-w-none">
+                <VisionIllustration
                   src="/illustrations/collaboration.svg"
-                  alt="Illustration of professionals collaborating on elder care"
-                  width={340}
-                  height={340}
-                  className="w-full h-auto"
+                  alt="Isometric illustration of diverse care professionals gathered around a round table collaboratively shaping Ultaura"
                 />
               </div>
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-8">
-                  Designed With People Who Know
+                  Designed by professionals who understand
                 </h2>
                 <div className="space-y-6 text-muted-foreground text-lg leading-relaxed">
                   <p>
@@ -286,6 +278,48 @@ function VisionPage() {
         </Container>
       </section>
     </div>
+  );
+}
+
+function VisionIllustration({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) {
+  const edgeFade =
+    'radial-gradient(128% 128% at 50% 46%, #000 62%, rgba(0,0,0,0.92) 72%, transparent 100%)';
+  const edgeMaskStyle: React.CSSProperties = {
+    WebkitMaskImage: edgeFade,
+    maskImage: edgeFade,
+  };
+
+  return (
+    <figure className="relative isolate w-full">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -inset-6 rounded-[2rem] bg-[radial-gradient(ellipse_at_center,rgba(10,186,181,0.18)_0%,rgba(10,186,181,0.08)_38%,rgba(10,186,181,0)_72%)] blur-2xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-3 rounded-[1.7rem] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0)_62%)]"
+      />
+      <div className="relative rounded-[1.7rem] bg-gradient-to-br from-background/70 via-background/35 to-transparent p-2.5 ring-1 ring-primary/15 shadow-[0_20px_45px_-30px_rgba(10,186,181,0.55)]">
+        <Image
+          src={src}
+          alt={alt}
+          width={400}
+          height={400}
+          className="w-full h-auto rounded-[1.35rem] shadow-[0_28px_65px_-40px_rgba(17,24,39,0.75)]"
+          style={edgeMaskStyle}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-2 rounded-[1.8rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-30px_35px_rgba(15,23,42,0.12)]"
+      />
+    </figure>
   );
 }
 

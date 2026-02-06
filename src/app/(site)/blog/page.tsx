@@ -3,9 +3,8 @@ import { posts } from '@/.velite';
 
 import BlogList from '~/app/(site)/blog/components/BlogList';
 import Container from '~/core/ui/Container';
-import SubHeading from '~/core/ui/SubHeading';
-import Heading from '~/core/ui/Heading';
 import { withI18n } from '~/i18n/with-i18n';
+import { PageHero, GradientText } from '~/app/(site)/components/PageHero';
 
 import configuration from '~/configuration';
 
@@ -21,17 +20,23 @@ async function BlogPage() {
   });
 
   return (
-    <Container>
-      <div className={'flex flex-col space-y-16 my-8'}>
-        <div className={'flex flex-col items-center space-y-4'}>
-          <Heading type={1}>Blog</Heading>
+    <div>
+      <PageHero
+        badge="OUR BLOG"
+        title={
+          <>
+            Tutorials, Guides & <GradientText>Updates</GradientText>
+          </>
+        }
+        subtitle="From our team"
+      />
 
-          <SubHeading>Tutorials, Guides and Updates from our team</SubHeading>
+      <Container>
+        <div className="my-8 space-y-16">
+          <BlogList posts={livePosts} />
         </div>
-
-        <BlogList posts={livePosts} />
-      </div>
-    </Container>
+      </Container>
+    </div>
   );
 }
 

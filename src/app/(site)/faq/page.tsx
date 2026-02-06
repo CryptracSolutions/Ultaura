@@ -1,10 +1,10 @@
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
-import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
 import { withI18n } from '~/i18n/with-i18n';
+import { PageHero, GradientText } from '~/app/(site)/components/PageHero';
 import { FAQ_DATA } from './faq-data';
 import { FAQLayout } from './components/FAQLayout';
 
@@ -42,16 +42,15 @@ const FAQPage = () => {
       />
 
       {/* Hero Section */}
-      <div className="bg-primary/10 py-16 lg:py-24">
-        <Container>
-          <div className="flex flex-col items-center space-y-4 text-center">
-            <Heading type={1}>Frequently Asked Questions</Heading>
-            <SubHeading>
-              Everything you need to know about Ultaura and how it works.
-            </SubHeading>
-          </div>
-        </Container>
-      </div>
+      <PageHero
+        badge="FAQ"
+        title={
+          <>
+            Frequently Asked <GradientText>Questions</GradientText>
+          </>
+        }
+        subtitle="Everything you need to know about Ultaura and how it works."
+      />
 
       {/* FAQ Content with Sidebar */}
       <div className="py-16 lg:py-20">

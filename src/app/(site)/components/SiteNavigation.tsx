@@ -24,13 +24,13 @@ import useUserSession from '~/core/hooks/use-user-session';
 import Logo from '~/core/ui/Logo';
 
 const navLinks = [
-  { label: 'Blog', path: '/blog', Icon: NewspaperIcon },
-  { label: 'Documentation', path: '/docs', Icon: BookOpenIcon },
   { label: 'Demo', path: '/demo', Icon: PlayCircleIcon },
   { label: 'Pricing', path: '/pricing', Icon: CurrencyDollarIcon },
   { label: 'Vision', path: '/vision', Icon: InformationCircleIcon },
+  { label: 'Blog', path: '/blog', Icon: NewspaperIcon },
   { label: 'FAQ', path: '/faq', Icon: QuestionMarkCircleIcon },
   { label: 'Contact', path: '/contact', Icon: EnvelopeIcon },
+  { label: 'Documentation', path: '/docs', Icon: BookOpenIcon },
 ];
 
 const authLinks = [
@@ -40,13 +40,13 @@ const authLinks = [
 
 // Legacy links object for desktop navigation
 const links = {
-  Blog: { label: 'Blog', path: '/blog' },
-  Docs: { label: 'Documentation', path: '/docs' },
   Demo: { label: 'Demo', path: '/demo' },
   Pricing: { label: 'Pricing', path: '/pricing' },
   Vision: { label: 'Vision', path: '/vision' },
+  Blog: { label: 'Blog', path: '/blog' },
   FAQ: { label: 'FAQ', path: '/faq' },
   Contact: { label: 'Contact', path: '/contact' },
+  Docs: { label: 'Documentation', path: '/docs' },
 };
 
 const SiteNavigation = () => {
@@ -62,13 +62,13 @@ const SiteNavigation = () => {
     <>
       <div className={'hidden items-center space-x-0.5 lg:flex'}>
         <NavigationMenu scrollable centered>
-          <NavigationMenuItem className={className} link={links.Blog} />
-          <NavigationMenuItem className={className} link={links.Docs} />
           <NavigationMenuItem className={className} link={links.Demo} />
           <NavigationMenuItem className={className} link={links.Pricing} />
           <NavigationMenuItem className={className} link={links.Vision} />
+          <NavigationMenuItem className={className} link={links.Blog} />
           <NavigationMenuItem className={className} link={links.FAQ} />
           <NavigationMenuItem className={className} link={links.Contact} />
+          <NavigationMenuItem className={className} link={links.Docs} />
         </NavigationMenu>
       </div>
 

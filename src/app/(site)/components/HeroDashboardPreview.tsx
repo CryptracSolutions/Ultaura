@@ -105,10 +105,15 @@ export function HeroDashboardPreview() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [isInView, setIsInView] = useState(true);
   const [visibleMessages, setVisibleMessages] = useState(0);
+  const [dashboardShellWidth, setDashboardShellWidth] = useState<number>();
   const [contentHeight, setContentHeight] = useState<number | undefined>(
     undefined,
   );
+  const [modeHeight, setModeHeight] = useState<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const dashboardModeRef = useRef<HTMLDivElement>(null);
+  const liveModeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -177,18 +182,80 @@ export function HeroDashboardPreview() {
     return () => observer.disconnect();
   }, [activeTab, isLiveCall]);
 
+  /* Lock shell width from Dashboard mode so Live mode stays 1:1 */
+  useEffect(() => {
+    if (!shellRef.current || typeof ResizeObserver === 'undefined') return;
+
+    const element = shellRef.current;
+    const measure = () => {
+      if (isLiveCall) return;
+      setDashboardShellWidth(element.getBoundingClientRect().width);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isLiveCall]);
+
+  /* Smoothly animate height between Dashboard and Live mode containers */
+  useEffect(() => {
+    const measureActiveMode = () => {
+      const activeElement = isLiveCall
+        ? liveModeRef.current
+        : dashboardModeRef.current;
+      if (!activeElement) return;
+      const nextHeight = activeElement.getBoundingClientRect().height;
+      if (nextHeight > 0) setModeHeight(nextHeight);
+    };
+
+    measureActiveMode();
+
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observers: ResizeObserver[] = [];
+
+    if (dashboardModeRef.current) {
+      const observer = new ResizeObserver(() => {
+        if (!isLiveCall) measureActiveMode();
+      });
+      observer.observe(dashboardModeRef.current);
+      observers.push(observer);
+    }
+
+    if (liveModeRef.current) {
+      const observer = new ResizeObserver(() => {
+        if (isLiveCall) measureActiveMode();
+      });
+      observer.observe(liveModeRef.current);
+      observers.push(observer);
+    }
+
+    return () => {
+      observers.forEach((observer) => observer.disconnect());
+    };
+  }, [isLiveCall, activeTab, contentHeight, visibleMessages]);
+
   const handleTabClick = useCallback((index: number) => {
     setActiveTab(index);
     setIsAutoPlaying(false);
   }, []);
 
   return (
-    <div ref={containerRef} className="relative min-w-0">
-      <span className="absolute -top-6 right-0 text-right text-xs text-muted-foreground">
-        Caregiver View
+    <div ref={containerRef} className="relative min-w-0 w-full">
+      <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-center text-xs text-muted-foreground">
+        {isLiveCall ? 'Call Preview' : 'Caregiver View'}
       </span>
 
-      <div className="overflow-hidden rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl">
+      <div
+        ref={shellRef}
+        className="w-full overflow-hidden rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl"
+        style={
+          isLiveCall && dashboardShellWidth
+            ? { width: `min(100%, ${dashboardShellWidth}px)` }
+            : undefined
+        }
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">
@@ -234,9 +301,21 @@ export function HeroDashboardPreview() {
           </div>
         </div>
 
-        {/* Dashboard Mode */}
-        {!isLiveCall && (
-          <div className="mt-5">
+        <div
+          className="relative mt-5 overflow-hidden transition-[height] duration-[380ms] ease-out motion-reduce:transition-none"
+          style={modeHeight !== undefined ? { height: modeHeight } : undefined}
+        >
+          {/* Dashboard Mode */}
+          <div
+            ref={dashboardModeRef}
+            aria-hidden={isLiveCall}
+            className={cn(
+              'w-full transition-all duration-[380ms] ease-out motion-reduce:transition-none',
+              isLiveCall
+                ? 'pointer-events-none absolute inset-x-0 top-0 opacity-0 translate-y-2'
+                : 'relative opacity-100 translate-y-0',
+            )}
+          >
             {/* Stat cards */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02] lg:order-1">
@@ -603,47 +682,56 @@ export function HeroDashboardPreview() {
               </div>
             </div>
           </div>
-        )}
 
-        {/* Live Call Mode */}
-        {isLiveCall && (
-          <div className="mt-5">
+          {/* Live Call Mode */}
+          <div
+            ref={liveModeRef}
+            aria-hidden={!isLiveCall}
+            className={cn(
+              'w-full transition-all duration-[380ms] ease-out motion-reduce:transition-none',
+              isLiveCall
+                ? 'relative opacity-100 translate-y-0'
+                : 'pointer-events-none absolute inset-x-0 top-0 opacity-0 -translate-y-2',
+            )}
+          >
             {/* Avatar + waveform */}
-            <div className="flex flex-col items-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/logos/logo.svg"
-                  alt="Ultaura"
-                  className="h-9 w-9 brightness-0 invert"
-                />
-              </div>
-
-              {/* Waveform */}
-              <div className="mt-4 flex items-center justify-center gap-1">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <span
-                    key={i}
-                    className="w-1.5 rounded-full bg-primary animate-waveform"
-                    style={{
-                      animationDelay: `${i * 0.12}s`,
-                    }}
+            <div className="w-full py-1">
+              <div className="w-full flex flex-col items-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logos/logo.svg"
+                    alt="Ultaura"
+                    className="h-9 w-9 brightness-0 invert"
                   />
-                ))}
-              </div>
+                </div>
 
-              {/* Voice badge */}
-              <div className="mt-3 text-center text-xs text-muted-foreground">
-                Voice:{' '}
-                <span className="font-semibold text-foreground">Ara</span>{' '}
-                (Warm, Friendly)
+                {/* Waveform */}
+                <div className="mt-4 flex items-center justify-center gap-1">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="w-1.5 rounded-full bg-primary animate-waveform"
+                      style={{
+                        animationDelay: `${i * 0.12}s`,
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Voice badge */}
+                <div className="mt-3 text-center text-xs text-muted-foreground">
+                  Voice:{' '}
+                  <span className="font-semibold text-foreground">Ara</span>{' '}
+                  (Warm, Friendly)
+                </div>
               </div>
             </div>
 
             {/* Chat transcript */}
             <div
               aria-live="polite"
-              className="mt-4 min-h-[120px] space-y-2 rounded-2xl border border-border/60 bg-background p-4"
+              className="mt-4 w-full min-h-[120px] space-y-2 rounded-2xl border border-border/60 bg-background p-4"
             >
               {CHAT_MESSAGES.map((msg, i) => {
                 if (i >= visibleMessages) return null;
@@ -691,7 +779,7 @@ export function HeroDashboardPreview() {
               })()}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
