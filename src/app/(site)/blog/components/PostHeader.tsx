@@ -1,59 +1,48 @@
 import type { posts } from '@/.velite';
-
 import If from '~/core/ui/If';
-import SubHeading from '~/core/ui/SubHeading';
-
 import DateFormatter from './DateFormatter';
-import CoverImage from './CoverImage';
-import BlogImageFrame from './BlogImageFrame';
-import Heading from '~/core/ui/Heading';
 
-const PostHeader: React.FC<{
-  post: Post;
-}> = ({ post }) => {
-  const { title, date, readingTime, description, image } = post;
+type Post = (typeof posts)[number];
 
-  // NB: change this to display the post's image
-  const displayImage = true;
-  const preloadImage = true;
+const PostHeader: React.FC<{ post: Post }> = ({ post }) => {
+  const { title, date, readingTime, description } = post;
 
   return (
-    <div className={'flex flex-col space-y-4'}>
-      <div className={'flex flex-col space-y-4'}>
-        <Heading type={1}>{title}</Heading>
-
-        <SubHeading>{description}</SubHeading>
+    <div className="flex flex-col items-center text-center">
+      {/* Badge */}
+      <div className="flex items-center gap-3 mt-2">
+        <span className="h-px w-8 sm:w-12 bg-primary/60" />
+        <span className="text-xs tracking-[0.2em] text-primary font-medium uppercase">
+          Ultaura Blog
+        </span>
+        <span className="h-px w-8 sm:w-12 bg-primary/60" />
       </div>
 
-      <div className="flex">
-        <div className="flex flex-row items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-          <div>
-            <DateFormatter dateString={date} />
-          </div>
+      {/* Title */}
+      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-semibold tracking-[-0.02em] leading-[1.1] text-foreground max-w-3xl mt-5">
+        {title}
+      </h1>
 
-          <span>·</span>
-          <span>{readingTime} minutes reading</span>
-        </div>
-      </div>
-
-      <If condition={displayImage && image}>
-        {(imageUrl) => (
-          <div className="relative mx-auto h-[378px] w-full justify-center">
-            <BlogImageFrame className="h-full">
-              <CoverImage
-                preloadImage={preloadImage}
-                className="rounded-md"
-                title={title}
-                src={imageUrl}
-              />
-            </BlogImageFrame>
-          </div>
+      {/* Description */}
+      <If condition={description}>
+        {(desc) => (
+          <p className="text-lg lg:text-xl text-muted-foreground max-w-2xl leading-relaxed mt-4">
+            {desc}
+          </p>
         )}
       </If>
+
+      {/* Meta */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4">
+        <DateFormatter dateString={date} />
+        <span>&middot;</span>
+        <span>{readingTime} min read</span>
+      </div>
+
+      {/* Divider */}
+      <div className="h-px w-16 bg-border mt-6" />
     </div>
   );
 };
 
 export default PostHeader;
-
-type Post = (typeof posts)[number];

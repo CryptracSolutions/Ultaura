@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Script from 'next/script';
+import Link from 'next/link';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 import { posts } from '@/.velite';
 import Post from '~/app/(site)/blog/components/Post';
+import ReadingProgressBar from '~/app/(site)/blog/components/ReadingProgressBar';
 
 import Container from '~/core/ui/Container';
 import { withI18n } from '~/i18n/with-i18n';
@@ -58,13 +61,24 @@ async function BlogPost({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <Container>
-      <Script id={'ld-json'} type="application/ld+json">
-        {JSON.stringify(post.structuredData)}
-      </Script>
+    <>
+      <ReadingProgressBar />
+      <Container>
+        <Link
+          href="/blog"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group mb-4"
+        >
+          <ArrowLeftIcon className="h-4 w-4 text-primary group-hover:text-primary/80 transition-colors" />
+          <span>Back to blog</span>
+        </Link>
 
-      <Post post={post} content={post.body} />
-    </Container>
+        <Script id={'ld-json'} type="application/ld+json">
+          {JSON.stringify(post.structuredData)}
+        </Script>
+
+        <Post post={post} content={post.body} />
+      </Container>
+    </>
   );
 }
 

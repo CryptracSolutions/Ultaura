@@ -5,15 +5,15 @@
 }
 
 .MDX h2 {
-  @apply font-semibold text-2xl lg:text-3xl mt-12 mb-4;
+  @apply font-semibold text-2xl lg:text-3xl mt-16 mb-5 tracking-[-0.01em] scroll-mt-24;
 }
 
 .MDX h3 {
-  @apply font-bold text-2xl mt-10;
+  @apply text-xl lg:text-2xl font-semibold mt-12 mb-4 scroll-mt-24;
 }
 
 .MDX h4 {
-  @apply font-bold text-xl mt-8;
+  @apply text-lg font-semibold mt-10 mb-3;
 }
 
 .MDX h5 {
@@ -39,21 +39,37 @@ For more info: https://github.com/tailwindlabs/tailwindcss/issues/3258#issuecomm
 }
 
 .MDX p {
-  @apply text-base dark:text-stone-300 mt-2 mb-4 leading-7;
+  @apply text-[1.0625rem] leading-[1.85] mt-0 mb-6;
+}
+
+:global(.dark) .MDX p {
+  @apply text-stone-300;
 }
 
 .MDX li {
-  @apply text-base my-1.5 leading-7 dark:text-stone-300 relative;
+  @apply text-[1.0625rem] leading-[1.85] relative;
+}
+
+:global(.dark) .MDX li {
+  @apply text-stone-300;
+}
+
+.MDX ul > li {
+  @apply pl-5 my-2.5;
 }
 
 .MDX ul > li:before {
-  content: '-';
+  content: '';
+  @apply absolute left-0 top-[0.6em] w-1.5 h-1.5 bg-primary rounded-full;
+}
 
-  @apply mr-2;
+.MDX ol > li {
+  @apply my-2.5;
+  counter-increment: counts;
 }
 
 .MDX ol > li:before {
-  @apply font-medium inline-flex;
+  @apply font-semibold mr-2 inline-flex;
 
   content: counters(counts,".") ". ";
   font-feature-settings: "tnum";
@@ -71,7 +87,7 @@ For more info: https://github.com/tailwindlabs/tailwindcss/issues/3258#issuecomm
 
 .MDX img,
 .MDX video {
-  @apply rounded-md;
+  @apply rounded-lg my-8;
 }
 
 .MDX ul,
@@ -79,19 +95,8 @@ For more info: https://github.com/tailwindlabs/tailwindcss/issues/3258#issuecomm
   @apply pl-1;
 }
 
-.MDX ol > li {
-  counter-increment: counts;
-}
-
-.MDX ol > li:before {
-  @apply font-semibold mr-2 inline-flex;
-
-  content: counters(counts,".") ". ";
-  font-feature-settings: "tnum";
-}
-
 .MDX blockquote {
-  @apply my-4 py-4 px-6 font-medium text-lg text-stone-600 border-l-4 border-primary bg-primary/5;
+  @apply my-8 py-5 px-7 text-lg leading-relaxed italic text-stone-600 border-l-4 border-primary bg-primary/5 rounded-r-lg;
 }
 
 :global(.dark) .MDX blockquote {
@@ -155,15 +160,13 @@ For more info: https://github.com/tailwindlabs/tailwindcss/issues/3258#issuecomm
 }
 
 .MDX hr {
-  @apply mt-8 mb-6;
+  @apply my-12 border-0 h-px bg-gradient-to-r from-transparent via-border to-transparent;
 }
 
-.MDX p > a,
-:global(.dark) .MDX li > a {
-  @apply font-medium underline;
+.MDX a {
+  @apply text-primary font-medium underline underline-offset-2 decoration-primary/40 hover:decoration-primary/80;
 }
 
-:global(.dark) .MDX p > a,
-:global(.dark) .MDX li > a {
-  @apply font-semibold underline hover:text-white;
+:global(.dark) .MDX a {
+  @apply text-primary hover:text-primary;
 }

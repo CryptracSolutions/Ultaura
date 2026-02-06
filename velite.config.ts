@@ -31,11 +31,22 @@ const posts = defineCollection({
       const slug = getSlug(filePath);
       const rawContent = meta.content ?? '';
 
+      const headingRegex = /^(#{2,3})\s+(.+)$/gm;
+      const headings: Array<{ level: number; text: string; id: string }> = [];
+      let match;
+      while ((match = headingRegex.exec(rawContent)) !== null) {
+        const level = match[1].length;
+        const text = match[2].trim();
+        const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+        headings.push({ level, text, id });
+      }
+
       return {
         ...data,
         id: filePath,
         url: `/blog/${slug}`,
         readingTime: calculateReadingTime(rawContent),
+        headings,
         slug,
         structuredData: {
           '@context': 'https://schema.org',
