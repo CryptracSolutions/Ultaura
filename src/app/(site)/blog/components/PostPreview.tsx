@@ -21,6 +21,7 @@ function PostPreview({
   imageHeight,
 }: React.PropsWithChildren<Props>) {
   const { title, image, date, readingTime, description } = post;
+  const author = (post as any).author as string | undefined;
   const height = imageHeight ?? DEFAULT_IMAGE_HEIGHT;
 
   return (
@@ -51,6 +52,13 @@ function PostPreview({
         </div>
 
         <div className="mb-2 flex flex-row items-center space-x-2 px-1 text-sm">
+          {author && (
+            <>
+              <span className="text-gray-600 dark:text-gray-300">{author}</span>
+              <span className="text-gray-600 dark:text-gray-300">·</span>
+            </>
+          )}
+
           <div className="text-gray-600 dark:text-gray-300">
             <DateFormatter dateString={date} />
           </div>

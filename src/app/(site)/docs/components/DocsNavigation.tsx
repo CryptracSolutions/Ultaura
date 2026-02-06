@@ -13,6 +13,7 @@ import Button from '~/core/ui/Button';
 import Heading from '~/core/ui/Heading';
 import If from '~/core/ui/If';
 import { TextFieldInput } from '~/core/ui/TextField';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 import isBrowser from '~/core/generic/is-browser';
 import type { ProcessedDocumentationPage } from '../utils/build-documentation-tree';
@@ -300,12 +301,17 @@ function FloatingDocumentationNavigation({
     <>
       <If condition={isVisible}>
         <div
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)',
+          }}
           className={
-            'fixed left-0 top-0 z-10 h-screen w-full p-4' +
+            'fixed left-0 top-0 z-50 h-screen w-full p-4' +
             ' flex flex-col space-y-4 overflow-auto bg-white dark:bg-background'
           }
         >
-          <Heading type={1}>Table of Contents</Heading>
+          <Heading type={1} className="text-[1.575rem] leading-[1.2]">
+            Table of Contents
+          </Heading>
 
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -344,13 +350,21 @@ function FloatingDocumentationNavigation({
         </div>
       </If>
 
-      <Button
-        round
-        className={'floating-safe-bottom-left z-50 h-12 w-12 rounded-full'}
-        onClick={onClick}
-      >
-        <Bars3Icon className={'h-6 w-6'} />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            round
+            className={'floating-safe-bottom-left z-50 h-12 w-12 rounded-full'}
+            onClick={onClick}
+          >
+            <Bars3Icon className={'h-6 w-6'} />
+          </Button>
+        </TooltipTrigger>
+
+        <TooltipContent className="hidden lg:block">
+          Table of contents
+        </TooltipContent>
+      </Tooltip>
     </>
   );
 }

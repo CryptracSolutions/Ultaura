@@ -20,8 +20,19 @@ const Post: React.FCC<{
 }> = ({ post, content }) => {
   return (
     <div>
+      <TableOfContents headings={(post as any).headings} />
+
       {/* Wide zone — hero image */}
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 mt-6">
+        {/* Badge */}
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <span className="h-px w-8 sm:w-12 bg-primary/60" />
+          <span className="text-xs tracking-[0.2em] text-primary font-medium uppercase">
+            Ultaura Blog
+          </span>
+          <span className="h-px w-8 sm:w-12 bg-primary/60" />
+        </div>
+
         <If condition={post.image}>
           {(imageUrl) => (
             <div className="relative w-full aspect-[2/1]">
@@ -36,8 +47,6 @@ const Post: React.FCC<{
       {/* Narrow zone — header + article */}
       <div className="mx-auto max-w-2xl px-4 sm:px-6 mt-8">
         <PostHeader post={post} />
-
-        <TableOfContents headings={(post as any).headings} />
 
         <article className="mt-10">
           <MDXRenderer code={content} />

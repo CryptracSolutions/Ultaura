@@ -10,15 +10,6 @@ const PostHeader: React.FC<{ post: Post }> = ({ post }) => {
 
   return (
     <div className="flex flex-col items-center text-center">
-      {/* Badge */}
-      <div className="flex items-center gap-3 mt-2">
-        <span className="h-px w-8 sm:w-12 bg-primary/60" />
-        <span className="text-xs tracking-[0.2em] text-primary font-medium uppercase">
-          Ultaura Blog
-        </span>
-        <span className="h-px w-8 sm:w-12 bg-primary/60" />
-      </div>
-
       {/* Title */}
       <h1 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-semibold tracking-[-0.02em] leading-[1.1] text-foreground max-w-3xl mt-5">
         {title}
@@ -34,7 +25,7 @@ const PostHeader: React.FC<{ post: Post }> = ({ post }) => {
       </If>
 
       {/* Meta */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4">
+      <div className="flex items-center gap-2 text-sm text-primary mt-4">
         <If condition={author}>
           {(name) => (
             <>
