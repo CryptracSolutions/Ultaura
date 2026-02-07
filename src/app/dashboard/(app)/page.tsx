@@ -216,8 +216,21 @@ async function DashboardPage() {
             </div>
           )}
 
+          {/* Quick actions */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
+            <Button variant="default" size="small" href="/dashboard/calls" className="w-full sm:w-auto">
+              Calls
+            </Button>
+            <Button variant="default" size="small" href="/dashboard/reminders" className="w-full sm:w-auto">
+              Reminders
+            </Button>
+            <Button variant="default" size="small" href="/dashboard/lines" className="w-full sm:w-auto">
+              Lines
+            </Button>
+          </div>
+
           {/* At a glance */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
               <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
               <div className="relative flex items-center gap-2 mb-1">
@@ -315,23 +328,6 @@ async function DashboardPage() {
                 >
                   View usage →
                 </Link>
-              </div>
-            </div>
-
-            <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
-              <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
-              <div className="relative flex flex-col justify-center flex-1">
-                <div className="grid gap-2">
-                  <Button variant="default" href="/dashboard/calls">
-                    View call schedules
-                  </Button>
-                  <Button variant="default" href="/dashboard/reminders">
-                    View reminders
-                  </Button>
-                  <Button variant="default" href="/dashboard/lines">
-                    View lines
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
