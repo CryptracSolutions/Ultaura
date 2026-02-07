@@ -227,6 +227,7 @@ Automatically use the Skill tool to invoke these skills when the context matches
 | `page-cro` | Optimizing page conversions, CRO analysis |
 | `skill-creator` | Creating new skills for Claude Code or Codex |
 | `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
+| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
 
 ### Plan Mode Guidance
 
