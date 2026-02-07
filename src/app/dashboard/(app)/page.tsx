@@ -216,19 +216,6 @@ async function DashboardPage() {
             </div>
           )}
 
-          {/* Quick actions */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
-            <Button variant="default" size="small" href="/dashboard/calls" className="w-full sm:w-auto">
-              Calls
-            </Button>
-            <Button variant="default" size="small" href="/dashboard/reminders" className="w-full sm:w-auto">
-              Reminders
-            </Button>
-            <Button variant="default" size="small" href="/dashboard/lines" className="w-full sm:w-auto">
-              Lines
-            </Button>
-          </div>
-
           {/* At a glance */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
