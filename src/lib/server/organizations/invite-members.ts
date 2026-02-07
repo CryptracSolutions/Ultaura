@@ -286,7 +286,7 @@ async function sendInviteEmail(props: {
   const subject = 'You have been invited to join an organization!';
   const link = getInvitePageFullUrl(code);
 
-  const html = renderInviteEmail({
+  const { html, text } = renderInviteEmail({
     productName,
     link,
     organizationName,
@@ -300,6 +300,7 @@ async function sendInviteEmail(props: {
     from: sender,
     subject,
     html,
+    text,
   });
 }
 

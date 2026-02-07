@@ -1,20 +1,13 @@
 import {
-  Body,
-  Container,
-  Head,
   Heading,
-  Html,
-  Preview,
   Section,
   Text,
-  Tailwind,
-  Hr,
-  Link,
   render,
 } from '@react-email/components';
 
 import type { WeeklySummaryData } from '~/lib/ultaura/types';
 import { brandColors } from '~/lib/brand-colors';
+import { EmailLayout } from '~/lib/emails/components/email-layout';
 
 function formatSignedDelta(value: number, unit?: string): string {
   const sign = value > 0 ? `+${value}` : `${value}`;
@@ -43,7 +36,7 @@ type WeeklySummaryEmailProps = WeeklySummaryData & {
   unsubscribeLink?: string;
 };
 
-export default function renderWeeklySummaryEmail(summary: WeeklySummaryEmailProps) {
+export default function renderWeeklySummaryEmail(summary: WeeklySummaryEmailProps): { html: string; text: string } {
   const previewText = summary.isSelfRecipient
     ? 'Your weekly check-in summary'
     : `Weekly check-in summary for ${summary.lineName}`;
@@ -61,235 +54,204 @@ export default function renderWeeklySummaryEmail(summary: WeeklySummaryEmailProp
   const allowTopics = summary.isSelfRecipient || effectiveTier === 'tier_3' || effectiveTier === 'tier_4';
   const allowConcerns = summary.isSelfRecipient || effectiveTier === 'tier_4';
 
-  return render(
-    <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
+  const footerLinks: Array<{ label: string; href: string }> = [
+    { label: 'Manage notifications', href: summary.settingsUrl },
+  ];
+  if (summary.unsubscribeLink && !summary.isPrimaryRecipient) {
+    footerLinks.push({ label: 'Unsubscribe', href: summary.unsubscribeLink });
+  }
 
-      <Tailwind>
-        <Body className="bg-stone-50 my-auto mx-auto font-sans">
-          <Container className="border border-solid border-[#e7e5e4] rounded-lg my-[32px] mx-auto p-[24px] w-[600px] bg-white">
-            <Section
-              className="text-center rounded-lg py-[16px] px-[12px]"
-              style={{ backgroundColor: brandColors.primary }}
-            >
-              <Heading className="text-white text-[22px] font-semibold m-0">
-                Weekly Check-in Summary
-              </Heading>
-              <Text className="text-white text-[14px] mt-[6px] mb-0">
-                {summary.lineName} - Week of {summary.weekStartDate} to {summary.weekEndDate}
+  const jsx = (
+    <EmailLayout preview={previewText} aiDisclaimer={true} footerLinks={footerLinks}>
+      <Heading className="text-[22px] font-semibold text-stone-900 m-0 text-center">
+        Weekly Check-in Summary
+      </Heading>
+      <Text className="text-[14px] text-stone-500 mt-[6px] mb-0 text-center">
+        {summary.lineName} — Week of {summary.weekStartDate} to {summary.weekEndDate}
+      </Text>
+
+      <Text className="text-[14px] text-stone-700 mt-[16px] mb-0">
+        {greeting}
+      </Text>
+
+      {summary.isPaused ? (
+        <Section className="mt-[16px] bg-stone-100 rounded-lg px-[14px] py-[12px]">
+          <Text className="text-[13px] text-stone-700 m-0">
+            {summary.pausedNote || 'Calls are currently paused for this line.'}
+          </Text>
+        </Section>
+      ) : null}
+
+      <Section className="mt-[20px]">
+        <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+          Call Activity
+        </Heading>
+        <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
+          Calls answered: {summary.answeredCalls}/{summary.scheduledCalls} scheduled{' '}
+          {answerTrendLabel ? answerTrendLabel : ''}
+        </Text>
+        <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+          Average duration: {avgDurationLabel}
+          {durationTrendLabel ? ` ${durationTrendLabel}` : ''}
+        </Text>
+        {summary.showMissedCallsWarning ? (
+          <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+            Missed calls: {summary.missedCalls}
+          </Text>
+        ) : null}
+      </Section>
+
+      <Section className="mt-[18px]">
+        <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+          Safety Alerts
+        </Heading>
+        {summary.safetyEvents.length > 0 ? (
+          <Section className="mt-[8px]">
+            {summary.safetyEvents.map((event, index) => (
+              <Text key={`${event.timestamp}-${index}`} className="text-[14px] text-stone-700 m-0">
+                {formatDateLabel(event.timestamp)}: High alert
+                {event.actionTaken ? ` (${event.actionTaken})` : ''}
               </Text>
-            </Section>
+            ))}
+          </Section>
+        ) : (
+          <Text className="text-[14px] text-stone-500 mt-[8px] mb-0">
+            No high-tier safety alerts this week.
+          </Text>
+        )}
+      </Section>
 
-            <Text className="text-[14px] text-stone-700 mt-[16px] mb-0">
-              {greeting}
+      <Section className="mt-[18px]">
+        <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+          Usage
+        </Heading>
+        <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
+          Minutes used: {summary.usageSummary.minutesUsed}
+        </Text>
+        <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+          Minutes remaining: {summary.usageSummary.minutesRemaining}
+        </Text>
+        {summary.usageSummary.overageMinutes > 0 ? (
+          <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+            Overage: {summary.usageSummary.overageMinutes} min ($
+            {summary.usageSummary.overageCost.toFixed(2)})
+          </Text>
+        ) : null}
+      </Section>
+
+      {allowMood && summary.engagementNote ? (
+        <Section className="mt-[18px]">
+          <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+            Engagement
+          </Heading>
+          <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
+            Engagement has been lower than typical ({summary.engagementNote}).
+          </Text>
+        </Section>
+      ) : null}
+
+      {allowMood && summary.moodSummary ? (
+        <Section className="mt-[18px]">
+          <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+            Mood This Week
+          </Heading>
+          <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
+            {summary.moodSummary}
+          </Text>
+          {summary.moodShiftNote ? (
+            <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+              {summary.moodShiftNote}
             </Text>
+          ) : null}
+        </Section>
+      ) : null}
 
-            {summary.isPaused ? (
-              <Section className="mt-[16px] bg-stone-100 rounded-lg px-[14px] py-[12px]">
-                <Text className="text-[13px] text-stone-700 m-0">
-                  {summary.pausedNote || 'Calls are currently paused for this line.'}
-                </Text>
-              </Section>
-            ) : null}
+      {allowConcerns && summary.socialNeedNote ? (
+        <Section className="mt-[18px]">
+          <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+            Social Connection
+          </Heading>
+          <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
+            {summary.socialNeedNote}
+          </Text>
+        </Section>
+      ) : null}
 
-            <Section className="mt-[20px]">
-              <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                Call Activity
-              </Heading>
-              <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
-                Calls answered: {summary.answeredCalls}/{summary.scheduledCalls} scheduled{' '}
-                {answerTrendLabel ? answerTrendLabel : ''}
-              </Text>
-              <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                Average duration: {avgDurationLabel}
-                {durationTrendLabel ? ` ${durationTrendLabel}` : ''}
-              </Text>
-              {summary.showMissedCallsWarning ? (
-                <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                  Missed calls: {summary.missedCalls}
-                </Text>
-              ) : null}
-            </Section>
-
-            <Section className="mt-[18px]">
-              <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                Safety Alerts
-              </Heading>
-              {summary.safetyEvents.length > 0 ? (
-                <div className="mt-[8px] space-y-[6px]">
-                  {summary.safetyEvents.map((event, index) => (
-                    <Text key={`${event.timestamp}-${index}`} className="text-[14px] text-stone-700 m-0">
-                      {formatDateLabel(event.timestamp)}: High alert
-                      {event.actionTaken ? ` (${event.actionTaken})` : ''}
-                    </Text>
-                  ))}
-                </div>
-              ) : (
-                <Text className="text-[14px] text-stone-500 mt-[8px] mb-0">
-                  No high-tier safety alerts this week.
-                </Text>
-              )}
-            </Section>
-
-            <Section className="mt-[18px]">
-              <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                Usage
-              </Heading>
-              <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
-                Minutes used: {summary.usageSummary.minutesUsed}
-              </Text>
-              <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                Minutes remaining: {summary.usageSummary.minutesRemaining}
-              </Text>
-              {summary.usageSummary.overageMinutes > 0 ? (
-                <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                  Overage: {summary.usageSummary.overageMinutes} min ($
-                  {summary.usageSummary.overageCost.toFixed(2)})
-                </Text>
-              ) : null}
-            </Section>
-
-            {allowMood && summary.engagementNote ? (
-              <Section className="mt-[18px]">
-                <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                  Engagement
-                </Heading>
-                <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
-                  Engagement has been lower than typical ({summary.engagementNote}).
-                </Text>
-              </Section>
-            ) : null}
-
-            {allowMood && summary.moodSummary ? (
-              <Section className="mt-[18px]">
-                <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                  Mood This Week
-                </Heading>
-                <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
-                  {summary.moodSummary}
-                </Text>
-                {summary.moodShiftNote ? (
-                  <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                    {summary.moodShiftNote}
-                  </Text>
-                ) : null}
-              </Section>
-            ) : null}
-
-            {allowConcerns && summary.socialNeedNote ? (
-              <Section className="mt-[18px]">
-                <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                  Social Connection
-                </Heading>
-                <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
-                  {summary.socialNeedNote}
-                </Text>
-              </Section>
-            ) : null}
-
-            {allowTopics ? (
-              <Section className="mt-[18px]">
-                <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                  Topics Discussed
-                </Heading>
-                {summary.topTopics.length > 0 ? (
-                  <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
-                    {summary.topTopics.map((topic) => (
-                      <span
-                        key={topic.code}
-                        style={{
-                          display: 'inline-block',
-                          backgroundColor: brandColors.stone[100],
-                          color: brandColors.stone[700],
-                          padding: '4px 10px',
-                          borderRadius: '999px',
-                          marginRight: '6px',
-                          marginBottom: '6px',
-                          fontSize: '12px',
-                        }}
-                      >
-                        {topic.label}
-                      </span>
-                    ))}
-                  </Text>
-                ) : (
-                  <Text className="text-[14px] text-stone-500 mt-[8px] mb-0">
-                    No topics captured this week.
-                  </Text>
-                )}
-              </Section>
-            ) : null}
-
-            {allowConcerns ? (
-              <Section className="mt-[18px]">
-                <Heading className="text-[16px] font-semibold text-stone-900 m-0">
-                  Wellbeing Notes
-                </Heading>
-                {summary.concerns.length > 0 ? (
-                  summary.concerns.map((concern) => {
-                    const noveltyLabel = titleCase(concern.novelty);
-                    const severityText =
-                      concern.novelty === 'resolved'
-                        ? ` (was ${concern.severity})`
-                        : ` (${concern.severity})`;
-                    return (
-                      <Text
-                        key={`${concern.code}-${concern.novelty}`}
-                        className="text-[14px] text-stone-700 mt-[6px] mb-0"
-                      >
-                        {noveltyLabel}: {concern.label}
-                        {severityText}
-                      </Text>
-                    );
-                  })
-                ) : (
-                  <Text className="text-[14px] text-stone-500 mt-[8px] mb-0">
-                    No wellbeing concerns detected this week.
-                  </Text>
-                )}
-              </Section>
-            ) : null}
-
-            {allowConcerns && summary.needsFollowUp && followUpText ? (
-              <Section className="mt-[18px] bg-orange-50 rounded-lg px-[14px] py-[12px]">
-                <Heading className="text-[15px] font-semibold text-stone-900 m-0">
-                  Follow-up Suggested
-                </Heading>
-                <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                  Based on this week&apos;s patterns, consider checking in about: {followUpText}
-                </Text>
-              </Section>
-            ) : null}
-
-            <Hr className="border border-solid border-[#e7e5e4] my-[20px] mx-0 w-full" />
-
-            <Section className="text-center">
-              <Text className="text-[12px] text-stone-500 m-0">
-                These insights are generated by AI based on conversation patterns and are not
-                medical, clinical, or professional advice. Ultaura is not an emergency service. If
-                you believe there is immediate danger, contact local emergency services (911 in the
-                US).
-              </Text>
-              <Text className="text-[12px] text-stone-500 mt-[8px] mb-0">
-                <Link
-                  href={summary.settingsUrl}
-                  style={{ color: brandColors.primary }}
+      {allowTopics ? (
+        <Section className="mt-[18px]">
+          <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+            Topics Discussed
+          </Heading>
+          {summary.topTopics.length > 0 ? (
+            <Text className="text-[14px] text-stone-700 mt-[8px] mb-0">
+              {summary.topTopics.map((topic) => (
+                <span
+                  key={topic.code}
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: brandColors.stone[100],
+                    color: brandColors.stone[700],
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    marginRight: '6px',
+                    marginBottom: '6px',
+                    fontSize: '12px',
+                  }}
                 >
-                  Manage notification preferences
-                </Link>
-              </Text>
-              {summary.unsubscribeLink && !summary.isPrimaryRecipient ? (
-                <Text className="text-[12px] text-stone-500 mt-[6px] mb-0">
-                  <Link href={summary.unsubscribeLink} style={{ color: brandColors.primary }}>
-                    Unsubscribe from these updates
-                  </Link>
+                  {topic.label}
+                </span>
+              ))}
+            </Text>
+          ) : (
+            <Text className="text-[14px] text-stone-500 mt-[8px] mb-0">
+              No topics captured this week.
+            </Text>
+          )}
+        </Section>
+      ) : null}
+
+      {allowConcerns ? (
+        <Section className="mt-[18px]">
+          <Heading className="text-[16px] font-semibold text-stone-900 m-0">
+            Wellbeing Notes
+          </Heading>
+          {summary.concerns.length > 0 ? (
+            summary.concerns.map((concern) => {
+              const noveltyLabel = titleCase(concern.novelty);
+              const severityText =
+                concern.novelty === 'resolved'
+                  ? ` (was ${concern.severity})`
+                  : ` (${concern.severity})`;
+              return (
+                <Text
+                  key={`${concern.code}-${concern.novelty}`}
+                  className="text-[14px] text-stone-700 mt-[6px] mb-0"
+                >
+                  {noveltyLabel}: {concern.label}
+                  {severityText}
                 </Text>
-              ) : null}
-            </Section>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>,
+              );
+            })
+          ) : (
+            <Text className="text-[14px] text-stone-500 mt-[8px] mb-0">
+              No wellbeing concerns detected this week.
+            </Text>
+          )}
+        </Section>
+      ) : null}
+
+      {allowConcerns && summary.needsFollowUp && followUpText ? (
+        <Section className="mt-[18px] bg-stone-100 rounded-lg px-[14px] py-[12px]">
+          <Heading className="text-[15px] font-semibold text-stone-900 m-0">
+            Follow-up Suggested
+          </Heading>
+          <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+            Based on this week&apos;s patterns, consider checking in about: {followUpText}
+          </Text>
+        </Section>
+      ) : null}
+    </EmailLayout>
   );
+
+  return { html: render(jsx), text: render(jsx, { plainText: true }) };
 }

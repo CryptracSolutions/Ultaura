@@ -7,6 +7,7 @@ node_modules
 
 # testing
 /coverage
+scripts/test-emails.tsx
 
 # next.js
 /.next/

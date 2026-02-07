@@ -42,24 +42,6 @@ function validateWebhookSecret(request: Request): NextResponse | null {
   return null;
 }
 
-function buildTextAlert(payload: {
-  lineName: string;
-  severity: 'high';
-  actionTaken: string;
-  dashboardUrl: string;
-}): string {
-  return [
-    `Safety alert for ${payload.lineName}`,
-    '',
-    `Action taken: ${payload.actionTaken}`,
-    '',
-    'Suggested next step: reach out and check in.',
-    'If you believe there is immediate danger, contact local emergency services (911 in the US).',
-    '',
-    `View safety alerts: ${payload.dashboardUrl}`,
-  ].join('\n');
-}
-
 export async function POST(request: Request) {
   const unauthorizedResponse = validateWebhookSecret(request);
   if (unauthorizedResponse) {
@@ -104,16 +86,10 @@ export async function POST(request: Request) {
 
   try {
     const subject = `Safety alert for ${lineName}`;
-    const html = renderSafetyAlertEmail({
+    const { html, text } = renderSafetyAlertEmail({
       lineName,
       actionTaken: payload.actionTaken,
       severity: payload.severity ?? 'high',
-      dashboardUrl: payload.dashboardUrl,
-    });
-    const text = buildTextAlert({
-      lineName,
-      severity: payload.severity ?? 'high',
-      actionTaken: payload.actionTaken,
       dashboardUrl: payload.dashboardUrl,
     });
 

@@ -1,18 +1,12 @@
 import {
-  Body,
   Button,
-  Container,
-  Head,
-  Html,
-  Preview,
   Section,
   Text,
-  Tailwind,
   render,
-  Link,
 } from '@react-email/components';
 
 import { brandColors } from '~/lib/brand-colors';
+import { EmailLayout } from '~/lib/emails/components/email-layout';
 
 interface MissedCallsAlertProps {
   lineName: string;
@@ -22,79 +16,59 @@ interface MissedCallsAlertProps {
   unsubscribeLink?: string;
 }
 
-export default function renderMissedCallsAlertEmail(props: MissedCallsAlertProps) {
+export default function renderMissedCallsAlertEmail(props: MissedCallsAlertProps): { html: string; text: string } {
   const previewText = `Missed check-ins for ${props.lineName}`;
 
-  return render(
-    <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
+  const footerLinks: Array<{ label: string; href: string }> = [
+    { label: 'Line Settings', href: props.settingsUrl },
+  ];
+  if (props.unsubscribeLink) {
+    footerLinks.push({ label: 'Unsubscribe', href: props.unsubscribeLink });
+  }
 
-      <Tailwind>
-        <Body className="bg-stone-50 my-auto mx-auto font-sans">
-          <Container className="border border-solid border-[#e7e5e4] rounded-lg my-[32px] mx-auto p-[24px] w-[560px] bg-white">
-            <Text className="text-[14px] text-stone-700 m-0">Hi,</Text>
+  const jsx = (
+    <EmailLayout preview={previewText} footerLinks={footerLinks}>
+      <Text className="text-[14px] text-stone-700 m-0">Hi,</Text>
 
-            <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
-              {props.lineName} has missed {props.consecutiveMissedCount} consecutive scheduled
-              calls from Ultaura.
-            </Text>
+      <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
+        {props.lineName} has missed {props.consecutiveMissedCount} consecutive scheduled
+        calls from Ultaura.
+      </Text>
 
-            <Section className="mt-[16px]">
-              <Text className="text-[14px] text-stone-700 m-0">This could mean:</Text>
-              <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                - Phone is off or out of reach
-              </Text>
-              <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
-                - They&apos;re busy or away
-              </Text>
-              <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
-                - Line settings may need adjustment
-              </Text>
-            </Section>
+      <Section className="mt-[16px]">
+        <Text className="text-[14px] text-stone-700 m-0">This could mean:</Text>
+        <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+          - Phone is off or out of reach
+        </Text>
+        <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
+          - They&apos;re busy or away
+        </Text>
+        <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
+          - Line settings may need adjustment
+        </Text>
+      </Section>
 
-            <Section className="mt-[16px]">
-              <Text className="text-[14px] text-stone-700 m-0">What you can do:</Text>
-              <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-                - Give them a call to check in
-              </Text>
-              <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
-                - Review call schedule in your dashboard
-              </Text>
-            </Section>
+      <Section className="mt-[16px]">
+        <Text className="text-[14px] text-stone-700 m-0">What you can do:</Text>
+        <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
+          - Give them a call to check in
+        </Text>
+        <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
+          - Review call schedule in your dashboard
+        </Text>
+      </Section>
 
-            <Section className="mt-[20px] text-center">
-              <Button
-                href={props.dashboardUrl}
-                className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
-                style={{ backgroundColor: brandColors.primary }}
-              >
-                View Dashboard
-              </Button>
-            </Section>
-
-            <Text className="text-[14px] text-stone-700 mt-[16px] mb-0">
-              If you&apos;d like to pause calls temporarily, you can do so in{' '}
-              <Link href={props.settingsUrl} style={{ color: brandColors.primary }}>
-                Line Settings
-              </Link>
-              .
-            </Text>
-
-            {props.unsubscribeLink ? (
-              <Text className="text-[12px] text-stone-500 mt-[16px] mb-0">
-                <Link href={props.unsubscribeLink} style={{ color: brandColors.primary }}>
-                  Unsubscribe from these updates
-                </Link>
-              </Text>
-            ) : null}
-
-            <Text className="text-[14px] text-stone-700 mt-[18px] mb-0">
-              -- Ultaura
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>,
+      <Section className="mt-[20px] text-center">
+        <Button
+          href={props.dashboardUrl}
+          className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
+          style={{ backgroundColor: brandColors.primary }}
+        >
+          View Dashboard
+        </Button>
+      </Section>
+    </EmailLayout>
   );
+
+  return { html: render(jsx), text: render(jsx, { plainText: true }) };
 }

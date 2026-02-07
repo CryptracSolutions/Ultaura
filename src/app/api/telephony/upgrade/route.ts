@@ -6,6 +6,7 @@ import configuration from '~/configuration';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getStripeInstance from '~/core/stripe/get-stripe';
 import sendEmail from '~/core/email/send-email';
+import renderPlanUpgradeEmail from '~/lib/emails/plan-upgrade';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 
 const DEV_TELEPHONY_BACKEND_URL = 'http://localhost:3001';
@@ -159,15 +160,11 @@ export async function POST(request: Request) {
   }
 
   const subject = `Complete your Ultaura plan upgrade`;
-  const text = `You requested to upgrade to the ${planDisplay.name} plan.\n\nPlan details:\n${planDisplay.summary}\n\nComplete your upgrade here:\n${session.url}\n\nIf you did not request this, you can ignore this email.`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
-      <p>You requested to upgrade to the <strong>${planDisplay.name}</strong> plan.</p>
-      <p><strong>Plan details:</strong> ${planDisplay.summary}</p>
-      <p><a href="${session.url}">Complete your upgrade</a></p>
-      <p>If you did not request this, you can ignore this email.</p>
-    </div>
-  `;
+  const { html, text } = renderPlanUpgradeEmail({
+    planName: planDisplay.name,
+    planSummary: planDisplay.summary,
+    checkoutUrl: session.url,
+  });
 
   await sendEmail({
     from: emailFrom,

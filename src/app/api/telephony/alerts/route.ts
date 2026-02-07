@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import sendEmail from '~/core/email/send-email';
+import renderSecurityAlertEmail from '~/lib/emails/security-alert';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 
 const RECOMMENDED_ACTIONS: Record<string, string> = {
@@ -28,10 +29,6 @@ const RECOMMENDED_ACTIONS: Record<string, string> = {
     'A tool call landed on a pod that did not have the in-memory Grok bridge for this call session. Ensure tool calls are routed to the same pod (e.g., set ULTAURA_INTERNAL_BACKEND_URL to localhost inside the telephony container) and verify sticky session configuration.',
 };
 
-function formatAnomalyType(type: string): string {
-  return type.replace(/_/g, ' ');
-}
-
 function buildEmailContent(options: {
   anomalyType: string;
   source: string;
@@ -40,35 +37,16 @@ function buildEmailContent(options: {
   details: Record<string, unknown>;
   recommendedAction: string;
 }): { subject: string; text: string; html: string } {
-  const subject = `[Ultaura Security Alert] ${formatAnomalyType(options.anomalyType)}`;
+  const subject = `[Ultaura Security Alert] ${options.anomalyType.replace(/_/g, ' ')}`;
   const detailsJson = JSON.stringify(options.details, null, 2);
-
-  const text = [
-    `Ultaura Security Alert`,
-    ``,
-    `Type: ${options.anomalyType}`,
-    `Source: ${options.source} (${options.sourceType})`,
-    `Timestamp: ${options.timestamp}`,
-    ``,
-    `Details:`,
+  const { html, text } = renderSecurityAlertEmail({
+    anomalyType: options.anomalyType,
+    source: options.source,
+    sourceType: options.sourceType,
+    timestamp: options.timestamp,
     detailsJson,
-    ``,
-    `Recommended actions:`,
-    options.recommendedAction,
-  ].join('\n');
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
-      <h2>Ultaura Security Alert</h2>
-      <p><strong>Type:</strong> ${options.anomalyType}</p>
-      <p><strong>Source:</strong> ${options.source} (${options.sourceType})</p>
-      <p><strong>Timestamp:</strong> ${options.timestamp}</p>
-      <p><strong>Details:</strong></p>
-      <pre style="background: #f4f4f4; padding: 12px; border-radius: 6px;">${detailsJson}</pre>
-      <p><strong>Recommended actions:</strong> ${options.recommendedAction}</p>
-    </div>
-  `;
-
+    recommendedAction: options.recommendedAction,
+  });
   return { subject, text, html };
 }
 

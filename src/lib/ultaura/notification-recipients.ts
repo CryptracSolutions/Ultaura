@@ -314,7 +314,7 @@ async function sendInviteEmail(options: {
   const confirmLink = `${getSiteUrl()}/api/ultaura/confirm/${options.token}`;
   const subject = `You've been invited to receive updates from ${accountName}`;
 
-  const html = renderNotificationInviteEmail({
+  const { html, text } = renderNotificationInviteEmail({
     recipientName: options.recipientName,
     accountName,
     lineName,
@@ -327,6 +327,7 @@ async function sendInviteEmail(options: {
     to: options.recipientEmail,
     subject,
     html,
+    text,
   });
 }
 

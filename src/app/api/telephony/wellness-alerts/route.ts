@@ -49,26 +49,6 @@ function validateWebhookSecret(request: Request): NextResponse | null {
   return null;
 }
 
-function buildTextAlert(
-  payload: WellnessAlertPayload,
-  options?: { unsubscribeLink?: string }
-): string {
-  return [
-    `Wellness alert for ${payload.lineName}`,
-    '',
-    `${payload.title}`,
-    `${payload.summary}`,
-    '',
-    `Created at: ${payload.createdAt}`,
-    '',
-    'Suggested next step: reach out and check in.',
-    '',
-    `View alerts: ${payload.dashboardUrl}`,
-    `Alert settings: ${payload.settingsUrl}`,
-    options?.unsubscribeLink ? `Unsubscribe: ${options.unsubscribeLink}` : null,
-  ].filter(Boolean).join('\n');
-}
-
 function getSiteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
@@ -201,7 +181,7 @@ export async function POST(request: Request) {
       const unsubscribeLink = meta.isPrimary || !meta.token
         ? undefined
         : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
-      const html = renderWellnessAlertEmail({
+      const { html, text } = renderWellnessAlertEmail({
         lineName: emailPayload.lineName,
         title: emailPayload.title,
         summary: emailPayload.summary,
@@ -210,7 +190,6 @@ export async function POST(request: Request) {
         settingsUrl: emailPayload.settingsUrl,
         unsubscribeLink,
       });
-      const text = buildTextAlert(emailPayload, { unsubscribeLink });
       const headers = unsubscribeLink
         ? {
             'List-Unsubscribe': `<${unsubscribeLink}>`,

@@ -45,27 +45,6 @@ function validateWebhookSecret(request: Request): NextResponse | null {
   return null;
 }
 
-function buildTextAlert(
-  payload: MissedCallsAlertPayload,
-  options?: { unsubscribeLink?: string }
-): string {
-  return [
-    `Missed check-ins for ${payload.lineName}`,
-    '',
-    `${payload.lineName} has missed ${payload.consecutiveMissedCount} consecutive scheduled calls from Ultaura.`,
-    '',
-    `Last attempt: ${payload.lastAttemptAt}`,
-    '',
-    'What you can do:',
-    '- Give them a call to check in',
-    '- Review call schedule in your dashboard',
-    '',
-    `View dashboard: ${payload.dashboardUrl}`,
-    `Line settings: ${payload.settingsUrl}`,
-    options?.unsubscribeLink ? `Unsubscribe: ${options.unsubscribeLink}` : null,
-  ].filter(Boolean).join('\n');
-}
-
 function getSiteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
@@ -175,14 +154,13 @@ export async function POST(request: Request) {
       const unsubscribeLink = meta.isPrimary || !meta.token
         ? undefined
         : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
-      const html = renderMissedCallsAlertEmail({
+      const { html, text } = renderMissedCallsAlertEmail({
         lineName: normalizedPayload.lineName,
         consecutiveMissedCount: normalizedPayload.consecutiveMissedCount,
         dashboardUrl: normalizedPayload.dashboardUrl,
         settingsUrl: normalizedPayload.settingsUrl,
         unsubscribeLink,
       });
-      const text = buildTextAlert(normalizedPayload, { unsubscribeLink });
       const headers = unsubscribeLink
         ? {
             'List-Unsubscribe': `<${unsubscribeLink}>`,
