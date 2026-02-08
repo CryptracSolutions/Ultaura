@@ -76,7 +76,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'use-without-help',
         question: 'Can my loved one use Ultaura without help?',
         answer:
-          'Absolutely. Your loved one simply answers the phone when Ultaura calls. There\'s nothing to install, no buttons to press, and no technology to learn. They just have a conversation.',
+          'Absolutely. Your loved one simply answers the phone when Ultaura calls, or they can call Ultaura whenever they\'d like. There\'s nothing to install, no buttons to press, and no technology to learn. They just have a conversation.',
       },
     ],
   },
@@ -89,13 +89,13 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'call-anytime',
         question: 'Can my loved one call Ultaura anytime?',
         answer:
-          'Currently, Ultaura makes outbound calls at scheduled times. Inbound calling is on our roadmap. You can set multiple call times per day to ensure your loved one gets the connection they need.',
+          'Yes! Your loved one can call Ultaura anytime, 24/7/365. Ultaura also makes outbound calls at scheduled times, so you can set multiple call times per day to ensure your loved one gets the connection they need.',
       },
       {
         id: 'set-schedule',
         question: 'How do I set up a call schedule?',
         answer:
-          'In the dashboard, go to your line\'s settings and select "Schedule." You can set specific times for daily calls, choose which days to call, and adjust the schedule anytime.',
+          'In the dashboard, go to your line\'s Calls page and select "Add Schedule." You can set specific times for daily calls, choose which days to call, and adjust the schedule anytime.',
       },
       {
         id: 'quiet-hours',
@@ -113,7 +113,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'call-length',
         question: 'How long are the calls?',
         answer:
-          'Calls typically last 5-15 minutes, but your loved one controls the conversation. They can chat as long as they like or end the call whenever they\'re ready. Longer conversations simply use more of your plan\'s minutes.',
+          'Check-in calls typically last 5-20 minutes, but your loved one controls the conversation. Reminder calls are less than a minute unless your loved one decides to continue the conversation. They can chat as long as they like or end the call whenever they\'re ready. Longer conversations simply use more of your plan\'s minutes.',
       },
     ],
   },
@@ -237,7 +237,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'free-trial',
         question: 'Is there a free trial?',
         answer:
-          'Yes, we offer a free trial with 20 minutes of calls over 3 days. No credit card required to start. This gives you and your loved one time to experience Ultaura before committing to a plan.',
+          'Yes, we offer a free trial with unlimited minutes over 3 days. No credit card required to start. This gives you and your loved one time to experience Ultaura before committing to a plan.',
       },
       {
         id: 'usage-counting',
@@ -249,7 +249,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'overage',
         question: 'What happens if I go over my included minutes?',
         answer:
-          'If you exceed your plan\'s included minutes, additional usage is billed at $0.15 per minute. You\'ll receive notifications as you approach your limit. Free trial accounts have a hard stop with no overage option.',
+          'If you exceed your plan\'s included minutes, additional usage is billed at $0.15 per minute. You\'ll receive notifications as you approach your limit.',
       },
       {
         id: 'cancel',
@@ -274,13 +274,13 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'not-understood',
         question: "Ultaura didn't understand my loved one",
         answer:
-          'Try speaking clearly and at a moderate pace. Background noise can affect understanding. You can also enable hearing support in accessibility settings, which adjusts how Ultaura speaks and listens.',
+          'Background noise can affect understanding. You can also enable hearing support in accessibility settings, which adjusts how Ultaura speaks and listens.',
       },
       {
         id: 'contact-support',
         question: 'How do I contact support?',
         answer:
-          'You can reach our support team at support@ultaura.com or through the Help section in your dashboard. We typically respond within 24 hours and are happy to help with any questions or issues.',
+          'You can reach our support team at support@ultaura.com, through the Help section in your dashboard, or by visiting our contact page at ultaura.com/contact. We typically respond within 24 hours and are happy to help with any questions or issues.',
       },
       {
         id: 'change-voice',

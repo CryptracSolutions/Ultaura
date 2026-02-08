@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { FAQCategory } from '../faq-data';
 import { FAQSearch } from './FAQSearch';
 import { FAQSection } from './FAQSection';
 
 interface FAQContentProps {
   categories: FAQCategory[];
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
 }
 
-export function FAQContent({ categories }: FAQContentProps) {
-  const [query, setQuery] = useState('');
+export function FAQContent({ categories, searchQuery: query, onSearchQueryChange: setQuery }: FAQContentProps) {
 
   const filteredCategories = useMemo(() => {
     const normalized = query.toLowerCase().trim();

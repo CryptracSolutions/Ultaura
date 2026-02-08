@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import type { FAQCategory } from '../faq-data';
 import { FAQSidebar } from './FAQSidebar';
 import { FAQContent } from './FAQContent';
@@ -11,6 +12,7 @@ interface FAQLayoutProps {
 
 export function FAQLayout({ categories }: FAQLayoutProps) {
   const [activeId, setActiveId] = useState(categories[0]?.id || '');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const sections = categories
@@ -33,6 +35,9 @@ export function FAQLayout({ categories }: FAQLayoutProps) {
   }, [categories]);
 
   const handleCategoryClick = useCallback((id: string) => {
+    flushSync(() => {
+      setSearchQuery('');
+    });
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -66,7 +71,7 @@ export function FAQLayout({ categories }: FAQLayoutProps) {
       </aside>
       {/* Main content */}
       <main className="flex-1 min-w-0">
-        <FAQContent categories={categories} />
+        <FAQContent categories={categories} searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
       </main>
     </div>
   );
