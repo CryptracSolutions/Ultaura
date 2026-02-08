@@ -55,7 +55,7 @@ function Home() {
                 they need, holds great conversations, and keeps you informed.
               </SubHeading>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <MainCallToActionButton />
                 <Button
                   variant="outline"
@@ -71,24 +71,7 @@ function Home() {
                 </Button>
               </div>
 
-              <p className="text-sm text-muted-foreground">
-                I&apos;m setting this up{' '}
-                <Link
-                  href="/onboarding?type=self"
-                  className="underline underline-offset-4 hover:text-foreground"
-                >
-                  for myself
-                </Link>
-                {' '}or{' '}
-                <Link
-                  href="/onboarding?type=family"
-                  className="underline underline-offset-4 hover:text-foreground"
-                >
-                  for someone I care for
-                </Link>
-              </p>
-
-              <span className={'mt-8 text-xs text-muted-foreground'}>
+              <span className={'mt-4 text-xs text-center text-primary'}>
                 3-day free trial • no credit card • cancel anytime
               </span>
 
@@ -110,6 +93,23 @@ function Home() {
                   Control when calls happen — quiet hours built in
                 </div>
               </div>
+
+              <p className="!mt-3 text-sm text-center text-muted-foreground">
+                I&apos;m setting this up{' '}
+                <Link
+                  href="/onboarding?type=self"
+                  className="text-primary underline underline-offset-4 hover:text-primary/80"
+                >
+                  for myself
+                </Link>
+                {' '}or{' '}
+                <Link
+                  href="/onboarding?type=family"
+                  className="text-primary underline underline-offset-4 hover:text-primary/80"
+                >
+                  for someone I care for
+                </Link>
+              </p>
             </div>
 
             <div className="mt-10 w-full min-w-0 lg:mt-0">
