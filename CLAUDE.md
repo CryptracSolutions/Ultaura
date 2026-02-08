@@ -46,7 +46,8 @@ You MUST follow these steps IN ORDER:
 | 6 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
 | 7 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
 | 8 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
-| 9 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
+| 9 | Code simplification pass | `Task` with `subagent_type: "code-simplifier"` | **ALWAYS for medium/large** |
+| 10 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
 
 ### Agent Teams Guidelines
 
@@ -57,6 +58,30 @@ You MUST follow these steps IN ORDER:
 - **Teammates go idle after each turn** — this is normal, send a message to wake them
 - **Use `TaskList`/`TaskUpdate`** as the shared coordination board
 - **Shutdown gracefully** — send `shutdown_request` to each teammate when done, then call `Teammate` cleanup
+
+### Code Simplification Pass (Step 9)
+
+After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
+
+**How to deploy:**
+- Use the `Task` tool with `subagent_type: "code-simplifier"` and `model: "opus"`
+- This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
+- It is **blocking** — wait for its result before proceeding to shutdown
+
+**Prompt template:**
+> Review all files modified during this task for clarity, consistency, and maintainability. Simplify where possible without changing behavior or functionality. Focus on: variable/function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
+
+**Pass it:** A list of all files modified during the task (gathered from `git diff --name-only` or tracked during implementation).
+
+**What to do with results:**
+- If the agent made changes, include a brief "Code cleanup" summary in your final response
+- If the agent found nothing to simplify, skip mentioning it
+- If the agent's changes break TypeScript, revert them and note the issue
+
+**Skip this step ONLY when:**
+- The task was a typo/one-liner fix
+- Only non-code files were changed (docs, config, migrations)
+- User explicitly says "skip cleanup" or "don't simplify"
 
 ### When to Use Teams vs. One-Shot Task Agents
 
