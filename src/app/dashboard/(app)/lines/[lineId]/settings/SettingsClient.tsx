@@ -1056,7 +1056,7 @@ export function SettingsClient({
 
                   <Accordion>
                     <AccordionItem value="insights-advanced">
-                      <AccordionTrigger>Advanced insight controls</AccordionTrigger>
+                      <AccordionTrigger className="hover:bg-muted/30">Advanced insight controls</AccordionTrigger>
                       <AccordionContent className="space-y-6">
                         <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
                           <div className="flex items-start justify-between gap-4">
