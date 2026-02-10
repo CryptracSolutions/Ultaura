@@ -38,21 +38,21 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Clarify requirements | `AskUserQuestion` | If **ANY** ambiguity |
-| 2 | Spawn a team | `Teammate` with `spawnTeam` | **ALWAYS** |
-| 3 | Understand codebase | Launch 2-4 `Explore` agents as teammates | **ALWAYS** |
-| 4 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
-| 5 | Spawn implementation teammates | Launch 2-4 `general-purpose` teammates | **ALWAYS** |
-| 6 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
-| 7 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
-| 8 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
-| 9 | Code simplification pass | `Task` with `subagent_type: "code-simplifier"` | **ALWAYS for medium/large** |
-| 10 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
+| 1 | Understand current state of codebase | Launch 3-5 `Explore` agents | **ALWAYS** |
+| 2 | Clarify requirements | `AskUserQuestion` | **ALWAYS** if **ANY** ambiguity or clarification needed |
+| 3 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
+| 4 | Spawn a team of implementation teammates | Launch 2-4 `Task` teammates using `Teammate` with `spawnTeam` | **ALWAYS** |
+| 5 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
+| 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
+| 7 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
+| 8 | Code simplification pass | `Task` with `subagent_type: "code-simplifier"` | **ALWAYS for medium/large** |
+| 9 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
 
 ### Agent Teams Guidelines
 
-- **Always use `model: "opus"`** for all teammates
-- **Max 4 teammates** in parallel (to avoid file conflicts)
+- **Always use `model: "opus"`** for all teammates and explore agents
+- **Max 4 implementation/task teammates** in parallel (to avoid file conflicts)
+- **Max 6 explore agents** in parallel
 - **Use `SendMessage`** to coordinate — teammates can't hear your plain text
 - **Teammates persist** — reassign them to new tasks instead of spawning new agents
 - **Teammates go idle after each turn** — this is normal, send a message to wake them
@@ -87,23 +87,22 @@ After all implementation is complete and TypeScript/visual verification passes, 
 
 | Scenario | Use |
 |----------|-----|
-| Independent parallel research (explore codebase) | Either — `Task` with `Explore` is fine for pure research |
-| Medium task (3-10 files, multiple concerns) | **Teams** — agents need shared context |
-| Large task (10+ files, architectural) | **Teams** — agents need to coordinate |
+| Independent parallel research (explore codebase) | `Explore` for pure research/investigation |
+| Medium task (4-6 files, multiple concerns) | **Teams** — agents need shared context/coordination |
+| Large task (7+ files, architectural) | **Teams** — agents need shared context/coordination |
 | Interdependent work (frontend needs backend's API shape) | **Teams** — agents must communicate |
 | Sequential dependencies across agents | **Teams** — agents hand off context |
-| Single isolated question or search | `Task` agent (one-shot) is sufficient |
+| 1-3 isolated tasks | `Task` agent (one-shot) is sufficient |
 
 ---
 
 ## Exceptions (Skip Delegation For)
 
 ONLY these cases may skip the delegation workflow:
-- **Typos/one-liners**: Single obvious fix
-- **User said "quick"**: "quick fix", "just do X", "simple change"
+- **Typos/one-liners**: Single obvious fix"
 - **Non-code**: Pure docs, config, questions
-- **Explicit bypass**: User says "skip the workflow" or "just do it"
-- **Small tasks**: 1-2 files, < 3 steps, single concern
+- **Explicit bypass**: User says "skip the workflow", "small adjustment/change" or "do it yourself"
+- **Small tasks**: 1-3 files, < 4 steps, 1-2 small concerns or changes
 
 Even for exceptions, STILL:
 - Auto-invoke relevant skills
