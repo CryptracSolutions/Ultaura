@@ -18,7 +18,7 @@ Classify task size **before** any coding. If uncertain, **default to Medium**.
 
 | Size | Scope | Workflow |
 |------|-------|----------|
-| **Small** | 1-3 files OR 1-4 steps OR single/small concern/issue/bug | May proceed directly |
+| **Small** | 1-3 files OR 1-4 steps OR 1-2/small concerns/issues/bug | May proceed directly |
 | **Medium** | 4-6 files OR 5+ steps OR multiple concerns/issues/bugs | **MUST delegate** |
 | **Large** | 7+ files OR 10+ steps OR architectural changes | **MUST delegate** |
 

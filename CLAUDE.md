@@ -24,7 +24,7 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 You MUST:
 
 1. **Size the task** (this takes 5 seconds, not doing it is lazy):
-   - **Small**: 1-3 files, single/small concern/issue/bug, 1-4 steps → May proceed directly
+   - **Small**: 1-3 files, 1-2 small concerns/issues/bugs, 1-4 steps → May proceed directly
    - **Medium**: 4-6 files, multiple concerns/issues/bugs, 5+ steps → MUST delegate
    - **Large**: 7+ files, architectural changes, 10+ steps → MUST delegate
 
