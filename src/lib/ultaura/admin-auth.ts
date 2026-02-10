@@ -1,5 +1,3 @@
-'use server';
-
 import type { User } from '@supabase/supabase-js';
 
 import GlobalRole from '~/core/session/types/global-role';
