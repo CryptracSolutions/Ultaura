@@ -1,28 +1,38 @@
 import 'server-only';
 
 import { getResendClient } from './client';
-import { getResendSegmentId, getResendFromEmail, type TopicKey } from './topics';
+import {
+  getResendSegmentId,
+  getResendFromEmail,
+  getTopicId,
+  type TopicKey,
+} from './topics';
 
-/**
- * Create a Resend broadcast for the newsletter audience.
- * Note: `topicKey` is accepted for future use but Resend broadcasts
- * send to the full audience. Topic filtering is handled by Resend
- * internally based on each contact's topic preferences.
- */
 export async function createBroadcast(params: {
   subject: string;
   previewText?: string;
   html: string;
   topicKey: TopicKey;
 }) {
-  const resend = getResendClient();
-  return resend.broadcasts.create({
-    audienceId: getResendSegmentId(),
+  const resend = getResendClient() as any;
+  const audienceId = getResendSegmentId();
+  const topicId = getTopicId(params.topicKey);
+  const payload = {
+    audience_id: audienceId,
     from: getResendFromEmail(),
     subject: params.subject,
-    previewText: params.previewText,
+    ...(params.previewText !== undefined ? { preview_text: params.previewText } : {}),
     html: params.html,
-  });
+    topic_id: topicId,
+    tags: [
+      {
+        name: 'topic_key',
+        value: params.topicKey,
+      },
+    ],
+  };
+
+  return resend.post('/broadcasts', payload);
 }
 
 export async function sendBroadcast(broadcastId: string) {

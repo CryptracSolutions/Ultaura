@@ -44,6 +44,7 @@ export function SubscriberFilters({
           className={selectClassName}
           defaultValue={currentFilters.status ?? ''}
           onChange={handleChange}
+          aria-label="Filter by subscription status"
         >
           <option value="">All statuses</option>
           {STATUS_OPTIONS.map((option) => (
@@ -60,6 +61,7 @@ export function SubscriberFilters({
           className={selectClassName}
           defaultValue={currentFilters.source ?? ''}
           onChange={handleChange}
+          aria-label="Filter by source"
         >
           <option value="">All sources</option>
           {SOURCE_OPTIONS.map((option) => (
@@ -76,6 +78,7 @@ export function SubscriberFilters({
           className={selectClassName}
           defaultValue={currentFilters.topic ?? ''}
           onChange={handleChange}
+          aria-label="Filter by topic"
         >
           <option value="">All topics</option>
           {TOPIC_OPTIONS.map((option) => (

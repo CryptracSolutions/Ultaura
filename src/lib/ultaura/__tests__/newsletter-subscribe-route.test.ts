@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { rpcMock, subscribeToNewsletterMock, warnMock } = vi.hoisted(() => ({
+const { rpcMock, schedulePruneMock, subscribeToNewsletterMock, warnMock } = vi.hoisted(() => ({
   rpcMock: vi.fn(),
+  schedulePruneMock: vi.fn(),
   subscribeToNewsletterMock: vi.fn(),
   warnMock: vi.fn(),
 }));
@@ -14,6 +15,10 @@ vi.mock('~/core/supabase/route-handler-client', () => ({
 
 vi.mock('~/lib/ultaura/newsletter', () => ({
   subscribeToNewsletter: subscribeToNewsletterMock,
+}));
+
+vi.mock('~/lib/ultaura/newsletter-retention', () => ({
+  scheduleNewsletterRetentionPrune: schedulePruneMock,
 }));
 
 vi.mock('~/core/logger', () => ({
@@ -46,6 +51,11 @@ describe('newsletter subscribe route', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.RESEND_API_KEY = 'test';
+    process.env.RESEND_SEGMENT_ID = 'seg_test';
+    process.env.RESEND_TOPIC_BLOG_DIGEST_ID = 'topic_blog';
+    process.env.RESEND_TOPIC_ELDER_CARE_TIPS_ID = 'topic_care';
+    process.env.RESEND_TOPIC_PRODUCT_UPDATES_ID = 'topic_product';
     rpcMock.mockResolvedValue({ data: 0, error: null });
     subscribeToNewsletterMock.mockResolvedValue({
       success: true,
@@ -73,6 +83,7 @@ describe('newsletter subscribe route', () => {
         userAgent: 'VitestAgent/1.0',
       }),
     );
+    expect(schedulePruneMock).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -119,6 +130,21 @@ describe('newsletter subscribe route', () => {
     expect(response.status).toBe(400);
     expect(payload.success).toBe(false);
     expect(String(payload.message).toLowerCase()).toContain('email');
+    expect(subscribeToNewsletterMock).not.toHaveBeenCalled();
+  });
+
+
+  it('returns 503 when rate limiter backend is unavailable', async () => {
+    rpcMock.mockResolvedValueOnce({ data: null, error: { message: 'rpc unavailable' } });
+
+    const response = await POST(
+      createRequest({ email: 'family@example.com', source: 'landing_page' }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload.success).toBe(false);
+    expect(String(payload.message).toLowerCase()).toContain('temporarily unavailable');
     expect(subscribeToNewsletterMock).not.toHaveBeenCalled();
   });
 

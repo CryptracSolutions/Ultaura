@@ -131,6 +131,30 @@ describe('confirmSubscription', () => {
     }));
   });
 
+  it('ignores legacy pending_topics and confirms all topics', async () => {
+    mocks.state.confirmSubscriber = {
+      id: 'subscriber-confirm',
+      email: 'confirm@example.com',
+      first_name: 'Confirm User',
+      pending_topics: ['blog_digest'],
+      resend_contact_id: 'resend-contact-confirm',
+    };
+
+    const result = await confirmSubscription('valid-token', '203.0.113.11', 'vitest-agent');
+
+    expect(result).toEqual({ success: true, message: 'You are now subscribed!' });
+    expect(mocks.state.topicUpsertRows.map((row) => row.topic_key)).toEqual(EXPECTED_TOPICS);
+    expect(mocks.confirmResendContact).toHaveBeenCalledWith(
+      'resend-contact-confirm',
+      'confirm@example.com',
+      'Confirm User',
+      EXPECTED_TOPICS,
+    );
+    expect(mocks.renderWelcomeEmail).toHaveBeenCalledWith(expect.objectContaining({
+      subscribedTopics: EXPECTED_TOPICS,
+    }));
+  });
+
   it('rolls back confirmation when topic upsert fails', async () => {
     mocks.state.topicUpsertError = { message: 'upsert failed' };
 

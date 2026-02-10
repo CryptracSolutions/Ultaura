@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => {
     isAdmin: true,
     fromCalls: [] as string[],
     getSupabaseArgs: [] as Array<Record<string, unknown>>,
+    subscriberSelectColumns: [] as string[],
     subscriberEqCalls: [] as Array<[string, unknown]>,
     subscriberInCalls: [] as Array<[string, unknown[]]>,
     subscriberOrderCalls: [] as Array<[string, unknown]>,
@@ -70,7 +71,10 @@ const mocks = vi.hoisted(() => {
   };
 
   const subscribersTable = {
-    select: vi.fn(() => buildSubscriberQuery()),
+    select: vi.fn((columns: string) => {
+      state.subscriberSelectColumns.push(columns);
+      return buildSubscriberQuery();
+    }),
   };
 
   const topicSubscriptionsTable = {
@@ -138,6 +142,7 @@ describe('listSubscribers', () => {
     mocks.state.isAdmin = true;
     mocks.state.fromCalls.length = 0;
     mocks.state.getSupabaseArgs.length = 0;
+    mocks.state.subscriberSelectColumns.length = 0;
     mocks.state.subscriberEqCalls.length = 0;
     mocks.state.subscriberInCalls.length = 0;
     mocks.state.subscriberOrderCalls.length = 0;
@@ -187,8 +192,19 @@ describe('listSubscribers', () => {
     expect(result.total).toBe(11);
     expect(result.subscribers.map((subscriber) => subscriber.id)).toEqual(['sub-1', 'sub-2']);
     expect(mocks.state.fromCalls).toEqual(['ultaura_newsletter_subscribers']);
+    expect(mocks.state.subscriberSelectColumns[0]).toContain(
+      'ultaura_newsletter_topic_subscriptions(topic_key, subscribed)',
+    );
+    expect(mocks.state.subscriberSelectColumns[0]).not.toContain('!inner');
     expect(mocks.state.subscriberEqCalls).toContainEqual(['status', 'confirmed']);
     expect(mocks.state.subscriberEqCalls).toContainEqual(['source', 'website']);
+    expect(
+      mocks.state.subscriberEqCalls.some(
+        ([column]) =>
+          column === 'ultaura_newsletter_topic_subscriptions.topic_key' ||
+          column === 'ultaura_newsletter_topic_subscriptions.subscribed',
+      ),
+    ).toBe(false);
     expect(mocks.state.subscriberInCalls).toHaveLength(0);
     expect(mocks.state.subscriberOrderCalls).toEqual([['created_at', { ascending: false }]]);
     expect(mocks.state.subscriberRangeCalls).toEqual([[2, 3]]);
@@ -245,39 +261,16 @@ describe('listSubscribers', () => {
 
     expect(result.total).toBe(2);
     expect(result.subscribers.map((subscriber) => subscriber.id)).toEqual(['sub-2', 'sub-1']);
-    expect(mocks.state.fromCalls).toEqual([
-      'ultaura_newsletter_topic_subscriptions',
-      'ultaura_newsletter_subscribers',
-    ]);
-    expect(mocks.state.topicEqCalls).toEqual([
-      ['topic_key', 'blog_digest'],
-      ['subscribed', true],
-    ]);
-    expect(mocks.state.subscriberInCalls).toEqual([
-      ['id', ['sub-2', 'sub-1']],
-    ]);
+    expect(mocks.state.fromCalls).toEqual(['ultaura_newsletter_subscribers']);
+    expect(mocks.state.subscriberSelectColumns[0]).toContain(
+      'ultaura_newsletter_topic_subscriptions!inner(topic_key, subscribed)',
+    );
     expect(mocks.state.subscriberEqCalls).toContainEqual(['status', 'confirmed']);
+    expect(mocks.state.subscriberEqCalls).toContainEqual(['ultaura_newsletter_topic_subscriptions.topic_key', 'blog_digest']);
+    expect(mocks.state.subscriberEqCalls).toContainEqual(['ultaura_newsletter_topic_subscriptions.subscribed', true]);
+    expect(mocks.state.subscriberInCalls).toEqual([]);
     expect(mocks.state.subscriberOrderCalls).toEqual([['created_at', { ascending: false }]]);
     expect(mocks.state.subscriberRangeCalls).toEqual([[0, 9]]);
   });
 
-  it('returns empty data with zero total when topic has no matches', async () => {
-    mocks.state.topicQueryResult = {
-      data: [],
-      error: null,
-    };
-
-    const result = await listSubscribers({
-      page: 1,
-      perPage: 25,
-      topic: 'product_updates',
-    });
-
-    expect(result).toEqual({ subscribers: [], total: 0 });
-    expect(mocks.state.fromCalls).toEqual(['ultaura_newsletter_topic_subscriptions']);
-    expect(mocks.state.subscriberEqCalls).toHaveLength(0);
-    expect(mocks.state.subscriberInCalls).toHaveLength(0);
-    expect(mocks.state.subscriberOrderCalls).toHaveLength(0);
-    expect(mocks.state.subscriberRangeCalls).toHaveLength(0);
-  });
 });

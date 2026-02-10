@@ -50,7 +50,7 @@ export default function NewsletterForm({
 
   if (success) {
     return (
-      <p className="text-sm text-primary font-medium">
+      <p className="text-sm text-primary font-medium" aria-live="polite">
         You&apos;re subscribed! No email confirmation needed.
       </p>
     );
@@ -67,13 +67,14 @@ export default function NewsletterForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="flex-1"
+            aria-label="Email address"
           />
           <Button type="submit" loading={loading}>
             Subscribe
           </Button>
         </div>
         {error && (
-          <p className="mt-2 text-sm text-destructive">{error}</p>
+          <p className="mt-2 text-sm text-destructive" aria-live="polite">{error}</p>
         )}
       </form>
     );
@@ -91,11 +92,12 @@ export default function NewsletterForm({
           placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          aria-label="Email address"
         />
       </TextField>
 
       {error && (
-        <p className="text-sm text-destructive">{error}</p>
+        <p className="text-sm text-destructive" aria-live="polite">{error}</p>
       )}
 
       <Button type="submit" loading={loading} block>

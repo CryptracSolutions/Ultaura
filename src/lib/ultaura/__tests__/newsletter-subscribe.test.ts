@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => {
     insertPayloads: [] as Array<Record<string, unknown>>,
     updatePayloads: [] as Array<Record<string, unknown>>,
     topicUpsertRows: [] as Array<Record<string, unknown>>,
+    topicSelectRows: [] as Array<{ topic_key: string }>,
+    topicInsertRows: [] as Array<Record<string, unknown>>,
     topicUpsertError: null as { message: string } | null,
     insertedId: 'subscriber-new',
     insertError: null as { message: string } | null,
@@ -80,6 +82,13 @@ const mocks = vi.hoisted(() => {
   };
 
   const topicSubscriptionsTable = {
+    select: vi.fn(() => ({
+      eq: vi.fn(async () => ({ data: state.topicSelectRows, error: null })),
+    })),
+    insert: vi.fn(async (rows: Array<Record<string, unknown>>) => {
+      state.topicInsertRows = rows;
+      return { error: state.topicUpsertError };
+    }),
     upsert: vi.fn(async (rows: Array<Record<string, unknown>>) => {
       state.topicUpsertRows = rows;
       return { error: state.topicUpsertError };
@@ -160,6 +169,8 @@ describe('subscribeToNewsletter', () => {
     mocks.state.updatePayloads.length = 0;
     mocks.state.topicUpsertRows.length = 0;
     mocks.state.topicUpsertError = null;
+    mocks.state.topicSelectRows = [];
+    mocks.state.topicInsertRows = [];
     mocks.state.insertedId = 'subscriber-new';
     mocks.state.insertError = null;
     mocks.state.updateError = null;
@@ -168,11 +179,10 @@ describe('subscribeToNewsletter', () => {
     mocks.sendEmail.mockResolvedValue(undefined);
   });
 
-  it('subscribes new emails immediately even when client sends partial topics', async () => {
+  it('subscribes new emails immediately', async () => {
     const result = await subscribeToNewsletter({
       email: 'new@example.com',
       firstName: 'New User',
-      topics: ['blog_digest'],
       source: 'website',
       sourceUrl: 'https://example.com/newsletter',
       ip: '203.0.113.10',
@@ -182,6 +192,12 @@ describe('subscribeToNewsletter', () => {
     expectImmediateSuccess(result);
     expect(mocks.state.insertPayloads).toHaveLength(1);
     expect(mocks.state.topicUpsertRows.map((row) => row.topic_key)).toEqual(EXPECTED_TOPICS);
+    expect(mocks.confirmResendContact).toHaveBeenCalledWith(
+      'resend-contact-new',
+      'new@example.com',
+      'New User',
+      [...EXPECTED_TOPICS],
+    );
     expect(mocks.renderWelcomeEmail).toHaveBeenCalledTimes(1);
   });
 
@@ -199,7 +215,6 @@ describe('subscribeToNewsletter', () => {
       resend_contact_id: 'resend-contact-existing',
     };
     mocks.ensureResendContact.mockResolvedValue('resend-contact-existing');
-
     const result = await subscribeToNewsletter({
       email: 'existing@example.com',
       source: 'website',
@@ -210,6 +225,14 @@ describe('subscribeToNewsletter', () => {
 
     expectImmediateSuccess(result);
     expect(mocks.state.updatePayloads.length).toBeGreaterThan(0);
+    expect(mocks.state.topicUpsertRows.map((row) => row.topic_key)).toEqual(EXPECTED_TOPICS);
+    expect(mocks.state.topicInsertRows).toEqual([]);
+    expect(mocks.confirmResendContact).toHaveBeenCalledWith(
+      'resend-contact-existing',
+      'existing@example.com',
+      null,
+      [...EXPECTED_TOPICS],
+    );
     expect(mocks.renderWelcomeEmail).toHaveBeenCalledTimes(1);
   });
 

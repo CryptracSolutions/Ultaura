@@ -82,6 +82,14 @@ jobs:
       - name: Build Content
         run: pnpm exec contentlayer build
 
+      - name: Validate newsletter env contract
+        run: |
+          rg '^RESEND_SEGMENT_ID=' .env.ultaura.example
+          rg '^RESEND_TOPIC_BLOG_DIGEST_ID=' .env.ultaura.example
+          rg '^RESEND_TOPIC_ELDER_CARE_TIPS_ID=' .env.ultaura.example
+          rg '^RESEND_TOPIC_PRODUCT_UPDATES_ID=' .env.ultaura.example
+          rg '^ULTAURA_LOG_PII_KEY=' .env.ultaura.example
+
       - name: 🔎 Type check
         run: |
           pnpm typecheck --if-present

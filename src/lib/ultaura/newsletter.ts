@@ -30,7 +30,6 @@ function getFromEmail(): string {
 interface SubscribeParams {
   email: string;
   firstName?: string;
-  topics?: TopicKey[] | null;
   source: string;
   sourceUrl?: string;
   ip: string | null;
@@ -83,7 +82,7 @@ export async function subscribeToNewsletter(params: SubscribeParams): Promise<{ 
       return { success: false, message: 'Something went wrong. Please try again.' };
     }
 
-    const topicInserts = defaultTopics.map((topicKey) => ({
+    const topicRows = defaultTopics.map((topicKey) => ({
       subscriber_id: existing.id,
       topic_key: topicKey,
       subscribed: true,
@@ -93,7 +92,7 @@ export async function subscribeToNewsletter(params: SubscribeParams): Promise<{ 
 
     const { error: topicError } = await adminClient
       .from('ultaura_newsletter_topic_subscriptions')
-      .upsert(topicInserts, { onConflict: 'subscriber_id,topic_key' });
+      .upsert(topicRows, { onConflict: 'subscriber_id,topic_key' });
 
     if (topicError) {
       logger.error({ error: topicError, subscriberId: existing.id }, 'Failed to upsert topic subscriptions');
@@ -102,7 +101,7 @@ export async function subscribeToNewsletter(params: SubscribeParams): Promise<{ 
 
     try {
       const ensuredResendId = await ensureResendContact(trimmedEmail, firstName || null, existing.resend_contact_id);
-      const resendId = await confirmResendContact(ensuredResendId, trimmedEmail, firstName || null);
+      const resendId = await confirmResendContact(ensuredResendId, trimmedEmail, firstName || null, defaultTopics);
       if (resendId !== existing.resend_contact_id && resendId) {
         await adminClient
           .from('ultaura_newsletter_subscribers')
@@ -169,7 +168,7 @@ export async function subscribeToNewsletter(params: SubscribeParams): Promise<{ 
 
   try {
     const pendingResendId = await createPendingContact(trimmedEmail, firstName || null, source);
-    const resendId = await confirmResendContact(pendingResendId, trimmedEmail, firstName || null);
+    const resendId = await confirmResendContact(pendingResendId, trimmedEmail, firstName || null, defaultTopics);
     await adminClient
       .from('ultaura_newsletter_subscribers')
       .update({ resend_contact_id: resendId })
@@ -229,7 +228,7 @@ export async function confirmSubscription(
     return { success: false, message: 'This confirmation link is invalid, expired, or has already been used.' };
   }
 
-  const selectedTopics = (subscriber.pending_topics as TopicKey[]) || TOPIC_KEYS.slice();
+  const selectedTopics = TOPIC_KEYS.slice();
 
   // Insert topic subscriptions
   const topicInserts = selectedTopics.map((topicKey) => ({
@@ -275,6 +274,7 @@ export async function confirmSubscription(
       subscriber.resend_contact_id || '',
       subscriber.email,
       subscriber.first_name,
+      selectedTopics,
     );
     if (resendId !== subscriber.resend_contact_id) {
       await adminClient
@@ -330,7 +330,15 @@ export async function unsubscribeNewsletterSubscriber(
 
   if (subscriber.resend_contact_id) {
     try {
-      await unsubscribeResendContact(subscriber.resend_contact_id);
+      const { data: topicRows } = await adminClient
+        .from('ultaura_newsletter_topic_subscriptions')
+        .select('topic_key')
+        .eq('subscriber_id', subscriber.id)
+        .eq('subscribed', true);
+      const activeTopics = ((topicRows || []) as Array<{ topic_key: string }>).map(
+        (row) => row.topic_key as TopicKey,
+      );
+      await unsubscribeResendContact(subscriber.resend_contact_id, activeTopics);
     } catch (err) {
       logger.error({ error: err, subscriberId }, 'Failed to unsubscribe Resend contact');
     }

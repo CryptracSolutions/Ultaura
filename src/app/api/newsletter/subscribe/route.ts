@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { subscribeToNewsletter } from '~/lib/ultaura/newsletter';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getLogger from '~/core/logger';
+import { assertNewsletterEnv, hashPii } from '~/lib/ultaura/newsletter-log';
+import { scheduleNewsletterRetentionPrune } from '~/lib/ultaura/newsletter-retention';
 
 const logger = getLogger();
 
@@ -28,8 +30,9 @@ function getClientIp(request: Request): string {
   );
 }
 
-async function isRateLimited(ip: string): Promise<boolean> {
+async function isRateLimited(ip: string): Promise<{ limited: boolean; unavailable: boolean }> {
   const adminClient = getSupabaseRouteHandlerClient({ admin: true });
+  scheduleNewsletterRetentionPrune(adminClient);
   const windowStart = new Date(
     Math.floor(Date.now() / RATE_LIMIT_WINDOW_MS) * RATE_LIMIT_WINDOW_MS,
   ).toISOString();
@@ -40,17 +43,29 @@ async function isRateLimited(ip: string): Promise<boolean> {
   );
 
   if (error) {
-    logger.warn({ error, ip }, 'Rate limit check failed, allowing request');
-    return false;
+    logger.warn({ error, ipHash: hashPii(ip) }, 'Rate limit check failed');
+    return { limited: false, unavailable: true };
   }
 
-  return count > RATE_LIMIT_MAX;
+  return { limited: count > RATE_LIMIT_MAX, unavailable: false };
 }
+
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
 
-  if (await isRateLimited(ip)) {
+  assertNewsletterEnv();
+
+  const limiter = await isRateLimited(ip);
+
+  if (limiter.unavailable) {
+    return NextResponse.json(
+      { success: false, message: 'Service temporarily unavailable. Please try again shortly.' },
+      { status: 503 },
+    );
+  }
+
+  if (limiter.limited) {
     return NextResponse.json(
       { success: false, message: 'Too many requests. Please try again later.' },
       { status: 429 },
@@ -82,7 +97,6 @@ export async function POST(request: Request) {
   const result = await subscribeToNewsletter({
     email,
     firstName,
-    topics: null as Parameters<typeof subscribeToNewsletter>[0]['topics'],
     source,
     ip: ip === 'unknown' ? null : ip,
     userAgent,

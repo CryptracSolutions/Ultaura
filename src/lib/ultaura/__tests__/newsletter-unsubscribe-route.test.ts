@@ -97,6 +97,28 @@ describe('newsletter unsubscribe route', () => {
       'invalid-token',
     );
   });
+
+  it('GET escapes unsafe token segments in action URL', async () => {
+    const unsubscribeNewsletterSubscriber = vi.fn();
+    vi.doMock('~/lib/ultaura/newsletter', () => ({
+      unsubscribeNewsletterSubscriber,
+    }));
+
+    const { GET } = await import(
+      '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route'
+    );
+
+    const response = await GET(
+      new Request('http://localhost/api/newsletter/unsubscribe/subscriber-1/token-1'),
+      { params: { subscriberId: 'subscriber-1', token: 'bad" onclick="alert(1)' } },
+    );
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain('bad%22%20onclick%3D%22alert(1)');
+    expect(html).not.toContain('onclick="alert(1)"');
+  });
+
 });
 
 describe('confirmSubscription welcome email unsubscribe link', () => {

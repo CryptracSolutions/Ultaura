@@ -67,38 +67,14 @@ export async function listSubscribers(params: {
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const { page, perPage, status, source, topic } = params;
   const offset = (page - 1) * perPage;
-
-  let topicSubscriberIds: string[] | null = null;
-
-  if (topic) {
-    const { data: topicRows, error: topicError } = await adminClient
-      .from('ultaura_newsletter_topic_subscriptions')
-      .select('subscriber_id')
-      .eq('topic_key', topic)
-      .eq('subscribed', true);
-
-    if (topicError) {
-      logger.error({ error: topicError, topic }, 'Failed to resolve topic subscribers');
-      return { subscribers: [], total: 0 };
-    }
-
-    topicSubscriberIds = Array.from(
-      new Set(
-        (topicRows || [])
-          .map((row: { subscriber_id: string | null }) => row.subscriber_id)
-          .filter((subscriberId): subscriberId is string => Boolean(subscriberId)),
-      ),
-    );
-
-    if (topicSubscriberIds.length === 0) {
-      return { subscribers: [], total: 0 };
-    }
-  }
+  const topicRelation = topic
+    ? 'ultaura_newsletter_topic_subscriptions!inner(topic_key, subscribed)'
+    : 'ultaura_newsletter_topic_subscriptions(topic_key, subscribed)';
 
   let query = adminClient
     .from('ultaura_newsletter_subscribers')
     .select(
-      'id, email, first_name, status, source, confirmed_at, created_at, ultaura_newsletter_topic_subscriptions(topic_key, subscribed)',
+      `id, email, first_name, status, source, confirmed_at, created_at, ${topicRelation}`,
       { count: 'exact' },
     );
 
@@ -108,8 +84,10 @@ export async function listSubscribers(params: {
   if (source) {
     query = query.eq('source', source);
   }
-  if (topicSubscriberIds) {
-    query = query.in('id', topicSubscriberIds);
+  if (topic) {
+    query = query
+      .eq('ultaura_newsletter_topic_subscriptions.topic_key', topic)
+      .eq('ultaura_newsletter_topic_subscriptions.subscribed', true);
   }
 
   const { data, count, error } = await query
@@ -205,6 +183,9 @@ export async function adminGetBroadcast(broadcastId: string) {
   try {
     const { data, error } = await getResendBroadcast(broadcastId);
     if (error) throw error;
+    if (data && typeof data === 'object' && 'html' in data) {
+      (data as { html?: string }).html = sanitizeHtml(String((data as { html?: string }).html || ''), SANITIZE_OPTIONS);
+    }
     return { broadcast: data, error: null };
   } catch (err) {
     logger.error({ error: err }, 'Failed to get broadcast');

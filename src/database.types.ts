@@ -4248,6 +4248,10 @@ export type Database = {
         Args: { p_ip: string; p_window_start: string }
         Returns: number
       }
+      prune_newsletter_operational_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       claim_due_reminders: {
         Args: {
           p_batch_size?: number

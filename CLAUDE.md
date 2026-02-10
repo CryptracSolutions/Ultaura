@@ -136,7 +136,7 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Weekly Summaries**: Email digests for family members
 - **Milestones**: Birthday, anniversary, and memorial tracking
 - **Accessibility Settings**: Hearing and cognitive support adaptations
-- **Privacy Center**: Consent management, data export, account deletion
+- **Privacy Center**: Consent management, data export, data deletion
 
 ## Claude Code Sub-Agent Preferences
 
@@ -222,6 +222,7 @@ Document mistakes and patterns here. After Claude makes an error, have it update
 - [ ] Forgetting to add new tables to the ARCHITECTURE.md reference
 - [ ] Not testing with both payer and line user_type accounts
 - [ ] Missing encryption for PII fields (use line/account encryption services)
+- [ ] DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($39/$99/$199) — `constants.ts` is the source of truth
 
 *Add new lessons as they're discovered.*
 
@@ -303,7 +304,7 @@ Skip plan mode for:
    - Weekly summary scheduler
    - Recording deletion scheduler
    - Memory decay and embedding jobs
-   - 48 Grok tool handlers
+   - 46 Grok tool endpoints
    - 44 service modules
    - Rate limiting with Upstash Redis
 
@@ -326,11 +327,11 @@ Skip plan mode for:
 | Care | $39 | $399 | 300 | 1 |
 | Comfort | $99 | $999 | 900 | 2 |
 | Family | $199 | $1,999 | 2,200 | 4 |
-| Usage Based | $0 | - | 0 | 4 |
+| Pay As You Go | $0 | - | 0 | 4 |
 
 - All overages: $0.15/min (except Free Trial: hard stop)
 - Trial duration: 3 days
-- Annual discount: 15%
+- Annual discount: ~15%
 
 ## Call Flow
 
@@ -341,7 +342,7 @@ Skip plan mode for:
    - **Fax**: Hangs up immediately
 3. If human, Twilio opens Media Stream WebSocket at `/twilio/media`
 4. Telephony bridges audio to Grok Realtime API
-5. Grok converses using 48 available tools (reminders, safety, memory, insights, etc.)
+5. Grok converses using 46 available tools (reminders, safety, memory, insights, etc.)
 6. Call ends, usage recorded in minute ledger
 7. Call insights extracted and stored (encrypted)
 8. Memory summaries encrypted and stored with embeddings
@@ -352,10 +353,10 @@ Skip plan mode for:
 ## Reference Documentation
 
 For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md):
-- Database tables and schemas (56 tables)
+- Database tables and schemas (60 ultaura_ tables; note: 4 newsletter tables may not yet be listed in ARCHITECTURE.md)
 - Server actions by module (in `/src/lib/ultaura/`)
 - Telephony API endpoints
-- Grok tool endpoints (48 tools in `/telephony/src/routes/tools/`)
+- Grok tool endpoints (46 tools in `/telephony/src/routes/tools/`)
 - Telephony service modules (44 services)
 - Next.js API routes
 
@@ -377,7 +378,7 @@ All lines must be verified via Twilio Verify before receiving calls.
 AES-256-GCM envelope encryption:
 - KEK (Key Encryption Key) in environment
 - DEK (Data Encryption Key) per account, wrapped with KEK
-- Per-line DEK option for enhanced privacy (enabled by default for new lines)
+- Per-line DEK option for enhanced privacy (enabled by default for new lines created after 2026-03-01; legacy lines use account-level DEK)
 - AAD binding includes account and line IDs
 
 ### Rate Limiting
@@ -390,7 +391,7 @@ Distributed rate limiting via Upstash Redis:
 ### Safety Monitoring
 - Detects distress keywords (suicide, self-harm, hopeless, etc.)
 - Logs events with tiers: low, medium, high
-- Actions: none, suggested_988, suggested_911, notified_contact
+- Actions: none, suggested_988, suggested_911, notified_contact, transferred_call
 - Wellness alerts sent to family members
 
 ### Consent & Opt-out

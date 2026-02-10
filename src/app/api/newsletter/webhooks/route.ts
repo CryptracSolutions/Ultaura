@@ -5,6 +5,8 @@ import { Webhook } from 'svix';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getLogger from '~/core/logger';
+import { hashPii } from '~/lib/ultaura/newsletter-log';
+import { scheduleNewsletterRetentionPrune } from '~/lib/ultaura/newsletter-retention';
 
 const logger = getLogger();
 
@@ -37,6 +39,8 @@ export async function POST(request: Request) {
   const eventType = (parsedPayload.type as string) || 'unknown';
   const adminClient = getSupabaseRouteHandlerClient({ admin: true });
   const STALE_CLAIM_MS = 5 * 60 * 1000;
+
+  scheduleNewsletterRetentionPrune(adminClient);
 
   // SELECT-first retry-safe idempotency
   const { data: existingEvent } = await adminClient
@@ -181,7 +185,7 @@ async function handleContactUpdated(client: SupabaseClient, payload: Record<stri
   const now = new Date().toISOString();
 
   for (const topicKey of subscribedTopics) {
-    await client
+    const { error } = await client
       .from('ultaura_newsletter_topic_subscriptions')
       .upsert(
         {
@@ -193,10 +197,14 @@ async function handleContactUpdated(client: SupabaseClient, payload: Record<stri
         },
         { onConflict: 'subscriber_id,topic_key' },
       );
+
+    if (error) {
+      throw new Error(`Failed syncing subscribed topic ${topicKey}: ${error.message}`);
+    }
   }
 
   for (const topicKey of unsubscribedTopics) {
-    await client
+    const { error } = await client
       .from('ultaura_newsletter_topic_subscriptions')
       .upsert(
         {
@@ -207,6 +215,10 @@ async function handleContactUpdated(client: SupabaseClient, payload: Record<stri
         },
         { onConflict: 'subscriber_id,topic_key' },
       );
+
+    if (error) {
+      throw new Error(`Failed syncing unsubscribed topic ${topicKey}: ${error.message}`);
+    }
   }
 
   logger.info({ resendContactId }, 'Synced contact topic preferences from Resend');
@@ -251,10 +263,10 @@ async function updateSubscriberByEmail(
     .eq('email', email);
 
   if (error) {
-    logger.error({ error, email }, `Failed to mark subscriber as ${logLabel}`);
-  } else {
-    logger.info({ email }, `Marked subscriber as ${logLabel}`);
+    throw new Error(`Failed to mark subscriber as ${logLabel}: ${error.message}`);
   }
+
+  logger.info({ emailHash: hashPii(email) }, `Marked subscriber as ${logLabel}`);
 }
 
 async function handleEmailBounced(client: SupabaseClient, payload: Record<string, unknown>) {
