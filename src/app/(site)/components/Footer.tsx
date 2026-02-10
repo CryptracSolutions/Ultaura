@@ -3,12 +3,26 @@ import { PlayCircleIcon } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
 import Logo from '~/core/ui/Logo';
+import NewsletterForm from './NewsletterForm';
 
 const YEAR = new Date().getFullYear();
 
 function Footer() {
   return (
     <footer className={'py-8 lg:py-24 border-t border-border'}>
+      <div className="border-b border-border pb-8 mb-8 lg:pb-12 lg:mb-12">
+        <Container>
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+            <div>
+              <p className="font-semibold text-foreground">Subscribe to our newsletter</p>
+              <p className="text-sm text-muted-foreground">Elder care tips and product updates, delivered weekly.</p>
+            </div>
+            <div className="w-full sm:w-auto sm:min-w-[320px]">
+              <NewsletterForm source="footer" compact />
+            </div>
+          </div>
+        </Container>
+      </div>
       <Container>
         <div className={'flex flex-col space-y-8 lg:flex-row lg:space-y-0'}>
           <div

@@ -2445,6 +2445,167 @@ export type Database = {
           },
         ]
       }
+      ultaura_newsletter_rate_limits: {
+        Row: {
+          ip: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          ip: string
+          request_count?: number
+          window_start: string
+        }
+        Update: {
+          ip?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
+      ultaura_newsletter_subscribers: {
+        Row: {
+          bounced_at: string | null
+          complained_at: string | null
+          confirmation_ip: unknown
+          confirmation_token_consumed_at: string | null
+          confirmation_token_expires_at: string | null
+          confirmation_token_hash: string | null
+          confirmation_user_agent: string | null
+          confirmed_at: string | null
+          consent_ip: unknown
+          consent_timestamp: string | null
+          consent_user_agent: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          pending_topics: Json | null
+          resend_contact_id: string | null
+          source: string
+          source_url: string | null
+          status: string
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          bounced_at?: string | null
+          complained_at?: string | null
+          confirmation_ip?: unknown
+          confirmation_token_consumed_at?: string | null
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          confirmation_user_agent?: string | null
+          confirmed_at?: string | null
+          consent_ip?: unknown
+          consent_timestamp?: string | null
+          consent_user_agent?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          pending_topics?: Json | null
+          resend_contact_id?: string | null
+          source?: string
+          source_url?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bounced_at?: string | null
+          complained_at?: string | null
+          confirmation_ip?: unknown
+          confirmation_token_consumed_at?: string | null
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          confirmation_user_agent?: string | null
+          confirmed_at?: string | null
+          consent_ip?: unknown
+          consent_timestamp?: string | null
+          consent_user_agent?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          pending_topics?: Json | null
+          resend_contact_id?: string | null
+          source?: string
+          source_url?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ultaura_newsletter_topic_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          subscribed: boolean
+          subscribed_at: string | null
+          subscriber_id: string
+          topic_key: string
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          subscribed?: boolean
+          subscribed_at?: string | null
+          subscriber_id: string
+          topic_key: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          subscribed?: boolean
+          subscribed_at?: string | null
+          subscriber_id?: string
+          topic_key?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_newsletter_topic_subscriptions_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_newsletter_subscribers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_newsletter_webhook_events: {
+        Row: {
+          claimed_at: string
+          completed_at: string | null
+          error_message: string | null
+          event_type: string
+          status: string
+          svix_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          completed_at?: string | null
+          error_message?: string | null
+          event_type: string
+          status?: string
+          svix_id: string
+        }
+        Update: {
+          claimed_at?: string
+          completed_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          status?: string
+          svix_id?: string
+        }
+        Relationships: []
+      }
       ultaura_notification_preferences: {
         Row: {
           account_id: string
@@ -4083,6 +4244,10 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["ultaura_exclusion_category"]
       }
+      check_newsletter_rate_limit: {
+        Args: { p_ip: string; p_window_start: string }
+        Returns: number
+      }
       claim_due_reminders: {
         Args: {
           p_batch_size?: number
@@ -4222,8 +4387,8 @@ export type Database = {
       get_ultaura_total_usage: {
         Args: { p_account_id: string }
         Returns: {
-          total_minutes: number
           total_cost_cents: number
+          total_minutes: number
         }[]
       }
       get_ultaura_usage_summary: {
@@ -4253,6 +4418,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      install_extensions: { Args: never; Returns: undefined }
       is_line_on_vacation: { Args: { p_line_id: string }; Returns: boolean }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }
@@ -5015,26 +5181,44 @@ export type Database = {
         Returns: undefined
       }
       operation: { Args: never; Returns: string }
-      search: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
+      search:
+        | {
+            Args: {
+              bucketname: string
+              levels?: number
+              limits?: number
+              offsets?: number
+              prefix: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              last_accessed_at: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
+        | {
+            Args: {
+              bucketname: string
+              levels?: number
+              limits?: number
+              offsets?: number
+              prefix: string
+              search?: string
+              sortcolumn?: string
+              sortorder?: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              last_accessed_at: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
       search_legacy_v1: {
         Args: {
           bucketname: string
@@ -5075,27 +5259,45 @@ export type Database = {
           updated_at: string
         }[]
       }
-      search_v2: {
-        Args: {
-          bucket_name: string
-          levels?: number
-          limits?: number
-          prefix: string
-          sort_column?: string
-          sort_column_after?: string
-          sort_order?: string
-          start_after?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          key: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
+      search_v2:
+        | {
+            Args: {
+              bucket_name: string
+              levels?: number
+              limits?: number
+              prefix: string
+              start_after?: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              key: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
+        | {
+            Args: {
+              bucket_name: string
+              levels?: number
+              limits?: number
+              prefix: string
+              sort_column?: string
+              sort_column_after?: string
+              sort_order?: string
+              start_after?: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              key: string
+              last_accessed_at: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
     }
     Enums: {
       buckettype: "STANDARD" | "ANALYTICS" | "VECTOR"

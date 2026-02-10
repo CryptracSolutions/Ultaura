@@ -19,7 +19,6 @@ const configuration = {
     siteName: 'Ultaura',
     twitterHandle: '',
     githubHandle: '',
-    convertKitFormId: '',
     locale: process.env.NEXT_PUBLIC_DEFAULT_LOCALE,
   },
   auth: {

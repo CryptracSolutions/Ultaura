@@ -1,8 +1,38 @@
 'use client';
 
-import { BugAntIcon, ChatBubbleLeftRightIcon, HomeIcon, UserGroupIcon, UserIcon } from '@heroicons/react/24/outline';
-import Sidebar, { SidebarContent, SidebarItem } from '~/core/ui/Sidebar';
+import {
+  BugAntIcon,
+  ChatBubbleLeftRightIcon,
+  HomeIcon,
+  MegaphoneIcon,
+  UserGroupIcon,
+  UserIcon,
+  UsersIcon,
+} from '@heroicons/react/24/outline';
+import Sidebar, {
+  SidebarContent,
+  SidebarDivider,
+  SidebarGroup,
+  SidebarItem,
+} from '~/core/ui/Sidebar';
 import Logo from '~/core/ui/Logo';
+
+const NEWSLETTER_PATH = '/admin/newsletter';
+const BROADCASTS_PATH = '/admin/newsletter/broadcasts';
+
+function isNewsletterSubscribersRoute(currentPath: string) {
+  return (
+    currentPath === NEWSLETTER_PATH ||
+    currentPath === `${NEWSLETTER_PATH}/`
+  );
+}
+
+function isNewsletterBroadcastsRoute(currentPath: string) {
+  return (
+    currentPath === BROADCASTS_PATH ||
+    currentPath.startsWith(`${BROADCASTS_PATH}/`)
+  );
+}
 
 function AdminSidebar() {
   return (
@@ -12,41 +42,63 @@ function AdminSidebar() {
       </SidebarContent>
 
       <SidebarContent>
-        <SidebarItem
-          end
-          path={'/admin'}
-          Icon={() => <HomeIcon className={'h-6'} />}
-        >
-          Admin
-        </SidebarItem>
+        <SidebarGroup label={'Platform'} collapsible={false}>
+          <SidebarItem
+            end
+            path={'/admin'}
+            Icon={() => <HomeIcon className={'h-6'} />}
+          >
+            Admin
+          </SidebarItem>
 
-        <SidebarItem
-          path={'/admin/users'}
-          Icon={() => <UserIcon className={'h-6'} />}
-        >
-          Users
-        </SidebarItem>
+          <SidebarItem
+            path={'/admin/users'}
+            Icon={() => <UserIcon className={'h-6'} />}
+          >
+            Users
+          </SidebarItem>
 
-        <SidebarItem
-          path={'/admin/organizations'}
-          Icon={() => <UserGroupIcon className={'h-6'} />}
-        >
-          Organizations
-        </SidebarItem>
+          <SidebarItem
+            path={'/admin/organizations'}
+            Icon={() => <UserGroupIcon className={'h-6'} />}
+          >
+            Organizations
+          </SidebarItem>
 
-        <SidebarItem
-          path={'/admin/feedback'}
-          Icon={() => <ChatBubbleLeftRightIcon className={'h-6'} />}
-        >
-          Feedback
-        </SidebarItem>
+          <SidebarItem
+            path={'/admin/feedback'}
+            Icon={() => <ChatBubbleLeftRightIcon className={'h-6'} />}
+          >
+            Feedback
+          </SidebarItem>
+        </SidebarGroup>
 
-        <SidebarItem
-          path={'/ultaura-admin/debug-logs'}
-          Icon={() => <BugAntIcon className={'h-6'} />}
-        >
-          Ultaura Debug
-        </SidebarItem>
+        <SidebarDivider />
+
+        <SidebarGroup label={'Ultaura'} collapsible={false}>
+          <SidebarItem
+            path={NEWSLETTER_PATH}
+            activeMatch={isNewsletterSubscribersRoute}
+            Icon={() => <UsersIcon className={'h-6'} />}
+          >
+            Subscribers
+          </SidebarItem>
+
+          <SidebarItem
+            path={BROADCASTS_PATH}
+            activeMatch={isNewsletterBroadcastsRoute}
+            Icon={() => <MegaphoneIcon className={'h-6'} />}
+          >
+            Broadcasts
+          </SidebarItem>
+
+          <SidebarItem
+            path={'/admin/debug-logs'}
+            Icon={() => <BugAntIcon className={'h-6'} />}
+          >
+            Debug Logs
+          </SidebarItem>
+        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );

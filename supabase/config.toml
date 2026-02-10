@@ -60,23 +60,23 @@ enable_confirmations = true
 
 [auth.email.template.confirmation]
 subject = "Confirm your Ultaura account"
-content_path = "./templates/confirmation.html"
+content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.invite]
 subject = "You've been invited to Ultaura"
-content_path = "./templates/invite.html"
+content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.magic_link]
 subject = "Your Ultaura sign-in link"
-content_path = "./templates/magic-link.html"
+content_path = "./supabase/templates/magic-link.html"
 
 [auth.email.template.email_change]
 subject = "Confirm your new email address"
-content_path = "./templates/email-change.html"
+content_path = "./supabase/templates/email-change.html"
 
 [auth.email.template.recovery]
 subject = "Reset your Ultaura password"
-content_path = "./templates/recovery.html"
+content_path = "./supabase/templates/recovery.html"
 
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin`, `notion`, `twitch`,

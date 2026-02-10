@@ -11,6 +11,20 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['sharp', 'onnxruntime-node'],
   },
+  async redirects() {
+    return [
+      {
+        source: '/ultaura-admin',
+        destination: '/admin',
+        permanent: true,
+      },
+      {
+        source: '/ultaura-admin/:path*',
+        destination: '/admin/:path*',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 if (process.env.ANALYZE === 'true') {

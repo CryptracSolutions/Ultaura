@@ -24,9 +24,9 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 You MUST:
 
 1. **Size the task** (this takes 5 seconds, not doing it is lazy):
-   - **Small**: 1-2 files, single/small concern/issue/bug, 1-4 steps → May proceed directly
-   - **Medium**: 3-5 files, multiple concerns/issues/bugs, 5+ steps → MUST delegate
-   - **Large**: 6+ files, architectural changes, 10+ steps → MUST delegate
+   - **Small**: 1-3 files, single/small concern/issue/bug, 1-4 steps → May proceed directly
+   - **Medium**: 4-6 files, multiple concerns/issues/bugs, 5+ steps → MUST delegate
+   - **Large**: 7+ files, architectural changes, 10+ steps → MUST delegate
 
 2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
 
@@ -38,10 +38,10 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Clarify requirements | `AskUserQuestion` | If ANY ambiguity |
+| 1 | Clarify requirements | `AskUserQuestion` | If **ANY** ambiguity |
 | 2 | Spawn a team | `Teammate` with `spawnTeam` | **ALWAYS** |
 | 3 | Understand codebase | Launch 2-4 `Explore` agents as teammates | **ALWAYS** |
-| 4 | Create shared task list | `TaskCreate` for each step | If 3+ steps |
+| 4 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
 | 5 | Spawn implementation teammates | Launch 2-4 `general-purpose` teammates | **ALWAYS** |
 | 6 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
 | 7 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
@@ -94,15 +94,7 @@ After all implementation is complete and TypeScript/visual verification passes, 
 | Sequential dependencies across agents | **Teams** — agents hand off context |
 | Single isolated question or search | `Task` agent (one-shot) is sufficient |
 
-## Red Flags — STOP If You Think These
-
-| Thought | Reality |
-|---------|---------|
-| "I'll just quickly do this myself" | NO. Delegate it. |
-| "It's faster if I do it" | NO. You're here to coordinate. |
-| "This is simple, no need for agents" | If it's medium/large, you MUST delegate. |
-| "Let me just read these files first" | Use Explore agents to read files. |
-| "I'll start coding and delegate later" | Delegate FIRST, not after you've started. |
+---
 
 ## Exceptions (Skip Delegation For)
 

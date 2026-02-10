@@ -11,6 +11,7 @@ import AuthorCard from './AuthorCard';
 import ShareButtons from './ShareButtons';
 import RelatedPosts from './RelatedPosts';
 import { BlogPostCTA } from './BlogPostCTA';
+import InlineNewsletterCTA from '~/app/(site)/components/InlineNewsletterCTA';
 
 type PostType = (typeof posts)[number];
 
@@ -51,6 +52,8 @@ const Post: React.FCC<{
         <article className="mt-10">
           <MDXRenderer code={content} />
         </article>
+
+        <InlineNewsletterCTA source="blog_post" />
 
         <AuthorCard />
         <ShareButtons title={post.title} url={post.url} />

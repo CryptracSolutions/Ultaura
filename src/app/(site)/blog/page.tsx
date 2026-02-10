@@ -5,6 +5,7 @@ import BlogList from '~/app/(site)/blog/components/BlogList';
 import Container from '~/core/ui/Container';
 import { withI18n } from '~/i18n/with-i18n';
 import { PageHero, GradientText } from '~/app/(site)/components/PageHero';
+import InlineNewsletterCTA from '~/app/(site)/components/InlineNewsletterCTA';
 
 import configuration from '~/configuration';
 
@@ -34,6 +35,8 @@ async function BlogPage() {
       <Container>
         <div className="my-8 space-y-16">
           <BlogList posts={livePosts} />
+
+          <InlineNewsletterCTA source="blog_listing" />
         </div>
       </Container>
     </div>

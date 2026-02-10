@@ -1,7 +1,10 @@
+import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import { beforeEach, vi } from 'vitest';
 import type { LineRow, UltauraAccountRow } from '../types';
+
+config({ path: '.env.test' });
 
 const supabaseUrl =
   process.env.SUPABASE_URL ||

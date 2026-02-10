@@ -1,7 +1,7 @@
 ---
 name: ultaura-emails
 description: |
-  Authoritative reference for creating, editing, and auditing all Ultaura email templates. Enforces consistent branding, layout, accessibility, and content standards across 14 emails.
+  Authoritative reference for creating, editing, and auditing all Ultaura email templates. Enforces consistent branding, layout, accessibility, and content standards across Ultaura emails.
 
   Use this skill when:
   - Creating or editing any React Email template in src/lib/emails/
@@ -10,6 +10,7 @@ description: |
   - Auditing email branding, layout, or accessibility
   - Working on email-related API routes that send emails
   - Building or modifying the shared EmailLayout component
+  - Creating or updating newsletter broadcast email previews/templates
 ---
 
 # Ultaura Emails
@@ -23,6 +24,7 @@ description: |
 5. **Border color is `brandColors.border` (`#E7E5E4`).** Not `#eaeaea`.
 6. **Logo is a PNG** (`public/logos/logo-email.png`), displayed at 36x36px with the "Ultaura" wordmark next to it (left-aligned, matching the sidebar navigation). SVGs don't render in most email clients.
 7. **No `text-black` Tailwind class.** Use `text-stone-900` (headings) or `text-stone-700` (body).
+8. **Newsletter marketing emails use unsubscribe-only footer links.** Do not include "Manage preferences" links in newsletter broadcast/welcome flows unless product policy changes.
 
 ---
 

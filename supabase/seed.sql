@@ -25,7 +25,7 @@ INSERT INTO auth.users (
   'test@makerkit.dev',
   crypt('testingpassword', gen_salt('bf')),
   NOW(),
-  '{"provider": "email", "providers": ["email"]}',
+  '{"provider": "email", "providers": ["email"], "role": "super-admin"}',
   '{}',
   NOW(),
   NOW(),

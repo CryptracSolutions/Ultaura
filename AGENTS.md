@@ -18,9 +18,9 @@ Classify task size **before** any coding. If uncertain, **default to Medium**.
 
 | Size | Scope | Workflow |
 |------|-------|----------|
-| **Small** | 1-2 files OR 1-4 steps OR single/small concern/issue/bug | May proceed directly |
-| **Medium** | 3-5 files OR 5+ steps OR multiple concerns/issues/bugs | **MUST delegate** |
-| **Large** | 6+ files OR 10+ steps OR architectural changes | **MUST delegate** |
+| **Small** | 1-3 files OR 1-4 steps OR single/small concern/issue/bug | May proceed directly |
+| **Medium** | 4-6 files OR 5+ steps OR multiple concerns/issues/bugs | **MUST delegate** |
+| **Large** | 7+ files OR 10+ steps OR architectural changes | **MUST delegate** |
 
 ### Auto-Upgrade to Medium
 
@@ -41,11 +41,11 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Required? |
 |------|--------|-----------|
-| 1 | Clarify requirements via `request_user_input` (or chat if unavailable) | If ANY ambiguity |
+| 1 | Clarify requirements via `request_user_input` (or chat if unavailable) | If **ANY** ambiguity |
 | 2 | Spawn 2-4 **explorer** subagents in parallel | **ALWAYS** |
 | 3 | **WAIT** for all explorers to complete | **ALWAYS** |
 | 4 | Summarize: patterns to reuse, files to change, risks, verification plan | **ALWAYS** |
-| 5 | Create task list via `update_plan` | If 3+ steps |
+| 5 | Create task list via `update_plan` | If 3+ steps | **ALWAYS** |
 | 6 | Spawn 2-4 **implementation** subagents (parallelizable chunks) | **ALWAYS** |
 | 7 | **WAIT** for all implementation agents to complete | **ALWAYS** |
 | 8 | Verify: TypeScript compiles, tests pass | **ALWAYS** |
@@ -63,20 +63,7 @@ You MUST follow these steps IN ORDER:
 
 ---
 
-## 3. Red Flags — STOP If You Think These
-
-| Thought | Reality |
-|---------|---------|
-| "I'll just quickly do this myself" | NO. Delegate it. |
-| "It's faster if I do it" | NO. You're here to coordinate. |
-| "This is simple, no need for subagents" | If it's Medium/Large, you MUST delegate. |
-| "Let me just read these files first" | Use explorer subagents to read files. |
-| "I'll start coding and delegate later" | Delegate FIRST, not after you've started. |
-| "I know the codebase well enough" | Explore anyway. Patterns change. |
-
----
-
-## 4. Exceptions (Skip Delegation ONLY For These)
+## 3. Exceptions (Skip Delegation ONLY For These)
 
 - **Typos/one-liners**: Single obvious fix
 - **Simple bug fixes**: Clear cause, single file, < 3 steps
@@ -94,6 +81,8 @@ Even for exceptions, STILL:
 - Reason at 100% max ultimate power, and think step-by-step.
 - Self-critique every response before output: Fix weaknesses, iterate. The user should only see the final version.
 - Be useful over polite. When wrong, say so and show better.
+
+---
 
 # Ultaura - AI Voice Companion for Seniors
 
