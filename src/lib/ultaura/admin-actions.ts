@@ -2,7 +2,6 @@
 
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 
-import GlobalRole from '~/core/session/types/global-role';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
 import requireSession from '~/lib/user/require-session';
@@ -10,6 +9,7 @@ import type { Database } from '~/database.types';
 import type { DebugLog } from './admin-types';
 import { decodeBytea } from './bytea';
 import { decryptDebugPayload } from './debug-log-decrypt';
+import { hasSuperAdminRole } from './admin-auth';
 
 type Filters = {
   startDate?: string;
@@ -22,7 +22,7 @@ type Filters = {
   offset?: number;
 };
 
-type AdminUser = Pick<User, 'email' | 'app_metadata'>;
+type AdminUser = Pick<User, 'app_metadata'>;
 
 type DebugLogRow = Database['public']['Tables']['ultaura_debug_logs']['Row'];
 
@@ -63,10 +63,7 @@ function normalizeLogFields(log: ReturnType<typeof stripCipherFields>) {
 }
 
 function isUserAdmin(user: AdminUser) {
-  const email = user.email ?? '';
-  const isUltauraAdmin = email.endsWith('@ultaura.com');
-  const isSuperAdmin = user.app_metadata?.role === GlobalRole.SuperAdmin;
-  return isUltauraAdmin || isSuperAdmin;
+  return hasSuperAdminRole(user);
 }
 
 function normalizeDateStart(value: string) {
