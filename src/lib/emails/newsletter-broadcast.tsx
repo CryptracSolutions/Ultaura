@@ -6,6 +6,7 @@ import {
   Text,
   render,
 } from '@react-email/components';
+import React from 'react';
 
 import { brandColors } from '~/lib/brand-colors';
 import { EmailLayout } from '~/lib/emails/components/email-layout';
@@ -30,6 +31,15 @@ interface NewsletterBroadcastEmailProps {
   paragraphs: string[];
   bulletItems?: Array<string | NewsletterBroadcastBulletItem>;
   cta?: NewsletterBroadcastCta;
+  unsubscribeUrl: string;
+  previewText?: string;
+  baseUrl?: string;
+}
+
+export interface BroadcastHtmlEmailProps {
+  subject: string;
+  topicLabel: string;
+  htmlContent: string;
   unsubscribeUrl: string;
   previewText?: string;
   baseUrl?: string;
@@ -147,6 +157,47 @@ export default function renderNewsletterBroadcastEmail(
           </Section>
         )
       ) : null}
+    </EmailLayout>
+  );
+
+  return { html: render(jsx), text: render(jsx, { plainText: true }) };
+}
+
+export function renderBroadcastHtmlEmail(
+  props: BroadcastHtmlEmailProps,
+): { html: string; text: string } {
+  const previewText = props.previewText?.trim() || props.subject;
+
+  const jsx = (
+    <EmailLayout
+      preview={previewText}
+      footerLinks={[{ label: 'Unsubscribe', href: props.unsubscribeUrl }]}
+      baseUrl={props.baseUrl}
+    >
+      <Text className="text-[14px] text-stone-700 mt-[20px] mb-0">Hi there,</Text>
+
+      <Heading className="text-[22px] font-semibold text-stone-900 mt-[14px] mb-0">
+        {props.subject}
+      </Heading>
+
+      <Section className="mt-[12px]">
+        <Text
+          className="text-[12px] font-semibold m-0 inline-block uppercase tracking-wide"
+          style={{
+            color: brandColors.stone[700],
+            backgroundColor: brandColors.stone[100],
+            border: `1px solid ${brandColors.border}`,
+            borderRadius: '999px',
+            padding: '4px 10px',
+          }}
+        >
+          {props.topicLabel}
+        </Text>
+      </Section>
+
+      <Section className="mt-[14px]">
+        <div dangerouslySetInnerHTML={{ __html: props.htmlContent }} />
+      </Section>
     </EmailLayout>
   );
 

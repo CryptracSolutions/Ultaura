@@ -13,19 +13,19 @@ import {
   SelectContent,
   SelectItem,
 } from '~/core/ui/Select';
+import { TOPIC_KEYS, TOPIC_LABELS, type TopicKey } from '~/lib/resend/topic-metadata';
 import { adminCreateAndSendBroadcast } from '~/lib/ultaura/newsletter-admin-actions';
 import ScheduleSendDialog from './ScheduleSendDialog';
 
-const TOPIC_OPTIONS = [
-  { value: 'blog_digest', label: 'Blog Digest' },
-  { value: 'elder_care_tips', label: 'Elder Care Tips' },
-  { value: 'product_updates', label: 'Product Updates' },
-] as const;
+const TOPIC_OPTIONS = TOPIC_KEYS.map((value) => ({
+  value,
+  label: TOPIC_LABELS[value],
+}));
 
 export default function BroadcastComposer() {
   const [subject, setSubject] = useState('');
   const [previewText, setPreviewText] = useState('');
-  const [topicKey, setTopicKey] = useState('blog_digest');
+  const [topicKey, setTopicKey] = useState<TopicKey>(TOPIC_KEYS[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -54,7 +54,7 @@ export default function BroadcastComposer() {
         subject: subject.trim(),
         previewText: previewText.trim() || undefined,
         html: editor.getHTML(),
-        topicKey: topicKey as 'blog_digest' | 'elder_care_tips' | 'product_updates',
+        topicKey,
         scheduleAt,
       });
 
@@ -126,7 +126,14 @@ export default function BroadcastComposer() {
 
       <div className="flex flex-col space-y-1">
         <label className="text-sm font-medium">Target Topic</label>
-        <Select value={topicKey} onValueChange={setTopicKey}>
+        <Select
+          value={topicKey}
+          onValueChange={(value) => {
+            if (TOPIC_KEYS.includes(value as TopicKey)) {
+              setTopicKey(value as TopicKey);
+            }
+          }}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>

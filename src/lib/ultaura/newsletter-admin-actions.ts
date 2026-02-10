@@ -11,8 +11,10 @@ import {
   scheduleBroadcast as scheduleResendBroadcast,
   removeBroadcast as removeResendBroadcast,
 } from '~/lib/resend/broadcasts';
+import { TOPIC_LABELS } from '~/lib/resend/topic-metadata';
 import type { TopicKey } from '~/lib/resend/topics';
 import sanitizeHtml from 'sanitize-html';
+import { renderBroadcastHtmlEmail } from '~/lib/emails/newsletter-broadcast';
 
 const logger = getLogger();
 
@@ -202,12 +204,19 @@ export async function adminCreateAndSendBroadcast(params: {
 }) {
   await assertAdmin();
   const sanitizedHtml = sanitizeHtml(params.html, SANITIZE_OPTIONS);
+  const rendered = renderBroadcastHtmlEmail({
+    subject: params.subject,
+    topicLabel: TOPIC_LABELS[params.topicKey],
+    htmlContent: sanitizedHtml,
+    unsubscribeUrl: '{{{RESEND_UNSUBSCRIBE_URL}}}',
+    previewText: params.previewText,
+  });
 
   try {
     const { data: created, error: createError } = await createResendBroadcast({
       subject: params.subject,
       previewText: params.previewText,
-      html: sanitizedHtml,
+      html: rendered.html,
       topicKey: params.topicKey,
     });
 
