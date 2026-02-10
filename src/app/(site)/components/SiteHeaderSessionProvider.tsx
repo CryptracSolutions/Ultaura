@@ -21,7 +21,7 @@ function SiteHeaderSessionProvider(
   return (
     <UserSessionContext.Provider value={{ userSession, setUserSession }}>
       <AuthChangeListener>
-        <div className="sticky top-0 z-40 bg-sidebar border-b border-border/60 shadow-xl">
+        <div className="sticky top-0 z-40 px-2 pt-2">
           <SiteHeader />
         </div>
       </AuthChangeListener>

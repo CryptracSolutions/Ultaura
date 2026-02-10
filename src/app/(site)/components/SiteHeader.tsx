@@ -20,7 +20,7 @@ const SiteHeader = () => {
 
   return (
     <Container>
-      <div className="flex pt-3 pb-1.5 px-1 items-center justify-between gap-4">
+      <div className="flex py-2.5 px-1 items-center gap-4">
         <div className={'shrink-0'}>
           <Logo
             className={'h-10'}
@@ -29,23 +29,23 @@ const SiteHeader = () => {
           />
         </div>
 
-        <div className={'flex-1 min-w-0 justify-center hidden lg:flex'}>
+        <div className="ml-6 hidden min-w-0 flex-1 items-center rounded-2xl border border-border/70 bg-sidebar/95 pl-4 pr-0 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 lg:flex lg:w-[75%] lg:flex-none lg:origin-left lg:scale-[1.2]">
           <SiteNavigation />
+
+          <div className="ml-auto">
+            <If condition={userSession} fallback={<AuthButtons />}>
+              {(session) => (
+                <ProfileDropdown
+                  userSession={session}
+                  signOutRequested={signOut}
+                />
+              )}
+            </If>
+          </div>
         </div>
 
-        <div className={'flex shrink-0 items-center justify-end space-x-4'}>
-          <If condition={userSession} fallback={<AuthButtons />}>
-            {(session) => (
-              <ProfileDropdown
-                userSession={session}
-                signOutRequested={signOut}
-              />
-            )}
-          </If>
-
-          <div className={'flex lg:hidden'}>
+        <div className={'ml-auto flex lg:hidden'}>
             <SiteNavigation />
-          </div>
         </div>
       </div>
     </Container>
@@ -54,12 +54,21 @@ const SiteHeader = () => {
 
 function AuthButtons() {
   return (
-    <div className={'hidden space-x-2 lg:flex'}>
-      <Button round variant={'ghost'} href={configuration.paths.signIn}>
+    <div className={'hidden shrink-0 items-center space-x-2 lg:flex'}>
+      <Button
+        round
+        variant={'ghost'}
+        href={configuration.paths.signIn}
+        className="h-9 shrink-0 whitespace-nowrap [&>*]:py-1"
+      >
         <span>Sign In</span>
       </Button>
 
-      <Button round href={configuration.paths.signUp}>
+      <Button
+        round
+        href={configuration.paths.signUp}
+        className="h-9 shrink-0 whitespace-nowrap [&>*]:py-1"
+      >
         <span className={'flex items-center space-x-2'}>
           <span>Sign Up</span>
           <ChevronRightIcon className={'h-4'} />

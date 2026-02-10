@@ -61,7 +61,7 @@ const SiteNavigation = () => {
   return (
     <>
       <div className={'hidden items-center space-x-0.5 lg:flex'}>
-        <NavigationMenu scrollable centered>
+        <NavigationMenu scrollable>
           <NavigationMenuItem className={className} link={links.Demo} />
           <NavigationMenuItem className={className} link={links.Pricing} />
           <NavigationMenuItem className={className} link={links.Vision} />
