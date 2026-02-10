@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Router } from 'express';
+import { ErrorCodes } from '@ultaura/schemas';
 
 vi.mock('../../../server.js', () => ({
   logger: {
@@ -185,6 +186,7 @@ describe('reminder tool guards', () => {
       },
     } as any, res);
 
+    expect(res.status).toHaveBeenCalledWith(403);
     expect(res.body.success).toBe(false);
     expect(res.body.message).toContain('disabled reminder management by phone');
   });
@@ -213,8 +215,64 @@ describe('reminder tool guards', () => {
   });
 });
 
+describe('set_reminder reminder limit handling', () => {
+  it('returns 403 with REMINDER_LIMIT_REACHED when insert fails with U0001', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_reminders: [
+        { count: 0, error: null },
+        {
+          data: null,
+          error: {
+            code: 'U0001',
+            message: 'REMINDER_LIMIT_REACHED: line reminder limit exceeded',
+          },
+        },
+      ],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID,
+      account_id: 'acct-1',
+      line_id: LINE_ID,
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: {
+        id: LINE_ID,
+        account_id: 'acct-1',
+        timezone: 'America/New_York',
+        allow_voice_reminder_control: true,
+      },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue({
+      ciphertext: Buffer.from('cipher'),
+      iv: Buffer.from('iv'),
+      tag: Buffer.from('tag'),
+      alg: 'AES-256-GCM',
+      kid: 'kek_v1',
+    });
+
+    const res = createMockRes();
+
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00',
+        timezone: 'America/New_York',
+        message: 'Take medication',
+      },
+    } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.REMINDER_LIMIT_REACHED);
+    expect(res.body.message).toBe("You've reached the reminder limit for this line. Ask your caregiver to cancel existing reminders or upgrade the plan.");
+  });
+});
+
 describe('reminder tool timezone formatting', () => {
-  it('uses reminder timezone for list_reminders output', async () => {
+  it('uses line timezone for list_reminders output', async () => {
     const dateSpy = vi.spyOn(Date.prototype, 'toLocaleDateString').mockReturnValue('DATE');
     const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('TIME');
 
@@ -254,16 +312,16 @@ describe('reminder tool timezone formatting', () => {
 
     expect(res.body.reminders[0].dateTime).toBe('DATE at TIME');
     expect(dateSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
-      timeZone: 'America/New_York',
+      timeZone: 'America/Chicago',
     }));
     expect(timeSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
-      timeZone: 'America/New_York',
+      timeZone: 'America/Chicago',
     }));
     dateSpy.mockRestore();
     timeSpy.mockRestore();
   });
 
-  it('uses request timezone for set_reminder response', async () => {
+  it('uses line timezone for set_reminder response', async () => {
     const dateSpy = vi.spyOn(Date.prototype, 'toLocaleDateString').mockReturnValue('DATE');
     const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('TIME');
 
@@ -310,16 +368,16 @@ describe('reminder tool timezone formatting', () => {
 
     expect(res.body.message).toContain('DATE at TIME');
     expect(dateSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
-      timeZone: 'America/New_York',
+      timeZone: 'America/Chicago',
     }));
     expect(timeSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
-      timeZone: 'America/New_York',
+      timeZone: 'America/Chicago',
     }));
     dateSpy.mockRestore();
     timeSpy.mockRestore();
   });
 
-  it('uses request timezone for edit_reminder response', async () => {
+  it('uses line timezone for edit_reminder response', async () => {
     const dateSpy = vi.spyOn(Date.prototype, 'toLocaleDateString').mockReturnValue('DATE');
     const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('TIME');
 
@@ -369,10 +427,10 @@ describe('reminder tool timezone formatting', () => {
 
     expect(res.body.message).toContain('DATE at TIME');
     expect(dateSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
-      timeZone: 'America/New_York',
+      timeZone: 'America/Denver',
     }));
     expect(timeSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
-      timeZone: 'America/New_York',
+      timeZone: 'America/Denver',
     }));
     dateSpy.mockRestore();
     timeSpy.mockRestore();

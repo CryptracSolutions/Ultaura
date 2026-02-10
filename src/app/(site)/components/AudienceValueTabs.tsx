@@ -45,7 +45,7 @@ const AUDIENCES: Array<{
 
 const ALWAYS_INCLUDED = [
   'Daily check-in calls',
-  'Medication & routine reminders',
+  'Medication & routine reminders (limits vary by plan)',
   'At-a-glance summaries for family',
   'Safety alerts to people they trust',
 ];

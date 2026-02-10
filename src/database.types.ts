@@ -2975,6 +2975,7 @@ export type Database = {
           minutes_included: number
           monthly_price_cents: number
           overage_rate_cents_per_min: number
+          reminders_per_line: number | null
         }
         Insert: {
           annual_price_cents?: number
@@ -2985,6 +2986,7 @@ export type Database = {
           minutes_included?: number
           monthly_price_cents?: number
           overage_rate_cents_per_min?: number
+          reminders_per_line?: number | null
         }
         Update: {
           annual_price_cents?: number
@@ -2995,6 +2997,7 @@ export type Database = {
           minutes_included?: number
           monthly_price_cents?: number
           overage_rate_cents_per_min?: number
+          reminders_per_line?: number | null
         }
         Relationships: []
       }
@@ -4248,10 +4251,6 @@ export type Database = {
         Args: { p_ip: string; p_window_start: string }
         Returns: number
       }
-      prune_newsletter_operational_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       claim_due_reminders: {
         Args: {
           p_batch_size?: number
@@ -4373,6 +4372,7 @@ export type Database = {
         Args: { p_account_id: string; p_key: string; p_line_id: string }
         Returns: number
       }
+      get_effective_plan_id: { Args: { p_account_id: string }; Returns: string }
       get_organizations_for_authenticated_user: {
         Args: never
         Returns: number[]
@@ -4474,6 +4474,7 @@ export type Database = {
         Args: { p_memory_id: string; p_reason: string }
         Returns: undefined
       }
+      prune_newsletter_operational_data: { Args: never; Returns: undefined }
       release_scheduler_lease: {
         Args: { p_lease_id: string; p_worker_id: string }
         Returns: boolean

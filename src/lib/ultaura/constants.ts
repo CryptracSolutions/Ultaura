@@ -16,6 +16,7 @@ export const PLANS: Record<PlanId, Plan> = {
     annualPriceCents: 0,
     minutesIncluded: 20,
     linesIncluded: 1,
+    remindersPerLine: 3,
     overageRateCentsPerMin: 0, // No overage on trial - hard stop
   },
   care: {
@@ -25,6 +26,7 @@ export const PLANS: Record<PlanId, Plan> = {
     annualPriceCents: 39900, // $399
     minutesIncluded: 300,
     linesIncluded: 1,
+    remindersPerLine: 3,
     overageRateCentsPerMin: 15, // $0.15
   },
   comfort: {
@@ -34,6 +36,7 @@ export const PLANS: Record<PlanId, Plan> = {
     annualPriceCents: 99900, // $999
     minutesIncluded: 900,
     linesIncluded: 2,
+    remindersPerLine: 10,
     overageRateCentsPerMin: 15,
   },
   family: {
@@ -43,6 +46,7 @@ export const PLANS: Record<PlanId, Plan> = {
     annualPriceCents: 199900, // $1,999
     minutesIncluded: 2200,
     linesIncluded: 4,
+    remindersPerLine: null,
     overageRateCentsPerMin: 15,
   },
   payg: {
@@ -52,6 +56,7 @@ export const PLANS: Record<PlanId, Plan> = {
     annualPriceCents: 0,
     minutesIncluded: 0,
     linesIncluded: 4,
+    remindersPerLine: null,
     overageRateCentsPerMin: 15,
   },
 };

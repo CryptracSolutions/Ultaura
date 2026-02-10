@@ -258,6 +258,68 @@ export type Database = {
         }
         Relationships: []
       }
+      ultaura_accessibility_settings: {
+        Row: {
+          cognitive_mode: string | null
+          cognitive_mode_source: string | null
+          context_window_calls: number | null
+          hearing_mode: string | null
+          hearing_mode_source: string | null
+          id: string
+          line_id: string
+          pause_between_sentences: boolean | null
+          provide_call_recap: boolean | null
+          remind_of_previous_topics: boolean | null
+          repeat_key_info: boolean | null
+          shorter_responses: boolean | null
+          simplified_language: boolean | null
+          speech_rate: number | null
+          updated_at: string
+        }
+        Insert: {
+          cognitive_mode?: string | null
+          cognitive_mode_source?: string | null
+          context_window_calls?: number | null
+          hearing_mode?: string | null
+          hearing_mode_source?: string | null
+          id?: string
+          line_id: string
+          pause_between_sentences?: boolean | null
+          provide_call_recap?: boolean | null
+          remind_of_previous_topics?: boolean | null
+          repeat_key_info?: boolean | null
+          shorter_responses?: boolean | null
+          simplified_language?: boolean | null
+          speech_rate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cognitive_mode?: string | null
+          cognitive_mode_source?: string | null
+          context_window_calls?: number | null
+          hearing_mode?: string | null
+          hearing_mode_source?: string | null
+          id?: string
+          line_id?: string
+          pause_between_sentences?: boolean | null
+          provide_call_recap?: boolean | null
+          remind_of_previous_topics?: boolean | null
+          repeat_key_info?: boolean | null
+          shorter_responses?: boolean | null
+          simplified_language?: boolean | null
+          speech_rate?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_accessibility_settings_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_account_crypto_keys: {
         Row: {
           account_id: string
@@ -295,6 +357,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ultaura_account_crypto_keys_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_account_privacy_settings: {
+        Row: {
+          account_id: string
+          ai_summarization_enabled: boolean
+          created_at: string
+          id: string
+          recording_enabled: boolean
+          retention_period: Database["public"]["Enums"]["ultaura_retention_period"]
+          updated_at: string
+          vendor_disclosure_acknowledged_at: string | null
+          vendor_disclosure_acknowledged_by: string | null
+        }
+        Insert: {
+          account_id: string
+          ai_summarization_enabled?: boolean
+          created_at?: string
+          id?: string
+          recording_enabled?: boolean
+          retention_period?: Database["public"]["Enums"]["ultaura_retention_period"]
+          updated_at?: string
+          vendor_disclosure_acknowledged_at?: string | null
+          vendor_disclosure_acknowledged_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          ai_summarization_enabled?: boolean
+          created_at?: string
+          id?: string
+          recording_enabled?: boolean
+          retention_period?: Database["public"]["Enums"]["ultaura_retention_period"]
+          updated_at?: string
+          vendor_disclosure_acknowledged_at?: string | null
+          vendor_disclosure_acknowledged_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_account_privacy_setti_vendor_disclosure_acknowledg_fkey"
+            columns: ["vendor_disclosure_acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_account_privacy_settings_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: true
             referencedRelation: "ultaura_accounts"
@@ -501,6 +614,78 @@ export type Database = {
           },
         ]
       }
+      ultaura_call_previews: {
+        Row: {
+          account_id: string
+          created_at: string
+          follow_through_response: string | null
+          followed_through: boolean | null
+          id: string
+          line_id: string
+          offered_at: string
+          segment_context: Json | null
+          segment_type: string | null
+          selected_at: string | null
+          source_memory_ids: string[] | null
+          status: string
+          topic_display: string
+          topic_key: string
+          topic_type: string
+          used_at: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          follow_through_response?: string | null
+          followed_through?: boolean | null
+          id?: string
+          line_id: string
+          offered_at: string
+          segment_context?: Json | null
+          segment_type?: string | null
+          selected_at?: string | null
+          source_memory_ids?: string[] | null
+          status?: string
+          topic_display: string
+          topic_key: string
+          topic_type: string
+          used_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          follow_through_response?: string | null
+          followed_through?: boolean | null
+          id?: string
+          line_id?: string
+          offered_at?: string
+          segment_context?: Json | null
+          segment_type?: string | null
+          selected_at?: string | null
+          source_memory_ids?: string[] | null
+          status?: string
+          topic_display?: string
+          topic_key?: string
+          topic_type?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_call_previews_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_call_previews_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_call_sessions: {
         Row: {
           account_id: string
@@ -515,10 +700,13 @@ export type Database = {
             | null
           ended_at: string | null
           id: string
+          is_preview_mode: boolean
           is_reminder_call: boolean
           is_test_call: boolean
           language_detected: string | null
           line_id: string
+          recording_deleted_at: string | null
+          recording_deletion_reason: string | null
           recording_sid: string | null
           reminder_id: string | null
           scheduler_idempotency_key: string | null
@@ -543,10 +731,13 @@ export type Database = {
             | null
           ended_at?: string | null
           id?: string
+          is_preview_mode?: boolean
           is_reminder_call?: boolean
           is_test_call?: boolean
           language_detected?: string | null
           line_id: string
+          recording_deleted_at?: string | null
+          recording_deletion_reason?: string | null
           recording_sid?: string | null
           reminder_id?: string | null
           scheduler_idempotency_key?: string | null
@@ -571,10 +762,13 @@ export type Database = {
             | null
           ended_at?: string | null
           id?: string
+          is_preview_mode?: boolean
           is_reminder_call?: boolean
           is_test_call?: boolean
           language_detected?: string | null
           line_id?: string
+          recording_deleted_at?: string | null
+          recording_deletion_reason?: string | null
           recording_sid?: string | null
           reminder_id?: string | null
           scheduler_idempotency_key?: string | null
@@ -606,6 +800,190 @@ export type Database = {
             columns: ["reminder_id"]
             isOneToOne: false
             referencedRelation: "ultaura_reminders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_cognitive_flags: {
+        Row: {
+          concern_level: string | null
+          confusion_count_14d: number | null
+          consecutive_calls_with_concern: number | null
+          family_notified_at: string | null
+          flagged_at: string | null
+          id: string
+          last_concern_at: string | null
+          line_id: string
+          orientation_count_14d: number | null
+          repetition_count_14d: number | null
+          updated_at: string
+        }
+        Insert: {
+          concern_level?: string | null
+          confusion_count_14d?: number | null
+          consecutive_calls_with_concern?: number | null
+          family_notified_at?: string | null
+          flagged_at?: string | null
+          id?: string
+          last_concern_at?: string | null
+          line_id: string
+          orientation_count_14d?: number | null
+          repetition_count_14d?: number | null
+          updated_at?: string
+        }
+        Update: {
+          concern_level?: string | null
+          confusion_count_14d?: number | null
+          consecutive_calls_with_concern?: number | null
+          family_notified_at?: string | null
+          flagged_at?: string | null
+          id?: string
+          last_concern_at?: string | null
+          line_id?: string
+          orientation_count_14d?: number | null
+          repetition_count_14d?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_cognitive_flags_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_cognitive_observations: {
+        Row: {
+          call_session_id: string
+          context: string | null
+          created_at: string
+          id: string
+          is_novel: boolean | null
+          line_id: string
+          observation_type: string
+          response_given: string | null
+          severity: string | null
+          similar_observation_count: number | null
+        }
+        Insert: {
+          call_session_id: string
+          context?: string | null
+          created_at?: string
+          id?: string
+          is_novel?: boolean | null
+          line_id: string
+          observation_type: string
+          response_given?: string | null
+          severity?: string | null
+          similar_observation_count?: number | null
+        }
+        Update: {
+          call_session_id?: string
+          context?: string | null
+          created_at?: string
+          id?: string
+          is_novel?: boolean | null
+          line_id?: string
+          observation_type?: string
+          response_given?: string | null
+          severity?: string | null
+          similar_observation_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_cognitive_observations_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_cognitive_observations_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_consent_audit_log: {
+        Row: {
+          account_id: string
+          action: Database["public"]["Enums"]["ultaura_consent_audit_action"]
+          actor_type: string
+          actor_user_id: string | null
+          call_session_id: string | null
+          consent_type: string | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          line_id: string | null
+          metadata: Json | null
+          new_value: Json | null
+          old_value: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          account_id: string
+          action: Database["public"]["Enums"]["ultaura_consent_audit_action"]
+          actor_type: string
+          actor_user_id?: string | null
+          call_session_id?: string | null
+          consent_type?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          line_id?: string | null
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          account_id?: string
+          action?: Database["public"]["Enums"]["ultaura_consent_audit_action"]
+          actor_type?: string
+          actor_user_id?: string | null
+          call_session_id?: string | null
+          consent_type?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          line_id?: string | null
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_consent_audit_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_consent_audit_log_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_consent_audit_log_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_consent_audit_log_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
             referencedColumns: ["id"]
           },
         ]
@@ -657,6 +1035,196 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_content_preferences: {
+        Row: {
+          avoided_story_themes: string[] | null
+          avoided_trivia_domains: string[] | null
+          best_segment_time_of_call: string | null
+          brain_games_preference: number | null
+          favorite_eras: string[] | null
+          favorite_memory_topics: string[] | null
+          favorite_story_genres: string[] | null
+          favorite_trivia_domains: string[] | null
+          id: string
+          line_id: string
+          memory_lane_preference: number | null
+          preferred_story_length: string | null
+          story_preference: number | null
+          trivia_difficulty: string | null
+          trivia_preference: number | null
+          updated_at: string
+        }
+        Insert: {
+          avoided_story_themes?: string[] | null
+          avoided_trivia_domains?: string[] | null
+          best_segment_time_of_call?: string | null
+          brain_games_preference?: number | null
+          favorite_eras?: string[] | null
+          favorite_memory_topics?: string[] | null
+          favorite_story_genres?: string[] | null
+          favorite_trivia_domains?: string[] | null
+          id?: string
+          line_id: string
+          memory_lane_preference?: number | null
+          preferred_story_length?: string | null
+          story_preference?: number | null
+          trivia_difficulty?: string | null
+          trivia_preference?: number | null
+          updated_at?: string
+        }
+        Update: {
+          avoided_story_themes?: string[] | null
+          avoided_trivia_domains?: string[] | null
+          best_segment_time_of_call?: string | null
+          brain_games_preference?: number | null
+          favorite_eras?: string[] | null
+          favorite_memory_topics?: string[] | null
+          favorite_story_genres?: string[] | null
+          favorite_trivia_domains?: string[] | null
+          id?: string
+          line_id?: string
+          memory_lane_preference?: number | null
+          preferred_story_length?: string | null
+          story_preference?: number | null
+          trivia_difficulty?: string | null
+          trivia_preference?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_content_preferences_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_daily_rhythms: {
+        Row: {
+          afternoon_energy: string | null
+          afternoon_routine_summary: string | null
+          avg_duration_by_time: Json | null
+          avoid_days_of_week: number[] | null
+          best_days_of_week: number[] | null
+          best_engagement_time: string | null
+          evening_energy: string | null
+          evening_routine_summary: string | null
+          id: string
+          line_id: string
+          morning_energy: string | null
+          morning_routine_summary: string | null
+          updated_at: string
+          worst_engagement_time: string | null
+        }
+        Insert: {
+          afternoon_energy?: string | null
+          afternoon_routine_summary?: string | null
+          avg_duration_by_time?: Json | null
+          avoid_days_of_week?: number[] | null
+          best_days_of_week?: number[] | null
+          best_engagement_time?: string | null
+          evening_energy?: string | null
+          evening_routine_summary?: string | null
+          id?: string
+          line_id: string
+          morning_energy?: string | null
+          morning_routine_summary?: string | null
+          updated_at?: string
+          worst_engagement_time?: string | null
+        }
+        Update: {
+          afternoon_energy?: string | null
+          afternoon_routine_summary?: string | null
+          avg_duration_by_time?: Json | null
+          avoid_days_of_week?: number[] | null
+          best_days_of_week?: number[] | null
+          best_engagement_time?: string | null
+          evening_energy?: string | null
+          evening_routine_summary?: string | null
+          id?: string
+          line_id?: string
+          morning_energy?: string | null
+          morning_routine_summary?: string | null
+          updated_at?: string
+          worst_engagement_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_daily_rhythms_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_data_export_requests: {
+        Row: {
+          account_id: string
+          created_at: string
+          download_url: string | null
+          error_message: string | null
+          expires_at: string | null
+          file_size_bytes: number | null
+          format: Database["public"]["Enums"]["ultaura_export_format"]
+          id: string
+          include_call_metadata: boolean
+          include_memories: boolean
+          include_reminders: boolean
+          processed_at: string | null
+          requested_by: string
+          status: Database["public"]["Enums"]["ultaura_export_status"]
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          download_url?: string | null
+          error_message?: string | null
+          expires_at?: string | null
+          file_size_bytes?: number | null
+          format?: Database["public"]["Enums"]["ultaura_export_format"]
+          id?: string
+          include_call_metadata?: boolean
+          include_memories?: boolean
+          include_reminders?: boolean
+          processed_at?: string | null
+          requested_by: string
+          status?: Database["public"]["Enums"]["ultaura_export_status"]
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          download_url?: string | null
+          error_message?: string | null
+          expires_at?: string | null
+          file_size_bytes?: number | null
+          format?: Database["public"]["Enums"]["ultaura_export_format"]
+          id?: string
+          include_call_metadata?: boolean
+          include_memories?: boolean
+          include_reminders?: boolean
+          processed_at?: string | null
+          requested_by?: string
+          status?: Database["public"]["Enums"]["ultaura_export_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_data_export_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_data_export_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -727,6 +1295,187 @@ export type Database = {
           },
         ]
       }
+      ultaura_emotional_patterns: {
+        Row: {
+          best_time_of_day: string | null
+          dominant_mood: string | null
+          effective_techniques: string[] | null
+          id: string
+          ineffective_techniques: string[] | null
+          line_id: string
+          mood_variability: string | null
+          negative_triggers: string[] | null
+          positive_triggers: string[] | null
+          updated_at: string
+          worst_time_of_day: string | null
+        }
+        Insert: {
+          best_time_of_day?: string | null
+          dominant_mood?: string | null
+          effective_techniques?: string[] | null
+          id?: string
+          ineffective_techniques?: string[] | null
+          line_id: string
+          mood_variability?: string | null
+          negative_triggers?: string[] | null
+          positive_triggers?: string[] | null
+          updated_at?: string
+          worst_time_of_day?: string | null
+        }
+        Update: {
+          best_time_of_day?: string | null
+          dominant_mood?: string | null
+          effective_techniques?: string[] | null
+          id?: string
+          ineffective_techniques?: string[] | null
+          line_id?: string
+          mood_variability?: string | null
+          negative_triggers?: string[] | null
+          positive_triggers?: string[] | null
+          updated_at?: string
+          worst_time_of_day?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_emotional_patterns_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_grief_interactions: {
+        Row: {
+          call_session_id: string
+          created_at: string
+          days_since_passing: number | null
+          emotional_tone: string | null
+          id: string
+          interaction_type: string
+          line_id: string
+          relationship_id: string | null
+          support_techniques_used: string[] | null
+        }
+        Insert: {
+          call_session_id: string
+          created_at?: string
+          days_since_passing?: number | null
+          emotional_tone?: string | null
+          id?: string
+          interaction_type: string
+          line_id: string
+          relationship_id?: string | null
+          support_techniques_used?: string[] | null
+        }
+        Update: {
+          call_session_id?: string
+          created_at?: string
+          days_since_passing?: number | null
+          emotional_tone?: string | null
+          id?: string
+          interaction_type?: string
+          line_id?: string
+          relationship_id?: string | null
+          support_techniques_used?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_grief_interactions_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_grief_interactions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_grief_interactions_relationship_id_fkey"
+            columns: ["relationship_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_relationships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_mentions: {
+        Row: {
+          account_id: string
+          alert_sent_at: string | null
+          call_session_id: string
+          category: string
+          created_at: string
+          id: string
+          line_id: string
+          mention_alg: string
+          mention_ciphertext: string
+          mention_iv: string
+          mention_kid: string
+          mention_tag: string
+          severity: string | null
+          triggers_alert: boolean | null
+        }
+        Insert: {
+          account_id: string
+          alert_sent_at?: string | null
+          call_session_id: string
+          category: string
+          created_at?: string
+          id?: string
+          line_id: string
+          mention_alg?: string
+          mention_ciphertext: string
+          mention_iv: string
+          mention_kid?: string
+          mention_tag: string
+          severity?: string | null
+          triggers_alert?: boolean | null
+        }
+        Update: {
+          account_id?: string
+          alert_sent_at?: string | null
+          call_session_id?: string
+          category?: string
+          created_at?: string
+          id?: string
+          line_id?: string
+          mention_alg?: string
+          mention_ciphertext?: string
+          mention_iv?: string
+          mention_kid?: string
+          mention_tag?: string
+          severity?: string | null
+          triggers_alert?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_mentions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_mentions_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_mentions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_insight_privacy: {
         Row: {
           created_at: string
@@ -764,6 +1513,93 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ultaura_insight_privacy_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_life_chapters: {
+        Row: {
+          account_id: string
+          chapter_type: string
+          connects_to_chapter_ids: string[] | null
+          created_at: string
+          emotional_tone: string | null
+          era_end_year: number | null
+          era_start_year: number | null
+          id: string
+          key_people: string[] | null
+          last_referenced_at: string | null
+          line_id: string
+          location: string | null
+          narrative_alg: string
+          narrative_ciphertext: string
+          narrative_iv: string
+          narrative_kid: string
+          narrative_tag: string
+          source: string
+          times_referenced: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          chapter_type: string
+          connects_to_chapter_ids?: string[] | null
+          created_at?: string
+          emotional_tone?: string | null
+          era_end_year?: number | null
+          era_start_year?: number | null
+          id?: string
+          key_people?: string[] | null
+          last_referenced_at?: string | null
+          line_id: string
+          location?: string | null
+          narrative_alg?: string
+          narrative_ciphertext: string
+          narrative_iv: string
+          narrative_kid?: string
+          narrative_tag: string
+          source?: string
+          times_referenced?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          chapter_type?: string
+          connects_to_chapter_ids?: string[] | null
+          created_at?: string
+          emotional_tone?: string | null
+          era_end_year?: number | null
+          era_start_year?: number | null
+          id?: string
+          key_people?: string[] | null
+          last_referenced_at?: string | null
+          line_id?: string
+          location?: string | null
+          narrative_alg?: string
+          narrative_ciphertext?: string
+          narrative_iv?: string
+          narrative_kid?: string
+          narrative_tag?: string
+          source?: string
+          times_referenced?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_life_chapters_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_life_chapters_line_id_fkey"
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
@@ -815,80 +1651,302 @@ export type Database = {
           },
         ]
       }
+      ultaura_line_crypto_keys: {
+        Row: {
+          account_id: string
+          created_at: string
+          dek_alg: string
+          dek_kid: string
+          dek_wrap_iv: string
+          dek_wrap_tag: string
+          dek_wrapped: string
+          id: string
+          line_id: string
+          rotated_at: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          dek_alg?: string
+          dek_kid?: string
+          dek_wrap_iv: string
+          dek_wrap_tag: string
+          dek_wrapped: string
+          id?: string
+          line_id: string
+          rotated_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          dek_alg?: string
+          dek_kid?: string
+          dek_wrap_iv?: string
+          dek_wrap_tag?: string
+          dek_wrapped?: string
+          id?: string
+          line_id?: string
+          rotated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_line_crypto_keys_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_line_crypto_keys_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_line_voice_consent: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          insights_reprompt_requested_at: string | null
+          last_consent_prompt_at: string | null
+          line_id: string
+          memory_consent: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          memory_consent_at: string | null
+          memory_consent_call_session_id: string | null
+          onboarding_completed_at: string | null
+          recording_consent: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          recording_consent_at: string | null
+          recording_consent_call_session_id: string | null
+          recording_preference_permanent: boolean
+          recording_reenable_blocked_at: string | null
+          recording_reenable_decline_count: number
+          recording_reenable_requested_at: string | null
+          sharing_consent: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          sharing_consent_at: string | null
+          sharing_consent_call_session_id: string | null
+          sharing_last_prompt_at: string | null
+          sharing_reprompt_requested_at: string | null
+          sharing_tier: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          insights_reprompt_requested_at?: string | null
+          last_consent_prompt_at?: string | null
+          line_id: string
+          memory_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          memory_consent_at?: string | null
+          memory_consent_call_session_id?: string | null
+          onboarding_completed_at?: string | null
+          recording_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          recording_consent_at?: string | null
+          recording_consent_call_session_id?: string | null
+          recording_preference_permanent?: boolean
+          recording_reenable_blocked_at?: string | null
+          recording_reenable_decline_count?: number
+          recording_reenable_requested_at?: string | null
+          sharing_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          sharing_consent_at?: string | null
+          sharing_consent_call_session_id?: string | null
+          sharing_last_prompt_at?: string | null
+          sharing_reprompt_requested_at?: string | null
+          sharing_tier?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          insights_reprompt_requested_at?: string | null
+          last_consent_prompt_at?: string | null
+          line_id?: string
+          memory_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          memory_consent_at?: string | null
+          memory_consent_call_session_id?: string | null
+          onboarding_completed_at?: string | null
+          recording_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          recording_consent_at?: string | null
+          recording_consent_call_session_id?: string | null
+          recording_preference_permanent?: boolean
+          recording_reenable_blocked_at?: string | null
+          recording_reenable_decline_count?: number
+          recording_reenable_requested_at?: string | null
+          sharing_consent?: Database["public"]["Enums"]["ultaura_voice_consent_status"]
+          sharing_consent_at?: string | null
+          sharing_consent_call_session_id?: string | null
+          sharing_last_prompt_at?: string | null
+          sharing_reprompt_requested_at?: string | null
+          sharing_tier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_line_voice_consent_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_line_voice_consent_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_line_voice_consent_memory_consent_call_session_id_fkey"
+            columns: ["memory_consent_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_line_voice_consent_recording_consent_call_session__fkey"
+            columns: ["recording_consent_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_line_voice_consent_sharing_consent_call_session_id_fkey"
+            columns: ["sharing_consent_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_lines: {
         Row: {
           account_id: string
           allow_voice_reminder_control: boolean
+          allow_voice_schedule_control: boolean
+          birth_decade: number | null
+          birth_year: number | null
           consecutive_missed_calls: number
           created_at: string
+          crosstalk_recovery_mode: string | null
+          current_location: string | null
           display_name: string
           do_not_call: boolean
+          filler_word_patience: string | null
+          formative_decade: number | null
+          hometown: string | null
           id: string
           inbound_allowed: boolean
+          interruption_tolerance: string | null
           last_answered_call_at: string | null
           last_successful_call_at: string | null
           last_weekly_summary_at: string | null
           missed_alert_sent_at: string | null
           next_scheduled_call_at: string | null
+          optimal_call_days: number[] | null
+          optimal_call_time: string | null
+          optimal_call_time_source: string | null
           phone_e164: string
           phone_verified_at: string | null
+          preferred_grok_voice: string
+          preferred_language_bcp47: string | null
+          preferred_language_iso: string | null
           quiet_hours_end: string
           quiet_hours_start: string
           seed_avoid_topics: string[] | null
           seed_interests: string[] | null
           short_id: string
+          silence_tolerance_ms: number | null
           status: Database["public"]["Enums"]["ultaura_line_status"]
           timezone: string
+          vacation_ranges: Json
           voicemail_behavior: string
         }
         Insert: {
           account_id: string
           allow_voice_reminder_control?: boolean
+          allow_voice_schedule_control?: boolean
+          birth_decade?: number | null
+          birth_year?: number | null
           consecutive_missed_calls?: number
           created_at?: string
+          crosstalk_recovery_mode?: string | null
+          current_location?: string | null
           display_name: string
           do_not_call?: boolean
+          filler_word_patience?: string | null
+          formative_decade?: number | null
+          hometown?: string | null
           id?: string
           inbound_allowed?: boolean
+          interruption_tolerance?: string | null
           last_answered_call_at?: string | null
           last_successful_call_at?: string | null
           last_weekly_summary_at?: string | null
           missed_alert_sent_at?: string | null
           next_scheduled_call_at?: string | null
+          optimal_call_days?: number[] | null
+          optimal_call_time?: string | null
+          optimal_call_time_source?: string | null
           phone_e164: string
           phone_verified_at?: string | null
+          preferred_grok_voice?: string
+          preferred_language_bcp47?: string | null
+          preferred_language_iso?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
           short_id: string
+          silence_tolerance_ms?: number | null
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          vacation_ranges?: Json
           voicemail_behavior?: string
         }
         Update: {
           account_id?: string
           allow_voice_reminder_control?: boolean
+          allow_voice_schedule_control?: boolean
+          birth_decade?: number | null
+          birth_year?: number | null
           consecutive_missed_calls?: number
           created_at?: string
+          crosstalk_recovery_mode?: string | null
+          current_location?: string | null
           display_name?: string
           do_not_call?: boolean
+          filler_word_patience?: string | null
+          formative_decade?: number | null
+          hometown?: string | null
           id?: string
           inbound_allowed?: boolean
+          interruption_tolerance?: string | null
           last_answered_call_at?: string | null
           last_successful_call_at?: string | null
           last_weekly_summary_at?: string | null
           missed_alert_sent_at?: string | null
           next_scheduled_call_at?: string | null
+          optimal_call_days?: number[] | null
+          optimal_call_time?: string | null
+          optimal_call_time_source?: string | null
           phone_e164?: string
           phone_verified_at?: string | null
+          preferred_grok_voice?: string
+          preferred_language_bcp47?: string | null
+          preferred_language_iso?: string | null
           quiet_hours_end?: string
           quiet_hours_start?: string
           seed_avoid_topics?: string[] | null
           seed_interests?: string[] | null
           short_id?: string
+          silence_tolerance_ms?: number | null
           status?: Database["public"]["Enums"]["ultaura_line_status"]
           timezone?: string
+          vacation_ranges?: Json
           voicemail_behavior?: string
         }
         Relationships: [
@@ -903,13 +1961,24 @@ export type Database = {
       }
       ultaura_memories: {
         Row: {
+          access_count: number
           account_id: string
           active: boolean
           confidence: number | null
           created_at: string
+          created_in_call_session_id: string | null
+          embedding_pending: boolean
+          excluded_category:
+            | Database["public"]["Enums"]["ultaura_exclusion_category"]
+            | null
+          expected_end_date: string | null
+          expiry_pending: boolean
           id: string
           key: string
+          last_accessed_at: string | null
           line_id: string
+          pinned: boolean
+          pinned_reason: string | null
           privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
           redaction_level: string
           source: string | null
@@ -923,13 +1992,24 @@ export type Database = {
           version: number
         }
         Insert: {
+          access_count?: number
           account_id: string
           active?: boolean
           confidence?: number | null
           created_at?: string
+          created_in_call_session_id?: string | null
+          embedding_pending?: boolean
+          excluded_category?:
+            | Database["public"]["Enums"]["ultaura_exclusion_category"]
+            | null
+          expected_end_date?: string | null
+          expiry_pending?: boolean
           id?: string
           key: string
+          last_accessed_at?: string | null
           line_id: string
+          pinned?: boolean
+          pinned_reason?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
           redaction_level?: string
           source?: string | null
@@ -943,13 +2023,24 @@ export type Database = {
           version?: number
         }
         Update: {
+          access_count?: number
           account_id?: string
           active?: boolean
           confidence?: number | null
           created_at?: string
+          created_in_call_session_id?: string | null
+          embedding_pending?: boolean
+          excluded_category?:
+            | Database["public"]["Enums"]["ultaura_exclusion_category"]
+            | null
+          expected_end_date?: string | null
+          expiry_pending?: boolean
           id?: string
           key?: string
+          last_accessed_at?: string | null
           line_id?: string
+          pinned?: boolean
+          pinned_reason?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
           redaction_level?: string
           source?: string | null
@@ -971,10 +2062,243 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ultaura_memories_created_in_call_session_id_fkey"
+            columns: ["created_in_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ultaura_memories_line_id_fkey"
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_memory_deactivation_log: {
+        Row: {
+          account_id: string
+          call_session_id: string | null
+          confidence_at_deactivation: number | null
+          created_at: string
+          id: string
+          line_id: string
+          memory_id: string
+          memory_key: string
+          metadata: Json | null
+          reason: Database["public"]["Enums"]["ultaura_deactivation_reason"]
+          restored_at: string | null
+          restored_call_session_id: string | null
+          restored_reason: string | null
+        }
+        Insert: {
+          account_id: string
+          call_session_id?: string | null
+          confidence_at_deactivation?: number | null
+          created_at?: string
+          id?: string
+          line_id: string
+          memory_id: string
+          memory_key: string
+          metadata?: Json | null
+          reason: Database["public"]["Enums"]["ultaura_deactivation_reason"]
+          restored_at?: string | null
+          restored_call_session_id?: string | null
+          restored_reason?: string | null
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string | null
+          confidence_at_deactivation?: number | null
+          created_at?: string
+          id?: string
+          line_id?: string
+          memory_id?: string
+          memory_key?: string
+          metadata?: Json | null
+          reason?: Database["public"]["Enums"]["ultaura_deactivation_reason"]
+          restored_at?: string | null
+          restored_call_session_id?: string | null
+          restored_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_memory_deactivation_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_memory_deactivation_log_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_memory_deactivation_log_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_memory_deactivation_log_restored_call_session_id_fkey"
+            columns: ["restored_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_memory_embeddings: {
+        Row: {
+          account_id: string
+          created_at: string
+          embedding: string
+          embedding_created_at: string
+          embedding_model: string
+          id: string
+          line_id: string
+          memory_id: string
+          searchable_text: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          embedding: string
+          embedding_created_at?: string
+          embedding_model?: string
+          id?: string
+          line_id: string
+          memory_id: string
+          searchable_text: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          embedding?: string
+          embedding_created_at?: string
+          embedding_model?: string
+          id?: string
+          line_id?: string
+          memory_id?: string
+          searchable_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_memory_embeddings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_memory_embeddings_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_memory_embeddings_memory_id_fkey"
+            columns: ["memory_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_memories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_milestones: {
+        Row: {
+          account_id: string
+          created_at: string
+          date_day: number
+          date_month: number
+          date_year: number | null
+          description: string | null
+          id: string
+          is_recurring: boolean
+          last_celebrated_at: string | null
+          line_id: string
+          milestone_type: string
+          notify_days_before: number | null
+          notify_on_day: boolean | null
+          privacy_scope: string | null
+          related_person_name: string | null
+          related_relationship_id: string | null
+          source: string | null
+          times_celebrated: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          date_day: number
+          date_month: number
+          date_year?: number | null
+          description?: string | null
+          id?: string
+          is_recurring?: boolean
+          last_celebrated_at?: string | null
+          line_id: string
+          milestone_type: string
+          notify_days_before?: number | null
+          notify_on_day?: boolean | null
+          privacy_scope?: string | null
+          related_person_name?: string | null
+          related_relationship_id?: string | null
+          source?: string | null
+          times_celebrated?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          date_day?: number
+          date_month?: number
+          date_year?: number | null
+          description?: string | null
+          id?: string
+          is_recurring?: boolean
+          last_celebrated_at?: string | null
+          line_id?: string
+          milestone_type?: string
+          notify_days_before?: number | null
+          notify_on_day?: boolean | null
+          privacy_scope?: string | null
+          related_person_name?: string | null
+          related_relationship_id?: string | null
+          source?: string | null
+          times_celebrated?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_milestones_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_milestones_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_milestones_related_relationship_id_fkey"
+            columns: ["related_relationship_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_relationships"
             referencedColumns: ["id"]
           },
         ]
@@ -1045,14 +2369,255 @@ export type Database = {
           },
         ]
       }
+      ultaura_mood_snapshots: {
+        Row: {
+          account_id: string
+          call_session_id: string
+          created_at: string
+          energy_level: string | null
+          id: string
+          line_id: string
+          mood_end: string | null
+          mood_end_at: string | null
+          mood_mid: string | null
+          mood_mid_at: string | null
+          mood_start: string | null
+          mood_start_at: string | null
+          mood_trajectory: string | null
+          technique_effectiveness: Json | null
+          techniques_used: string[] | null
+        }
+        Insert: {
+          account_id: string
+          call_session_id: string
+          created_at?: string
+          energy_level?: string | null
+          id?: string
+          line_id: string
+          mood_end?: string | null
+          mood_end_at?: string | null
+          mood_mid?: string | null
+          mood_mid_at?: string | null
+          mood_start?: string | null
+          mood_start_at?: string | null
+          mood_trajectory?: string | null
+          technique_effectiveness?: Json | null
+          techniques_used?: string[] | null
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string
+          created_at?: string
+          energy_level?: string | null
+          id?: string
+          line_id?: string
+          mood_end?: string | null
+          mood_end_at?: string | null
+          mood_mid?: string | null
+          mood_mid_at?: string | null
+          mood_start?: string | null
+          mood_start_at?: string | null
+          mood_trajectory?: string | null
+          technique_effectiveness?: Json | null
+          techniques_used?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_mood_snapshots_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_mood_snapshots_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_mood_snapshots_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_newsletter_rate_limits: {
+        Row: {
+          ip: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          ip: string
+          request_count?: number
+          window_start: string
+        }
+        Update: {
+          ip?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
+      ultaura_newsletter_subscribers: {
+        Row: {
+          bounced_at: string | null
+          complained_at: string | null
+          confirmation_ip: unknown
+          confirmation_token_consumed_at: string | null
+          confirmation_token_expires_at: string | null
+          confirmation_token_hash: string | null
+          confirmation_user_agent: string | null
+          confirmed_at: string | null
+          consent_ip: unknown
+          consent_timestamp: string | null
+          consent_user_agent: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          pending_topics: Json | null
+          resend_contact_id: string | null
+          source: string
+          source_url: string | null
+          status: string
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          bounced_at?: string | null
+          complained_at?: string | null
+          confirmation_ip?: unknown
+          confirmation_token_consumed_at?: string | null
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          confirmation_user_agent?: string | null
+          confirmed_at?: string | null
+          consent_ip?: unknown
+          consent_timestamp?: string | null
+          consent_user_agent?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          pending_topics?: Json | null
+          resend_contact_id?: string | null
+          source?: string
+          source_url?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bounced_at?: string | null
+          complained_at?: string | null
+          confirmation_ip?: unknown
+          confirmation_token_consumed_at?: string | null
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          confirmation_user_agent?: string | null
+          confirmed_at?: string | null
+          consent_ip?: unknown
+          consent_timestamp?: string | null
+          consent_user_agent?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          pending_topics?: Json | null
+          resend_contact_id?: string | null
+          source?: string
+          source_url?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ultaura_newsletter_topic_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          subscribed: boolean
+          subscribed_at: string | null
+          subscriber_id: string
+          topic_key: string
+          unsubscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          subscribed?: boolean
+          subscribed_at?: string | null
+          subscriber_id: string
+          topic_key: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          subscribed?: boolean
+          subscribed_at?: string | null
+          subscriber_id?: string
+          topic_key?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_newsletter_topic_subscriptions_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_newsletter_subscribers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_newsletter_webhook_events: {
+        Row: {
+          claimed_at: string
+          completed_at: string | null
+          error_message: string | null
+          event_type: string
+          status: string
+          svix_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          completed_at?: string | null
+          error_message?: string | null
+          event_type: string
+          status?: string
+          svix_id: string
+        }
+        Update: {
+          claimed_at?: string
+          completed_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          status?: string
+          svix_id?: string
+        }
+        Relationships: []
+      }
       ultaura_notification_preferences: {
         Row: {
           account_id: string
+          alert_delivery_method: string | null
           alert_missed_calls_enabled: boolean
           alert_missed_calls_threshold: number
+          cognitive_concern_alerts: boolean | null
           created_at: string
+          health_mention_alerts: boolean | null
           id: string
           line_id: string
+          mood_drop_alerts: boolean | null
           updated_at: string
           weekly_summary_day: string
           weekly_summary_enabled: boolean
@@ -1061,11 +2626,15 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          alert_delivery_method?: string | null
           alert_missed_calls_enabled?: boolean
           alert_missed_calls_threshold?: number
+          cognitive_concern_alerts?: boolean | null
           created_at?: string
+          health_mention_alerts?: boolean | null
           id?: string
           line_id: string
+          mood_drop_alerts?: boolean | null
           updated_at?: string
           weekly_summary_day?: string
           weekly_summary_enabled?: boolean
@@ -1074,11 +2643,15 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          alert_delivery_method?: string | null
           alert_missed_calls_enabled?: boolean
           alert_missed_calls_threshold?: number
+          cognitive_concern_alerts?: boolean | null
           created_at?: string
+          health_mention_alerts?: boolean | null
           id?: string
           line_id?: string
+          mood_drop_alerts?: boolean | null
           updated_at?: string
           weekly_summary_day?: string
           weekly_summary_enabled?: boolean
@@ -1223,6 +2796,137 @@ export type Database = {
           },
         ]
       }
+      ultaura_pending_recording_deletions: {
+        Row: {
+          account_id: string
+          attempts: number
+          call_session_id: string | null
+          created_at: string
+          id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          max_attempts: number
+          processed_at: string | null
+          reason: string
+          recording_sid: string
+        }
+        Insert: {
+          account_id: string
+          attempts?: number
+          call_session_id?: string | null
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          processed_at?: string | null
+          reason: string
+          recording_sid: string
+        }
+        Update: {
+          account_id?: string
+          attempts?: number
+          call_session_id?: string | null
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          processed_at?: string | null
+          reason?: string
+          recording_sid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_pending_recording_deletions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_pending_recording_deletions_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_persona_adaptations: {
+        Row: {
+          afternoon_energy: string | null
+          asks_many_questions: boolean | null
+          avoided_phrases: string[] | null
+          calls_analyzed: number | null
+          confidence_score: number | null
+          directness_level: string | null
+          evening_energy: string | null
+          formality_level: string | null
+          humor_level: string | null
+          id: string
+          line_id: string
+          morning_energy: string | null
+          preferred_phrases: string[] | null
+          prefers_short_exchanges: boolean | null
+          prefers_stories: boolean | null
+          regional_expressions: string[] | null
+          typical_energy: string | null
+          updated_at: string
+          vocabulary_complexity: string | null
+        }
+        Insert: {
+          afternoon_energy?: string | null
+          asks_many_questions?: boolean | null
+          avoided_phrases?: string[] | null
+          calls_analyzed?: number | null
+          confidence_score?: number | null
+          directness_level?: string | null
+          evening_energy?: string | null
+          formality_level?: string | null
+          humor_level?: string | null
+          id?: string
+          line_id: string
+          morning_energy?: string | null
+          preferred_phrases?: string[] | null
+          prefers_short_exchanges?: boolean | null
+          prefers_stories?: boolean | null
+          regional_expressions?: string[] | null
+          typical_energy?: string | null
+          updated_at?: string
+          vocabulary_complexity?: string | null
+        }
+        Update: {
+          afternoon_energy?: string | null
+          asks_many_questions?: boolean | null
+          avoided_phrases?: string[] | null
+          calls_analyzed?: number | null
+          confidence_score?: number | null
+          directness_level?: string | null
+          evening_energy?: string | null
+          formality_level?: string | null
+          humor_level?: string | null
+          id?: string
+          line_id?: string
+          morning_energy?: string | null
+          preferred_phrases?: string[] | null
+          prefers_short_exchanges?: boolean | null
+          prefers_stories?: boolean | null
+          regional_expressions?: string[] | null
+          typical_energy?: string | null
+          updated_at?: string
+          vocabulary_complexity?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_persona_adaptations_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_phone_verifications: {
         Row: {
           channel: string
@@ -1271,6 +2975,7 @@ export type Database = {
           minutes_included: number
           monthly_price_cents: number
           overage_rate_cents_per_min: number
+          reminders_per_line: number | null
         }
         Insert: {
           annual_price_cents?: number
@@ -1281,6 +2986,7 @@ export type Database = {
           minutes_included?: number
           monthly_price_cents?: number
           overage_rate_cents_per_min?: number
+          reminders_per_line?: number | null
         }
         Update: {
           annual_price_cents?: number
@@ -1291,6 +2997,7 @@ export type Database = {
           minutes_included?: number
           monthly_price_cents?: number
           overage_rate_cents_per_min?: number
+          reminders_per_line?: number | null
         }
         Relationships: []
       }
@@ -1353,6 +3060,108 @@ export type Database = {
             columns: ["call_session_id"]
             isOneToOne: false
             referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_relationships: {
+        Row: {
+          account_id: string
+          contact_frequency: string | null
+          conversation_topics: string[] | null
+          created_at: string
+          death_mentioned_at: string | null
+          distance_category: string | null
+          emotional_significance: string | null
+          grief_sensitivity: string | null
+          id: string
+          is_deceased: boolean | null
+          last_contact_mentioned: string | null
+          last_mentioned_at: string | null
+          line_id: string
+          location: string | null
+          name: string
+          nickname: string | null
+          passed_at: string | null
+          privacy_scope: string | null
+          recent_topics: string[] | null
+          relation_role: string
+          relation_type: string
+          sentiment: string | null
+          shared_activities: string[] | null
+          times_mentioned: number | null
+          typical_contact_method: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          contact_frequency?: string | null
+          conversation_topics?: string[] | null
+          created_at?: string
+          death_mentioned_at?: string | null
+          distance_category?: string | null
+          emotional_significance?: string | null
+          grief_sensitivity?: string | null
+          id?: string
+          is_deceased?: boolean | null
+          last_contact_mentioned?: string | null
+          last_mentioned_at?: string | null
+          line_id: string
+          location?: string | null
+          name: string
+          nickname?: string | null
+          passed_at?: string | null
+          privacy_scope?: string | null
+          recent_topics?: string[] | null
+          relation_role: string
+          relation_type: string
+          sentiment?: string | null
+          shared_activities?: string[] | null
+          times_mentioned?: number | null
+          typical_contact_method?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          contact_frequency?: string | null
+          conversation_topics?: string[] | null
+          created_at?: string
+          death_mentioned_at?: string | null
+          distance_category?: string | null
+          emotional_significance?: string | null
+          grief_sensitivity?: string | null
+          id?: string
+          is_deceased?: boolean | null
+          last_contact_mentioned?: string | null
+          last_mentioned_at?: string | null
+          line_id?: string
+          location?: string | null
+          name?: string
+          nickname?: string | null
+          passed_at?: string | null
+          privacy_scope?: string | null
+          recent_topics?: string[] | null
+          relation_role?: string
+          relation_type?: string
+          sentiment?: string | null
+          shared_activities?: string[] | null
+          times_mentioned?: number | null
+          typical_contact_method?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_relationships_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_relationships_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
             referencedColumns: ["id"]
           },
         ]
@@ -1439,11 +3248,11 @@ export type Database = {
           is_recurring: boolean
           last_delivery_status: string | null
           line_id: string
+          message: string | null
           message_alg: string | null
           message_ciphertext: string | null
           message_iv: string | null
           message_kid: string | null
-          message: string | null
           message_tag: string | null
           occurrence_count: number
           original_due_at: string | null
@@ -1452,6 +3261,7 @@ export type Database = {
           processing_claimed_at: string | null
           processing_claimed_by: string | null
           rrule: string | null
+          search_tokens: string[] | null
           snoozed_until: string | null
           status: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day: string | null
@@ -1473,11 +3283,11 @@ export type Database = {
           is_recurring?: boolean
           last_delivery_status?: string | null
           line_id: string
+          message?: string | null
           message_alg?: string | null
           message_ciphertext?: string | null
           message_iv?: string | null
           message_kid?: string | null
-          message?: string | null
           message_tag?: string | null
           occurrence_count?: number
           original_due_at?: string | null
@@ -1486,6 +3296,7 @@ export type Database = {
           processing_claimed_at?: string | null
           processing_claimed_by?: string | null
           rrule?: string | null
+          search_tokens?: string[] | null
           snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day?: string | null
@@ -1507,11 +3318,11 @@ export type Database = {
           is_recurring?: boolean
           last_delivery_status?: string | null
           line_id?: string
+          message?: string | null
           message_alg?: string | null
           message_ciphertext?: string | null
           message_iv?: string | null
           message_kid?: string | null
-          message?: string | null
           message_tag?: string | null
           occurrence_count?: number
           original_due_at?: string | null
@@ -1520,6 +3331,7 @@ export type Database = {
           processing_claimed_at?: string | null
           processing_claimed_by?: string | null
           rrule?: string | null
+          search_tokens?: string[] | null
           snoozed_until?: string | null
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day?: string | null
@@ -1554,6 +3366,10 @@ export type Database = {
           account_id: string
           action_taken: string | null
           call_session_id: string | null
+          category:
+            | Database["public"]["Enums"]["ultaura_safety_category"]
+            | null
+          confidence: number | null
           created_at: string
           id: string
           line_id: string
@@ -1564,6 +3380,10 @@ export type Database = {
           account_id: string
           action_taken?: string | null
           call_session_id?: string | null
+          category?:
+            | Database["public"]["Enums"]["ultaura_safety_category"]
+            | null
+          confidence?: number | null
           created_at?: string
           id?: string
           line_id: string
@@ -1574,6 +3394,10 @@ export type Database = {
           account_id?: string
           action_taken?: string | null
           call_session_id?: string | null
+          category?:
+            | Database["public"]["Enums"]["ultaura_safety_category"]
+            | null
+          confidence?: number | null
           created_at?: string
           id?: string
           line_id?: string
@@ -1600,6 +3424,152 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_schedule_events: {
+        Row: {
+          account_id: string
+          call_session_id: string | null
+          created_at: string
+          event_type: Database["public"]["Enums"]["ultaura_schedule_event_type"]
+          id: string
+          line_id: string
+          metadata: Json | null
+          schedule_id: string
+          triggered_by: Database["public"]["Enums"]["ultaura_schedule_triggered_by"]
+        }
+        Insert: {
+          account_id: string
+          call_session_id?: string | null
+          created_at?: string
+          event_type: Database["public"]["Enums"]["ultaura_schedule_event_type"]
+          id?: string
+          line_id: string
+          metadata?: Json | null
+          schedule_id: string
+          triggered_by: Database["public"]["Enums"]["ultaura_schedule_triggered_by"]
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string | null
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["ultaura_schedule_event_type"]
+          id?: string
+          line_id?: string
+          metadata?: Json | null
+          schedule_id?: string
+          triggered_by?: Database["public"]["Enums"]["ultaura_schedule_triggered_by"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_schedule_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_events_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_events_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_events_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_schedule_exceptions: {
+        Row: {
+          account_id: string
+          call_session_id: string | null
+          created_at: string
+          created_by: string
+          exception_date: string
+          exception_type: Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          id: string
+          line_id: string
+          metadata: Json | null
+          new_datetime: string | null
+          reschedule_schedule_id: string | null
+          schedule_id: string
+        }
+        Insert: {
+          account_id: string
+          call_session_id?: string | null
+          created_at?: string
+          created_by: string
+          exception_date: string
+          exception_type: Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          id?: string
+          line_id: string
+          metadata?: Json | null
+          new_datetime?: string | null
+          reschedule_schedule_id?: string | null
+          schedule_id: string
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string | null
+          created_at?: string
+          created_by?: string
+          exception_date?: string
+          exception_type?: Database["public"]["Enums"]["ultaura_schedule_exception_type"]
+          id?: string
+          line_id?: string
+          metadata?: Json | null
+          new_datetime?: string | null
+          reschedule_schedule_id?: string | null
+          schedule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_reschedule_schedule_id_fkey"
+            columns: ["reschedule_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_schedule_exceptions_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_schedules"
             referencedColumns: ["id"]
           },
         ]
@@ -1638,6 +3608,7 @@ export type Database = {
           days_of_week: number[]
           enabled: boolean
           id: string
+          is_one_time: boolean
           last_result:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -1657,6 +3628,7 @@ export type Database = {
           days_of_week?: number[]
           enabled?: boolean
           id?: string
+          is_one_time?: boolean
           last_result?:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -1676,6 +3648,7 @@ export type Database = {
           days_of_week?: number[]
           enabled?: boolean
           id?: string
+          is_one_time?: boolean
           last_result?:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -1699,6 +3672,172 @@ export type Database = {
           },
           {
             foreignKeyName: "ultaura_schedules_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_segment_engagement: {
+        Row: {
+          account_id: string
+          call_session_id: string
+          completed: boolean
+          created_at: string
+          duration_seconds: number | null
+          engagement_signals: Json | null
+          id: string
+          line_id: string
+          segment_context: Json | null
+          segment_domain: string | null
+          segment_type: string
+          senior_response: string | null
+        }
+        Insert: {
+          account_id: string
+          call_session_id: string
+          completed?: boolean
+          created_at?: string
+          duration_seconds?: number | null
+          engagement_signals?: Json | null
+          id?: string
+          line_id: string
+          segment_context?: Json | null
+          segment_domain?: string | null
+          segment_type: string
+          senior_response?: string | null
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string
+          completed?: boolean
+          created_at?: string
+          duration_seconds?: number | null
+          engagement_signals?: Json | null
+          id?: string
+          line_id?: string
+          segment_context?: Json | null
+          segment_domain?: string | null
+          segment_type?: string
+          senior_response?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_segment_engagement_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_segment_engagement_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_segment_engagement_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_sms_opt_outs: {
+        Row: {
+          created_at: string
+          id: string
+          keyword: string | null
+          phone_e164: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          keyword?: string | null
+          phone_e164: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          keyword?: string | null
+          phone_e164?: string
+          source?: string
+        }
+        Relationships: []
+      }
+      ultaura_story_arcs: {
+        Row: {
+          account_id: string
+          created_at: string
+          current_chapter: number
+          description: string | null
+          engagement_score: number | null
+          era_setting: string | null
+          id: string
+          last_chapter_at: string | null
+          line_id: string
+          personalization_context: Json | null
+          status: string
+          story_state: Json
+          story_type: string
+          themes: string[] | null
+          title: string
+          total_chapters: number
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          current_chapter?: number
+          description?: string | null
+          engagement_score?: number | null
+          era_setting?: string | null
+          id?: string
+          last_chapter_at?: string | null
+          line_id: string
+          personalization_context?: Json | null
+          status?: string
+          story_state?: Json
+          story_type: string
+          themes?: string[] | null
+          title: string
+          total_chapters?: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          current_chapter?: number
+          description?: string | null
+          engagement_score?: number | null
+          era_setting?: string | null
+          id?: string
+          last_chapter_at?: string | null
+          line_id?: string
+          personalization_context?: Json | null
+          status?: string
+          story_state?: Json
+          story_type?: string
+          themes?: string[] | null
+          title?: string
+          total_chapters?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_story_arcs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_story_arcs_line_id_fkey"
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
@@ -1786,6 +3925,77 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      ultaura_topic_exclusions: {
+        Row: {
+          account_id: string
+          category: Database["public"]["Enums"]["ultaura_exclusion_category"]
+          created_at: string
+          excluded: boolean
+          excluded_at: string | null
+          excluded_call_session_id: string | null
+          id: string
+          line_id: string
+          reincluded_at: string | null
+          reincluded_call_session_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          category: Database["public"]["Enums"]["ultaura_exclusion_category"]
+          created_at?: string
+          excluded?: boolean
+          excluded_at?: string | null
+          excluded_call_session_id?: string | null
+          id?: string
+          line_id: string
+          reincluded_at?: string | null
+          reincluded_call_session_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          category?: Database["public"]["Enums"]["ultaura_exclusion_category"]
+          created_at?: string
+          excluded?: boolean
+          excluded_at?: string | null
+          excluded_call_session_id?: string | null
+          id?: string
+          line_id?: string
+          reincluded_at?: string | null
+          reincluded_call_session_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_topic_exclusions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_topic_exclusions_excluded_call_session_id_fkey"
+            columns: ["excluded_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_topic_exclusions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_topic_exclusions_reincluded_call_session_id_fkey"
+            columns: ["reincluded_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ultaura_trusted_contacts: {
         Row: {
@@ -1898,6 +4108,76 @@ export type Database = {
           },
         ]
       }
+      ultaura_wellness_alerts: {
+        Row: {
+          account_id: string
+          acknowledged_at: string | null
+          acknowledged_by_user_id: string | null
+          alert_type: string
+          created_at: string
+          delivered_at: string | null
+          delivery_method: string
+          id: string
+          line_id: string
+          severity: string
+          source_call_session_id: string | null
+          summary: string
+          title: string
+        }
+        Insert: {
+          account_id: string
+          acknowledged_at?: string | null
+          acknowledged_by_user_id?: string | null
+          alert_type: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_method: string
+          id?: string
+          line_id: string
+          severity: string
+          source_call_session_id?: string | null
+          summary: string
+          title: string
+        }
+        Update: {
+          account_id?: string
+          acknowledged_at?: string | null
+          acknowledged_by_user_id?: string | null
+          alert_type?: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_method?: string
+          id?: string
+          line_id?: string
+          severity?: string
+          source_call_session_id?: string | null
+          summary?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_wellness_alerts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_wellness_alerts_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_wellness_alerts_source_call_session_id_fkey"
+            columns: ["source_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -1931,7 +4211,24 @@ export type Database = {
         Args: { invite_code: string; invite_user_id: string }
         Returns: Json
       }
+      apply_memory_decay: {
+        Args: { p_decay_rate?: number; p_line_id: string; p_threshold?: number }
+        Returns: number
+      }
       assert_service_role: { Args: never; Returns: undefined }
+      calculate_memory_decay: {
+        Args: { p_decay_rate?: number; p_line_id: string; p_threshold?: number }
+        Returns: {
+          memory_id: string
+          new_confidence: number
+          old_confidence: number
+          should_exclude: boolean
+        }[]
+      }
+      can_access_self_account: {
+        Args: { account_id: string }
+        Returns: boolean
+      }
       can_access_ultaura_account: {
         Args: { account_id: string }
         Returns: boolean
@@ -1942,6 +4239,18 @@ export type Database = {
             Args: { membership_id: number; organization_id: number }
             Returns: boolean
           }
+      categorize_memory_topic: {
+        Args: {
+          p_key: string
+          p_type: Database["public"]["Enums"]["ultaura_memory_type"]
+          p_value: string
+        }
+        Returns: Database["public"]["Enums"]["ultaura_exclusion_category"]
+      }
+      check_newsletter_rate_limit: {
+        Args: { p_ip: string; p_window_start: string }
+        Returns: number
+      }
       claim_due_reminders: {
         Args: {
           p_batch_size?: number
@@ -1964,7 +4273,12 @@ export type Database = {
           is_recurring: boolean
           last_delivery_status: string | null
           line_id: string
-          message: string
+          message: string | null
+          message_alg: string | null
+          message_ciphertext: string | null
+          message_iv: string | null
+          message_kid: string | null
+          message_tag: string | null
           occurrence_count: number
           original_due_at: string | null
           paused_at: string | null
@@ -1972,6 +4286,7 @@ export type Database = {
           processing_claimed_at: string | null
           processing_claimed_by: string | null
           rrule: string | null
+          search_tokens: string[] | null
           snoozed_until: string | null
           status: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day: string | null
@@ -1996,6 +4311,7 @@ export type Database = {
           days_of_week: number[]
           enabled: boolean
           id: string
+          is_one_time: boolean
           last_result:
             | Database["public"]["Enums"]["ultaura_schedule_result"]
             | null
@@ -2015,6 +4331,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      cleanup_account_retention: {
+        Args: { p_account_id: string }
+        Returns: Json
       }
       cleanup_old_rate_limit_events: { Args: never; Returns: undefined }
       complete_reminder_processing: {
@@ -2048,10 +4368,16 @@ export type Database = {
         Args: { organization_id: number }
         Returns: boolean
       }
+      delete_ultaura_memories_for_key: {
+        Args: { p_account_id: string; p_key: string; p_line_id: string }
+        Returns: number
+      }
+      get_effective_plan_id: { Args: { p_account_id: string }; Returns: string }
       get_organizations_for_authenticated_user: {
         Args: never
         Returns: number[]
       }
+      get_retention_cutoff: { Args: { p_account_id: string }; Returns: string }
       get_role_for_authenticated_user: {
         Args: { org_id: number }
         Returns: number
@@ -2065,8 +4391,8 @@ export type Database = {
       get_ultaura_total_usage: {
         Args: { p_account_id: string }
         Returns: {
-          total_minutes: number
           total_cost_cents: number
+          total_minutes: number
         }[]
       }
       get_ultaura_usage_summary: {
@@ -2096,9 +4422,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      install_extensions: { Args: never; Returns: undefined }
+      is_line_on_vacation: { Args: { p_line_id: string }; Returns: boolean }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }
         Returns: boolean
+      }
+      mark_memory_accessed: {
+        Args: { p_memory_id: string }
+        Returns: undefined
       }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
@@ -2122,10 +4454,32 @@ export type Database = {
           similarity: number
         }[]
       }
+      match_memories_semantic: {
+        Args: {
+          p_line_id: string
+          p_match_count?: number
+          p_min_confidence?: number
+          p_query_embedding: string
+          p_similarity_threshold?: number
+        }
+        Returns: {
+          memory_id: string
+          memory_key: string
+          memory_type: Database["public"]["Enums"]["ultaura_memory_type"]
+          searchable_text: string
+          similarity: number
+        }[]
+      }
+      pin_memory: {
+        Args: { p_memory_id: string; p_reason: string }
+        Returns: undefined
+      }
+      prune_newsletter_operational_data: { Args: never; Returns: undefined }
       release_scheduler_lease: {
         Args: { p_lease_id: string; p_worker_id: string }
         Returns: boolean
       }
+      run_retention_cleanup: { Args: never; Returns: Json }
       transfer_organization: {
         Args: { org_id: number; target_user_membership_id: number }
         Returns: undefined
@@ -2142,6 +4496,54 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: undefined
       }
+      upsert_ultaura_memory:
+        | {
+            Args: {
+              p_account_id: string
+              p_confidence: number
+              p_key: string
+              p_line_id: string
+              p_memory_id: string
+              p_privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
+              p_redaction_level: string
+              p_source: string
+              p_type: Database["public"]["Enums"]["ultaura_memory_type"]
+              p_value_alg: string
+              p_value_ciphertext: string
+              p_value_iv: string
+              p_value_kid: string
+              p_value_tag: string
+            }
+            Returns: {
+              action: string
+              memory_id: string
+              version: number
+            }[]
+          }
+        | {
+            Args: {
+              p_account_id: string
+              p_confidence: number
+              p_created_in_call_session_id?: string
+              p_key: string
+              p_line_id: string
+              p_memory_id: string
+              p_privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
+              p_redaction_level: string
+              p_source: string
+              p_type: Database["public"]["Enums"]["ultaura_memory_type"]
+              p_value_alg: string
+              p_value_ciphertext: string
+              p_value_iv: string
+              p_value_kid: string
+              p_value_tag: string
+            }
+            Returns: {
+              action: string
+              memory_id: string
+              version: number
+            }[]
+          }
     }
     Enums: {
       feedback_type: "question" | "bug" | "feedback"
@@ -2171,11 +4573,54 @@ export type Database = {
         | "completed"
         | "failed"
         | "canceled"
+      ultaura_consent_audit_action:
+        | "granted"
+        | "revoked"
+        | "updated"
+        | "voice_consent_given"
+        | "voice_consent_denied"
+        | "retention_changed"
+        | "recording_toggled"
+        | "summarization_toggled"
+        | "vendor_acknowledged"
+        | "data_export_requested"
+        | "data_deletion_requested"
+        | "memory_hard_deleted"
+        | "recording_consent_updated"
+        | "sharing_consent_updated"
+        | "sharing_enabled_by_self_user"
+        | "onboarding_completed"
+        | "consent_incomplete_retry"
+        | "insights_enabled_changed"
+        | "pause_mode_changed"
+        | "insights_reprompt_requested"
+        | "recording_reenable_requested"
       ultaura_consent_type:
         | "outbound_calls"
         | "trusted_contact_notify"
         | "sms_to_payer"
         | "data_retention"
+        | "audio_processing"
+        | "recording"
+      ultaura_deactivation_reason:
+        | "user_request"
+        | "user_request_bulk"
+        | "decay"
+        | "topic_exclusion"
+        | "temporal_expiry"
+        | "payer_deletion"
+      ultaura_exclusion_category:
+        | "health_medical"
+        | "family_relationships"
+        | "finances"
+        | "location_address"
+      ultaura_export_format: "json" | "csv"
+      ultaura_export_status:
+        | "pending"
+        | "processing"
+        | "ready"
+        | "expired"
+        | "failed"
       ultaura_line_status: "active" | "paused" | "disabled"
       ultaura_memory_type:
         | "fact"
@@ -2184,15 +4629,47 @@ export type Database = {
         | "context"
         | "history"
         | "wellbeing"
+        | "relationship"
+        | "temporal"
+        | "routine"
       ultaura_opt_out_channel: "outbound_calls" | "sms" | "all"
       ultaura_privacy_scope: "line_only" | "shareable_with_payer"
       ultaura_reminder_status: "scheduled" | "sent" | "missed" | "canceled"
+      ultaura_retention_period:
+        | "30_days"
+        | "90_days"
+        | "365_days"
+        | "indefinite"
+      ultaura_safety_category:
+        | "SUICIDAL_IDEATION"
+        | "SELF_HARM"
+        | "HOPELESSNESS"
+        | "ISOLATION_DISTRESS"
+        | "PHYSICAL_DANGER"
+        | "MEDICAL_EMERGENCY"
+        | "ABUSE_CONCERN"
+        | "COGNITIVE_DECLINE"
+        | "GENERAL_CONCERN"
       ultaura_safety_tier: "low" | "medium" | "high"
+      ultaura_schedule_event_type:
+        | "created"
+        | "edited"
+        | "enabled"
+        | "disabled"
+        | "exception_added"
+        | "exception_removed"
+        | "vacation_started"
+        | "vacation_ended"
+      ultaura_schedule_exception_type: "skip" | "snooze" | "reschedule"
       ultaura_schedule_result:
         | "success"
         | "missed"
         | "suppressed_quiet_hours"
         | "failed"
+        | "skipped"
+        | "suppressed_vacation"
+      ultaura_schedule_triggered_by: "dashboard" | "voice" | "system"
+      ultaura_voice_consent_status: "pending" | "granted" | "denied"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2709,26 +5186,44 @@ export type Database = {
         Returns: undefined
       }
       operation: { Args: never; Returns: string }
-      search: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
+      search:
+        | {
+            Args: {
+              bucketname: string
+              levels?: number
+              limits?: number
+              offsets?: number
+              prefix: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              last_accessed_at: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
+        | {
+            Args: {
+              bucketname: string
+              levels?: number
+              limits?: number
+              offsets?: number
+              prefix: string
+              search?: string
+              sortcolumn?: string
+              sortorder?: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              last_accessed_at: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
       search_legacy_v1: {
         Args: {
           bucketname: string
@@ -2769,27 +5264,45 @@ export type Database = {
           updated_at: string
         }[]
       }
-      search_v2: {
-        Args: {
-          bucket_name: string
-          levels?: number
-          limits?: number
-          prefix: string
-          sort_column?: string
-          sort_column_after?: string
-          sort_order?: string
-          start_after?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          key: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
+      search_v2:
+        | {
+            Args: {
+              bucket_name: string
+              levels?: number
+              limits?: number
+              prefix: string
+              start_after?: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              key: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
+        | {
+            Args: {
+              bucket_name: string
+              levels?: number
+              limits?: number
+              prefix: string
+              sort_column?: string
+              sort_column_after?: string
+              sort_order?: string
+              start_after?: string
+            }
+            Returns: {
+              created_at: string
+              id: string
+              key: string
+              last_accessed_at: string
+              metadata: Json
+              name: string
+              updated_at: string
+            }[]
+          }
     }
     Enums: {
       buckettype: "STANDARD" | "ANALYTICS" | "VECTOR"
@@ -2953,11 +5466,58 @@ export const Constants = {
         "failed",
         "canceled",
       ],
+      ultaura_consent_audit_action: [
+        "granted",
+        "revoked",
+        "updated",
+        "voice_consent_given",
+        "voice_consent_denied",
+        "retention_changed",
+        "recording_toggled",
+        "summarization_toggled",
+        "vendor_acknowledged",
+        "data_export_requested",
+        "data_deletion_requested",
+        "memory_hard_deleted",
+        "recording_consent_updated",
+        "sharing_consent_updated",
+        "sharing_enabled_by_self_user",
+        "onboarding_completed",
+        "consent_incomplete_retry",
+        "insights_enabled_changed",
+        "pause_mode_changed",
+        "insights_reprompt_requested",
+        "recording_reenable_requested",
+      ],
       ultaura_consent_type: [
         "outbound_calls",
         "trusted_contact_notify",
         "sms_to_payer",
         "data_retention",
+        "audio_processing",
+        "recording",
+      ],
+      ultaura_deactivation_reason: [
+        "user_request",
+        "user_request_bulk",
+        "decay",
+        "topic_exclusion",
+        "temporal_expiry",
+        "payer_deletion",
+      ],
+      ultaura_exclusion_category: [
+        "health_medical",
+        "family_relationships",
+        "finances",
+        "location_address",
+      ],
+      ultaura_export_format: ["json", "csv"],
+      ultaura_export_status: [
+        "pending",
+        "processing",
+        "ready",
+        "expired",
+        "failed",
       ],
       ultaura_line_status: ["active", "paused", "disabled"],
       ultaura_memory_type: [
@@ -2967,17 +5527,52 @@ export const Constants = {
         "context",
         "history",
         "wellbeing",
+        "relationship",
+        "temporal",
+        "routine",
       ],
       ultaura_opt_out_channel: ["outbound_calls", "sms", "all"],
       ultaura_privacy_scope: ["line_only", "shareable_with_payer"],
       ultaura_reminder_status: ["scheduled", "sent", "missed", "canceled"],
+      ultaura_retention_period: [
+        "30_days",
+        "90_days",
+        "365_days",
+        "indefinite",
+      ],
+      ultaura_safety_category: [
+        "SUICIDAL_IDEATION",
+        "SELF_HARM",
+        "HOPELESSNESS",
+        "ISOLATION_DISTRESS",
+        "PHYSICAL_DANGER",
+        "MEDICAL_EMERGENCY",
+        "ABUSE_CONCERN",
+        "COGNITIVE_DECLINE",
+        "GENERAL_CONCERN",
+      ],
       ultaura_safety_tier: ["low", "medium", "high"],
+      ultaura_schedule_event_type: [
+        "created",
+        "edited",
+        "enabled",
+        "disabled",
+        "exception_added",
+        "exception_removed",
+        "vacation_started",
+        "vacation_ended",
+      ],
+      ultaura_schedule_exception_type: ["skip", "snooze", "reschedule"],
       ultaura_schedule_result: [
         "success",
         "missed",
         "suppressed_quiet_hours",
         "failed",
+        "skipped",
+        "suppressed_vacation",
       ],
+      ultaura_schedule_triggered_by: ["dashboard", "voice", "system"],
+      ultaura_voice_consent_status: ["pending", "granted", "denied"],
     },
   },
   storage: {
@@ -2986,3 +5581,4 @@ export const Constants = {
     },
   },
 } as const
+

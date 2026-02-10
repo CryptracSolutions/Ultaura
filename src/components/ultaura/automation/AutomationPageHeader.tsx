@@ -10,6 +10,8 @@ interface AutomationPageHeaderProps {
   ctaLabel?: string;
   onCtaClick?: () => void;
   disabled?: boolean;
+  ctaDisabled?: boolean;
+  ctaDisabledReason?: string;
 }
 
 export function AutomationPageHeader({
@@ -19,7 +21,12 @@ export function AutomationPageHeader({
   ctaLabel,
   onCtaClick,
   disabled,
+  ctaDisabled = false,
+  ctaDisabledReason,
 }: AutomationPageHeaderProps) {
+  const showCta = Boolean(ctaLabel && onCtaClick && !disabled);
+  const showCtaDisabledReason = showCta && ctaDisabled && Boolean(ctaDisabledReason);
+
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex items-start gap-4">
@@ -33,16 +40,27 @@ export function AutomationPageHeader({
         </div>
       </div>
 
-      {ctaLabel && onCtaClick && !disabled && (
-        <Button
-          onClick={onCtaClick}
-          variant="default"
-          size="small"
-          className="w-full sm:w-auto gap-1"
-        >
-          <Plus className="w-3 h-3" />
-          {ctaLabel}
-        </Button>
+      {showCta && (
+        <div className="w-full sm:w-auto sm:text-right">
+          <span
+            className="inline-block w-full sm:w-auto"
+            title={showCtaDisabledReason ? ctaDisabledReason : undefined}
+          >
+            <Button
+              onClick={onCtaClick}
+              variant="default"
+              size="small"
+              className="w-full sm:w-auto gap-1"
+              disabled={ctaDisabled}
+            >
+              <Plus className="w-3 h-3" />
+              {ctaLabel}
+            </Button>
+          </span>
+          {showCtaDisabledReason ? (
+            <p className="mt-2 text-xs text-muted-foreground">{ctaDisabledReason}</p>
+          ) : null}
+        </div>
       )}
     </div>
   );

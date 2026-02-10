@@ -76,6 +76,8 @@ function formatRecurrence(reminder: ReminderRow): string {
 interface RemindersClientProps {
   line: LineRow;
   reminders: ReminderRow[];
+  reminderLimit: number | null;
+  activeReminderCount: number;
   disabled?: boolean;
 }
 
@@ -86,7 +88,13 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: 'Canceled',
 };
 
-export function RemindersClient({ line, reminders, disabled = false }: RemindersClientProps) {
+export function RemindersClient({
+  line,
+  reminders,
+  reminderLimit,
+  activeReminderCount,
+  disabled = false,
+}: RemindersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -114,6 +122,23 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
 
   const handleCloseCreateModal = () => {
     setShowCreateModal(false);
+  };
+
+  const hasReminderLimit = reminderLimit !== null;
+  const isAtLimit = hasReminderLimit && activeReminderCount >= reminderLimit;
+  const reminderUsageLabel = hasReminderLimit
+    ? `${activeReminderCount} of ${reminderLimit} reminders`
+    : null;
+  const limitReachedMessage = isAtLimit
+    ? 'Limit reached. Cancel reminders or upgrade.'
+    : undefined;
+  const emptyStateDescription = hasReminderLimit
+    ? `Create reminders for medication, appointments, or any important tasks. Each reminder uses about 1 minute. Your plan allows ${reminderLimit} per line.`
+    : 'Create reminders for medication, appointments, or any important tasks. Each reminder uses about 1 minute.';
+
+  const handleOpenCreateModal = () => {
+    if (disabled || isAtLimit) return;
+    setShowCreateModal(true);
   };
 
   const discardEditChanges = () => {
@@ -420,10 +445,17 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
       <AutomationPageHeader
         icon={Bell}
         title="Reminders"
-        subtitle={`Set up reminders for ${line.display_name} at ${formatPhone(line.phone_e164)}`}
+        subtitle={[
+          `Set up reminders for ${line.display_name} at ${formatPhone(line.phone_e164)}`,
+          reminderUsageLabel,
+        ]
+          .filter(Boolean)
+          .join(' \u2022 ')}
         ctaLabel="New Reminder"
-        onCtaClick={() => setShowCreateModal(true)}
+        onCtaClick={handleOpenCreateModal}
         disabled={disabled}
+        ctaDisabled={isAtLimit}
+        ctaDisabledReason={limitReachedMessage}
       />
 
       {error && (
@@ -488,10 +520,12 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
         <AutomationEmptyState
           icon={Bell}
           title="No reminders yet"
-          description="Create reminders for medication, appointments, or any important tasks. Each reminder call uses 1 minute."
+          description={emptyStateDescription}
           ctaLabel="Create First Reminder"
-          onCtaClick={() => setShowCreateModal(true)}
+          onCtaClick={handleOpenCreateModal}
           disabled={disabled}
+          ctaDisabled={isAtLimit}
+          ctaDisabledReason={limitReachedMessage}
         />
       )}
 
@@ -662,4 +696,3 @@ export function RemindersClient({ line, reminders, disabled = false }: Reminders
     </div>
   );
 }
-

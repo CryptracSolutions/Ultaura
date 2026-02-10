@@ -32,6 +32,20 @@ const logger = getLogger();
 
 const OFFSET_REGEX = /[zZ]|[+-]\d{2}:\d{2}$/;
 const DECRYPTION_PLACEHOLDER = '[Unable to decrypt reminder]';
+const REMINDER_LIMIT_ERROR_PREFIX = 'REMINDER_LIMIT_REACHED';
+const REMINDER_LIMIT_ERROR_MESSAGE = 'Reminder limit reached for this line. Cancel existing reminders or upgrade your plan.';
+
+type DatabaseMutationError = {
+  code?: string | null;
+  message?: string | null;
+} | null | undefined;
+
+function isReminderLimitReachedError(error: DatabaseMutationError): boolean {
+  if (!error) return false;
+  if (error.code === 'U0001') return true;
+  return typeof error.message === 'string'
+    && error.message.startsWith(REMINDER_LIMIT_ERROR_PREFIX);
+}
 
 type ReminderRowWithEncryption = ReminderRow & {
   message_ciphertext?: string | null;
@@ -394,7 +408,7 @@ const createReminderWithTrial = withTrialCheck(async (
   };
 
   let reminder: ReminderRowWithEncryption | null = null;
-  let error: { code?: string } | null = null;
+  let error: { code?: string; message?: string } | null = null;
 
   ({ data: reminder, error } = await client
     .from('ultaura_reminders')
@@ -412,6 +426,13 @@ const createReminderWithTrial = withTrialCheck(async (
       })
       .select()
       .single());
+  }
+
+  if (isReminderLimitReachedError(error)) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.REMINDER_LIMIT_REACHED, REMINDER_LIMIT_ERROR_MESSAGE),
+    };
   }
 
   if (error) {
@@ -1148,6 +1169,13 @@ export async function editReminder(
           message: legacyPlaintextMessage,
         })
         .eq('id', inputData.reminder.id));
+    }
+
+    if (isReminderLimitReachedError(error as { code?: string; message?: string } | null)) {
+      return {
+        success: false,
+        error: createError(ErrorCodes.REMINDER_LIMIT_REACHED, REMINDER_LIMIT_ERROR_MESSAGE),
+      };
     }
 
     if (error) {

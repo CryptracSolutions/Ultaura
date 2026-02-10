@@ -132,7 +132,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'reminders',
         question: 'What are reminders and how do they work?',
         answer:
-          'Reminders are messages Ultaura will mention during calls, like medication times, appointments, or birthdays. You can set one-time or recurring reminders, and pause, snooze, or skip them as needed.',
+          'Reminders are messages Ultaura will mention during calls, like medication times, appointments, or birthdays. You can set one-time or recurring reminders, and pause, snooze, or skip them as needed. Reminder limits are plan-based: Free Trial and Care include up to 3 reminders per line, Comfort includes up to 10 reminders per line, and Family plus Pay As You Go include unlimited reminders.',
       },
       {
         id: 'insights',
@@ -237,13 +237,13 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'free-trial',
         question: 'Is there a free trial?',
         answer:
-          'Yes, we offer a free trial with unlimited minutes over 3 days. No credit card required to start. This gives you and your loved one time to experience Ultaura before committing to a plan.',
+          'Yes, we offer a free trial with 20 minutes over 3 days. No credit card required to start. This gives you and your loved one time to experience Ultaura before committing to a plan.',
       },
       {
         id: 'usage-counting',
         question: 'What counts as usage?',
         answer:
-          'Usage is counted in minutes of actual call time. Minutes are pooled across all lines on your account. Only connected call time counts; there\'s no charge for calls that go unanswered or reach voicemail.',
+          'Usage is counted in minutes of actual call time. Minutes are pooled across all lines on your account. Only connected call time counts; there\'s no charge for calls that go unanswered or reach voicemail. Most reminder calls use about 1 minute.',
       },
       {
         id: 'overage',

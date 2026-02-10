@@ -22,6 +22,17 @@ import { enforceSessionLineMatch, formatReminderSchedule } from './reminder-tool
 export const setReminderRouter = Router();
 
 type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
+type SupabaseError = { code?: string; message?: string; details?: string } | null;
+
+const REMINDER_LIMIT_ERROR_PREFIX = 'REMINDER_LIMIT_REACHED';
+const REMINDER_LIMIT_ERROR_MESSAGE = "You've reached the reminder limit for this line. Ask your caregiver to cancel existing reminders or upgrade the plan.";
+
+function isReminderLimitReachedError(error: SupabaseError): boolean {
+  if (!error) return false;
+  if (error.code === 'U0001') return true;
+  return typeof error.message === 'string'
+    && error.message.startsWith(REMINDER_LIMIT_ERROR_PREFIX);
+}
 
 /**
  * Build RRULE string and related fields from recurrence parameters.
@@ -190,7 +201,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     }
     if (!line.allow_voice_reminder_control) {
       await recordFailure('unauthorized');
-      res.json({
+      res.status(403).json({
         success: false,
         code: ErrorCodes.UNAUTHORIZED,
         message: "I'm sorry, but your caregiver has disabled reminder management by phone. Please ask them to make changes through the app.",
@@ -374,7 +385,6 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
     };
 
     type ReminderInsertRow = { id: string; due_at: string };
-    type SupabaseError = { code?: string; message: string; details?: string } | null;
 
     let reminder: ReminderInsertRow | null = null;
     let error: SupabaseError = null;
@@ -395,6 +405,16 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
         })
         .select()
         .single() as unknown as { data: ReminderInsertRow | null; error: SupabaseError });
+    }
+
+    if (isReminderLimitReachedError(error)) {
+      await recordFailure('plan_reminder_limit_exceeded');
+      res.status(403).json({
+        success: false,
+        code: ErrorCodes.REMINDER_LIMIT_REACHED,
+        message: REMINDER_LIMIT_ERROR_MESSAGE,
+      });
+      return;
     }
 
     if (error) {

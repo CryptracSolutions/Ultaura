@@ -103,6 +103,13 @@ export function CreateReminderForm({
         router.refresh();
         onSuccess();
       } else {
+        const errorCode = (result.error as { code?: string }).code;
+        if (errorCode === 'REMINDER_LIMIT_REACHED') {
+          const limitMessage = 'Reminder limit reached. Cancel one or upgrade your plan.';
+          setError(limitMessage);
+          toast.error(limitMessage);
+          return;
+        }
         setError(result.error.message || 'Failed to create reminder');
       }
     } catch {
