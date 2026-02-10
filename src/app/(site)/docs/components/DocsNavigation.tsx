@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDownIcon, Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, Bars3Icon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import classNames from 'clsx';
 
 import Link from 'next/link';
@@ -309,9 +309,20 @@ function FloatingDocumentationNavigation({
             ' flex flex-col space-y-4 overflow-auto bg-white dark:bg-background'
           }
         >
-          <Heading type={1} className="text-[1.575rem] leading-[1.2]">
-            Table of Contents
-          </Heading>
+          <div className="flex items-center justify-between gap-4">
+            <Heading type={1} className="text-[1.575rem] leading-[1.2]">
+              Table of Contents
+            </Heading>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-12 w-12 shrink-0 rounded-full text-primary hover:bg-transparent hover:text-primary"
+              aria-label="Close table of contents"
+              onClick={() => setIsVisible(false)}
+            >
+              <XMarkIcon className="h-6 w-6" aria-hidden />
+            </Button>
+          </div>
 
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

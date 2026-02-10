@@ -17,8 +17,6 @@ import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
 import { ReassuranceChecklist } from '~/app/(site)/components/ReassuranceChecklist';
 import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
-import NewsletterSection from '~/app/(site)/components/NewsletterSection';
-
 function Home() {
   return (
     <div className={'flex flex-col space-y-[0.055rem]'}>
@@ -133,8 +131,6 @@ function Home() {
       <ReassuranceChecklist />
 
       <Testimonials />
-
-      <NewsletterSection />
 
       {/* Pricing Section */}
       <section className="bg-surface-accent py-8">

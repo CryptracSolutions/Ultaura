@@ -4,15 +4,17 @@ import NewsletterForm from './NewsletterForm';
 
 interface InlineNewsletterCTAProps {
   source: string;
+  heading?: string;
 }
 
 export default function InlineNewsletterCTA({
   source,
+  heading = 'Get elder care tips in your inbox',
 }: InlineNewsletterCTAProps) {
   return (
     <div className="rounded-xl border border-border bg-surface-subtle p-6 my-8">
       <p className="text-lg font-semibold text-foreground">
-        Get elder care tips in your inbox
+        {heading}
       </p>
       <p className="text-sm text-muted-foreground mt-1">
         Weekly tips and updates, no spam.

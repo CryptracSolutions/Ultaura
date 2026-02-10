@@ -148,7 +148,7 @@ export function AudienceValueTabs() {
               </div>
 
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
                   <div className="space-y-3">
                     <h3 className="text-xs font-semibold text-muted-foreground">
                       Before
@@ -176,7 +176,7 @@ export function AudienceValueTabs() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
                   <div className="space-y-3">
                     <h3 className="text-xs font-semibold text-primary">
                       With Ultaura

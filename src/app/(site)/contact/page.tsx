@@ -25,7 +25,7 @@ function ContactPage() {
             Contact <GradientText>Ultaura</GradientText>
           </>
         }
-        subtitle="Tell us what you need and we'll get back to you quickly. We typically respond in under 2 hours."
+        subtitle="Tell us what you need and we'll get back to you quickly."
       >
         <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-6">
           <span>Response time: &lt; 2 hours</span>

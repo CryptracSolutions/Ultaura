@@ -7,11 +7,13 @@ import TextField from '~/core/ui/TextField';
 interface NewsletterFormProps {
   source: string;
   compact?: boolean;
+  hideRequiredIndicator?: boolean;
 }
 
 export default function NewsletterForm({
   source,
   compact,
+  hideRequiredIndicator = false,
 }: NewsletterFormProps) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -81,7 +83,7 @@ export default function NewsletterForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <TextField>
         <TextField.Label>
-          Email <span className="text-destructive">*</span>
+          Email {!hideRequiredIndicator && <span className="text-destructive">*</span>}
         </TextField.Label>
         <TextField.Input
           type="email"

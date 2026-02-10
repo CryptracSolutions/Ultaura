@@ -53,7 +53,7 @@ const Post: React.FCC<{
           <MDXRenderer code={content} />
         </article>
 
-        <InlineNewsletterCTA source="blog_post" />
+        <InlineNewsletterCTA source="blog_post" heading="Stay in the loop with us" />
 
         <AuthorCard />
         <ShareButtons title={post.title} url={post.url} />
