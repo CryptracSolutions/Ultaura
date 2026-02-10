@@ -31,11 +31,11 @@ export default function renderNewsletterWelcomeEmail(
       </Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
-        Welcome to the Ultaura newsletter! You're all set.
+        Welcome to the Ultaura newsletter! You&apos;re all set.
       </Text>
 
       <Text className="text-[14px] text-stone-700 mt-[14px] mb-0">
-        We'll keep you in the loop with updates from Ultaura.
+        We&apos;ll keep you in the loop with updates from Ultaura.
       </Text>
     </EmailLayout>
   );

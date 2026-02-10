@@ -49,7 +49,7 @@ export default function NewsletterForm({
   if (success) {
     return (
       <p className="text-sm text-primary font-medium">
-        You're subscribed! No email confirmation needed.
+        You&apos;re subscribed! No email confirmation needed.
       </p>
     );
   }
