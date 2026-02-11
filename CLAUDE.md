@@ -39,7 +39,8 @@ You MUST follow these steps IN ORDER:
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
 | 1 | Understand current state of codebase | Launch 3-5 `Explore` agents | **ALWAYS** |
-| 2 | Clarify requirements | `AskUserQuestion` | **ALWAYS** if **ANY** ambiguity or clarification needed |
+| 2 | Enter plan mode | `EnterPlanMode` | **ALWAYS**
+| 2 | Clarify requirements and interview user | `AskUserQuestion` | **ALWAYS** if **ANY** ambiguity or clarification needed |
 | 3 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
 | 4 | Spawn a team of implementation teammates | Launch 2-4 `Task` teammates using `Teammate` with `spawnTeam` | **ALWAYS** |
 | 5 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
@@ -50,7 +51,7 @@ You MUST follow these steps IN ORDER:
 
 ### Agent Teams Guidelines
 
-- **Always use `model: "opus"`** for all teammates and explore agents
+- **Always use `model: "opus"`** for ALL agent types
 - **Max 4 implementation/task teammates** in parallel (to avoid file conflicts)
 - **Max 6 explore agents** in parallel
 - **Use `SendMessage`** to coordinate — teammates can't hear your plain text
@@ -59,7 +60,46 @@ You MUST follow these steps IN ORDER:
 - **Use `TaskList`/`TaskUpdate`** as the shared coordination board
 - **Shutdown gracefully** — send `shutdown_request` to each teammate when done, then call `Teammate` cleanup
 
-### Code Simplification Pass (Step 9)
+### Auto-Invoke Skills (Critical & Non-negotiable)
+
+**ALWAYS** Automatically use the Skill tool to invoke these skills when the context matches:
+
+| Skill | Trigger When |
+|-------|--------------|
+| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
+| `remotion-best-practices` | Working with Remotion video code |
+| `copywriting` | Writing or improving marketing copy for pages |
+| `copy-editing` | Editing, reviewing, or proofreading existing copy |
+| `seo-audit` | Auditing SEO, diagnosing ranking issues |
+| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
+| `marketing-psychology` | Applying psychological principles to marketing |
+| `pricing-strategy` | Pricing decisions, packaging, monetization |
+| `page-cro` | Optimizing page conversions, CRO analysis |
+| `skill-creator` | Creating new skills for Claude Code or Codex |
+| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
+| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
+| `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
+
+### Plan Mode Guidance
+
+Use plan mode before delegating (`/plan` or EnterPlanMode) for:
+- Medium/Large (4+ files or 5+ steps)
+- New features touching multiple services (dashboard + telephony + database)
+- Database schema changes or new migrations
+- Changes to the call flow or Grok tool handlers
+- When user explicitly requests planning first
+
+### Task Tracking (Shared Task Board)
+
+You MUST create a task list using `TaskCreate` for **any work with 4+ steps**:
+- Group related tasks together
+- Use `TaskUpdate` with `owner` to assign tasks to specific teammates
+- Use `TaskUpdate` to mark tasks `in_progress` when starting, `completed` when done
+- Use `TaskList` to check progress and find next tasks
+- Teammates can claim and update their own tasks
+- The task board is the single source of truth — use `SendMessage` for real-time coordination on top of it
+
+### Code Simplification Pass (Step 8)
 
 After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
 
@@ -137,17 +177,6 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Accessibility Settings**: Hearing and cognitive support adaptations
 - **Privacy Center**: Consent management, data export, data deletion
 
-## Claude Code Sub-Agent Preferences
-
-When using the `Task` tool or spawning teammates via `Teammate`, always use `model: "opus"` for all agent types including:
-- Explore teammates
-- Plan agents
-- general-purpose implementation teammates
-- code-simplifier agents
-- Any other subagent types
-
-This ensures thorough analysis and higher quality reasoning for all automated tasks.
-
 ## Workflow Preferences
 
 > **See [MANDATORY: Delegation-First Workflow](#️-mandatory-delegation-first-workflow) above. This section contains supplementary guidance.**
@@ -179,16 +208,6 @@ Skip Chrome for:
 - Non-visual config changes
 - Database migrations
 
-### Task Tracking (Shared Task Board)
-
-You MUST create a task list using `TaskCreate` for **any work with 3+ steps**:
-- Group related tasks together
-- Use `TaskUpdate` with `owner` to assign tasks to specific teammates
-- Use `TaskUpdate` to mark tasks `in_progress` when starting, `completed` when done
-- Use `TaskList` to check progress and find next tasks
-- Teammates can claim and update their own tasks
-- The task board is the single source of truth — use `SendMessage` for real-time coordination on top of it
-
 ### Workflow Exceptions
 
 > **See "Exceptions" in the [MANDATORY: Delegation-First Workflow](#️-mandatory-delegation-first-workflow) section for the complete list.**
@@ -218,50 +237,12 @@ Document mistakes and patterns here. After Claude makes an error, have it update
 - Dashboard pages should use the existing layout components
 
 #### Common Mistakes
-- [ ] Forgetting to add new tables to the ARCHITECTURE.md reference
-- [ ] Not testing with both payer and line user_type accounts
-- [ ] Missing encryption for PII fields (use line/account encryption services)
-- [ ] DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($39/$99/$199) — `constants.ts` is the source of truth
+- Forgetting to add new tables to the ARCHITECTURE.md reference
+- Not testing with both payer and line user_type accounts
+- Missing encryption for PII fields (use line/account encryption services)
+- DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($39/$99/$199) — `constants.ts` is the source of truth
 
 *Add new lessons as they're discovered.*
-
-### Auto-Invoke Skills
-
-Automatically use the Skill tool to invoke these skills when the context matches:
-
-| Skill | Trigger When |
-|-------|--------------|
-| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
-| `remotion-best-practices` | Working with Remotion video code |
-| `better-auth-best-practices` | Implementing authentication with Better Auth |
-| `copywriting` | Writing or improving marketing copy for pages |
-| `copy-editing` | Editing, reviewing, or proofreading existing copy |
-| `seo-audit` | Auditing SEO, diagnosing ranking issues |
-| `programmatic-seo` | Building SEO pages at scale, template pages |
-| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
-| `marketing-psychology` | Applying psychological principles to marketing |
-| `pricing-strategy` | Pricing decisions, packaging, monetization |
-| `page-cro` | Optimizing page conversions, CRO analysis |
-| `skill-creator` | Creating new skills for Claude Code or Codex |
-| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
-| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
-
-### Plan Mode Guidance
-
-Use plan mode (`/plan` or EnterPlanMode) for:
-- Medium/Large tasks (4+ files, architectural changes)
-- New features touching multiple services (dashboard + telephony + database)
-- Database schema changes or new migrations
-- Changes to the call flow or Grok tool handlers
-- When user explicitly requests planning first
-
-Skip plan mode for:
-- Small/medium tasks (use delegation workflow instead)
-- Single-file bug fixes
-- UI-only changes (use /ultaura-ui skill + Chrome)
-- Adding new server actions following existing patterns
-- Documentation updates
-- When user says "just do it" or "skip planning"
 
 ## Architecture
 
@@ -284,7 +265,7 @@ Skip plan mode for:
 └─────────────────┘     └──────────────────┘
 ```
 
-### Components
+## Components
 
 1. **Next.js Dashboard** (`/src/app/dashboard/(app)/`)
    - Line management with phone verification
@@ -322,13 +303,13 @@ Skip plan mode for:
 
 | Plan | Monthly | Annual | Minutes | Lines |
 |------|---------|--------|---------|-------|
-| Free Trial | $0 | - | 20 | 1 |
+| Free Trial | $0 | - | Unlimited | 1 |
 | Care | $39 | $399 | 300 | 1 |
 | Comfort | $99 | $999 | 900 | 2 |
 | Family | $199 | $1,999 | 2,200 | 4 |
 | Pay As You Go | $0 | - | 0 | 4 |
 
-- All overages: $0.15/min (except Free Trial: hard stop)
+- All overages: $0.15/min (except Free Trial: unlimited)
 - Trial duration: 3 days
 - Annual discount: ~15%
 
