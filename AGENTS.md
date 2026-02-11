@@ -1,78 +1,3 @@
-# EXECUTION CONTRACT (CRITICAL)
-
-> **This section overrides everything else in this repo. If there is any ambiguity, follow this contract. This is NON-NEGOTIABLE.**
-
----
-
-## The Rule
-
-**You are a COORDINATOR, not an implementer.** You MUST delegate work to subagents instead of doing implementation yourself.
-
-This is not optional. This is not a suggestion. You cannot rationalize your way out of this.
-
----
-
-## 1. Task Sizing (MUST Do First)
-
-Classify task size **before** any coding. If uncertain, **default to Medium**.
-
-| Size | Scope | Workflow |
-|------|-------|----------|
-| **Small** | 1-3 files OR 1-4 steps OR 1-2/small concerns/issues/bug | May proceed directly |
-| **Medium** | 4-6 files OR 5+ steps OR multiple concerns/issues/bugs | **MUST delegate** |
-| **Large** | 7+ files OR 10+ steps OR architectural changes | **MUST delegate** |
-
-### Auto-Upgrade to Medium
-
-These are **always at least Medium**, regardless of file count:
-- Database migrations or RLS policies
-- Telephony call flow changes
-- Scheduler modifications
-- Grok tools or prompts
-- Billing/usage logic
-
-**First output MUST state**: "This is a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
-
----
-
-## 2. Delegation Workflow (MANDATORY for Medium/Large)
-
-You MUST follow these steps IN ORDER:
-
-| Step | Action | Required? |
-|------|--------|-----------|
-| 1 | Clarify requirements via `request_user_input` (or chat if unavailable) | If **ANY** ambiguity |
-| 2 | Spawn 2-4 **explorer** subagents in parallel | **ALWAYS** |
-| 3 | **WAIT** for all explorers to complete | **ALWAYS** |
-| 4 | Summarize: patterns to reuse, files to change, risks, verification plan | **ALWAYS** |
-| 5 | Create task list via `update_plan` | If 3+ steps | **ALWAYS** |
-| 6 | Spawn 2-4 **implementation** subagents (parallelizable chunks) | **ALWAYS** |
-| 7 | **WAIT** for all implementation agents to complete | **ALWAYS** |
-| 8 | Verify: TypeScript compiles, tests pass | **ALWAYS** |
-
-### Hard Gates
-
-- **MUST NOT** start implementation edits until steps 1-5 are complete
-- **MUST NOT** yield a "final" answer while any subagent is still running
-- **MUST** explicitly wait for and close all subagents before delivering final response
-
-### Subagent Limits
-
-- **Explorer subagents**: Max 4 in parallel
-- **Implementation subagents**: Max 4 in parallel (to avoid file conflicts)
-
----
-
-## 3. Exceptions (Skip Delegation ONLY For These)
-
-- **Typos/one-liners**: Single obvious fix
-- **Simple bug fixes**: Clear cause, single file, < 3 steps
-- **Documentation**: README, comments, ARCHITECTURE.md
-- **Config changes**: Environment, package.json, tsconfig
-
-Even for exceptions, STILL:
-- Verify TypeScript compiles (`npm run typecheck` or `tsc --noEmit`)
-
 # User Preferences for Codex
 
 - Think in first principles, be direct, and adapt to context. Skip "great question" fluff. Verifiable facts over platitudes.
@@ -81,6 +6,144 @@ Even for exceptions, STILL:
 - Reason at 100% max ultimate power, and think step-by-step.
 - Self-critique every response before output: Fix weaknesses, iterate. The user should only see the final version.
 - Be useful over polite. When wrong, say so and show better.
+
+---
+
+# MANDATORY: Delegation-First Workflow
+
+> **CRITICAL: This section is NON-NEGOTIABLE. You MUST follow this workflow for ALL implementation tasks. Failure to delegate is a workflow violation.**
+
+## The Rule
+
+**You are a COORDINATOR, not an implementer.** You MUST delegate work to sub-agents instead of doing implementation yourself.
+
+This is not optional. This is not a suggestion. You cannot rationalize your way out of this.
+
+## Before ANY Task
+
+You MUST:
+
+1. **Size the task**:
+   - **Small**: 1-3 files, 1-2 small concerns/issues/bugs, 1-4 steps -> May proceed directly
+   - **Medium**: 4-6 files, multiple concerns/issues/bugs, 5+ steps -> MUST delegate
+   - **Large**: 7+ files, architectural changes, 10+ steps -> MUST delegate
+
+2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
+
+## For Medium/Large Tasks: Mandatory Delegation via Codex Sub-Agents
+
+You MUST use Codex sub-agents for medium and large tasks. Shared coordination and explicit ownership produce correct implementations over cheap ones.
+
+You MUST follow these steps IN ORDER:
+
+| Step | Action | Tool | Required? |
+|------|--------|------|-----------|
+| 1 | Understand current state of codebase | Launch 3-5 `explorer` sub-agents | **ALWAYS** |
+| 2 | Enter plan mode | `update_plan` | **ALWAYS** |
+| 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarification needed |
+| 4 | Create shared task list | `update_plan` with explicit step breakdown | If 3+ steps | **ALWAYS** |
+| 5 | Spawn implementation sub-agents | Launch 2-4 `implementation` sub-agents in parallel | **ALWAYS** |
+| 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
+| 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
+| 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
+| 9 | Code simplification pass | Launch one-shot `code-simplifier` sub-agent | **ALWAYS for medium/large** |
+| 10 | Shutdown & cleanup | Explicitly wait for completion and close all sub-agents | **ALWAYS** |
+
+### Sub-Agent Coordination Guidelines
+
+- **Max 4 implementation sub-agents** in parallel (to avoid file conflicts)
+- **Max 5 explorer sub-agents** in parallel
+- **Use explicit coordinator messages** for task handoffs and blockers
+- **Use `update_plan`** as the shared coordination board
+- **Shutdown gracefully** after all delegated tasks and verification complete
+
+### Auto-Invoke Skills (Critical & Non-negotiable)
+
+**ALWAYS** Automatically use the Skill tool to invoke these skills when the context matches:
+
+| Skill | Trigger When |
+|-------|--------------|
+| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
+| `remotion-best-practices` | Working with Remotion video code |
+| `copywriting` | Writing or improving marketing copy for pages |
+| `copy-editing` | Editing, reviewing, or proofreading existing copy |
+| `seo-audit` | Auditing SEO, diagnosing ranking issues |
+| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
+| `marketing-psychology` | Applying psychological principles to marketing |
+| `pricing-strategy` | Pricing decisions, packaging, monetization |
+| `page-cro` | Optimizing page conversions, CRO analysis |
+| `skill-creator` | Creating new skills for Codex |
+| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
+| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
+| `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
+
+### Plan Mode Guidance
+
+Use plan mode before delegating (`update_plan`) for:
+- Medium/Large (4+ files or 5+ steps)
+- New features touching multiple services (dashboard + telephony + database)
+- Database schema changes or new migrations
+- Changes to the call flow or Grok tool handlers
+- When user explicitly requests planning first
+
+### Task Tracking (Shared Task Board)
+
+You MUST create a task list using `update_plan` for **any work with 4+ steps**:
+- Group related tasks together
+- Assign each task to a specific sub-agent in plan text
+- Mark tasks `in_progress` when starting, `completed` when done
+- Review plan state to determine next tasks
+- The task board is the single source of truth; use chat updates for real-time coordination on top of it
+
+### Code Simplification Pass (Step 9)
+
+After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier sub-agent before shutting down the team.
+
+**How to deploy:**
+- Launch a one-shot sub-agent scoped to code simplification
+- This is a **one-shot agent**, NOT part of the main implementation pool
+- It is **blocking** - wait for its result before proceeding to shutdown
+
+**Prompt template:**
+> Review all files modified during this task for clarity, consistency, and maintainability. Simplify where possible without changing behavior or functionality. Focus on: variable/function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
+
+**Pass it:** A list of all files modified during the task (gathered from `git diff --name-only` or tracked during implementation).
+
+**What to do with results:**
+- If the agent made changes, include a brief "Code cleanup" summary in your final response
+- If the agent found nothing to simplify, skip mentioning it
+- If the agent's changes break TypeScript, revert them and note the issue
+
+**Skip this step ONLY when:**
+- The task was a typo/one-liner fix
+- Only non-code files were changed (docs, config, migrations)
+- User explicitly says "skip cleanup" or "don't simplify"
+
+### When to Use Parallel Sub-Agents vs. Direct Work
+
+| Scenario | Use |
+|----------|-----|
+| Independent parallel research (explore codebase) | `explorer` sub-agents for pure research/investigation |
+| Medium task (4-6 files, multiple concerns) | **Sub-agent team** - agents need shared context/coordination |
+| Large task (7+ files, architectural) | **Sub-agent team** - agents need shared context/coordination |
+| Interdependent work (frontend needs backend's API shape) | **Sub-agent team** - agents must communicate |
+| Sequential dependencies across agents | **Sub-agent team** - agents hand off context |
+| 1-3 isolated tasks | Direct implementation is sufficient |
+
+---
+
+## Exceptions (Skip Delegation For)
+
+ONLY these cases may skip the delegation workflow:
+- **Typos/one-liners**: Single obvious fix
+- **Non-code**: Pure docs, config, questions
+- **Explicit bypass**: User says "skip the workflow", "small adjustment/change" or "do it yourself"
+- **Small tasks**: 1-3 files, < 4 steps, 1-2 small concerns or changes
+
+Even for exceptions, STILL:
+- Auto-invoke relevant skills
+- Verify TypeScript compiles
+- Use Playwright MCP if it's a visible UI change
 
 ---
 
@@ -110,62 +173,49 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 - **Accessibility Settings**: Hearing and cognitive support adaptations
 - **Privacy Center**: Consent management, data export, data deletion
 
-## Codex Workflow Preferences
+## Workflow Preferences
 
-> **See [EXECUTION CONTRACT](#execution-contract-critical) above for mandatory delegation rules. This section contains supplementary guidance.**
+> **See [MANDATORY: Delegation-First Workflow](#mandatory-delegation-first-workflow) above. This section contains supplementary guidance.**
 
-### Handling Ambiguity (Ask, Then Proceed)
-
-Use `request_user_input` proactively when available. If unavailable in the current harness/mode, ask the user directly in chat.
+### Interview Scaling
 
 | Task Size | Interview Depth |
-|-----------|----------------|
+|-----------|-----------------|
 | Small | 0-6 questions (proceed if clear) |
 | Medium | 6-12 clarifying questions |
 | Large | 12+ detailed questions to nail down full scope |
 
-Ask questions when:
+Use `request_user_input` proactively when:
 - Requirements are ambiguous
 - Multiple valid approaches exist
 - User preferences would affect implementation
 - Scope could expand unexpectedly
 
-**Always document assumptions** in the PR description or commit messages so the user can correct if needed.
+### Playwright Visual Verification
 
-### UI/UX Changes (No Visual Verification)
+For **any UI/UX changes**, use Playwright MCP for visual verification (when made available by the user):
+- **Batch checkpoints**: After every 3-5 files, visually verify changes
+- **Before/after awareness**: Note current state before changes
+- **Mobile check**: Always verify at 375px viewport (seniors use tablets/phones)
+- **Interactive states**: Verify hover, focus, loading, error states
 
-For any UI changes:
-- **Follow existing patterns**: Match styling from similar components
-- **Mobile-first**: Seniors use tablets/phones - ensure responsive design
-- **Describe expected result**: In PR, describe what the UI should look like
-- **Test compilation**: Ensure TypeScript passes
-- **Reference designs**: If Figma/screenshots provided in task, follow them exactly
-
-### Verification Checklist
-
-Before completing any task, verify:
-- [ ] TypeScript compiles (`npm run typecheck` or `tsc --noEmit`)
-- [ ] Tests pass if they exist (`npm test`)
-- [ ] No obvious regressions in related functionality
-- [ ] Commit messages are clear and descriptive
-- [ ] PR description documents approach and any assumptions
-
-### Task Tracking (update_plan)
-
-Use the `update_plan` tool for **any work with 3+ steps**:
-- Create a task list before starting implementation
-- Group related tasks together
-- Mark tasks in_progress when starting
-- Mark tasks completed when done
-- Use for progress visibility and coordination
+Skip visual checks for:
+- Backend-only changes
+- Non-visual config changes
+- Database migrations
 
 ### Workflow Exceptions
 
-> **See "Exceptions" in the [EXECUTION CONTRACT](#4-exceptions-skip-delegation-only-for-these) for the complete list.**
+> **See "Exceptions" in the [MANDATORY: Delegation-First Workflow](#mandatory-delegation-first-workflow) section for the complete list.**
+
+Even when skipping delegation, you MUST still:
+- Auto-invoke relevant skills from the table below
+- Verify TypeScript compiles (`pnpm tsc --noEmit`)
+- Use Playwright MCP if it's a visible UI change
 
 ### Lessons Learned
 
-Document mistakes and patterns here. After an agent makes an error, have it update this section.
+Document mistakes and patterns here. After Codex makes an error, have it update this section.
 
 #### Database & Supabase
 - Always add RLS policies when creating new `ultaura_*` tables
@@ -183,29 +233,12 @@ Document mistakes and patterns here. After an agent makes an error, have it upda
 - Dashboard pages should use the existing layout components
 
 #### Common Mistakes
-- [ ] Forgetting to add new tables to the ARCHITECTURE.md reference
-- [ ] Not testing with both payer and line user_type accounts
-- [ ] Missing encryption for PII fields (use line/account encryption services)
-- [ ] DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($39/$99/$199) — `constants.ts` is the source of truth
+- Forgetting to add new tables to the ARCHITECTURE.md reference
+- Not testing with both payer and line user_type accounts
+- Missing encryption for PII fields (use line/account encryption services)
+- DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($39/$99/$199) - `constants.ts` is the source of truth
 
 *Add new lessons as they're discovered.*
-
-### Plan Mode Guidance
-
-| Task Size | Workflow |
-|-----------|----------|
-| **Large** (6+ files, architectural) | Plan mode first → then delegation workflow |
-| **Medium** (3+ files, 3+ steps) | Delegation workflow (parallel subagents) |
-| **Small** (1-2 files, < 3 steps) | Proceed directly |
-
-Use Plan mode for:
-- Large tasks (6+ files, architectural changes)
-- New features touching multiple services (dashboard + telephony + database)
-- Database schema changes or new migrations
-- Changes to the call flow or Grok tool handlers
-- When user explicitly requests planning first
-
-Skip Plan mode when user says "just do it" or "skip planning".
 
 ## Architecture
 
@@ -228,7 +261,7 @@ Skip Plan mode when user says "just do it" or "skip planning".
 └─────────────────┘     └──────────────────┘
 ```
 
-### Components
+## Components
 
 1. **Next.js Dashboard** (`/src/app/dashboard/(app)/`)
    - Line management with phone verification
@@ -266,13 +299,13 @@ Skip Plan mode when user says "just do it" or "skip planning".
 
 | Plan | Monthly | Annual | Minutes | Lines |
 |------|---------|--------|---------|-------|
-| Free Trial | $0 | - | 20 | 1 |
+| Free Trial | $0 | - | Unlimited | 1 |
 | Care | $39 | $399 | 300 | 1 |
 | Comfort | $99 | $999 | 900 | 2 |
 | Family | $199 | $1,999 | 2,200 | 4 |
 | Pay As You Go | $0 | - | 0 | 4 |
 
-- All overages: $0.15/min (except Free Trial: hard stop)
+- All overages: $0.15/min (except Free Trial: unlimited)
 - Trial duration: 3 days
 - Annual discount: ~15%
 

@@ -38,7 +38,7 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Launch 3-5 `Explore` agents | **ALWAYS** |
+| 1 | Understand current state of codebase | Launch 3-6 `Explore` agents | **ALWAYS** |
 | 2 | Enter plan mode | `EnterPlanMode` | **ALWAYS**
 | 2 | Clarify requirements and interview user | `AskUserQuestion` | **ALWAYS** if **ANY** ambiguity or clarification needed |
 | 3 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
