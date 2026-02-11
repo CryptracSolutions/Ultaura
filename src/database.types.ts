@@ -2741,6 +2741,33 @@ export type Database = {
           },
         ]
       }
+      ultaura_onboarding_state: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          state: Json
+          state_token: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          state: Json
+          state_token: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          state?: Json
+          state_token?: string
+        }
+        Relationships: []
+      }
       ultaura_opt_outs: {
         Row: {
           account_id: string
@@ -3997,6 +4024,69 @@ export type Database = {
           },
         ]
       }
+      ultaura_trial_daily_cap_reservations: {
+        Row: {
+          account_id: string
+          actual_billable_minutes: number | null
+          call_session_id: string
+          created_at: string
+          day_end_utc: string
+          day_start_utc: string
+          end_reason:
+            | Database["public"]["Enums"]["ultaura_call_end_reason"]
+            | null
+          line_timezone: string
+          released_at: string | null
+          reserved_minutes: number
+          status: string
+        }
+        Insert: {
+          account_id: string
+          actual_billable_minutes?: number | null
+          call_session_id: string
+          created_at?: string
+          day_end_utc: string
+          day_start_utc: string
+          end_reason?:
+            | Database["public"]["Enums"]["ultaura_call_end_reason"]
+            | null
+          line_timezone: string
+          released_at?: string | null
+          reserved_minutes: number
+          status?: string
+        }
+        Update: {
+          account_id?: string
+          actual_billable_minutes?: number | null
+          call_session_id?: string
+          created_at?: string
+          day_end_utc?: string
+          day_start_utc?: string
+          end_reason?:
+            | Database["public"]["Enums"]["ultaura_call_end_reason"]
+            | null
+          line_timezone?: string
+          released_at?: string | null
+          reserved_minutes?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_trial_daily_cap_reservations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_trial_daily_cap_reservations_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_trusted_contacts: {
         Row: {
           account_id: string
@@ -4422,7 +4512,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      install_extensions: { Args: never; Returns: undefined }
       is_line_on_vacation: { Args: { p_line_id: string }; Returns: boolean }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }
@@ -4478,6 +4567,36 @@ export type Database = {
       release_scheduler_lease: {
         Args: { p_lease_id: string; p_worker_id: string }
         Returns: boolean
+      }
+      release_trial_daily_cap: {
+        Args: {
+          p_actual_billable_minutes: number
+          p_call_session_id: string
+          p_end_reason: Database["public"]["Enums"]["ultaura_call_end_reason"]
+        }
+        Returns: {
+          actual_billable_minutes: number
+          end_reason: Database["public"]["Enums"]["ultaura_call_end_reason"]
+          released: boolean
+          reserved_minutes: number
+        }[]
+      }
+      reserve_trial_daily_cap: {
+        Args: {
+          p_account_id: string
+          p_call_session_id: string
+          p_line_timezone: string
+        }
+        Returns: {
+          allowed: boolean
+          day_end_utc: string
+          day_start_utc: string
+          minutes_remaining_today: number
+          minutes_reserved_today: number
+          minutes_used_today: number
+          reason: string
+          reserved_minutes: number
+        }[]
       }
       run_retention_cleanup: { Args: never; Returns: Json }
       transfer_organization: {
