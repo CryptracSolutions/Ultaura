@@ -237,7 +237,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'free-trial',
         question: 'Is there a free trial?',
         answer:
-          'Yes, we offer a free trial with 20 minutes over 3 days. No credit card required to start. This gives you and your loved one time to experience Ultaura before committing to a plan.',
+          'Yes, we offer a free trial with unlimited minutes for 3 days. No credit card required to start. This gives you and your loved one time to experience Ultaura before committing to a plan.',
       },
       {
         id: 'usage-counting',
