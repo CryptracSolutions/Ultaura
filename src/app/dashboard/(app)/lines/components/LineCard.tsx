@@ -188,7 +188,7 @@ export function LineCard({
               </div>
             </div>
           </div>
-          <div className="relative pointer-events-auto flex flex-col items-end gap-2">
+          <div className="relative pointer-events-auto flex flex-col items-end gap-2 -mt-3">
             <DropdownMenu
               open={isMenuOpen}
               onOpenChange={(open) => {
