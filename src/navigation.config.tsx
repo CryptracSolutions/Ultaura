@@ -159,9 +159,6 @@ const callsRoutePattern = createRoutePattern(getPath('calls'));
 const insightsRoutePattern = createRoutePattern(getPath('insights'));
 const alertsRoutePattern = createRoutePattern(getPath('alerts'));
 const linesRoutePattern = createRoutePattern(getPath('lines'));
-const lineRemindersRoutePattern = createRoutePattern(
-  getPath('lines/:lineId/reminders'),
-);
 const lineScheduleRoutePattern = createRoutePattern(
   getPath('lines/:lineId/schedule'),
 );
@@ -170,10 +167,7 @@ const lineInsightsRoutePattern = createRoutePattern(
 );
 
 function isRemindersRouteActive(currentPath: string) {
-  return (
-    remindersRoutePattern.test(currentPath) ||
-    lineRemindersRoutePattern.test(currentPath)
-  );
+  return remindersRoutePattern.test(currentPath);
 }
 
 function isCallsRouteActive(currentPath: string) {
@@ -193,7 +187,6 @@ function isAlertsRouteActive(currentPath: string) {
 
 function isLineRouteActive(currentPath: string) {
   if (
-    lineRemindersRoutePattern.test(currentPath) ||
     lineScheduleRoutePattern.test(currentPath) ||
     lineInsightsRoutePattern.test(currentPath)
   ) {

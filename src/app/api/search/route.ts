@@ -297,7 +297,7 @@ export async function GET(request: Request) {
         label: message,
         subtitle: line?.display_name ?? 'Line reminder',
         href: line?.short_id
-          ? `/dashboard/lines/${line.short_id}/reminders`
+          ? `/dashboard/reminders?line=${line.short_id}`
           : '/dashboard/reminders',
         category: 'reminders',
         timestamp: reminder.due_at ?? reminder.created_at,

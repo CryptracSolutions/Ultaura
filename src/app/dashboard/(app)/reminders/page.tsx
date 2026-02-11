@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
-import { getAllReminders } from '~/lib/ultaura/reminders';
+import { getAllReminders, getPendingReminderCount } from '~/lib/ultaura/reminders';
+import type { PlanId } from '~/lib/ultaura/types';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { RemindersPageClient } from './RemindersPageClient';
 import AppHeader from '../components/AppHeader';
@@ -69,6 +70,24 @@ export default async function RemindersPage() {
   const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
   const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
 
+  // Compute effective plan and reminder limits per line
+  const isTrialActive = isOnTrial && !isTrialExpired;
+  const effectivePlanIdRaw = isTrialActive
+    ? (account.trial_plan_id ?? account.plan_id ?? 'free_trial')
+    : (account.plan_id ?? 'free_trial');
+  const effectivePlanId: PlanId = effectivePlanIdRaw in PLANS
+    ? (effectivePlanIdRaw as PlanId)
+    : 'free_trial';
+  const reminderLimitPerLine = PLANS[effectivePlanId]?.remindersPerLine ?? 10;
+
+  const reminderCounts = await Promise.all(
+    verifiedLines.map((line) => getPendingReminderCount(line.id)),
+  );
+  const reminderLimits: Record<string, { limit: number | null; count: number }> = {};
+  verifiedLines.forEach((line, i) => {
+    reminderLimits[line.id] = { limit: reminderLimitPerLine, count: reminderCounts[i] };
+  });
+
   return (
     <>
       <AppHeader title="Reminders" description="Set up helpful reminders for any routine, task, or event">
@@ -79,11 +98,12 @@ export default async function RemindersPage() {
       <PageBody>
         <div className="space-y-6">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-        <RemindersPageClient
-          lines={verifiedLines}
-          reminders={reminders}
-          disabled={isTrialExpired}
-        />
+          <RemindersPageClient
+            lines={verifiedLines}
+            reminders={reminders}
+            disabled={isTrialExpired}
+            reminderLimits={reminderLimits}
+          />
         </div>
       </PageBody>
     </>

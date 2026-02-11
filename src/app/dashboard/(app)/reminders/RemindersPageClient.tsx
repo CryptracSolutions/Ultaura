@@ -1,272 +1,271 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import {
-  Bell,
-  Plus,
-  Clock,
-  Trash2,
-  Edit2,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  Repeat,
-} from 'lucide-react';
+import { Bell, Plus } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
-import { cancelReminder } from '~/lib/ultaura/reminders';
+import {
+  cancelReminder,
+  skipNextOccurrence,
+  pauseReminder,
+  resumeReminder,
+  snoozeReminder,
+} from '~/lib/ultaura/reminders';
+import { SNOOZE_OPTIONS } from '~/lib/ultaura/reminder-utils';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddReminderModal } from '~/components/ultaura/AddReminderModal';
-import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import Button from '~/core/ui/Button';
+import { ReminderLineFilter } from './components/ReminderLineFilter';
+import { ReminderCard } from './components/ReminderCard';
+import type { ReminderCardReminder } from './components/ReminderCard';
+import { EditReminderModal } from './components/EditReminderModal';
+import { ReminderActivity } from './components/ReminderActivity';
 
-interface Reminder {
-  reminderId: string;
-  lineId: string;
-  lineShortId: string;
-  displayName: string;
-  message: string;
-  dueAt: string;
-  timezone: string;
-  status: 'scheduled' | 'sent' | 'missed' | 'canceled';
-  isRecurring: boolean;
-  rrule: string | null;
-  intervalDays: number | null;
-  daysOfWeek: number[] | null;
-  dayOfMonth: number | null;
-}
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function getOrdinalSuffix(n: number): string {
-  if (n > 3 && n < 21) return 'th';
-  switch (n % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
-  }
-}
-
-function formatRecurrence(reminder: Reminder): string {
-  if (!reminder.isRecurring || !reminder.rrule) return '';
-
-  if (reminder.rrule.includes('FREQ=DAILY')) {
-    const interval = reminder.intervalDays || 1;
-    return interval === 1 ? 'Daily' : `Every ${interval} days`;
-  }
-
-  if (reminder.rrule.includes('FREQ=WEEKLY')) {
-    if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
-      const days = reminder.daysOfWeek.map(d => DAY_NAMES[d]).join(', ');
-      return `Weekly on ${days}`;
-    }
-    return 'Weekly';
-  }
-
-  if (reminder.rrule.includes('FREQ=MONTHLY')) {
-    const day = reminder.dayOfMonth || 1;
-    return `Monthly on the ${day}${getOrdinalSuffix(day)}`;
-  }
-
-  return 'Recurring';
-}
+type Reminder = ReminderCardReminder;
 
 interface RemindersPageClientProps {
   lines: LineRow[];
   reminders: Reminder[];
   disabled?: boolean;
+  reminderLimits: Record<string, { limit: number | null; count: number }>;
 }
 
-const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType; label: string }> = {
-  scheduled: {
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    icon: Clock,
-    label: 'Scheduled',
-  },
-  sent: {
-    color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-    icon: CheckCircle,
-    label: 'Delivered',
-  },
-  missed: {
-    color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    icon: AlertCircle,
-    label: 'Missed',
-  },
-  canceled: {
-    color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-    icon: XCircle,
-    label: 'Canceled',
-  },
-};
-
-export function RemindersPageClient({ lines, reminders, disabled = false }: RemindersPageClientProps) {
+export function RemindersPageClient({
+  lines,
+  reminders,
+  disabled = false,
+  reminderLimits,
+}: RemindersPageClientProps) {
   const router = useRouter();
-  const [reminderToCancel, setReminderToCancel] = useState<{
-    reminderId: string;
-    lineShortId: string;
-  } | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [preselectedLineId, setPreselectedLineId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
-  // Map LineRow to LineForReminderModal
+  // URL-driven state
+  const selectedLineShortId = searchParams.get('line') ?? null;
+  const editReminderIdParam = searchParams.get('edit') ?? null;
+
+  // Modal / loading state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [reminderToCancel, setReminderToCancel] = useState<string | null>(null);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
+
+  // Deep-link: open edit modal from ?edit= param, then clean URL
+  const handledEditIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (disabled || !editReminderIdParam) {
+      handledEditIdRef.current = null;
+      return;
+    }
+    if (handledEditIdRef.current === editReminderIdParam) return;
+    handledEditIdRef.current = editReminderIdParam;
+
+    const reminder = reminders.find((r) => r.reminderId === editReminderIdParam);
+    if (reminder) setEditingReminder(reminder);
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('edit');
+    const query = next.toString();
+    router.replace(query ? `?${query}` : '?', { scroll: false });
+  }, [disabled, editReminderIdParam, reminders, router, searchParams]);
+
+  // Derived data
+  const selectedLine = selectedLineShortId
+    ? lines.find((l) => l.short_id === selectedLineShortId) ?? null
+    : null;
+
+  const filteredReminders = selectedLine
+    ? reminders.filter((r) => r.lineId === selectedLine.id)
+    : reminders;
+
+  const scheduledReminders = filteredReminders.filter((r) => r.status === 'scheduled');
+  const pastReminders = filteredReminders.filter((r) => r.status !== 'scheduled');
+
   const linesForModal = lines.map((line) => ({
     id: line.id,
     displayName: line.display_name,
     timezone: line.timezone,
     phoneE164: line.phone_e164,
   }));
-  const lineTimezoneById = lines.reduce((acc, line) => {
-    acc[line.id] = line.timezone;
+
+  const preselectedLineId = selectedLine?.id ?? null;
+
+  const selectedLineLimits = selectedLine ? reminderLimits[selectedLine.id] : null;
+  const isAtLimit =
+    selectedLineLimits != null &&
+    selectedLineLimits.limit != null &&
+    selectedLineLimits.count >= selectedLineLimits.limit;
+
+  // Group reminders by line (All Lines view)
+  const remindersByLine = reminders.reduce<Record<string, Reminder[]>>((acc, r) => {
+    if (!acc[r.lineId]) acc[r.lineId] = [];
+    acc[r.lineId].push(r);
     return acc;
-  }, {} as Record<string, string>);
+  }, {});
 
-  const handleOpenForLine = (lineId: string) => {
-    setPreselectedLineId(lineId);
-    setShowAddModal(true);
-  };
+  // Line filter data
+  const lineFilterData = lines.map((l) => ({
+    short_id: l.short_id,
+    display_name: l.display_name,
+  }));
 
-  const handleCloseModal = () => {
-    setShowAddModal(false);
-    setPreselectedLineId(null);
-  };
+  // -- Helpers --
 
-  // Group reminders by line
-  const remindersByLine = reminders.reduce((acc, reminder) => {
-    if (!acc[reminder.lineId]) {
-      acc[reminder.lineId] = [];
-    }
-    acc[reminder.lineId].push(reminder);
-    return acc;
-  }, {} as Record<string, Reminder[]>);
+  function setLoading(reminderId: string, value: boolean) {
+    setLoadingActions((prev) => ({ ...prev, [reminderId]: value }));
+  }
 
-  const handleCancelReminder = async () => {
-    if (!reminderToCancel) return;
+  function findLineShortId(reminderId: string): string {
+    return reminders.find((r) => r.reminderId === reminderId)?.lineShortId ?? '';
+  }
+
+  // -- Action handlers --
+
+  const handlePause = async (reminderId: string) => {
     if (disabled) return;
+    setLoading(reminderId, true);
+    const result = await pauseReminder(reminderId, findLineShortId(reminderId));
+    setLoading(reminderId, false);
+    if (result.success) {
+      toast.success('Reminder paused');
+      router.refresh();
+    } else {
+      toast.error(result.error.message || 'Failed to pause reminder');
+    }
+  };
 
-    const result = await cancelReminder(reminderToCancel.reminderId, reminderToCancel.lineShortId);
-    if (!result.success) {
+  const handleResume = async (reminderId: string) => {
+    if (disabled) return;
+    setLoading(reminderId, true);
+    const result = await resumeReminder(reminderId, findLineShortId(reminderId));
+    setLoading(reminderId, false);
+    if (result.success) {
+      toast.success('Reminder resumed');
+      router.refresh();
+    } else {
+      toast.error(result.error.message || 'Failed to resume reminder');
+    }
+  };
+
+  const handleSnooze = async (reminderId: string, minutes: number) => {
+    if (disabled) return;
+    setLoading(reminderId, true);
+    const result = await snoozeReminder(reminderId, minutes, findLineShortId(reminderId));
+    setLoading(reminderId, false);
+    if (result.success) {
+      const option = SNOOZE_OPTIONS.find((o) => o.value === minutes);
+      toast.success(`Snoozed for ${option?.label || minutes + ' minutes'}`);
+      router.refresh();
+    } else {
+      toast.error(result.error.message || 'Failed to snooze reminder');
+    }
+  };
+
+  const handleSkip = async (reminderId: string) => {
+    if (disabled) return;
+    setLoading(reminderId, true);
+    const result = await skipNextOccurrence(reminderId, findLineShortId(reminderId));
+    setLoading(reminderId, false);
+    if (result.success) {
+      toast.success('Next occurrence skipped');
+      router.refresh();
+    } else {
+      toast.error(result.error.message || 'Failed to skip reminder');
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!reminderToCancel || disabled) return;
+    setLoading(reminderToCancel, true);
+    const result = await cancelReminder(reminderToCancel, findLineShortId(reminderToCancel));
+    setLoading(reminderToCancel, false);
+    if (result.success) {
+      toast.success('Reminder canceled');
+      router.refresh();
+    } else {
       toast.error(result.error.message || 'Failed to cancel reminder');
       throw new Error('Cancel failed');
     }
-    toast.success('Reminder canceled');
-    router.refresh();
   };
 
-  const formatDateTime = (isoString: string, lineId: string, fallbackTimezone: string) => {
-    const date = new Date(isoString);
-    const resolvedTimezone = lineTimezoneById[lineId] ?? fallbackTimezone;
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    };
-    if (resolvedTimezone) {
-      options.timeZone = resolvedTimezone;
-    }
-    return date.toLocaleString('en-US', options);
+  const handleEdit = (reminder: Reminder) => {
+    if (disabled) return;
+    setEditingReminder(reminder);
   };
 
-  const formatRelativeTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
-
-    if (diff < 0) return 'Past due';
-    if (diff < 60 * 60 * 1000) {
-      const mins = Math.round(diff / (60 * 1000));
-      return `In ${mins} min${mins !== 1 ? 's' : ''}`;
-    }
-    if (diff < 24 * 60 * 60 * 1000) {
-      const hours = Math.round(diff / (60 * 60 * 1000));
-      return `In ${hours} hour${hours !== 1 ? 's' : ''}`;
-    }
-    if (diff < 48 * 60 * 60 * 1000) {
-      return 'Tomorrow';
-    }
-    const days = Math.round(diff / (24 * 60 * 60 * 1000));
-    return `In ${days} days`;
+  // Shared action props for ReminderCard
+  const cardActions = {
+    onEdit: handleEdit,
+    onPause: handlePause,
+    onResume: handleResume,
+    onSnooze: handleSnooze,
+    onSkip: handleSkip,
+    onCancel: (reminderId: string) => setReminderToCancel(reminderId),
   };
 
-  // Count scheduled reminders
-  const scheduledCount = reminders.filter((r) => r.status === 'scheduled').length;
+  // -- No lines state --
+  if (lines.length === 0) {
+    return (
+      <div className="bg-card rounded-xl border border-border p-8 text-center">
+        <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-foreground mb-2">No phone lines yet</h2>
+        <p className="text-muted-foreground mb-4">
+          Add a phone line first, then you can set up reminders.
+        </p>
+        {!disabled && (
+          <Button variant="default" size="small" href="/dashboard/lines?action=add" block>
+            <Plus className="w-3 h-3" />
+            Add a Phone Line
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Set Reminder Button */}
-      {!disabled && lines.length > 0 && (
-        <div>
+      {/* Top bar: CTA + filter */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {!disabled && (
           <Button
             variant="default"
             size="small"
             onClick={() => setShowAddModal(true)}
+            disabled={selectedLine ? isAtLimit : false}
             className="w-full sm:w-auto"
           >
             <Plus className="w-3 h-3" />
             Set Reminder
           </Button>
-        </div>
-      )}
+        )}
+        {lines.length > 1 && (
+          <ReminderLineFilter
+            lines={lineFilterData}
+            currentLineShortId={selectedLineShortId}
+          />
+        )}
+      </div>
 
-      {/* No lines state */}
-      {lines.length === 0 && (
-        <div className="bg-card rounded-xl border border-border p-8 text-center">
-          <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">No phone lines yet</h2>
-          <p className="text-muted-foreground mb-4">
-            Add a phone line first, then you can set up reminders.
-          </p>
-          {!disabled && (
-            <Button
-              variant="default"
-              size="small"
-              href="/dashboard/lines?action=add"
-              block
-            >
-              <Plus className="w-3 h-3" />
-              Add a Phone Line
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Reminders grouped by line */}
-      {lines.length > 0 && (
+      {/* ---- All Lines view ---- */}
+      {!selectedLine && (
         <div className="space-y-6">
           {lines.map((line) => {
             const lineReminders = remindersByLine[line.id] || [];
-            const scheduledReminders = lineReminders.filter((r) => r.status === 'scheduled');
-            const pastReminders = lineReminders.filter((r) => r.status !== 'scheduled');
+            const lineScheduled = lineReminders.filter((r) => r.status === 'scheduled');
+            const linePast = lineReminders.filter((r) => r.status !== 'scheduled');
 
             return (
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
-                {/* Line Header */}
+                {/* Line header */}
                 <div className="px-6 py-4 border-b border-border bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{line.display_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {scheduledReminders.length === 0
-                          ? 'No upcoming reminders'
-                          : `${scheduledReminders.length} upcoming`}
-                      </p>
-                    </div>
-                    <Link
-                      href={`/dashboard/lines/${line.short_id}/reminders`}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      View all
-                    </Link>
-                  </div>
+                  <h3 className="font-semibold text-foreground">{line.display_name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {lineScheduled.length === 0
+                      ? 'No upcoming reminders'
+                      : `${lineScheduled.length} upcoming`}
+                  </p>
                 </div>
 
-                {/* Reminders */}
                 <div className="divide-y divide-border">
                   {lineReminders.length === 0 ? (
                     <div className="px-6 py-8 text-center">
@@ -277,7 +276,7 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                           <Button
                             variant="default"
                             size="small"
-                            onClick={() => handleOpenForLine(line.id)}
+                            onClick={() => setShowAddModal(true)}
                             block
                           >
                             <Plus className="w-3 h-3" />
@@ -288,50 +287,28 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
                     </div>
                   ) : (
                     <>
-                      {/* Scheduled reminders first */}
-                      {scheduledReminders.map((reminder) => (
-                        <ReminderRow
+                      {lineScheduled.map((reminder) => (
+                        <ReminderCard
                           key={reminder.reminderId}
                           reminder={reminder}
-                          onCancel={() => setReminderToCancel({
-                            reminderId: reminder.reminderId,
-                            lineShortId: reminder.lineShortId,
-                          })}
-                          formatDateTime={formatDateTime}
-                          formatRelativeTime={formatRelativeTime}
                           disabled={disabled}
+                          loading={!!loadingActions[reminder.reminderId]}
+                          {...cardActions}
                         />
                       ))}
-
-                      {/* Past reminders */}
-                      {pastReminders.length > 0 && scheduledReminders.length > 0 && (
+                      {linePast.length > 0 && lineScheduled.length > 0 && (
                         <div className="px-6 py-2 bg-muted/30">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                            Past
-                          </p>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Past</p>
                         </div>
                       )}
-                      {pastReminders.slice(0, 5).map((reminder) => (
-                        <ReminderRow
+                      {linePast.slice(0, 5).map((reminder) => (
+                        <ReminderCard
                           key={reminder.reminderId}
                           reminder={reminder}
-                          onCancel={() => {}}
-                          formatDateTime={formatDateTime}
-                          formatRelativeTime={formatRelativeTime}
-                          isPast
                           disabled
+                          {...cardActions}
                         />
                       ))}
-                      {pastReminders.length > 5 && (
-                        <div className="px-6 py-3 text-center">
-                          <Link
-                            href={`/dashboard/lines/${line.short_id}/reminders`}
-                            className="text-sm text-primary hover:underline"
-                          >
-                            View all {pastReminders.length} past reminders
-                          </Link>
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
@@ -341,6 +318,64 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
         </div>
       )}
 
+      {/* ---- Single line view ---- */}
+      {selectedLine && (
+        <div className="space-y-6">
+          {/* Upcoming */}
+          {scheduledReminders.length > 0 && (
+            <div>
+              <h2 className="font-semibold text-lg mb-3">Upcoming Reminders</h2>
+              <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border">
+                {scheduledReminders.map((reminder) => (
+                  <ReminderCard
+                    key={reminder.reminderId}
+                    reminder={reminder}
+                    disabled={disabled}
+                    loading={!!loadingActions[reminder.reminderId]}
+                    {...cardActions}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Past */}
+          {pastReminders.length > 0 && (
+            <PastRemindersSection reminders={pastReminders} cardActions={cardActions} />
+          )}
+
+          {/* Empty */}
+          {filteredReminders.length === 0 && (
+            <div className="bg-card rounded-xl border border-border p-8 text-center">
+              <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">No reminders for {selectedLine.display_name}</p>
+              {!disabled && (
+                <div className="mt-3">
+                  <Button
+                    variant="default"
+                    size="small"
+                    onClick={() => setShowAddModal(true)}
+                    disabled={isAtLimit}
+                  >
+                    <Plus className="w-3 h-3" />
+                    Create First Reminder
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Reminder activity */}
+          {filteredReminders.length > 0 && (
+            <div>
+              <h2 className="font-semibold text-lg mb-4">Reminder Activity</h2>
+              <ReminderActivity lineId={selectedLine.id} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Cancel confirmation */}
       <ConfirmationDialog
         open={reminderToCancel !== null}
         onOpenChange={(open) => !open && setReminderToCancel(null)}
@@ -348,12 +383,31 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
         description="Are you sure you want to cancel this reminder?"
         confirmLabel="Cancel Reminder"
         variant="destructive"
-        onConfirm={handleCancelReminder}
+        onConfirm={handleConfirmCancel}
       />
 
+      {/* Edit modal */}
+      <EditReminderModal
+        reminder={
+          editingReminder
+            ? {
+                reminderId: editingReminder.reminderId,
+                message: editingReminder.message,
+                dueAt: editingReminder.dueAt,
+                timezone: editingReminder.timezone,
+                isRecurring: editingReminder.isRecurring,
+                lineShortId: editingReminder.lineShortId,
+              }
+            : null
+        }
+        lineDisplayName={editingReminder?.displayName ?? ''}
+        onClose={() => setEditingReminder(null)}
+      />
+
+      {/* Add modal */}
       <AddReminderModal
         open={showAddModal}
-        onOpenChange={handleCloseModal}
+        onOpenChange={(open) => !open && setShowAddModal(false)}
         lines={linesForModal}
         preselectedLineId={preselectedLineId}
       />
@@ -361,91 +415,46 @@ export function RemindersPageClient({ lines, reminders, disabled = false }: Remi
   );
 }
 
-interface ReminderRowProps {
-  reminder: Reminder;
-  onCancel: () => void;
-  formatDateTime: (isoString: string, lineId: string, fallbackTimezone: string) => string;
-  formatRelativeTime: (isoString: string) => string;
-  isPast?: boolean;
-  disabled?: boolean;
-}
-
-function ReminderRow({
-  reminder,
-  onCancel,
-  formatDateTime,
-  formatRelativeTime,
-  isPast = false,
-  disabled = false,
-}: ReminderRowProps) {
-  const statusConfig = STATUS_CONFIG[reminder.status];
-  const StatusIcon = statusConfig.icon;
+// Expandable past reminders list
+function PastRemindersSection({
+  reminders,
+  cardActions,
+}: {
+  reminders: Reminder[];
+  cardActions: {
+    onEdit: (reminder: Reminder) => void;
+    onPause: (reminderId: string) => void;
+    onResume: (reminderId: string) => void;
+    onSnooze: (reminderId: string, minutes: number) => void;
+    onSkip: (reminderId: string) => void;
+    onCancel: (reminderId: string) => void;
+  };
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const displayed = expanded ? reminders : reminders.slice(0, 5);
+  const hasMore = reminders.length > 5;
 
   return (
-    <div
-      className={`px-6 py-4 flex items-start justify-between gap-4 ${
-        isPast ? 'opacity-60' : ''
-      }`}
-    >
-      <div className="flex items-start gap-4 min-w-0 flex-1">
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-            reminder.status === 'scheduled' ? 'bg-primary/10' : 'bg-muted'
-          }`}
-        >
-          <StatusIcon
-            className={`w-5 h-5 ${
-              reminder.status === 'scheduled' ? 'text-primary' : 'text-muted-foreground'
-            }`}
+    <div>
+      <h2 className="font-semibold text-lg mb-3">Past Reminders</h2>
+      <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border">
+        {displayed.map((reminder) => (
+          <ReminderCard
+            key={reminder.reminderId}
+            reminder={reminder}
+            disabled
+            {...cardActions}
           />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-foreground line-clamp-2">{reminder.message}</p>
-          <div className="flex flex-wrap items-center gap-2 mt-2 text-sm">
-            <span className="text-muted-foreground">
-              {formatDateTime(reminder.dueAt, reminder.lineId, reminder.timezone)}
-            </span>
-            {reminder.status === 'scheduled' && (
-              <span className="text-primary font-medium">
-                {formatRelativeTime(reminder.dueAt)}
-              </span>
-            )}
-            {reminder.isRecurring && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
-                <Repeat className="w-3 h-3" />
-                {formatRecurrence(reminder)}
-              </span>
-            )}
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}
-            >
-              {statusConfig.label}
-            </span>
-          </div>
-        </div>
+        ))}
+        {hasMore && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full px-6 py-3 text-sm text-primary hover:underline text-center"
+          >
+            {expanded ? 'Show less' : `View all ${reminders.length} past reminders`}
+          </button>
+        )}
       </div>
-
-      {reminder.status === 'scheduled' && !disabled && (
-        <ResponsiveActionMenu
-          title={reminder.message.slice(0, 30) + (reminder.message.length > 30 ? '...' : '')}
-          actions={[
-            {
-              label: 'Edit',
-              icon: <Edit2 className="w-5 h-5" />,
-              onClick: () => {
-                window.location.href = `/dashboard/lines/${reminder.lineShortId}/reminders?edit=${reminder.reminderId}`;
-              },
-            },
-            {
-              label: 'Cancel',
-              icon: <Trash2 className="w-5 h-5" />,
-              onClick: onCancel,
-              variant: 'destructive' as const,
-              separator: true,
-            },
-          ]}
-        />
-      )}
     </div>
   );
 }

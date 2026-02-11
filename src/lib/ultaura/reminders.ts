@@ -451,7 +451,7 @@ const createReminderWithTrial = withTrialCheck(async (
     };
   }
 
-  revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+  revalidatePath('/dashboard/reminders', 'page');
   revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
   const safeReminder = stripEncryptedFields(reminder as ReminderRowWithEncryption);
@@ -552,7 +552,7 @@ export async function cancelReminder(reminderId: string, lineShortId: string): P
       triggeredBy: 'dashboard',
     });
 
-    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath('/dashboard/reminders', 'page');
     revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
@@ -669,7 +669,7 @@ export async function skipNextOccurrence(reminderId: string, lineShortId: string
       };
     }
 
-    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath('/dashboard/reminders', 'page');
     revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     await logReminderEvent({
@@ -748,7 +748,7 @@ export async function pauseReminder(reminderId: string, lineShortId: string): Pr
       triggeredBy: 'dashboard',
     });
 
-    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath('/dashboard/reminders', 'page');
     revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
@@ -812,7 +812,7 @@ export async function resumeReminder(reminderId: string, lineShortId: string): P
       triggeredBy: 'dashboard',
     });
 
-    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath('/dashboard/reminders', 'page');
     revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
@@ -923,7 +923,7 @@ export async function snoozeReminder(
       },
     });
 
-    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath('/dashboard/reminders', 'page');
     revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: { newDueAt: newDueAt.toISOString() } };
@@ -1195,7 +1195,7 @@ export async function editReminder(
       metadata,
     });
 
-    revalidatePath(`/dashboard/lines/${lineShortId}/reminders`, 'page');
+    revalidatePath('/dashboard/reminders', 'page');
     revalidatePath(`/dashboard/lines/${lineShortId}`, 'page');
 
     return { success: true, data: undefined };
@@ -1362,6 +1362,11 @@ export async function getAllReminders(accountId: string): Promise<{
   intervalDays: number | null;
   daysOfWeek: number[] | null;
   dayOfMonth: number | null;
+  isPaused: boolean;
+  currentSnoozeCount: number;
+  snoozedUntil: string | null;
+  lineTimezone: string;
+  linePhoneE164: string;
 }[]> {
   const client = getSupabaseServerComponentClient();
   const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
@@ -1384,10 +1389,15 @@ export async function getAllReminders(accountId: string): Promise<{
       interval_days,
       days_of_week,
       day_of_month,
+      is_paused,
+      current_snooze_count,
+      snoozed_until,
       ultaura_lines!inner (
         display_name,
         short_id,
-        created_at
+        created_at,
+        timezone,
+        phone_e164
       )
     `)
     .eq('account_id', accountId)
@@ -1399,7 +1409,7 @@ export async function getAllReminders(accountId: string): Promise<{
   }
 
   const reminderRows = (reminders || []) as Array<ReminderRowWithEncryption & {
-    ultaura_lines?: { display_name: string; short_id: string; created_at?: string | null };
+    ultaura_lines?: { display_name: string; short_id: string; created_at?: string | null; timezone?: string; phone_e164?: string };
   }>;
 
   const lineCreatedAtById = new Map<string, string | null>();
@@ -1424,5 +1434,10 @@ export async function getAllReminders(accountId: string): Promise<{
     intervalDays: reminder.interval_days,
     daysOfWeek: reminder.days_of_week,
     dayOfMonth: reminder.day_of_month,
+    isPaused: reminder.is_paused ?? false,
+    currentSnoozeCount: reminder.current_snooze_count ?? 0,
+    snoozedUntil: reminder.snoozed_until ?? null,
+    lineTimezone: reminder.ultaura_lines?.timezone ?? reminder.timezone,
+    linePhoneE164: reminder.ultaura_lines?.phone_e164 ?? '',
   }));
 }

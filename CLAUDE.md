@@ -46,7 +46,7 @@ You MUST follow these steps IN ORDER:
 | 5 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
 | 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
 | 7 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
-| 8 | Code simplification pass | `Task` with `subagent_type: "code-simplifier"` | **ALWAYS for medium/large** |
+| 8 | Code simplification pass | `Task` with `subagent_type: "code-simplifier:code-simplifier"` | **ALWAYS for medium/large** |
 | 9 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
 
 ### Agent Teams Guidelines
