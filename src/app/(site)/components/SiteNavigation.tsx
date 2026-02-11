@@ -107,10 +107,10 @@ function MobileMenu() {
       {/* Hamburger Trigger */}
       <button
         onClick={openMenu}
-        className="p-1"
+        className="p-2 hover:bg-muted rounded-md transition-colors"
         aria-label="Open menu"
       >
-        <Bars3Icon className="h-9 w-9" />
+        <Bars3Icon className="h-6 w-6" />
       </button>
 
       {/* Full Screen Menu */}

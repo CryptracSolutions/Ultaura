@@ -17,22 +17,22 @@ const REASSURANCES = [
 
 export function ReassuranceChecklist() {
   return (
-    <section className="bg-primary/5 py-12">
+    <section className="mt-8 bg-primary/5 py-8">
       <Container>
-        <div className="mb-8 text-center">
+        <div className="mb-4 text-center">
           <Heading type={3}>Reassurance built in</Heading>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {REASSURANCES.map((item) => (
-            <div key={item.text} className="flex flex-col items-center text-center p-3 sm:p-4">
-              <CheckCircle2 className="mb-2 h-5 w-5 text-primary sm:h-6 sm:w-6" />
+            <div key={item.text} className="flex flex-col items-center text-center p-2 sm:p-3">
+              <CheckCircle2 className="mb-1.5 h-5 w-5 text-primary sm:h-6 sm:w-6" />
               <span className="text-xs font-medium text-foreground sm:text-sm">{item.text}</span>
-              <span className="mt-1 text-[11px] text-muted-foreground sm:text-xs">{item.detail}</span>
+              <span className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">{item.detail}</span>
             </div>
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <MainCallToActionButton />
           <Button
             variant="outline"

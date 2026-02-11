@@ -27,7 +27,7 @@ function Footer() {
           <Container>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
               <div>
-                <p className="font-semibold text-foreground">Subscribe to our newsletter</p>
+                <p className="font-semibold text-primary">Subscribe to our newsletter</p>
                 <p className="text-sm text-muted-foreground">Elder care tips and product updates, delivered weekly.</p>
               </div>
               <div className="w-full sm:w-auto sm:min-w-[320px]">

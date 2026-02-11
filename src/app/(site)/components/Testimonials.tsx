@@ -6,6 +6,7 @@ import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
 import Button from '~/core/ui/Button';
+import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
 
 const TESTIMONIALS = [
   {
@@ -151,15 +152,15 @@ export function Testimonials() {
             </SubHeading>
           </div>
 
-          <div className="grid w-full max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid w-full max-w-6xl items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
             {visibleTestimonials.map((testimonial, index) => (
-              <div
-                key={index}
-                className={
-                  'group flex h-full flex-col space-y-4 rounded-2xl border border-border/60' +
-                  ' bg-sidebar p-8 shadow-xl'
-                }
-              >
+              <BlendedDemoFrame key={index}>
+                <div
+                  className={
+                    'group flex flex-col space-y-4 rounded-2xl border border-border/60' +
+                    ' bg-sidebar p-8 shadow-xl'
+                  }
+                >
                 <div className="space-y-4">
                   <div className="flex items-center gap-1 text-primary/80">
                     {Array.from({ length: 5 }).map((_, starIndex) => {
@@ -210,6 +211,7 @@ export function Testimonials() {
                   </div>
                 </div>
               </div>
+              </BlendedDemoFrame>
             ))}
           </div>
 

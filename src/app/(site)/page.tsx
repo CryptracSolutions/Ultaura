@@ -15,8 +15,8 @@ import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
-import { ReassuranceChecklist } from '~/app/(site)/components/ReassuranceChecklist';
 import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
+import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
 function Home() {
   return (
     <div className={'flex flex-col space-y-[0.055rem]'}>
@@ -30,7 +30,7 @@ function Home() {
           <div className="relative grid grid-cols-1 items-start gap-8 sm:gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-10">
             <div className="flex min-w-0 flex-col space-y-5">
               <Pill>
-                <span>Designed with elder care professionals and family caregivers</span>
+                <span>Companionship, one conversation at a time</span>
               </Pill>
 
               <Heading
@@ -128,8 +128,6 @@ function Home() {
 
       <AudienceValueTabs />
 
-      <ReassuranceChecklist />
-
       <Testimonials />
 
       {/* Pricing Section */}
@@ -168,43 +166,36 @@ function Home() {
       <section className="bg-surface-subtle py-16">
         <Container>
           <div className="flex flex-col items-center text-center">
-            <Heading type={2}>Questions<span className="text-primary">?</span></Heading>
-            <Link
-              href="/faq"
-              className="mt-4 inline-flex items-center text-2xl font-medium text-primary hover:underline"
-            >
-              FAQ →
-            </Link>
+            <div className="w-full max-w-7xl self-start text-left">
+              <Heading type={2} className="text-primary">Questions?</Heading>
+            </div>
 
-            <div className="mt-8 w-full max-w-7xl rounded-2xl border border-border/60 bg-sidebar px-4 py-5 sm:px-8 shadow-sm">
-              <h3 className="text-xl font-semibold text-foreground">
-                Still need help?
-              </h3>
-              <p className="mt-4 text-sm text-muted-foreground">
+            <div className="mt-8 w-full max-w-7xl">
+            <BlendedDemoFrame>
+            <div className="rounded-2xl border border-border/60 bg-sidebar px-4 py-5 sm:px-8 shadow-sm">
+              <p className="text-sm text-muted-foreground">
                 We&apos;re happy to talk through voice options, schedules, or
                 anything else. Expect a quick, thoughtful response.
               </p>
-              <div className="mt-6 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-6">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  Voice demos and recommendations
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  Billing and line setup questions
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  Privacy and safety policies
-                </div>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  round
+                  href="/contact"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  Chat with us
+                </Button>
+                <Button
+                  round
+                  variant="outline"
+                  href="/faq"
+                  className="border-primary/30 text-primary hover:bg-primary/5"
+                >
+                  FAQ →
+                </Button>
               </div>
-              <Button
-                round
-                href="/contact"
-                className="mt-8 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                Chat with us
-              </Button>
+            </div>
+            </BlendedDemoFrame>
             </div>
           </div>
         </Container>
@@ -233,13 +224,14 @@ function Home() {
 
 export default withI18n(Home);
 
-function Pill(props: React.PropsWithChildren) {
+function Pill(props: React.PropsWithChildren<{ className?: string }>) {
   return (
     <h2
       className={
         'inline-flex w-fit items-center space-x-2' +
         ' rounded-full bg-primary/10 px-4 py-2 text-center text-sm' +
-        ' font-medium text-primary'
+        ' font-medium text-primary' +
+        (props.className ? ` ${props.className}` : '')
       }
     >
       <span>{props.children}</span>
@@ -247,38 +239,3 @@ function Pill(props: React.PropsWithChildren) {
   );
 }
 
-function BlendedDemoFrame(props: React.PropsWithChildren) {
-  const edgeFade =
-    'radial-gradient(128% 128% at 50% 46%, #000 62%, rgba(0,0,0,0.92) 72%, transparent 100%)';
-  const edgeMaskStyle: React.CSSProperties = {
-    WebkitMaskImage: edgeFade,
-    maskImage: edgeFade,
-  };
-
-  return (
-    <div className="relative isolate w-full">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 rounded-[2rem] bg-[radial-gradient(ellipse_at_center,rgba(10,186,181,0.18)_0%,rgba(10,186,181,0.08)_38%,rgba(10,186,181,0)_72%)] blur-2xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-3 rounded-[1.7rem] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0)_62%)]"
-      />
-      <div className="relative rounded-[1.7rem] bg-gradient-to-br from-background/70 via-background/35 to-transparent p-2.5 ring-1 ring-primary/15 shadow-[0_20px_45px_-30px_rgba(10,186,181,0.55)]">
-        <div className="rounded-[1.35rem]">{props.children}</div>
-      </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-[10px] rounded-[1.35rem]"
-        style={edgeMaskStyle}
-      >
-        <div className="h-full w-full rounded-[1.35rem] shadow-[inset_0_0_0_999px_rgba(0,0,0,0.08)]" />
-      </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-2 rounded-[1.8rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-30px_35px_rgba(15,23,42,0.12)]"
-      />
-    </div>
-  );
-}

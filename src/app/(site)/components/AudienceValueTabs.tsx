@@ -13,7 +13,8 @@ import {
 
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
-import SubHeading from '~/core/ui/SubHeading';
+import { ReassuranceChecklist } from '~/app/(site)/components/ReassuranceChecklist';
+import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
 
 type AudienceId = 'families' | 'seniors' | 'care-teams';
 
@@ -45,15 +46,9 @@ const AUDIENCES: Array<{
 
 const ALWAYS_INCLUDED = [
   'Daily check-in calls',
-  'Medication & routine reminders (limits vary by plan)',
+  'Medication & routine reminders',
   'At-a-glance summaries for family',
   'Safety alerts to people they trust',
-];
-
-const PROMISES = [
-  'Honest by design — no hidden agendas, ever.',
-  'Always identifies as AI — no pretending, no confusion.',
-  'No pressure, no upsells — just genuine conversation.',
 ];
 
 function Pill(props: React.PropsWithChildren) {
@@ -118,7 +113,7 @@ export function AudienceValueTabs() {
   return (
     <section className="pt-1 pb-12">
       <Container>
-        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-2 lg:px-12 lg:py-4">
+        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
           <div className="relative">
             <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center">
               <Pill>
@@ -130,23 +125,19 @@ export function AudienceValueTabs() {
               </Heading>
             </div>
 
-            <div className="mx-auto mt-6 flex max-w-4xl flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
+            <div className="mx-auto mt-6 flex max-w-4xl flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
               {ALWAYS_INCLUDED.map((item) => (
                 <div
                   key={item}
                   className="flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted-foreground"
                 >
-                  <CheckCircleIcon className="h-4 w-4 text-primary" />
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
                   <span>{item}</span>
                 </div>
               ))}
             </div>
 
-            <div className="mx-auto mt-8 max-w-3xl">
-              <div className="mb-4 text-center text-sm font-medium text-muted-foreground">
-                From worry to <span className="text-primary">peace of mind</span>
-              </div>
-
+            <div className="mx-auto mt-8 max-w-4xl">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
                 <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
                   <div className="space-y-3">
@@ -176,6 +167,7 @@ export function AudienceValueTabs() {
                   </div>
                 </div>
 
+                <BlendedDemoFrame>
                 <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
                   <div className="space-y-3">
                     <h3 className="text-xs font-semibold text-primary">
@@ -197,6 +189,7 @@ export function AudienceValueTabs() {
                     </ul>
                   </div>
                 </div>
+                </BlendedDemoFrame>
               </div>
 
               <div className="relative mt-5">
@@ -206,12 +199,19 @@ export function AudienceValueTabs() {
                   <span className="h-2.5 w-2.5 rounded-full bg-primary" />
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </Container>
 
-              <div className="mt-16 text-center">
-                <SubHeading as={'h3'}>
-                  See how Ultaura works for you
-                </SubHeading>
-              </div>
+      <ReassuranceChecklist />
+
+      <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
+          <div className="relative">
+            <div className="mt-16 text-center">
+              <Heading type={2}>
+                See how Ultaura works for <span className="text-primary">you</span>
+              </Heading>
             </div>
 
             <div className="mx-auto mt-6 w-full max-w-[28rem]">
@@ -239,12 +239,14 @@ export function AudienceValueTabs() {
                           : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
-                      <audience.icon
-                        className={classNames(
-                          'h-5 w-5 transition-transform',
-                          selected && 'scale-110',
-                        )}
-                      />
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                        <audience.icon
+                          className={classNames(
+                            'h-4 w-4 transition-transform',
+                            selected && 'scale-110',
+                          )}
+                        />
+                      </span>
                       {audience.label}
                     </button>
                   );
@@ -451,20 +453,8 @@ export function AudienceValueTabs() {
                 </div>
               </div>
             </div>
-
-            <div className="mx-auto mt-6 w-full max-w-6xl rounded-2xl border border-border/60 bg-sidebar p-5 shadow-xl">
-              <div className="grid place-items-center gap-3 text-center text-sm text-muted-foreground md:grid-cols-3">
-                {PROMISES.map((item) => (
-                  <div key={item} className="flex items-center justify-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
-      </Container>
     </section>
   );
 }
