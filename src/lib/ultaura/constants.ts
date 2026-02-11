@@ -14,27 +14,27 @@ export const PLANS: Record<PlanId, Plan> = {
     displayName: 'Free Trial',
     monthlyPriceCents: 0,
     annualPriceCents: 0,
-    minutesIncluded: 0, // Unlimited — trial enforcement is time-based (3 days), not minute-based
+    minutesIncluded: 0, // Trial enforcement is time-based (14 days) with a daily minute cap
     linesIncluded: 1,
-    remindersPerLine: 3,
+    remindersPerLine: 5,
     overageRateCentsPerMin: 0, // No overage on trial - hard stop
   },
   care: {
     id: 'care',
     displayName: 'Care',
-    monthlyPriceCents: 3900, // $39
-    annualPriceCents: 39900, // $399
-    minutesIncluded: 300,
+    monthlyPriceCents: 1900, // $19
+    annualPriceCents: 18000, // $180
+    minutesIncluded: 200,
     linesIncluded: 1,
-    remindersPerLine: 3,
+    remindersPerLine: 5,
     overageRateCentsPerMin: 15, // $0.15
   },
   comfort: {
     id: 'comfort',
     displayName: 'Comfort',
-    monthlyPriceCents: 9900, // $99
-    annualPriceCents: 99900, // $999
-    minutesIncluded: 900,
+    monthlyPriceCents: 4900, // $49
+    annualPriceCents: 47000, // $470
+    minutesIncluded: 600,
     linesIncluded: 2,
     remindersPerLine: 10,
     overageRateCentsPerMin: 15,
@@ -42,9 +42,9 @@ export const PLANS: Record<PlanId, Plan> = {
   family: {
     id: 'family',
     displayName: 'Family',
-    monthlyPriceCents: 19900, // $199
-    annualPriceCents: 199900, // $1,999
-    minutesIncluded: 2200,
+    monthlyPriceCents: 9900, // $99
+    annualPriceCents: 95000, // $950
+    minutesIncluded: 1200,
     linesIncluded: 4,
     remindersPerLine: null,
     overageRateCentsPerMin: 15,
@@ -101,10 +101,11 @@ export function getPlanIdFromStripePrice(priceId: string): PlanId | null {
 export const BILLING = {
   OVERAGE_RATE_CENTS: 15, // $0.15 per minute
   DEFAULT_OVERAGE_CAP_CENTS: 10000, // $100 default cap
-  TRIAL_DURATION_DAYS: 3,
+  TRIAL_DURATION_DAYS: 14,
+  TRIAL_DAILY_LIMIT_MINUTES: 20,
   LOW_MINUTES_WARNING_THRESHOLD: 15, // Warn when <= 15 minutes remaining
   CRITICAL_MINUTES_THRESHOLD: 5, // Critical warning at <= 5 minutes
-  ANNUAL_DISCOUNT: 0.15,
+  ANNUAL_DISCOUNT: 0.20,
 } as const;
 
 export const TRIAL_ELIGIBLE_PLANS = [

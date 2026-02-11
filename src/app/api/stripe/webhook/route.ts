@@ -89,10 +89,78 @@ export async function POST(request: Request) {
           return throwBadRequestException('Missing subscription ID');
         }
 
-        const subscription =
+        let subscription =
           await stripe.subscriptions.retrieve(subscriptionId);
+        let organizationUid = getOrganizationUidFromClientReference(session);
 
-        await onCheckoutCompleted(client, session, subscription);
+        if (!organizationUid) {
+          if (!isOnboardingCheckoutSession(session)) {
+            logger.error(
+              {
+                eventId: event.id,
+                sessionId: session.id,
+              },
+              '[Stripe] Missing client_reference_id in checkout session',
+            );
+
+            return throwBadRequestException('Missing client_reference_id');
+          }
+
+          const resolved = await resolveOrganizationUid({
+            client,
+            session,
+            subscription,
+          });
+          organizationUid = resolved.organizationUid;
+
+          if (!organizationUid) {
+            logger.warn(
+              {
+                eventId: event.id,
+                sessionId: session.id,
+                subscriptionId: subscription.id,
+                issue: 'onboarding_missing_client_reference_id_unresolved',
+              },
+              '[Stripe] Onboarding checkout missing client_reference_id and could not resolve org UID. Deferred to onboarding completion + reconciliation.',
+            );
+            break;
+          }
+
+          if (subscription.metadata?.organization_uid !== organizationUid) {
+            try {
+              subscription = await stripe.subscriptions.update(subscription.id, {
+                metadata: {
+                  ...(subscription.metadata ?? {}),
+                  organization_uid: organizationUid,
+                },
+              });
+            } catch (error) {
+              logger.warn(
+                {
+                  eventId: event.id,
+                  sessionId: session.id,
+                  subscriptionId: subscription.id,
+                  organizationUid,
+                  error,
+                },
+                '[Stripe] Failed to persist resolved organization UID on onboarding subscription metadata',
+              );
+            }
+          }
+
+          logger.info(
+            {
+              eventId: event.id,
+              sessionId: session.id,
+              subscriptionId: subscription.id,
+              organizationUid,
+              strategy: resolved.strategy,
+            },
+            '[Stripe] Resolved onboarding organization UID without client_reference_id',
+          );
+        }
+
+        await onCheckoutCompleted(client, session, subscription, organizationUid);
 
         // Sync Ultaura subscription if this is an Ultaura plan
         const hasUltauraPrice = subscription.items.data.some((item) => {
@@ -101,7 +169,6 @@ export async function POST(request: Request) {
         });
 
         if (hasUltauraPrice) {
-          const organizationUid = getOrganizationUidFromClientReference(session);
           await syncUltauraSubscription(client, subscription, organizationUid);
           logger.info({ subscriptionId: subscription.id }, '[Ultaura] Synced subscription');
         }
@@ -172,8 +239,8 @@ async function onCheckoutCompleted(
   client: SupabaseClient,
   session: Stripe.Checkout.Session,
   subscription: Stripe.Subscription,
+  organizationUid: string,
 ) {
-  const organizationUid = getOrganizationUidFromClientReference(session);
   const customerId = session.customer as string;
 
   // build organization subscription and set on the organization document
@@ -204,11 +271,119 @@ async function onCheckoutCompleted(
 function getOrganizationUidFromClientReference(
   session: Stripe.Checkout.Session,
 ) {
-  const clientReferenceId = session.client_reference_id;
+  return session.client_reference_id ?? null;
+}
 
-  if (!clientReferenceId) {
-    throw new Error('Missing client_reference_id in checkout session');
+function isOnboardingCheckoutSession(session: Stripe.Checkout.Session) {
+  const metadata = session.metadata ?? {};
+  return (
+    metadata.checkout_flow === 'onboarding' ||
+    typeof metadata.onboarding_state_token === 'string'
+  );
+}
+
+async function resolveOrganizationUid(params: {
+  client: SupabaseClient;
+  session: Stripe.Checkout.Session;
+  subscription: Stripe.Subscription;
+}): Promise<{
+  organizationUid: string | null;
+  strategy: 'metadata' | 'auth_user_id' | 'email_fallback' | 'none';
+}> {
+  const metadataOrganizationUid =
+    params.subscription.metadata?.organization_uid ||
+    params.session.metadata?.organization_uid;
+
+  if (metadataOrganizationUid && looksLikeUuid(metadataOrganizationUid)) {
+    return {
+      organizationUid: metadataOrganizationUid,
+      strategy: 'metadata',
+    };
   }
 
-  return clientReferenceId;
+  const authUserIdCandidate = getAuthUserIdFromCheckout(params.session, params.subscription);
+  if (authUserIdCandidate && looksLikeUuid(authUserIdCandidate)) {
+    const organizationUid = await getOrganizationUidForAuthUser(
+      params.client,
+      authUserIdCandidate,
+    );
+
+    if (organizationUid) {
+      return {
+        organizationUid,
+        strategy: 'auth_user_id',
+      };
+    }
+  }
+
+  const email =
+    params.session.customer_details?.email ||
+    params.session.customer_email ||
+    null;
+
+  if (email) {
+    const organizationUid = await getOrganizationUidByBillingEmail(
+      params.client,
+      email,
+    );
+
+    if (organizationUid) {
+      return {
+        organizationUid,
+        strategy: 'email_fallback',
+      };
+    }
+  }
+
+  return {
+    organizationUid: null,
+    strategy: 'none',
+  };
+}
+
+function getAuthUserIdFromCheckout(
+  session: Stripe.Checkout.Session,
+  subscription: Stripe.Subscription,
+) {
+  return (
+    session.metadata?.auth_user_id ||
+    subscription.metadata?.auth_user_id ||
+    null
+  );
+}
+
+function looksLikeUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+async function getOrganizationUidForAuthUser(
+  client: SupabaseClient,
+  authUserId: string,
+) {
+  const { data } = await client
+    .from('memberships')
+    .select('created_at, organization:organizations!inner(uuid)')
+    .eq('user_id', authUserId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (data?.organization as { uuid?: string } | null)?.uuid ?? null;
+}
+
+async function getOrganizationUidByBillingEmail(
+  client: SupabaseClient,
+  email: string,
+) {
+  const { data } = await client
+    .from('ultaura_accounts')
+    .select('created_at, organization:organizations!inner(uuid)')
+    .eq('billing_email', email)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (data?.organization as { uuid?: string } | null)?.uuid ?? null;
 }

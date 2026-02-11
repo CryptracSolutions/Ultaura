@@ -454,7 +454,9 @@ async function processSchedule(schedule: ScheduleRow): Promise<void> {
   }
 
   // Check access (minutes, status, etc.)
-  const accessCheck = await checkLineAccess(line, account, 'outbound');
+  const accessCheck = await checkLineAccess(line, account, 'outbound', {
+    skipTrialReservation: true,
+  });
   if (!accessCheck.allowed) {
     logger.info({ scheduleId: schedule.id, reason: accessCheck.reason }, 'Access denied, skipping');
     await completeScheduleWithResult(schedule, 'failed', calculateNextRun(schedule, line.timezone), false);
@@ -868,7 +870,9 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
   }
 
   // Check access
-  const accessCheck = await checkLineAccess(line, account, 'outbound');
+  const accessCheck = await checkLineAccess(line, account, 'outbound', {
+    skipTrialReservation: true,
+  });
   if (!accessCheck.allowed) {
     logger.info({ reminderId: reminder.id, reason: accessCheck.reason }, 'Access denied for reminder');
     await handleReminderFailure(supabase, reminder, 'missed', line.timezone);

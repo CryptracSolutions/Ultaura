@@ -1,5 +1,6 @@
 'use server';
 
+import { createHash } from 'crypto';
 import { z } from 'zod';
 import { join } from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -111,6 +112,12 @@ export const createCheckoutAction = withSession(
         : undefined;
 
     const embedded = configuration.stripe.embedded;
+    const idempotencyKey = buildCheckoutIdempotencyKey({
+      organizationUid,
+      priceId,
+      returnUrl,
+      userId,
+    });
 
     // create the Stripe Checkout session
     const session = await createStripeCheckout({
@@ -121,6 +128,7 @@ export const createCheckoutAction = withSession(
       trialPeriodDays,
       customerEmail,
       embedded,
+      idempotencyKey,
     }).catch((e) => {
       logger.error(e, `Stripe Checkout error`);
     });
@@ -330,4 +338,23 @@ function redirectToErrorPage(referrerPath: string) {
   const url = join(referrerPath, `?error=true`);
 
   return redirect(url);
+}
+
+function buildCheckoutIdempotencyKey(params: {
+  organizationUid: string;
+  priceId: string;
+  returnUrl: string;
+  userId: string;
+}) {
+  const timeBucket = Math.floor(Date.now() / 30_000);
+  const raw = [
+    params.organizationUid,
+    params.priceId,
+    params.returnUrl,
+    params.userId,
+    timeBucket.toString(),
+  ].join(':');
+  const digest = createHash('sha256').update(raw).digest('hex').slice(0, 48);
+
+  return `stripe-checkout:${digest}`;
 }

@@ -10,9 +10,9 @@ import { redactPhone } from '../../utils/redact.js';
 
 // Plan information for Grok to explain
 const PLAN_INFO: Record<string, { name: string; price: string; minutes: number | null; lines: number }> = {
-  care: { name: 'Care', price: '$39/month', minutes: 300, lines: 1 },
-  comfort: { name: 'Comfort', price: '$99/month', minutes: 900, lines: 2 },
-  family: { name: 'Family', price: '$199/month', minutes: 2200, lines: 4 },
+  care: { name: 'Care', price: '$19/month', minutes: 200, lines: 1 },
+  comfort: { name: 'Comfort', price: '$49/month', minutes: 600, lines: 2 },
+  family: { name: 'Family', price: '$99/month', minutes: 1200, lines: 4 },
   payg: { name: 'Pay as you go', price: '$0/month + $0.15/minute', minutes: null, lines: 4 },
 };
 

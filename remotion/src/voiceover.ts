@@ -59,7 +59,7 @@ export const voiceoverScript = [
       theme.sections.insights.duration +
       theme.sections.peace.duration,
     duration: theme.sections.cta.duration,
-    text: "Start your free 3 day trial.",
+    text: "Start your free 14 day trial.",
   },
 ];
 

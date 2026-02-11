@@ -1,7 +1,12 @@
 'use server';
 
+import { createHash } from 'crypto';
+
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
+import configuration from '~/configuration';
+import requireSession from '~/lib/user/require-session';
 import type Stripe from 'stripe';
 
 const logger = getLogger();
@@ -23,14 +28,21 @@ const ULTAURA_PRICE_IDS: Record<string, { monthly?: string; annual?: string }> =
     monthly: process.env.STRIPE_ULTAURA_PAYG_PRICE_ID,
   },
 };
+const VALID_PLAN_IDS = ['care', 'comfort', 'family', 'payg'] as const;
+
+type BillingInterval = 'monthly' | 'annual';
+
+function isValidPlanId(planId: string) {
+  return VALID_PLAN_IDS.includes(planId as (typeof VALID_PLAN_IDS)[number]);
+}
 
 export async function createUltauraCheckout(
   planId: string,
-  billingInterval: 'monthly' | 'annual',
+  billingInterval: BillingInterval,
   organizationUid: string,
-  returnUrl: string
+  returnUrl: string,
 ): Promise<{ success: boolean; checkoutUrl?: string; error?: string }> {
-  if (!['care', 'comfort', 'family', 'payg'].includes(planId)) {
+  if (!isValidPlanId(planId)) {
     return { success: false, error: 'Invalid plan selected' };
   }
 
@@ -77,6 +89,12 @@ export async function createUltauraCheckout(
 
     const successUrl = `${returnUrl}?success=true&plan=${planId}`;
     const cancelUrl = `${returnUrl}?canceled=true`;
+    const idempotencyKey = buildCheckoutIdempotencyKey('ultaura-checkout', [
+      organizationUid,
+      planId,
+      billingInterval,
+      returnUrl,
+    ]);
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
@@ -100,7 +118,9 @@ export async function createUltauraCheckout(
       sessionParams.customer = customerId;
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const session = await stripe.checkout.sessions.create(sessionParams, {
+      idempotencyKey,
+    });
 
     if (!session.url) {
       return { success: false, error: 'Failed to create checkout session' };
@@ -115,7 +135,7 @@ export async function createUltauraCheckout(
 
 export async function getUltauraPriceId(
   planId: string,
-  billingInterval: 'monthly' | 'annual'
+  billingInterval: BillingInterval,
 ): Promise<string | null> {
   const priceConfig = ULTAURA_PRICE_IDS[planId];
   if (!priceConfig) return null;
@@ -124,4 +144,114 @@ export async function getUltauraPriceId(
     return priceConfig.annual;
   }
   return priceConfig.monthly || null;
+}
+
+export async function createOnboardingCheckout(
+  planId: string,
+  billingInterval: BillingInterval = 'monthly',
+  stateToken: string,
+): Promise<{ success: boolean; checkoutUrl?: string; error?: string }> {
+  if (!stateToken.trim()) {
+    return {
+      success: false,
+      error: 'Missing onboarding state token',
+    };
+  }
+
+  if (!isValidPlanId(planId)) {
+    return { success: false, error: 'Invalid plan selected' };
+  }
+
+  const priceId = await getUltauraPriceId(planId, billingInterval);
+
+  if (!priceId) {
+    logger.error({ planId, billingInterval }, 'Missing Stripe price ID for onboarding checkout');
+    return {
+      success: false,
+      error: 'Pricing configuration error. Please contact support.',
+    };
+  }
+
+  try {
+    const getStripeInstance = (await import('~/core/stripe/get-stripe')).default;
+    const stripe = await getStripeInstance();
+    const actionClient = getSupabaseServerActionClient();
+    const session = await requireSession(actionClient);
+    const userId = session.user.id;
+    const baseUrl = getOnboardingBaseUrl();
+    const encodedStateToken = encodeURIComponent(stateToken);
+    const successUrl = `${baseUrl}/onboarding?checkout_success=true&session_id={CHECKOUT_SESSION_ID}&state=${encodedStateToken}`;
+    const cancelUrl = `${baseUrl}/onboarding?checkout_success=false&state=${encodedStateToken}&canceled=true`;
+    const metadata = {
+      checkout_flow: 'onboarding',
+      auth_user_id: userId,
+      onboarding_state_token: stateToken,
+      ultaura_plan_id: planId,
+      ultaura_billing_interval: billingInterval,
+    };
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata,
+      subscription_data: {
+        trial_period_days: 14,
+        metadata,
+      },
+      customer_email: session.user.email ?? undefined,
+    };
+
+    const idempotencyKey = buildCheckoutIdempotencyKey('onboarding-checkout', [
+      userId,
+      planId,
+      billingInterval,
+    ]);
+
+    const checkoutSession = await stripe.checkout.sessions.create(sessionParams, {
+      idempotencyKey,
+    });
+
+    if (!checkoutSession.url) {
+      return {
+        success: false,
+        error: 'Failed to create checkout session',
+      };
+    }
+
+    return {
+      success: true,
+      checkoutUrl: checkoutSession.url,
+    };
+  } catch (error) {
+    logger.error({ error, planId }, 'Failed to create onboarding checkout session');
+    return {
+      success: false,
+      error: 'Failed to create checkout session',
+    };
+  }
+}
+
+function buildCheckoutIdempotencyKey(
+  prefix: string,
+  parts: Array<string | number>,
+  useTimeBucket = true,
+) {
+  const bucketPart = useTimeBucket
+    ? `:${Math.floor(Date.now() / 30_000)}`
+    : '';
+  const raw = `${prefix}:${parts.join(':')}${bucketPart}`;
+  const digest = createHash('sha256').update(raw).digest('hex').slice(0, 48);
+  return `${prefix}:${digest}`;
+}
+
+function getOnboardingBaseUrl() {
+  const rawBase =
+    configuration.site.siteUrl ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    'http://localhost:3000';
+
+  return rawBase.replace(/\/$/, '');
 }

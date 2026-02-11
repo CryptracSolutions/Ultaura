@@ -137,7 +137,7 @@ export const CTAScene: React.FC = () => {
               gap: 8,
             }}
           >
-            Free 3 day trial
+            Free 14 day trial
           </div>
         </Sequence>
 
@@ -204,7 +204,7 @@ export const CTAScene: React.FC = () => {
                   zIndex: 1,
                 }}
               >
-                Free 3 day trial
+                Free 14 day trial
               </div>
             </div>
 
@@ -252,7 +252,7 @@ export const CTAScene: React.FC = () => {
                 gap: 12,
               }}
             >
-              <span>No credit card required</span>
+              <span>Works on any phone</span>
               <span style={{ opacity: 0.5 }}>•</span>
               <span>Cancel anytime</span>
             </div>

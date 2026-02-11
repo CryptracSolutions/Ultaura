@@ -1,28 +1,29 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import React from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Check, Clock, Users, Zap, Heart } from 'lucide-react';
 
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
 import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
+import Alert from '~/core/ui/Alert';
 import type { PlanId, UserType } from '~/lib/ultaura/types';
 import { PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
 
 const planFeatures: Record<string, string[]> = {
   care: [
-    '300 minutes per month',
+    '200 minutes per month',
     '1 phone line',
     'Scheduled daily calls',
-    'Up to 3 reminders per line',
+    'Up to 5 reminders per line',
     'Activity suggestions',
     'Memory notes',
     'Email support',
   ],
   comfort: [
-    '900 minutes per month',
+    '600 minutes per month',
     '2 phone lines',
     'Multiple call times daily',
     'Up to 10 reminders per line',
@@ -32,7 +33,7 @@ const planFeatures: Record<string, string[]> = {
     'Call summaries',
   ],
   family: [
-    '2,200 minutes per month',
+    '1,200 minutes per month',
     '4 phone lines',
     'Unlimited call scheduling',
     'Unlimited reminders',
@@ -59,13 +60,20 @@ const planIcons: Record<string, React.ReactNode> = {
   payg: <Zap className="w-6 h-6" />,
 };
 
+const trialPlans = TRIAL_ELIGIBLE_PLANS.map((planId) => ({
+  planId,
+  plan: PLANS[planId],
+  features: planFeatures[planId] ?? [],
+}));
+
 const PlanSelectionStep: React.FCC<{
-  onSubmit: (planId: PlanId) => void;
+  onSubmit: (planId: PlanId) => Promise<void> | void;
   userType?: UserType;
   onGoBack?: () => void;
   isLastStep?: boolean;
-}> = ({ onSubmit, userType, onGoBack, isLastStep }) => {
-  const { t } = useTranslation('onboarding');
+  isSubmitting?: boolean;
+  errorMessage?: string | null;
+}> = ({ onSubmit, userType, onGoBack, isLastStep, isSubmitting = false, errorMessage }) => {
   const defaultPlanId: PlanId = userType === 'self' ? 'care' : 'comfort';
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlanId);
 
@@ -73,16 +81,8 @@ const PlanSelectionStep: React.FCC<{
     setSelectedPlanId(defaultPlanId);
   }, [defaultPlanId]);
 
-  const plans = useMemo(() => {
-    return TRIAL_ELIGIBLE_PLANS.map((planId) => ({
-      planId,
-      plan: PLANS[planId],
-      features: planFeatures[planId] ?? [],
-    }));
-  }, []);
-
-  const handleContinue = useCallback(() => {
-    onSubmit(selectedPlanId);
+  const handleContinue = useCallback(async () => {
+    await onSubmit(selectedPlanId);
   }, [onSubmit, selectedPlanId]);
 
   return (
@@ -100,7 +100,7 @@ const PlanSelectionStep: React.FCC<{
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {plans.map(({ planId, plan, features }) => {
+        {trialPlans.map(({ planId, plan, features }) => {
           const isPopular = planId === 'comfort';
           const selected = selectedPlanId === planId;
           const price = plan.monthlyPriceCents / 100;
@@ -109,6 +109,7 @@ const PlanSelectionStep: React.FCC<{
             <button
               key={planId}
               type="button"
+              disabled={isSubmitting}
               onClick={() => setSelectedPlanId(planId)}
               className={`relative flex w-full flex-col rounded-xl border bg-card p-5 text-left transition-all ${
                 selected
@@ -116,7 +117,7 @@ const PlanSelectionStep: React.FCC<{
                   : isPopular
                   ? 'border-primary/50 ring-1 ring-primary/30 shadow-md shadow-primary/10'
                   : 'border-border hover:border-primary/50 hover:shadow-md'
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-70`}
             >
               {isPopular && (
                 <div className="absolute top-3 right-3">
@@ -161,7 +162,7 @@ const PlanSelectionStep: React.FCC<{
               </ul>
 
               <div className="text-xs text-muted-foreground">
-                3-day free trial • No credit card required
+                14-day trial starts after checkout
               </div>
             </button>
           );
@@ -169,12 +170,28 @@ const PlanSelectionStep: React.FCC<{
       </div>
 
       <div className={'flex flex-col space-y-3'}>
-        <Button type={'button'} onClick={handleContinue}>
-          {isLastStep ? 'Start free trial' : <Trans i18nKey={'common:continue'} />}
+        {errorMessage && (
+          <Alert type={'error'}>
+            <Alert.Heading>Checkout failed</Alert.Heading>
+            {errorMessage}
+          </Alert>
+        )}
+
+        <Button type={'button'} onClick={handleContinue} disabled={isSubmitting}>
+          {isSubmitting
+            ? 'Redirecting to checkout...'
+            : isLastStep
+            ? 'Continue to checkout'
+            : <Trans i18nKey={'common:continue'} />}
         </Button>
 
         {onGoBack && (
-          <Button type={'button'} variant={'ghost'} onClick={onGoBack}>
+          <Button
+            type={'button'}
+            variant={'ghost'}
+            onClick={onGoBack}
+            disabled={isSubmitting}
+          >
             <Trans i18nKey={'common:goBack'} />
           </Button>
         )}

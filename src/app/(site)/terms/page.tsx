@@ -191,9 +191,8 @@ function TermsPage() {
                   settings.
                 </li>
                 <li>
-                  Most plans include a 3-day free trial. The Free Trial has a
-                  limited number of minutes and stops when those minutes are
-                  used.
+                  Most plans include a 14-day free trial. The Free Trial
+                  includes up to 20 minutes per day and ends after 14 days.
                 </li>
                 <li>
                   Minutes are pooled at the account level and allocated across

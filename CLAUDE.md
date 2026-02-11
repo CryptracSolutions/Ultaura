@@ -240,7 +240,7 @@ Document mistakes and patterns here. After Claude makes an error, have it update
 - Forgetting to add new tables to the ARCHITECTURE.md reference
 - Not testing with both payer and line user_type accounts
 - Missing encryption for PII fields (use line/account encryption services)
-- DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($39/$99/$199) — `constants.ts` is the source of truth
+- DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($19/$49/$99) — `constants.ts` is the source of truth
 
 *Add new lessons as they're discovered.*
 
@@ -303,15 +303,15 @@ Document mistakes and patterns here. After Claude makes an error, have it update
 
 | Plan | Monthly | Annual | Minutes | Lines |
 |------|---------|--------|---------|-------|
-| Free Trial | $0 | - | Unlimited | 1 |
-| Care | $39 | $399 | 300 | 1 |
-| Comfort | $99 | $999 | 900 | 2 |
-| Family | $199 | $1,999 | 2,200 | 4 |
+| Free Trial | $0 | - | 20/day | 1 |
+| Care | $19 | $180 | 200 | 1 |
+| Comfort | $49 | $470 | 600 | 2 |
+| Family | $99 | $950 | 1,200 | 4 |
 | Pay As You Go | $0 | - | 0 | 4 |
 
-- All overages: $0.15/min (except Free Trial: unlimited)
-- Trial duration: 3 days
-- Annual discount: ~15%
+- All overages: $0.15/min (except Free Trial: no overage charges)
+- Trial duration: 14 days
+- Annual discount: ~20%
 
 ## Call Flow
 

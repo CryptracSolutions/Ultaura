@@ -66,11 +66,11 @@ const FAQPage = () => {
             <Heading type={2}>Ready to get started?</Heading>
             <p className="text-lg text-muted-foreground">
               Give your loved one a companion who&apos;s always happy to listen.
-              Start with a 3-day free trial, no credit card required.
+              Start with a 14-day free trial. Cancel anytime.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" round href="/auth/sign-up">
-                Start 3-day free trial
+                Start 14-day free trial
               </Button>
               <Button
                 size="lg"

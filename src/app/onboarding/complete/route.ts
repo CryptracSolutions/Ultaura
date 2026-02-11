@@ -13,9 +13,11 @@ import { throwInternalServerErrorException } from '~/core/http-exceptions';
 import MembershipRole from '~/lib/organizations/types/membership-role';
 import inviteMembers from '~/lib/server/organizations/invite-members';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
+import getStripeInstance from '~/core/stripe/get-stripe';
 
 import { BILLING, GROK, PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
 import { createLine } from '~/lib/ultaura/lines';
+import { syncUltauraSubscription } from '~/lib/ultaura/billing';
 import { getUserDataById } from '~/lib/server/queries';
 
 export const POST = async (req: NextRequest) => {
@@ -109,7 +111,7 @@ export const POST = async (req: NextRequest) => {
     });
   }
 
-  // Create Ultaura account with a 3-day trial on the chosen plan (no credit card required)
+  // Create Ultaura account with the configured trial window on the chosen plan.
   let accountId: string | null = null;
   try {
     const { data: orgRow, error: orgError } = await adminClient
@@ -181,6 +183,14 @@ export const POST = async (req: NextRequest) => {
   if (!accountId) {
     logger.error({ organizationUid }, 'Missing Ultaura account ID after onboarding');
     return throwInternalServerErrorException();
+  }
+
+  if (body.stripeSessionId) {
+    await reconcileOnboardingStripeSubscription({
+      stripeSessionId: body.stripeSessionId,
+      organizationUid,
+      adminClient,
+    });
   }
 
   const lineName = body.userType === 'self'
@@ -258,6 +268,7 @@ function getOnboardingBodySchema() {
       userType: z.enum(['self', 'family_managed']),
       organization: z.string().trim().optional().default(''),
       selectedPlanId: z.enum(TRIAL_ELIGIBLE_PLANS),
+      stripeSessionId: z.string().min(1).optional(),
       invites: z
         .array(
           z.object({
@@ -329,4 +340,82 @@ function getOnboardingBodySchema() {
         });
       }
     });
+}
+
+async function reconcileOnboardingStripeSubscription(params: {
+  stripeSessionId: string;
+  organizationUid: string;
+  adminClient: ReturnType<typeof getSupabaseRouteHandlerClient>;
+}) {
+  const logger = getLogger();
+
+  try {
+    const stripe = await getStripeInstance();
+    const checkoutSession = await stripe.checkout.sessions.retrieve(
+      params.stripeSessionId,
+    );
+
+    const subscriptionId =
+      typeof checkoutSession.subscription === 'string'
+        ? checkoutSession.subscription
+        : checkoutSession.subscription?.id;
+
+    if (!subscriptionId) {
+      logger.warn(
+        {
+          stripeSessionId: params.stripeSessionId,
+          organizationUid: params.organizationUid,
+        },
+        'No subscription ID on onboarding checkout session',
+      );
+      return;
+    }
+
+    let subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    try {
+      await stripe.subscriptions.update(subscriptionId, {
+        metadata: {
+          ...(subscription.metadata ?? {}),
+          organization_uid: params.organizationUid,
+        },
+      });
+      subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    } catch (error) {
+      logger.warn(
+        {
+          error,
+          subscriptionId,
+          organizationUid: params.organizationUid,
+        },
+        'Failed to update Stripe subscription metadata during onboarding reconciliation',
+      );
+    }
+
+    try {
+      await syncUltauraSubscription(
+        params.adminClient,
+        subscription,
+        params.organizationUid,
+      );
+    } catch (error) {
+      logger.warn(
+        {
+          error,
+          subscriptionId,
+          organizationUid: params.organizationUid,
+        },
+        'Failed to sync Ultaura subscription during onboarding reconciliation',
+      );
+    }
+  } catch (error) {
+    logger.warn(
+      {
+        error,
+        stripeSessionId: params.stripeSessionId,
+        organizationUid: params.organizationUid,
+      },
+      'Failed to reconcile onboarding Stripe checkout session',
+    );
+  }
 }

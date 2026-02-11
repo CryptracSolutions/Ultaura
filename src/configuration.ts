@@ -86,21 +86,21 @@ const configuration = {
         description: 'Perfect for staying connected with one loved one',
         badge: '1 Phone Line',
         features: [
-          '300 minutes per month',
+          '200 minutes per month',
           '1 phone line',
           'Daily check-in calls',
-          'Up to 3 reminders per line',
+          'Up to 5 reminders per line',
           'Email support',
         ],
         plans: [
           {
             name: 'Monthly',
-            price: '$39',
+            price: '$19',
             stripePriceId: process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID || 'price_care_monthly',
           },
           {
             name: 'Yearly',
-            price: '$399',
+            price: '$180',
             stripePriceId: process.env.STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID || 'price_care_annual',
           },
         ],
@@ -110,7 +110,7 @@ const configuration = {
         recommended: true,
         description: 'Ideal for couples or checking in on two family members',
         features: [
-          '900 minutes per month',
+          '600 minutes per month',
           '2 phone lines',
           'Daily check-in calls',
           'Up to 10 reminders per line',
@@ -120,12 +120,12 @@ const configuration = {
         plans: [
           {
             name: 'Monthly',
-            price: '$99',
+            price: '$49',
             stripePriceId: process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID || 'price_comfort_monthly',
           },
           {
             name: 'Yearly',
-            price: '$999',
+            price: '$470',
             stripePriceId: process.env.STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID || 'price_comfort_annual',
           },
         ],
@@ -135,7 +135,7 @@ const configuration = {
         description: 'Best value for larger families with multiple loved ones',
         badge: 'Best Value',
         features: [
-          '2,200 minutes per month',
+          '1,200 minutes per month',
           '4 phone lines',
           'Daily check-in calls',
           'Unlimited reminders',
@@ -146,12 +146,12 @@ const configuration = {
         plans: [
           {
             name: 'Monthly',
-            price: '$199',
+            price: '$99',
             stripePriceId: process.env.STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID || 'price_family_monthly',
           },
           {
             name: 'Yearly',
-            price: '$1,999',
+            price: '$950',
             stripePriceId: process.env.STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID || 'price_family_annual',
           },
         ],

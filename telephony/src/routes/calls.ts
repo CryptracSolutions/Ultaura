@@ -12,6 +12,20 @@ export const callsRouter = Router();
 
 callsRouter.use(requireInternalSecret);
 
+function mapAccessDeniedReasonToEndReason(
+  reason: string | undefined
+): 'trial_cap' | 'minutes_cap' | 'error' {
+  if (reason === 'trial_cap') {
+    return 'trial_cap';
+  }
+
+  if (reason === 'minutes_cap') {
+    return 'minutes_cap';
+  }
+
+  return 'error';
+}
+
 // Initiate an outbound call
 callsRouter.post('/outbound', async (req: Request, res: Response) => {
   try {
@@ -70,17 +84,6 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       return;
     }
 
-    // Check access
-    const accessCheck = await checkLineAccess(line, account, 'outbound', {
-      skipDnc: hasAlternateTarget,
-      skipVerification: hasAlternateTarget,
-    });
-    if (!accessCheck.allowed) {
-      logger.info({ lineId, reason: accessCheck.reason }, 'Line access denied');
-      res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
-      return;
-    }
-
     const callDestination = hasAlternateTarget ? targetPhoneNumber.trim() : line.phone_e164;
 
     // Create call session
@@ -111,6 +114,19 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
         }
       }
       res.status(500).json({ error: 'Failed to create call session' });
+      return;
+    }
+
+    // Reserve trial cap (if applicable) with the real session ID before Twilio call initiation.
+    const accessCheck = await checkLineAccess(line, account, 'outbound', {
+      skipDnc: hasAlternateTarget,
+      skipVerification: hasAlternateTarget,
+      callSessionId: session.id,
+    });
+    if (!accessCheck.allowed) {
+      logger.info({ lineId, callSessionId: session.id, reason: accessCheck.reason }, 'Line access denied');
+      await failCallSession(session.id, mapAccessDeniedReasonToEndReason(accessCheck.reason));
+      res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
       return;
     }
 
@@ -176,13 +192,6 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
   // Skip opt-out check for test calls
   // Skip quiet hours check for test calls
 
-  // Check access (but allow even if low minutes for testing)
-  const accessCheck = await checkLineAccess(line, account, 'outbound');
-  if (!accessCheck.allowed) {
-    res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
-    return;
-  }
-
   // Create call session
   const session = await createCallSession({
     accountId: account.id,
@@ -196,6 +205,17 @@ callsRouter.post('/test', async (req: Request, res: Response) => {
 
   if (!session) {
     res.status(500).json({ error: 'Failed to create call session' });
+    return;
+  }
+
+  // Reserve trial cap (if applicable) with the real session ID before Twilio call initiation.
+  const accessCheck = await checkLineAccess(line, account, 'outbound', {
+    callSessionId: session.id,
+  });
+  if (!accessCheck.allowed) {
+    logger.info({ lineId, callSessionId: session.id, reason: accessCheck.reason }, 'Line access denied for test call');
+    await failCallSession(session.id, mapAccessDeniedReasonToEndReason(accessCheck.reason));
+    res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
     return;
   }
 

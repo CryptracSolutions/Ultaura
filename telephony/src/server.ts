@@ -18,6 +18,10 @@ import { handleMediaStreamConnection } from './websocket/media-stream.js';
 import { startScheduler, stopScheduler } from './scheduler/call-scheduler.js';
 import { startWeeklySummaryScheduler, stopWeeklySummaryScheduler } from './scheduler/weekly-summary-scheduler.js';
 import { startRecordingDeletionScheduler, stopRecordingDeletionScheduler } from './scheduler/recording-deletion.js';
+import {
+  startOnboardingMaintenanceScheduler,
+  stopOnboardingMaintenanceScheduler,
+} from './scheduler/onboarding-maintenance-scheduler.js';
 import { startEmbeddingJob, stopEmbeddingJob } from './jobs/embedding-job.js';
 import { startMemoryDecayJob, stopMemoryDecayJob } from './jobs/decay-job.js';
 import { verifyRouter } from './routes/verify.js';
@@ -296,6 +300,7 @@ server.listen(PORT, () => {
   startScheduler();
   startWeeklySummaryScheduler();
   startRecordingDeletionScheduler();
+  startOnboardingMaintenanceScheduler();
   startEmbeddingJob();
   startMemoryDecayJob();
 });
@@ -311,6 +316,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   stopScheduler();
   stopWeeklySummaryScheduler();
   stopRecordingDeletionScheduler();
+  stopOnboardingMaintenanceScheduler();
   stopEmbeddingJob();
   stopMemoryDecayJob();
 

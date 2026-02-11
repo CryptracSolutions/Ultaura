@@ -23,10 +23,10 @@ function PricingPage() {
         <span className="flex flex-col items-center gap-1 text-sm sm:text-base text-muted-foreground sm:flex-row sm:gap-2">
           <span className="inline-flex items-center gap-2">
             <CheckCircleIcon className="h-4 w-4 text-primary" />
-            All plans include a 3-day free trial
+            All plans include a 14-day free trial
           </span>
           <span className="text-muted-foreground/80">
-            No credit card required to start
+            Cancel anytime
           </span>
         </span>
       </PageHero>

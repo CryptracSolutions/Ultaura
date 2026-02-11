@@ -15,7 +15,7 @@ export function MainCallToActionButton() {
       href={'/auth/sign-up'}
     >
       <span className={'flex items-center justify-center space-x-2 w-full'}>
-        <span>Start 3-day free trial</span>
+        <span>Start 14-day free trial</span>
         <ChevronRightIcon
           className={
             'h-4 animate-in fade-in slide-in-from-left-8' +

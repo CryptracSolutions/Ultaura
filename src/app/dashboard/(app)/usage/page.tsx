@@ -52,7 +52,7 @@ export default async function UsagePage() {
                 Set up Ultaura to see usage
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a 3-day free trial to activate minute tracking and spending caps.
+                Start a 14-day free trial to activate minute tracking and spending caps.
               </p>
             </div>
           </div>

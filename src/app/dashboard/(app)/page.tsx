@@ -98,12 +98,12 @@ async function DashboardPage() {
                 Set up Ultaura for your family
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a 3-day free trial to add a loved one, set schedules, and view
+                Start a 14-day free trial to add a loved one, set schedules, and view
                 call activity in one place.
               </p>
               <div className="mt-4">
                 <Button variant="default" href="/dashboard/settings/subscription">
-                  Start 3-day free trial
+                  Start 14-day free trial
                 </Button>
               </div>
             </div>

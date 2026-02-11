@@ -123,6 +123,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     const accessCheck = await checkLineAccess(line, account, 'outbound', {
       skipDnc: bypassDncForTestTarget,
       skipVerification: bypassDncForTestTarget,
+      callSessionId: session.id,
     });
     if (!accessCheck.allowed) {
       // If the call session was created before the trial ended, allow the call to proceed.

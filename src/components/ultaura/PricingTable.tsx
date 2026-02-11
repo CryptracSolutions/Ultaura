@@ -10,16 +10,16 @@ type BillingPeriod = 'monthly' | 'annual';
 
 const planFeatures: Record<string, string[]> = {
   care: [
-    '300 minutes of conversation per month',
+    '200 minutes of conversation per month',
     '1 phone line for your loved one',
     'Daily scheduled calls',
-    'Up to 3 reminders per line',
+    'Up to 5 reminders per line',
     'Activity and interest suggestions',
     'Notes and memories from each call',
     'Email support',
   ],
   comfort: [
-    '900 minutes per month',
+    '600 minutes per month',
     '2 phone lines \u2014 for two loved ones',
     'Multiple calls per day',
     'Up to 10 reminders per line',
@@ -29,7 +29,7 @@ const planFeatures: Record<string, string[]> = {
     'Mood and wellness insights',
   ],
   family: [
-    '2,200 minutes per month',
+    '1,200 minutes per month',
     '4 phone lines \u2014 for the whole family',
     'Unlimited call scheduling',
     'Unlimited reminders',
@@ -249,7 +249,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                 ) : isCurrent ? (
                   'Current Plan'
                 ) : (
-                  organizationUid ? 'Choose plan' : 'Start 3-day free trial'
+                  organizationUid ? 'Choose plan' : 'Start 14-day free trial'
                 )}
               </button>
             </div>

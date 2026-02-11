@@ -132,7 +132,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'reminders',
         question: 'What are reminders and how do they work?',
         answer:
-          'Reminders are messages Ultaura will mention during calls, like medication times, appointments, or birthdays. You can set one-time or recurring reminders, and pause, snooze, or skip them as needed. Reminder limits are plan-based: Free Trial and Care include up to 3 reminders per line, Comfort includes up to 10 reminders per line, and Family plus Pay As You Go include unlimited reminders.',
+          'Reminders are messages Ultaura will mention during calls, like medication times, appointments, or birthdays. You can set one-time or recurring reminders, and pause, snooze, or skip them as needed. Reminder limits are plan-based: Free Trial and Care include up to 5 reminders per line, Comfort includes up to 10 reminders per line, and Family plus Pay As You Go include unlimited reminders.',
       },
       {
         id: 'insights',
@@ -231,13 +231,13 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'plans-available',
         question: 'What plans are available?',
         answer:
-          'We offer Care ($39/month, 300 minutes, 1 line), Comfort ($99/month, 900 minutes, 2 lines), and Family ($199/month, 2,200 minutes, 4 lines). Annual plans save 15%. All plans include the full feature set.',
+          'We offer Care ($19/month, 200 minutes, 1 line), Comfort ($49/month, 600 minutes, 2 lines), and Family ($99/month, 1,200 minutes, 4 lines). Annual plans save 20%. All plans include the full feature set.',
       },
       {
         id: 'free-trial',
         question: 'Is there a free trial?',
         answer:
-          'Yes, we offer a free trial with unlimited minutes for 3 days. No credit card required to start. This gives you and your loved one time to experience Ultaura before committing to a plan.',
+          'Yes, we offer a 14-day free trial with up to 20 minutes per day. Cancel anytime. This gives you and your loved one time to experience Ultaura before committing to a plan.',
       },
       {
         id: 'usage-counting',

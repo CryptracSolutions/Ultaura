@@ -71,7 +71,7 @@ function Home() {
               </div>
 
               <span className={'mt-4 text-xs text-center text-primary'}>
-                3-day free trial • no credit card • cancel anytime
+                14-day free trial • cancel anytime
               </span>
 
               <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
@@ -144,13 +144,13 @@ function Home() {
                   <span className="flex flex-col items-center gap-1 text-muted-foreground sm:flex-row sm:gap-2">
                     <span className="inline-flex items-center gap-2">
                       <CheckCircleIcon className="h-4 w-4 text-primary" />
-                      All plans include a 3-day free trial
+                      All plans include a 14-day free trial
                     </span>
-                    <span className="text-muted-foreground/80">No credit card required to start</span>
+                    <span className="text-muted-foreground/80">Cancel anytime</span>
                   </span>
                 </SubHeading>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Home care aides average $30/hour. Ultaura starts at $39/month.
+                  Home care aides average $30/hour. Ultaura starts at $19/month.
                 </p>
               </div>
             </div>
@@ -208,12 +208,12 @@ function Home() {
           <div className="relative flex flex-col items-center text-center space-y-4">
             <Heading type={2}>Give the gift of conversation</Heading>
             <SubHeading className="max-w-xl">
-              Set up in 5 minutes. No credit card, no commitment. Their first
+              Set up in 5 minutes. Cancel anytime, no commitment. Their first
               call can happen today.
             </SubHeading>
             <MainCallToActionButton />
             <span className="text-xs text-muted-foreground">
-              Free for 3 days · Cancel anytime · Works on any phone
+              Free for 14 days · Cancel anytime · Works on any phone
             </span>
           </div>
         </Container>
@@ -238,4 +238,3 @@ function Pill(props: React.PropsWithChildren<{ className?: string }>) {
     </h2>
   );
 }
-

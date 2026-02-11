@@ -10,7 +10,12 @@ import { getMemoriesForLine, markMemoriesAccessed } from '../services/memory.js'
 import { createBuffer, clearBuffer, getBuffer } from '../services/ephemeral-buffer.js';
 import { summarizeAndExtractMemoriesFromBuffer } from '../services/call-summarization.js';
 import { extractFallbackInsightsFromBuffer } from '../services/insights-fallback.js';
-import { getUsageSummary } from '../services/metering.js';
+import {
+  calculateBillableMinutes,
+  getUsageSummary,
+  releaseTrialDailyCap,
+  reserveTrialDailyCap,
+} from '../services/metering.js';
 import { getStartingLanguageForLine } from '../services/language.js';
 import { getMemoryDEK } from '../services/line-encryption.js';
 import { getAccountPrivacySettings, getLineVoiceConsent, updateLineVoiceConsent, logConsentAuditEvent } from '../services/privacy.js';
@@ -28,6 +33,7 @@ import {
   FALLBACK_TTS_WAIT_MS,
   GROK_RECONNECT_MAX_ATTEMPTS,
   GROK_RECONNECT_TIMEOUT_MS,
+  TRIAL_DAILY_LIMIT_MINUTES,
 } from '../utils/constants.js';
 import { getTwilioClient, getVoiceConfigForLanguage, getVoiceForLanguage, generateStreamTwiML } from '../utils/twilio.js';
 import { getWebsocketUrl } from '../utils/env.js';
@@ -68,9 +74,9 @@ interface ConsentState {
 }
 
 const PLAN_OPTIONS = [
-  { id: 'care', name: 'Care', minutes: 300, price: '$39 per month' },
-  { id: 'comfort', name: 'Comfort', minutes: 900, price: '$99 per month' },
-  { id: 'family', name: 'Family', minutes: 2200, price: '$199 per month' },
+  { id: 'care', name: 'Care', minutes: 200, price: '$19 per month' },
+  { id: 'comfort', name: 'Comfort', minutes: 600, price: '$49 per month' },
+  { id: 'family', name: 'Family', minutes: 1200, price: '$99 per month' },
   { id: 'payg', name: 'Pay as you go', minutes: null, price: '$0 per month plus $0.15 per minute' },
 ];
 
@@ -104,6 +110,8 @@ export async function handleMediaStreamConnection(
   let connectedAt: string | null = null;
   let pendingOptOut = false;
   let trialExpiryTimeout: NodeJS.Timeout | null = null;
+  let trialCapWrapUpTimeout: NodeJS.Timeout | null = null;
+  let trialCapForceCloseTimeout: NodeJS.Timeout | null = null;
   let overagePromptTimeout: NodeJS.Timeout | null = null;
   let overagePromptActive = false;
   let isReconnecting = false;
@@ -116,6 +124,8 @@ export async function handleMediaStreamConnection(
   let shouldTrackOnboarding = false;
   let streamStartedAtMs: number | null = null;
   let firstAudioSent = false;
+  let forcedEndReason: 'trial_cap' | null = null;
+  let trialReservationReleased = false;
 
   // Get session info
   const session = await getCallSession(callSessionId);
@@ -186,8 +196,7 @@ export async function handleMediaStreamConnection(
     ).join('; ');
 
   const getMinutesStatus = async () => {
-    // Trial accounts have unlimited usage during the trial period.
-    // We still track minutes used, but we do not warn or prompt for overage.
+    // Trial accounts are handled by daily reservation/timer enforcement.
     if (account.status === 'trial') {
       return { remaining: 0, warn: false, critical: false };
     }
@@ -210,6 +219,46 @@ export async function handleMediaStreamConnection(
     overagePromptActive = false;
     if (overagePromptTimeout) clearTimeout(overagePromptTimeout);
     overagePromptTimeout = null;
+  };
+
+  const clearTrialCapTimers = () => {
+    if (trialCapWrapUpTimeout) {
+      clearTimeout(trialCapWrapUpTimeout);
+      trialCapWrapUpTimeout = null;
+    }
+    if (trialCapForceCloseTimeout) {
+      clearTimeout(trialCapForceCloseTimeout);
+      trialCapForceCloseTimeout = null;
+    }
+  };
+
+  const scheduleTrialCapTimers = (reservedMinutes: number) => {
+    if (!grokBridge || reservedMinutes <= 0) {
+      return;
+    }
+
+    clearTrialCapTimers();
+
+    const totalMs = reservedMinutes * 60 * 1000;
+    const graceMs = 30 * 1000;
+    const wrapUpDelayMs = Math.max(totalMs - graceMs, 0);
+
+    trialCapWrapUpTimeout = setTimeout(() => {
+      if (!grokBridge || ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      grokBridge.sendTextInput(
+        `SYSTEM: The trial daily minute limit (${TRIAL_DAILY_LIMIT_MINUTES} minutes/day) is about to be reached. Please warmly wrap up this call and say goodbye within 30 seconds.`
+      );
+    }, wrapUpDelayMs);
+
+    trialCapForceCloseTimeout = setTimeout(() => {
+      forcedEndReason = 'trial_cap';
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close(1000, 'Trial daily cap reached');
+      }
+    }, totalMs);
   };
 
   const sendOveragePrompt = () => {
@@ -429,9 +478,36 @@ export async function handleMediaStreamConnection(
             }
             promptPlaceholders.insightsRepromptRequested = insightsRepromptRequested ? 'true' : 'false';
 
+            let trialReservedMinutes: number | null = null;
+            if (account.status === 'trial') {
+              const reservation = await reserveTrialDailyCap({
+                accountId: account.id,
+                lineTimezone: line.timezone,
+                callSessionId,
+              });
+
+              if (!reservation || !reservation.allowed || reservation.reservedMinutes <= 0) {
+                forcedEndReason = 'trial_cap';
+                await completeCallSession(callSessionId, {
+                  endReason: 'trial_cap',
+                  languageDetected: startingLanguage,
+                });
+                clearBuffer(callSessionId);
+
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.close(1000, 'Trial daily cap reached');
+                }
+                return;
+              }
+
+              trialReservedMinutes = reservation.reservedMinutes;
+            }
+
             // Check minutes status
             const minutesStatus = await getMinutesStatus();
-            const minutesRemaining = minutesStatus.remaining;
+            const minutesRemaining = account.status === 'trial'
+              ? (trialReservedMinutes ?? 0)
+              : minutesStatus.remaining;
             const shouldPromptOverage =
               account.status !== 'trial' && !isPayg && minutesRemaining <= 0 && !session.is_reminder_call;
 
@@ -725,6 +801,10 @@ export async function handleMediaStreamConnection(
               sendOveragePrompt();
             }
 
+            if (account.status === 'trial' && trialReservedMinutes && isConnected) {
+              scheduleTrialCapTimers(trialReservedMinutes);
+            }
+
             // If the trial expires mid-call, let the call continue but add a gentle wrap-up note.
             if (account.status === 'trial' && account.trial_ends_at && !session.is_reminder_call) {
               const trialEndsMs = new Date(account.trial_ends_at).getTime();
@@ -737,7 +817,7 @@ export async function handleMediaStreamConnection(
                   }
 
                   grokBridge.sendTextInput(
-                    `SYSTEM: The user's 3-day free trial has now ended. Please wrap up this call warmly and mention that to continue using Ultaura, their family member will need to subscribe to a plan in the dashboard. End with a kind goodbye.`
+                    `SYSTEM: The user's 14-day free trial has now ended. Please wrap up this call warmly and mention that to continue using Ultaura, their family member will need to subscribe to a plan in the dashboard. End with a kind goodbye.`
                   );
                 }, msUntilTrialEnds);
               }
@@ -837,6 +917,7 @@ export async function handleMediaStreamConnection(
       trialExpiryTimeout = null;
     }
 
+    clearTrialCapTimers();
     clearOveragePrompt();
 
     if (keepBridgeAlive) {
@@ -851,6 +932,7 @@ export async function handleMediaStreamConnection(
     const duration = connectedAt
       ? Date.now() - new Date(connectedAt).getTime()
       : 0;
+    const finalEndReason: 'hangup' | 'trial_cap' = forcedEndReason ?? 'hangup';
 
     const buffer = getBuffer(callSessionId);
     const durationSeconds = Math.floor(duration / 1000);
@@ -906,6 +988,16 @@ export async function handleMediaStreamConnection(
       }
     }
 
+    if (account.status === 'trial' && !trialReservationReleased) {
+      trialReservationReleased = true;
+      const actualBillableMinutes = calculateBillableMinutes(durationSeconds);
+      await releaseTrialDailyCap({
+        callSessionId,
+        endReason: finalEndReason,
+        actualBillableMinutes,
+      });
+    }
+
     clearBuffer(callSessionId);
 
     // Close Grok bridge
@@ -914,9 +1006,9 @@ export async function handleMediaStreamConnection(
     }
 
     // Complete the call session if it was in progress
-    if (session && isConnected && session.status === 'in_progress') {
+    if (session && (isConnected || finalEndReason === 'trial_cap')) {
       await completeCallSession(callSessionId, {
-        endReason: 'hangup',
+        endReason: finalEndReason,
         languageDetected: grokBridge?.getDetectedLanguage() ?? undefined,
       });
     }
@@ -931,6 +1023,7 @@ export async function handleMediaStreamConnection(
       return;
     }
 
+    clearTrialCapTimers();
     const fallbackLanguage = grokBridge?.getDetectedLanguage() ?? startingLanguage;
     const failedMessage = getFallbackMessage(fallbackLanguage, 'retry_failed');
     await playFallbackTTS(twilioCallSid, failedMessage, fallbackLanguage, { hangup: true });

@@ -3,8 +3,10 @@
 
 import { getSupabaseClient, LineRow, UltauraAccountRow } from '../utils/supabase.js';
 import { logger } from '../server.js';
-import { getUsageSummary } from './metering.js';
+import { getUsageSummary, reserveTrialDailyCap } from './metering.js';
 import { redactPhone } from '../utils/redact.js';
+import { getLogContext } from '../observability/log-context.js';
+import { trialCapDeniedTotal } from '../utils/metrics.js';
 
 const OVERAGE_RATE_CENTS = 15;
 
@@ -12,6 +14,16 @@ export interface LineWithAccount {
   line: LineRow;
   account: UltauraAccountRow;
 }
+
+type LineAccessDeniedReason =
+  | 'disabled'
+  | 'inbound_blocked'
+  | 'do_not_call'
+  | 'not_verified'
+  | 'minutes_cap'
+  | 'trial_expired'
+  | 'trial_cap'
+  | 'account_canceled';
 
 // Find a line by phone number (for inbound calls)
 export async function findLineByPhone(phoneE164: string): Promise<LineWithAccount | null> {
@@ -76,8 +88,9 @@ export async function getLineById(lineId: string): Promise<LineWithAccount | nul
 // Check if a line can make/receive calls
 export interface LineAccessCheck {
   allowed: boolean;
-  reason?: 'disabled' | 'inbound_blocked' | 'do_not_call' | 'not_verified' | 'minutes_cap' | 'trial_expired' | 'account_canceled';
+  reason?: LineAccessDeniedReason;
   minutesRemaining?: number;
+  trialReservedMinutes?: number;
 }
 
 function isTrialExpired(account: UltauraAccountRow): boolean {
@@ -93,6 +106,15 @@ function isTrialExpired(account: UltauraAccountRow): boolean {
   return new Date(trialEndsAt).getTime() <= Date.now();
 }
 
+function denyTrialCap(minutesRemaining = 0): LineAccessCheck {
+  trialCapDeniedTotal.inc();
+  return {
+    allowed: false,
+    reason: 'trial_cap',
+    minutesRemaining,
+  };
+}
+
 export async function checkLineAccess(
   line: LineRow,
   account: UltauraAccountRow,
@@ -100,6 +122,8 @@ export async function checkLineAccess(
   options?: {
     skipDnc?: boolean;
     skipVerification?: boolean;
+    skipTrialReservation?: boolean;
+    callSessionId?: string;
   }
 ): Promise<LineAccessCheck> {
   // Check line status
@@ -126,13 +150,47 @@ export async function checkLineAccess(
     return { allowed: false, reason: 'not_verified' };
   }
 
-  // Trial enforcement: time-based 3-day trial, no minute/spending-cap enforcement while active
+  // Trial enforcement: time-based trial expiration + strict daily minute cap reservation
   if (account.status === 'trial') {
     if (isTrialExpired(account)) {
       return { allowed: false, reason: 'trial_expired' };
     }
 
-    return { allowed: true };
+    if (options?.skipTrialReservation) {
+      return { allowed: true };
+    }
+
+    const contextCallSessionId = getLogContext()?.callSessionId;
+    const callSessionId = options?.callSessionId ?? contextCallSessionId;
+
+    if (!callSessionId) {
+      logger.error(
+        { accountId: account.id, lineId: line.id, direction },
+        'Trial reservation denied because callSessionId is unavailable'
+      );
+      return denyTrialCap();
+    }
+
+    const reservation = await reserveTrialDailyCap({
+      accountId: account.id,
+      lineTimezone: line.timezone,
+      callSessionId,
+    });
+
+    if (!reservation) {
+      logger.error({ accountId: account.id, callSessionId }, 'Trial reservation failed');
+      return denyTrialCap();
+    }
+
+    if (!reservation.allowed || reservation.reservedMinutes <= 0) {
+      return denyTrialCap(reservation.minutesRemainingToday);
+    }
+
+    return {
+      allowed: true,
+      minutesRemaining: reservation.reservedMinutes,
+      trialReservedMinutes: reservation.reservedMinutes,
+    };
   }
 
   // Check minutes (non-trial accounts)

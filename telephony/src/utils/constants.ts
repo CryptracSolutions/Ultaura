@@ -8,3 +8,5 @@ export const FALLBACK_TTS_WAIT_MS = 3000;
 
 export const VAD_SILENCE_DURATION_MS = 500;
 export const VAD_THRESHOLD = 0.5;
+
+export const TRIAL_DAILY_LIMIT_MINUTES = 20;

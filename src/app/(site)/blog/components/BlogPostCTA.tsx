@@ -24,7 +24,7 @@ export function BlogPostCTA() {
         </div>
 
         <p className="mt-4 text-xs text-muted-foreground">
-          Free for 3 days · No credit card · Works on any phone
+          Free for 14 days · Cancel anytime · Works on any phone
         </p>
       </div>
     </section>

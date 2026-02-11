@@ -64,7 +64,7 @@ function VisionPage() {
                 source="Census Bureau"
               />
               <StatCard
-                stat="$39/mo"
+                stat="$19/mo"
                 context="vs $30/hr for home aides"
                 source="Care.com/Genworth"
               />
@@ -265,11 +265,11 @@ function VisionPage() {
           <div className="relative max-w-2xl mx-auto text-center space-y-6">
             <Heading type={2}>Give the Gift of Conversation</Heading>
             <p className="text-lg text-muted-foreground">
-              Set up in 5 minutes. No credit card required. Their first call can
+              Set up in 5 minutes. Cancel anytime. Their first call can
               happen today.
             </p>
             <Button size="lg" round href="/auth/sign-up">
-              Start 3-day free trial
+              Start 14-day free trial
             </Button>
             <p className="text-sm text-muted-foreground">
               Works on any phone, including landlines · Cancel anytime

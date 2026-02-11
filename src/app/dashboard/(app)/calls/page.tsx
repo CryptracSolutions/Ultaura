@@ -40,10 +40,10 @@ export default async function CallsPage() {
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
             <p className="text-muted-foreground mb-6">
-              Set up phone companionship with Ultaura. Start with a 3-day free trial.
+              Set up phone companionship with Ultaura. Start with a 14-day free trial.
             </p>
             <Button variant="default" href="/dashboard/settings/subscription">
-              Start 3-day free trial
+              Start 14-day free trial
             </Button>
           </div>
         </PageBody>

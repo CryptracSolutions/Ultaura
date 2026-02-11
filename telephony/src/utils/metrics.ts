@@ -127,6 +127,26 @@ export const reminderOutcomesTotal = new Counter({
   registers: [registry],
 });
 
+export const trialCapDeniedTotal = new Counter({
+  name: 'ultaura_trial_cap_denied_total',
+  help: 'Total call access denials caused by trial daily cap enforcement',
+  registers: [registry],
+});
+
+export const trialReservationFailuresTotal = new Counter({
+  name: 'ultaura_trial_reservation_failures_total',
+  help: 'Total trial reservation operation failures (reserve/release)',
+  labelNames: ['operation'],
+  registers: [registry],
+});
+
+export const onboardingMaintenanceRunsTotal = new Counter({
+  name: 'ultaura_onboarding_maintenance_runs_total',
+  help: 'Total onboarding maintenance task runs by task and result',
+  labelNames: ['task', 'result'],
+  registers: [registry],
+});
+
 activeWebSocketConnections.set(0);
 activeCalls.set(0);
 

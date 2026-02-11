@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+
 import type { Stripe } from 'stripe';
 import getStripeInstance from '~/core/stripe/get-stripe';
 
@@ -9,6 +11,7 @@ interface CreateCheckoutParams {
   trialPeriodDays?: Maybe<number>;
   customerEmail?: string;
   embedded: boolean;
+  idempotencyKey?: string;
 }
 
 /**
@@ -66,6 +69,15 @@ export default async function createStripeCheckout(
         customer_email: params.customerEmail,
       };
 
+  const idempotencyKey =
+    params.idempotencyKey ??
+    buildCheckoutIdempotencyKey([
+      params.organizationUid,
+      params.priceId,
+      params.returnUrl,
+      params.embedded ? 'embedded' : 'hosted',
+    ]);
+
   return stripe.checkout.sessions.create({
     mode,
     ui_mode: uiMode,
@@ -74,6 +86,8 @@ export default async function createStripeCheckout(
     subscription_data: subscriptionData,
     ...customerData,
     ...urls,
+  }, {
+    idempotencyKey,
   });
 }
 
@@ -90,4 +104,14 @@ function getUrls(params: { returnUrl: string; embedded?: boolean }) {
         success_url: successUrl,
         cancel_url: cancelUrl,
       };
+}
+
+function buildCheckoutIdempotencyKey(parts: Array<string | number>) {
+  const timeBucket = Math.floor(Date.now() / 30_000);
+  const digest = createHash('sha256')
+    .update(`${parts.join(':')}:${timeBucket}`)
+    .digest('hex')
+    .slice(0, 48);
+
+  return `stripe-checkout:${digest}`;
 }

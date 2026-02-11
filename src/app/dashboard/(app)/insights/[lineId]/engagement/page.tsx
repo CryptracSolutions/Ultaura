@@ -37,10 +37,10 @@ export default async function InsightsEngagementPage({ params }: PageProps) {
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
             <p className="text-muted-foreground mb-6">
-              Start a 3-day free trial to unlock insights and weekly summaries.
+              Start a 14-day free trial to unlock insights and weekly summaries.
             </p>
             <Button variant="default" href="/dashboard/settings/subscription">
-              Start 3-day free trial
+              Start 14-day free trial
             </Button>
           </div>
         </PageBody>

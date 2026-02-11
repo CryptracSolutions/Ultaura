@@ -12,7 +12,7 @@ const REASSURANCES = [
   { text: 'You pick the voice they\u2019ll like', detail: 'Five warm, distinct voices. Choose the one that feels right for their personality.' },
   { text: 'Built with elder care professionals', detail: 'Designed alongside geriatricians, social workers, and family caregivers.' },
   { text: 'Safety monitoring included', detail: 'If they sound distressed, Ultaura gently helps and alerts your trusted contacts.' },
-  { text: 'No commitment, no risk', detail: '3-day free trial. No credit card. Cancel in one click.' },
+  { text: 'No commitment, no risk', detail: '14-day free trial. Cancel anytime in one click.' },
 ];
 
 export function ReassuranceChecklist() {
