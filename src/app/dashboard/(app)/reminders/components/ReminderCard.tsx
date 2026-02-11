@@ -290,10 +290,7 @@ export function ReminderCard({
       {/* Action menu for scheduled (active) reminders only */}
       {!isPast && !disabled && (
         <ResponsiveActionMenu
-          title={
-            reminder.message.slice(0, 30) +
-            (reminder.message.length > 30 ? '...' : '')
-          }
+          title={reminder.message}
           loading={loading}
           actions={buildActions(reminder, {
             onEdit,

@@ -143,7 +143,7 @@ export function ResponsiveActionMenu({
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {title && (
-            <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold">
+            <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold break-words">
               {title}
             </DialogTitle>
           )}
