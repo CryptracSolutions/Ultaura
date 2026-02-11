@@ -236,7 +236,7 @@ Document mistakes and patterns here. After Codex makes an error, have it update 
 - Forgetting to add new tables to the ARCHITECTURE.md reference
 - Not testing with both payer and line user_type accounts
 - Missing encryption for PII fields (use line/account encryption services)
-- DB seed migration (`20241220000001`) has stale pricing ($40/$100/$200) vs runtime `constants.ts` ($19/$49/$99) - `constants.ts` is the source of truth
+- Legacy migration `20241220000001` contains stale plan data (including Family `2200` minutes). Never copy pricing/allowance values from old migrations; use `src/lib/ultaura/constants.ts` and alignment migration `20260327000011` as source of truth.
 
 *Add new lessons as they're discovered.*
 

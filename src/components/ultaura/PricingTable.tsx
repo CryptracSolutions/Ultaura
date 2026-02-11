@@ -4,50 +4,10 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Clock, Users, Zap, Heart, Loader2 } from 'lucide-react';
 import { PLANS, BILLING } from '~/lib/ultaura/constants';
+import { DASHBOARD_PLAN_FEATURES } from '~/lib/ultaura/plan-features';
 import { createUltauraCheckout } from '~/lib/ultaura/checkout';
 
 type BillingPeriod = 'monthly' | 'annual';
-
-const planFeatures: Record<string, string[]> = {
-  care: [
-    '200 minutes of conversation per month',
-    '1 phone line for your loved one',
-    'Daily scheduled calls',
-    'Up to 5 reminders per line',
-    'Activity and interest suggestions',
-    'Notes and memories from each call',
-    'Email support',
-  ],
-  comfort: [
-    '600 minutes per month',
-    '2 phone lines \u2014 for two loved ones',
-    'Multiple calls per day',
-    'Up to 10 reminders per line',
-    'Everything in Care, plus:',
-    'Priority support',
-    'Family dashboard with call summaries',
-    'Mood and wellness insights',
-  ],
-  family: [
-    '1,200 minutes per month',
-    '4 phone lines \u2014 for the whole family',
-    'Unlimited call scheduling',
-    'Unlimited reminders',
-    'Everything in Comfort, plus:',
-    'Dedicated support contact',
-    'Safety alerts when something seems off',
-    'Detailed wellness tracking',
-  ],
-  payg: [
-    'Pay only for what you use',
-    '4 phone lines',
-    'No monthly commitment',
-    'Unlimited reminders',
-    'All core features',
-    'Flexible scheduling',
-    '$0.15 per minute',
-  ],
-};
 
 const planIcons: Record<string, React.ReactNode> = {
   care: <Heart className="w-6 h-6" />,
@@ -103,7 +63,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
           setError(result.error || 'Failed to start checkout');
           setLoadingPlan(null);
         }
-      } catch (err) {
+      } catch {
         setError('An unexpected error occurred');
         setLoadingPlan(null);
       }
@@ -163,7 +123,7 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
           const price = billingPeriod === 'annual' && plan.annualPriceCents
             ? plan.annualPriceCents / 100 / 12
             : plan.monthlyPriceCents / 100;
-          const features = planFeatures[planId] || [];
+          const features = DASHBOARD_PLAN_FEATURES[planId as keyof typeof DASHBOARD_PLAN_FEATURES] || [];
 
           return (
             <div
