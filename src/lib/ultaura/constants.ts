@@ -14,7 +14,7 @@ export const PLANS: Record<PlanId, Plan> = {
     displayName: 'Free Trial',
     monthlyPriceCents: 0,
     annualPriceCents: 0,
-    minutesIncluded: 20,
+    minutesIncluded: 0, // Unlimited — trial enforcement is time-based (3 days), not minute-based
     linesIncluded: 1,
     remindersPerLine: 3,
     overageRateCentsPerMin: 0, // No overage on trial - hard stop

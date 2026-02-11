@@ -55,7 +55,7 @@ async function SubscriptionSettingsPage() {
           daysRemaining={trialDaysRemaining}
           hoursRemaining={trialHoursRemaining}
           trialEndsAt={trialEndsAt}
-          minutesIncluded={trialPlanId === 'payg' ? 'Unlimited' : trialPlan.minutesIncluded}
+          minutesIncluded={trialPlanId === 'payg' || trialPlanId === 'free_trial' ? 'Unlimited' : trialPlan.minutesIncluded}
           linesIncluded={trialPlan.linesIncluded}
         />
       )}
