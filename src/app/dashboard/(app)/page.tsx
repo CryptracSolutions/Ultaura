@@ -403,7 +403,7 @@ async function DashboardPage() {
                           {(item.isOneTime || item.rescheduledFrom) && (
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {item.isOneTime && (
-                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                   One-time
                                 </span>
                               )}

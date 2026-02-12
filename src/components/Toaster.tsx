@@ -11,10 +11,10 @@ function Toaster({
     <Sonner
       richColors={richColors}
       position={position}
-      offset={0}
+      offset={20}
       mobileOffset={0}
       toastOptions={{
-        className: 'bg-background text-foreground border-border',
+        className: 'text-foreground',
       }}
       {...props}
     />

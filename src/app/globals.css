@@ -375,12 +375,21 @@ body {
   }
 }
 
-/* Prevent Sonner toast from showing white gap on mobile */
+/* Sonner toast overrides — muted tiffany blue background for contrast */
 [data-sonner-toaster] {
-  --normal-bg: var(--background) !important;
-  --normal-border: var(--border) !important;
+  --normal-bg: oklch(0.95 0.04 180.426) !important;
+  --normal-border: oklch(0.85 0.06 180.426) !important;
   --normal-text: var(--foreground) !important;
   background: transparent !important;
+  position: fixed !important;
+  left: 50vw !important;
+  transform: translateX(-50%) !important;
+}
+
+.dark [data-sonner-toaster],
+[data-sonner-toaster]:where(.dark *) {
+  --normal-bg: oklch(0.22 0.04 180.426) !important;
+  --normal-border: oklch(0.35 0.06 180.426) !important;
 }
 
 section:has(> [data-sonner-toaster]) {
@@ -388,12 +397,38 @@ section:has(> [data-sonner-toaster]) {
 }
 
 [data-sonner-toaster][data-y-position='top'] {
-  top: env(safe-area-inset-top, 0px) !important;
+  top: calc(env(safe-area-inset-top, 0px) + 20px) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  width: fit-content !important;
+  max-width: 420px;
+  padding: 8px 14px !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Center the toast list itself so fit-content toasts stay centered */
+[data-sonner-toaster] ol {
+  align-items: center;
 }
 
 @media (max-width: 600px) {
   [data-sonner-toaster][data-y-position='top'] {
     top: calc(env(safe-area-inset-top, 0px) + 14px) !important;
+  }
+
+  [data-sonner-toaster] {
+    left: 0 !important;
+    width: 100vw !important;
+    transform: none !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  [data-sonner-toaster] [data-sonner-toast] {
+    font-size: 14px;
+    margin: 0 auto;
   }
 }
 

@@ -6,7 +6,6 @@
   "scripts": {
     "analyze": "ANALYZE=true next build",
     "dev": "next dev --turbo | pino-pretty",
-    "dev:phone": "bash scripts/dev-phone.sh",
     "dev:webpack": "next dev | pino-pretty",
     "predev": "pnpm build:packages && pnpm velite build --clean",
     "dev:content": "velite dev",
