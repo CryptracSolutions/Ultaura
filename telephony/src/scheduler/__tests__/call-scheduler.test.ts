@@ -514,4 +514,98 @@ describe('call-scheduler', () => {
       expect(getLineById).toHaveBeenCalledWith('line-1');
     });
   });
+
+  describe('SCHEDULE EXCEPTIONS: processing branches', () => {
+    it('SCHEDULE EXCEPTIONS: future snooze updates next_run_at and skips outbound call', async () => {
+      vi.setSystemTime(new Date('2025-01-10T12:00:00.000Z'));
+      getLineById.mockResolvedValueOnce({
+        line: { id: 'line-456', do_not_call: false, vacation_ranges: [], timezone: 'America/New_York' },
+        account: { id: 'acc-789' },
+      });
+      checkLineAccess.mockResolvedValueOnce({ allowed: true });
+      isInQuietHours.mockReturnValueOnce(false);
+
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'ultaura_schedule_exceptions') {
+          return createQueryBuilder({
+            data: { exception_type: 'snooze', new_datetime: '2025-01-10T16:00:00.000Z' },
+            error: null,
+          });
+        }
+        if (table === 'ultaura_schedules') {
+          return createQueryBuilder({ data: { id: 'sched-123' }, error: null });
+        }
+        if (table === 'ultaura_lines') {
+          return createQueryBuilder({ data: null, error: null });
+        }
+        return createQueryBuilder({ data: null, error: null });
+      });
+
+      const schedule = {
+        id: 'sched-123',
+        line_id: 'line-456',
+        next_run_at: '2025-01-10T14:00:00.000Z',
+        days_of_week: [1, 2, 3, 4, 5],
+        time_of_day: '09:00',
+        timezone: 'America/New_York',
+        retry_count: 0,
+        retry_policy: { max_retries: 2, retry_window_minutes: 30 },
+      };
+
+      await processSchedule(schedule as any);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      const scheduleTableCalls = fromMock.mock.calls.filter(
+        ([table]: [string]) => table === 'ultaura_schedules'
+      );
+      expect(scheduleTableCalls.length).toBeGreaterThan(0);
+    });
+
+    it('SCHEDULE EXCEPTIONS: skip/reschedule block call and complete as skipped', async () => {
+      getLineById.mockResolvedValueOnce({
+        line: { id: 'line-456', do_not_call: false, vacation_ranges: [], timezone: 'America/New_York' },
+        account: { id: 'acc-789' },
+      });
+      checkLineAccess.mockResolvedValueOnce({ allowed: true });
+      isInQuietHours.mockReturnValueOnce(false);
+      rpcMock.mockResolvedValueOnce(rpcResponses.completionSuccess);
+
+      let exceptionLookupCount = 0;
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'ultaura_schedule_exceptions') {
+          exceptionLookupCount += 1;
+          if (exceptionLookupCount === 1) {
+            return createQueryBuilder({ data: null, error: null });
+          }
+          return createQueryBuilder({ data: { exception_type: 'skip' }, error: null });
+        }
+        if (table === 'ultaura_lines') {
+          return createQueryBuilder({ data: null, error: null });
+        }
+        return createQueryBuilder({ data: null, error: null });
+      });
+
+      const schedule = {
+        id: 'sched-123',
+        line_id: 'line-456',
+        next_run_at: '2025-01-10T14:00:00.000Z',
+        days_of_week: [1, 2, 3, 4, 5],
+        time_of_day: '09:00',
+        timezone: 'America/New_York',
+        retry_count: 0,
+        retry_policy: { max_retries: 2, retry_window_minutes: 30 },
+      };
+
+      await processSchedule(schedule as any);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(rpcMock).toHaveBeenCalledWith(
+        'complete_schedule_processing',
+        expect.objectContaining({
+          p_schedule_id: 'sched-123',
+          p_result: 'skipped',
+        })
+      );
+    });
+  });
 });

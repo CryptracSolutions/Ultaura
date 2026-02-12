@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { toast } from 'sonner';
@@ -41,6 +41,11 @@ export function ScheduleExceptions({
   const [exceptionToDelete, setExceptionToDelete] = useState<ScheduleExceptionRow | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
 
+  const scheduleById = useMemo(
+    () => new Map(schedules.map((schedule) => [schedule.scheduleId, schedule])),
+    [schedules]
+  );
+
   const loadExceptions = useCallback(async () => {
     setIsLoading(true);
     const data = await getUpcomingExceptions(lineId);
@@ -67,18 +72,14 @@ export function ScheduleExceptions({
     }
   };
 
-  const getExceptionTypeLabel = (type: string) => {
-    switch (type) {
-      case 'skip': return 'Skip';
-      case 'snooze': return 'Snooze';
-      case 'reschedule': return 'Reschedule';
-      default: return type;
-    }
+  const exceptionTypeLabels: Record<string, string> = {
+    skip: 'Skip',
+    snooze: 'Snooze',
+    reschedule: 'Reschedule',
   };
 
-  const getExceptionIcon = (type: string) => {
-    return type === 'snooze' ? AlarmClock : Calendar;
-  };
+  const getExceptionTypeLabel = (type: string) => exceptionTypeLabels[type] ?? type;
+  const getExceptionIcon = (type: string) => (type === 'snooze' ? AlarmClock : Calendar);
 
   const formatExceptionDate = (dateString: string) => {
     return DateTime.fromISO(dateString, { zone: lineTimezone })
@@ -86,7 +87,7 @@ export function ScheduleExceptions({
   };
 
   const getScheduleLabel = (scheduleId: string) => {
-    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    const schedule = scheduleById.get(scheduleId);
     if (!schedule) return 'Schedule';
     const time = formatTime(normalizeTimeOfDay(schedule.timeOfDay));
     const days = formatDaySummary(schedule.daysOfWeek);
@@ -172,7 +173,7 @@ export function ScheduleExceptions({
                       title={sheetTitle}
                       actions={[
                         {
-                          label: 'Cancel',
+                          label: 'Remove exception',
                           icon: <Trash2 className="w-5 h-5" />,
                           onClick: () => setExceptionToDelete(exception),
                           variant: 'destructive',
@@ -191,8 +192,8 @@ export function ScheduleExceptions({
         open={exceptionToDelete !== null}
         onOpenChange={(open) => !open && setExceptionToDelete(null)}
         title="Remove Exception"
-        description="Are you sure you want to remove this exception?"
-        confirmLabel="Remove Exception"
+        description="This removes this exception. If the affected call is still in the future, Ultaura restores the original schedule timing."
+        confirmLabel="Remove exception"
         variant="destructive"
         onConfirm={handleDelete}
       />

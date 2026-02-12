@@ -100,6 +100,46 @@ function getScheduleLocalDate(isoDate: string, timezone: string): string | null 
   return local.toISODate();
 }
 
+function getMetadataRecord(metadata: Json | null): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+
+  return metadata as Record<string, unknown>;
+}
+
+function getOriginalOccurrenceUtcIso(
+  exception: Pick<ScheduleExceptionRow, 'exception_date' | 'metadata'>,
+  fallbackTimeOfDay: string,
+  timezone: string
+): string | null {
+  const metadata = getMetadataRecord(exception.metadata);
+  const originalTimeRaw = metadata?.original_time_of_day;
+  const resolvedTime = typeof originalTimeRaw === 'string' && originalTimeRaw.trim().length > 0
+    ? normalizeTimeOfDay(originalTimeRaw)
+    : normalizeTimeOfDay(fallbackTimeOfDay);
+
+  if (!resolvedTime) {
+    return null;
+  }
+
+  const timeWithSeconds = resolvedTime.length === 5 ? `${resolvedTime}:00` : resolvedTime;
+  const localIso = `${exception.exception_date}T${timeWithSeconds}`;
+
+  try {
+    return localToUtc(localIso, timezone).toISOString();
+  } catch (error) {
+    logger.error({ error, exceptionDate: exception.exception_date }, 'Failed to parse original exception datetime');
+    return null;
+  }
+}
+
+function isFutureIsoDateTime(isoDateTime: string): boolean {
+  const parsed = DateTime.fromISO(isoDateTime);
+  if (!parsed.isValid) return false;
+  return parsed.toMillis() > DateTime.utc().toMillis();
+}
+
 export async function getScheduleExceptions(scheduleId: string): Promise<ScheduleExceptionRow[]> {
   const client = getSupabaseServerComponentClient();
 
@@ -283,10 +323,6 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
         success: false,
         error: createError(ErrorCodes.INVALID_INPUT, 'Snooze time is required'),
       };
-    }
-
-    if (exceptionNewDatetime) {
-      baseMetadata.snooze_minutes = snoozeMinutesValue ?? undefined;
     }
   }
 
@@ -536,6 +572,101 @@ const deleteScheduleExceptionWithTrial = withTrialCheck(async (
     };
   }
 
+  let shouldRefreshLineNextScheduledCallAt = false;
+  let restoredNextRunAt: string | null = null;
+  let removedLinkedScheduleId: string | null = null;
+  const shouldAttemptFutureRevert = ['skip', 'snooze', 'reschedule'].includes(exception.exception_type);
+
+  if (shouldAttemptFutureRevert) {
+    const { schedule, error: scheduleError } = await getScheduleForException(exception.schedule_id);
+    const line = await getLine(exception.line_id);
+
+    if (scheduleError || !schedule || !line) {
+      logger.warn(
+        { scheduleError, scheduleId: exception.schedule_id, lineId: exception.line_id },
+        'Skipping exception revert due to missing schedule or line'
+      );
+    } else {
+      const originalOccurrenceUtcIso = getOriginalOccurrenceUtcIso(exception, schedule.time_of_day, line.timezone);
+
+      if (originalOccurrenceUtcIso && isFutureIsoDateTime(originalOccurrenceUtcIso)) {
+        let nextRunAtToRestore: string | null | undefined;
+
+        if (exception.exception_type === 'snooze') {
+          if (exception.new_datetime && schedule.next_run_at === exception.new_datetime) {
+            nextRunAtToRestore = originalOccurrenceUtcIso;
+          }
+        } else {
+          if (!schedule.next_run_at) {
+            nextRunAtToRestore = originalOccurrenceUtcIso;
+          } else {
+            const scheduleNext = DateTime.fromISO(schedule.next_run_at);
+            const originalOccurrence = DateTime.fromISO(originalOccurrenceUtcIso);
+            if (scheduleNext.isValid && originalOccurrence.isValid && scheduleNext.toMillis() >= originalOccurrence.toMillis()) {
+              nextRunAtToRestore = originalOccurrenceUtcIso;
+            }
+          }
+        }
+
+        if (nextRunAtToRestore !== undefined && nextRunAtToRestore !== schedule.next_run_at) {
+          const { error: restoreError } = await client
+            .from('ultaura_schedules')
+            .update({ next_run_at: nextRunAtToRestore })
+            .eq('id', schedule.id);
+
+          if (restoreError) {
+            logger.error(
+              { error: restoreError, scheduleId: schedule.id, exceptionId: exception.id },
+              'Failed to restore schedule next_run_at after exception removal'
+            );
+          } else {
+            shouldRefreshLineNextScheduledCallAt = true;
+            restoredNextRunAt = nextRunAtToRestore;
+          }
+        }
+      }
+    }
+
+    if (exception.exception_type === 'reschedule' && exception.reschedule_schedule_id) {
+      const { data: linkedSchedule, error: linkedScheduleError } = await client
+        .from('ultaura_schedules')
+        .select('id, next_run_at, is_one_time')
+        .eq('id', exception.reschedule_schedule_id)
+        .maybeSingle();
+
+      if (linkedScheduleError) {
+        logger.warn(
+          { error: linkedScheduleError, linkedScheduleId: exception.reschedule_schedule_id },
+          'Failed to load linked one-time schedule for exception removal'
+        );
+      } else if (
+        linkedSchedule &&
+        linkedSchedule.is_one_time &&
+        linkedSchedule.next_run_at &&
+        isFutureIsoDateTime(linkedSchedule.next_run_at)
+      ) {
+        const { error: cleanupError } = await client
+          .from('ultaura_schedules')
+          .delete()
+          .eq('id', linkedSchedule.id);
+
+        if (cleanupError) {
+          logger.warn(
+            { error: cleanupError, linkedScheduleId: linkedSchedule.id, exceptionId: exception.id },
+            'Failed to cleanup linked one-time schedule after reschedule exception removal'
+          );
+        } else {
+          shouldRefreshLineNextScheduledCallAt = true;
+          removedLinkedScheduleId = linkedSchedule.id;
+        }
+      }
+    }
+  }
+
+  if (shouldRefreshLineNextScheduledCallAt) {
+    await updateLineNextScheduledCallAt(exception.line_id);
+  }
+
   await logScheduleEvent({
     accountId: exception.account_id,
     scheduleId: exception.schedule_id,
@@ -545,6 +676,8 @@ const deleteScheduleExceptionWithTrial = withTrialCheck(async (
     metadata: {
       exception_type: exception.exception_type,
       exception_date: exception.exception_date,
+      restored_next_run_at: restoredNextRunAt ?? undefined,
+      removed_reschedule_schedule_id: removedLinkedScheduleId ?? undefined,
     },
   });
 

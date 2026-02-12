@@ -18,8 +18,6 @@ import {
 
 export const snoozeScheduleRouter = Router();
 
- 
-
 snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
   try {
     const rawBody = req.body as Partial<SnoozeScheduleInput>;
@@ -65,17 +63,37 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
+    if (session.line_id !== lineId) {
+      await recordFailure('sts_line_mismatch');
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'This call session is not authorized to snooze that line.',
+      });
+      return;
+    }
+
     const supabase = getSupabaseClient();
 
     const { data: line, error: lineError } = await supabase
       .from('ultaura_lines')
-      .select('allow_voice_schedule_control, timezone')
+      .select('account_id, allow_voice_schedule_control, timezone')
       .eq('id', lineId)
       .single();
 
     if (lineError || !line) {
       await recordFailure(lineError?.code);
       res.status(500).json({ error: 'Failed to get line info' });
+      return;
+    }
+
+    if (line.account_id !== session.account_id) {
+      await recordFailure('sts_account_mismatch');
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'This call session is not authorized to snooze that line.',
+      });
       return;
     }
 
@@ -105,8 +123,18 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const localDate = DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
-    if (!localDate) {
+    if (schedule.line_id !== lineId || schedule.account_id !== session.account_id) {
+      await recordFailure('sts_schedule_line_mismatch');
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'This call session is not authorized to snooze that line.',
+      });
+      return;
+    }
+
+    const nextRunLocalDate = DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
+    if (!nextRunLocalDate) {
       await recordFailure();
       res.status(400).json({ error: 'Invalid schedule date' });
       return;
@@ -134,7 +162,7 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
         account_id: session.account_id,
         schedule_id: schedule.id,
         line_id: lineId,
-        exception_date: localDate,
+        exception_date: nextRunLocalDate,
         exception_type: 'snooze',
         new_datetime: snoozedIso,
         created_by: 'voice',
@@ -157,7 +185,7 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const shouldAdvance = localDate === DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
+    const shouldAdvance = nextRunLocalDate === DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
     if (shouldAdvance) {
       await supabase
         .from('ultaura_schedules')
@@ -175,7 +203,7 @@ snoozeScheduleRouter.post('/', async (req: Request, res: Response) => {
       call_session_id: callSessionId,
       metadata: {
         exception_type: 'snooze',
-        exception_date: localDate,
+        exception_date: nextRunLocalDate,
         new_datetime: snoozedIso,
       },
     });

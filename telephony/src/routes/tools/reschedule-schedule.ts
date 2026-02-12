@@ -69,17 +69,37 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
       }, { skipDebugLog: true });
     };
 
+    if (session.line_id !== lineId) {
+      await recordFailure('sts_line_mismatch');
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'This call session is not authorized to move that line.',
+      });
+      return;
+    }
+
     const supabase = getSupabaseClient();
 
     const { data: line, error: lineError } = await supabase
       .from('ultaura_lines')
-      .select('allow_voice_schedule_control, timezone')
+      .select('account_id, allow_voice_schedule_control, timezone')
       .eq('id', lineId)
       .single();
 
     if (lineError || !line) {
       await recordFailure(lineError?.code);
       res.status(500).json({ error: 'Failed to get line info' });
+      return;
+    }
+
+    if (line.account_id !== session.account_id) {
+      await recordFailure('sts_account_mismatch');
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'This call session is not authorized to move that line.',
+      });
       return;
     }
 
@@ -109,6 +129,16 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    if (schedule.line_id !== lineId || schedule.account_id !== session.account_id) {
+      await recordFailure('sts_schedule_line_mismatch');
+      res.json({
+        success: false,
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'This call session is not authorized to move that line.',
+      });
+      return;
+    }
+
     let newUtc: Date;
     try {
       newUtc = parseInputDateTime(newDatetime, line.timezone);
@@ -129,8 +159,8 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const newIso = newUtc.toISOString();
-    const localDate = DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
-    if (!localDate) {
+    const nextRunLocalDate = DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
+    if (!nextRunLocalDate) {
       await recordFailure();
       res.status(400).json({ error: 'Invalid schedule date' });
       return;
@@ -170,29 +200,56 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
       call_session_id: callSessionId,
     };
 
-    const { data: exception, error: insertError } = await supabase
-      .from('ultaura_schedule_exceptions')
-      .insert({
+    const cleanupOneTimeSchedule = async () => {
+      if (!oneTimeSchedule?.id) {
+        return;
+      }
+
+      const { error: cleanupError } = await supabase
+        .from('ultaura_schedules')
+        .delete()
+        .eq('id', oneTimeSchedule.id);
+
+      if (cleanupError) {
+        logger.warn(
+          { error: cleanupError, scheduleId: oneTimeSchedule.id },
+          'Failed to clean up one-time schedule after reschedule exception failure'
+        );
+      }
+    };
+
+    let exception: { id: string } | null = null;
+    let insertError: { code?: string } | null = null;
+
+    try {
+      const insertResult = await supabase
+        .from('ultaura_schedule_exceptions')
+        .insert({
         account_id: session.account_id,
         schedule_id: schedule.id,
         line_id: lineId,
-        exception_date: localDate,
+        exception_date: nextRunLocalDate,
         exception_type: 'reschedule',
-        new_datetime: newIso,
-        reschedule_schedule_id: oneTimeSchedule.id,
-        created_by: 'voice',
-        call_session_id: callSessionId,
-        metadata,
-      })
-      .select('id')
-      .single();
+          new_datetime: newIso,
+          reschedule_schedule_id: oneTimeSchedule.id,
+          created_by: 'voice',
+          call_session_id: callSessionId,
+          metadata,
+        })
+        .select('id')
+        .single();
+
+      exception = insertResult.data as { id: string } | null;
+      insertError = insertResult.error as { code?: string } | null;
+    } catch (error) {
+      await cleanupOneTimeSchedule();
+      throw error;
+    }
 
     if (insertError || !exception) {
       await recordFailure(insertError?.code);
       const duplicate = insertError?.code === '23505';
-      if (duplicate) {
-        await supabase.from('ultaura_schedules').delete().eq('id', oneTimeSchedule.id);
-      }
+      await cleanupOneTimeSchedule();
       res.json({
         success: false,
         code: duplicate ? ErrorCodes.ALREADY_EXISTS : ErrorCodes.DATABASE_ERROR,
@@ -203,7 +260,7 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const shouldAdvance = localDate === DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
+    const shouldAdvance = nextRunLocalDate === DateTime.fromISO(schedule.next_run_at).setZone(line.timezone).toISODate();
     if (shouldAdvance) {
       const nextRun = calculateNextRun(schedule, line.timezone);
       await supabase
@@ -222,7 +279,7 @@ rescheduleScheduleRouter.post('/', async (req: Request, res: Response) => {
       call_session_id: callSessionId,
       metadata: {
         exception_type: 'reschedule',
-        exception_date: localDate,
+        exception_date: nextRunLocalDate,
         new_datetime: newIso,
         reschedule_schedule_id: oneTimeSchedule.id,
       },

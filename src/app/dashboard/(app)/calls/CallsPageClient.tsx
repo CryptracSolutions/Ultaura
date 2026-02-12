@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { CalendarDays, Clock, Plus } from 'lucide-react';
@@ -48,6 +48,11 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
   const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
+  const scheduleById = useMemo(
+    () => new Map(schedules.map((schedule) => [schedule.scheduleId, schedule])),
+    [schedules]
+  );
+
   // Deep-link: open edit modal from ?edit= param
   const handledEditIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -58,14 +63,14 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     if (handledEditIdRef.current === editScheduleIdParam) return;
     handledEditIdRef.current = editScheduleIdParam;
 
-    const schedule = schedules.find((s) => s.scheduleId === editScheduleIdParam);
+    const schedule = scheduleById.get(editScheduleIdParam);
     if (schedule) setEditScheduleId(schedule.scheduleId);
 
     const next = new URLSearchParams(searchParams.toString());
     next.delete('edit');
     const query = next.toString();
     router.replace(query ? `?${query}` : '?', { scroll: false });
-  }, [disabled, editScheduleIdParam, schedules, router, searchParams]);
+  }, [disabled, editScheduleIdParam, scheduleById, router, searchParams]);
 
   // Derived data
   const selectedLine = selectedLineShortId
@@ -111,9 +116,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
   };
 
   // Find the schedule being edited (to get line info for the modal)
-  const editingSchedule = editScheduleId
-    ? schedules.find((s) => s.scheduleId === editScheduleId)
-    : null;
+  const editingSchedule = editScheduleId ? scheduleById.get(editScheduleId) ?? null : null;
   const editingLine = editingSchedule
     ? lines.find((l) => l.id === editingSchedule.lineId)
     : null;
@@ -126,7 +129,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     if (disabled) return;
     setLoading(scheduleId, true);
 
-    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    const schedule = scheduleById.get(scheduleId);
     const result = await updateSchedule(scheduleId, {
       enabled: !currentEnabled,
       timezone: schedule?.lineTimezone,
@@ -226,13 +229,15 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
 
             return (
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
-                <div className="px-6 py-4 border-b border-border bg-muted/30">
-                  <h3 className="font-semibold text-foreground">{line.display_name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {lineSchedules.length === 0
-                      ? 'No schedules'
-                      : `${enabledSchedules.length} active schedule${enabledSchedules.length !== 1 ? 's' : ''}`}
-                  </p>
+                <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-foreground">{line.display_name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {lineSchedules.length === 0
+                        ? 'No schedules'
+                        : `${enabledSchedules.length} active schedule${enabledSchedules.length !== 1 ? 's' : ''}`}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="divide-y divide-border">
