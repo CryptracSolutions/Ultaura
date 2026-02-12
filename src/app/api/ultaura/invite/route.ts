@@ -17,9 +17,9 @@ const InviteSchema = z.object({
 
 export async function POST(request: Request) {
   const supabase = getSupabaseRouteHandlerClient();
-  const { data } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!data.session) {
+  if (!user || authError) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
