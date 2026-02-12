@@ -99,10 +99,12 @@ export function ResponsiveActionMenu({
                         : ''
                     }`}
                   >
-                    <span className="w-5 h-5 mr-2 flex items-center justify-center">
-                      {action.icon}
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 flex shrink-0 items-center justify-center">
+                        {action.icon}
+                      </span>
+                      <span>{action.label}</span>
                     </span>
-                    {action.label}
                   </DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                     <DropdownMenuSubContent>

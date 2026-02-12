@@ -10,6 +10,7 @@ import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
 import Button from '~/core/ui/Button';
 import { Phone, Trash2, Plus, X } from 'lucide-react';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import {
   getTrustedContacts,
   addTrustedContact,
@@ -38,6 +39,7 @@ interface ContactsClientProps {
 export function ContactsClient({ line, disabled = false }: ContactsClientProps) {
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [contactToRemove, setContactToRemove] = useState<TrustedContact | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -290,16 +292,19 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                   </p>
                 </div>
               </div>
-              <Button
-                type="button"
-                onClick={() => handleRemoveContact(contact.id)}
-                disabled={disabled}
-                aria-label={`Remove ${contact.name}`}
-                variant="destructive"
-                size="icon"
-              >
-                <Trash2 className="h-5 w-5" />
-              </Button>
+              {!disabled && (
+                <ResponsiveActionMenu
+                  title={`${contact.name}\n${contact.phone_e164}`}
+                  actions={[
+                    {
+                      label: 'Remove',
+                      icon: <Trash2 className="w-5 h-5" />,
+                      onClick: () => setContactToRemove(contact),
+                      variant: 'destructive',
+                    },
+                  ]}
+                />
+              )}
             </CardContent>
           </Card>
         ))}
@@ -320,6 +325,25 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
         cancelLabel="Stay here"
         variant="default"
         onConfirm={dialogProps.onConfirm}
+      />
+
+      <ConfirmationDialog
+        open={contactToRemove !== null}
+        onOpenChange={(open) => !open && setContactToRemove(null)}
+        title="Remove contact"
+        description={
+          contactToRemove
+            ? `Remove ${contactToRemove.name} from trusted contacts? They will no longer receive distress alerts.`
+            : ''
+        }
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={async () => {
+          if (contactToRemove) {
+            await handleRemoveContact(contactToRemove.id);
+            setContactToRemove(null);
+          }
+        }}
       />
     </div>
   );

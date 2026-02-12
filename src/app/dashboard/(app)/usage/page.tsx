@@ -116,22 +116,22 @@ export default async function UsagePage() {
         <div className="flex flex-col gap-6 pb-24">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
 
-          {/* Plan info strip */}
-          <div className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-foreground">
-              {isOnTrial ? `${trialPlanName} trial` : `${planName} plan`}
-            </span>
-            {!isOnTrial && (
-              <Link
-                href="/dashboard/settings/subscription"
-                className="text-primary hover:underline"
-              >
-                Change plan
-              </Link>
-            )}
-          </div>
-
-          {usage ? (
+          {/* Plan info strip + tabs */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="ml-1 font-medium text-foreground">
+                {isOnTrial ? `${trialPlanName} trial` : `${planName} plan`}
+              </span>
+              {!isOnTrial && (
+                <Link
+                  href="/dashboard/settings/subscription"
+                  className="text-primary hover:underline"
+                >
+                  Change plan
+                </Link>
+              )}
+            </div>
+            {usage ? (
             <UsageTabsClient
               planName={planName}
               isOnTrial={isOnTrial}
@@ -161,8 +161,9 @@ export default async function UsagePage() {
               perLineUsage={perLineUsage}
             />
           ) : (
-            <div className="text-sm text-muted-foreground">Usage not available yet.</div>
-          )}
+              <div className="text-sm text-muted-foreground">Usage not available yet.</div>
+            )}
+          </div>
         </div>
       </PageBody>
     </>

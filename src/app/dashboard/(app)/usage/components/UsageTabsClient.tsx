@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, Clock, DollarSign, Hourglass, ShieldAlert, Timer } from 'lucide-react';
+import { AlertTriangle, Clock, DollarSign, Hourglass, ShieldAlert, Timer, User } from 'lucide-react';
 
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
@@ -16,8 +16,8 @@ type TabValue = 'cycle' | 'per-user' | 'total';
 
 const USAGE_TABS = [
   { value: 'cycle' as const, label: 'This cycle', path: '/dashboard/usage?tab=cycle' },
-  { value: 'per-user' as const, label: 'Per user', path: '/dashboard/usage?tab=per-user' },
   { value: 'total' as const, label: 'Total usage', path: '/dashboard/usage?tab=total' },
+  { value: 'per-user' as const, label: 'Per user', path: '/dashboard/usage?tab=per-user' },
 ];
 
 interface UsageTabsProps {
@@ -73,7 +73,7 @@ export default function UsageTabsClient(props: UsageTabsProps) {
 
       <div className="mt-4">
         {activeTab === 'per-user' && (
-          <PerUserTab perLineUsage={props.perLineUsage} rateCents={props.rateCents} />
+          <PerUserTab perLineUsage={props.perLineUsage} />
         )}
         {activeTab === 'total' && (
           <TotalUsageTab
@@ -114,7 +114,33 @@ function CycleTab(props: UsageTabsProps) {
   } = props;
 
   return (
-    <div>
+    <div className="space-y-3">
+      {/* Progress bar — standard plans only */}
+      {!isOnTrial && !isPayg && (
+        <div className="space-y-1.5">
+          <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className="flex h-full">
+              <div
+                className="h-full bg-primary rounded-l-full"
+                style={{ width: `${includedUsagePercent}%` }}
+              />
+              {hasOverage && (
+                <div
+                  className="h-full bg-warning rounded-r-full"
+                  style={{ width: `${overagePercent}%` }}
+                />
+              )}
+            </div>
+          </div>
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>
+              {minutesUsed} of {minutesIncluded} min
+            </span>
+            {cycleEnd && <span>Cycle ends and minutes reset {cycleEnd}</span>}
+          </div>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard icon={<Clock className="w-4 h-4" />} label="Minutes Used" value={String(minutesUsed)} />
@@ -142,35 +168,9 @@ function CycleTab(props: UsageTabsProps) {
 
       {/* Trial note */}
       {isTrialActive && (
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Unlimited during trial.
         </p>
-      )}
-
-      {/* Progress bar — standard plans only */}
-      {!isOnTrial && !isPayg && (
-        <div className="mt-4 space-y-1.5">
-          <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-            <div className="flex h-full">
-              <div
-                className="h-full bg-primary rounded-l-full"
-                style={{ width: `${includedUsagePercent}%` }}
-              />
-              {hasOverage && (
-                <div
-                  className="h-full bg-warning rounded-r-full"
-                  style={{ width: `${overagePercent}%` }}
-                />
-              )}
-            </div>
-          </div>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>
-              {minutesUsed} of {minutesIncluded} min
-            </span>
-            {cycleEnd && <span>Cycle ends and minutes reset {cycleEnd}</span>}
-          </div>
-        </div>
       )}
 
       {/* Overage callout — standard plans only */}
@@ -197,9 +197,11 @@ function CycleTab(props: UsageTabsProps) {
       {/* Spending Cap — not shown during trial */}
       {!isOnTrial && (
         <div className="mt-6 rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-primary">
+              <ShieldAlert className="h-4 w-4" />
+            </span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Spending cap
             </span>
           </div>
@@ -247,24 +249,22 @@ function TotalUsageTab({
   totalCostCents: number;
 }) {
   return (
-    <div>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        All-time usage across all billing cycles
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <StatCard icon={<Timer className="w-4 h-4" />} label="Total Minutes" value={String(totalMinutes)} />
         <StatCard icon={<DollarSign className="w-4 h-4" />} label="Total Cost" value={formatCurrency(totalCostCents)} />
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        All-time usage across all billing cycles.
-      </p>
     </div>
   );
 }
 
 function PerUserTab({
   perLineUsage,
-  rateCents,
 }: {
   perLineUsage: PerLineUsageEntry[];
-  rateCents: number;
 }) {
   if (perLineUsage.length === 0) {
     return (
@@ -274,20 +274,27 @@ function PerUserTab({
 
   return (
     <div className="space-y-3">
-      {perLineUsage.map((entry) => (
-        <div
-          key={entry.lineId}
-          className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent"
-        >
+      <p className="text-xs text-muted-foreground">
+        Minutes are pooled across all lines
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {perLineUsage.map((entry) => (
+          <div
+            key={entry.lineId}
+            className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent"
+          >
           <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
-              <span className="font-semibold text-foreground">{entry.displayName}</span>
+              <span className="text-primary">
+                <User className="h-4 w-4" />
+              </span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{entry.displayName}</span>
               {entry.status !== 'active' && (
                 <span className="text-xs text-muted-foreground capitalize">({entry.status})</span>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">This cycle</p>
                 <p className="text-lg font-bold text-foreground tabular-nums">{entry.cycleMinutes}</p>
@@ -296,19 +303,11 @@ function PerUserTab({
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">All-time</p>
                 <p className="text-lg font-bold text-foreground tabular-nums">{entry.totalMinutes}</p>
               </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Est. cost</p>
-                <p className="text-lg font-bold text-foreground tabular-nums">
-                  {formatCurrency(entry.totalMinutes * rateCents)}
-                </p>
-              </div>
             </div>
           </div>
         </div>
-      ))}
-      <p className="mt-3 text-xs text-muted-foreground">
-        Minutes are pooled across all lines.
-      </p>
+        ))}
+      </div>
     </div>
   );
 }

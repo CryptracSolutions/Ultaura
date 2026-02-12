@@ -104,7 +104,7 @@ You MUST create a task list using `TaskCreate` for **any work with 4+ steps**:
 After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
 
 **How to deploy:**
-- Use the `Task` tool with `subagent_type: "code-simplifier"` and `model: "opus"`
+- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "opus"`
 - This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
 - It is **blocking** — wait for its result before proceeding to shutdown
 

@@ -191,25 +191,23 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
   return (
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
-      <div className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {!disabled && (
-            <Button
-              variant="default"
-              size="small"
-              onClick={() => {
-                if (selectedLine) setPreselectedLineId(selectedLine.id);
-                setShowAddModal(true);
-              }}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4" />
-              Add Schedule
-            </Button>
-          )}
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {!disabled && (
+          <Button
+            variant="default"
+            size="small"
+            onClick={() => {
+              if (selectedLine) setPreselectedLineId(selectedLine.id);
+              setShowAddModal(true);
+            }}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="w-4 h-4" />
+            Add Schedule
+          </Button>
+        )}
         {lines.length > 1 && (
-          <div className="w-full sm:w-[16rem] -ml-1 sm:-ml-2">
+          <div className="w-full sm:w-[16rem] sm:ml-auto rounded-xl ring-2 ring-primary">
             <ScheduleLineFilter
               lines={lineFilterData}
               currentLineShortId={selectedLineShortId}

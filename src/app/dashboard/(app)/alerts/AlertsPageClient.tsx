@@ -35,7 +35,7 @@ export function AlertsPageClient({ alerts, lines, settings, deliveryEmail, disab
   return (
     <div className="space-y-6 pb-12">
       {lines.length > 1 && (
-        <div className="w-full sm:w-[16rem] -ml-1 sm:-ml-2">
+        <div className="w-full sm:w-[16rem] rounded-xl ring-2 ring-primary">
           <AlertsLineFilter
             lines={lineFilterData}
             value={selectedLineId}
