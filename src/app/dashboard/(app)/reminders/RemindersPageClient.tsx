@@ -225,24 +225,28 @@ export function RemindersPageClient({
   return (
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {!disabled && (
-          <Button
-            variant="default"
-            size="small"
-            onClick={() => setShowAddModal(true)}
-            disabled={selectedLine ? isAtLimit : false}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="w-3 h-3" />
-            Set Reminder
-          </Button>
-        )}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {!disabled && (
+            <Button
+              variant="default"
+              size="small"
+              onClick={() => setShowAddModal(true)}
+              disabled={selectedLine ? isAtLimit : false}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="w-3 h-3" />
+              Set Reminder
+            </Button>
+          )}
+        </div>
         {lines.length > 1 && (
-          <ReminderLineFilter
-            lines={lineFilterData}
-            currentLineShortId={selectedLineShortId}
-          />
+          <div className="w-full sm:w-[16rem] -ml-1 sm:-ml-2">
+            <ReminderLineFilter
+              lines={lineFilterData}
+              currentLineShortId={selectedLineShortId}
+            />
+          </div>
         )}
       </div>
 
@@ -277,7 +281,6 @@ export function RemindersPageClient({
                             variant="default"
                             size="small"
                             onClick={() => setShowAddModal(true)}
-                            block
                           >
                             <Plus className="w-3 h-3" />
                             Create your first reminder

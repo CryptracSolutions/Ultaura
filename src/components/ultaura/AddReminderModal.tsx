@@ -10,6 +10,7 @@ import {
   focusDialogAutofocusTarget,
   gateDialogAutoFocus,
 } from '~/core/ui/Dialog';
+import Button from '~/core/ui/Button';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { CreateReminderForm } from './CreateReminderForm';
 
@@ -130,14 +131,15 @@ export function AddReminderModal({ open, onOpenChange, lines, preselectedLineId 
               </div>
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={handleClose}
-              className="min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation flex items-center justify-center"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           {/* Step 1: Line Picker */}

@@ -298,16 +298,7 @@ export function CreateReminderForm({
             )}
           </div>
 
-        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Discard changes
-          </Button>
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row">
           <Button
             type="submit"
             variant="default"
@@ -315,7 +306,16 @@ export function CreateReminderForm({
             disabled={isSubmitting || !message.trim() || !date || !time}
             loading={isSubmitting}
           >
-            {isSubmitting ? 'Saving...' : 'Save Reminder'}
+            {isSubmitting ? 'Saving...' : 'Save'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Discard
           </Button>
         </div>
       </form>

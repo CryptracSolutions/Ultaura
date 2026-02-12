@@ -87,7 +87,7 @@ INSERT INTO ultaura_accounts (
   '00000000-0000-0000-0000-000000000001',
   1,  -- Replace with actual org ID
   'Test Account',
-  'test@example.com',
+  'test@makerkit.dev',
   'active',
   'family',
   1200,

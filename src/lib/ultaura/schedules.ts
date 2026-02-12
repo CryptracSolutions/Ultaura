@@ -285,7 +285,8 @@ const createScheduleWithTrial = withTrialCheck(async (
   });
 
   revalidatePath('/dashboard/lines', 'page');
-  revalidatePath('/dashboard/schedules', 'page');
+  revalidatePath('/dashboard/calls', 'page');
+  revalidatePath('/dashboard', 'page');
 
   return { success: true, data: { scheduleId: schedule.id } };
 });
@@ -330,7 +331,7 @@ const updateScheduleWithTrial = withTrialCheck(async (
     };
   }
 
-  revalidatePath('/dashboard/schedules', 'page');
+  revalidatePath('/dashboard/calls', 'page');
 
   if (current) {
     const editMetadata = buildEditMetadata(current, input.updates);
@@ -467,7 +468,8 @@ const deleteScheduleWithTrial = withTrialCheck(async (
     };
   }
 
-  revalidatePath('/dashboard/schedules', 'page');
+  revalidatePath('/dashboard/calls', 'page');
+  revalidatePath('/dashboard', 'page');
 
   return { success: true, data: undefined };
 });
@@ -619,6 +621,8 @@ export async function getAllSchedules(accountId: string): Promise<{
   lineId: string;
   lineShortId: string;
   displayName: string;
+  lineTimezone: string;
+  linePhoneE164: string | null;
   enabled: boolean;
   nextRunAt: string | null;
   timeOfDay: string;
@@ -642,7 +646,8 @@ export async function getAllSchedules(accountId: string): Promise<{
       ultaura_lines!inner (
         display_name,
         short_id,
-        timezone
+        timezone,
+        phone_e164
       )
     `)
     .eq('account_id', accountId)
@@ -664,7 +669,7 @@ export async function getAllSchedules(accountId: string): Promise<{
   return scheduleList.map((schedule) => {
     const isOneTime = schedule.is_one_time || schedule.days_of_week.length === 0;
     const rescheduleSource = isOneTime ? rescheduleSourceMap.get(schedule.id) : null;
-    const line = schedule.ultaura_lines as { short_id: string; display_name: string; timezone?: string };
+    const line = schedule.ultaura_lines as { short_id: string; display_name: string; timezone?: string; phone_e164?: string | null };
     const timezone = line?.timezone || schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE;
     const rescheduledFrom = rescheduleSource
       ? formatRescheduledFrom(
@@ -679,6 +684,8 @@ export async function getAllSchedules(accountId: string): Promise<{
       lineId: schedule.line_id,
       lineShortId: line.short_id,
       displayName: line.display_name,
+      lineTimezone: timezone,
+      linePhoneE164: line.phone_e164 ?? null,
       enabled: schedule.enabled,
       nextRunAt: schedule.next_run_at,
       timeOfDay: schedule.time_of_day,

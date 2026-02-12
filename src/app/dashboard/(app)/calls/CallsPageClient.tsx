@@ -1,26 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { DateTime } from 'luxon';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import {
-  CalendarDays,
-  Clock,
-  Plus,
-  Edit2,
-  Trash2,
-  CheckCircle,
-  PauseCircle,
-} from 'lucide-react';
+import { CalendarDays, Clock, Plus } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
-import { deleteSchedule } from '~/lib/ultaura/schedules';
-import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
+import { deleteSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddScheduleModal } from '~/components/ultaura/AddScheduleModal';
-import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import Button from '~/core/ui/Button';
+import { ScheduleLineFilter } from './components/ScheduleLineFilter';
+import { ScheduleCard } from './components/ScheduleCard';
+import { EditScheduleModal } from './components/EditScheduleModal';
+import { ScheduleExceptions } from './components/ScheduleExceptions';
 
 interface Schedule {
   scheduleId: string;
@@ -33,6 +25,8 @@ interface Schedule {
   daysOfWeek: number[];
   isOneTime: boolean;
   rescheduledFrom?: string | null;
+  lineTimezone: string;
+  linePhoneE164: string | null;
 }
 
 interface CallsPageClientProps {
@@ -43,11 +37,58 @@ interface CallsPageClientProps {
 
 export function CallsPageClient({ lines, schedules, disabled = false }: CallsPageClientProps) {
   const router = useRouter();
-  const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  const selectedLineShortId = searchParams.get('line') ?? null;
+  const editScheduleIdParam = searchParams.get('edit') ?? null;
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [preselectedLineId, setPreselectedLineId] = useState<string | null>(null);
+  const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+  const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
+  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
-  // Map LineRow to LineForScheduleModal
+  // Deep-link: open edit modal from ?edit= param
+  const handledEditIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (disabled || !editScheduleIdParam) {
+      handledEditIdRef.current = null;
+      return;
+    }
+    if (handledEditIdRef.current === editScheduleIdParam) return;
+    handledEditIdRef.current = editScheduleIdParam;
+
+    const schedule = schedules.find((s) => s.scheduleId === editScheduleIdParam);
+    if (schedule) setEditScheduleId(schedule.scheduleId);
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('edit');
+    const query = next.toString();
+    router.replace(query ? `?${query}` : '?', { scroll: false });
+  }, [disabled, editScheduleIdParam, schedules, router, searchParams]);
+
+  // Derived data
+  const selectedLine = selectedLineShortId
+    ? lines.find((l) => l.short_id === selectedLineShortId) ?? null
+    : null;
+
+  const filteredSchedules = selectedLine
+    ? schedules.filter((s) => s.lineId === selectedLine.id)
+    : schedules;
+
+  const recurringSchedules = filteredSchedules.filter(
+    (s) => !s.isOneTime && s.daysOfWeek.length > 0,
+  );
+  const oneTimeSchedules = filteredSchedules.filter(
+    (s) => s.isOneTime || s.daysOfWeek.length === 0,
+  );
+
+  const schedulesByLine = schedules.reduce<Record<string, Schedule[]>>((acc, s) => {
+    if (!acc[s.lineId]) acc[s.lineId] = [];
+    acc[s.lineId].push(s);
+    return acc;
+  }, {});
+
   const linesForModal = lines.map((line) => ({
     id: line.id,
     accountId: line.account_id,
@@ -57,20 +98,11 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     quietHoursEnd: line.quiet_hours_end,
     phoneE164: line.phone_e164,
   }));
-  const lineTimezoneById = lines.reduce((acc, line) => {
-    acc[line.id] = line.timezone;
-    return acc;
-  }, {} as Record<string, string>);
 
-  const handleOpenForLine = (lineId: string) => {
-    setPreselectedLineId(lineId);
-    setShowAddModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowAddModal(false);
-    setPreselectedLineId(null);
-  };
+  const lineFilterData = lines.map((l) => ({
+    short_id: l.short_id,
+    display_name: l.display_name,
+  }));
 
   const sortByNextRunAt = (a: Schedule, b: Schedule) => {
     const aTime = a.nextRunAt ? new Date(a.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
@@ -78,16 +110,39 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     return aTime - bTime;
   };
 
-  // Group schedules by line
-  const schedulesByLine = schedules.reduce((acc, schedule) => {
-    if (!acc[schedule.lineId]) {
-      acc[schedule.lineId] = [];
-    }
-    acc[schedule.lineId].push(schedule);
-    return acc;
-  }, {} as Record<string, Schedule[]>);
+  // Find the schedule being edited (to get line info for the modal)
+  const editingSchedule = editScheduleId
+    ? schedules.find((s) => s.scheduleId === editScheduleId)
+    : null;
+  const editingLine = editingSchedule
+    ? lines.find((l) => l.id === editingSchedule.lineId)
+    : null;
 
-  const handleDeleteSchedule = async () => {
+  function setLoading(scheduleId: string, value: boolean) {
+    setLoadingActions((prev) => ({ ...prev, [scheduleId]: value }));
+  }
+
+  const handleToggle = async (scheduleId: string, currentEnabled: boolean) => {
+    if (disabled) return;
+    setLoading(scheduleId, true);
+
+    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    const result = await updateSchedule(scheduleId, {
+      enabled: !currentEnabled,
+      timezone: schedule?.lineTimezone,
+    });
+
+    setLoading(scheduleId, false);
+
+    if (result.success) {
+      toast.success(currentEnabled ? 'Schedule paused' : 'Schedule resumed');
+      router.refresh();
+    } else {
+      toast.error(result.error.message || 'Failed to update schedule');
+    }
+  };
+
+  const handleDelete = async () => {
     if (!scheduleToDelete) return;
 
     const result = await deleteSchedule(scheduleToDelete);
@@ -99,84 +154,72 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     router.refresh();
   };
 
-  const formatDays = (days: number[]) => {
-    if (days.length === 7) return 'Every day';
-    if (days.length === 5 && !days.includes(0) && !days.includes(6)) return 'Weekdays';
-    if (days.length === 2 && days.includes(0) && days.includes(6)) return 'Weekends';
-    return days
-      .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.short || d)
-      .join(', ');
+  const handleEdit = (scheduleId: string) => {
+    if (disabled) return;
+    setEditScheduleId(scheduleId);
   };
 
-  const formatNextCall = (nextRunAt: string | null, timezone?: string) => {
-    if (!nextRunAt) return 'Not scheduled';
-    const next = timezone
-      ? DateTime.fromISO(nextRunAt, { zone: timezone })
-      : DateTime.fromISO(nextRunAt);
-    if (!next.isValid) {
-      const fallback = new Date(nextRunAt);
-      return fallback.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    }
-
-    const now = timezone ? DateTime.now().setZone(timezone) : DateTime.now();
-    if (next.toMillis() < now.toMillis()) return 'Soon';
-
-    if (next.hasSame(now, 'day')) {
-      return `Today, ${next.toFormat('h:mm a')}`;
-    }
-    if (next.hasSame(now.plus({ days: 1 }), 'day')) {
-      return `Tomorrow, ${next.toFormat('h:mm a')}`;
-    }
-
-    return next.toFormat('EEE, MMM d, h:mm a');
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setPreselectedLineId(null);
   };
+
+  const handleOpenForLine = (lineId: string) => {
+    setPreselectedLineId(lineId);
+    setShowAddModal(true);
+  };
+
+  // -- No lines state --
+  if (lines.length === 0) {
+    return (
+      <div className="bg-card rounded-xl border border-border p-8 text-center">
+        <CalendarDays className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-foreground mb-2">No phone lines yet</h2>
+        <p className="text-muted-foreground mb-4">
+          Add a phone line first, then you can set up call schedules.
+        </p>
+        {!disabled && (
+          <Button variant="default" size="small" href="/dashboard/lines?action=add">
+            <Plus className="w-3 h-3" />
+            Add a Phone Line
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Add Schedule Button */}
-      {!disabled && lines.length > 0 && (
-        <div>
-          <Button
-            variant="default"
-            size="small"
-            onClick={() => setShowAddModal(true)}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="w-3 h-3" />
-            Add Schedule
-          </Button>
-        </div>
-      )}
-
-      {/* No lines state */}
-      {lines.length === 0 && (
-        <div className="bg-card rounded-xl border border-border p-8 text-center">
-          <CalendarDays className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">No phone lines yet</h2>
-          <p className="text-muted-foreground mb-4">
-            Add a phone line first, then you can set up call schedules.
-          </p>
+      {/* Top bar: CTA + filter */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {!disabled && (
             <Button
               variant="default"
               size="small"
-              href="/dashboard/lines?action=add"
+              onClick={() => {
+                if (selectedLine) setPreselectedLineId(selectedLine.id);
+                setShowAddModal(true);
+              }}
+              className="w-full sm:w-auto"
             >
               <Plus className="w-3 h-3" />
-              Add a Phone Line
+              Add Schedule
             </Button>
           )}
         </div>
-      )}
+        {lines.length > 1 && (
+          <div className="w-full sm:w-[16rem] -ml-1 sm:-ml-2">
+            <ScheduleLineFilter
+              lines={lineFilterData}
+              currentLineShortId={selectedLineShortId}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* Schedules grouped by line */}
-      {lines.length > 0 && (
+      {/* ---- All Lines view ---- */}
+      {!selectedLine && (
         <div className="space-y-6">
           {lines.map((line) => {
             const lineSchedules = schedulesByLine[line.id] || [];
@@ -185,27 +228,15 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
 
             return (
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
-                {/* Line Header */}
                 <div className="px-6 py-4 border-b border-border bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{line.display_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {lineSchedules.length === 0
-                          ? 'No schedules'
-                          : `${enabledSchedules.length} active schedule${enabledSchedules.length !== 1 ? 's' : ''}`}
-                      </p>
-                    </div>
-                    <Link
-                      href={`/dashboard/lines/${line.short_id}/schedule`}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      View all
-                    </Link>
-                  </div>
+                  <h3 className="font-semibold text-foreground">{line.display_name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {lineSchedules.length === 0
+                      ? 'No schedules'
+                      : `${enabledSchedules.length} active schedule${enabledSchedules.length !== 1 ? 's' : ''}`}
+                  </p>
                 </div>
 
-                {/* Schedules */}
                 <div className="divide-y divide-border">
                   {lineSchedules.length === 0 ? (
                     <div className="px-6 py-8 text-center">
@@ -226,20 +257,18 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                     </div>
                   ) : (
                     <>
-                      {/* Enabled schedules first */}
                       {enabledSchedules.map((schedule) => (
-                        <ScheduleRow
+                        <ScheduleCard
                           key={schedule.scheduleId}
                           schedule={schedule}
-                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
-                          formatDays={formatDays}
-                          formatNextCall={formatNextCall}
-                          lineTimezone={lineTimezoneById[schedule.lineId]}
                           disabled={disabled}
+                          loading={!!loadingActions[schedule.scheduleId]}
+                          onEdit={() => handleEdit(schedule.scheduleId)}
+                          onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
+                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                         />
                       ))}
 
-                      {/* Disabled schedules */}
                       {disabledSchedules.length > 0 && enabledSchedules.length > 0 && (
                         <div className="px-6 py-2 bg-muted/30">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -248,14 +277,14 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                         </div>
                       )}
                       {disabledSchedules.map((schedule) => (
-                        <ScheduleRow
+                        <ScheduleCard
                           key={schedule.scheduleId}
                           schedule={schedule}
-                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
-                          formatDays={formatDays}
-                          formatNextCall={formatNextCall}
-                          lineTimezone={lineTimezoneById[schedule.lineId]}
                           disabled={disabled}
+                          loading={!!loadingActions[schedule.scheduleId]}
+                          onEdit={() => handleEdit(schedule.scheduleId)}
+                          onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
+                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
                         />
                       ))}
                     </>
@@ -267,6 +296,95 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         </div>
       )}
 
+      {/* ---- Single line view ---- */}
+      {selectedLine && (
+        <div className="space-y-6">
+          {/* Recurring Schedules */}
+          {recurringSchedules.length > 0 && (
+            <div>
+              <h2 className="font-semibold text-lg mb-3">Recurring Schedules</h2>
+              <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border">
+                {recurringSchedules
+                  .slice()
+                  .sort((a, b) => {
+                    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+                    return sortByNextRunAt(a, b);
+                  })
+                  .map((schedule) => (
+                    <ScheduleCard
+                      key={schedule.scheduleId}
+                      schedule={schedule}
+                      disabled={disabled}
+                      loading={!!loadingActions[schedule.scheduleId]}
+                      onEdit={() => handleEdit(schedule.scheduleId)}
+                      onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
+                      onDelete={() => setScheduleToDelete(schedule.scheduleId)}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* One-time Calls */}
+          {oneTimeSchedules.length > 0 && (
+            <div>
+              <h2 className="font-semibold text-lg mb-3">One-time Calls</h2>
+              <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border">
+                {oneTimeSchedules.sort(sortByNextRunAt).map((schedule) => (
+                  <ScheduleCard
+                    key={schedule.scheduleId}
+                    schedule={schedule}
+                    disabled={disabled}
+                    loading={!!loadingActions[schedule.scheduleId]}
+                    onDelete={() => setScheduleToDelete(schedule.scheduleId)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {filteredSchedules.length === 0 && (
+            <div className="bg-card rounded-xl border border-border p-8 text-center">
+              <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">No schedules for {selectedLine.display_name}</p>
+              {!disabled && (
+                <div className="mt-3">
+                  <Button
+                    variant="default"
+                    size="small"
+                    onClick={() => handleOpenForLine(selectedLine.id)}
+                  >
+                    <Plus className="w-3 h-3" />
+                    Create First Schedule
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Schedule Exceptions */}
+          {filteredSchedules.length > 0 && (
+            <div>
+              <h2 className="font-semibold text-lg mb-4">Schedule Exceptions</h2>
+              <ScheduleExceptions
+                lineId={selectedLine.id}
+                lineShortId={selectedLine.short_id}
+                lineTimezone={selectedLine.timezone}
+                schedules={filteredSchedules.map((s) => ({
+                  scheduleId: s.scheduleId,
+                  timeOfDay: s.timeOfDay,
+                  daysOfWeek: s.daysOfWeek,
+                  enabled: s.enabled,
+                }))}
+                disabled={disabled}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Delete confirmation */}
       <ConfirmationDialog
         open={scheduleToDelete !== null}
         onOpenChange={(open) => !open && setScheduleToDelete(null)}
@@ -274,124 +392,28 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         description="Are you sure you want to delete this schedule?"
         confirmLabel="Delete"
         variant="destructive"
-        onConfirm={handleDeleteSchedule}
+        onConfirm={handleDelete}
       />
 
+      {/* Edit modal */}
+      <EditScheduleModal
+        scheduleId={editScheduleId}
+        lineShortId={editingLine?.short_id ?? ''}
+        lineTimezone={editingLine?.timezone ?? 'America/Los_Angeles'}
+        lineDisplayName={editingLine?.display_name ?? ''}
+        quietHoursStart={editingLine?.quiet_hours_start ?? '21:00'}
+        quietHoursEnd={editingLine?.quiet_hours_end ?? '09:00'}
+        disabled={disabled}
+        onClose={() => setEditScheduleId(null)}
+      />
+
+      {/* Add modal */}
       <AddScheduleModal
         open={showAddModal}
         onOpenChange={handleCloseModal}
         lines={linesForModal}
         preselectedLineId={preselectedLineId}
       />
-    </div>
-  );
-}
-
-interface ScheduleRowProps {
-  schedule: Schedule;
-  onDelete: () => void;
-  formatDays: (days: number[]) => string;
-  formatNextCall: (nextRunAt: string | null, timezone?: string) => string;
-  lineTimezone?: string;
-  disabled?: boolean;
-}
-
-function ScheduleRow({
-  schedule,
-  onDelete,
-  formatDays,
-  formatNextCall,
-  lineTimezone,
-  disabled = false,
-}: ScheduleRowProps) {
-  const isOneTime = schedule.isOneTime;
-  const nextCallLabel = schedule.nextRunAt
-    ? formatNextCall(schedule.nextRunAt, lineTimezone)
-    : 'Scheduled time: TBD';
-
-  return (
-    <div
-      className={`px-6 py-4 flex items-center justify-between gap-4 ${
-        !schedule.enabled ? 'opacity-60' : ''
-      }`}
-    >
-      <div className="flex items-center gap-4 min-w-0">
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-            schedule.enabled ? 'bg-primary/10' : 'bg-muted'
-          }`}
-        >
-          {schedule.enabled ? (
-            <CheckCircle className="w-5 h-5 text-primary" />
-          ) : (
-            <PauseCircle className="w-5 h-5 text-muted-foreground" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-foreground">
-              {isOneTime ? 'One-time call' : formatTime(schedule.timeOfDay)}
-            </p>
-            {isOneTime && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                One-time
-              </span>
-            )}
-            {!schedule.enabled && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                Paused
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground truncate">
-            {isOneTime ? (
-              <>
-                Scheduled: {nextCallLabel}
-              </>
-            ) : (
-              <>
-                {formatDays(schedule.daysOfWeek)}
-                {schedule.enabled && schedule.nextRunAt && (
-                  <span className="ml-2">
-                    &middot; Next: {formatNextCall(schedule.nextRunAt, lineTimezone)}
-                  </span>
-                )}
-              </>
-            )}
-          </p>
-          {isOneTime && schedule.rescheduledFrom ? (
-            <p className="text-xs text-muted-foreground">
-              {schedule.rescheduledFrom}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {!disabled && (
-        <ResponsiveActionMenu
-          title={isOneTime ? 'One-time call' : formatTime(schedule.timeOfDay)}
-          actions={[
-            ...(!isOneTime
-              ? [
-                  {
-                    label: 'Edit',
-                    icon: <Edit2 className="w-5 h-5" />,
-                    onClick: () => {
-                      window.location.href = `/dashboard/lines/${schedule.lineShortId}/schedule?edit=${schedule.scheduleId}`;
-                    },
-                  },
-                ]
-              : []),
-            {
-              label: 'Delete',
-              icon: <Trash2 className="w-5 h-5" />,
-              onClick: onDelete,
-              variant: 'destructive' as const,
-              separator: !isOneTime,
-            },
-          ]}
-        />
-      )}
     </div>
   );
 }

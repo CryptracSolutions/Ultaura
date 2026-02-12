@@ -11,8 +11,7 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
-import { WellnessAlertsList } from './WellnessAlertsList';
-import { AlertSettings } from './AlertSettings';
+import { AlertsPageClient } from './AlertsPageClient';
 
 export const metadata: Metadata = {
   title: 'Alerts - Ultaura',
@@ -102,23 +101,17 @@ export default async function AlertsPage() {
         ) : null}
       </AppHeader>
       <PageBody>
-        <div className="space-y-6 pb-12">
+        <div className="space-y-6">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <WellnessAlertsList
-                alerts={alerts}
-                lines={lines}
-                disabled={isTrialExpired}
-              />
-            </div>
-            <div className="lg:col-span-1">
-              <AlertSettings
-                settings={settings}
-                disabled={isTrialExpired}
-              />
-            </div>
-          </div>
+          <AlertsPageClient
+            alerts={alerts}
+            lines={lines}
+            settings={settings}
+            deliveryEmail={
+              appData.auth?.user?.email ?? account.billing_email
+            }
+            disabled={isTrialExpired}
+          />
         </div>
       </PageBody>
     </>

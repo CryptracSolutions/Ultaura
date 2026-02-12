@@ -84,11 +84,11 @@ export default async function CallsPage() {
       <PageBody>
         <div className="space-y-6">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-        <CallsPageClient
-          lines={verifiedLines}
-          schedules={schedules}
-          disabled={isTrialExpired}
-        />
+          <CallsPageClient
+            lines={verifiedLines}
+            schedules={schedules}
+            disabled={isTrialExpired}
+          />
         </div>
       </PageBody>
     </>

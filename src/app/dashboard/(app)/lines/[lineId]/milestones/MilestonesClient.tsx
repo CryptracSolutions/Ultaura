@@ -392,16 +392,7 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
               />
             </div>
 
-            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
-              <Button
-                type="button"
-                onClick={resetForm}
-                variant="outline"
-                size="small"
-                className="w-full"
-              >
-                Cancel
-              </Button>
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button
                 type="submit"
                 disabled={isSubmitting}
@@ -410,7 +401,16 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
                 className="w-full"
                 loading={isSubmitting}
               >
-                {editingMilestone ? 'Save changes' : 'Add milestone'}
+                {editingMilestone ? 'Save' : 'Add milestone'}
+              </Button>
+              <Button
+                type="button"
+                onClick={resetForm}
+                variant="outline"
+                size="small"
+                className="w-full"
+              >
+                Discard
               </Button>
             </div>
           </form>

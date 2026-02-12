@@ -225,16 +225,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
             disabled={isSaving}
           />
 
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={handleCloseEdit}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row">
             <Button
               variant="default"
               size="sm"
@@ -242,8 +233,19 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
               onClick={handleSave}
               disabled={isSaving || !hasChanges}
               loading={isSaving}
+              className="w-full"
             >
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={handleCloseEdit}
+              disabled={isSaving}
+              className="w-full"
+            >
+              Discard
             </Button>
           </div>
         </DialogContent>

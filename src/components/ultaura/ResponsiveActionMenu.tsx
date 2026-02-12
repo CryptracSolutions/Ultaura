@@ -14,6 +14,7 @@ import {
   DropdownMenuPortal,
 } from '~/core/ui/Dropdown';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '~/core/ui/Dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 export interface ActionItem {
   label: string;
@@ -66,19 +67,24 @@ export function ResponsiveActionMenu({
           }
         }}
       >
-        <DropdownMenuTrigger asChild>
-          <button
-            disabled={isDisabled}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-            aria-label="Actions"
-          >
-            {loading ? (
-              <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : (
-              <MoreVertical className="w-5 h-5" />
-            )}
-          </button>
-        </DropdownMenuTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                disabled={isDisabled}
+                className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                aria-label="Actions"
+              >
+                {loading ? (
+                  <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <MoreVertical className="w-5 h-5" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent sideOffset={20}>Menu</TooltipContent>
+        </Tooltip>
         <DropdownMenuContent align="end" className="w-48">
           {actions.map((action, index) => (
             <div key={index}>
@@ -143,7 +149,7 @@ export function ResponsiveActionMenu({
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {title && (
-            <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold break-words">
+            <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold break-words whitespace-pre-line">
               {title}
             </DialogTitle>
           )}

@@ -348,7 +348,7 @@ export function VacationSettings({
                   Added to pending changes
                 </div>
                 <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-                  Remember to click <strong>Save Changes</strong> to apply.
+                  Remember to click <strong>Save</strong> to apply.
                 </p>
               </div>
               <div className="flex gap-3 pt-2">

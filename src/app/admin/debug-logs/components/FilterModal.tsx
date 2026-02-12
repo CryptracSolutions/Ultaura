@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import Button from '~/core/ui/Button';
 
 interface FilterModalProps {
   children: React.ReactNode | ((props: {
@@ -47,14 +48,15 @@ export function FilterModal({ children, activeFilterCount }: FilterModalProps) {
                 Narrow down logs by date, session, or event type.
               </DialogDescription>
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => setOpen(false)}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           {typeof children === 'function'

@@ -143,15 +143,6 @@ function UpdateProfileForm({
 
         <div className={'flex flex-col gap-3 md:flex-row'}>
           <Button
-            type="button"
-            variant="outline"
-            size="small"
-            onClick={resetForm}
-            disabled={!formState.isDirty || updateProfileMutation.isMutating}
-          >
-            Discard changes
-          </Button>
-          <Button
             type="submit"
             variant="default"
             size="small"
@@ -159,6 +150,15 @@ function UpdateProfileForm({
             loading={updateProfileMutation.isMutating}
           >
             <Trans i18nKey={'profile:updateProfileSubmitLabel'} />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="small"
+            onClick={resetForm}
+            disabled={!formState.isDirty || updateProfileMutation.isMutating}
+          >
+            Discard
           </Button>
         </div>
       </form>

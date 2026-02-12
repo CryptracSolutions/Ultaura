@@ -19,22 +19,24 @@ export function LinePageHeader({
   actionsSlotId,
 }: LinePageHeaderProps) {
   return (
-    <div className="mb-5 space-y-3">
+    <div className="-mt-2 mb-5 space-y-3">
       <div className="flex flex-col gap-[14.4px] sm:flex-row sm:items-center sm:justify-between">
         {actions ? (
           <div className="w-full sm:w-auto">{actions}</div>
         ) : actionsSlotId ? (
           <div id={actionsSlotId} className="w-full sm:w-auto" />
         ) : null}
+      </div>
 
-        {lines.length > 1 ? (
+      {lines.length > 1 ? (
+        <div className="w-full sm:w-[16rem] -ml-1 sm:-ml-2">
           <LineSelectorTabs
             lines={lines}
             currentLineShortId={currentLineShortId}
             section="lines"
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {showTabs ? <LineTabNav lineShortId={currentLineShortId} /> : null}
     </div>

@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Bell, Brain, Activity, Edit2, X } from 'lucide-react';
+import { Bell, Brain, Activity, X } from 'lucide-react';
 import { Switch } from '~/core/ui/Switch';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { LineRow, NotificationPreferencesRow } from '~/lib/ultaura/types';
@@ -24,6 +24,7 @@ interface AlertSettingsEntry {
 
 interface AlertSettingsProps {
   settings: AlertSettingsEntry[];
+  deliveryEmail: string;
   disabled?: boolean;
 }
 
@@ -38,11 +39,13 @@ function buildDefaults(preferences: NotificationPreferencesRow | null) {
 function AlertSettingsCard({
   line,
   preferences,
+  deliveryEmail,
   disabled = false,
   onEdit,
 }: {
   line: LineRow;
   preferences: NotificationPreferencesRow | null;
+  deliveryEmail: string;
   disabled?: boolean;
   onEdit: (line: LineRow, preferences: NotificationPreferencesRow | null) => void;
 }) {
@@ -71,9 +74,8 @@ function AlertSettingsCard({
           <button
             type="button"
             onClick={() => onEdit(line, preferences)}
-            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+            className="inline-flex items-center gap-2 text-sm text-primary hover:underline mr-2"
           >
-            <Edit2 className="w-5 h-5" />
             Edit
           </button>
         ) : null}
@@ -104,14 +106,13 @@ function AlertSettingsCard({
       </div>
 
       <div className="text-xs text-muted-foreground pt-2 border-t border-border/40">
-        Delivery: Email
-        <span className="text-muted-foreground/60 ml-1">(SMS and Push coming soon)</span>
+        Delivery: Email ({deliveryEmail})
       </div>
     </div>
   );
 }
 
-export function AlertSettings({ settings, disabled = false }: AlertSettingsProps) {
+export function AlertSettings({ settings, deliveryEmail, disabled = false }: AlertSettingsProps) {
   const router = useRouter();
   const [editingEntry, setEditingEntry] = useState<AlertSettingsEntry | null>(null);
   const [editState, setEditState] = useState({
@@ -210,6 +211,7 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
               key={entry.line.id}
               line={entry.line}
               preferences={entry.preferences}
+              deliveryEmail={deliveryEmail}
               disabled={disabled}
               onEdit={openEditModal}
             />
@@ -341,27 +343,31 @@ export function AlertSettings({ settings, disabled = false }: AlertSettingsProps
 
             <div className="pt-2 border-t border-border/40">
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Delivery method:</span> Email
-                <span className="text-muted-foreground/60 ml-1">(SMS and Push coming soon)</span>
+                <span className="font-medium text-foreground">Delivery method:</span> Email (
+                {deliveryEmail})
               </p>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row">
+              <Button
+                type="submit"
+                disabled={isSaving}
+                variant="default"
+                size="sm"
+                className="w-full"
+                loading={isSaving}
+              >
+                {isSaving ? 'Saving' : 'Save'}
+              </Button>
               <Button
                 type="button"
                 onClick={attemptClose}
                 disabled={isSaving}
                 variant="outline"
+                size="sm"
+                className="w-full"
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSaving}
-                variant="default"
-                loading={isSaving}
-              >
-                {isSaving ? 'Saving' : 'Save changes'}
+                Discard
               </Button>
             </div>
           </form>

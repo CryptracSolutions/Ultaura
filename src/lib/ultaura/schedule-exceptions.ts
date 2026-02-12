@@ -462,7 +462,6 @@ const createScheduleExceptionWithTrial = withTrialCheck(async (
   }
 
   const targetShortId = input.lineShortId || line.short_id;
-  revalidatePath(`/dashboard/lines/${targetShortId}/schedule`, 'page');
   revalidatePath(`/dashboard/lines/${targetShortId}`, 'page');
   revalidatePath('/dashboard', 'page');
   revalidatePath('/dashboard/calls', 'page');
@@ -549,7 +548,6 @@ const deleteScheduleExceptionWithTrial = withTrialCheck(async (
     },
   });
 
-  revalidatePath(`/dashboard/lines/${input.lineShortId}/schedule`, 'page');
   revalidatePath(`/dashboard/lines/${input.lineShortId}`, 'page');
   revalidatePath('/dashboard', 'page');
   revalidatePath('/dashboard/calls', 'page');

@@ -183,21 +183,21 @@ const UpdatePasswordForm = ({ user }: { user: User }) => {
         <div>
           <div className={'flex flex-col gap-3 md:flex-row'}>
             <Button
-              type={'button'}
-              variant={'outline'}
-              size={'small'}
-              onClick={resetForm}
-              disabled={!hasChanges || isMutating}
-            >
-              Discard changes
-            </Button>
-            <Button
               variant={'default'}
               size={'small'}
               disabled={!hasChanges || isMutating}
               loading={isMutating}
             >
               <Trans i18nKey={'profile:updatePasswordSubmitLabel'} />
+            </Button>
+            <Button
+              type={'button'}
+              variant={'outline'}
+              size={'small'}
+              onClick={resetForm}
+              disabled={!hasChanges || isMutating}
+            >
+              Discard
             </Button>
           </div>
         </div>

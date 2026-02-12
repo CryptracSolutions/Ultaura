@@ -217,17 +217,7 @@ export function CreateScheduleForm({
               )}
             </p>
           </div>
-        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            size="small"
-            className="w-full"
-            onClick={onCancel}
-            disabled={isLoading}
-          >
-            Discard changes
-          </Button>
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row">
           <Button
             type="submit"
             variant="default"
@@ -236,7 +226,17 @@ export function CreateScheduleForm({
             disabled={selectedDays.length === 0}
             loading={isLoading}
           >
-            {isLoading ? 'Saving...' : 'Save Schedule'}
+            {isLoading ? 'Saving...' : 'Save'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="small"
+            className="w-full"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Discard
           </Button>
         </div>
       </form>

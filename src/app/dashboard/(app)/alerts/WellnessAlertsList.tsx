@@ -1,15 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import type { ElementType } from 'react';
 import { DateTime } from 'luxon';
 import { CheckCircle, AlertTriangle, AlertCircle, BellRing, Info } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
-import type { LineRow, WellnessAlert } from '~/lib/ultaura/types';
+import type { WellnessAlert } from '~/lib/ultaura/types';
 
 interface WellnessAlertsListProps {
   alerts: WellnessAlert[];
-  lines: LineRow[];
   disabled?: boolean;
 }
 
@@ -31,47 +28,23 @@ function formatAlertDate(value: string): string {
   return date.toLocaleString(DateTime.DATETIME_MED);
 }
 
-export function WellnessAlertsList({ alerts, lines, disabled: _disabled = false }: WellnessAlertsListProps) {
-  const [selectedLineId, setSelectedLineId] = useState('all');
-
-  const filteredAlerts = useMemo(() => {
-    if (selectedLineId === 'all') return alerts;
-    return alerts.filter((alert) => alert.lineId === selectedLineId);
-  }, [alerts, selectedLineId]);
-
+export function WellnessAlertsList({ alerts, disabled: _disabled = false }: WellnessAlertsListProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Wellness Alerts</h3>
-          <p className="text-xs text-muted-foreground">
-            Alerts are summaries only. No private details are shared.
-          </p>
-        </div>
-        <div className="min-w-[180px]">
-          <Select value={selectedLineId} onValueChange={setSelectedLineId}>
-            <SelectTrigger className="w-full py-2.5" aria-label="Filter by line">
-              <SelectValue placeholder="All lines" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All lines</SelectItem>
-              {lines.map((line) => (
-                <SelectItem key={line.id} value={line.id}>
-                  {line.display_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Wellness Alerts</h3>
+        <p className="text-xs text-muted-foreground">
+          Alerts are summaries only. No private details are shared.
+        </p>
       </div>
 
-      {filteredAlerts.length === 0 ? (
+      {alerts.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           No wellness alerts yet.
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAlerts.map((alert) => {
+          {alerts.map((alert) => {
             const acknowledged = Boolean(alert.acknowledgedAt);
             const SeverityIcon = SEVERITY_ICONS[alert.severity];
             return (

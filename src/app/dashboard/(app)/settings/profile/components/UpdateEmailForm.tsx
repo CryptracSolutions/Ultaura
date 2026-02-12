@@ -144,20 +144,20 @@ const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
         <div>
           <div className={'flex flex-col gap-3 md:flex-row'}>
             <Button
-              type={'button'}
-              variant={'outline'}
-              onClick={() => reset()}
-              disabled={!hasChanges || updateUserMutation.isMutating}
-            >
-              Discard changes
-            </Button>
-            <Button
               type={'submit'}
               variant={'default'}
               disabled={!hasChanges || updateUserMutation.isMutating}
               loading={updateUserMutation.isMutating}
             >
               <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
+            </Button>
+            <Button
+              type={'button'}
+              variant={'outline'}
+              onClick={() => reset()}
+              disabled={!hasChanges || updateUserMutation.isMutating}
+            >
+              Discard
             </Button>
           </div>
         </div>

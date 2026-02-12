@@ -1345,23 +1345,25 @@ export function SettingsClient({
         ? createPortal(
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button
-                type="button"
-                variant="outline"
-                onClick={resetFormState}
-                disabled={disabled || isLoading || !hasSaveableChanges}
-                className="sm:w-auto"
-              >
-                Discard changes
-              </Button>
-              <Button
                 type="submit"
                 variant="default"
+                size="sm"
                 form="line-settings-form"
                 disabled={disabled || isLoading || !hasSaveableChanges}
                 loading={isLoading}
-                className="sm:w-auto"
+                className="w-full sm:w-auto"
               >
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? 'Saving...' : 'Save'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={resetFormState}
+                disabled={disabled || isLoading || !hasSaveableChanges}
+                className="w-full sm:w-auto"
+              >
+                Discard
               </Button>
             </div>,
             actionsContainer,

@@ -1786,22 +1786,26 @@ export function PrivacyCenterClient({
   return (
     <div className="flex flex-col gap-6 pb-24">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={resetFormState}
-            disabled={isSaving || !hasChanges}
-          >
-            Discard changes
-          </Button>
+        <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             type="submit"
             variant="default"
+            size="sm"
             disabled={isSaving || !hasChanges}
             loading={isSaving}
+            className="w-full sm:w-auto"
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? 'Saving...' : 'Save'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={resetFormState}
+            disabled={isSaving || !hasChanges}
+            className="w-full sm:w-auto"
+          >
+            Discard
           </Button>
         </div>
 

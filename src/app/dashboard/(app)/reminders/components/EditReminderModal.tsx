@@ -142,15 +142,16 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
               </DialogDescription>
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={discardChanges}
               disabled={isSubmitting}
-              className="min-h-[44px] min-w-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 touch-manipulation flex items-center justify-center"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -201,16 +202,7 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={discardChanges}
-                disabled={isSubmitting}
-              >
-                Discard changes
-              </Button>
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button
                 type="submit"
                 variant="default"
@@ -218,7 +210,16 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
                 disabled={isSubmitting || !editMessage.trim()}
                 loading={isSubmitting}
               >
-                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                {isSubmitting ? 'Saving...' : 'Save'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={discardChanges}
+                disabled={isSubmitting}
+              >
+                Discard
               </Button>
             </div>
           </form>

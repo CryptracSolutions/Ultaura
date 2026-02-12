@@ -124,15 +124,6 @@ const UpdateOrganizationForm = () => {
 
         <div className={'flex flex-col gap-3 md:flex-row'}>
           <Button
-            type={'button'}
-            variant="outline"
-            size="small"
-            onClick={resetForm}
-            disabled={!hasChanges || updateOrganizationMutation.isMutating}
-          >
-            Discard changes
-          </Button>
-          <Button
             variant="default"
             size="small"
             data-cy={'update-organization-submit-button'}
@@ -140,6 +131,15 @@ const UpdateOrganizationForm = () => {
             loading={updateOrganizationMutation.isMutating}
           >
             <Trans i18nKey={'organization:updateOrganizationSubmitLabel'} />
+          </Button>
+          <Button
+            type={'button'}
+            variant="outline"
+            size="small"
+            onClick={resetForm}
+            disabled={!hasChanges || updateOrganizationMutation.isMutating}
+          >
+            Discard
           </Button>
         </div>
       </form>

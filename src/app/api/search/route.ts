@@ -353,7 +353,7 @@ export async function GET(request: Request) {
           label: summary,
           subtitle: line?.display_name ?? 'Line schedule',
           href: line?.short_id
-            ? `/dashboard/lines/${line.short_id}/schedule`
+            ? `/dashboard/calls?line=${line.short_id}`
             : '/dashboard/calls',
           category: 'schedules',
           timestamp: schedule.next_run_at ?? schedule.created_at,

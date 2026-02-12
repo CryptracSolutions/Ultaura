@@ -159,7 +159,7 @@ function DebugLogFilterForm({
           onClick={onClose}
           className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
         >
-          Discard changes
+          Discard
         </button>
         <button
           type="submit"

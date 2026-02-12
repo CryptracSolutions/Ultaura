@@ -248,17 +248,7 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 </label>
               </div>
             </div>
-            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
-              <Button
-                type="button"
-                onClick={resetAddForm}
-                variant="outline"
-                size="sm"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button
                 type="submit"
                 disabled={!consentAcknowledged || isSubmitting}
@@ -268,6 +258,16 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 loading={isSubmitting}
               >
                 {isSubmitting ? 'Saving' : 'Add Contact'}
+              </Button>
+              <Button
+                type="button"
+                onClick={resetAddForm}
+                variant="outline"
+                size="sm"
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                Discard
               </Button>
             </div>
           </form>
