@@ -1,8 +1,11 @@
 import { Metadata } from 'next';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
-import { getAllReminders, getPendingReminderCount } from '~/lib/ultaura/reminders';
-import type { PlanId } from '~/lib/ultaura/types';
+import {
+  getAllReminders,
+  getScheduledReminderStatsByLine,
+} from '~/lib/ultaura/reminders';
+import { getEffectiveReminderLimit, getTrialStatus } from '~/lib/ultaura/helpers';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { RemindersPageClient } from './RemindersPageClient';
 import AppHeader from '../components/AppHeader';
@@ -57,35 +60,25 @@ export default async function RemindersPage() {
     getAllReminders(account.id),
   ]);
 
-  // Filter to only verified lines
-  const verifiedLines = lines.filter((l) => l.phone_verified_at);
-
-  const isOnTrial = account.status === 'trial';
-  const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
-  const msRemaining = trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : 0;
-  const isTrialExpired = isOnTrial && !!trialEndsAt && msRemaining <= 0;
-  const trialDaysRemaining =
-    isOnTrial && trialEndsAt ? Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000))) : 0;
-
-  const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
+  const trialStatus = getTrialStatus(account);
+  const isOnTrial = trialStatus.isOnTrial;
+  const isTrialExpired = trialStatus.isExpired;
+  const trialDaysRemaining = trialStatus.daysRemaining;
+  const trialPlanId = (trialStatus.trialPlanId ?? 'free_trial') as keyof typeof PLANS;
   const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
 
   // Compute effective plan and reminder limits per line
-  const isTrialActive = isOnTrial && !isTrialExpired;
-  const effectivePlanIdRaw = isTrialActive
-    ? (account.trial_plan_id ?? account.plan_id ?? 'free_trial')
-    : (account.plan_id ?? 'free_trial');
-  const effectivePlanId: PlanId = effectivePlanIdRaw in PLANS
-    ? (effectivePlanIdRaw as PlanId)
-    : 'free_trial';
-  const reminderLimitPerLine = PLANS[effectivePlanId]?.remindersPerLine ?? 10;
-
-  const reminderCounts = await Promise.all(
-    verifiedLines.map((line) => getPendingReminderCount(line.id)),
+  const reminderLimitPerLine = getEffectiveReminderLimit(account);
+  const reminderStatsByLine = await getScheduledReminderStatsByLine(
+    account.id,
+    lines.map((line) => line.id),
   );
   const reminderLimits: Record<string, { limit: number | null; count: number }> = {};
-  verifiedLines.forEach((line, i) => {
-    reminderLimits[line.id] = { limit: reminderLimitPerLine, count: reminderCounts[i] };
+  lines.forEach((line) => {
+    reminderLimits[line.id] = {
+      limit: reminderLimitPerLine,
+      count: reminderStatsByLine[line.id] ?? 0,
+    };
   });
 
   return (
@@ -99,7 +92,7 @@ export default async function RemindersPage() {
         <div className="space-y-6">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
           <RemindersPageClient
-            lines={verifiedLines}
+            lines={lines}
             reminders={reminders}
             disabled={isTrialExpired}
             reminderLimits={reminderLimits}

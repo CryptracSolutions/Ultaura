@@ -9,8 +9,15 @@ import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
-import { getUpcomingScheduledCalls } from '~/lib/ultaura/schedules';
-import { getUpcomingReminders } from '~/lib/ultaura/reminders';
+import {
+  getActiveScheduleStatsByLine,
+  getUpcomingScheduledCalls,
+} from '~/lib/ultaura/schedules';
+import {
+  getScheduledReminderStatsByLine,
+  getUpcomingReminders,
+} from '~/lib/ultaura/reminders';
+import { getEffectiveReminderLimit } from '~/lib/ultaura/helpers';
 import { getLineActivity, getUsageSummary } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import Button from '~/core/ui/Button';
@@ -118,12 +125,14 @@ async function DashboardPage() {
     ? 'Your home for call activity, schedules, and reminders.'
     : <Trans i18nKey={'common:dashboardTabDescription'} />;
 
-  const [lines, usage, activity, upcomingSchedules, upcomingReminders] = await Promise.all([
+  const [lines, usage, activity, upcomingSchedules, upcomingReminders, scheduledReminderStatsByLine, activeScheduleStatsByLine] = await Promise.all([
     getLines(account.id),
     getUsageSummary(account.id),
     getLineActivity(account.id),
     getUpcomingScheduledCalls(account.id),
     getUpcomingReminders(account.id),
+    getScheduledReminderStatsByLine(account.id),
+    getActiveScheduleStatsByLine(account.id),
   ]);
 
   const unverifiedCount = lines.filter((l) => !l.phone_verified_at).length;
@@ -151,6 +160,48 @@ async function DashboardPage() {
     usage && usage.minutesIncluded > 0
       ? Math.min((overageMinutes / usage.minutesIncluded) * 100, 100)
       : 0;
+  const minutesValue = usage
+    ? (isOnTrial || isPayg
+      ? usage.minutesUsed
+      : overageMinutes > 0
+      ? overageMinutes
+      : usage.minutesRemaining)
+    : '—';
+  const minutesLabel = usage
+    ? (isOnTrial || isPayg
+      ? 'minutes used'
+      : overageMinutes > 0
+      ? 'minutes over'
+      : 'minutes remaining')
+    : null;
+  const usageSummary = usage
+    ? (isOnTrial
+      ? `${usage.minutesUsed} minutes • ${formatCurrency(0)} during trial`
+      : isPayg
+      ? `${usage.minutesUsed} minutes • ${formatCurrency(usageCostCents)} est.`
+      : `${usage.minutesUsed} used • ${usage.minutesIncluded} included${
+          overageMinutes > 0 ? ` • ${overageMinutes} over` : ''
+        }`)
+    : 'Usage not available yet.';
+  const effectiveReminderLimit = getEffectiveReminderLimit(account);
+  const reminderAllowanceRows = lines.map((line) => {
+    const activeReminderCount = scheduledReminderStatsByLine[line.id] || 0;
+    const isCapped = effectiveReminderLimit !== null;
+    const atLimit = isCapped && activeReminderCount >= effectiveReminderLimit;
+
+    return {
+      lineId: line.id,
+      lineName: line.display_name || 'Unnamed line',
+      activeReminderCount,
+      subtext: isCapped ? `${effectiveReminderLimit} allowed` : 'Unlimited',
+      atLimit,
+    };
+  });
+  const scheduleAllowanceRows = lines.map((line) => ({
+    lineId: line.id,
+    lineName: line.display_name || 'Unnamed line',
+    activeScheduleCount: activeScheduleStatsByLine[line.id] || 0,
+  }));
 
   // Get upcoming scheduled calls (already sorted by next_run_at)
   const upcoming = upcomingSchedules.slice(0, 6);
@@ -248,25 +299,11 @@ async function DashboardPage() {
                 <div className="text-base font-medium text-foreground">Minutes</div>
               </div>
               <div className="relative text-3xl font-bold text-foreground">
-                {usage
-                  ? isOnTrial
-                    ? usage.minutesUsed
-                    : isPayg
-                    ? usage.minutesUsed
-                    : overageMinutes > 0
-                    ? overageMinutes
-                    : usage.minutesRemaining
-                  : '—'}
+                {minutesValue}
               </div>
-              {usage && (
+              {minutesLabel && (
                 <div className="relative text-xs text-muted-foreground mb-1">
-                  {isOnTrial
-                    ? 'minutes used'
-                    : isPayg
-                    ? 'minutes used'
-                    : overageMinutes > 0
-                    ? 'minutes over'
-                    : 'minutes remaining'}
+                  {minutesLabel}
                 </div>
               )}
               {usage && !isOnTrial && (
@@ -299,15 +336,7 @@ async function DashboardPage() {
               <div className="relative flex-1" />
               <div className="relative mt-auto space-y-2">
                 <div className="text-xs text-muted-foreground">
-                  {usage
-                    ? isOnTrial
-                      ? `${usage.minutesUsed} minutes • ${formatCurrency(0)} during trial`
-                      : isPayg
-                      ? `${usage.minutesUsed} minutes • ${formatCurrency(usageCostCents)} est.`
-                      : `${usage.minutesUsed} used • ${usage.minutesIncluded} included${
-                          overageMinutes > 0 ? ` • ${overageMinutes} over` : ''
-                        }`
-                    : 'Usage not available yet.'}
+                  {usageSummary}
                 </div>
                 <Link
                   href="/dashboard/usage"
@@ -377,6 +406,25 @@ async function DashboardPage() {
                     </Link>
                   </div>
 
+                  {scheduleAllowanceRows.length > 0 && (
+                    <div className="mt-3">
+                      <div className="flex flex-wrap gap-2">
+                        {scheduleAllowanceRows.map((row) => (
+                          <div
+                            key={row.lineId}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground"
+                          >
+                            <span className="font-medium text-foreground">{row.lineName}</span>
+                            <span aria-hidden="true">•</span>
+                            <span className="text-primary">
+                              {row.activeScheduleCount} active
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {upcoming.length === 0 ? (
                     <p className="mt-3 text-sm text-muted-foreground">
                       No scheduled calls yet.{' '}
@@ -431,6 +479,35 @@ async function DashboardPage() {
                       View all
                     </Link>
                   </div>
+
+                  {reminderAllowanceRows.length > 0 && (
+                    <div className="mt-3">
+                      <div className="flex flex-wrap gap-2">
+                      {reminderAllowanceRows.map((row) => (
+                        <div
+                          key={row.lineId}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${
+                            row.atLimit
+                              ? 'border-warning/40 bg-warning/10 text-warning-foreground'
+                              : 'border-border bg-muted/30 text-muted-foreground'
+                          }`}
+                        >
+                          <span className="font-medium text-foreground">{row.lineName}</span>
+                          <span aria-hidden="true">•</span>
+                          <span className="text-primary">
+                            {row.activeReminderCount} active
+                          </span>
+                          {row.subtext ? (
+                            <>
+                              <span aria-hidden="true">•</span>
+                              <span>{row.subtext}</span>
+                            </>
+                          ) : null}
+                        </div>
+                      ))}
+                      </div>
+                    </div>
+                  )}
 
                   {upcomingReminders.length === 0 ? (
                     <p className="mt-3 text-sm text-muted-foreground">

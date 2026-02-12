@@ -6,6 +6,7 @@ import { DateTime } from 'luxon';
 import { toast } from 'sonner';
 import { Calendar, AlarmClock, Plus, Trash2 } from 'lucide-react';
 import Button from '~/core/ui/Button';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { formatTime } from '~/lib/ultaura/constants';
 import { getUpcomingExceptions, deleteScheduleException } from '~/lib/ultaura/schedule-exceptions';
@@ -94,10 +95,7 @@ export function ScheduleExceptions({
 
   if (isLoading) {
     return (
-      <div className="border border-input rounded-lg bg-card">
-        <div className="px-4 py-3 border-b border-input">
-          <h3 className="font-medium text-sm">Schedule Exceptions</h3>
-        </div>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="p-4 text-center text-muted-foreground">
           <span className="inline-block w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
           Loading exceptions...
@@ -108,28 +106,26 @@ export function ScheduleExceptions({
 
   return (
     <>
-      <div className="border border-input rounded-lg bg-card">
-        <div className="px-4 py-3 border-b border-input flex items-center justify-between">
-          <h3 className="font-medium text-sm">Schedule Exceptions</h3>
-          {!disabled && (
-            <Button
-              onClick={() => setShowNewModal(true)}
-              variant="default"
-              size="small"
-              className="gap-1"
-            >
-              <Plus className="w-3 h-3" />
-              New Exception
-            </Button>
-          )}
+      {!disabled && (
+        <div className="mb-3 w-full sm:w-auto">
+          <Button
+            onClick={() => setShowNewModal(true)}
+            variant="default"
+            size="small"
+            className="w-full sm:w-auto gap-1"
+          >
+            <Plus className="w-3 h-3" />
+            New Exception
+          </Button>
         </div>
-
+      )}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         {exceptions.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground text-sm">
             No upcoming exceptions
           </div>
         ) : (
-          <div className="divide-y divide-input">
+          <div className="divide-y divide-border">
             {exceptions.map((exception) => {
               const Icon = getExceptionIcon(exception.exception_type);
               const newTime = exception.new_datetime
@@ -137,34 +133,52 @@ export function ScheduleExceptions({
                     .setZone(lineTimezone)
                     .toLocaleString(DateTime.DATETIME_FULL)
                 : null;
+              const scheduleLabel = getScheduleLabel(exception.schedule_id);
+              const sheetTitle = [
+                getExceptionTypeLabel(exception.exception_type),
+                formatExceptionDate(exception.exception_date),
+                scheduleLabel,
+                newTime ? `→ ${newTime}` : null,
+              ]
+                .filter(Boolean)
+                .join('\n');
 
               return (
-                <div key={exception.id} className="px-4 py-3 flex items-start gap-3">
-                  <div className="mt-0.5 text-muted-foreground">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">
-                        {getExceptionTypeLabel(exception.exception_type)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatExceptionDate(exception.exception_date)}
-                      </span>
+                <div
+                  key={exception.id}
+                  className="px-6 py-4 flex items-center justify-between gap-4"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
+                      <Icon className="w-5 h-5 text-primary" />
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {getScheduleLabel(exception.schedule_id)}
-                      {newTime && <span> &rarr; {newTime}</span>}
-                    </p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-foreground">
+                          {getExceptionTypeLabel(exception.exception_type)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatExceptionDate(exception.exception_date)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {scheduleLabel}
+                        {newTime && <span> → {newTime}</span>}
+                      </p>
+                    </div>
                   </div>
                   {!disabled && (
-                    <button
-                      onClick={() => setExceptionToDelete(exception)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                      title="Remove exception"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <ResponsiveActionMenu
+                      title={sheetTitle}
+                      actions={[
+                        {
+                          label: 'Cancel',
+                          icon: <Trash2 className="w-5 h-5" />,
+                          onClick: () => setExceptionToDelete(exception),
+                          variant: 'destructive',
+                        },
+                      ]}
+                    />
                   )}
                 </div>
               );

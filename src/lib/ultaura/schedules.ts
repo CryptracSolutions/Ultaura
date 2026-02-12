@@ -616,6 +616,39 @@ export async function getUpcomingScheduledCalls(accountId: string): Promise<{
     });
 }
 
+export async function getActiveScheduleStatsByLine(
+  accountId: string,
+  lineIds?: string[]
+): Promise<Record<string, number>> {
+  const client = getSupabaseServerComponentClient();
+  const stats: Record<string, number> = {};
+
+  if (lineIds && lineIds.length > 0) {
+    for (const lineId of lineIds) {
+      stats[lineId] = 0;
+    }
+  }
+
+  const { data, error } = await client
+    .from('ultaura_schedules')
+    .select('line_id')
+    .eq('account_id', accountId)
+    .eq('enabled', true);
+
+  if (error) {
+    logger.error({ error, accountId }, 'Failed to get active schedule stats by line');
+    return stats;
+  }
+
+  for (const row of data || []) {
+    const lineId = row.line_id;
+    if (!lineId) continue;
+    stats[lineId] = (stats[lineId] || 0) + 1;
+  }
+
+  return stats;
+}
+
 export async function getAllSchedules(accountId: string): Promise<{
   scheduleId: string;
   lineId: string;

@@ -2,7 +2,10 @@ import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine, getLines } from '~/lib/ultaura/lines';
-import { getUltauraAccountById } from '~/lib/ultaura/helpers';
+import {
+  getEffectiveReminderLimit,
+  getUltauraAccountById,
+} from '~/lib/ultaura/helpers';
 import { getSchedules } from '~/lib/ultaura/schedules';
 import { getUsageSummary, getCallSessions } from '~/lib/ultaura/usage';
 import { getReminders } from '~/lib/ultaura/reminders';
@@ -72,12 +75,11 @@ export default async function LineDetailPage({ params }: PageProps) {
   const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
   const trialPlanKey = (trialInfo?.trialPlanId ?? 'free_trial') as PlanId;
   const trialPlanName = PLANS[trialPlanKey]?.displayName ?? 'Trial';
-
-  const headerDescription = 'Manage settings for this line';
+  const reminderLimitPerLine = account ? getEffectiveReminderLimit(account) : null;
 
   return (
     <>
-      <AppHeader title="Lines" description={headerDescription} />
+      <AppHeader title="Lines" description="Manage settings for this line" />
       <PageBody>
         <div className="space-y-6">
           {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
@@ -88,6 +90,7 @@ export default async function LineDetailPage({ params }: PageProps) {
             callSessions={callSessions}
             activeSchedulesCount={counts.activeSchedulesCount}
             pendingRemindersCount={counts.pendingRemindersCount}
+            reminderLimitPerLine={reminderLimitPerLine}
             milestonesCount={counts.milestonesCount}
             trustedContactsCount={counts.trustedContactsCount}
             isReadOnly={isTrialExpired}

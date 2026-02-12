@@ -1,6 +1,7 @@
 import type { ActionResult } from '@ultaura/schemas';
 import { createError, ErrorCodes } from '@ultaura/schemas';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import { PLANS } from './constants';
 import type { UltauraAccountRow } from './types';
 
 export async function getUltauraAccountById(accountId: string): Promise<UltauraAccountRow | null> {
@@ -54,6 +55,15 @@ export async function getPlan(planId: string) {
 
   if (error) return null;
   return data;
+}
+
+export function getEffectiveReminderLimit(account: UltauraAccountRow): number | null {
+  const effectivePlanId = account.status === 'trial'
+    ? (account.trial_plan_id ?? account.plan_id ?? 'free_trial')
+    : (account.plan_id ?? 'free_trial');
+
+  const plan = PLANS[effectivePlanId as keyof typeof PLANS];
+  return plan?.remindersPerLine ?? null;
 }
 
 type ActionFn<TInput, TOutput> = (

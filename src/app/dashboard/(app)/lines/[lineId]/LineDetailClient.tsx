@@ -5,6 +5,7 @@ import {
   Calendar,
   PhoneCall,
   Clock,
+  Bell,
   ChevronDown,
 } from 'lucide-react';
 import type {
@@ -23,14 +24,15 @@ interface StatCardProps {
   label: string;
   value: string;
   subtext?: string;
+  warning?: boolean;
 }
 
-function StatCard({ icon, label, value, subtext }: StatCardProps): JSX.Element {
+function StatCard({ icon, label, value, subtext, warning = false }: StatCardProps): JSX.Element {
   // Detect if value is numeric for different styling
   const isNumeric = /^\d+$/.test(value);
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
+    <div className={`relative overflow-hidden rounded-xl bg-card p-5 card-border-accent ${warning ? 'ring-1 ring-amber-500/40' : ''}`}>
       {/* Subtle corner accent */}
       <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
 
@@ -54,7 +56,7 @@ function StatCard({ icon, label, value, subtext }: StatCardProps): JSX.Element {
 
         {/* Subtext */}
         {subtext && (
-          <div className="mt-auto pt-2 text-xs text-muted-foreground">
+          <div className={`mt-auto pt-2 text-xs ${warning ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
             {subtext}
           </div>
         )}
@@ -70,6 +72,7 @@ interface LineDetailClientProps {
   callSessions: CallSessionRow[];
   activeSchedulesCount: number;
   pendingRemindersCount: number;
+  reminderLimitPerLine: number | null;
   milestonesCount: number;
   trustedContactsCount: number;
   isReadOnly?: boolean;
@@ -83,22 +86,25 @@ export function LineDetailClient({
   usage,
   callSessions,
   activeSchedulesCount,
+  pendingRemindersCount,
+  reminderLimitPerLine,
   isReadOnly = false,
   isTrialActive = false,
   isFamilyManaged = false,
 }: LineDetailClientProps) {
   // Calculate quick stats
   const getLastCallDisplay = (): string => {
-    if (callSessions.length === 0) return 'No calls yet';
+    const latestStartedAt = callSessions.reduce<string | null>((latest, session) => {
+      if (!session.started_at) return latest;
+      if (!latest) return session.started_at;
+      return new Date(session.started_at).getTime() > new Date(latest).getTime()
+        ? session.started_at
+        : latest;
+    }, null);
 
-    // Find the most recent call with a started_at timestamp
-    const sortedSessions = [...callSessions]
-      .filter((s) => s.started_at)
-      .sort((a, b) => new Date(b.started_at!).getTime() - new Date(a.started_at!).getTime());
+    if (!latestStartedAt) return 'No calls yet';
 
-    if (sortedSessions.length === 0) return 'No calls yet';
-
-    const lastCallDate = new Date(sortedSessions[0].started_at!);
+    const lastCallDate = new Date(latestStartedAt);
     const now = new Date();
     const diffMs = now.getTime() - lastCallDate.getTime();
     const diffMins = Math.floor(diffMs / (1000 * 60));
@@ -116,6 +122,11 @@ export function LineDetailClient({
 
   const nextScheduledCall = activeSchedulesCount > 0 ? 'Scheduled' : 'Not scheduled';
   const minutesUsed = usage ? usage.minutesUsed : 0;
+  const isReminderLimitReached = reminderLimitPerLine !== null && pendingRemindersCount >= reminderLimitPerLine;
+  const reminderValue = `${pendingRemindersCount} active reminders`;
+  const reminderSubtext = reminderLimitPerLine === null
+    ? 'Unlimited'
+    : `${reminderLimitPerLine} allowed`;
 
   return (
     <div className="w-full">
@@ -140,7 +151,7 @@ export function LineDetailClient({
           At-a-glance summary of call activity and key metrics for this line.
         </p>
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard
             icon={<Calendar className="w-4 h-4" />}
             label="Next Call"
@@ -161,6 +172,13 @@ export function LineDetailClient({
             icon={<Phone className="w-4 h-4" />}
             label="Total Calls"
             value={String(callSessions.length)}
+          />
+          <StatCard
+            icon={<Bell className="w-4 h-4" />}
+            label="Active Reminders"
+            value={reminderValue}
+            subtext={reminderSubtext}
+            warning={isReminderLimitReached}
           />
         </div>
 

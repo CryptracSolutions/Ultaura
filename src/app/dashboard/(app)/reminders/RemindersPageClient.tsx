@@ -95,6 +95,8 @@ export function RemindersPageClient({
     selectedLineLimits != null &&
     selectedLineLimits.limit != null &&
     selectedLineLimits.count >= selectedLineLimits.limit;
+  const isSelectedLineUnverified = selectedLine ? !selectedLine.phone_verified_at : false;
+  const isSetReminderDisabled = selectedLine ? (isAtLimit || isSelectedLineUnverified) : false;
 
   // Group reminders by line (All Lines view)
   const remindersByLine = reminders.reduce<Record<string, Reminder[]>>((acc, r) => {
@@ -119,71 +121,77 @@ export function RemindersPageClient({
     return reminders.find((r) => r.reminderId === reminderId)?.lineShortId ?? '';
   }
 
+  async function runReminderAction(
+    reminderId: string,
+    run: () => Promise<{ success: boolean; error?: { message?: string } }>,
+    successMessage: string,
+    fallbackErrorMessage: string,
+  ): Promise<boolean> {
+    if (disabled) return false;
+
+    setLoading(reminderId, true);
+    const result = await run();
+    setLoading(reminderId, false);
+
+    if (result.success) {
+      toast.success(successMessage);
+      router.refresh();
+      return true;
+    }
+
+    toast.error(result.error?.message || fallbackErrorMessage);
+    return false;
+  }
+
   // -- Action handlers --
 
   const handlePause = async (reminderId: string) => {
-    if (disabled) return;
-    setLoading(reminderId, true);
-    const result = await pauseReminder(reminderId, findLineShortId(reminderId));
-    setLoading(reminderId, false);
-    if (result.success) {
-      toast.success('Reminder paused');
-      router.refresh();
-    } else {
-      toast.error(result.error.message || 'Failed to pause reminder');
-    }
+    await runReminderAction(
+      reminderId,
+      () => pauseReminder(reminderId, findLineShortId(reminderId)),
+      'Reminder paused',
+      'Failed to pause reminder',
+    );
   };
 
   const handleResume = async (reminderId: string) => {
-    if (disabled) return;
-    setLoading(reminderId, true);
-    const result = await resumeReminder(reminderId, findLineShortId(reminderId));
-    setLoading(reminderId, false);
-    if (result.success) {
-      toast.success('Reminder resumed');
-      router.refresh();
-    } else {
-      toast.error(result.error.message || 'Failed to resume reminder');
-    }
+    await runReminderAction(
+      reminderId,
+      () => resumeReminder(reminderId, findLineShortId(reminderId)),
+      'Reminder resumed',
+      'Failed to resume reminder',
+    );
   };
 
   const handleSnooze = async (reminderId: string, minutes: number) => {
-    if (disabled) return;
-    setLoading(reminderId, true);
-    const result = await snoozeReminder(reminderId, minutes, findLineShortId(reminderId));
-    setLoading(reminderId, false);
-    if (result.success) {
-      const option = SNOOZE_OPTIONS.find((o) => o.value === minutes);
-      toast.success(`Snoozed for ${option?.label || minutes + ' minutes'}`);
-      router.refresh();
-    } else {
-      toast.error(result.error.message || 'Failed to snooze reminder');
-    }
+    const option = SNOOZE_OPTIONS.find((o) => o.value === minutes);
+    await runReminderAction(
+      reminderId,
+      () => snoozeReminder(reminderId, minutes, findLineShortId(reminderId)),
+      `Snoozed for ${option?.label || `${minutes} minutes`}`,
+      'Failed to snooze reminder',
+    );
   };
 
   const handleSkip = async (reminderId: string) => {
-    if (disabled) return;
-    setLoading(reminderId, true);
-    const result = await skipNextOccurrence(reminderId, findLineShortId(reminderId));
-    setLoading(reminderId, false);
-    if (result.success) {
-      toast.success('Next occurrence skipped');
-      router.refresh();
-    } else {
-      toast.error(result.error.message || 'Failed to skip reminder');
-    }
+    await runReminderAction(
+      reminderId,
+      () => skipNextOccurrence(reminderId, findLineShortId(reminderId)),
+      'Next occurrence skipped',
+      'Failed to skip reminder',
+    );
   };
 
   const handleConfirmCancel = async () => {
     if (!reminderToCancel || disabled) return;
-    setLoading(reminderToCancel, true);
-    const result = await cancelReminder(reminderToCancel, findLineShortId(reminderToCancel));
-    setLoading(reminderToCancel, false);
-    if (result.success) {
-      toast.success('Reminder canceled');
-      router.refresh();
-    } else {
-      toast.error(result.error.message || 'Failed to cancel reminder');
+    const succeeded = await runReminderAction(
+      reminderToCancel,
+      () => cancelReminder(reminderToCancel, findLineShortId(reminderToCancel)),
+      'Reminder canceled',
+      'Failed to cancel reminder',
+    );
+
+    if (!succeeded) {
       throw new Error('Cancel failed');
     }
   };
@@ -228,16 +236,21 @@ export function RemindersPageClient({
       <div className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {!disabled && (
-            <Button
-              variant="default"
-              size="small"
-              onClick={() => setShowAddModal(true)}
-              disabled={selectedLine ? isAtLimit : false}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="w-3 h-3" />
-              Set Reminder
-            </Button>
+            <div className="space-y-1">
+              <Button
+                variant="default"
+                size="small"
+                onClick={() => setShowAddModal(true)}
+                disabled={isSetReminderDisabled}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="w-3 h-3" />
+                Set Reminder
+              </Button>
+              {isSelectedLineUnverified && (
+                <p className="text-xs text-muted-foreground">Verify phone to add reminders</p>
+              )}
+            </div>
           )}
         </div>
         {lines.length > 1 && (
@@ -257,6 +270,13 @@ export function RemindersPageClient({
             const lineReminders = remindersByLine[line.id] || [];
             const lineScheduled = lineReminders.filter((r) => r.status === 'scheduled');
             const linePast = lineReminders.filter((r) => r.status !== 'scheduled');
+            const lineLimits = reminderLimits[line.id];
+            const activeCount = lineLimits?.count ?? lineScheduled.length;
+            const allowedText = lineLimits?.limit == null ? 'Unlimited' : `${lineLimits.limit} allowed`;
+            const isLineUnverified = !line.phone_verified_at;
+            const isLineAtLimit =
+              lineLimits?.limit != null &&
+              activeCount >= lineLimits.limit;
 
             return (
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
@@ -264,10 +284,13 @@ export function RemindersPageClient({
                 <div className="px-6 py-4 border-b border-border bg-muted/30">
                   <h3 className="font-semibold text-foreground">{line.display_name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {lineScheduled.length === 0
-                      ? 'No upcoming reminders'
-                      : `${lineScheduled.length} upcoming`}
+                    {activeCount} active reminders
                   </p>
+                  {allowedText ? (
+                    <p className="text-xs text-muted-foreground">
+                      {allowedText}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="divide-y divide-border">
@@ -281,10 +304,21 @@ export function RemindersPageClient({
                             variant="default"
                             size="small"
                             onClick={() => setShowAddModal(true)}
+                            disabled={isLineUnverified || isLineAtLimit}
                           >
                             <Plus className="w-3 h-3" />
                             Create your first reminder
                           </Button>
+                          {isLineUnverified && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Verify phone to add reminders
+                            </p>
+                          )}
+                          {!isLineUnverified && isLineAtLimit && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Reminder limit reached for this line
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -358,11 +392,16 @@ export function RemindersPageClient({
                     variant="default"
                     size="small"
                     onClick={() => setShowAddModal(true)}
-                    disabled={isAtLimit}
+                    disabled={isAtLimit || isSelectedLineUnverified}
                   >
                     <Plus className="w-3 h-3" />
                     Create First Reminder
                   </Button>
+                  {isSelectedLineUnverified && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Verify phone to add reminders
+                    </p>
+                  )}
                 </div>
               )}
             </div>

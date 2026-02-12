@@ -35,6 +35,13 @@ const DECRYPTION_PLACEHOLDER = '[Unable to decrypt reminder]';
 const REMINDER_LIMIT_ERROR_PREFIX = 'REMINDER_LIMIT_REACHED';
 const REMINDER_LIMIT_ERROR_MESSAGE = 'Reminder limit reached for this line. Cancel existing reminders or upgrade your plan.';
 
+export type ReminderLineStats = {
+  lineId: string;
+  activeCount: number;
+  limit: number | null;
+  atLimit: boolean;
+};
+
 type DatabaseMutationError = {
   code?: string | null;
   message?: string | null;
@@ -1219,6 +1226,39 @@ export async function getPendingReminderCount(lineId: string): Promise<number> {
   }
 
   return count || 0;
+}
+
+export async function getScheduledReminderStatsByLine(
+  accountId: string,
+  lineIds?: string[]
+): Promise<Record<string, number>> {
+  const client = getSupabaseServerComponentClient();
+  const stats: Record<string, number> = {};
+
+  if (lineIds && lineIds.length > 0) {
+    for (const lineId of lineIds) {
+      stats[lineId] = 0;
+    }
+  }
+
+  const { data, error } = await client
+    .from('ultaura_reminders')
+    .select('line_id')
+    .eq('account_id', accountId)
+    .eq('status', 'scheduled');
+
+  if (error) {
+    logger.error({ error, accountId }, 'Failed to get scheduled reminder stats by line');
+    return stats;
+  }
+
+  for (const row of data || []) {
+    const lineId = row.line_id;
+    if (!lineId) continue;
+    stats[lineId] = (stats[lineId] || 0) + 1;
+  }
+
+  return stats;
 }
 
 export async function getNextReminder(lineId: string): Promise<ReminderRow | null> {

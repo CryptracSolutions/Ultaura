@@ -366,7 +366,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
           {/* Schedule Exceptions */}
           {filteredSchedules.length > 0 && (
             <div>
-              <h2 className="font-semibold text-lg mb-4">Schedule Exceptions</h2>
+              <h2 className="font-semibold text-lg mb-3">Schedule Exceptions</h2>
               <ScheduleExceptions
                 lineId={selectedLine.id}
                 lineShortId={selectedLine.short_id}
