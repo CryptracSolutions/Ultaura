@@ -6,15 +6,17 @@ import { AlertTriangle, Clock, DollarSign, Hourglass, ShieldAlert, Timer } from 
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import UsageCapControl from './UsageCapControl';
+import type { PerLineUsageEntry } from '~/lib/ultaura/types';
 
 function formatCurrency(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-type TabValue = 'cycle' | 'total';
+type TabValue = 'cycle' | 'per-user' | 'total';
 
 const USAGE_TABS = [
   { value: 'cycle' as const, label: 'This cycle', path: '/dashboard/usage?tab=cycle' },
+  { value: 'per-user' as const, label: 'Per user', path: '/dashboard/usage?tab=per-user' },
   { value: 'total' as const, label: 'Total usage', path: '/dashboard/usage?tab=total' },
 ];
 
@@ -44,13 +46,17 @@ interface UsageTabsProps {
   capCents: number;
   capReached: boolean;
   capPercent: number;
+  perLineUsage: PerLineUsageEntry[];
 }
 
 export default function UsageTabsClient(props: UsageTabsProps) {
   const searchParams = useSearchParams();
 
-  const selected = (searchParams.get('tab') ?? 'cycle') as TabValue;
-  const activeTab: TabValue = selected === 'total' ? 'total' : 'cycle';
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabValue =
+    tabParam === 'total' ? 'total' :
+    tabParam === 'per-user' ? 'per-user' :
+    'cycle';
 
   return (
     <div>
@@ -66,12 +72,16 @@ export default function UsageTabsClient(props: UsageTabsProps) {
       </NavigationMenu>
 
       <div className="mt-4">
-        {activeTab === 'total' ? (
+        {activeTab === 'per-user' && (
+          <PerUserTab perLineUsage={props.perLineUsage} rateCents={props.rateCents} />
+        )}
+        {activeTab === 'total' && (
           <TotalUsageTab
             totalMinutes={props.totalMinutes}
             totalCostCents={props.totalCostCents}
           />
-        ) : (
+        )}
+        {activeTab === 'cycle' && (
           <CycleTab {...props} />
         )}
       </div>
@@ -244,6 +254,60 @@ function TotalUsageTab({
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
         All-time usage across all billing cycles.
+      </p>
+    </div>
+  );
+}
+
+function PerUserTab({
+  perLineUsage,
+  rateCents,
+}: {
+  perLineUsage: PerLineUsageEntry[];
+  rateCents: number;
+}) {
+  if (perLineUsage.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">No lines configured yet.</p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {perLineUsage.map((entry) => (
+        <div
+          key={entry.lineId}
+          className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent"
+        >
+          <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-semibold text-foreground">{entry.displayName}</span>
+              {entry.status !== 'active' && (
+                <span className="text-xs text-muted-foreground capitalize">({entry.status})</span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">This cycle</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{entry.cycleMinutes}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">All-time</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{entry.totalMinutes}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Est. cost</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">
+                  {formatCurrency(entry.totalMinutes * rateCents)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      <p className="mt-3 text-xs text-muted-foreground">
+        Minutes are pooled across all lines.
       </p>
     </div>
   );

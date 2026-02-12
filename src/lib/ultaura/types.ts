@@ -606,6 +606,21 @@ export interface TotalUsageSummary {
   totalCostCents: number;
 }
 
+export interface LineUsageSummary {
+  cycleMinutes: number;
+  totalMinutes: number;
+  cycleStart: string | null;
+  cycleEnd: string | null;
+}
+
+export interface PerLineUsageEntry {
+  lineId: string;
+  displayName: string;
+  status: string;
+  cycleMinutes: number;
+  totalMinutes: number;
+}
+
 export interface LineActivity {
   lineId: string;
   lineShortId: string;

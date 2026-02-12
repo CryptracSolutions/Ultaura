@@ -7,7 +7,7 @@ import {
   getUltauraAccountById,
 } from '~/lib/ultaura/helpers';
 import { getSchedules } from '~/lib/ultaura/schedules';
-import { getUsageSummary, getCallSessions } from '~/lib/ultaura/usage';
+import { getUsageSummary, getCallSessions, getLineUsage } from '~/lib/ultaura/usage';
 import { getReminders } from '~/lib/ultaura/reminders';
 import { getMilestones } from '~/lib/ultaura/milestones';
 import { getTrustedContacts } from '~/lib/ultaura/contacts';
@@ -60,11 +60,12 @@ export default async function LineDetailPage({ params }: PageProps) {
     redirect(`/dashboard/lines/${line.short_id}/verify`);
   }
 
-  const [usage, callSessions, counts, lines] = await Promise.all([
+  const [usage, callSessions, counts, lines, lineUsage] = await Promise.all([
     getUsageSummary(line.account_id),
     getCallSessions(line.id, 500),
     getScheduleAndReminderCounts(line.id),
     getLines(line.account_id),
+    getLineUsage(line.id),
   ]);
 
   const account = await getUltauraAccountById(line.account_id);
@@ -87,6 +88,7 @@ export default async function LineDetailPage({ params }: PageProps) {
             line={line}
             lines={lines}
             usage={usage}
+            lineUsage={lineUsage}
             callSessions={callSessions}
             activeSchedulesCount={counts.activeSchedulesCount}
             pendingRemindersCount={counts.pendingRemindersCount}

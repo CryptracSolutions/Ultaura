@@ -4,7 +4,7 @@ import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
-import { getUsageSummary, getTotalUsage } from '~/lib/ultaura/usage';
+import { getUsageSummary, getTotalUsage, getPerLineUsage } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
@@ -61,9 +61,10 @@ export default async function UsagePage() {
     );
   }
 
-  const [usage, totalUsage] = await Promise.all([
+  const [usage, totalUsage, perLineUsage] = await Promise.all([
     getUsageSummary(account.id),
     getTotalUsage(account.id),
+    getPerLineUsage(account.id),
   ]);
 
   const plan = PLANS[account.plan_id as keyof typeof PLANS];
@@ -157,6 +158,7 @@ export default async function UsagePage() {
               capCents={capCents}
               capReached={capReached}
               capPercent={capPercent}
+              perLineUsage={perLineUsage}
             />
           ) : (
             <div className="text-sm text-muted-foreground">Usage not available yet.</div>

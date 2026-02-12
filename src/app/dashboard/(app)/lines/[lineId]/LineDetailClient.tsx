@@ -11,6 +11,7 @@ import {
 import type {
   LineRow,
   UsageSummary,
+  LineUsageSummary,
   CallSessionRow,
 } from '~/lib/ultaura/types';
 import { CallActivityList } from './components/CallActivityList';
@@ -69,6 +70,7 @@ interface LineDetailClientProps {
   line: LineRow;
   lines: LineRow[];
   usage: UsageSummary | null;
+  lineUsage: LineUsageSummary | null;
   callSessions: CallSessionRow[];
   activeSchedulesCount: number;
   pendingRemindersCount: number;
@@ -84,6 +86,7 @@ export function LineDetailClient({
   line,
   lines,
   usage,
+  lineUsage,
   callSessions,
   activeSchedulesCount,
   pendingRemindersCount,
@@ -121,7 +124,8 @@ export function LineDetailClient({
   };
 
   const nextScheduledCall = activeSchedulesCount > 0 ? 'Scheduled' : 'Not scheduled';
-  const minutesUsed = usage ? usage.minutesUsed : 0;
+  const cycleMinutes = lineUsage?.cycleMinutes ?? 0;
+  const totalMinutesLine = lineUsage?.totalMinutes ?? 0;
   const isReminderLimitReached = reminderLimitPerLine !== null && pendingRemindersCount >= reminderLimitPerLine;
   const reminderValue = `${pendingRemindersCount} active reminders`;
   const reminderSubtext = reminderLimitPerLine === null
@@ -166,7 +170,8 @@ export function LineDetailClient({
           <StatCard
             icon={<Clock className="w-4 h-4" />}
             label="Minutes Used"
-            value={String(minutesUsed)}
+            value={String(cycleMinutes)}
+            subtext={`${totalMinutesLine} min all-time`}
           />
           <StatCard
             icon={<Phone className="w-4 h-4" />}

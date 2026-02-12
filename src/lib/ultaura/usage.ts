@@ -5,7 +5,7 @@ import getSupabaseServerComponentClient from '~/core/supabase/server-component-c
 import getLogger from '~/core/logger';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
-import type { CallSessionRow, LineActivity, TotalUsageSummary, UsageSummary, UltauraAccountRow } from './types';
+import type { CallSessionRow, LineActivity, LineUsageSummary, PerLineUsageEntry, TotalUsageSummary, UsageSummary, UltauraAccountRow } from './types';
 
 const logger = getLogger();
 const DEV_TELEPHONY_BACKEND_URL = 'http://localhost:3001';
@@ -409,4 +409,55 @@ export async function getCallSessionStatus(
       answeredBy: data.answered_by,
     },
   };
+}
+
+export async function getLineUsage(lineId: string): Promise<LineUsageSummary | null> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client.rpc('get_ultaura_line_usage', {
+    p_line_id: lineId,
+  });
+
+  if (error) {
+    logger.error({ error }, 'Failed to get line usage');
+    return null;
+  }
+
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    return null;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+
+  return {
+    cycleMinutes: row.cycle_minutes,
+    totalMinutes: row.total_minutes,
+    cycleStart: row.cycle_start,
+    cycleEnd: row.cycle_end,
+  };
+}
+
+export async function getPerLineUsage(accountId: string): Promise<PerLineUsageEntry[]> {
+  const client = getSupabaseServerComponentClient();
+
+  const { data, error } = await client.rpc('get_ultaura_per_line_usage', {
+    p_account_id: accountId,
+  });
+
+  if (error) {
+    logger.error({ error }, 'Failed to get per-line usage');
+    return [];
+  }
+
+  if (!data) return [];
+
+  const rows = Array.isArray(data) ? data : [data];
+
+  return rows.map((row) => ({
+    lineId: row.line_id,
+    displayName: row.display_name,
+    status: row.status,
+    cycleMinutes: row.cycle_minutes,
+    totalMinutes: row.total_minutes,
+  }));
 }

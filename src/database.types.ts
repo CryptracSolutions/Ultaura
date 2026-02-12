@@ -4474,9 +4474,28 @@ export type Database = {
       }
       get_role_for_user: { Args: { membership_id: number }; Returns: number }
       get_ultaura_accounts_for_user: { Args: never; Returns: string[] }
+      get_ultaura_line_usage: {
+        Args: { p_line_id: string }
+        Returns: {
+          cycle_end: string
+          cycle_minutes: number
+          cycle_start: string
+          total_minutes: number
+        }[]
+      }
       get_ultaura_minutes_remaining: {
         Args: { p_account_id: string }
         Returns: number
+      }
+      get_ultaura_per_line_usage: {
+        Args: { p_account_id: string }
+        Returns: {
+          cycle_minutes: number
+          display_name: string
+          line_id: string
+          status: Database["public"]["Enums"]["ultaura_line_status"]
+          total_minutes: number
+        }[]
       }
       get_ultaura_total_usage: {
         Args: { p_account_id: string }
@@ -5700,4 +5719,3 @@ export const Constants = {
     },
   },
 } as const
-
