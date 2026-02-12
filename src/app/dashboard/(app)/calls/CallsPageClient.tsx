@@ -180,7 +180,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         </p>
         {!disabled && (
           <Button variant="default" size="small" href="/dashboard/lines?action=add">
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
             Add a Phone Line
           </Button>
         )}
@@ -203,7 +203,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
               }}
               className="w-full sm:w-auto"
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-4 h-4" />
               Add Schedule
             </Button>
           )}
@@ -249,7 +249,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                             size="small"
                             onClick={() => handleOpenForLine(line.id)}
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-4 h-4" />
                             Create your first schedule
                           </Button>
                         </div>
@@ -355,7 +355,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                     size="small"
                     onClick={() => handleOpenForLine(selectedLine.id)}
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-4 h-4" />
                     Create First Schedule
                   </Button>
                 </div>

@@ -222,7 +222,7 @@ export function RemindersPageClient({
         </p>
         {!disabled && (
           <Button variant="default" size="small" href="/dashboard/lines?action=add" block>
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
             Add a Phone Line
           </Button>
         )}
@@ -244,7 +244,7 @@ export function RemindersPageClient({
                 disabled={isSetReminderDisabled}
                 className="w-full sm:w-auto"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
                 Set Reminder
               </Button>
               {isSelectedLineUnverified && (
@@ -306,7 +306,7 @@ export function RemindersPageClient({
                             onClick={() => setShowAddModal(true)}
                             disabled={isLineUnverified || isLineAtLimit}
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-4 h-4" />
                             Create your first reminder
                           </Button>
                           {isLineUnverified && (
@@ -394,7 +394,7 @@ export function RemindersPageClient({
                     onClick={() => setShowAddModal(true)}
                     disabled={isAtLimit || isSelectedLineUnverified}
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-4 h-4" />
                     Create First Reminder
                   </Button>
                   {isSelectedLineUnverified && (

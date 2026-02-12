@@ -164,7 +164,7 @@ export function VerifyPhoneClient({
             onClick={() => setStep('choose')}
             aria-label="Go back to channel selection"
           >
-            <ArrowLeft className="w-3 h-3" />
+            <ArrowLeft className="w-4 h-4" />
             <span>Back</span>
           </Button>
         </div>
@@ -254,7 +254,7 @@ export function VerifyPhoneClient({
             onClick={() => handleSendCode('sms')}
             disabled={isLoading}
           >
-            <MessageSquare className="w-3 h-3" />
+            <MessageSquare className="w-4 h-4" />
             Text me
           </Button>
           <Button
@@ -262,7 +262,7 @@ export function VerifyPhoneClient({
             onClick={() => handleSendCode('call')}
             disabled={isLoading}
           >
-            <Phone className="w-3 h-3" />
+            <Phone className="w-4 h-4" />
             Call me
           </Button>
         </div>

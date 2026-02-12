@@ -220,7 +220,7 @@ export function VacationSettings({
               variant="default"
               onClick={openAddModal}
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-4 h-4" />
               {pastVacations.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
             </Button>
           ) : null}

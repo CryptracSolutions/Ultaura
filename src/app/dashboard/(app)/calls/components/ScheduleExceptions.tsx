@@ -112,9 +112,9 @@ export function ScheduleExceptions({
             onClick={() => setShowNewModal(true)}
             variant="default"
             size="small"
-            className="w-full sm:w-auto gap-1"
+            className="w-full sm:w-auto"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
             New Exception
           </Button>
         </div>

@@ -1493,7 +1493,7 @@ export function PrivacyCenterClient({
                               variant="default"
                               disabled
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-4 h-4" />
                               Invite Recipient
                             </Button>
                           </span>
@@ -1510,7 +1510,7 @@ export function PrivacyCenterClient({
                         }}
                         disabled={isInviting}
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-4 h-4" />
                         Invite Recipient
                       </Button>
                     )}

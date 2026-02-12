@@ -111,9 +111,9 @@ export function LinesPageClient({
             size="small"
             block
             onClick={() => setIsAddModalOpen(true)}
-            className="sm:w-auto gap-1"
+            className="sm:w-auto"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
             {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
           </Button>
         ) : (
@@ -161,9 +161,9 @@ export function LinesPageClient({
             block
             onClick={() => setIsAddModalOpen(true)}
             disabled={disabled}
-            className="sm:w-auto gap-1"
+            className="sm:w-auto"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
             {isSelfUser ? 'Add My Phone' : 'Add First Line'}
           </Button>
         </div>

@@ -50,10 +50,10 @@ export function AutomationPageHeader({
               onClick={onCtaClick}
               variant="default"
               size="small"
-              className="w-full sm:w-auto gap-1"
+              className="w-full sm:w-auto"
               disabled={ctaDisabled}
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-4 h-4" />
               {ctaLabel}
             </Button>
           </span>

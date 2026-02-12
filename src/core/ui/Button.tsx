@@ -10,33 +10,34 @@ import Spinner from '~/core/ui/Spinner';
 
 type Size = 'default' | 'small' | 'large' | 'custom' | 'sm' | 'lg';
 
-const large = `[&>*]:py-2.5 [&>*]:px-6 h-14 text-lg`;
-const small = `min-h-[44px] min-w-[44px] [&>*]:py-2 [&>*]:px-3 text-xs`;
+const large = `[&>*]:py-2.5 [&>*]:px-7 h-14 text-lg`;
+const small = `min-h-[44px] min-w-[44px] [&>*]:py-2 [&>*]:px-4 text-sm`;
 
 const buttonVariants = cva(
-  `inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors
-   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-background
-   disabled:pointer-events-none disabled:opacity-50`,
+  `inline-flex items-center justify-center rounded-xl text-sm font-medium ring-offset-background transition-all duration-200 ease-out
+   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+   disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97]`,
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        default:
+          'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm hover:shadow-md',
         outline:
-          'border border-border bg-background hover:bg-muted/60 hover:text-foreground',
+          'border border-border bg-background hover:bg-muted/60 hover:text-foreground shadow-sm hover:shadow-md',
         outlinePrimary:
-          'border-2 border-primary bg-background hover:bg-primary/5 hover:border-primary/80',
+          'border-2 border-primary bg-background hover:bg-primary/5 hover:border-primary/80 shadow-sm hover:shadow-md',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/90',
+          'bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-sm hover:shadow-md',
         ghost: 'hover:bg-muted/60 hover:text-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-primary underline-offset-4 hover:underline active:scale-100',
         transparent: 'hover:bg-muted/60 hover:text-foreground',
         flat: 'bg-primary/5 text-primary hover:bg-primary/10',
         custom: '',
       },
       size: {
-        default: `text-sm h-[44px] min-w-[44px] [&>*]:py-2 [&>*]:px-4`,
+        default: `text-sm h-[44px] min-w-[44px] [&>*]:py-2 [&>*]:px-5`,
         small,
         sm: small,
         large,
@@ -94,7 +95,7 @@ const Button: React.FCC<ButtonProps> = forwardRef<
       <InnerButtonContainerElement href={href} disabled={props.disabled}>
         <span
           className={classNames(
-            `flex w-full flex-1 items-center justify-center`,
+            `flex w-full flex-1 items-center justify-center gap-2`,
           )}
         >
           <If condition={loading}>
