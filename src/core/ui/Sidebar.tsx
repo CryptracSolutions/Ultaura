@@ -179,7 +179,7 @@ function getClassNameBuilder() {
   return cva(
     [
       'fixed flex box-content hidden h-screen flex-col border-r border-border lg:flex ' +
-        'transition-[width] duration-100 motion-reduce:transition-none bg-sidebar',
+        'transition-[width] duration-300 ease-in-out motion-reduce:transition-none bg-sidebar',
     ],
     {
       variants: {
@@ -204,7 +204,7 @@ function getSidebarItemClassBuilder() {
           false: `py-2 px-3 pr-12 space-x-2.5`,
         },
         active: {
-          true: `bg-primary/5 font-medium`,
+          true: `border-l-2 border-primary bg-primary/10 font-medium`,
           false: `ring-transparent hover:bg-muted active:bg-muted/80 text-sidebar-foreground hover:text-foreground`,
         },
       },
@@ -212,12 +212,12 @@ function getSidebarItemClassBuilder() {
         {
           collapsed: true,
           active: true,
-          className: `bg-primary/5 text-primary`,
+          className: `border-l-0 bg-primary/10 text-sidebar-foreground [&_svg]:text-primary`,
         },
         {
           collapsed: false,
           active: true,
-          className: `text-primary`,
+          className: `border-l-2 border-primary pl-[10px] text-sidebar-foreground [&_svg]:text-primary`,
         },
         {
           collapsed: true,
