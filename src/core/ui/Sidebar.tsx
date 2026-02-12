@@ -195,16 +195,16 @@ function getClassNameBuilder() {
 function getSidebarItemClassBuilder() {
   return cva(
     [
-      `flex w-full items-center rounded-md border-transparent text-sm font-base transition-colors duration-100`,
+      `flex w-full items-center rounded-md border-transparent text-sm font-base transition-colors duration-300 [&>span]:overflow-hidden [&>span]:whitespace-nowrap [&>span]:transition-[opacity,max-width] [&>span]:duration-300 [&>span]:ease-in-out`,
     ],
     {
       variants: {
         collapsed: {
-          true: `justify-center py-2 [&>span]:hidden`,
-          false: `py-2 px-3 pr-12 space-x-2.5`,
+          true: `justify-center py-2 [&>span]:opacity-0 [&>span]:max-w-0 [&>span]:min-w-0 [&>span]:overflow-hidden`,
+          false: `py-2 px-3 pr-12 space-x-2.5 [&>span]:opacity-100 [&>span]:max-w-32`,
         },
         active: {
-          true: `border-l-2 border-primary bg-primary/10 font-medium`,
+          true: `shadow-[inset_1px_0_0_0_var(--primary)] bg-primary/10 font-medium`,
           false: `ring-transparent hover:bg-muted active:bg-muted/80 text-sidebar-foreground hover:text-foreground`,
         },
       },
@@ -212,12 +212,12 @@ function getSidebarItemClassBuilder() {
         {
           collapsed: true,
           active: true,
-          className: `border-l-0 bg-primary/10 text-sidebar-foreground [&_svg]:text-primary`,
+          className: `shadow-none bg-primary/10 text-sidebar-foreground [&_svg]:text-primary`,
         },
         {
           collapsed: false,
           active: true,
-          className: `border-l-2 border-primary pl-[10px] text-sidebar-foreground [&_svg]:text-primary`,
+          className: `shadow-[inset_1px_0_0_0_var(--primary)] pl-[11px] text-sidebar-foreground [&_svg]:text-primary`,
         },
         {
           collapsed: true,

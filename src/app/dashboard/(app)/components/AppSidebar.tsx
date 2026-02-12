@@ -74,7 +74,7 @@ function CollapsibleButton({
   onClick: (collapsed: boolean) => void;
 }>) {
   const className = classNames(
-    `bg-transparent absolute -right-[10.5px] bottom-4 cursor-pointer block`,
+    `bg-transparent absolute -right-[10.5px] bottom-[3.75rem] cursor-pointer block`,
   );
 
   const iconClassName = 'bg-transparent text-primary h-5 w-5';
