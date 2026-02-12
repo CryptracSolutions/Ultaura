@@ -26,19 +26,19 @@ const AUDIENCES: Array<{
 }> = [
   {
     id: 'families',
-    label: 'Families',
+    label: 'Family',
     short: 'Stay connected without the worry.',
     icon: UserGroupIcon,
   },
   {
     id: 'seniors',
-    label: 'Seniors',
+    label: 'Senior',
     short: 'A friendly voice, whenever you want one.',
     icon: HeartIcon,
   },
   {
     id: 'care-teams',
-    label: 'Caregivers',
+    label: 'Caregiver',
     short: 'Less workload. More connection for your residents.',
     icon: ClockIcon,
   },
@@ -121,7 +121,7 @@ export function AudienceValueTabs() {
                 support for caregivers
               </Pill>
               <Heading type={2}>
-                Peace of mind starts with a <span className="text-primary">daily call</span>
+                Peace of mind starts with a <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">daily call</span>
               </Heading>
             </div>
 
@@ -210,7 +210,7 @@ export function AudienceValueTabs() {
           <div className="relative">
             <div className="mt-16 text-center">
               <Heading type={2}>
-                See how Ultaura works for <span className="text-primary">you</span>
+                <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">Choose</span> your perspective
               </Heading>
             </div>
 

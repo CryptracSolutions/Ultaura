@@ -2,7 +2,6 @@ import {
   CheckCircleIcon,
   PlayCircleIcon,
 } from '@heroicons/react/24/outline';
-import Link from 'next/link';
 
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
@@ -41,7 +40,7 @@ function Home() {
                   <span className="block">The call they look</span>
                   <span className="block">forward to.</span>
                 </span>
-                <span className="block leading-[1.1] text-transparent bg-gradient-to-br bg-clip-text from-primary to-primary/70">
+                <span className="block leading-[1.1] bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
                   <span className="block">The peace of mind</span>
                   <span className="block">you need.</span>
                 </span>
@@ -92,23 +91,6 @@ function Home() {
                   Control when calls happen — quiet hours built in
                 </div>
               </div>
-
-              <p className="!mt-3 text-sm text-center text-muted-foreground">
-                I&apos;m setting this up{' '}
-                <Link
-                  href="/onboarding?type=self"
-                  className="text-primary underline underline-offset-4 hover:text-primary/80"
-                >
-                  for myself
-                </Link>
-                {' '}or{' '}
-                <Link
-                  href="/onboarding?type=family"
-                  className="text-primary underline underline-offset-4 hover:text-primary/80"
-                >
-                  for someone I care for
-                </Link>
-              </p>
             </div>
 
             <div className="mt-10 w-full min-w-0 lg:mt-0">
@@ -138,7 +120,7 @@ function Home() {
               <Pill>Simple, transparent pricing</Pill>
 
               <div className="flex flex-col space-y-2.5">
-                <Heading type={2}>Choose a <span className="text-primary">plan</span> that fits your needs</Heading>
+                <Heading type={2}>Choose a <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">plan</span> that fits your needs</Heading>
 
                 <SubHeading className="text-sm sm:text-base">
                   <span className="flex flex-col items-center gap-1 text-muted-foreground sm:flex-row sm:gap-2">
@@ -166,16 +148,14 @@ function Home() {
       <section className="bg-surface-subtle py-16">
         <Container>
           <div className="flex flex-col items-center text-center">
-            <div className="w-full max-w-7xl self-start text-left">
-              <Heading type={2} className="text-primary">Questions?</Heading>
-            </div>
+            <Heading type={2}>Questions<span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">?</span></Heading>
 
             <div className="mt-8 w-full max-w-7xl">
             <BlendedDemoFrame>
             <div className="rounded-2xl border border-border/60 bg-sidebar px-4 py-5 sm:px-8 shadow-sm">
               <p className="text-sm text-muted-foreground">
-                We&apos;re happy to talk through voice options, schedules, or
-                anything else. Expect a quick, thoughtful response.
+                Curious about voices, schedules, or how Ultaura works? The team
+                is here—and we reply instantly.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Button

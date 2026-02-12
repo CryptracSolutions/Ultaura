@@ -48,10 +48,10 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="bg-surface-subtle pt-4 pb-12">
       <Container>
-        {/* Header - centered */}
-        <div className="mx-auto max-w-2xl text-center space-y-4">
+        {/* Header - right-aligned */}
+        <div className="ml-auto max-w-2xl text-right space-y-4">
           <Heading type={2}>
-            <span className="text-primary">How</span> it works
+            <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">Learn</span> how Ultaura works
           </Heading>
           <SubHeading>
             Set up in 5 minutes. Your loved one gets their first call today.

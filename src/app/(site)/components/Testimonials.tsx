@@ -145,7 +145,7 @@ export function Testimonials() {
         <div className="relative flex flex-col items-center space-y-6">
           <div className="w-full max-w-6xl space-y-4 text-right">
             <Heading type={2}>
-              What <span className="text-primary">families</span> are saying
+              What <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">families</span> are saying
             </Heading>
             <SubHeading>
               Real stories from families using Ultaura.

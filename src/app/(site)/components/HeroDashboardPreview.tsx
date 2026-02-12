@@ -101,7 +101,7 @@ const BAR_HEIGHT = 64;
 
 export function HeroDashboardPreview() {
   const [activeTab, setActiveTab] = useState(0);
-  const [isLiveCall, setIsLiveCall] = useState(false);
+  const [isLiveCall, setIsLiveCall] = useState(true);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [isInView, setIsInView] = useState(true);
   const [visibleMessages, setVisibleMessages] = useState(0);
@@ -147,24 +147,30 @@ export function HeroDashboardPreview() {
     return () => clearInterval(id);
   }, [isAutoPlaying, isLiveCall, isInView]);
 
-  /* Sequential message reveal for live call */
+  /* Sequential message reveal for live call; switch to caregiver view when done */
   useEffect(() => {
     if (!isLiveCall) {
       setVisibleMessages(0);
       return;
     }
-    // Show first message immediately
     setVisibleMessages(1);
     let current = 1;
+    let switchTimeoutId: ReturnType<typeof setTimeout> | undefined;
     const id = setInterval(() => {
       current++;
       if (current > CHAT_MESSAGES.length) {
         clearInterval(id);
+        switchTimeoutId = setTimeout(() => {
+          setIsLiveCall(false);
+        }, 1200);
         return;
       }
       setVisibleMessages(current);
-    }, 1800);
-    return () => clearInterval(id);
+    }, 1250);
+    return () => {
+      clearInterval(id);
+      if (switchTimeoutId) clearTimeout(switchTimeoutId);
+    };
   }, [isLiveCall]);
 
   /* Measure active panel height for smooth container sizing */
@@ -243,7 +249,7 @@ export function HeroDashboardPreview() {
 
   return (
     <div ref={containerRef} className="relative min-w-0 w-full">
-      <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-center text-xs text-muted-foreground">
+      <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-center text-xs text-primary">
         {isLiveCall ? 'Call Preview' : 'Caregiver View'}
       </span>
 
