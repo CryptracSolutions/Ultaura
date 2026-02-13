@@ -132,26 +132,48 @@ function CycleTab(props: UsageTabsProps) {
     <div className="space-y-3">
       {/* Progress bar — standard plans only */}
       {!isOnTrial && !isPayg && (
-        <div className="space-y-1.5">
-          <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-            <div className="flex h-full">
-              <div
-                className="h-full bg-primary rounded-l-full"
-                style={{ width: `${includedUsagePercent}%` }}
-              />
-              {hasOverage && (
-                <div
-                  className="h-full bg-warning rounded-r-full"
-                  style={{ width: `${overagePercent}%` }}
-                />
-              )}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium text-foreground">
+                {minutesUsed} of {minutesIncluded} min
+              </span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {Math.round(includedUsagePercent)}% used
+              </span>
             </div>
-          </div>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>
-              {minutesUsed} of {minutesIncluded} min
-            </span>
-            {cycleEnd && <span>Cycle ends and minutes reset {cycleEnd}</span>}
+            <div
+              role="progressbar"
+              aria-valuenow={minutesUsed}
+              aria-valuemin={0}
+              aria-valuemax={minutesIncluded}
+              aria-label={`${minutesUsed} of ${minutesIncluded} minutes used`}
+              className="h-4 w-full rounded-full bg-muted overflow-hidden"
+            >
+              <div className="flex h-full transition-all duration-500 ease-out">
+                <div
+                  className={`h-full rounded-l-full transition-colors duration-300 ${
+                    hasOverage
+                      ? 'bg-primary'
+                      : includedUsagePercent > 80
+                        ? 'bg-warning'
+                        : 'bg-primary'
+                  }`}
+                  style={{ width: `${includedUsagePercent}%` }}
+                />
+                {hasOverage && (
+                  <div
+                    className="h-full bg-destructive rounded-r-full"
+                    style={{ width: `${overagePercent}%` }}
+                  />
+                )}
+              </div>
+            </div>
+            {cycleEnd && (
+              <p className="text-xs text-muted-foreground">
+                Cycle ends and minutes reset {cycleEnd}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -211,45 +233,61 @@ function CycleTab(props: UsageTabsProps) {
 
       {/* Spending Cap — not shown during trial */}
       {!isOnTrial && (
-        <div className="mt-6 rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-primary">
-              <ShieldAlert className="h-4 w-4" />
-            </span>
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Spending cap
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Stops all calls when overage charges reach your cap.
-          </p>
-          <UsageCapControl
-            accountId={accountId}
-            capCents={capCents}
-            disabled={isTrialExpired}
-          />
-          {capCents > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>
-                  {formatCurrency(usageCostCents)} of{' '}
-                  {formatCurrency(capCents)}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div className="mt-6 relative overflow-hidden rounded-xl border border-border bg-card p-5">
+          <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
+          <div className="relative flex flex-col space-y-3">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-primary">
+                <ShieldAlert className="w-4 h-4" />
+              </span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Spending cap
+              </span>
+            </div>
+            <UsageCapControl
+              accountId={accountId}
+              capCents={capCents}
+              disabled={isTrialExpired}
+            />
+            {capCents > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {formatCurrency(usageCostCents)} of {formatCurrency(capCents)}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {Math.round(capPercent)}% used
+                  </span>
+                </div>
                 <div
-                  className={`h-full ${capReached ? 'bg-warning' : 'bg-primary'}`}
-                  style={{ width: `${capPercent}%` }}
-                />
+                  role="progressbar"
+                  aria-valuenow={usageCostCents}
+                  aria-valuemin={0}
+                  aria-valuemax={capCents}
+                  aria-label={`${formatCurrency(usageCostCents)} of ${formatCurrency(capCents)} spending cap used`}
+                  className="h-4 w-full rounded-full bg-muted overflow-hidden"
+                >
+                  <div className="flex h-full transition-all duration-500 ease-out">
+                    <div
+                      className={`h-full rounded-l-full transition-colors duration-300 ${
+                        capReached ? 'bg-destructive' : capPercent > 80 ? 'bg-warning' : 'bg-primary'
+                      }`}
+                      style={{ width: `${capPercent}%` }}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Stops all calls when overage charges reach your cap
+                </p>
               </div>
-            </div>
-          )}
-          {capReached && capCents > 0 && (
-            <div className="flex items-center gap-2 text-xs text-warning">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Cap reached — calls blocked until next cycle or cap update.
-            </div>
-          )}
+            )}
+            {capReached && capCents > 0 && (
+              <div className="flex items-center gap-2 text-xs text-warning">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Cap reached — calls blocked until next cycle or cap update.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -452,11 +490,11 @@ function PerUserTab({ perLineUsage }: PerUserTabProps) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">This cycle</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Minutes this cycle</p>
                 <p className="text-lg font-bold text-foreground tabular-nums">{entry.cycleMinutes}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">All-time</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Minutes all-time</p>
                 <p className="text-lg font-bold text-foreground tabular-nums">{entry.totalMinutes}</p>
               </div>
             </div>
