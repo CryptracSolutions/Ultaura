@@ -104,7 +104,7 @@ const ProfileDropdown: React.FCC<{
             </div>
 
             <EllipsisVerticalIcon
-              className={'h-8 hidden text-gray-500 group-hover:flex'}
+              className={'h-8 hidden text-primary group-hover:flex'}
             />
           </If>
         </DropdownMenuTrigger>

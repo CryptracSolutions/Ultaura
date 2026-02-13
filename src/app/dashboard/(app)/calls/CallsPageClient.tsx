@@ -13,6 +13,7 @@ import { ScheduleLineFilter } from './components/ScheduleLineFilter';
 import { ScheduleCard } from './components/ScheduleCard';
 import { EditScheduleModal } from './components/EditScheduleModal';
 import { ScheduleExceptions } from './components/ScheduleExceptions';
+import { NewExceptionModal } from './components/NewExceptionModal';
 
 interface Schedule {
   scheduleId: string;
@@ -43,7 +44,9 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
   const editScheduleIdParam = searchParams.get('edit') ?? null;
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showNewExceptionModal, setShowNewExceptionModal] = useState(false);
   const [preselectedLineId, setPreselectedLineId] = useState<string | null>(null);
+  const [exceptionRefreshTrigger, setExceptionRefreshTrigger] = useState(0);
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
   const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
@@ -195,20 +198,33 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {!disabled && (
-          <Button
-            variant="default"
-            size="small"
-            onClick={() => {
-              if (selectedLine) setPreselectedLineId(selectedLine.id);
-              setShowAddModal(true);
-            }}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            Add Schedule
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {!disabled && (
+            <Button
+              variant="default"
+              size="small"
+              onClick={() => {
+                if (selectedLine) setPreselectedLineId(selectedLine.id);
+                setShowAddModal(true);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              Add Schedule
+            </Button>
+          )}
+          {!disabled && selectedLine && recurringSchedules.length > 0 && (
+            <Button
+              variant="default"
+              size="small"
+              onClick={() => setShowNewExceptionModal(true)}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              Create Exception
+            </Button>
+          )}
+        </div>
         {lines.length > 1 && (
           <div className="w-full sm:w-[16rem] sm:ml-auto rounded-xl ring-2 ring-primary">
             <ScheduleLineFilter
@@ -381,6 +397,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                   enabled: s.enabled,
                 }))}
                 disabled={disabled}
+                refreshTrigger={exceptionRefreshTrigger}
               />
             </div>
           )}
@@ -409,6 +426,23 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         disabled={disabled}
         onClose={() => setEditScheduleId(null)}
       />
+
+      {/* Create Exception modal */}
+      {selectedLine && (
+        <NewExceptionModal
+          open={showNewExceptionModal}
+          onOpenChange={setShowNewExceptionModal}
+          schedules={recurringSchedules.map((s) => ({
+            scheduleId: s.scheduleId,
+            timeOfDay: s.timeOfDay,
+            daysOfWeek: s.daysOfWeek,
+            enabled: s.enabled,
+          }))}
+          lineShortId={selectedLine.short_id}
+          lineTimezone={selectedLine.timezone}
+          onSuccess={() => setExceptionRefreshTrigger((k) => k + 1)}
+        />
+      )}
 
       {/* Add modal */}
       <AddScheduleModal

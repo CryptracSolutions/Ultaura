@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { toast } from 'sonner';
-import { Calendar, AlarmClock, Plus, Trash2 } from 'lucide-react';
-import Button from '~/core/ui/Button';
+import { Calendar, AlarmClock, Trash2 } from 'lucide-react';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { formatTime } from '~/lib/ultaura/constants';
@@ -13,7 +12,6 @@ import { getUpcomingExceptions, deleteScheduleException } from '~/lib/ultaura/sc
 import { formatDaySummary } from '~/lib/ultaura/schedule-utils';
 import { normalizeTimeOfDay } from '~/lib/ultaura/schedule-helpers';
 import type { ScheduleExceptionRow } from '~/lib/ultaura/types';
-import { NewExceptionModal } from './NewExceptionModal';
 
 interface ScheduleExceptionsProps {
   lineId: string;
@@ -26,6 +24,7 @@ interface ScheduleExceptionsProps {
     enabled: boolean;
   }>;
   disabled?: boolean;
+  refreshTrigger?: number;
 }
 
 export function ScheduleExceptions({
@@ -34,12 +33,12 @@ export function ScheduleExceptions({
   lineTimezone,
   schedules,
   disabled,
+  refreshTrigger,
 }: ScheduleExceptionsProps) {
   const router = useRouter();
   const [exceptions, setExceptions] = useState<ScheduleExceptionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [exceptionToDelete, setExceptionToDelete] = useState<ScheduleExceptionRow | null>(null);
-  const [showNewModal, setShowNewModal] = useState(false);
 
   const scheduleById = useMemo(
     () => new Map(schedules.map((schedule) => [schedule.scheduleId, schedule])),
@@ -55,7 +54,7 @@ export function ScheduleExceptions({
 
   useEffect(() => {
     loadExceptions();
-  }, [loadExceptions]);
+  }, [loadExceptions, refreshTrigger]);
 
   const handleDelete = async () => {
     if (!exceptionToDelete) return;
@@ -107,19 +106,6 @@ export function ScheduleExceptions({
 
   return (
     <>
-      {!disabled && (
-        <div className="mb-3 w-full sm:w-auto">
-          <Button
-            onClick={() => setShowNewModal(true)}
-            variant="default"
-            size="small"
-            className="w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            New Exception
-          </Button>
-        </div>
-      )}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {exceptions.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground text-sm">
@@ -196,14 +182,6 @@ export function ScheduleExceptions({
         confirmLabel="Remove exception"
         variant="destructive"
         onConfirm={handleDelete}
-      />
-
-      <NewExceptionModal
-        open={showNewModal}
-        onOpenChange={setShowNewModal}
-        schedules={schedules}
-        lineShortId={lineShortId}
-        lineTimezone={lineTimezone}
       />
     </>
   );

@@ -37,6 +37,7 @@ interface NewExceptionModalProps {
   }>;
   lineShortId: string;
   lineTimezone: string;
+  onSuccess?: () => void;
 }
 
 function parseTimeParts(time: string): { hours: number; minutes: number } | null {
@@ -55,6 +56,7 @@ export function NewExceptionModal({
   schedules,
   lineShortId,
   lineTimezone,
+  onSuccess,
 }: NewExceptionModalProps) {
   const router = useRouter();
   const todayIso = DateTime.now().setZone(lineTimezone).toISODate() ?? '';
@@ -304,6 +306,7 @@ export function NewExceptionModal({
       toast.success('Exception saved');
       onOpenChange(false);
       router.refresh();
+      onSuccess?.();
     } catch {
       setFormError('An unexpected error occurred');
       setLiveValidationMessage('An unexpected error occurred');
@@ -320,7 +323,7 @@ export function NewExceptionModal({
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <DialogTitle className="truncate">New exception</DialogTitle>
+            <DialogTitle className="truncate">Create exception</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               Skip, snooze, or reschedule a single call.
             </DialogDescription>
