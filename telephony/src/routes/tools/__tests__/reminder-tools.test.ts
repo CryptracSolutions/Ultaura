@@ -40,13 +40,21 @@ type SupabaseResponse = {
 };
 
 type SupabaseMock = {
-  from: ReturnType<typeof vi.fn>;
+  from: any;
+  rpc: any;
 };
 
 const SESSION_ID = '11111111-1111-1111-1111-111111111111';
 const LINE_ID = '22222222-2222-2222-2222-222222222222';
 const OTHER_LINE_ID = '33333333-3333-3333-3333-333333333333';
 const REMINDER_ID = '44444444-4444-4444-4444-444444444444';
+const MOCK_ENCRYPTED_MESSAGE = {
+  ciphertext: Buffer.from('cipher'),
+  iv: Buffer.from('iv'),
+  tag: Buffer.from('tag'),
+  alg: 'AES-256-GCM',
+  kid: 'kek_v1',
+};
 
 function createBuilder(response: SupabaseResponse) {
   const builder: any = {
@@ -64,8 +72,12 @@ function createBuilder(response: SupabaseResponse) {
   return builder;
 }
 
-function createSupabaseMock(responses: Record<string, SupabaseResponse[]>): SupabaseMock {
+function createSupabaseMock(
+  responses: Record<string, SupabaseResponse[]>,
+  rpcResponses: Record<string, SupabaseResponse[]> = {}
+): SupabaseMock {
   const counters = new Map<string, number>();
+  const rpcCounters = new Map<string, number>();
 
   return {
     from: vi.fn((table: string) => {
@@ -73,6 +85,11 @@ function createSupabaseMock(responses: Record<string, SupabaseResponse[]>): Supa
       counters.set(table, count + 1);
       const response = responses[table]?.[count] ?? { data: null, error: null };
       return createBuilder(response);
+    }),
+    rpc: vi.fn(async (fnName: string) => {
+      const count = rpcCounters.get(fnName) ?? 0;
+      rpcCounters.set(fnName, count + 1);
+      return rpcResponses[fnName]?.[count] ?? { data: null, error: null };
     }),
   };
 }
@@ -163,6 +180,7 @@ describe('reminder tool guards', () => {
       id: SESSION_ID,
       account_id: 'acct-1',
       line_id: LINE_ID,
+      status: 'in_progress',
     } as any);
     vi.mocked(getLineById).mockResolvedValue({
       line: {
@@ -196,6 +214,7 @@ describe('reminder tool guards', () => {
       id: SESSION_ID,
       account_id: 'acct-1',
       line_id: LINE_ID,
+      status: 'in_progress',
     } as any);
 
     const res = createMockRes();
@@ -213,27 +232,59 @@ describe('reminder tool guards', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.body.error).toBe('Unauthorized');
   });
+
+  it('rejects set_reminder when call session is not in_progress', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID,
+      account_id: 'acct-1',
+      line_id: LINE_ID,
+      status: 'completed',
+    } as any);
+
+    const res = createMockRes();
+
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00',
+        timezone: 'America/New_York',
+        message: 'Take medication',
+      },
+    } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.FORBIDDEN);
+    expect(res.body.message).toContain('in progress');
+  });
 });
 
 describe('set_reminder reminder limit handling', () => {
-  it('returns 403 with REMINDER_LIMIT_REACHED when insert fails with U0001', async () => {
-    const supabaseMock = createSupabaseMock({
-      ultaura_reminders: [
-        { count: 0, error: null },
-        {
-          data: null,
-          error: {
-            code: 'U0001',
-            message: 'REMINDER_LIMIT_REACHED: line reminder limit exceeded',
+  it('returns 429 with structured metadata when session cap is reached', async () => {
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: {
+          success: false,
+          block_reason: 'session_cap',
+          message: 'Session reminder limit reached for this call.',
+          current_count: 2,
+          limit: 2,
+          remaining_allowance: 0,
+          next_action: {
+            reason: 'session_cap',
+            guidance: 'You can set more reminders in your next call.',
           },
         },
-      ],
+        error: null,
+      }],
     });
     vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
     vi.mocked(getCallSession).mockResolvedValue({
       id: SESSION_ID,
       account_id: 'acct-1',
       line_id: LINE_ID,
+      status: 'in_progress',
     } as any);
     vi.mocked(getLineById).mockResolvedValue({
       line: {
@@ -244,13 +295,68 @@ describe('set_reminder reminder limit handling', () => {
       },
       account: { id: 'acct-1' },
     } as any);
-    vi.mocked(encryptReminderMessage).mockResolvedValue({
-      ciphertext: Buffer.from('cipher'),
-      iv: Buffer.from('iv'),
-      tag: Buffer.from('tag'),
-      alg: 'AES-256-GCM',
-      kid: 'kek_v1',
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00',
+        timezone: 'America/New_York',
+        message: 'Take medication',
+      },
+    } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.REMINDER_LIMIT_REACHED);
+    expect(res.body.message).toBe('Session reminder limit reached for this call.');
+    expect(res.body.current_count).toBe(2);
+    expect(res.body.limit).toBe(2);
+    expect(res.body.remaining_allowance).toBe(0);
+    expect(res.body.next_action).toEqual({
+      reason: 'session_cap',
+      guidance: 'You can set more reminders in your next call.',
     });
+  });
+
+  it('returns 403 with structured metadata when line cap is reached', async () => {
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: {
+          success: false,
+          block_reason: 'line_cap',
+          message: "You've reached the reminder limit for this line.",
+          current_count: 20,
+          limit: 20,
+          remaining_allowance: 0,
+          next_action: {
+            reason: 'line_cap',
+            guidance: 'Ask your caregiver to cancel existing reminders or upgrade the plan.',
+          },
+        },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID,
+      account_id: 'acct-1',
+      line_id: LINE_ID,
+      status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: {
+        id: LINE_ID,
+        account_id: 'acct-1',
+        timezone: 'America/New_York',
+        allow_voice_reminder_control: true,
+      },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
 
     const res = createMockRes();
 
@@ -267,7 +373,14 @@ describe('set_reminder reminder limit handling', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.body.success).toBe(false);
     expect(res.body.code).toBe(ErrorCodes.REMINDER_LIMIT_REACHED);
-    expect(res.body.message).toBe("You've reached the reminder limit for this line. Ask your caregiver to cancel existing reminders or upgrade the plan.");
+    expect(res.body.message).toBe("You've reached the reminder limit for this line.");
+    expect(res.body.current_count).toBe(20);
+    expect(res.body.limit).toBe(20);
+    expect(res.body.remaining_allowance).toBe(0);
+    expect(res.body.next_action).toEqual({
+      reason: 'line_cap',
+      guidance: 'Ask your caregiver to cancel existing reminders or upgrade the plan.',
+    });
   });
 });
 
@@ -302,6 +415,7 @@ describe('reminder tool timezone formatting', () => {
       id: SESSION_ID,
       account_id: 'acct-1',
       line_id: LINE_ID,
+      status: 'in_progress',
     } as any);
 
     const res = createMockRes();
@@ -325,17 +439,18 @@ describe('reminder tool timezone formatting', () => {
     const dateSpy = vi.spyOn(Date.prototype, 'toLocaleDateString').mockReturnValue('DATE');
     const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('TIME');
 
-    const supabaseMock = createSupabaseMock({
-      ultaura_reminders: [
-        { count: 0, error: null },
-        { data: { id: REMINDER_ID, due_at: '2030-01-02T14:00:00.000Z' }, error: null },
-      ],
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-02T14:00:00.000Z' },
+        error: null,
+      }],
     });
     vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
     vi.mocked(getCallSession).mockResolvedValue({
       id: SESSION_ID,
       account_id: 'acct-1',
       line_id: LINE_ID,
+      status: 'in_progress',
     } as any);
     vi.mocked(getLineById).mockResolvedValue({
       line: {
@@ -346,13 +461,7 @@ describe('reminder tool timezone formatting', () => {
       },
       account: { id: 'acct-1' },
     } as any);
-    vi.mocked(encryptReminderMessage).mockResolvedValue({
-      ciphertext: Buffer.from('cipher'),
-      iv: Buffer.from('iv'),
-      tag: Buffer.from('tag'),
-      alg: 'AES-256-GCM',
-      kid: 'kek_v1',
-    });
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
 
     const res = createMockRes();
 

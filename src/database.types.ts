@@ -4454,6 +4454,45 @@ export type Database = {
         }
         Returns: string
       }
+      create_ultaura_call_reminder: {
+        Args: {
+          p_account_id: string
+          p_call_session_id: string
+          p_day_of_month?: number
+          p_days_of_week?: number[]
+          p_delivery_method?: string
+          p_due_at: string
+          p_ends_at?: string
+          p_interval_days?: number
+          p_is_recurring?: boolean
+          p_line_id: string
+          p_message: string
+          p_message_alg?: string
+          p_message_ciphertext?: string
+          p_message_iv?: string
+          p_message_kid?: string
+          p_message_tag?: string
+          p_privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
+          p_rrule?: string
+          p_search_tokens?: string[]
+          p_session_limit: number
+          p_status?: Database["public"]["Enums"]["ultaura_reminder_status"]
+          p_time_of_day?: string
+          p_timezone: string
+        }
+        Returns: {
+          code: string
+          current_count: number
+          due_at: string
+          limit: number
+          message: string
+          next_action: string
+          reason: string
+          remaining_allowance: number
+          reminder_id: string
+          success: boolean
+        }[]
+      }
       current_user_is_member_of_organization: {
         Args: { organization_id: number }
         Returns: boolean
@@ -4531,6 +4570,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      install_extensions: { Args: never; Returns: undefined }
       is_line_on_vacation: { Args: { p_line_id: string }; Returns: boolean }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }

@@ -131,8 +131,20 @@ insert into ultaura_lines (
   ('20000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000006', 'upline01', 'Update Line', '+14155550106', 'active', 'America/Los_Angeles'),
   ('20000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000007', 'concrn01', 'Concurrency Line', '+14155550107', 'active', 'America/Los_Angeles');
 
+insert into ultaura_call_sessions (
+  id,
+  account_id,
+  line_id,
+  direction,
+  status,
+  connected_at
+) values
+  ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'outbound', 'in_progress', now()),
+  ('40000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000007', 'outbound', 'in_progress', now()),
+  ('40000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', 'outbound', 'in_progress', now());
+
 -- ---------------------------------------------------------------------------
--- 1) Care plan: first 3 scheduled succeed, 4th blocked with U0001
+-- 1) Care plan: first 5 scheduled succeed, 6th blocked with U0001
 -- ---------------------------------------------------------------------------
 
 select lives_ok($$
@@ -140,15 +152,17 @@ select lives_ok($$
   values
     ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '1 day', 'America/Los_Angeles', 'Care 1', 'scheduled', 'line_only'),
     ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '2 day', 'America/Los_Angeles', 'Care 2', 'scheduled', 'line_only'),
-    ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '3 day', 'America/Los_Angeles', 'Care 3', 'scheduled', 'line_only');
-$$, 'care line allows three active reminders');
+    ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '3 day', 'America/Los_Angeles', 'Care 3', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '4 day', 'America/Los_Angeles', 'Care 4', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '5 day', 'America/Los_Angeles', 'Care 5', 'scheduled', 'line_only');
+$$, 'care line allows five active reminders');
 
 select lives_ok($$
   do $do$
   begin
     begin
       insert into ultaura_reminders (id, account_id, line_id, due_at, timezone, message, status, privacy_scope)
-      values ('30000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '4 day', 'America/Los_Angeles', 'Care 4', 'scheduled', 'line_only');
+      values ('30000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '6 day', 'America/Los_Angeles', 'Care 6', 'scheduled', 'line_only');
       raise exception 'expected U0001 not raised';
     exception
       when sqlstate 'U0001' then
@@ -156,7 +170,7 @@ select lives_ok($$
     end;
   end
   $do$;
-$$, 'care line blocks 4th scheduled reminder with U0001');
+$$, 'care line blocks 6th scheduled reminder with U0001');
 
 -- ---------------------------------------------------------------------------
 -- 2) Cancel one, then insert succeeds
@@ -165,12 +179,12 @@ $$, 'care line blocks 4th scheduled reminder with U0001');
 select lives_ok($$
   update ultaura_reminders
   set status = 'canceled'
-  where id = '30000000-0000-0000-0000-000000000003';
+  where id = '30000000-0000-0000-0000-000000000005';
 $$, 'canceling one scheduled reminder succeeds');
 
 select lives_ok($$
   insert into ultaura_reminders (id, account_id, line_id, due_at, timezone, message, status, privacy_scope)
-  values ('30000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '5 day', 'America/Los_Angeles', 'Care replacement', 'scheduled', 'line_only');
+  values ('30000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', now() + interval '7 day', 'America/Los_Angeles', 'Care replacement', 'scheduled', 'line_only');
 $$, 'new insert succeeds after scheduled count drops');
 
 -- ---------------------------------------------------------------------------
@@ -200,7 +214,9 @@ select lives_ok($$
     ('30000000-0000-0000-0000-000000000101', '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', now() + interval '1 day', 'America/Los_Angeles', 'Update 1', 'scheduled', 'line_only'),
     ('30000000-0000-0000-0000-000000000102', '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', now() + interval '2 day', 'America/Los_Angeles', 'Update 2', 'scheduled', 'line_only'),
     ('30000000-0000-0000-0000-000000000103', '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', now() + interval '3 day', 'America/Los_Angeles', 'Update 3', 'scheduled', 'line_only'),
-    ('30000000-0000-0000-0000-000000000104', '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', now() + interval '4 day', 'America/Los_Angeles', 'Update canceled', 'canceled', 'line_only');
+    ('30000000-0000-0000-0000-000000000104', '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', now() + interval '4 day', 'America/Los_Angeles', 'Update 4', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000105', '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', now() + interval '5 day', 'America/Los_Angeles', 'Update 5', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000106', '10000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', now() + interval '6 day', 'America/Los_Angeles', 'Update canceled', 'canceled', 'line_only');
 $$, 'seeded update-limit scenario reminders');
 
 select lives_ok($$
@@ -209,7 +225,7 @@ select lives_ok($$
     begin
       update ultaura_reminders
       set status = 'scheduled'
-      where id = '30000000-0000-0000-0000-000000000104';
+      where id = '30000000-0000-0000-0000-000000000106';
       raise exception 'expected U0001 not raised';
     exception
       when sqlstate 'U0001' then
@@ -247,15 +263,17 @@ select lives_ok($$
   values
     ('30000000-0000-0000-0000-000000000301', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '1 day', 'America/Los_Angeles', 'Trial active 1', 'scheduled', 'line_only'),
     ('30000000-0000-0000-0000-000000000302', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '2 day', 'America/Los_Angeles', 'Trial active 2', 'scheduled', 'line_only'),
-    ('30000000-0000-0000-0000-000000000303', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '3 day', 'America/Los_Angeles', 'Trial active 3', 'scheduled', 'line_only');
-$$, 'active trial account allows three reminders');
+    ('30000000-0000-0000-0000-000000000303', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '3 day', 'America/Los_Angeles', 'Trial active 3', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000304', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '4 day', 'America/Los_Angeles', 'Trial active 4', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000305', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '5 day', 'America/Los_Angeles', 'Trial active 5', 'scheduled', 'line_only');
+$$, 'active trial account allows five reminders');
 
 select lives_ok($$
   do $do$
   begin
     begin
       insert into ultaura_reminders (id, account_id, line_id, due_at, timezone, message, status, privacy_scope)
-      values ('30000000-0000-0000-0000-000000000304', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '4 day', 'America/Los_Angeles', 'Trial active 4', 'scheduled', 'line_only');
+      values ('30000000-0000-0000-0000-000000000306', '10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', now() + interval '6 day', 'America/Los_Angeles', 'Trial active 6', 'scheduled', 'line_only');
       raise exception 'expected U0001 not raised';
     exception
       when sqlstate 'U0001' then
@@ -263,22 +281,24 @@ select lives_ok($$
     end;
   end
   $do$;
-$$, 'active trial uses trial_plan_id limit (care=3)');
+$$, 'active trial uses trial_plan_id limit (care=5)');
 
 select lives_ok($$
   insert into ultaura_reminders (id, account_id, line_id, due_at, timezone, message, status, privacy_scope)
   values
     ('30000000-0000-0000-0000-000000000401', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '1 day', 'America/Los_Angeles', 'Trial expired 1', 'scheduled', 'line_only'),
     ('30000000-0000-0000-0000-000000000402', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '2 day', 'America/Los_Angeles', 'Trial expired 2', 'scheduled', 'line_only'),
-    ('30000000-0000-0000-0000-000000000403', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '3 day', 'America/Los_Angeles', 'Trial expired 3', 'scheduled', 'line_only');
-$$, 'expired trial account allows three reminders');
+    ('30000000-0000-0000-0000-000000000403', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '3 day', 'America/Los_Angeles', 'Trial expired 3', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000404', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '4 day', 'America/Los_Angeles', 'Trial expired 4', 'scheduled', 'line_only'),
+    ('30000000-0000-0000-0000-000000000405', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '5 day', 'America/Los_Angeles', 'Trial expired 5', 'scheduled', 'line_only');
+$$, 'expired trial account allows five reminders');
 
 select lives_ok($$
   do $do$
   begin
     begin
       insert into ultaura_reminders (id, account_id, line_id, due_at, timezone, message, status, privacy_scope)
-      values ('30000000-0000-0000-0000-000000000404', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '4 day', 'America/Los_Angeles', 'Trial expired 4', 'scheduled', 'line_only');
+      values ('30000000-0000-0000-0000-000000000406', '10000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', now() + interval '6 day', 'America/Los_Angeles', 'Trial expired 6', 'scheduled', 'line_only');
       raise exception 'expected U0001 not raised';
     exception
       when sqlstate 'U0001' then
@@ -286,7 +306,7 @@ select lives_ok($$
     end;
   end
   $do$;
-$$, 'expired trial falls back to plan_id limit (care=3)');
+$$, 'expired trial falls back to plan_id limit (care=5)');
 
 -- ---------------------------------------------------------------------------
 -- 7) Gated concurrency check (dblink if available)
@@ -360,6 +380,265 @@ select case
     $$, 'dblink concurrency check: advisory lock serializes inserts and prevents overshoot')
   else
     pass('dblink extension unavailable; skipped concurrency test')
+end;
+
+-- ---------------------------------------------------------------------------
+-- 8) Session cap enforcement counts only scheduled reminders
+-- ---------------------------------------------------------------------------
+
+select lives_ok($$
+  do $do$
+  declare
+    v_result record;
+  begin
+    select *
+    into v_result
+    from create_ultaura_call_reminder(
+      '40000000-0000-0000-0000-000000000003',
+      1,
+      '10000000-0000-0000-0000-000000000002',
+      '20000000-0000-0000-0000-000000000002',
+      now() + interval '7 day',
+      'America/Los_Angeles',
+      'Canceled should not count',
+      'outbound_call',
+      'canceled',
+      'line_only',
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    );
+
+    if not v_result.success then
+      raise exception 'expected canceled reminder creation to succeed';
+    end if;
+
+    select *
+    into v_result
+    from create_ultaura_call_reminder(
+      '40000000-0000-0000-0000-000000000003',
+      1,
+      '10000000-0000-0000-0000-000000000002',
+      '20000000-0000-0000-0000-000000000002',
+      now() + interval '8 day',
+      'America/Los_Angeles',
+      'First scheduled in-session',
+      'outbound_call',
+      'scheduled',
+      'line_only',
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    );
+
+    if not v_result.success then
+      raise exception 'expected first scheduled reminder to succeed';
+    end if;
+
+    if v_result.current_count <> 1 or v_result."limit" <> 1 or v_result.remaining_allowance <> 0 then
+      raise exception 'expected first scheduled result counts to be 1/1/0, got current=% limit=% remaining=%',
+        v_result.current_count,
+        v_result."limit",
+        v_result.remaining_allowance;
+    end if;
+
+    select *
+    into v_result
+    from create_ultaura_call_reminder(
+      '40000000-0000-0000-0000-000000000003',
+      1,
+      '10000000-0000-0000-0000-000000000002',
+      '20000000-0000-0000-0000-000000000002',
+      now() + interval '9 day',
+      'America/Los_Angeles',
+      'Second scheduled in-session',
+      'outbound_call',
+      'scheduled',
+      'line_only',
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    );
+
+    if v_result.success then
+      raise exception 'expected second scheduled reminder to be blocked by session cap';
+    end if;
+
+    if v_result.code <> 'session_limit_reached' then
+      raise exception 'expected session_limit_reached, got %', v_result.code;
+    end if;
+
+    if v_result.current_count <> 1 or v_result."limit" <> 1 or v_result.remaining_allowance <> 0 then
+      raise exception 'expected blocked result counts to be 1/1/0, got current=% limit=% remaining=%',
+        v_result.current_count,
+        v_result."limit",
+        v_result.remaining_allowance;
+    end if;
+  end
+  $do$;
+$$, 'session cap counts scheduled reminders only and returns structured block metadata');
+
+-- ---------------------------------------------------------------------------
+-- 9) Gated session-cap concurrency check (dblink if available)
+-- ---------------------------------------------------------------------------
+
+select case
+  when exists (select 1 from pg_available_extensions where name = 'dblink') then
+    lives_ok($$
+      do $do$
+      declare
+        v_busy integer;
+        v_conn1_success boolean;
+        v_conn1_code text;
+        v_conn2_success boolean;
+        v_conn2_code text;
+      begin
+        create extension if not exists dblink;
+
+        begin
+          perform dblink_connect('rls_conn1', format('dbname=%I', current_database()));
+          perform dblink_connect('rls_conn2', format('dbname=%I', current_database()));
+
+          perform dblink_exec('rls_conn1', 'begin');
+          perform dblink_exec('rls_conn2', 'begin');
+
+          perform dblink_send_query(
+            'rls_conn1',
+            $q1$select success, code
+              from create_ultaura_call_reminder(
+                '40000000-0000-0000-0000-000000000003',
+                1,
+                '10000000-0000-0000-0000-000000000002',
+                '20000000-0000-0000-0000-000000000002',
+                now() + interval '7 day',
+                'America/Los_Angeles',
+                'Session race winner',
+                'outbound_call',
+                'scheduled',
+                'line_only',
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+              )$q1$
+          );
+
+          select success, code
+          into v_conn1_success, v_conn1_code
+          from dblink_get_result('rls_conn1', false) as t(success boolean, code text);
+
+          if not v_conn1_success then
+            raise exception 'expected first session call to succeed, got code %', v_conn1_code;
+          end if;
+
+          perform dblink_send_query(
+            'rls_conn2',
+            $q2$select success, code
+              from create_ultaura_call_reminder(
+                '40000000-0000-0000-0000-000000000003',
+                1,
+                '10000000-0000-0000-0000-000000000002',
+                '20000000-0000-0000-0000-000000000002',
+                now() + interval '8 day',
+                'America/Los_Angeles',
+                'Session race loser',
+                'outbound_call',
+                'scheduled',
+                'line_only',
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+              )$q2$
+          );
+
+          perform pg_sleep(0.2);
+          v_busy := dblink_is_busy('rls_conn2');
+          if v_busy <> 1 then
+            raise exception 'expected second session to wait on session advisory lock';
+          end if;
+
+          perform dblink_exec('rls_conn1', 'commit');
+
+          select success, code
+          into v_conn2_success, v_conn2_code
+          from dblink_get_result('rls_conn2', false) as t(success boolean, code text);
+
+          if v_conn2_success or v_conn2_code <> 'session_limit_reached' then
+            raise exception 'expected second concurrent call to return session_limit_reached, got success=% code=%',
+              v_conn2_success,
+              coalesce(v_conn2_code, '<null>');
+          end if;
+
+          perform dblink_exec('rls_conn2', 'commit');
+          perform dblink_disconnect('rls_conn1');
+          perform dblink_disconnect('rls_conn2');
+
+          if (
+            select count(*)
+            from ultaura_reminders
+            where created_by_call_session_id = '40000000-0000-0000-0000-000000000003'
+              and status = 'scheduled'
+          ) <> 1 then
+            raise exception 'session concurrency test overshot session scheduled reminder limit';
+          end if;
+        exception
+          when sqlstate '2F003' then
+            raise notice 'dblink connection requires password; skipping session concurrency execution';
+        end;
+      end
+      $do$;
+    $$, 'dblink session concurrency check: advisory lock serializes session-cap evaluation')
+  else
+    pass('dblink extension unavailable; skipped session concurrency test')
 end;
 
 select * from finish();
