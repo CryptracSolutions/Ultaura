@@ -1,12 +1,7 @@
 import React, { useContext } from 'react';
 import Link from 'next/link';
 
-import {
-  ArrowLeftCircleIcon,
-  ArrowRightCircleIcon,
-} from '@heroicons/react/24/outline';
-
-import classNames from 'clsx';
+import { PanelLeft } from 'lucide-react';
 
 import AppSidebarNavigation from './AppSidebarNavigation';
 import Sidebar, { SidebarContent } from '~/core/ui/Sidebar';
@@ -23,25 +18,34 @@ import SubscriptionStatusBadge from './organizations/SubscriptionStatusBadge';
 
 import configuration from '~/configuration';
 import Logo from '~/core/ui/Logo';
+import LogoImage from '~/core/ui/Logo/LogoImage';
 
 const AppSidebar: React.FC = () => {
   const ctx = useContext(SidebarContext);
 
   return (
     <Sidebar collapsed={ctx.collapsed}>
-      <SidebarContent className={'my-4'}>
-        <div className={ctx.collapsed ? 'flex w-full justify-center' : ''}>
-          <Logo
-            href={'/'}
-            className="h-10"
-            label={'Dashboard'}
-            showWordmark={!ctx.collapsed}
-            wordmarkClassName={
-              ctx.collapsed
-                ? 'text-2xl font-semibold leading-none text-primary'
-                : 'text-2xl font-semibold leading-none text-primary'
-            }
-          />
+      <SidebarContent className={'mt-2 mb-4'}>
+        <div className="flex w-full items-center">
+          {ctx.collapsed ? (
+            <CollapsedLogoButton onClick={() => ctx.setCollapsed(false)} />
+          ) : (
+            <>
+              <div className="flex-1 min-w-0">
+                <Logo
+                  href={'/'}
+                  className="h-10"
+                  label={'Dashboard'}
+                  showWordmark={true}
+                  wordmarkClassName="text-2xl font-semibold leading-none text-primary"
+                />
+              </div>
+              <CollapsibleButton
+                collapsed={false}
+                onClick={ctx.setCollapsed}
+              />
+            </>
+          )}
         </div>
       </SidebarContent>
 
@@ -60,10 +64,35 @@ const AppSidebar: React.FC = () => {
 
 export default AppSidebar;
 
-function AppSidebarFooterMenu() {
-  const { collapsed, setCollapsed } = useContext(SidebarContext);
-
-  return <CollapsibleButton collapsed={collapsed} onClick={setCollapsed} />;
+function CollapsedLogoButton({
+  onClick,
+}: {
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className="group flex w-full flex-1 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 transition-colors hover:bg-muted/60"
+          aria-label="Open sidebar"
+        >
+          <div className="relative flex h-[42px] w-full items-center justify-center">
+            <LogoImage
+              className="h-[42px] transition-opacity duration-200 group-hover:opacity-0"
+            />
+            <PanelLeft
+              className="absolute text-primary h-[1.1rem] w-[1.1rem] shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+            />
+          </div>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={20}>
+        <Trans i18nKey="common:expandSidebar" />
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function CollapsibleButton({
@@ -73,30 +102,16 @@ function CollapsibleButton({
   collapsed: boolean;
   onClick: (collapsed: boolean) => void;
 }>) {
-  const className = classNames(
-    `bg-transparent absolute -right-[10.5px] bottom-[3.75rem] cursor-pointer block`,
-  );
-
-  const iconClassName = 'bg-transparent text-primary h-5 w-5';
+  const iconClassName = 'text-primary h-[1.1rem] w-[1.1rem] shrink-0';
 
   return (
     <Tooltip>
       <TooltipTrigger
-        className={className}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="bg-transparent cursor-pointer block p-1 rounded-md hover:bg-muted/60 transition-colors"
+        aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
         onClick={() => onClick(!collapsed)}
       >
-        <ArrowRightCircleIcon
-          className={classNames(iconClassName, {
-            hidden: !collapsed,
-          })}
-        />
-
-        <ArrowLeftCircleIcon
-          className={classNames(iconClassName, {
-            hidden: collapsed,
-          })}
-        />
+        <PanelLeft className={iconClassName} />
       </TooltipTrigger>
 
       <TooltipContent sideOffset={20}>
@@ -126,8 +141,6 @@ function ProfileDropdownContainer(props: { collapsed: boolean }) {
         signOutRequested={signOut}
         accountName={organization?.name}
       />
-
-      <AppSidebarFooterMenu />
     </div>
   );
 }

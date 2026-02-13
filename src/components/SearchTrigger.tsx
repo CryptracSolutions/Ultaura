@@ -86,7 +86,7 @@ const SearchTrigger = () => {
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="h-8 min-h-[32px] pl-10 pr-12 shadow-sm"
+            className="!h-8 !min-h-0 pl-10 pr-12 shadow-sm"
             aria-label="Search"
             role="combobox"
             aria-haspopup="listbox"

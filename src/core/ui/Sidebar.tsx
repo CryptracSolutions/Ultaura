@@ -184,7 +184,7 @@ function getClassNameBuilder() {
     {
       variants: {
         collapsed: {
-          true: `w-[6rem]`,
+          true: `w-[5rem]`,
           false: `w-2/12 lg:w-[17rem]`,
         },
       },

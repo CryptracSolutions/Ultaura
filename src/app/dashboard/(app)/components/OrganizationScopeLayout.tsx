@@ -164,7 +164,7 @@ function getClassNameBuilder() {
     {
       variants: {
         collapsed: {
-          true: 'lg:ml-[6rem]',
+          true: 'lg:ml-[5rem]',
           false: 'lg:ml-[17rem]',
         },
         helpOpen: {
