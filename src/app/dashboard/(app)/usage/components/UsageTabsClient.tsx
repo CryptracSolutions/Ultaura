@@ -1,12 +1,17 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, Clock, DollarSign, Hourglass, ShieldAlert, Timer, User } from 'lucide-react';
+import { AlertTriangle, BarChart3, Clock, DollarSign, Hourglass, ShieldAlert, User } from 'lucide-react';
+
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+import type { TooltipProps } from 'recharts';
 
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import UsageCapControl from './UsageCapControl';
-import type { PerLineUsageEntry } from '~/lib/ultaura/types';
+import type { PerLineUsageEntry, MonthlyUsageEntry } from '~/lib/ultaura/types';
 
 function formatCurrency(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -47,16 +52,21 @@ interface UsageTabsProps {
   capReached: boolean;
   capPercent: number;
   perLineUsage: PerLineUsageEntry[];
+  trialMinutes: number;
+  includedMinutes: number;
+  totalOverageMinutes: number;
+  paygMinutes: number;
+  monthlyUsage: MonthlyUsageEntry[];
 }
 
 export default function UsageTabsClient(props: UsageTabsProps) {
   const searchParams = useSearchParams();
 
   const tabParam = searchParams.get('tab');
-  const activeTab: TabValue =
-    tabParam === 'total' ? 'total' :
-    tabParam === 'per-user' ? 'per-user' :
-    'cycle';
+  const validTabs: TabValue[] = ['total', 'per-user', 'cycle'];
+  const activeTab: TabValue = validTabs.includes(tabParam as TabValue)
+    ? (tabParam as TabValue)
+    : 'cycle';
 
   return (
     <div>
@@ -79,6 +89,11 @@ export default function UsageTabsClient(props: UsageTabsProps) {
           <TotalUsageTab
             totalMinutes={props.totalMinutes}
             totalCostCents={props.totalCostCents}
+            trialMinutes={props.trialMinutes}
+            includedMinutes={props.includedMinutes}
+            totalOverageMinutes={props.totalOverageMinutes}
+            paygMinutes={props.paygMinutes}
+            monthlyUsage={props.monthlyUsage}
           />
         )}
         {activeTab === 'cycle' && (
@@ -241,31 +256,172 @@ function CycleTab(props: UsageTabsProps) {
   );
 }
 
-function TotalUsageTab({
-  totalMinutes,
-  totalCostCents,
-}: {
+function formatMonthLabel(yyyyMm: string): string {
+  const [year, month] = yyyyMm.split('-');
+  const date = new Date(Number(year), Number(month) - 1);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit' }).format(date);
+}
+
+interface TotalUsageTabProps {
   totalMinutes: number;
   totalCostCents: number;
-}) {
+  trialMinutes: number;
+  includedMinutes: number;
+  totalOverageMinutes: number;
+  paygMinutes: number;
+  monthlyUsage: MonthlyUsageEntry[];
+}
+
+function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null;
+  const nonZero = payload.filter((p) => (p.value ?? 0) > 0);
+  if (nonZero.length === 0) return null;
+
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        All-time usage across all billing cycles
+    <div className="rounded-lg border border-border bg-card px-3.5 py-2.5 shadow-lg">
+      <p className="text-xs font-medium text-foreground mb-1.5">
+        {formatMonthLabel(label as string)}
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <StatCard icon={<Timer className="w-4 h-4" />} label="Total Minutes" value={String(totalMinutes)} />
-        <StatCard icon={<DollarSign className="w-4 h-4" />} label="Total Cost" value={formatCurrency(totalCostCents)} />
+      <div className="space-y-1">
+        {nonZero.map((entry) => (
+          <div key={entry.dataKey} className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-xs text-muted-foreground">{entry.name}</span>
+            </div>
+            <span className="text-xs font-medium text-foreground tabular-nums">
+              {entry.value} min
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function PerUserTab({
-  perLineUsage,
-}: {
+function TotalUsageTab({
+  totalMinutes,
+  totalCostCents,
+  trialMinutes,
+  includedMinutes,
+  totalOverageMinutes,
+  paygMinutes,
+  monthlyUsage,
+}: TotalUsageTabProps) {
+  const hasIncluded = monthlyUsage.some((m) => m.includedMinutes > 0);
+  const hasTrial = monthlyUsage.some((m) => m.trialMinutes > 0);
+  const hasPayg = monthlyUsage.some((m) => m.paygMinutes > 0);
+  const hasOverage = monthlyUsage.some((m) => m.overageMinutes > 0);
+
+  const stackOrder: { key: string; name: string; color: string; show: boolean }[] = [
+    { key: 'includedMinutes', name: 'Included', color: 'var(--chart-1)', show: hasIncluded },
+    { key: 'trialMinutes', name: 'Trial', color: 'var(--chart-3)', show: hasTrial },
+    { key: 'paygMinutes', name: 'Pay As You Go', color: 'oklch(0.72 0.19 350)', show: hasPayg },
+    { key: 'overageMinutes', name: 'Overage', color: 'var(--chart-4)', show: hasOverage },
+  ];
+  const visibleBars = stackOrder.filter((b) => b.show);
+  const lastBarKey = visibleBars.at(-1)?.key ?? null;
+
+  return (
+    <div className="space-y-5">
+      {/* Section 1 — Top-level totals */}
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard
+          icon={<Clock className="w-4 h-4" />}
+          label="Total Minutes"
+          value={`${totalMinutes} min`}
+          subtitle="Sum of all call minutes since your first call"
+        />
+        <StatCard
+          icon={<DollarSign className="w-4 h-4" />}
+          label="Total Cost"
+          value={formatCurrency(totalCostCents)}
+          subtitle="Overage and pay-as-you-go charges only — included and trial minutes are free"
+        />
+      </div>
+
+      {/* Monthly history chart */}
+      {monthlyUsage.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-5 pb-4">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <span className="text-primary"><BarChart3 className="w-4 h-4" /></span>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Monthly usage history
+              </h3>
+            </div>
+            {/* Inline legend */}
+            <div className="flex items-center gap-3">
+              {visibleBars.map((bar) => (
+                <div key={bar.key} className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ backgroundColor: bar.color }}
+                  />
+                  <span className="text-[11px] text-muted-foreground">{bar.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={monthlyUsage}
+                margin={{ top: 4, right: 4, bottom: 0, left: -12 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="var(--border)"
+                  strokeOpacity={0.5}
+                />
+                <XAxis
+                  dataKey="month"
+                  tickFormatter={formatMonthLabel}
+                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  dy={8}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  dx={-4}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  content={<ChartTooltip />}
+                  cursor={{ fill: 'var(--muted)', opacity: 0.3 }}
+                />
+                {visibleBars.map((bar) => (
+                  <Bar
+                    key={bar.key}
+                    dataKey={bar.key}
+                    name={bar.name}
+                    stackId="a"
+                    fill={bar.color}
+                    maxBarSize={48}
+                    radius={bar.key === lastBarKey ? [6, 6, 0, 0] : [0, 0, 0, 0]}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PerUserTabProps {
   perLineUsage: PerLineUsageEntry[];
-}) {
+}
+
+function PerUserTab({ perLineUsage }: PerUserTabProps) {
   if (perLineUsage.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No lines configured yet.</p>
@@ -281,7 +437,7 @@ function PerUserTab({
         {perLineUsage.map((entry) => (
           <div
             key={entry.lineId}
-            className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent"
+            className="relative overflow-hidden rounded-xl border border-border bg-card p-5"
           >
           <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
           <div className="relative">
@@ -312,11 +468,18 @@ function PerUserTab({
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  subtitle?: string;
+}
+
+function StatCard({ icon, label, value, subtitle }: StatCardProps) {
   const isNumeric = /^\$?\d/.test(value);
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5">
       <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
       <div className="relative flex flex-col">
         <div className="flex items-center gap-2 mb-3">
@@ -331,6 +494,9 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
           <div className="text-base font-semibold text-foreground">
             {value}
           </div>
+        )}
+        {subtitle && (
+          <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">{subtitle}</p>
         )}
       </div>
     </div>

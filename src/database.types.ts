@@ -4526,6 +4526,16 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: number
       }
+      get_ultaura_monthly_usage: {
+        Args: { p_account_id: string }
+        Returns: {
+          included_minutes: number
+          month: string
+          overage_minutes: number
+          payg_minutes: number
+          trial_minutes: number
+        }[]
+      }
       get_ultaura_per_line_usage: {
         Args: { p_account_id: string }
         Returns: {
@@ -4539,8 +4549,12 @@ export type Database = {
       get_ultaura_total_usage: {
         Args: { p_account_id: string }
         Returns: {
+          included_minutes: number
+          overage_minutes: number
+          payg_minutes: number
           total_cost_cents: number
           total_minutes: number
+          trial_minutes: number
         }[]
       }
       get_ultaura_usage_summary: {

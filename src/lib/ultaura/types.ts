@@ -604,6 +604,18 @@ export interface UsageSummary {
 export interface TotalUsageSummary {
   totalMinutes: number;
   totalCostCents: number;
+  trialMinutes: number;
+  includedMinutes: number;
+  overageMinutes: number;
+  paygMinutes: number;
+}
+
+export interface MonthlyUsageEntry {
+  month: string;
+  trialMinutes: number;
+  includedMinutes: number;
+  overageMinutes: number;
+  paygMinutes: number;
 }
 
 export interface LineUsageSummary {

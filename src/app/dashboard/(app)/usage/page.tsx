@@ -4,7 +4,7 @@ import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
-import { getUsageSummary, getTotalUsage, getPerLineUsage } from '~/lib/ultaura/usage';
+import { getUsageSummary, getTotalUsage, getPerLineUsage, getMonthlyUsage } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
@@ -61,10 +61,11 @@ export default async function UsagePage() {
     );
   }
 
-  const [usage, totalUsage, perLineUsage] = await Promise.all([
+  const [usage, totalUsage, perLineUsage, monthlyUsage] = await Promise.all([
     getUsageSummary(account.id),
     getTotalUsage(account.id),
     getPerLineUsage(account.id),
+    getMonthlyUsage(account.id),
   ]);
 
   const plan = PLANS[account.plan_id as keyof typeof PLANS];
@@ -90,7 +91,10 @@ export default async function UsagePage() {
 
   const overageCostCents = overageMinutes * RATE_CENTS;
   const paygCostCents = minutesUsed * RATE_CENTS;
-  const usageCostCents = isOnTrial ? 0 : isPayg ? paygCostCents : overageCostCents;
+
+  let usageCostCents = overageCostCents;
+  if (isOnTrial) usageCostCents = 0;
+  else if (isPayg) usageCostCents = paygCostCents;
 
   const capCents = account.overage_cents_cap ?? 0;
   const capReached = capCents > 0 && usageCostCents >= capCents;
@@ -159,6 +163,11 @@ export default async function UsagePage() {
               capReached={capReached}
               capPercent={capPercent}
               perLineUsage={perLineUsage}
+              trialMinutes={totalUsage.trialMinutes}
+              includedMinutes={totalUsage.includedMinutes}
+              totalOverageMinutes={totalUsage.overageMinutes}
+              paygMinutes={totalUsage.paygMinutes}
+              monthlyUsage={monthlyUsage}
             />
           ) : (
               <div className="text-sm text-muted-foreground">Usage not available yet.</div>
