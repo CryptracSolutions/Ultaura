@@ -23,9 +23,20 @@ const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Account and org IDs for test@example.com
-const ACCOUNT_ID = '2e825530-649c-4536-b6eb-9a818f24411b';
-const ORGANIZATION_ID = 1;
+// Account and line IDs matching seed.sql Margaret Johnson
+const ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
+const LINE_ID = '11111111-1111-1111-1111-111111111111';
+
+// Call session IDs from seed.sql (skip 505 = no_answer/machine)
+const SEED_CALL_SESSION_IDS = [
+  '55555555-5555-5555-5555-555555555501',
+  '55555555-5555-5555-5555-555555555502',
+  '55555555-5555-5555-5555-555555555503',
+  '55555555-5555-5555-5555-555555555504',
+  '55555555-5555-5555-5555-555555555506',
+  '55555555-5555-5555-5555-555555555507',
+  '55555555-5555-5555-5555-555555555508',
+];
 
 function getKEK(): Buffer {
   const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
@@ -62,24 +73,14 @@ function encrypt(
 }
 
 async function getOrCreateAccountDEK(): Promise<Buffer> {
-  const { data: existingKey } = await supabase
+  // Delete any existing DEK for this seed account so we always start fresh.
+  // Supabase returns bytea in formats that differ across client versions,
+  // making unwrapping unreliable in standalone scripts.
+  await supabase
     .from('ultaura_account_crypto_keys')
-    .select('*')
-    .eq('account_id', ACCOUNT_ID)
-    .single();
+    .delete()
+    .eq('account_id', ACCOUNT_ID);
 
-  if (existingKey) {
-    // Unwrap existing DEK
-    const kek = getKEK();
-    const wrapped = Buffer.from(existingKey.dek_wrapped);
-    const iv = Buffer.from(existingKey.dek_wrap_iv);
-    const tag = Buffer.from(existingKey.dek_wrap_tag);
-    const decipher = crypto.createDecipheriv(ALGORITHM, kek, iv, { authTagLength: TAG_LENGTH });
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(wrapped), decipher.final()]);
-  }
-
-  // Create new DEK
   const dek = generateDEK();
   const { wrapped, iv, tag } = wrapDEK(dek);
 
@@ -106,9 +107,7 @@ function randomElement<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function generateShortId(): string {
-  return crypto.randomBytes(4).toString('hex');
-}
+
 
 interface LineConfig {
   lineId: string;
@@ -140,8 +139,7 @@ async function seedLineData(
     passed_at?: string;
     grief_sensitivity?: string;
   }>,
-  memoryData: Array<{ type: string; key: string; value: string }>,
-  callCount: number
+  memoryData: Array<{ type: string; key: string; value: string }>
 ) {
   const { lineId } = lineConfig;
 
@@ -154,7 +152,7 @@ async function seedLineData(
     answer_rate: 0.85 + Math.random() * 0.1,
     mood_distribution: { positive: 40 + Math.floor(Math.random() * 10), neutral: 30 + Math.floor(Math.random() * 10), low: 15 + Math.floor(Math.random() * 10) },
     recent_concern_codes: ['fatigue', 'sleep_issues'].slice(0, 1 + Math.floor(Math.random() * 2)),
-    baseline_call_count: callCount,
+    baseline_call_count: SEED_CALL_SESSION_IDS.length,
   });
 
   // Create emotional patterns
@@ -203,79 +201,54 @@ async function seedLineData(
   }
 
   // Create call sessions and related data
-  const moods: string[] = ['positive', 'neutral', 'low', 'anxious', 'sad'];
-  const energyLevels: string[] = ['high', 'normal', 'low', 'very_low'];
-  const topics: string[] = ['family', 'health', 'hobbies', 'memories', 'daily_routine', 'weather', 'news', 'food', 'pets', 'travel'];
-  const concerns: string[] = ['fatigue', 'sleep_issues', 'loneliness', 'mobility', 'appetite'];
+  const moodOveralls: Array<'positive' | 'neutral' | 'low'> = ['positive', 'neutral', 'low'];
+  const topics: string[] = ['family', 'friends', 'activities', 'interests', 'memories', 'plans', 'daily_life', 'entertainment', 'feelings', 'requests'];
+  const concerns: string[] = ['fatigue', 'sleep', 'loneliness', 'pain', 'appetite'];
 
-  const callSessions: { id: string; createdAt: Date }[] = [];
+  // Use existing call session IDs from seed.sql (already created there)
+  const callSessions: { id: string; createdAt: Date }[] = SEED_CALL_SESSION_IDS.map((id, i) => ({
+    id,
+    createdAt: new Date(Date.now() - (14 - i * 2) * 24 * 60 * 60 * 1000),
+  }));
 
-  for (let i = 0; i < callCount; i++) {
-    const callId = crypto.randomUUID();
-    const callDate = randomDate(30);
+  for (let i = 0; i < callSessions.length; i++) {
+    const callId = callSessions[i].id;
+    const callDate = callSessions[i].createdAt;
     const duration = 180 + Math.floor(Math.random() * 600);
 
-    const startedAt = callDate;
-    const connectedAt = new Date(startedAt.getTime() + 5000);
-    const endedAt = new Date(connectedAt.getTime() + duration * 1000);
-
-    callSessions.push({ id: callId, createdAt: callDate });
-
-    await supabase.from('ultaura_call_sessions').insert({
-      id: callId,
-      account_id: ACCOUNT_ID,
-      line_id: lineId,
-      created_at: callDate.toISOString(),
-      direction: 'outbound',
-      status: 'completed',
-      started_at: startedAt.toISOString(),
-      connected_at: connectedAt.toISOString(),
-      ended_at: endedAt.toISOString(),
-      seconds_connected: duration,
-      twilio_call_sid: `CA${crypto.randomBytes(16).toString('hex')}`,
-      twilio_from: '+18005551234',
-      twilio_to: '+15551234567',
-      end_reason: 'hangup',
-      answered_by: 'human',
-      tool_invocations: 5 + Math.floor(Math.random() * 15),
-    });
-
-    // Create mood snapshot
-    const moodStart = randomElement(moods);
-    const moodEnd = randomElement(moods);
-    const trajectory = moodStart === moodEnd ? 'stable' : (moods.indexOf(moodEnd as string) < moods.indexOf(moodStart as string) ? 'improved' : 'declined');
-
-    await supabase.from('ultaura_mood_snapshots').insert({
-      call_session_id: callId,
-      line_id: lineId,
-      account_id: ACCOUNT_ID,
-      created_at: callDate.toISOString(),
-      mood_start: moodStart,
-      mood_mid: randomElement(moods),
-      mood_end: moodEnd,
-      mood_start_at: startedAt.toISOString(),
-      mood_mid_at: new Date(startedAt.getTime() + duration * 500).toISOString(),
-      mood_end_at: endedAt.toISOString(),
-      mood_trajectory: trajectory,
-      energy_level: randomElement(energyLevels),
-      techniques_used: ['reminiscing', 'active_listening', 'humor'].slice(0, 1 + Math.floor(Math.random() * 2)),
-      technique_effectiveness: { reminiscing: 'effective', active_listening: 'effective' },
-    });
+    // Call sessions and mood snapshots already exist from seed.sql, only add encrypted insights
 
     // Create call insights (encrypted)
     const callTopics = topics.slice(0, 2 + Math.floor(Math.random() * 4));
     const callConcerns = Math.random() > 0.7 ? concerns.slice(0, 1 + Math.floor(Math.random() * 2)) : [];
 
     const insightsData = {
-      summary: `${lineConfig.displayName.split(' ')[0]} discussed ${callTopics.join(', ')}. She seemed ${moodEnd} overall.`,
-      topics: callTopics.map(t => ({ topic: t, sentiment: randomElement(['positive', 'neutral', 'negative']), mentions: 1 + Math.floor(Math.random() * 5) })),
-      concerns: callConcerns.map(c => ({ code: c, severity: randomElement(['low', 'medium']), context: `Mentioned ${c} briefly` })),
-      highlights: [`Talked about ${randomElement(callTopics)}`, `Mentioned ${randomElement(['grandchildren', 'gardening', 'old movies'])}`],
+      mood_overall: randomElement(moodOveralls),
+      mood_intensity: 1 + Math.floor(Math.random() * 3),
       engagement_score: 5 + Math.floor(Math.random() * 5),
-      memory_keys_created: [`${randomElement(callTopics)}_${Date.now()}`],
+      social_need_level: Math.floor(Math.random() * 4),
+      topics: callTopics.map(t => ({ code: t as string, weight: +(0.2 + Math.random() * 0.8).toFixed(2) })),
+      private_topics: [] as string[],
+      concerns: callConcerns.map(c => ({
+        code: c,
+        severity: 1 + Math.floor(Math.random() * 3),
+        confidence: +(0.5 + Math.random() * 0.5).toFixed(2),
+        is_novel: Math.random() > 0.7,
+      })),
+      needs_follow_up: Math.random() > 0.8,
+      follow_up_reasons: [] as string[],
+      confidence_overall: +(0.6 + Math.random() * 0.4).toFixed(2),
     };
 
-    const aad = Buffer.from(`${ACCOUNT_ID}:${lineId}`);
+    const aad = Buffer.from(
+      JSON.stringify({
+        account_id: ACCOUNT_ID,
+        line_id: lineId,
+        call_session_id: callId,
+        type: 'call_insight',
+      }),
+      'utf8'
+    );
     const encrypted = encrypt(JSON.stringify(insightsData), dek, aad);
 
     await supabase.from('ultaura_call_insights').insert({
@@ -313,11 +286,22 @@ async function seedLineData(
 
   // Create memories (encrypted)
   for (const mem of memoryData) {
-    const aad = Buffer.from(`${ACCOUNT_ID}:${lineId}`);
+    const memId = crypto.randomUUID();
+    const aad = Buffer.from(
+      JSON.stringify({
+        account_id: ACCOUNT_ID,
+        line_id: lineId,
+        memory_id: memId,
+        type: mem.type,
+        key: mem.key,
+      }),
+      'utf8'
+    );
     const encrypted = encrypt(mem.value, dek, aad);
     const randomCall = randomElement(callSessions);
 
     await supabase.from('ultaura_memories').insert({
+      id: memId,
       account_id: ACCOUNT_ID,
       line_id: lineId,
       type: mem.type,
@@ -394,58 +378,33 @@ async function seedLineData(
 }
 
 async function main() {
-  console.log('Starting insights test data seed...');
+  console.log('Starting insights test data seed for Margaret Johnson (marg0001)...');
 
   const dek = await getOrCreateAccountDEK();
   console.log('Got account encryption key');
 
-  // Set account to family_managed mode (applies to all lines)
-  await supabase
-    .from('ultaura_accounts')
-    .update({ user_type: 'family_managed' })
-    .eq('id', ACCOUNT_ID);
-  console.log('Set account user_type to family_managed');
+  // Delete existing fake call_insights for seed.sql call sessions
+  const { error: deleteError } = await supabase
+    .from('ultaura_call_insights')
+    .delete()
+    .eq('line_id', LINE_ID);
 
-  // ============================================
-  // LINE 1: Margaret Johnson (No consent - tier_1 only)
-  // ============================================
-  const line1Id = crypto.randomUUID();
-  const line1ShortId = generateShortId();
-
-  const { error: line1Error } = await supabase.from('ultaura_lines').insert({
-    id: line1Id,
-    account_id: ACCOUNT_ID,
-    short_id: line1ShortId,
-    display_name: 'Margaret Johnson',
-    phone_e164: `+1555${Date.now().toString().slice(-7)}`,
-    phone_verified_at: new Date().toISOString(),
-    status: 'active',
-    timezone: 'America/New_York',
-    birth_year: 1945,
-    hometown: 'Boston, MA',
-    current_location: 'Tampa, FL',
-    preferred_grok_voice: 'Eve',
-  });
-
-  if (line1Error) {
-    console.error('Error creating line 1:', line1Error);
-    return;
+  if (deleteError) {
+    console.error('Error deleting existing insights:', deleteError);
+  } else {
+    console.log('Cleared existing fake call_insights rows');
   }
-  console.log(`Created line 1: ${line1ShortId} (Margaret Johnson - No consent, tier_1 only)`);
 
   // Create insight privacy (enabled)
   await supabase.from('ultaura_insight_privacy').upsert({
-    line_id: line1Id,
+    line_id: LINE_ID,
     insights_enabled: true,
     is_paused: false,
   });
+  console.log('Ensured insight privacy is enabled');
 
-  // Line 1 has NO consent granted - will default to tier_1 (locked gates for tier_2+)
-  // The ultaura_line_voice_consent row is created by RLS trigger with defaults
-  console.log('Created insight privacy for line 1 (no sharing consent)');
-
-  // Seed Line 1 data
-  const line1Relationships = [
+  // Seed relationships, memories, insights, etc. for Margaret
+  const relationships = [
     { name: 'Robert Johnson', nickname: 'Bobby', relation_type: 'family', relation_role: 'son', contact_frequency: 'weekly', sentiment: 'positive', emotional_significance: 'high', location: 'Boston, MA', distance_category: 'distant', shared_activities: ['phone calls', 'holiday visits'], times_mentioned: 15 },
     { name: 'Sarah Mitchell', nickname: 'Sarah', relation_type: 'family', relation_role: 'daughter', contact_frequency: 'daily', sentiment: 'positive', emotional_significance: 'high', location: 'Tampa, FL', distance_category: 'local', shared_activities: ['grocery shopping', 'doctor visits', 'Sunday dinners'], times_mentioned: 28 },
     { name: 'Emily Johnson', nickname: 'Emmy', relation_type: 'family', relation_role: 'granddaughter', contact_frequency: 'weekly', sentiment: 'positive', emotional_significance: 'high', location: 'Boston, MA', distance_category: 'distant', shared_activities: ['video calls', 'birthday cards'], times_mentioned: 12 },
@@ -454,7 +413,7 @@ async function main() {
     { name: 'Dr. Martinez', relation_type: 'professional', relation_role: 'doctor', contact_frequency: 'monthly', sentiment: 'neutral', emotional_significance: 'medium', times_mentioned: 4 },
   ];
 
-  const line1Memories = [
+  const memories = [
     { type: 'fact', key: 'favorite_flower', value: 'Roses, especially red ones from the garden' },
     { type: 'preference', key: 'music_preference', value: 'Big band music from the 1940s, especially Glenn Miller' },
     { type: 'fact', key: 'career_history', value: 'Worked as a nurse at Boston General for 35 years' },
@@ -468,94 +427,16 @@ async function main() {
   ];
 
   await seedLineData(
-    { lineId: line1Id, shortId: line1ShortId, displayName: 'Margaret Johnson', timezone: 'America/New_York', birthYear: 1945, hometown: 'Boston, MA', currentLocation: 'Tampa, FL', voice: 'Eve' },
+    { lineId: LINE_ID, shortId: 'marg0001', displayName: 'Margaret Johnson', timezone: 'America/New_York', birthYear: 1945, hometown: 'Boston, MA', currentLocation: 'Tampa, FL', voice: 'Eve' },
     dek,
-    line1Relationships,
-    line1Memories,
-    22
+    relationships,
+    memories
   );
-  console.log('Seeded data for line 1 (Margaret Johnson - No consent)');
-
-  // ============================================
-  // LINE 2: Eleanor Davis (tier_4 consent)
-  // ============================================
-  const line2Id = crypto.randomUUID();
-  const line2ShortId = generateShortId();
-
-  const { error: line2Error } = await supabase.from('ultaura_lines').insert({
-    id: line2Id,
-    account_id: ACCOUNT_ID,
-    short_id: line2ShortId,
-    display_name: 'Eleanor Davis',
-    phone_e164: `+1555${(Date.now() + 1).toString().slice(-7)}`,
-    phone_verified_at: new Date().toISOString(),
-    status: 'active',
-    timezone: 'America/Chicago',
-    birth_year: 1940,
-    hometown: 'Chicago, IL',
-    current_location: 'Phoenix, AZ',
-    preferred_grok_voice: 'Ara',
-  });
-
-  if (line2Error) {
-    console.error('Error creating line 2:', line2Error);
-    return;
-  }
-  console.log(`Created line 2: ${line2ShortId} (Eleanor Davis - tier_4 consent)`);
-
-  // Create insight privacy (enabled)
-  await supabase.from('ultaura_insight_privacy').upsert({
-    line_id: line2Id,
-    insights_enabled: true,
-    is_paused: false,
-  });
-
-  // Create line voice consent (for family_managed mode - tier 4 full access)
-  // Use update instead of upsert since RLS creates a row with defaults
-  await supabase.from('ultaura_line_voice_consent')
-    .update({
-      sharing_consent: 'granted',
-      sharing_tier: 'tier_4',
-    })
-    .eq('line_id', line2Id);
-  console.log('Created consent data for line 2 (tier_4 access)');
-
-  // Seed Line 2 data
-  const line2Relationships = [
-    { name: 'Michael Davis', nickname: 'Mike', relation_type: 'family', relation_role: 'son', contact_frequency: 'daily', sentiment: 'positive', emotional_significance: 'high', location: 'Phoenix, AZ', distance_category: 'local', shared_activities: ['dinner', 'errands', 'church'], times_mentioned: 32 },
-    { name: 'Jennifer Davis', nickname: 'Jenny', relation_type: 'family', relation_role: 'daughter-in-law', contact_frequency: 'weekly', sentiment: 'positive', emotional_significance: 'high', location: 'Phoenix, AZ', distance_category: 'local', shared_activities: ['shopping', 'cooking together'], times_mentioned: 18 },
-    { name: 'Thomas Davis', nickname: 'Tommy', relation_type: 'family', relation_role: 'grandson', contact_frequency: 'weekly', sentiment: 'positive', emotional_significance: 'high', location: 'Phoenix, AZ', distance_category: 'local', shared_activities: ['board games', 'storytelling'], times_mentioned: 14 },
-    { name: 'William Davis', nickname: 'Bill', relation_type: 'family', relation_role: 'husband', sentiment: 'positive', emotional_significance: 'high', is_deceased: true, passed_at: '2020-11-22', grief_sensitivity: 'high', times_mentioned: 11 },
-    { name: 'Betty Thompson', nickname: 'Betty', relation_type: 'friend', relation_role: 'church friend', contact_frequency: 'weekly', sentiment: 'positive', emotional_significance: 'medium', location: 'Phoenix, AZ', distance_category: 'local', shared_activities: ['church', 'choir practice'], times_mentioned: 9 },
-  ];
-
-  const line2Memories = [
-    { type: 'fact', key: 'favorite_hymn', value: 'Amazing Grace - sings it in the church choir' },
-    { type: 'preference', key: 'music_preference', value: 'Classical music and hymns, especially Beethoven' },
-    { type: 'fact', key: 'career_history', value: 'Was a high school English teacher for 40 years' },
-    { type: 'history', key: 'childhood_memory', value: 'Grew up on a farm in rural Illinois with 5 siblings' },
-    { type: 'preference', key: 'food_preference', value: 'Loves homemade apple pie, makes it for every holiday' },
-    { type: 'fact', key: 'hobby_reading', value: 'Avid reader, especially historical fiction and biographies' },
-    { type: 'preference', key: 'tv_shows', value: 'Watches PBS documentaries and nature shows' },
-    { type: 'follow_up', key: 'choir_practice', value: 'Has choir practice every Thursday at 3pm' },
-  ];
-
-  await seedLineData(
-    { lineId: line2Id, shortId: line2ShortId, displayName: 'Eleanor Davis', timezone: 'America/Chicago', birthYear: 1940, hometown: 'Chicago, IL', currentLocation: 'Phoenix, AZ', voice: 'Ara' },
-    dek,
-    line2Relationships,
-    line2Memories,
-    18
-  );
-  console.log('Seeded data for line 2 (Eleanor Davis - tier_4 consent)');
+  console.log('Seeded properly encrypted data for Margaret Johnson');
 
   console.log('\n✅ Seed complete!');
-  console.log('\n📋 Created Lines (family_managed account):');
-  console.log(`  1. Margaret Johnson (${line1ShortId}) - NO consent (tier_1 only, locked gates)`);
-  console.log(`     View: http://localhost:3000/dashboard/insights/${line1ShortId}`);
-  console.log(`  2. Eleanor Davis (${line2ShortId}) - tier_4 consent (full access)`);
-  console.log(`     View: http://localhost:3000/dashboard/insights/${line2ShortId}`);
-  console.log('\nUse Margaret to test locked tier gates, Eleanor to see all content.');
+  console.log('  Margaret Johnson (marg0001) - properly encrypted insights');
+  console.log('  View: http://localhost:3000/dashboard/insights/marg0001/mood');
 }
 
 main().catch(console.error);

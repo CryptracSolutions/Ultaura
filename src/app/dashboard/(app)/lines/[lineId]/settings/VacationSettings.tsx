@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
+import { toast } from 'sonner';
 import { CheckCircle, Palmtree, Plus, Trash2, X } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import type { VacationRange } from '~/lib/ultaura/vacation-utils';
+import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
 import {
   Dialog,
   DialogContent,
@@ -19,16 +22,18 @@ import { DatePicker } from '~/core/ui/DatePicker';
 export function VacationSettings({
   line,
   ranges,
-  onRangesChange,
+  lineId,
   disabled = false,
   showHeader = true,
 }: {
   line: LineRow;
   ranges: VacationRange[];
-  onRangesChange: (ranges: VacationRange[]) => void;
+  lineId: string;
   disabled?: boolean;
   showHeader?: boolean;
 }) {
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPastVacations, setShowPastVacations] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
@@ -47,7 +52,7 @@ export function VacationSettings({
     [ranges]
   );
 
-  const getStatus = useCallback((range: VacationRange) => {
+  const getStatus = useCallback((range: VacationRange): 'past' | 'active' | 'upcoming' => {
     if (!today) return 'upcoming';
     if (range.end < today) return 'past';
     if (range.start <= today && range.end >= today) return 'active';
@@ -89,9 +94,9 @@ export function VacationSettings({
     }
   }, [closeModal, hasVacationFormChanges]);
 
-  const handleAdd = (event: React.FormEvent) => {
+  const handleAdd = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (disabled) return;
+    if (disabled || isSaving) return;
     setError(null);
 
     if (!startDate || !endDate) {
@@ -120,10 +125,17 @@ export function VacationSettings({
       return;
     }
 
-    const updated = [...ranges, { start: startDate, end: endDate }].sort((a, b) =>
-      a.start.localeCompare(b.start)
-    );
-    onRangesChange(updated);
+    setIsSaving(true);
+    const result = await addVacationRange(lineId, { start: startDate, end: endDate });
+    setIsSaving(false);
+
+    if (!result.success) {
+      toast.error(result.error.message || 'Failed to add vacation range');
+      return;
+    }
+
+    toast.success('Vacation added');
+    router.refresh();
     setAddSuccess(true);
   };
 
@@ -137,9 +149,19 @@ export function VacationSettings({
     });
   };
 
-  const handleRemove = (range: VacationRange) => {
-    if (disabled) return;
-    onRangesChange(ranges.filter((r) => r.start !== range.start));
+  const handleRemove = async (range: VacationRange) => {
+    if (disabled || isSaving) return;
+    setIsSaving(true);
+    const result = await removeVacationRange(lineId, range.start);
+    setIsSaving(false);
+
+    if (!result.success) {
+      toast.error(result.error.message || 'Failed to remove vacation range');
+      return;
+    }
+
+    toast.success('Vacation removed');
+    router.refresh();
   };
 
   return (
@@ -241,14 +263,12 @@ export function VacationSettings({
 
           {displayedRanges.map((range) => {
             const status = getStatus(range);
-            const statusLabel =
-              status === 'active' ? 'Active' : status === 'past' ? 'Past' : 'Upcoming';
-            const statusClass =
-              status === 'active'
-                ? 'bg-amber-100 text-amber-800'
-                : status === 'past'
-                ? 'bg-muted text-muted-foreground'
-                : 'bg-blue-100 text-blue-800';
+            const statusConfig = {
+              active: { label: 'Active', className: 'bg-amber-100 text-amber-800' },
+              past: { label: 'Past', className: 'bg-muted text-muted-foreground' },
+              upcoming: { label: 'Upcoming', className: 'bg-blue-100 text-blue-800' },
+            } as const;
+            const { label: statusLabel, className: statusClass } = statusConfig[status];
 
             return (
               <div
@@ -345,11 +365,8 @@ export function VacationSettings({
               <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900/30 dark:bg-green-900/10 p-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-green-800 dark:text-green-300">
                   <CheckCircle className="w-4 h-4" />
-                  Added to pending changes
+                  Vacation saved
                 </div>
-                <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-                  Remember to click <strong>Save</strong> to apply.
-                </p>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button
@@ -411,7 +428,8 @@ export function VacationSettings({
                 <Button
                   type="submit"
                   variant="default"
-                  disabled={disabled}
+                  disabled={disabled || isSaving}
+                  loading={isSaving}
                 >
                   Add Vacation
                 </Button>

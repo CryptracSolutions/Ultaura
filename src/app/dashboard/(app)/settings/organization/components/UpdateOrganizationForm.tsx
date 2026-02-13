@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useContext, useEffect } from 'react';
+import { useCallback, useContext, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -15,11 +15,9 @@ import ImageUploader from '~/core/ui/ImageUploader';
 
 import useSupabase from '~/core/hooks/use-supabase';
 import type Organization from '~/lib/organizations/types/organization';
-import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
-import Button from '~/core/ui/Button';
+import { useAutoSave } from '~/core/hooks/use-auto-save';
 
-const UpdateOrganizationForm = () => {
+function UpdateOrganizationForm() {
   const { organization, setOrganization } = useContext(OrganizationContext);
   const updateOrganizationMutation = useUpdateOrganizationMutation();
   const { t } = useTranslation('organization');
@@ -27,21 +25,10 @@ const UpdateOrganizationForm = () => {
   const currentOrganizationName = organization?.name ?? '';
   const organizationId = organization?.id as number;
 
-  const { register, handleSubmit, reset, formState } = useForm({
+  const { register, watch, reset } = useForm({
     defaultValues: {
       name: currentOrganizationName,
     },
-  });
-  const hasChanges = formState.isDirty;
-  const shouldWarnOnNavigate = hasChanges && !updateOrganizationMutation.isMutating;
-  const resetForm = useCallback(() => {
-    reset({
-      name: currentOrganizationName,
-    });
-  }, [currentOrganizationName, reset]);
-  const { dialogProps } = useLeavePageGuard({
-    isDirty: shouldWarnOnNavigate,
-    onDiscard: resetForm,
   });
 
   const updateOrganizationData = useCallback(
@@ -62,30 +49,42 @@ const UpdateOrganizationForm = () => {
     [organization, setOrganization, t, updateOrganizationMutation],
   );
 
-  const onSubmit = useCallback(
-    async (organizationName: string) => {
-      const organizationId = organization?.id;
-
-      if (!organizationId) {
-        const errorMessage = t(`updateOrganizationErrorMessage`);
-
-        return toast.error(errorMessage);
+  const autoSave = useAutoSave<string>({
+    saveFn: async (name: string) => {
+      const id = organization?.id;
+      if (!id) {
+        return { success: false, error: t('updateOrganizationErrorMessage') };
       }
 
-      const organizationData: WithId<Partial<Organization>> = {
-        id: organizationId,
-        name: organizationName,
-      };
-
-      return updateOrganizationData(organizationData);
+      try {
+        await updateOrganizationMutation.trigger({ id, name });
+        setOrganization({
+          ...organization,
+          name,
+        } as Organization);
+        return { success: true };
+      } catch {
+        return { success: false, error: t('updateOrganizationErrorMessage') };
+      }
     },
-    [organization?.id, updateOrganizationData, t],
-  );
+    toastSuccess: t('updateOrganizationSuccessMessage'),
+  });
+
+  const watchedName = watch('name');
+  const prevNameRef = useRef(currentOrganizationName);
+
+  useEffect(() => {
+    if (watchedName !== prevNameRef.current && watchedName.length >= 2) {
+      prevNameRef.current = watchedName;
+      autoSave.triggerSave(watchedName);
+    }
+  }, [watchedName, autoSave.triggerSave]);
 
   useEffect(() => {
     reset({
       name: organization?.name,
     });
+    prevNameRef.current = organization?.name ?? '';
   }, [organization, reset]);
 
   const nameControl = register('name', {
@@ -105,10 +104,7 @@ const UpdateOrganizationForm = () => {
         }}
       />
 
-      <form
-        onSubmit={handleSubmit((value) => onSubmit(value.name))}
-        className={'flex flex-col space-y-4'}
-      >
+      <div className={'flex flex-col space-y-4'}>
         <TextField>
           <TextField.Label>
             <Trans i18nKey={'organization:organizationNameInputLabel'} />
@@ -121,39 +117,7 @@ const UpdateOrganizationForm = () => {
             />
           </TextField.Label>
         </TextField>
-
-        <div className={'flex flex-col gap-3 md:flex-row'}>
-          <Button
-            variant="default"
-            size="small"
-            data-cy={'update-organization-submit-button'}
-            disabled={!hasChanges || updateOrganizationMutation.isMutating}
-            loading={updateOrganizationMutation.isMutating}
-          >
-            <Trans i18nKey={'organization:updateOrganizationSubmitLabel'} />
-          </Button>
-          <Button
-            type={'button'}
-            variant="outline"
-            size="small"
-            onClick={resetForm}
-            disabled={!hasChanges || updateOrganizationMutation.isMutating}
-          >
-            Discard
-          </Button>
-        </div>
-      </form>
-
-      <ConfirmationDialog
-        open={dialogProps.open}
-        onOpenChange={dialogProps.onOpenChange}
-        title="Unsaved changes"
-        description="You have unsaved changes. Leave without saving?"
-        confirmLabel="Discard & leave"
-        cancelLabel="Stay here"
-        variant="default"
-        onConfirm={dialogProps.onConfirm}
-      />
+      </div>
     </div>
   );
 };

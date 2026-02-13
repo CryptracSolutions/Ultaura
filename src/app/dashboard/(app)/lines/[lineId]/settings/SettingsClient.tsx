@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { createPortal } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -28,8 +27,8 @@ import { Switch } from '~/core/ui/Switch';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/core/ui/Accordion';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
-import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useTranslation } from 'react-i18next';
+import { useAutoSave } from '~/core/hooks/use-auto-save';
 import type {
   LineRow,
   VoicemailBehavior,
@@ -43,13 +42,11 @@ import { LANGUAGE_OPTIONS, US_TIMEZONES, TIME_OPTIONS, WEEKDAY_OPTIONS } from '~
 import { setPauseMode, updateInsightPrivacy, updateNotificationPreferences } from '~/lib/ultaura/insights';
 import { requestInsightsRePrompt } from '~/lib/ultaura/privacy';
 import { updateAccessibilitySettings } from '~/lib/ultaura/accessibility';
-import { addVacationRange, removeVacationRange } from '~/lib/ultaura/vacation';
-import { parseVacationRanges, type VacationRange } from '~/lib/ultaura/vacation-utils';
+import { parseVacationRanges } from '~/lib/ultaura/vacation-utils';
 import { VacationSettings } from './VacationSettings';
 import { getLanguageDisplayName } from '~/lib/ultaura/language';
 import { DEFAULT_GROK_VOICE, type GrokVoice, isGrokVoice } from '~/lib/ultaura/voices';
 import { VoiceSelector } from './components/VoiceSelector';
-import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
 
 interface SettingsClientProps {
@@ -168,13 +165,6 @@ export function SettingsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [navigationConfirmOpen, setNavigationConfirmOpen] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<{
-    href: string;
-    scroll?: boolean;
-  } | null>(null);
 
   const normalizeTimeValue = (value: string) =>
     value.length > 5 ? value.slice(0, 5) : value;
@@ -194,7 +184,6 @@ export function SettingsClient({
   const canonicalLinePreferredLanguage = normalizeLanguageValue(
     line.preferred_language_iso ?? line.preferred_language_bcp47 ?? null
   );
-  const initialPreferredLanguage = canonicalLinePreferredLanguage;
   const [timezone, setTimezone] = useState(line.timezone);
   const [quietHoursStart, setQuietHoursStart] = useState(
     normalizeTimeValue(line.quiet_hours_start)
@@ -203,7 +192,7 @@ export function SettingsClient({
     normalizeTimeValue(line.quiet_hours_end)
   );
   const [preferredLanguage, setPreferredLanguage] = useState<string | null>(
-    initialPreferredLanguage
+    canonicalLinePreferredLanguage
   );
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
     line.allow_voice_reminder_control ?? true
@@ -219,12 +208,9 @@ export function SettingsClient({
     ? line.preferred_grok_voice
     : DEFAULT_GROK_VOICE;
   const [selectedVoice, setSelectedVoice] = useState<GrokVoice>(initialVoice);
-  const initialVacationRanges = useMemo(
+  const vacationRanges = useMemo(
     () => parseVacationRanges(line.vacation_ranges),
     [line.vacation_ranges]
-  );
-  const [vacationRanges, setVacationRanges] = useState<VacationRange[]>(
-    initialVacationRanges
   );
   const effectiveTimezone = timezone || line.timezone || '';
   const timezoneOptions = useMemo(() => {
@@ -299,14 +285,6 @@ export function SettingsClient({
   const [insightsRepromptRequested, setInsightsRepromptRequested] = useState(
     Boolean(voiceConsent?.insightsRepromptRequestedAt)
   );
-  const [actionsContainer, setActionsContainer] = useState<HTMLElement | null>(null);
-
-  const handlePauseToggle = (checked: boolean) => {
-    setIsPaused(checked);
-    if (!checked) {
-      setPausedReason('');
-    }
-  };
 
   const handleRequestInsightsRePrompt = async () => {
     if (disabled || isRequestingInsightsChange || insightsRepromptRequested) {
@@ -327,202 +305,191 @@ export function SettingsClient({
     setIsRequestingInsightsChange(false);
   };
 
-  const resetFormState = () => {
-    setTimezone(line.timezone);
-    setQuietHoursStart(normalizeTimeValue(line.quiet_hours_start));
-    setQuietHoursEnd(normalizeTimeValue(line.quiet_hours_end));
-    setPreferredLanguage(initialPreferredLanguage);
-    setAllowVoiceReminderControl(line.allow_voice_reminder_control ?? true);
-    setAllowVoiceScheduleControl(line.allow_voice_schedule_control ?? true);
-    setInboundAllowed(line.inbound_allowed ?? true);
-    setVoicemailBehavior((line.voicemail_behavior || 'brief') as VoicemailBehavior);
-    setVacationRanges(initialVacationRanges);
-    setInsightsEnabled(privacyDefaults.insights_enabled);
-    setInsightsRepromptRequested(Boolean(voiceConsent?.insightsRepromptRequestedAt));
-    setIsPaused(privacyDefaults.is_paused);
-    setPausedReason(privacyDefaults.paused_reason || '');
-    setWeeklySummaryEnabled(notificationDefaults.weekly_summary_enabled);
-    setWeeklySummaryDay(notificationDefaults.weekly_summary_day);
-    setWeeklySummaryTime(notificationDefaults.weekly_summary_time);
-    setMissedCallsEnabled(notificationDefaults.alert_missed_calls_enabled);
-    setMissedCallsThreshold(notificationDefaults.alert_missed_calls_threshold);
-    setHearingMode(accessibilityDefaults.hearing_mode);
-    setSpeechRate(accessibilityDefaults.speech_rate);
-    setCognitiveMode(accessibilityDefaults.cognitive_mode);
-    setContextWindowCalls(accessibilityDefaults.context_window_calls);
-    setSelectedVoice(initialVoice);
-    setError(null);
-  };
+  // --- Auto-save hooks ---
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (disabled) return;
+  const lineAutoSave = useAutoSave<{
+    timezone: string;
+    quietHoursStart: string;
+    quietHoursEnd: string;
+    language: string | null;
+    voiceReminderControl: boolean;
+    voiceScheduleControl: boolean;
+    inboundAllowed: boolean;
+    voicemailBehavior: VoicemailBehavior;
+  }>({
+    saveFn: async (value) => {
+      const result = await updateLine(line.id, {
+        timezone: value.timezone,
+        quietHoursStart: normalizeTimeValue(value.quietHoursStart),
+        quietHoursEnd: normalizeTimeValue(value.quietHoursEnd),
+        allowVoiceReminderControl: value.voiceReminderControl,
+        allowVoiceScheduleControl: value.voiceScheduleControl,
+        inboundAllowed: value.inboundAllowed,
+        voicemailBehavior: value.voicemailBehavior,
+        preferredLanguageIso: normalizeLanguageValue(value.language),
+      });
+      if (result.success) return { success: true };
+      return { success: false, error: result.error.message || 'Failed to save' };
+    },
+    toastSuccess: 'Settings saved',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
 
-    setIsLoading(true);
-    setError(null);
+  const voiceAutoSave = useAutoSave<GrokVoice>({
+    saveFn: async (value) => {
+      const result = await updateLine(line.id, { preferredGrokVoice: value });
+      if (result.success) return { success: true };
+      return { success: false, error: result.error.message || 'Failed to save' };
+    },
+    toastSuccess: 'Voice updated',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
 
-    try {
-      const normalizedPreferredLanguage = normalizeLanguageValue(preferredLanguage);
-      if (hasLineChanges) {
-        const result = await updateLine(line.id, {
-          timezone: effectiveTimezone,
-          quietHoursStart: normalizeTimeValue(quietHoursStart),
-          quietHoursEnd: normalizeTimeValue(quietHoursEnd),
-          allowVoiceReminderControl,
-          allowVoiceScheduleControl,
-          inboundAllowed,
-          voicemailBehavior,
-          preferredLanguageIso: normalizedPreferredLanguage,
-        });
-
-        if (!result.success) {
-          setError(result.error.message || 'Failed to update line settings');
-          return;
-        }
+  const insightAutoSave = useAutoSave<boolean>({
+    saveFn: async (value) => {
+      try {
+        await updateInsightPrivacy(line.id, { insights_enabled: value });
+        return { success: true };
+      } catch {
+        return { success: false, error: 'Failed to update insights' };
       }
+    },
+    toastSuccess: 'Insights updated',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
 
-      if (hasVoiceChanges) {
-        const result = await updateLine(line.id, {
-          preferredGrokVoice: selectedVoice,
-        });
-
-        if (!result.success) {
-          setError(result.error.message || 'Failed to update voice preference');
-          return;
-        }
+  const pauseAutoSave = useAutoSave<{ isPaused: boolean; reason: string }>({
+    saveFn: async (value) => {
+      try {
+        await setPauseMode(line.id, value.isPaused, value.reason);
+        return { success: true };
+      } catch {
+        return { success: false, error: 'Failed to update pause mode' };
       }
+    },
+    toastSuccess: 'Pause updated',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
 
-      if (hasVacationChanges) {
-        const rangeKey = (range: VacationRange) => `${range.start}|${range.end}`;
-        const initialKeys = new Set(initialVacationRanges.map(rangeKey));
-        const currentKeys = new Set(vacationRanges.map(rangeKey));
-        const rangesToRemove = initialVacationRanges.filter(
-          (range) => !currentKeys.has(rangeKey(range))
-        );
-        const rangesToAdd = vacationRanges.filter(
-          (range) => !initialKeys.has(rangeKey(range))
-        );
-
-        for (const range of rangesToRemove) {
-          const result = await removeVacationRange(line.id, range.start);
-          if (!result.success) {
-            setError(result.error.message || 'Failed to remove vacation range');
-            return;
-          }
-        }
-
-        for (const range of rangesToAdd) {
-          const result = await addVacationRange(line.id, range);
-          if (!result.success) {
-            setError(result.error.message || 'Failed to add vacation range');
-            return;
-          }
-        }
-      }
-
-      if (hasInsightPrivacyChanges) {
-        await updateInsightPrivacy(line.id, {
-          insights_enabled: insightsEnabled,
-        });
-      }
-
-      if (hasPauseChanges) {
-        await setPauseMode(line.id, isPaused, pausedReason);
-      }
-
-      if (hasNotificationChanges) {
+  const notifAutoSave = useAutoSave<{
+    weeklySummaryEnabled: boolean;
+    weeklySummaryDay: string;
+    weeklySummaryTime: string;
+    missedCallsEnabled: boolean;
+    missedCallsThreshold: number;
+  }>({
+    saveFn: async (value) => {
+      try {
         await updateNotificationPreferences(line.account_id, line.id, {
-          weekly_summary_enabled: weeklySummaryEnabled,
-          weekly_summary_day: weeklySummaryDay,
-          weekly_summary_time: weeklySummaryTime,
-          alert_missed_calls_enabled: missedCallsEnabled,
-          alert_missed_calls_threshold: missedCallsThreshold,
+          weekly_summary_enabled: value.weeklySummaryEnabled,
+          weekly_summary_day: value.weeklySummaryDay,
+          weekly_summary_time: value.weeklySummaryTime,
+          alert_missed_calls_enabled: value.missedCallsEnabled,
+          alert_missed_calls_threshold: value.missedCallsThreshold,
         });
+        return { success: true };
+      } catch {
+        return { success: false, error: 'Failed to update notifications' };
       }
+    },
+    toastSuccess: 'Notifications updated',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
 
-      if (hasAccessibilityChanges) {
-        const result = await updateAccessibilitySettings(line.id, {
-          hearingMode,
-          speechRate,
-          cognitiveMode,
-          contextWindowCalls,
-        });
-        if (!result.success) {
-          setError(result.error.message || 'Failed to update accessibility settings');
-          return;
-        }
-      }
+  const a11yAutoSave = useAutoSave<{
+    hearingMode: string;
+    speechRate: number;
+    cognitiveMode: string;
+    contextWindowCalls: number;
+  }>({
+    saveFn: async (value) => {
+      const result = await updateAccessibilitySettings(line.id, {
+        hearingMode: value.hearingMode,
+        speechRate: value.speechRate,
+        cognitiveMode: value.cognitiveMode,
+        contextWindowCalls: value.contextWindowCalls,
+      });
+      if (result.success) return { success: true };
+      return { success: false, error: result.error.message || 'Failed to save' };
+    },
+    toastSuccess: 'Accessibility updated',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
 
-      toast.success('Settings saved');
-      router.refresh();
-    } catch {
-      setError('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Best-effort flush on beforeunload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      lineAutoSave.flush();
+      voiceAutoSave.flush();
+      insightAutoSave.flush();
+      pauseAutoSave.flush();
+      notifAutoSave.flush();
+      a11yAutoSave.flush();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const normalizeRanges = (ranges: VacationRange[]) =>
-    [...ranges].map((range) => `${range.start}|${range.end}`).sort().join('|');
+  // --- Helper to build current line fields for triggerSave ---
+  const getLineFields = (overrides: Partial<{
+    timezone: string;
+    quietHoursStart: string;
+    quietHoursEnd: string;
+    language: string | null;
+    voiceReminderControl: boolean;
+    voiceScheduleControl: boolean;
+    inboundAllowed: boolean;
+    voicemailBehavior: VoicemailBehavior;
+  }> = {}) => ({
+    timezone: overrides.timezone ?? effectiveTimezone,
+    quietHoursStart: overrides.quietHoursStart ?? quietHoursStart,
+    quietHoursEnd: overrides.quietHoursEnd ?? quietHoursEnd,
+    language: overrides.language !== undefined ? overrides.language : preferredLanguage,
+    voiceReminderControl: overrides.voiceReminderControl ?? allowVoiceReminderControl,
+    voiceScheduleControl: overrides.voiceScheduleControl ?? allowVoiceScheduleControl,
+    inboundAllowed: overrides.inboundAllowed ?? inboundAllowed,
+    voicemailBehavior: overrides.voicemailBehavior ?? voicemailBehavior,
+  });
 
-  const normalizedPreferredLanguage = normalizeLanguageValue(preferredLanguage);
-  const hasLineChanges =
-    effectiveTimezone !== line.timezone ||
-    quietHoursStart !== normalizeTimeValue(line.quiet_hours_start) ||
-    quietHoursEnd !== normalizeTimeValue(line.quiet_hours_end) ||
-    normalizedPreferredLanguage !== canonicalLinePreferredLanguage ||
-    allowVoiceReminderControl !== (line.allow_voice_reminder_control ?? true) ||
-    allowVoiceScheduleControl !== (line.allow_voice_schedule_control ?? true) ||
-    inboundAllowed !== (line.inbound_allowed ?? true) ||
-    voicemailBehavior !== (line.voicemail_behavior || 'brief');
+  const getNotifFields = (overrides: Partial<{
+    weeklySummaryEnabled: boolean;
+    weeklySummaryDay: string;
+    weeklySummaryTime: string;
+    missedCallsEnabled: boolean;
+    missedCallsThreshold: number;
+  }> = {}) => ({
+    weeklySummaryEnabled: overrides.weeklySummaryEnabled ?? weeklySummaryEnabled,
+    weeklySummaryDay: overrides.weeklySummaryDay ?? weeklySummaryDay,
+    weeklySummaryTime: overrides.weeklySummaryTime ?? weeklySummaryTime,
+    missedCallsEnabled: overrides.missedCallsEnabled ?? missedCallsEnabled,
+    missedCallsThreshold: overrides.missedCallsThreshold ?? missedCallsThreshold,
+  });
 
-  const canEditInsightsEnabled = userType === 'self';
-  const hasInsightPrivacyChanges =
-    canEditInsightsEnabled && insightsEnabled !== privacyDefaults.insights_enabled;
+  const getA11yFields = (overrides: Partial<{
+    hearingMode: string;
+    speechRate: number;
+    cognitiveMode: string;
+    contextWindowCalls: number;
+  }> = {}) => ({
+    hearingMode: overrides.hearingMode ?? hearingMode,
+    speechRate: overrides.speechRate ?? speechRate,
+    cognitiveMode: overrides.cognitiveMode ?? cognitiveMode,
+    contextWindowCalls: overrides.contextWindowCalls ?? contextWindowCalls,
+  });
 
-  const hasPauseChanges =
-    isPaused !== privacyDefaults.is_paused ||
-    (isPaused && pausedReason.trim() !== (privacyDefaults.paused_reason || '').trim());
-
-  const hasNotificationChanges =
-    weeklySummaryEnabled !== notificationDefaults.weekly_summary_enabled ||
-    weeklySummaryDay !== notificationDefaults.weekly_summary_day ||
-    weeklySummaryTime !== notificationDefaults.weekly_summary_time ||
-    missedCallsEnabled !== notificationDefaults.alert_missed_calls_enabled ||
-    missedCallsThreshold !== notificationDefaults.alert_missed_calls_threshold;
-
-  const hasVacationChanges =
-    normalizeRanges(vacationRanges) !== normalizeRanges(initialVacationRanges);
-
-  const hasAccessibilityChanges =
-    hearingMode !== accessibilityDefaults.hearing_mode ||
-    speechRate !== accessibilityDefaults.speech_rate ||
-    cognitiveMode !== accessibilityDefaults.cognitive_mode ||
-    contextWindowCalls !== accessibilityDefaults.context_window_calls;
-
-  const hasVoiceChanges = selectedVoice !== initialVoice;
-
-  const hasSaveableChanges =
-    hasLineChanges ||
-    hasVacationChanges ||
-    hasInsightPrivacyChanges ||
-    hasPauseChanges ||
-    hasNotificationChanges ||
-    hasAccessibilityChanges ||
-    hasVoiceChanges;
-
-  const hasChanges = hasSaveableChanges;
-
-  const shouldWarnOnNavigate = hasChanges && !isLoading;
   const tabParam = searchParams.get('tab') as LineSettingsTabValue | null;
-  const activeTab: { value: LineSettingsTabValue } = {
-    value: tabParam ?? 'settings',
-  };
+  const activeTab = tabParam ?? 'settings';
   const lineSettingsSections = useMemo(
     () => buildLineSettingsSections(t('ui.voicePreference.sectionLabel')),
     [t]
   );
-  const groupsForTab = lineSettingsSections[activeTab.value].groups;
+  const groupsForTab = lineSettingsSections[activeTab].groups;
   const sectionsForTab = useMemo(
     () => groupsForTab.flatMap((group) => group.sections),
     [groupsForTab]
@@ -531,7 +498,6 @@ export function SettingsClient({
   const activeSection =
     sectionsForTab.find((section) => section.value === sectionParam) ??
     sectionsForTab[0];
-  const activeTabValue = activeTab.value;
   const currentHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 
   const handleInternalNavigation = (
@@ -548,99 +514,8 @@ export function SettingsClient({
     router.push(href, { scroll: options.scroll ?? false });
   };
 
-  const handleExitNavigation = (
-    event: ReactMouseEvent<HTMLAnchorElement>,
-    href: string,
-    options: { scroll?: boolean } = {}
-  ) => {
-    if (event.defaultPrevented) return;
-    event.preventDefault();
-    if (href === currentHref) {
-      return;
-    }
-
-    if (shouldWarnOnNavigate) {
-      setPendingNavigation({ href, scroll: options.scroll ?? false });
-      setNavigationConfirmOpen(true);
-      return;
-    }
-
-    router.push(href, { scroll: options.scroll ?? false });
-  };
-
-  const handleConfirmNavigation = () => {
-    if (!pendingNavigation) {
-      setNavigationConfirmOpen(false);
-      return;
-    }
-
-    resetFormState();
-    router.push(pendingNavigation.href, {
-      scroll: pendingNavigation.scroll ?? false,
-    });
-    setPendingNavigation(null);
-    setNavigationConfirmOpen(false);
-  };
-
-  const handleNavigationDialogChange = (open: boolean) => {
-    setNavigationConfirmOpen(open);
-    if (!open) {
-      setPendingNavigation(null);
-    }
-  };
-
-  useEffect(() => {
-    if (!shouldWarnOnNavigate) return;
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [shouldWarnOnNavigate]);
-
-  useEffect(() => {
-    setActionsContainer(document.getElementById('line-settings-actions'));
-  }, []);
-
-  useEffect(() => {
-    if (!shouldWarnOnNavigate) return;
-
-    const handleDocumentClick = (event: MouseEvent) => {
-      if (navigationConfirmOpen) return;
-      if (event.defaultPrevented) return;
-      if (event.button !== 0) return;
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-
-      const target = event.target as HTMLElement | null;
-      const anchor = target?.closest('a');
-      if (!anchor) return;
-      const hrefAttr = anchor.getAttribute('href');
-      if (!hrefAttr || hrefAttr.startsWith('#')) return;
-
-      const targetAttr = anchor.getAttribute('target');
-      if (targetAttr && targetAttr !== '_self') return;
-
-      const url = new URL(hrefAttr, window.location.origin);
-      if (url.origin !== window.location.origin) return;
-      if (url.pathname === pathname) return;
-
-      event.preventDefault();
-      setPendingNavigation({
-        href: `${url.pathname}${url.search}${url.hash}`,
-        scroll: false,
-      });
-      setNavigationConfirmOpen(true);
-    };
-
-    document.addEventListener('click', handleDocumentClick, true);
-    return () => document.removeEventListener('click', handleDocumentClick, true);
-  }, [navigationConfirmOpen, pathname, shouldWarnOnNavigate]);
-
   const activeContent = (() => {
-    switch (activeTabValue) {
+    switch (activeTab) {
       case 'call-controls': {
         switch (activeSection.value) {
           case 'voice-preference':
@@ -658,7 +533,10 @@ export function SettingsClient({
                 <SectionBody className="gap-4">
                   <VoiceSelector
                     value={selectedVoice}
-                    onChange={setSelectedVoice}
+                    onChange={(value) => {
+                      setSelectedVoice(value);
+                      voiceAutoSave.triggerSave(value);
+                    }}
                     disabled={disabled}
                   />
                 </SectionBody>
@@ -680,7 +558,10 @@ export function SettingsClient({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Start</label>
-                      <Select value={quietHoursStart} onValueChange={setQuietHoursStart}>
+                      <Select value={quietHoursStart} onValueChange={(value) => {
+                        setQuietHoursStart(value);
+                        lineAutoSave.triggerSave(getLineFields({ quietHoursStart: value }));
+                      }}>
                         <SelectTrigger className="w-full py-3" disabled={disabled}>
                           <SelectValue />
                         </SelectTrigger>
@@ -695,7 +576,10 @@ export function SettingsClient({
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">End</label>
-                      <Select value={quietHoursEnd} onValueChange={setQuietHoursEnd}>
+                      <Select value={quietHoursEnd} onValueChange={(value) => {
+                        setQuietHoursEnd(value);
+                        lineAutoSave.triggerSave(getLineFields({ quietHoursEnd: value }));
+                      }}>
                         <SelectTrigger className="w-full py-3" disabled={disabled}>
                           <SelectValue />
                         </SelectTrigger>
@@ -727,7 +611,11 @@ export function SettingsClient({
                 <SectionBody className="gap-4">
                   <RadioGroup
                     value={voicemailBehavior}
-                    onValueChange={(value) => setVoicemailBehavior(value as VoicemailBehavior)}
+                    onValueChange={(value) => {
+                      const v = value as VoicemailBehavior;
+                      setVoicemailBehavior(v);
+                      lineAutoSave.triggerSave(getLineFields({ voicemailBehavior: v }));
+                    }}
                     className="gap-3"
                     disabled={disabled}
                   >
@@ -789,7 +677,10 @@ export function SettingsClient({
                     </div>
                     <Switch
                       checked={inboundAllowed}
-                      onCheckedChange={setInboundAllowed}
+                      onCheckedChange={(checked) => {
+                        setInboundAllowed(checked);
+                        lineAutoSave.triggerSave(getLineFields({ inboundAllowed: checked }));
+                      }}
                       disabled={disabled}
                     />
                   </div>
@@ -830,7 +721,10 @@ export function SettingsClient({
                           </div>
                           <Switch
                             checked={allowVoiceReminderControl}
-                            onCheckedChange={setAllowVoiceReminderControl}
+                            onCheckedChange={(checked) => {
+                              setAllowVoiceReminderControl(checked);
+                              lineAutoSave.triggerSave(getLineFields({ voiceReminderControl: checked }));
+                            }}
                             disabled={disabled}
                           />
                         </div>
@@ -848,7 +742,10 @@ export function SettingsClient({
                           </div>
                           <Switch
                             checked={allowVoiceScheduleControl}
-                            onCheckedChange={setAllowVoiceScheduleControl}
+                            onCheckedChange={(checked) => {
+                              setAllowVoiceScheduleControl(checked);
+                              lineAutoSave.triggerSave(getLineFields({ voiceScheduleControl: checked }));
+                            }}
                             disabled={disabled}
                           />
                         </div>
@@ -874,7 +771,7 @@ export function SettingsClient({
                   <VacationSettings
                     line={line}
                     ranges={vacationRanges}
-                    onRangesChange={setVacationRanges}
+                    lineId={line.id}
                     disabled={disabled}
                     showHeader={false}
                   />
@@ -900,7 +797,10 @@ export function SettingsClient({
                   description="All call times and quiet hours use this timezone."
                 />
                 <SectionBody className="gap-4">
-                  <Select value={effectiveTimezone} onValueChange={setTimezone}>
+                  <Select value={effectiveTimezone} onValueChange={(value) => {
+                    setTimezone(value);
+                    lineAutoSave.triggerSave(getLineFields({ timezone: value }));
+                  }}>
                     <SelectTrigger className="w-full py-3" disabled={disabled}>
                       <SelectValue placeholder="Select a timezone" />
                     </SelectTrigger>
@@ -937,11 +837,11 @@ export function SettingsClient({
                 <SectionBody className="gap-4">
                   <Select
                     value={preferredLanguage ?? 'auto'}
-                    onValueChange={(value) =>
-                      setPreferredLanguage(
-                        value === 'auto' ? null : normalizeLanguageValue(value)
-                      )
-                    }
+                    onValueChange={(value) => {
+                      const lang = value === 'auto' ? null : normalizeLanguageValue(value);
+                      setPreferredLanguage(lang);
+                      lineAutoSave.triggerSave(getLineFields({ language: lang }));
+                    }}
                     disabled={disabled}
                   >
                     <SelectTrigger className="w-full py-3">
@@ -1021,7 +921,10 @@ export function SettingsClient({
                     {userType === 'self' ? (
                       <Switch
                         checked={insightsEnabled}
-                        onCheckedChange={setInsightsEnabled}
+                        onCheckedChange={(checked) => {
+                          setInsightsEnabled(checked);
+                          insightAutoSave.triggerSave(checked);
+                        }}
                         disabled={disabled}
                       />
                     ) : (
@@ -1070,7 +973,12 @@ export function SettingsClient({
                             </div>
                             <Switch
                               checked={isPaused}
-                              onCheckedChange={handlePauseToggle}
+                              onCheckedChange={(checked) => {
+                                setIsPaused(checked);
+                                const reason = checked ? pausedReason : '';
+                                if (!checked) setPausedReason('');
+                                pauseAutoSave.triggerSave({ isPaused: checked, reason });
+                              }}
                               disabled={disabled}
                             />
                           </div>
@@ -1082,7 +990,10 @@ export function SettingsClient({
                               <TextField.Input
                                 type="text"
                                 value={pausedReason}
-                                onChange={(e) => setPausedReason(e.target.value)}
+                                onChange={(e) => {
+                                  setPausedReason(e.target.value);
+                                  pauseAutoSave.triggerSave({ isPaused, reason: e.target.value });
+                                }}
                                 placeholder="e.g., Traveling this week"
                                 disabled={disabled}
                               />
@@ -1119,7 +1030,10 @@ export function SettingsClient({
                     </div>
                     <Switch
                       checked={weeklySummaryEnabled}
-                      onCheckedChange={setWeeklySummaryEnabled}
+                      onCheckedChange={(checked) => {
+                        setWeeklySummaryEnabled(checked);
+                        notifAutoSave.triggerSave(getNotifFields({ weeklySummaryEnabled: checked }));
+                      }}
                       disabled={disabled}
                     />
                   </div>
@@ -1129,7 +1043,10 @@ export function SettingsClient({
                       <label className="text-xs text-muted-foreground block mb-1">Day</label>
                       <Select
                         value={weeklySummaryDay}
-                        onValueChange={setWeeklySummaryDay}
+                        onValueChange={(value) => {
+                          setWeeklySummaryDay(value);
+                          notifAutoSave.triggerSave(getNotifFields({ weeklySummaryDay: value }));
+                        }}
                         disabled={disabled || !weeklySummaryEnabled}
                       >
                         <SelectTrigger className="w-full py-3">
@@ -1148,7 +1065,10 @@ export function SettingsClient({
                       <label className="text-xs text-muted-foreground block mb-1">Time</label>
                       <Select
                         value={weeklySummaryTime}
-                        onValueChange={setWeeklySummaryTime}
+                        onValueChange={(value) => {
+                          setWeeklySummaryTime(value);
+                          notifAutoSave.triggerSave(getNotifFields({ weeklySummaryTime: value }));
+                        }}
                         disabled={disabled || !weeklySummaryEnabled}
                       >
                         <SelectTrigger className="w-full py-3">
@@ -1195,7 +1115,10 @@ export function SettingsClient({
                     </div>
                     <Switch
                       checked={missedCallsEnabled}
-                      onCheckedChange={setMissedCallsEnabled}
+                      onCheckedChange={(checked) => {
+                        setMissedCallsEnabled(checked);
+                        notifAutoSave.triggerSave(getNotifFields({ missedCallsEnabled: checked }));
+                      }}
                       disabled={disabled}
                     />
                   </div>
@@ -1210,7 +1133,11 @@ export function SettingsClient({
                           </label>
                           <Select
                             value={String(missedCallsThreshold)}
-                            onValueChange={(value) => setMissedCallsThreshold(Number(value))}
+                            onValueChange={(value) => {
+                              const num = Number(value);
+                              setMissedCallsThreshold(num);
+                              notifAutoSave.triggerSave(getNotifFields({ missedCallsThreshold: num }));
+                            }}
                             disabled={disabled || !missedCallsEnabled}
                           >
                             <SelectTrigger className="w-full py-3">
@@ -1250,7 +1177,10 @@ export function SettingsClient({
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Hearing Mode</label>
-                  <Select value={hearingMode} onValueChange={setHearingMode}>
+                  <Select value={hearingMode} onValueChange={(value) => {
+                    setHearingMode(value);
+                    a11yAutoSave.triggerSave(getA11yFields({ hearingMode: value }));
+                  }}>
                     <SelectTrigger className="w-full py-3" disabled={disabled}>
                       <SelectValue />
                     </SelectTrigger>
@@ -1264,7 +1194,10 @@ export function SettingsClient({
 
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Cognitive Mode</label>
-                  <Select value={cognitiveMode} onValueChange={setCognitiveMode}>
+                  <Select value={cognitiveMode} onValueChange={(value) => {
+                    setCognitiveMode(value);
+                    a11yAutoSave.triggerSave(getA11yFields({ cognitiveMode: value }));
+                  }}>
                     <SelectTrigger className="w-full py-3" disabled={disabled}>
                       <SelectValue />
                     </SelectTrigger>
@@ -1295,6 +1228,7 @@ export function SettingsClient({
                           const next = Number.parseFloat(event.target.value);
                           if (Number.isFinite(next)) {
                             setSpeechRate(next);
+                            a11yAutoSave.triggerSave(getA11yFields({ speechRate: next }));
                           }
                         }}
                         disabled={disabled}
@@ -1316,6 +1250,7 @@ export function SettingsClient({
                           const next = Number.parseInt(event.target.value, 10);
                           if (Number.isFinite(next)) {
                             setContextWindowCalls(next);
+                            a11yAutoSave.triggerSave(getA11yFields({ contextWindowCalls: next }));
                           }
                         }}
                         disabled={disabled}
@@ -1341,48 +1276,13 @@ export function SettingsClient({
 
   return (
     <div className="flex flex-col gap-6 pb-24">
-      {actionsContainer
-        ? createPortal(
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button
-                type="submit"
-                variant="default"
-                size="sm"
-                form="line-settings-form"
-                disabled={disabled || isLoading || !hasSaveableChanges}
-                loading={isLoading}
-                className="w-full sm:w-auto"
-              >
-                {isLoading ? 'Saving...' : 'Save'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={resetFormState}
-                disabled={disabled || isLoading || !hasSaveableChanges}
-                className="w-full sm:w-auto"
-              >
-                Discard
-              </Button>
-            </div>,
-            actionsContainer,
-          )
-        : null}
-      {/* Tab description note */}
       <p className="text-sm text-muted-foreground">
-        {activeTabValue === 'call-controls'
+        {activeTab === 'call-controls'
           ? 'Configure how Ultaura places and receives calls, including voice selection, quiet hours, and voicemail behavior.'
           : 'Customize how Ultaura communicates with your loved one, including timezone, language, accessibility options, and notification preferences.'}
       </p>
 
-      {error && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-          {error}
-        </div>
-      )}
-
-      <form id="line-settings-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
           <LineSettingsSidebarNav
             lineShortId={line.short_id}
@@ -1390,24 +1290,13 @@ export function SettingsClient({
             sections={sectionsForTab}
             activeSection={activeSection}
             onNavigate={handleInternalNavigation}
-            tab={activeTab.value}
+            tab={activeTab}
           />
           <div className="flex w-full flex-col gap-6 lg:max-w-4xl">
             {activeContent}
           </div>
         </div>
-      </form>
-
-      <ConfirmationDialog
-        open={navigationConfirmOpen}
-        onOpenChange={handleNavigationDialogChange}
-        title="Unsaved changes"
-        description="You have unsaved changes. Leave without saving?"
-        confirmLabel="Discard & leave"
-        cancelLabel="Stay here"
-        variant="default"
-        onConfirm={handleConfirmNavigation}
-      />
+      </div>
     </div>
   );
 }

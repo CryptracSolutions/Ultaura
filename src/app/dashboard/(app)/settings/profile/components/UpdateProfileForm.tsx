@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
@@ -18,19 +18,16 @@ import configuration from '~/configuration';
 import ImageUploader from '~/core/ui/ImageUploader';
 import Button from '~/core/ui/Button';
 import { USERS_TABLE } from '~/lib/db-tables';
+import { useAutoSave } from '~/core/hooks/use-auto-save';
 
 const AVATARS_BUCKET = 'avatars';
 
 function UpdateProfileForm({
   session,
   onUpdateProfileData,
-  onDirtyChange,
-  onRegisterReset,
 }: {
   session: UserSession;
   onUpdateProfileData: (user: Partial<UserData>) => void;
-  onDirtyChange?: (dirty: boolean) => void;
-  onRegisterReset?: (handler: () => void) => void;
 }) {
   const updateProfileMutation = useUpdateProfileMutation();
   const { t } = useTranslation();
@@ -41,32 +38,25 @@ function UpdateProfileForm({
   const user = session.auth?.user;
   const email = user?.email ?? '';
 
-  const { register, handleSubmit, reset, formState } = useForm({
+  const { register, reset, watch } = useForm({
     defaultValues: {
       displayName: currentDisplayName,
     },
   });
 
-  const onSubmit = async (displayName: string) => {
-    if (!user?.id) {
-      return;
-    }
-
-    const info = {
-      id: user.id,
-      displayName,
-    };
-
-    const promise = updateProfileMutation.trigger(info).then(() => {
-      onUpdateProfileData(info);
-    });
-
-    return toast.promise(promise, {
-      success: t(`profile:updateProfileSuccess`),
-      error: t(`profile:updateProfileError`),
-      loading: t(`profile:updateProfileLoading`),
-    });
-  };
+  const autoSave = useAutoSave<string>({
+    saveFn: async (displayName: string) => {
+      if (!user?.id) return { success: false, error: 'Not authenticated' };
+      try {
+        await updateProfileMutation.trigger({ id: user.id, displayName });
+        onUpdateProfileData({ id: user.id, displayName });
+        return { success: true };
+      } catch {
+        return { success: false, error: t('profile:updateProfileError') };
+      }
+    },
+    toastSuccess: t('profile:updateProfileSuccess'),
+  });
 
   const displayNameControl = register('displayName', {
     value: currentDisplayName,
@@ -74,23 +64,20 @@ function UpdateProfileForm({
     minLength: 2,
   });
 
-  const resetForm = useCallback(() => {
-    reset({
-      displayName: currentDisplayName ?? '',
-    });
-  }, [currentDisplayName, reset]);
+  const watchedDisplayName = watch('displayName');
+  const prevRef = useRef(currentDisplayName);
 
   useEffect(() => {
-    onDirtyChange?.(formState.isDirty);
-  }, [formState.isDirty, onDirtyChange]);
+    if (watchedDisplayName !== prevRef.current && watchedDisplayName.length >= 2) {
+      prevRef.current = watchedDisplayName;
+      autoSave.triggerSave(watchedDisplayName);
+    }
+  }, [watchedDisplayName, autoSave.triggerSave]);
 
   useEffect(() => {
-    onRegisterReset?.(resetForm);
-  }, [onRegisterReset, resetForm]);
-
-  useEffect(() => {
-    resetForm();
-  }, [currentDisplayName, currentPhotoURL, resetForm]);
+    prevRef.current = currentDisplayName;
+    reset({ displayName: currentDisplayName ?? '' });
+  }, [currentDisplayName, currentPhotoURL, reset]);
 
   return (
     <div className={'flex flex-col space-y-8'}>
@@ -100,12 +87,9 @@ function UpdateProfileForm({
         onAvatarUpdated={(photoUrl) => onUpdateProfileData({ photoUrl })}
       />
 
-      <form
+      <div
         data-cy={'update-profile-form'}
         className={'flex flex-col space-y-4'}
-        onSubmit={handleSubmit((value) => {
-          return onSubmit(value.displayName);
-        })}
       >
         <TextField>
           <TextField.Label>
@@ -140,28 +124,7 @@ function UpdateProfileForm({
             </Button>
           </div>
         </TextField>
-
-        <div className={'flex flex-col gap-3 md:flex-row'}>
-          <Button
-            type="submit"
-            variant="default"
-            size="small"
-            disabled={!formState.isDirty}
-            loading={updateProfileMutation.isMutating}
-          >
-            <Trans i18nKey={'profile:updateProfileSubmitLabel'} />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="small"
-            onClick={resetForm}
-            disabled={!formState.isDirty || updateProfileMutation.isMutating}
-          >
-            Discard
-          </Button>
-        </div>
-      </form>
+      </div>
     </div>
   );
 }

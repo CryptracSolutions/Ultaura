@@ -260,27 +260,10 @@ INSERT INTO ultaura_mood_snapshots (
  'improved', ARRAY['humor', 'trivia', 'storytelling'], '{"humor": "effective", "trivia": "effective", "storytelling": "effective"}'::jsonb, 'normal')
 ON CONFLICT (call_session_id) DO NOTHING;
 
--- 5. CALL INSIGHTS (encrypted placeholder per answered call)
-INSERT INTO ultaura_call_insights (
-  id, call_session_id, line_id, account_id,
-  insights_ciphertext, insights_iv, insights_tag, insights_alg, insights_kid,
-  extraction_method, duration_seconds, has_concerns, needs_follow_up, has_baseline
-) VALUES
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555501', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
- '\x00'::bytea, '\x000000000000000000000000'::bytea, '\x00000000000000000000000000000000'::bytea, 'aes-256-gcm', 'kek_v1', 'tool_call', 1080, false, false, true),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555502', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
- '\x00'::bytea, '\x000000000000000000000000'::bytea, '\x00000000000000000000000000000000'::bytea, 'aes-256-gcm', 'kek_v1', 'tool_call', 1320, false, false, true),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555503', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
- '\x00'::bytea, '\x000000000000000000000000'::bytea, '\x00000000000000000000000000000000'::bytea, 'aes-256-gcm', 'kek_v1', 'tool_call', 900, true, true, true),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555504', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
- '\x00'::bytea, '\x000000000000000000000000'::bytea, '\x00000000000000000000000000000000'::bytea, 'aes-256-gcm', 'kek_v1', 'tool_call', 1500, false, false, true),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555506', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
- '\x00'::bytea, '\x000000000000000000000000'::bytea, '\x00000000000000000000000000000000'::bytea, 'aes-256-gcm', 'kek_v1', 'tool_call', 1200, false, false, true),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555507', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
- '\x00'::bytea, '\x000000000000000000000000'::bytea, '\x00000000000000000000000000000000'::bytea, 'aes-256-gcm', 'kek_v1', 'tool_call', 720, true, true, true),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555508', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
- '\x00'::bytea, '\x000000000000000000000000'::bytea, '\x00000000000000000000000000000000'::bytea, 'aes-256-gcm', 'kek_v1', 'tool_call', 1140, false, false, true)
-ON CONFLICT (call_session_id) DO NOTHING;
+-- 5. CALL INSIGHTS
+-- Encrypted insights cannot be seeded in plain SQL (require runtime encryption with ULTAURA_ENCRYPTION_KEY).
+-- Run: npx tsx scripts/seed-insights-test-data.ts
+-- after seed.sql to populate properly encrypted call insights for Margaret.
 
 -- 6. MINUTE LEDGER (billing entries per call)
 INSERT INTO ultaura_minute_ledger (

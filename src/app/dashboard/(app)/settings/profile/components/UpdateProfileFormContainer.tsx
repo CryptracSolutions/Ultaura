@@ -25,8 +25,8 @@ const allowPhoneNumberUpdate = configuration.auth.providers.phoneNumber;
 function UpdateProfileFormContainer() {
   const { userSession, setUserSession } = useContext(UserSessionContext);
   const session = useUserSession();
-  const resetHandlers = useRef<{ profile?: () => void; phone?: () => void }>({});
-  const [dirtyState, setDirtyState] = useState({ profile: false, phone: false });
+  const resetHandlers = useRef<{ phone?: () => void }>({});
+  const [dirtyState, setDirtyState] = useState({ phone: false });
 
   const onUpdateProfileData = useCallback(
     async (data: Partial<UserData>) => {
@@ -52,21 +52,20 @@ function UpdateProfileFormContainer() {
     [dirtyState]
   );
 
-  const registerReset = useCallback((key: 'profile' | 'phone', handler: () => void) => {
+  const registerReset = useCallback((key: 'phone', handler: () => void) => {
     resetHandlers.current[key] = handler;
   }, []);
 
-  const updateDirtyState = useCallback((key: 'profile' | 'phone', dirty: boolean) => {
+  const updateDirtyState = useCallback((key: 'phone', dirty: boolean) => {
     setDirtyState((prev) => (prev[key] === dirty ? prev : { ...prev, [key]: dirty }));
   }, []);
 
   const discardAllChanges = useCallback(() => {
-    Object.values(resetHandlers.current).forEach((handler) => handler?.());
+    resetHandlers.current.phone?.();
   }, []);
 
-  const shouldWarnOnNavigate = hasChanges;
   const { dialogProps } = useLeavePageGuard({
-    isDirty: shouldWarnOnNavigate,
+    isDirty: hasChanges,
     onDiscard: discardAllChanges,
   });
 
@@ -83,8 +82,6 @@ function UpdateProfileFormContainer() {
         <UpdateProfileForm
           session={session}
           onUpdateProfileData={onUpdateProfileData}
-          onDirtyChange={(dirty) => updateDirtyState('profile', dirty)}
-          onRegisterReset={(handler) => registerReset('profile', handler)}
         />
       </SettingsTile>
 

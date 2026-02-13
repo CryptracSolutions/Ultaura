@@ -69,8 +69,8 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
 
           {/* Sharing Level - always shown */}
           <div className="rounded-xl bg-card p-6">
-            <div className="text-sm font-medium text-foreground mb-3">Sharing level</div>
-            <div className="flex flex-wrap gap-2">
+            <h3 className="text-sm font-medium text-foreground">Sharing level</h3>
+            <div className="mt-3 -ml-1 flex flex-wrap gap-2">
               {SHARING_TIER_ORDER.map((tier) => {
                 const isActive = tier === activeTier;
                 return (
@@ -87,13 +87,13 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="mt-2 text-xs text-muted-foreground">
               {isFamilyManaged
                 ? 'Your loved one sets this during their calls with Ultaura—not from this dashboard.'
                 : 'You set this during your calls with Ultaura.'}
             </p>
             {sharingConsentNote ? (
-              <p className="text-xs text-muted-foreground mt-1">{sharingConsentNote}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{sharingConsentNote}</p>
             ) : null}
           </div>
 

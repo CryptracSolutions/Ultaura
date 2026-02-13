@@ -69,7 +69,6 @@ export default async function LineSettingsPage({ params }: PageProps) {
           <LinePageHeader
             lines={lines}
             currentLineShortId={line.short_id}
-            actionsSlotId="line-settings-actions"
           />
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
           <SettingsClient

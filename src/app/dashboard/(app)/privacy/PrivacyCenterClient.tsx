@@ -31,7 +31,7 @@ import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/core/ui/Accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
+import { useAutoSave } from '~/core/hooks/use-auto-save';
 import {
   Dialog,
   DialogContent,
@@ -196,13 +196,6 @@ export function PrivacyCenterClient({
     privacySettings?.retentionPeriod ?? DEFAULT_RETENTION;
   const initialSharingEnabled = account.sharing_enabled ?? true;
 
-  const [initialSettings, setInitialSettings] = useState(() => ({
-    recordingEnabled: initialRecordingEnabled,
-    aiSummarizationEnabled: initialAiSummarizationEnabled,
-    retentionPeriod: initialRetentionPeriod,
-    sharingEnabled: initialSharingEnabled,
-  }));
-
   const [recordingEnabled, setRecordingEnabled] = useState(
     initialRecordingEnabled
   );
@@ -222,8 +215,6 @@ export function PrivacyCenterClient({
     notificationRecipients
   );
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isSharingUpdating, setIsSharingUpdating] = useState(false);
@@ -233,7 +224,7 @@ export function PrivacyCenterClient({
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRelationship, setInviteRelationship] = useState('');
   const [inviteAsTrusted, setInviteAsTrusted] = useState(false);
-  const [invitePhoneError, setInvitePhoneError] = useState<string | undefined>(undefined);
+  const [invitePhoneError, setInvitePhoneError] = useState<string | undefined>();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
@@ -255,17 +246,10 @@ export function PrivacyCenterClient({
   const [auditPage, setAuditPage] = useState(1);
 
   useEffect(() => {
-    const nextSettings = {
-      recordingEnabled: initialRecordingEnabled,
-      aiSummarizationEnabled: initialAiSummarizationEnabled,
-      retentionPeriod: initialRetentionPeriod,
-      sharingEnabled: initialSharingEnabled,
-    };
-    setInitialSettings(nextSettings);
-    setRecordingEnabled(nextSettings.recordingEnabled);
-    setAiSummarizationEnabled(nextSettings.aiSummarizationEnabled);
-    setRetentionPeriod(nextSettings.retentionPeriod);
-    setSharingEnabled(nextSettings.sharingEnabled);
+    setRecordingEnabled(initialRecordingEnabled);
+    setAiSummarizationEnabled(initialAiSummarizationEnabled);
+    setRetentionPeriod(initialRetentionPeriod);
+    setSharingEnabled(initialSharingEnabled);
   }, [
     initialRecordingEnabled,
     initialAiSummarizationEnabled,
@@ -296,28 +280,40 @@ export function PrivacyCenterClient({
   const activeSection =
     sectionsForTab.find((section) => section.value === sectionParam) ??
     sectionsForTab[0];
-  const resetFormState = () => {
-    setRecordingEnabled(initialSettings.recordingEnabled);
-    setAiSummarizationEnabled(initialSettings.aiSummarizationEnabled);
-    setRetentionPeriod(initialSettings.retentionPeriod);
-    setSharingEnabled(initialSettings.sharingEnabled);
-    setError(null);
-    if (!initialSettings.sharingEnabled && activeTab.value === 'family') {
-      router.replace(buildPrivacyUrl('overview'), {
-        scroll: false,
-      });
-    }
-  };
-  const hasChanges =
-    recordingEnabled !== initialSettings.recordingEnabled ||
-    aiSummarizationEnabled !== initialSettings.aiSummarizationEnabled ||
-    retentionPeriod !== initialSettings.retentionPeriod ||
-    sharingEnabled !== initialSettings.sharingEnabled;
-  const shouldWarnOnNavigate = hasChanges && !isSaving;
-  const { dialogProps } = useLeavePageGuard({
-    isDirty: shouldWarnOnNavigate,
-    onDiscard: resetFormState,
+
+  const privacyAutoSave = useAutoSave<{
+    recordingEnabled: boolean;
+    aiSummarizationEnabled: boolean;
+    retentionPeriod: RetentionPeriod;
+  }>({
+    saveFn: async (value) => {
+      const result = await updatePrivacySettings(account.id, value);
+      if (result.success) return { success: true };
+      return { success: false, error: result.error || 'Failed to save' };
+    },
+    toastSuccess: 'Privacy settings saved',
+    onSuccess: () => router.refresh(),
   });
+
+  const sharingAutoSave = useAutoSave<{ sharingEnabled: boolean }>({
+    saveFn: async (value) => {
+      const result = await updateAccountSharing(account.id, value.sharingEnabled);
+      if (result.success) return { success: true };
+      return { success: false, error: result.error?.message || 'Failed to save' };
+    },
+    toastSuccess: 'Sharing updated',
+    onSuccess: () => router.refresh(),
+  });
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      privacyAutoSave.flush();
+      sharingAutoSave.flush();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [privacyAutoSave.flush, sharingAutoSave.flush]);
+
   const retentionOption = useMemo(() => {
     return RETENTION_OPTIONS.find((option) => option.value === retentionPeriod);
   }, [retentionPeriod]);
@@ -411,14 +407,29 @@ export function PrivacyCenterClient({
 
   const handleRecordingToggle = (checked: boolean) => {
     setRecordingEnabled(checked);
+    privacyAutoSave.triggerSave({
+      recordingEnabled: checked,
+      aiSummarizationEnabled,
+      retentionPeriod,
+    });
   };
 
   const handleSummarizationToggle = (checked: boolean) => {
     setAiSummarizationEnabled(checked);
+    privacyAutoSave.triggerSave({
+      recordingEnabled,
+      aiSummarizationEnabled: checked,
+      retentionPeriod,
+    });
   };
 
   const handleRetentionChange = (value: RetentionPeriod) => {
     setRetentionPeriod(value);
+    privacyAutoSave.triggerSave({
+      recordingEnabled,
+      aiSummarizationEnabled,
+      retentionPeriod: value,
+    });
   };
 
   const handleExportRequest = async () => {
@@ -457,6 +468,7 @@ export function PrivacyCenterClient({
 
   const handleSharingToggle = (nextEnabled: boolean) => {
     setSharingEnabled(nextEnabled);
+    sharingAutoSave.triggerSave({ sharingEnabled: nextEnabled });
     if (!nextEnabled && activeTab.value === 'family') {
       router.replace(buildPrivacyUrl('overview'), {
         scroll: false,
@@ -666,76 +678,6 @@ export function PrivacyCenterClient({
     }
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!hasChanges) return;
-
-    setIsSaving(true);
-    setError(null);
-
-    let hasError = false;
-    let savedSomething = false;
-
-    try {
-      const privacyHasChanges =
-        recordingEnabled !== initialSettings.recordingEnabled ||
-        aiSummarizationEnabled !== initialSettings.aiSummarizationEnabled ||
-        retentionPeriod !== initialSettings.retentionPeriod;
-
-      if (privacyHasChanges) {
-        const result = await updatePrivacySettings(account.id, {
-          recordingEnabled,
-          aiSummarizationEnabled,
-          retentionPeriod,
-        });
-
-        if (!result.success) {
-          const message = result.error || 'Failed to update privacy settings';
-          setError(message);
-          toast.error(message);
-          hasError = true;
-        } else {
-          savedSomething = true;
-          setInitialSettings((prev) => ({
-            ...prev,
-            recordingEnabled,
-            aiSummarizationEnabled,
-            retentionPeriod,
-          }));
-        }
-      }
-
-      const sharingHasChanges =
-        sharingEnabled !== initialSettings.sharingEnabled;
-      if (sharingHasChanges) {
-        const result = await updateAccountSharing(account.id, sharingEnabled);
-        if (!result.success) {
-          const message = result.error.message || 'Failed to update sharing';
-          setError(message);
-          toast.error(message);
-          hasError = true;
-        } else {
-          savedSomething = true;
-          setInitialSettings((prev) => ({
-            ...prev,
-            sharingEnabled,
-          }));
-        }
-      }
-
-      if (!hasError && savedSomething) {
-        toast.success('Privacy settings saved');
-        router.refresh();
-      }
-    } catch {
-      const message = 'An unexpected error occurred';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const activeContent = (() => {
     switch (activeTab.value) {
       case 'overview': {
@@ -872,7 +814,7 @@ export function PrivacyCenterClient({
                     type="button"
                     variant="default"
                     onClick={() => handleSharingToggle(true)}
-                    disabled={isSaving || isSharingUpdating}
+                    disabled={sharingAutoSave.isSaving || isSharingUpdating}
                   >
                     Enable family sharing
                   </Button>
@@ -1067,7 +1009,7 @@ export function PrivacyCenterClient({
                 <Switch
                   checked={recordingEnabled}
                   onCheckedChange={handleRecordingToggle}
-                  disabled={isSaving}
+                  disabled={privacyAutoSave.isSaving}
                 />
               </div>
 
@@ -1084,7 +1026,7 @@ export function PrivacyCenterClient({
                 <Switch
                   checked={aiSummarizationEnabled}
                   onCheckedChange={handleSummarizationToggle}
-                  disabled={isSaving}
+                  disabled={privacyAutoSave.isSaving}
                 />
               </div>
             </SectionBody>
@@ -1125,7 +1067,7 @@ export function PrivacyCenterClient({
                         value={retentionPeriod}
                         onValueChange={(value) => handleRetentionChange(value as RetentionPeriod)}
                         className="gap-3"
-                        disabled={isSaving}
+                        disabled={privacyAutoSave.isSaving}
                       >
                         {RETENTION_OPTIONS.map((option) => (
                           <RadioGroupItemLabel key={option.value}>
@@ -1739,7 +1681,7 @@ export function PrivacyCenterClient({
                         <Switch
                           checked={sharingEnabled}
                           onCheckedChange={handleSharingToggle}
-                          disabled={isSaving || isSharingUpdating}
+                          disabled={sharingAutoSave.isSaving || isSharingUpdating}
                         />
                       </div>
                       {sharingEnabled ? (
@@ -1801,30 +1743,7 @@ export function PrivacyCenterClient({
 
   return (
     <div className="flex flex-col gap-6 pb-24">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            type="submit"
-            variant="default"
-            size="sm"
-            disabled={isSaving || !hasChanges}
-            loading={isSaving}
-            className="w-full sm:w-auto"
-          >
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={resetFormState}
-            disabled={isSaving || !hasChanges}
-            className="w-full sm:w-auto"
-          >
-            Discard
-          </Button>
-        </div>
-
+      <div className="flex flex-col gap-6">
         <NavigationMenu bordered scrollable>
           {privacyTabs.map((tab) => (
             <NavigationItem
@@ -1841,12 +1760,6 @@ export function PrivacyCenterClient({
             />
           ))}
         </NavigationMenu>
-
-        {error && (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-            {error}
-          </div>
-        )}
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
           {sectionsForTab.length > 0 && (
@@ -1867,7 +1780,7 @@ export function PrivacyCenterClient({
           </div>
         </div>
 
-      </form>
+      </div>
 
       <ConfirmationDialog
         open={reinviteDialogOpen}
@@ -1888,16 +1801,6 @@ export function PrivacyCenterClient({
         onConfirm={handleDataDeletion}
       />
 
-      <ConfirmationDialog
-        open={dialogProps.open}
-        onOpenChange={dialogProps.onOpenChange}
-        title="Unsaved changes"
-        description="You have unsaved changes. Leave without saving?"
-        confirmLabel="Discard & leave"
-        cancelLabel="Stay here"
-        variant="default"
-        onConfirm={dialogProps.onConfirm}
-      />
     </div>
   );
 }
