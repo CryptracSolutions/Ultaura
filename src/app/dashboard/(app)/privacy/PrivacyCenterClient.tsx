@@ -741,6 +741,22 @@ export function PrivacyCenterClient({
       case 'overview': {
         return (
           <>
+            <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
+              <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-primary leading-snug">
+                All data stays in your control. Ultaura stores call insights and memories
+                securely. Recording and sharing consent is given by your loved one during
+                their calls—not from this dashboard. You can export or delete all data at
+                any time.{' '}
+                <Link
+                  href="/docs/privacy"
+                  className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+                >
+                  Learn more →
+                </Link>
+              </p>
+            </div>
+
             <Section>
               <SectionHeader
                 title={
@@ -1451,13 +1467,13 @@ export function PrivacyCenterClient({
             <p className="text-xs text-primary leading-snug">
               Family sharing lets you invite family members to receive weekly summaries and
               wellness alerts. What is shared follows your loved one&apos;s sharing preferences
-              during calls.
-              <a
+              during calls.{' '}
+              <Link
                 href="/docs/insights-and-reports/sharing-with-family"
-                className="text-xs text-primary leading-snug underline ml-1"
+                className="text-primary font-medium underline underline-offset-2 hover:no-underline"
               >
                 Learn more →
-              </a>
+              </Link>
             </p>
           </div>
         );

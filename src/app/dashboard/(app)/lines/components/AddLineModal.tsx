@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { X, Phone, Clock, Info } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
@@ -432,8 +433,14 @@ export function AddLineModal({
                     <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-primary leading-snug">
                       After each call, Ultaura captures a brief summary of topics discussed
-                      and overall mood -- never transcripts or quotes. You can disable
-                      insights anytime in line settings.
+                      and overall mood—never transcripts or quotes. You can disable
+                      insights anytime in line settings.{' '}
+                      <Link
+                        href="/docs/insights-and-reports"
+                        className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+                      >
+                        Learn more →
+                      </Link>
                     </p>
                   </div>
                 </>

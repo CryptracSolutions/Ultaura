@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { toast } from 'sonner';
@@ -347,7 +348,13 @@ export function NewExceptionModal({
         <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
           <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
           <p className="text-xs text-primary leading-snug">
-            This applies to one occurrence only. Your recurring schedule still runs normally after this.
+            This applies to one occurrence only. Your recurring schedule still runs normally after this.{' '}
+            <Link
+              href="/docs/schedules-and-reminders/skipping-calls"
+              className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+            >
+              Learn more →
+            </Link>
           </p>
         </div>
 

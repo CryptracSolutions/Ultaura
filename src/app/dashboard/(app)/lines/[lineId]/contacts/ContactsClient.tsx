@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import Link from 'next/link';
 import { Input } from '~/components/ui/input';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { Card, CardContent } from '~/components/ui/card';
@@ -139,12 +140,12 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           Trusted contacts receive SMS alerts when Ultaura detects signs of distress during calls.{' '}
-          <a
+          <Link
             href="/docs/safety-and-contacts/trusted-contacts"
-            className="text-primary hover:underline"
+            className="text-primary font-medium underline underline-offset-2 hover:no-underline"
           >
             Learn more →
-          </a>
+          </Link>
         </p>
         <Button
           onClick={() => setIsAdding(true)}

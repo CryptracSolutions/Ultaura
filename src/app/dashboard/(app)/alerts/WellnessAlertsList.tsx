@@ -2,12 +2,11 @@
 
 import type { ElementType } from 'react';
 import { DateTime } from 'luxon';
-import { CheckCircle, AlertTriangle, AlertCircle, BellRing, Info } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info, User } from 'lucide-react';
 import type { WellnessAlert } from '~/lib/ultaura/types';
 
 interface WellnessAlertsListProps {
   alerts: WellnessAlert[];
-  disabled?: boolean;
 }
 
 const SEVERITY_STYLES: Record<WellnessAlert['severity'], string> = {
@@ -28,7 +27,7 @@ function formatAlertDate(value: string): string {
   return date.toLocaleString(DateTime.DATETIME_MED);
 }
 
-export function WellnessAlertsList({ alerts, disabled: _disabled = false }: WellnessAlertsListProps) {
+export function WellnessAlertsList({ alerts }: WellnessAlertsListProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
       <div>
@@ -45,7 +44,6 @@ export function WellnessAlertsList({ alerts, disabled: _disabled = false }: Well
       ) : (
         <div className="space-y-3">
           {alerts.map((alert) => {
-            const acknowledged = Boolean(alert.acknowledgedAt);
             const SeverityIcon = SEVERITY_ICONS[alert.severity];
             return (
               <div
@@ -54,15 +52,15 @@ export function WellnessAlertsList({ alerts, disabled: _disabled = false }: Well
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center justify-between gap-2">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${SEVERITY_STYLES[alert.severity]}`}
                       >
                         <SeverityIcon className="h-3 w-3" aria-hidden="true" />
                         {alert.severity}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <BellRing className="h-3.5 w-3.5" />
+                      <span className="inline-flex items-center gap-1 text-xs text-primary">
+                        <User className="h-3.5 w-3.5" />
                         {alert.lineName}
                       </span>
                     </div>
@@ -75,18 +73,6 @@ export function WellnessAlertsList({ alerts, disabled: _disabled = false }: Well
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {acknowledged ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <CheckCircle className="h-4 w-4 text-success" />
-                        Acknowledged
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Acknowledgement unavailable
-                      </span>
-                    )}
-                  </div>
                 </div>
 
                 {alert.severity === 'urgent' ? (
