@@ -5,7 +5,8 @@ import { Trash2 } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
-import Button from '~/core/ui/Button';
+import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 
 interface InvitedFamilyListProps {
   recipients: NotificationRecipient[];
@@ -39,6 +40,7 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Phone</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -51,18 +53,27 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
                 <TableCell>{recipient.name}</TableCell>
                 <TableCell>{recipient.email}</TableCell>
                 <TableCell>
+                  {recipient.phoneE164 ? (
+                    <span className="text-sm">{formatUsPhoneForDisplay(recipient.phoneE164)}</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell>
                   <span className={`text-xs font-medium ${status.className}`}>{status.label}</span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => onRemove(recipient.id)}
+                  <ResponsiveActionMenu
+                    actions={[
+                      {
+                        label: 'Remove',
+                        icon: <Trash2 className="w-5 h-5" />,
+                        onClick: () => onRemove(recipient.id),
+                        variant: 'destructive',
+                      },
+                    ]}
                     disabled={disabled}
-                    aria-label={`Remove ${recipient.name}`}
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </Button>
+                  />
                 </TableCell>
               </TableRow>
             );

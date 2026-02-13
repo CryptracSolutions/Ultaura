@@ -146,9 +146,7 @@ const PRIVACY_TABS: Array<{ value: PrivacyTabValue; label: string }> = [
 ];
 
 const PRIVACY_SECTIONS: Record<PrivacyTabValue, PrivacySectionConfig[]> = {
-  overview: [
-    { value: 'summary', label: 'Privacy Settings', icon: LayoutDashboard },
-  ],
+  overview: [],
   consent: [
     { value: 'consent-status', label: 'Consent Status', icon: Mic },
     { value: 'privacy-controls', label: 'Privacy Controls', icon: ShieldCheck },
@@ -305,7 +303,7 @@ export function PrivacyCenterClient({
     setSharingEnabled(initialSettings.sharingEnabled);
     setError(null);
     if (!initialSettings.sharingEnabled && activeTab.value === 'family') {
-      router.replace(buildPrivacyUrl('overview', PRIVACY_SECTIONS.overview[0].value), {
+      router.replace(buildPrivacyUrl('overview'), {
         scroll: false,
       });
     }
@@ -460,7 +458,7 @@ export function PrivacyCenterClient({
   const handleSharingToggle = (nextEnabled: boolean) => {
     setSharingEnabled(nextEnabled);
     if (!nextEnabled && activeTab.value === 'family') {
-      router.replace(buildPrivacyUrl('overview', PRIVACY_SECTIONS.overview[0].value), {
+      router.replace(buildPrivacyUrl('overview'), {
         scroll: false,
       });
     }
@@ -748,7 +746,7 @@ export function PrivacyCenterClient({
                 title={
                   <div className="flex items-center gap-2">
                     <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-                    Quick Settings Summary
+                    Summary
                   </div>
                 }
                 description="Snapshot of consent, sharing, and data settings."
@@ -1480,10 +1478,6 @@ export function PrivacyCenterClient({
                 />
                 <SectionBody className="gap-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-muted-foreground">
-                      {recipients.length}/5 recipients
-                    </p>
-
                     {recipients.length >= 5 ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1514,6 +1508,10 @@ export function PrivacyCenterClient({
                         Invite Recipient
                       </Button>
                     )}
+
+                    <p className="text-xs text-muted-foreground">
+                      {recipients.length}/5 recipients
+                    </p>
                   </div>
 
                   <InvitedFamilyList
@@ -1655,10 +1653,11 @@ export function PrivacyCenterClient({
                           Also add as emergency contact (requires phone number)
                         </label>
 
-                        <div className="flex gap-3 pt-2">
+                        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                           <Button
                             type="button"
                             variant="outline"
+                            className="w-full"
                             onClick={attemptCloseInvite}
                             disabled={isInviting}
                           >
@@ -1667,6 +1666,7 @@ export function PrivacyCenterClient({
                           <Button
                             type="submit"
                             variant="default"
+                            className="w-full"
                             disabled={isInviting}
                             loading={isInviting}
                           >
@@ -1816,7 +1816,10 @@ export function PrivacyCenterClient({
               active={tab.value === activeTab.value}
               scroll={false}
               link={{
-                path: buildPrivacyUrl(tab.value, PRIVACY_SECTIONS[tab.value][0].value),
+                path:
+                  PRIVACY_SECTIONS[tab.value].length > 0
+                    ? buildPrivacyUrl(tab.value, PRIVACY_SECTIONS[tab.value][0].value)
+                    : buildPrivacyUrl(tab.value),
                 label: tab.label,
               }}
             />
@@ -1830,12 +1833,20 @@ export function PrivacyCenterClient({
         )}
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-          <PrivacySidebarNav
-            tab={activeTab.value}
-            sections={sectionsForTab}
-            activeSection={activeSection}
-          />
-          <div className="flex w-full flex-col gap-6 lg:max-w-4xl">
+          {sectionsForTab.length > 0 && (
+            <PrivacySidebarNav
+              tab={activeTab.value}
+              sections={sectionsForTab}
+              activeSection={activeSection}
+            />
+          )}
+          <div
+            className={
+              activeTab.value === 'overview'
+                ? 'flex w-full flex-col gap-6'
+                : 'flex w-full flex-col gap-6 lg:max-w-4xl'
+            }
+          >
             {activeContent}
           </div>
         </div>

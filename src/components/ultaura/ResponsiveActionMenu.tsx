@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MoreVertical } from 'lucide-react';
+import { MoreVertical, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import {
   DropdownMenuPortal,
 } from '~/core/ui/Dropdown';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '~/core/ui/Dialog';
+import Button from '~/core/ui/Button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 export interface ActionItem {
@@ -146,23 +147,34 @@ export function ResponsiveActionMenu({
 
       <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <DialogContent
-          className="z-[60] p-0"
-          overlayClassName="z-[60]"
+          className="z-[60] mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+          overlayClassName="z-[60] bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {title && (
-            <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold break-words whitespace-pre-line">
-              {title}
-            </DialogTitle>
-          )}
-          {!title && <DialogTitle className="sr-only">Actions</DialogTitle>}
-          <DialogDescription className="sr-only">Available actions</DialogDescription>
-          <div className="pb-2">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate">{title ?? 'Actions'}</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Select an action below
+              </DialogDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSheetOpen(false)}
+              disabled={isDisabled}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-1 pt-2">
             {actions.map((action, index) => {
               if (action.subItems) {
                 return (
                   <div key={index}>
-                    <div className="px-[14px] py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50 rounded-md">
                       {action.label}
                     </div>
                     {action.subItems.map((subItem, subIndex) => (
@@ -172,9 +184,9 @@ export function ResponsiveActionMenu({
                           setIsSheetOpen(false);
                           subItem.onClick();
                         }}
-                        className="flex w-full items-center h-[44px] pl-[50px] pr-[14px] text-left text-foreground hover:bg-muted transition-colors touch-manipulation"
+                        className="flex w-full items-center h-[44px] pl-10 pr-4 text-left text-sm text-foreground hover:bg-muted transition-colors touch-manipulation rounded-md"
                       >
-                        <span className="text-[14.5px]">{subItem.label}</span>
+                        {subItem.label}
                       </button>
                     ))}
                   </div>
@@ -186,12 +198,14 @@ export function ResponsiveActionMenu({
                   key={index}
                   onClick={() => handleAction(action)}
                   disabled={action.disabled}
-                  className={`flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation disabled:opacity-50 ${
-                    action.variant === 'destructive' ? 'text-destructive' : ''
+                  className={`flex w-full items-center gap-3 h-[50px] px-4 rounded-xl transition-colors touch-manipulation disabled:opacity-50 ${
+                    action.variant === 'destructive'
+                      ? 'text-destructive hover:bg-destructive/10'
+                      : 'text-foreground hover:bg-muted'
                   }`}
                 >
                   <span
-                    className={`h-[22px] w-[22px] flex items-center justify-center ${
+                    className={`h-5 w-5 flex shrink-0 items-center justify-center ${
                       action.variant === 'destructive'
                         ? 'text-destructive'
                         : 'text-primary'
@@ -199,7 +213,7 @@ export function ResponsiveActionMenu({
                   >
                     {action.icon}
                   </span>
-                  <span className="text-[14.5px]">{action.label}</span>
+                  <span className="text-sm font-medium">{action.label}</span>
                 </button>
               );
             })}
