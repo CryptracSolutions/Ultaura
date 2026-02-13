@@ -44,13 +44,9 @@ export function AlertsPageClient({ alerts, lines, settings, deliveryEmail, disab
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <WellnessAlertsList alerts={filteredAlerts} disabled={disabled} />
-        </div>
-        <div className="lg:col-span-1">
-          <AlertSettings settings={filteredSettings} deliveryEmail={deliveryEmail} disabled={disabled} />
-        </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <WellnessAlertsList alerts={filteredAlerts} disabled={disabled} />
+        <AlertSettings settings={filteredSettings} deliveryEmail={deliveryEmail} disabled={disabled} />
       </div>
     </div>
   );

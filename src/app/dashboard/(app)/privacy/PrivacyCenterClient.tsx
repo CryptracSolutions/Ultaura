@@ -937,6 +937,13 @@ export function PrivacyCenterClient({
                         key={line.id}
                         className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3"
                       >
+                        {account.user_type === 'family_managed' ? (
+                          <div className="text-xs text-muted-foreground">
+                            {line.display_name} controls sharing preferences during calls.
+                            Requesting a change will prompt them on the next call.
+                          </div>
+                        ) : null}
+
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <div className="text-sm font-medium text-foreground">
@@ -996,7 +1003,7 @@ export function PrivacyCenterClient({
                           {canRequestSharing ? (
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="default"
                               onClick={() => handleSharingRePrompt(line.id)}
                               disabled={
                                 sharingRePromptRequestedAt !== null ||
@@ -1009,13 +1016,6 @@ export function PrivacyCenterClient({
                             </Button>
                           ) : null}
                         </div>
-
-                        {account.user_type === 'family_managed' ? (
-                          <div className="text-xs text-muted-foreground">
-                            {line.display_name} controls sharing preferences during calls.
-                            Requesting a change will prompt them on the next call.
-                          </div>
-                        ) : null}
                       </div>
                     );
                   })

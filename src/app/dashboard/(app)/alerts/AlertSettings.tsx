@@ -76,7 +76,7 @@ function AlertSettingsCard({
             onClick={() => onEdit(line, preferences)}
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline mr-2"
           >
-            Edit
+            Settings
           </button>
         ) : null}
       </div>
@@ -253,7 +253,7 @@ export function AlertSettings({ settings, deliveryEmail, disabled = false }: Ale
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <DialogTitle className="truncate">
-                Edit alerts for {editingEntry?.line.display_name}
+                Alert settings for {editingEntry?.line.display_name}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
                 Configure which wellness alerts to receive.
