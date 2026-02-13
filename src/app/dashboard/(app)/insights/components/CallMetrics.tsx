@@ -17,7 +17,7 @@ export function CallMetrics({ activity }: CallMetricsProps) {
   }, 0) || 1;
 
   return (
-    <div className="rounded-xl bg-card p-6 card-border-accent">
+    <div className="rounded-xl bg-card p-6">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Call Activity</h3>
         <span className="text-xs text-muted-foreground">Last 30 days</span>

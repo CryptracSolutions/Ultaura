@@ -9,6 +9,8 @@ import { CallActivityList } from '../../../lines/[lineId]/components/CallActivit
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/core/ui/Accordion';
 import { SHARING_TIER_LABELS, type TierAccess } from './shared';
 
+const SHARING_TIER_ORDER = ['tier_1', 'tier_2', 'tier_3', 'tier_4'] as const;
+
 interface OverviewTabContentProps {
   dashboard: InsightsDashboard | null;
   tierAccess: TierAccess;
@@ -17,12 +19,10 @@ interface OverviewTabContentProps {
 export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContentProps) {
   const { isFamilyManaged, effectiveTier, allowMood, lineName } = tierAccess;
 
-  // Compute sharing display label
-  const sharingDisplayLabel = !isFamilyManaged
-    ? 'Full Access (Self-managed)'
-    : effectiveTier
-      ? SHARING_TIER_LABELS[effectiveTier]
-      : SHARING_TIER_LABELS['tier_1'];
+  // Active tier: self-managed = tier_4 (full access), family-managed = effectiveTier or tier_1
+  const activeTier = !isFamilyManaged
+    ? 'tier_4'
+    : effectiveTier ?? 'tier_1';
   const sharingConsentNote =
     isFamilyManaged && dashboard?.sharingConsent !== 'granted'
       ? ` (not enabled by ${lineName})`
@@ -68,11 +68,33 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
           )}
 
           {/* Sharing Level - always shown */}
-          <div className="rounded-lg border border-border bg-muted/40 p-4">
-            <div className="text-sm font-medium text-foreground">Sharing level</div>
-            <p className="text-sm text-muted-foreground mt-1">
-              {sharingDisplayLabel}{sharingConsentNote}
+          <div className="rounded-xl bg-card p-6">
+            <div className="text-sm font-medium text-foreground mb-3">Sharing level</div>
+            <div className="flex flex-wrap gap-2">
+              {SHARING_TIER_ORDER.map((tier) => {
+                const isActive = tier === activeTier;
+                return (
+                  <span
+                    key={tier}
+                    className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                        : 'bg-muted/60 text-muted-foreground'
+                    }`}
+                  >
+                    {SHARING_TIER_LABELS[tier]}
+                  </span>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {isFamilyManaged
+                ? 'Your loved one sets this during their calls with Ultaura—not from this dashboard.'
+                : 'You set this during your calls with Ultaura.'}
             </p>
+            {sharingConsentNote ? (
+              <p className="text-xs text-muted-foreground mt-1">{sharingConsentNote}</p>
+            ) : null}
           </div>
 
           {/* Summary + Call Activity */}

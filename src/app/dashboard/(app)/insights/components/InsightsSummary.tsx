@@ -29,7 +29,7 @@ export function InsightsSummary({ summary, showMood = true }: InsightsSummaryPro
   const notablePatterns = [summary.moodShiftNote, summary.socialNeedNote].filter(Boolean) as string[];
 
   return (
-    <div className="rounded-xl bg-card p-6 card-border-accent">
+    <div className="rounded-xl bg-card p-6">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">This Week Summary</h3>
         <span className="text-xs text-muted-foreground">Past 7 days</span>
