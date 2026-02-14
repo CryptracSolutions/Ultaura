@@ -4,6 +4,7 @@ packages:
   - 'plugins/cookie-banner'
   - 'packages/*'
   - 'telephony'
+  - 'remotion'
 onlyBuiltDependencies:
   - cypress
   - esbuild

@@ -1,0 +1,26 @@
+{
+  "name": "@ultaura/remotion",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts UltauraAd out/ultaura-ad.mp4",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.296",
+    "@remotion/google-fonts": "4.0.296",
+    "@remotion/lottie": "4.0.296",
+    "@remotion/transitions": "4.0.296",
+    "lottie-web": "^5.12.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.296"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.3.3"
+  }
+}

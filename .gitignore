@@ -55,3 +55,6 @@ telephony/dist
 
 # workspace package build output
 packages/*/dist
+
+# remotion render output
+remotion/out
