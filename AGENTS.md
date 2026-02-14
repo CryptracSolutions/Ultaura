@@ -32,7 +32,7 @@ You MUST:
 
 ## For Medium/Large Tasks: Mandatory Delegation via Codex Sub-Agents
 
-You MUST use Codex sub-agents for medium and large tasks. Shared coordination and explicit ownership produce correct implementations over cheap ones.
+You MUST use Codex sub-agents for medium and large tasks and **always use `model: GPT-5.3-Codex**. Shared coordination and explicit ownership produce correct implementations over cheap ones.
 
 You MUST follow these steps IN ORDER:
 
@@ -40,8 +40,8 @@ You MUST follow these steps IN ORDER:
 |------|--------|------|-----------|
 | 1 | Understand current state of codebase | Launch 1-3 `explorer` sub-agents | **ALWAYS** |
 | 2 | Enter plan mode | `update_plan` | **ALWAYS** |
-| 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarification needed |
-| 4 | Create shared task list | `update_plan` with explicit step breakdown | If 3+ steps | **ALWAYS** |
+| 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarifications needed |
+| 4 | Create shared task list | `update_plan` with explicit step breakdown | If 5+ steps | **ALWAYS** |
 | 5 | Spawn implementation sub-agents | Launch 1-3 `implementation` sub-agents in parallel | **ALWAYS** |
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
@@ -58,38 +58,9 @@ You MUST follow these steps IN ORDER:
 - **Use `update_plan`** as the shared coordination board
 - **Shutdown gracefully** after all delegated tasks and verification complete
 
-### Auto-Invoke Skills (Critical & Non-negotiable)
-
-**ALWAYS** Automatically use the Skill tool to invoke these skills when the context matches:
-
-| Skill | Trigger When |
-|-------|--------------|
-| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
-| `remotion-best-practices` | Working with Remotion video code |
-| `copywriting` | Writing or improving marketing copy for pages |
-| `copy-editing` | Editing, reviewing, or proofreading existing copy |
-| `seo-audit` | Auditing SEO, diagnosing ranking issues |
-| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
-| `marketing-psychology` | Applying psychological principles to marketing |
-| `pricing-strategy` | Pricing decisions, packaging, monetization |
-| `page-cro` | Optimizing page conversions, CRO analysis |
-| `skill-creator` | Creating new skills for Codex |
-| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
-| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
-| `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
-
-### Plan Mode Guidance
-
-Use plan mode before delegating (`update_plan`) for:
-- Medium/Large (4+ files or 5+ steps)
-- New features touching multiple services (dashboard + telephony + database)
-- Database schema changes or new migrations
-- Changes to the call flow or Grok tool handlers
-- When user explicitly requests planning first
-
 ### Task Tracking (Shared Task Board)
 
-You MUST create a task list using `update_plan` for **any work with 4+ steps**:
+You MUST create a task list using `update_plan` for **any work with 5+ steps**:
 - Group related tasks together
 - Assign each task to a specific sub-agent in plan text
 - Mark tasks `in_progress` when starting, `completed` when done
@@ -131,8 +102,6 @@ After all implementation is complete, the team is shutdown cleanly, and TypeScri
 | Sequential dependencies across agents | **Sub-agent team** - agents hand off context |
 | 1-3 isolated tasks | Direct implementation is sufficient |
 
----
-
 ## Exceptions (Skip Delegation For)
 
 ONLY these cases may skip the delegation workflow:
@@ -145,6 +114,84 @@ Even for exceptions, STILL:
 - Auto-invoke relevant skills
 - Verify TypeScript compiles
 - Use Playwright MCP if it's a visible UI change
+
+---
+
+### Plan Mode Guidance
+
+**When to enter plan mode** (`update_plan`):
+- Medium/Large tasks (4+ files or 5+ steps)
+- New features touching multiple services (dashboard + telephony + database)
+- Database schema changes or new migrations
+- Changes to the call flow or Grok tool handlers
+- When user explicitly requests planning first
+
+**Plan mode is NOT a formality — it is a deep-work phase.** A plan that just lists file names and vague steps is a BAD plan. Every plan must be detailed enough that a fresh agent with zero prior context can execute it without asking a single clarifying question.
+
+#### Phase 1: Research (Before Writing the Plan)
+
+1. **Explore the codebase** — Launch explorer sub-agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
+2. **Interview the user until ambiguity reaches zero** — Use `request_user_input` aggressively. Do NOT assume intent. Do NOT guess between two valid approaches. Ask. Interview scaling:
+   - Medium tasks: 6-12 clarifying questions minimum
+   - Large tasks: 12+ questions to nail down full scope
+   - Keep asking follow-ups until you have concrete answers for every decision point
+3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
+
+#### Phase 2: Writing the Plan
+
+Write the plan via `update_plan`. The plan MUST include ALL of the following sections. Missing sections = incomplete plan.
+
+| Section | What It Must Contain |
+|---------|---------------------|
+| **Goal** | 1-2 sentence summary of what we're building/changing and WHY |
+| **Current State** | How the system works today in the areas we're touching. Reference specific files, functions, types, and line numbers discovered during research. |
+| **Requirements** | Bullet list of every requirement — functional, non-functional, edge cases, and user-confirmed decisions from the interview. Number them (R1, R2, ...) so tasks can reference them. |
+| **Affected Files** | Every file that will be created, modified, or deleted, with a 1-line description of what changes. Group by area (dashboard, telephony, database, packages). |
+| **Database Changes** | If applicable: exact table/column names, types, defaults, constraints, RLS policies, and migration file name. Include the SQL or describe it precisely enough to write it. |
+| **Implementation Tasks** | Ordered, numbered task list. Each task must specify: (1) what to do, (2) which files to touch, (3) which requirements it satisfies (R1, R2...), (4) dependencies on other tasks, (5) acceptance criteria — how to verify it worked. |
+| **Type & API Contracts** | Any new or modified TypeScript types, Zod schemas, API request/response shapes, or function signatures. Write them out explicitly — don't say "add a type for X", show the type. |
+| **Edge Cases & Error Handling** | How errors, empty states, permission failures, race conditions, and unexpected input are handled. |
+| **Testing & Verification** | How to verify the implementation is correct: TypeScript compilation, specific UI states to check, API calls to test, migration verification steps. |
+| **Out of Scope** | Explicitly list what this plan does NOT cover, to prevent scope creep during implementation. |
+
+#### Phase 3: Plan Review
+
+Before finalizing the plan and proceeding to delegation:
+- Re-read the plan as if you are a fresh agent seeing it for the first time. Would you know exactly what to do? If not, add more detail.
+- Verify every file listed in "Affected Files" actually exists (or is explicitly marked as new).
+- Verify task dependencies form a valid DAG — no circular dependencies, correct ordering.
+- Confirm no requirements from the interview are missing from the tasks.
+
+#### What Makes a BAD Plan (Do Not Do These)
+
+- Vague task descriptions: "Update the dashboard" — update WHAT? HOW?
+- Missing file paths: "Add a new component" — WHERE? What's it called?
+- Assumed decisions: "We'll use a modal" — did the user confirm that?
+- No acceptance criteria: "Implement the feature" — how do we know it's done?
+- Skipping the interview: Jumping straight to writing the plan without asking questions via `request_user_input`
+- Listing files without explaining changes: "Modify `schedule-service.ts`" — to do WHAT?
+
+---
+
+### Auto-Invoke Skills (Critical & Non-negotiable)
+
+**ALWAYS** Automatically use the Skill tool to invoke these skills when the context matches:
+
+| Skill | Trigger When |
+|-------|--------------|
+| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
+| `remotion-best-practices` | Working with Remotion video code |
+| `copywriting` | Writing or improving marketing copy for pages |
+| `copy-editing` | Editing, reviewing, or proofreading existing copy |
+| `seo-audit` | Auditing SEO, diagnosing ranking issues |
+| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
+| `marketing-psychology` | Applying psychological principles to marketing |
+| `pricing-strategy` | Pricing decisions, packaging, monetization |
+| `page-cro` | Optimizing page conversions, CRO analysis |
+| `skill-creator` | Creating new skills for Codex |
+| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
+| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
+| `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
 
 ---
 
