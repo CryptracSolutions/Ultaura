@@ -1,1 +1,0 @@
-{"version":3,"file":"Watermark.d.ts","sourceRoot":"","sources":["../../src/components/Watermark.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAI1B,UAAU,cAAc;IACtB,QAAQ,CAAC,EAAE,UAAU,GAAG,WAAW,GAAG,aAAa,GAAG,cAAc,CAAC;CACtE;AAED,eAAO,MAAM,SAAS,EAAE,KAAK,CAAC,EAAE,CAAC,cAAc,CA6E9C,CAAC"}

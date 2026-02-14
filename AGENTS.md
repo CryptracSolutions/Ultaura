@@ -38,11 +38,11 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Launch 3-5 `explorer` sub-agents | **ALWAYS** |
+| 1 | Understand current state of codebase | Launch 1-3 `explorer` sub-agents | **ALWAYS** |
 | 2 | Enter plan mode | `update_plan` | **ALWAYS** |
 | 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarification needed |
 | 4 | Create shared task list | `update_plan` with explicit step breakdown | If 3+ steps | **ALWAYS** |
-| 5 | Spawn implementation sub-agents | Launch 2-4 `implementation` sub-agents in parallel | **ALWAYS** |
+| 5 | Spawn implementation sub-agents | Launch 1-3 `implementation` sub-agents in parallel | **ALWAYS** |
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
 | 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
@@ -51,8 +51,9 @@ You MUST follow these steps IN ORDER:
 
 ### Sub-Agent Coordination Guidelines
 
-- **Max 4 implementation sub-agents** in parallel (to avoid file conflicts)
-- **Max 5 explorer sub-agents** in parallel
+- **Always use `model: GPT-5.3-Codex** for ALL agent types
+- **Max 3 explorer sub-agents** in parallel
+- **Max 3 implementation sub-agents** in parallel (to avoid file conflicts)
 - **Use explicit coordinator messages** for task handoffs and blockers
 - **Use `update_plan`** as the shared coordination board
 - **Shutdown gracefully** after all delegated tasks and verification complete
@@ -97,7 +98,7 @@ You MUST create a task list using `update_plan` for **any work with 4+ steps**:
 
 ### Code Simplification Pass (Step 9)
 
-After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier sub-agent before shutting down the team.
+After all implementation is complete, the team is shutdown cleanly, and TypeScript/visual verification passes, you MUST run a code-simplifier sub-agent.
 
 **How to deploy:**
 - Launch a one-shot sub-agent scoped to code simplification

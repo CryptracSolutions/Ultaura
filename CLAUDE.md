@@ -38,11 +38,11 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Launch 3-6 `Explore` agents | **ALWAYS** |
+| 1 | Understand current state of codebase | Launch 1-6 `Explore` agents | **ALWAYS** |
 | 2 | Enter plan mode | `EnterPlanMode` | **ALWAYS**
 | 2 | Clarify requirements and interview user | `AskUserQuestion` | **ALWAYS** if **ANY** ambiguity or clarification needed |
 | 3 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
-| 4 | Spawn a team of implementation teammates | Launch 2-4 `Task` teammates using `Teammate` with `spawnTeam` | **ALWAYS** |
+| 4 | Spawn a team of implementation teammates | Launch 1-4 `Task` teammates using `Teammate` with `spawnTeam` | **ALWAYS** |
 | 5 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
 | 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
 | 7 | Verify | TypeScript check, visual check if UI | **ALWAYS** |

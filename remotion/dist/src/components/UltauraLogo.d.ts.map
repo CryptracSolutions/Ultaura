@@ -1,1 +1,0 @@
-{"version":3,"file":"UltauraLogo.d.ts","sourceRoot":"","sources":["../../../src/components/UltauraLogo.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAI1B,UAAU,gBAAgB;IACxB,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,YAAY,CAAC,EAAE,OAAO,CAAC;IACvB,QAAQ,CAAC,EAAE,OAAO,CAAC;CACpB;AAED,eAAO,MAAM,WAAW,EAAE,KAAK,CAAC,EAAE,CAAC,gBAAgB,CA6GlD,CAAC"}
