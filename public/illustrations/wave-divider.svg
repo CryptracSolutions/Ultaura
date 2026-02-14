@@ -1,27 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 50" preserveAspectRatio="none" width="100%" height="50">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 90" preserveAspectRatio="none" width="100%" height="90">
   <defs>
-    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#0ABAB5;stop-opacity:0.08"/>
-      <stop offset="50%" style="stop-color:#0ABAB5;stop-opacity:0.15"/>
-      <stop offset="100%" style="stop-color:#0ABAB5;stop-opacity:0.08"/>
+    <linearGradient id="waveGradientA" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0ABAB5;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#22D3EE;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="waveGradientB" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22D3EE;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#0ABAB5;stop-opacity:1"/>
     </linearGradient>
   </defs>
   <path
-    d="M0,25
-       C120,35 240,40 360,35
-       C480,30 600,15 720,20
-       C840,25 960,40 1080,35
-       C1200,30 1320,20 1440,25
-       L1440,50 L0,50 Z"
-    fill="url(#waveGradient)"
+    d="M0,50 C160,70 320,75 480,65 C640,55 800,35 960,40 C1120,45 1280,60 1440,55 L1440,90 L0,90 Z"
+    fill="url(#waveGradientA)"
+    fill-opacity="0.04"
   />
   <path
-    d="M0,30
-       C180,20 360,45 540,35
-       C720,25 900,40 1080,30
-       C1260,20 1350,35 1440,28
-       L1440,50 L0,50 Z"
-    fill="#0ABAB5"
+    d="M0,55 C200,40 400,70 600,60 C800,50 1000,65 1200,55 C1320,49 1380,52 1440,50 L1440,90 L0,90 Z"
+    fill="url(#waveGradientB)"
     fill-opacity="0.06"
+  />
+  <path
+    d="M0,60 C120,72 280,55 440,62 C600,69 760,50 920,58 C1080,66 1240,52 1440,60 L1440,90 L0,90 Z"
+    fill="url(#waveGradientA)"
+    fill-opacity="0.09"
+  />
+  <path
+    d="M0,65 C180,55 360,72 540,64 C720,56 900,70 1080,62 C1260,54 1380,66 1440,63 L1440,90 L0,90 Z"
+    fill="url(#waveGradientB)"
+    fill-opacity="0.12"
   />
 </svg>
