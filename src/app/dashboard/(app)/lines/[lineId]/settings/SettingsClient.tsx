@@ -48,7 +48,6 @@ import { getLanguageDisplayName } from '~/lib/ultaura/language';
 import { DEFAULT_GROK_VOICE, type GrokVoice, isGrokVoice } from '~/lib/ultaura/voices';
 import { VoiceSelector } from './components/VoiceSelector';
 import TextField from '~/core/ui/TextField';
-import Button from '~/core/ui/Button';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -929,20 +928,23 @@ export function SettingsClient({
                   </div>
 
                   {userType !== 'self' && (
-                    <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+                    <div>
                       <p className="text-sm text-muted-foreground">
-                        {line.display_name} controls this setting. Request a change and we&apos;ll
-                        ask on the next call.
+                        {line.display_name} controls this setting. Request a change and we&apos;ll ask
+                        on the next call.
                       </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRequestInsightsRePrompt}
-                        disabled={disabled || insightsRepromptRequested || isRequestingInsightsChange}
-                      >
-                        {insightsRepromptRequested ? 'Requested' : 'Request Change'}
-                      </Button>
+                      {insightsRepromptRequested ? (
+                        <p className="text-sm text-muted-foreground mt-1">Requested</p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleRequestInsightsRePrompt}
+                          disabled={disabled || isRequestingInsightsChange}
+                          className="text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Request Change
+                        </button>
+                      )}
                     </div>
                   )}
 

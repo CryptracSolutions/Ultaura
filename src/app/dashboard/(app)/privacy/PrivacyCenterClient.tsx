@@ -896,10 +896,10 @@ export function PrivacyCenterClient({
                         className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3"
                       >
                         {account.user_type === 'family_managed' ? (
-                          <div className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {line.display_name} controls sharing preferences during calls.
                             Requesting a change will prompt them on the next call.
-                          </div>
+                          </p>
                         ) : null}
 
                         <div className="flex items-start justify-between gap-4">
@@ -942,38 +942,50 @@ export function PrivacyCenterClient({
                           ) : null}
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          {canRequestRecording ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => handleRecordingReenable(line.id)}
-                              disabled={
-                                recordingReenableRequestedAt !== null ||
-                                recordingRequestLineId === line.id
-                              }
-                            >
-                              {recordingReenableRequestedAt
-                                ? 'Re-enable requested'
-                                : 'Re-enable recording'}
-                            </Button>
-                          ) : null}
-                          {canRequestSharing ? (
-                            <Button
-                              type="button"
-                              variant="default"
-                              onClick={() => handleSharingRePrompt(line.id)}
-                              disabled={
-                                sharingRePromptRequestedAt !== null ||
-                                sharingRequestLineId === line.id
-                              }
-                            >
-                              {sharingRePromptRequestedAt
-                                ? 'Change requested'
-                                : 'Request change'}
-                            </Button>
-                          ) : null}
-                        </div>
+                        {(canRequestRecording || canRequestSharing) ? (
+                          <div className="flex flex-wrap gap-3 pt-3">
+                            {canRequestRecording ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRecordingReenable(line.id)}
+                                disabled={
+                                  recordingReenableRequestedAt !== null ||
+                                  recordingRequestLineId === line.id
+                                }
+                                className={
+                                  recordingReenableRequestedAt !== null ||
+                                  recordingRequestLineId === line.id
+                                    ? 'text-sm text-muted-foreground'
+                                    : 'text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity'
+                                }
+                              >
+                                {recordingReenableRequestedAt
+                                  ? 'Re-enable requested'
+                                  : 'Re-enable recording'}
+                              </button>
+                            ) : null}
+                            {canRequestSharing ? (
+                              <button
+                                type="button"
+                                onClick={() => handleSharingRePrompt(line.id)}
+                                disabled={
+                                  sharingRePromptRequestedAt !== null ||
+                                  sharingRequestLineId === line.id
+                                }
+                                className={
+                                  sharingRePromptRequestedAt !== null ||
+                                  sharingRequestLineId === line.id
+                                    ? 'text-sm text-muted-foreground'
+                                    : 'text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity'
+                                }
+                              >
+                                {sharingRePromptRequestedAt
+                                  ? 'Requested'
+                                  : 'Request Change'}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })
@@ -1769,13 +1781,7 @@ export function PrivacyCenterClient({
               activeSection={activeSection}
             />
           )}
-          <div
-            className={
-              activeTab.value === 'overview'
-                ? 'flex w-full flex-col gap-6'
-                : 'flex w-full flex-col gap-6 lg:max-w-4xl'
-            }
-          >
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
             {activeContent}
           </div>
         </div>

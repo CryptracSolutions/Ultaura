@@ -100,7 +100,9 @@ export function AlertsPageClient({ alerts, lines, settings, deliveryEmail, disab
           </>
         )}
         {activeTab === 'alert-settings' && (
-          <AlertSettings settings={filteredSettings} deliveryEmail={deliveryEmail} disabled={disabled} />
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <AlertSettings settings={filteredSettings} deliveryEmail={deliveryEmail} disabled={disabled} />
+          </div>
         )}
       </div>
     </div>
