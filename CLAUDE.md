@@ -162,7 +162,7 @@ Even for exceptions, STILL:
    - Keep asking follow-ups until you have concrete answers for every decision point
 3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
 
-#### Phase 2: Writing the Plan — **MUST use `model: "opus"`**
+#### Phase 2: Writing the Plan — **MUST use `Plan` agent with `model: "opus"`**
 
 The plan document MUST include ALL of the following sections. Missing sections = incomplete plan.
 
