@@ -48,6 +48,7 @@ import { getLanguageDisplayName } from '~/lib/ultaura/language';
 import { DEFAULT_GROK_VOICE, type GrokVoice, isGrokVoice } from '~/lib/ultaura/voices';
 import { VoiceSelector } from './components/VoiceSelector';
 import TextField from '~/core/ui/TextField';
+import Button from '~/core/ui/Button';
 
 interface SettingsClientProps {
   line: LineRow;
@@ -236,7 +237,6 @@ export function SettingsClient({
   const privacyDefaults = {
     insights_enabled: insightPrivacy?.insights_enabled ?? true,
     is_paused: insightPrivacy?.is_paused ?? false,
-    paused_reason: insightPrivacy?.paused_reason ?? '',
   };
 
   const notificationDefaults = {
@@ -252,7 +252,6 @@ export function SettingsClient({
 
   const [insightsEnabled, setInsightsEnabled] = useState(privacyDefaults.insights_enabled);
   const [isPaused, setIsPaused] = useState(privacyDefaults.is_paused);
-  const [pausedReason, setPausedReason] = useState(privacyDefaults.paused_reason || '');
 
   const [weeklySummaryEnabled, setWeeklySummaryEnabled] = useState(
     notificationDefaults.weekly_summary_enabled
@@ -361,10 +360,10 @@ export function SettingsClient({
     disabled,
   });
 
-  const pauseAutoSave = useAutoSave<{ isPaused: boolean; reason: string }>({
+  const pauseAutoSave = useAutoSave<{ isPaused: boolean }>({
     saveFn: async (value) => {
       try {
-        await setPauseMode(line.id, value.isPaused, value.reason);
+        await setPauseMode(line.id, value.isPaused);
         return { success: true };
       } catch {
         return { success: false, error: 'Failed to update pause mode' };
@@ -699,59 +698,47 @@ export function SettingsClient({
                   }
                   description={`Let ${line.display_name} manage reminders and schedules by voice.`}
                 />
-                <SectionBody className="gap-4">
-                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
-                    Voice reminder control is {allowVoiceReminderControl ? 'enabled' : 'disabled'}
-                    . Voice schedule control is {allowVoiceScheduleControl ? 'enabled' : 'disabled'}.
+                <SectionBody className="gap-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <Bell className="w-4 h-4 text-muted-foreground shrink-0" />
+                        Voice reminder control
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When enabled, {line.display_name} can create, edit, pause, and cancel
+                        reminders during phone calls.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoiceReminderControl}
+                      onCheckedChange={(checked) => {
+                        setAllowVoiceReminderControl(checked);
+                        lineAutoSave.triggerSave(getLineFields({ voiceReminderControl: checked }));
+                      }}
+                      disabled={disabled}
+                    />
                   </div>
-                  <Accordion>
-                    <AccordionItem value="voice-controls-advanced">
-                      <AccordionTrigger>Advanced voice controls</AccordionTrigger>
-                      <AccordionContent className="space-y-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-                              <Bell className="w-4 h-4 text-muted-foreground" />
-                              Voice reminder control
-                            </label>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              When enabled, {line.display_name} can create, edit, pause, and
-                              cancel reminders during phone calls.
-                            </p>
-                          </div>
-                          <Switch
-                            checked={allowVoiceReminderControl}
-                            onCheckedChange={(checked) => {
-                              setAllowVoiceReminderControl(checked);
-                              lineAutoSave.triggerSave(getLineFields({ voiceReminderControl: checked }));
-                            }}
-                            disabled={disabled}
-                          />
-                        </div>
-
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-                              <Clock className="w-4 h-4 text-muted-foreground" />
-                              Voice schedule control
-                            </label>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              When enabled, {line.display_name} can skip, snooze, or reschedule
-                              calls during phone conversations.
-                            </p>
-                          </div>
-                          <Switch
-                            checked={allowVoiceScheduleControl}
-                            onCheckedChange={(checked) => {
-                              setAllowVoiceScheduleControl(checked);
-                              lineAutoSave.triggerSave(getLineFields({ voiceScheduleControl: checked }));
-                            }}
-                            disabled={disabled}
-                          />
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                        Voice schedule control
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When enabled, {line.display_name} can skip, snooze, or reschedule calls
+                        during phone conversations.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowVoiceScheduleControl}
+                      onCheckedChange={(checked) => {
+                        setAllowVoiceScheduleControl(checked);
+                        lineAutoSave.triggerSave(getLineFields({ voiceScheduleControl: checked }));
+                      }}
+                      disabled={disabled}
+                    />
+                  </div>
                 </SectionBody>
               </Section>
             );
@@ -900,13 +887,15 @@ export function SettingsClient({
                   description="Control how insights are generated and manage alert visibility."
                 />
                 <SectionBody className="gap-6">
-                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Manage recording and family sharing consent in the{' '}
-                    <Link href="/dashboard/privacy" className="text-primary hover:underline">
+                    <Link
+                      href="/dashboard/privacy"
+                      className="text-primary hover:underline font-medium"
+                    >
                       Privacy Center
                     </Link>
-                    .
-                  </div>
+                  </p>
 
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -940,69 +929,41 @@ export function SettingsClient({
                   </div>
 
                   {userType !== 'self' && (
-                    <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm text-muted-foreground">
-                          {line.display_name} controls this setting. Request a change and we&apos;ll ask on the next call.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleRequestInsightsRePrompt}
-                          disabled={disabled || insightsRepromptRequested || isRequestingInsightsChange}
-                          className="inline-flex items-center justify-center border border-input bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-xs gap-1 rounded-sm shrink-0"
-                        >
-                          {insightsRepromptRequested ? 'Requested' : 'Request Change'}
-                        </button>
-                      </div>
+                    <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        {line.display_name} controls this setting. Request a change and we&apos;ll
+                        ask on the next call.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRequestInsightsRePrompt}
+                        disabled={disabled || insightsRepromptRequested || isRequestingInsightsChange}
+                      >
+                        {insightsRepromptRequested ? 'Requested' : 'Request Change'}
+                      </Button>
                     </div>
                   )}
 
-                  <Accordion>
-                    <AccordionItem value="insights-advanced">
-                      <AccordionTrigger className="hover:bg-muted/30">Advanced insight controls</AccordionTrigger>
-                      <AccordionContent className="space-y-6">
-                        <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <label className="text-sm font-medium text-foreground">
-                                Pause insights and alerts
-                              </label>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Pause family-facing insights and alerts while still collecting call data.
-                              </p>
-                            </div>
-                            <Switch
-                              checked={isPaused}
-                              onCheckedChange={(checked) => {
-                                setIsPaused(checked);
-                                const reason = checked ? pausedReason : '';
-                                if (!checked) setPausedReason('');
-                                pauseAutoSave.triggerSave({ isPaused: checked, reason });
-                              }}
-                              disabled={disabled}
-                            />
-                          </div>
-                          {isPaused && (
-                            <div>
-                              <label className="text-xs text-muted-foreground block mb-1">
-                                Pause reason (optional)
-                              </label>
-                              <TextField.Input
-                                type="text"
-                                value={pausedReason}
-                                onChange={(e) => {
-                                  setPausedReason(e.target.value);
-                                  pauseAutoSave.triggerSave({ isPaused, reason: e.target.value });
-                                }}
-                                placeholder="e.g., Traveling this week"
-                                disabled={disabled}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-foreground">
+                        Pause insights and alerts
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Pause family-facing insights and alerts while still collecting call data.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={isPaused}
+                      onCheckedChange={(checked) => {
+                        setIsPaused(checked);
+                        pauseAutoSave.triggerSave({ isPaused: checked });
+                      }}
+                      disabled={disabled}
+                    />
+                  </div>
                 </SectionBody>
               </Section>
             );
@@ -1123,41 +1084,36 @@ export function SettingsClient({
                     />
                   </div>
 
-                  <Accordion>
-                    <AccordionItem value="missed-calls-advanced">
-                      <AccordionTrigger>Advanced alert thresholds</AccordionTrigger>
-                      <AccordionContent className="space-y-3">
-                        <div className="max-w-xs">
-                          <label className="text-xs text-muted-foreground block mb-1">
-                            Alert after
-                          </label>
-                          <Select
-                            value={String(missedCallsThreshold)}
-                            onValueChange={(value) => {
-                              const num = Number(value);
-                              setMissedCallsThreshold(num);
-                              notifAutoSave.triggerSave(getNotifFields({ missedCallsThreshold: num }));
-                            }}
-                            disabled={disabled || !missedCallsEnabled}
-                          >
-                            <SelectTrigger className="w-full py-3">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[2, 3, 4, 5].map((threshold) => (
-                                <SelectItem key={threshold} value={String(threshold)}>
-                                  {threshold} missed calls
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Current threshold: {missedCallsThreshold} missed calls.
-                        </p>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-foreground">
+                        Alert after
+                      </label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Current threshold: {missedCallsThreshold} missed calls.
+                      </p>
+                    </div>
+                    <Select
+                      value={String(missedCallsThreshold)}
+                      onValueChange={(value) => {
+                        const num = Number(value);
+                        setMissedCallsThreshold(num);
+                        notifAutoSave.triggerSave(getNotifFields({ missedCallsThreshold: num }));
+                      }}
+                      disabled={disabled || !missedCallsEnabled}
+                    >
+                      <SelectTrigger className="w-[10rem] py-3 shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[2, 3, 4, 5].map((threshold) => (
+                          <SelectItem key={threshold} value={String(threshold)}>
+                            {threshold} missed calls
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </SectionBody>
               </Section>
             );
@@ -1292,7 +1248,7 @@ export function SettingsClient({
             onNavigate={handleInternalNavigation}
             tab={activeTab}
           />
-          <div className="flex w-full flex-col gap-6 lg:max-w-4xl">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
             {activeContent}
           </div>
         </div>

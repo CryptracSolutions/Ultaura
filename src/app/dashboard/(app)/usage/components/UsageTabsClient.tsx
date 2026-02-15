@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, BarChart3, Clock, DollarSign, Hourglass, ShieldAlert, User } from 'lucide-react';
 
@@ -104,12 +105,40 @@ export default function UsageTabsClient(props: UsageTabsProps) {
   );
 }
 
+function PlanStrip({
+  planName,
+  trialPlanName,
+  isOnTrial,
+}: {
+  planName: string;
+  trialPlanName: string;
+  isOnTrial: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/60">
+      <span className="text-sm font-medium text-foreground">
+        {isOnTrial ? `${trialPlanName} trial` : `${planName} plan`}
+      </span>
+      {!isOnTrial && (
+        <Link
+          href="/dashboard/settings/subscription"
+          className="text-sm text-primary hover:underline"
+        >
+          Change plan
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function CycleTab(props: UsageTabsProps) {
   const {
+    planName,
     isOnTrial,
     isTrialActive,
     isTrialExpired,
     isPayg,
+    trialPlanName,
     minutesUsed,
     minutesIncluded,
     minutesRemaining,
@@ -129,11 +158,19 @@ function CycleTab(props: UsageTabsProps) {
   } = props;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
+      {/* Plan strip — trial and PAYG (no progress bar card) */}
+      {(isOnTrial || isPayg) && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <PlanStrip planName={planName} trialPlanName={trialPlanName} isOnTrial={isOnTrial} />
+        </div>
+      )}
+
       {/* Progress bar — standard plans only */}
       {!isOnTrial && !isPayg && (
         <div className="rounded-xl border border-border bg-card p-4">
-          <div className="space-y-2">
+          <PlanStrip planName={planName} trialPlanName={trialPlanName} isOnTrial={isOnTrial} />
+          <div className="space-y-2 pt-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium text-foreground">
                 {minutesUsed} of {minutesIncluded} min
@@ -233,7 +270,7 @@ function CycleTab(props: UsageTabsProps) {
 
       {/* Spending Cap — not shown during trial */}
       {!isOnTrial && (
-        <div className="mt-6 relative overflow-hidden rounded-xl border border-border bg-card p-5">
+        <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5">
           <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
           <div className="relative flex flex-col space-y-3">
             <div className="flex items-center gap-2 mb-3">
@@ -244,11 +281,6 @@ function CycleTab(props: UsageTabsProps) {
                 Spending cap
               </span>
             </div>
-            <UsageCapControl
-              accountId={accountId}
-              capCents={capCents}
-              disabled={isTrialExpired}
-            />
             {capCents > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
@@ -276,10 +308,24 @@ function CycleTab(props: UsageTabsProps) {
                     />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Stops all calls when overage charges reach your cap
-                </p>
+                <div className="flex items-center justify-between gap-4 pt-1">
+                  <p className="text-xs text-muted-foreground">
+                    Stops all calls when overage charges reach your cap
+                  </p>
+                  <UsageCapControl
+                    accountId={accountId}
+                    capCents={capCents}
+                    disabled={isTrialExpired}
+                  />
+                </div>
               </div>
+            )}
+            {capCents === 0 && (
+              <UsageCapControl
+                accountId={accountId}
+                capCents={capCents}
+                disabled={isTrialExpired}
+              />
             )}
             {capReached && capCents > 0 && (
               <div className="flex items-center gap-2 text-xs text-warning">

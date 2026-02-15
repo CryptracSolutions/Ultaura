@@ -219,7 +219,7 @@ export function VacationSettings({
       ) : null}
 
       {activeAndUpcoming.length === 0 && !showPastVacations ? (
-        <div className="text-center py-8 rounded-lg border border-dashed border-border">
+        <div className="text-center py-8 rounded-lg border border-dashed border-border bg-muted/20">
           <Palmtree className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
           {pastVacations.length === 0 ? (
             <p className="text-sm text-muted-foreground mb-4">No vacation ranges yet.</p>

@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
@@ -120,21 +118,7 @@ export default async function UsagePage() {
         <div className="flex flex-col gap-6 pb-24">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
 
-          {/* Plan info strip + tabs */}
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="ml-1 font-medium text-foreground">
-                {isOnTrial ? `${trialPlanName} trial` : `${planName} plan`}
-              </span>
-              {!isOnTrial && (
-                <Link
-                  href="/dashboard/settings/subscription"
-                  className="text-primary hover:underline"
-                >
-                  Change plan
-                </Link>
-              )}
-            </div>
             {usage ? (
             <UsageTabsClient
               planName={planName}

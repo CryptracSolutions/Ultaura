@@ -54,7 +54,7 @@ export default function UsageCapControl({ accountId, capCents, disabled = false 
   return (
     <div className="space-y-2">
       <Select value={value} onValueChange={handleChange} disabled={disabled || isPending}>
-        <SelectTrigger>
+        <SelectTrigger className="w-[8rem]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

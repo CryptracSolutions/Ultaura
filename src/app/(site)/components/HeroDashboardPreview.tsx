@@ -324,7 +324,7 @@ export function HeroDashboardPreview() {
           >
             {/* Stat cards */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02] lg:order-1">
+              <div className="rounded-2xl border border-border/60 bg-background p-3 lg:order-1">
                 <div className="text-xs text-muted-foreground">
                   Next call
                 </div>
@@ -342,7 +342,7 @@ export function HeroDashboardPreview() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background p-3 transition-transform duration-200 hover:scale-[1.02] lg:order-3">
+              <div className="rounded-2xl border border-border/60 bg-background p-3 lg:order-3">
                 <div className="text-xs text-muted-foreground">Mood</div>
                 <div className="mt-1 flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-primary" />
