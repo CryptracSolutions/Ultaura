@@ -21,6 +21,10 @@ import {
 
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import configuration from '~/configuration';
+import {
+  writeAdminAuditLog,
+  getCurrentAdminContext,
+} from '~/lib/ultaura/admin/audit-log';
 
 interface Params {
   params: {
@@ -52,6 +56,15 @@ async function AdminLineDetailPage({ params }: Params) {
       .eq('line_id', lineId)
       .order('created_at', { ascending: false })
       .limit(10),
+    getCurrentAdminContext().then((admin) =>
+      admin
+        ? writeAdminAuditLog(admin, {
+            action: 'admin.view.line',
+            targetType: 'line',
+            targetId: lineId,
+          })
+        : undefined,
+    ).catch(() => {}),
   ]);
 
   const line = lineResult.data;

@@ -16,3 +16,17 @@ export async function logTimelineRawView(entryId: string, source: string) {
     });
   }
 }
+
+export async function logTimelineRedactionModeChanged(
+  mode: string,
+  previousMode: string,
+) {
+  const admin = await getCurrentAdminContext();
+
+  if (admin) {
+    await writeAdminAuditLog(admin, {
+      action: 'timeline.redaction_mode_changed',
+      metadata: { mode, previousMode },
+    });
+  }
+}

@@ -17,6 +17,10 @@ import MembershipRole from '~/lib/organizations/types/membership-role';
 import configuration from '~/configuration';
 
 import OrgMembersSection from './components/OrgMembersSection';
+import {
+  writeAdminAuditLog,
+  getCurrentAdminContext,
+} from '~/lib/ultaura/admin/audit-log';
 
 interface Params {
   params: {
@@ -39,6 +43,15 @@ async function AdminOrganizationDetailPage({ params }: Params) {
       .eq('uuid', uid)
       .single(),
     getMembershipsByOrganizationUid(client, { uid, page: 1, perPage: 100 }),
+    getCurrentAdminContext().then((admin) =>
+      admin
+        ? writeAdminAuditLog(admin, {
+            action: 'admin.view.org',
+            targetType: 'organization',
+            targetId: uid,
+          })
+        : undefined,
+    ).catch(() => {}),
   ]);
 
   const org = orgResult.data;

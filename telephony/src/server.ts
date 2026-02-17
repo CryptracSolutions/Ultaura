@@ -24,6 +24,7 @@ import {
 } from './scheduler/onboarding-maintenance-scheduler.js';
 import { startEmbeddingJob, stopEmbeddingJob } from './jobs/embedding-job.js';
 import { startMemoryDecayJob, stopMemoryDecayJob } from './jobs/decay-job.js';
+import { startPayloadRetentionJob, stopPayloadRetentionJob } from './scheduler/payload-retention.js';
 import { verifyRouter } from './routes/verify.js';
 import { internalSmsRouter } from './routes/internal/sms.js';
 import { internalRecordingsRouter } from './routes/internal/recordings.js';
@@ -303,6 +304,7 @@ server.listen(PORT, () => {
   startOnboardingMaintenanceScheduler();
   startEmbeddingJob();
   startMemoryDecayJob();
+  startPayloadRetentionJob();
 });
 
 async function gracefulShutdown(signal: string): Promise<void> {
@@ -319,6 +321,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   stopOnboardingMaintenanceScheduler();
   stopEmbeddingJob();
   stopMemoryDecayJob();
+  stopPayloadRetentionJob();
 
   const startTime = Date.now();
   let waited = false;

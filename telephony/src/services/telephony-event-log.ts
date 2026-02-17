@@ -1,7 +1,13 @@
+import crypto from 'crypto';
 import { getSupabaseClient } from '../utils/supabase';
 import { logger } from '../utils/logger';
 
-// Fields safe to keep in the redacted payload
+// --- Redaction policy for Twilio webhook payloads ---
+// strip: transcription, caller name, recordings, speech-to-text, digits
+// mask:  phone numbers (show last 4 digits)
+// allow: SIDs, timestamps, status, event types, durations, error codes, geographic
+
+// Fields safe to keep unredacted in the sanitized payload
 const REDACTED_ALLOWLIST = new Set([
   // Identifiers (not PII, needed for debugging)
   'CallSid',
@@ -27,13 +33,17 @@ const REDACTED_ALLOWLIST = new Set([
   'StatusCallbackEvent',
   'ErrorCode',
   'ErrorUrl',
-  // Event-specific
-  'Digits',
   'FinishedOnKey',
-  'SpeechResult',
+  // Geographic (useful for carrier routing diagnostics, not strongly identifying)
+  'FromCity',
+  'FromState',
+  'FromCountry',
+  'ToCity',
+  'ToState',
+  'ToCountry',
 ]);
 
-// Fields to mask (show last 4 chars only)
+// Fields to mask (show last 4 chars only) — phone numbers
 const PHONE_FIELDS = new Set([
   'From',
   'To',
@@ -41,17 +51,9 @@ const PHONE_FIELDS = new Set([
   'Called',
   'ForwardedFrom',
   'CalledVia',
-  'FromCity',
-  'FromState',
-  'FromZip',
-  'FromCountry',
-  'ToCity',
-  'ToState',
-  'ToZip',
-  'ToCountry',
 ]);
 
-// Fields to always strip
+// Fields to always strip — sensitive content, PII, recordings
 const STRIP_FIELDS = new Set([
   'CallerName',
   'RecordingUrl',
@@ -61,6 +63,9 @@ const STRIP_FIELDS = new Set([
   'TranscriptionSid',
   'TranscriptionStatus',
   'SpeechResult',
+  'Digits',
+  'FromZip',
+  'ToZip',
 ]);
 
 function maskPhone(value: string): string {
@@ -95,6 +100,39 @@ function redactPayload(
   return redacted;
 }
 
+// --- Payload encryption (AES-256-GCM) ---
+// Uses ULTAURA_ENCRYPTION_KEY (same KEK used for memory encryption).
+// If the key is unavailable, encryption is skipped and payload_ciphertext is null.
+const ENC_ALGORITHM = 'aes-256-gcm';
+const ENC_IV_LENGTH = 12;
+const ENC_TAG_LENGTH = 16;
+
+function getPayloadKey(): Buffer | null {
+  const hex = process.env.ULTAURA_ENCRYPTION_KEY;
+  if (!hex || hex.length !== 64) return null;
+  return Buffer.from(hex, 'hex');
+}
+
+function encryptPayload(raw: Record<string, unknown>): Buffer | null {
+  const key = getPayloadKey();
+  if (!key) return null;
+
+  try {
+    const plaintext = Buffer.from(JSON.stringify(raw), 'utf8');
+    const iv = crypto.randomBytes(ENC_IV_LENGTH);
+    const cipher = crypto.createCipheriv(ENC_ALGORITHM, key, iv, {
+      authTagLength: ENC_TAG_LENGTH,
+    });
+    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    // Pack as iv || ciphertext || tag for single-column storage
+    return Buffer.concat([iv, ciphertext, tag]);
+  } catch (err) {
+    logger.error({ err }, 'Failed to encrypt telephony payload');
+    return null;
+  }
+}
+
 type Severity = 'info' | 'warn' | 'error';
 
 interface LogTelephonyEventOptions {
@@ -113,9 +151,10 @@ export async function logTelephonyEvent(
   try {
     const client = getSupabaseClient();
     const payloadRedacted = redactPayload(opts.payload);
+    const payloadCiphertext = encryptPayload(opts.payload);
 
     const { error } = await client
-      .from('ultaura_telephony_event_log')
+      .from('ultaura_telephony_event_log' as any)
       .insert({
         account_id: opts.accountId ?? null,
         line_id: opts.lineId ?? null,
@@ -123,7 +162,7 @@ export async function logTelephonyEvent(
         provider: 'twilio',
         event_type: opts.eventType,
         provider_id: opts.providerId ?? null,
-        payload: opts.payload,
+        payload_ciphertext: payloadCiphertext,
         payload_redacted: payloadRedacted,
         severity: opts.severity ?? 'info',
       });

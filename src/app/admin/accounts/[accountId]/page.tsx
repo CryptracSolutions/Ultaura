@@ -21,6 +21,10 @@ import {
 
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import configuration from '~/configuration';
+import {
+  writeAdminAuditLog,
+  getCurrentAdminContext,
+} from '~/lib/ultaura/admin/audit-log';
 
 interface Params {
   params: {
@@ -63,6 +67,15 @@ async function AdminAccountDetailPage({ params }: Params) {
         .from('ultaura_minute_ledger')
         .select('billable_minutes, billable_type, seconds_connected')
         .eq('account_id', accountId),
+      getCurrentAdminContext().then((admin) =>
+        admin
+          ? writeAdminAuditLog(admin, {
+              action: 'admin.view.account',
+              targetType: 'account',
+              targetId: accountId,
+            })
+          : undefined,
+      ).catch(() => {}),
     ]);
 
   const account = accountResult.data;

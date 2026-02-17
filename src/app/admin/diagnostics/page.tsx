@@ -10,6 +10,10 @@ import getLogger from '~/core/logger';
 import DiagnosticCard from './components/DiagnosticCard';
 import type { DiagnosticStatus } from './components/DiagnosticCard';
 import AuditLogTable from './components/AuditLogTable';
+import {
+  writeAdminAuditLog,
+  getCurrentAdminContext,
+} from '~/lib/ultaura/admin/audit-log';
 
 export const metadata = {
   title: `Diagnostics | ${configuration.site.siteName}`,
@@ -224,6 +228,14 @@ async function DiagnosticsPage() {
     checkSupabaseAuth(),
     checkStripe(),
     checkTelephonyEventLog(),
+    getCurrentAdminContext().then((admin) =>
+      admin
+        ? writeAdminAuditLog(admin, {
+            action: 'admin.view.diagnostics',
+            targetType: 'page',
+          })
+        : undefined,
+    ),
   ]);
 
   const envCheck = checkEnvironment();

@@ -40,6 +40,11 @@ export interface TimelineFilter {
   offset?: number;
 }
 
+// TODO: Performance — currently fetches up to 500 rows per source (11 sources),
+// merges/sorts in memory, then paginates. Acceptable at current data volume.
+// If any source table exceeds ~10k rows or admin timeline p95 > 1.5s, replace
+// in-memory merge with a DB-level UNION ALL query with server-side pagination
+// (e.g., a view or materialized view).
 const ALL_SOURCES: TimelineSource[] = [
   'call_session',
   'call_event',
@@ -555,7 +560,7 @@ async function fetchTelephonyEvents(
   let query = client
     .from('ultaura_telephony_event_log' as any)
     .select(
-      'id, account_id, line_id, call_session_id, event_type, payload, payload_redacted, severity, created_at',
+      'id, account_id, line_id, call_session_id, event_type, payload_redacted, severity, created_at',
     )
     .order('created_at', { ascending: false })
     .limit(SOURCE_LIMIT);
@@ -577,7 +582,6 @@ async function fetchTelephonyEvents(
     payload: {
       call_session_id: row.call_session_id,
       event_type: row.event_type,
-      payload: row.payload,
       payload_redacted: row.payload_redacted,
       severity: row.severity,
     },

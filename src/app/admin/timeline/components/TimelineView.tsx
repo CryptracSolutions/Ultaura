@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '~/core/ui/Select';
 
-import { logTimelineRawView } from '../actions.server';
+import { logTimelineRawView, logTimelineRedactionModeChanged } from '../actions.server';
 
 import type {
   TimelineEntry,
@@ -147,6 +147,7 @@ export default function TimelineView({
 
   const handleRedactionChange = useCallback(
     (mode: string) => {
+      logTimelineRedactionModeChanged(mode, currentRedactionMode).catch(() => {});
       navigateTo(
         buildUrl({
           redaction: mode === 'admin_full' ? undefined : mode,
@@ -154,7 +155,7 @@ export default function TimelineView({
         }),
       );
     },
-    [buildUrl, navigateTo],
+    [buildUrl, navigateTo, currentRedactionMode],
   );
 
   const handlePageChange = useCallback(

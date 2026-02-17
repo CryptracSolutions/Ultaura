@@ -245,6 +245,16 @@ async function BillingPage({ searchParams }: BillingPageProps) {
   const logger = getLogger();
   const search = detectSearchType(searchParams);
 
+  // Audit log the page view (non-blocking)
+  getCurrentAdminContext().then((admin) =>
+    admin
+      ? writeAdminAuditLog(admin, {
+          action: 'admin.view.billing',
+          targetType: 'page',
+        })
+      : undefined,
+  ).catch(() => {});
+
   let dbSubscription: DbSubscriptionRow | null = null;
   let searchError: string | null = null;
 

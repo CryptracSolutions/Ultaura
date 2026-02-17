@@ -27,6 +27,10 @@ import UserActionsDropdown from '~/app/admin/users/[uid]/components/UserActionsD
 
 import configuration from '~/configuration';
 import MembershipRole from '~/lib/organizations/types/membership-role';
+import {
+  writeAdminAuditLog,
+  getCurrentAdminContext,
+} from '~/lib/ultaura/admin/audit-log';
 
 interface Params {
   params: {
@@ -41,7 +45,18 @@ export const metadata = {
 async function AdminUserPage({ params }: Params) {
   const uid = params.uid;
 
-  const data = await loadData(uid);
+  const [data] = await Promise.all([
+    loadData(uid),
+    getCurrentAdminContext().then((admin) =>
+      admin
+        ? writeAdminAuditLog(admin, {
+            action: 'admin.view.user',
+            targetType: 'user',
+            targetId: uid,
+          })
+        : undefined,
+    ).catch(() => {}),
+  ]);
   const { auth, user } = data;
   const displayName = user?.displayName;
   const authUser = auth?.user;
