@@ -7,19 +7,50 @@ import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import { withAdminSession } from '~/core/generic/actions-utils';
 import { deleteUser } from '~/lib/server/user/delete-user';
 import getLogger from '~/core/logger';
+import {
+  writeAdminAuditLog,
+  getCurrentAdminContext,
+} from '~/lib/ultaura/admin/audit-log';
 
 const getClient = () => getSupabaseServerActionClient({ admin: true });
 
 export const banUser = withAdminSession(async ({ userId }) => {
   await setBanDuration(userId, `876600h`);
+
+  const admin = await getCurrentAdminContext();
+  if (admin) {
+    await writeAdminAuditLog(admin, {
+      action: 'user.ban',
+      targetType: 'user',
+      targetId: userId,
+    });
+  }
 });
 
 export const reactivateUser = withAdminSession(async ({ userId }) => {
   await setBanDuration(userId, `none`);
+
+  const admin = await getCurrentAdminContext();
+  if (admin) {
+    await writeAdminAuditLog(admin, {
+      action: 'user.reactivate',
+      targetType: 'user',
+      targetId: userId,
+    });
+  }
 });
 
 export const impersonateUser = withAdminSession(async ({ userId }) => {
   await assertUserIsNotCurrentSuperAdmin(userId);
+
+  const admin = await getCurrentAdminContext();
+  if (admin) {
+    await writeAdminAuditLog(admin, {
+      action: 'user.impersonate',
+      targetType: 'user',
+      targetId: userId,
+    });
+  }
 
   const client = getClient();
 
@@ -83,10 +114,18 @@ export const deleteUserAction = withAdminSession(
     await assertUserIsNotCurrentSuperAdmin(userId);
 
     const logger = getLogger();
+    const admin = await getCurrentAdminContext();
 
     logger.info({ userId }, `Admin requested to delete user account`);
 
-    // we don't want to send an email to the user
+    if (admin) {
+      await writeAdminAuditLog(admin, {
+        action: 'user.delete',
+        targetType: 'user',
+        targetId: userId,
+      });
+    }
+
     const sendEmail = false;
 
     await deleteUser({

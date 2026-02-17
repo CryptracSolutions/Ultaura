@@ -3,17 +3,19 @@ import GlobalRole from '~/core/session/types/global-role';
 import { Database } from '~/database.types';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 
-/**
- * @name ENFORCE_MFA
- * @description Set this constant to true if you want the SuperAdmin user to
- * sign in using MFA when accessing the Admin page
- */
-const ENFORCE_MFA = false;
+function getEnforceMfa(): boolean {
+  const envValue = process.env.ADMIN_ENFORCE_MFA;
+  if (envValue !== undefined) {
+    return envValue === 'true';
+  }
+  return process.env.NODE_ENV === 'production';
+}
 
 /**
  * @name isUserSuperAdmin
  * @description Checks if the current user is an admin by checking the
  * user_metadata.role field in Supabase Auth is set to a SuperAdmin role.
+ * MFA (AAL2) is enforced in production by default, controlled via ADMIN_ENFORCE_MFA env var.
  */
 const isUserSuperAdmin = async (
   params: {
@@ -21,11 +23,11 @@ const isUserSuperAdmin = async (
     enforceMfa?: boolean;
   } = {
     client: getSupabaseServerComponentClient(),
-    enforceMfa: ENFORCE_MFA,
+    enforceMfa: getEnforceMfa(),
   },
 ) => {
   const client = params.client ?? getSupabaseServerComponentClient();
-  const enforceMfa = params.enforceMfa ?? ENFORCE_MFA;
+  const enforceMfa = params.enforceMfa ?? getEnforceMfa();
 
   const { data, error } = await client.auth.getUser();
 
@@ -49,6 +51,24 @@ const isUserSuperAdmin = async (
 };
 
 export default isUserSuperAdmin;
+
+export { getEnforceMfa };
+
+export async function isUserSuperAdminWithoutMfa(
+  client?: SupabaseClient<Database>,
+) {
+  const c = client ?? getSupabaseServerComponentClient();
+  const { data, error } = await c.auth.getUser();
+  if (error) return false;
+  return data.user?.app_metadata?.role === GlobalRole.SuperAdmin;
+}
+
+export async function isUserMfaAuthenticated(
+  client?: SupabaseClient<Database>,
+) {
+  const c = client ?? getSupabaseServerComponentClient();
+  return verifyIsMultiFactorAuthenticated(c);
+}
 
 async function verifyIsMultiFactorAuthenticated(client: SupabaseClient) {
   const { data, error } =
