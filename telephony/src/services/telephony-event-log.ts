@@ -113,7 +113,7 @@ function getPayloadKey(): Buffer | null {
   return Buffer.from(hex, 'hex');
 }
 
-function encryptPayload(raw: Record<string, unknown>): Buffer | null {
+function encryptPayload(raw: Record<string, unknown>): string | null {
   const key = getPayloadKey();
   if (!key) return null;
 
@@ -125,8 +125,8 @@ function encryptPayload(raw: Record<string, unknown>): Buffer | null {
     });
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     const tag = cipher.getAuthTag();
-    // Pack as iv || ciphertext || tag for single-column storage
-    return Buffer.concat([iv, ciphertext, tag]);
+    // Pack as iv || ciphertext || tag, encode as base64 for text column storage
+    return Buffer.concat([iv, ciphertext, tag]).toString('base64');
   } catch (err) {
     logger.error({ err }, 'Failed to encrypt telephony payload');
     return null;

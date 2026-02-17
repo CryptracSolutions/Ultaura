@@ -16,20 +16,18 @@ async function purgeExpiredPayloads(): Promise<void> {
   ).toISOString();
 
   try {
-    const { data, error } = await client
-      .from('ultaura_telephony_event_log' as any)
-      .update({ payload_ciphertext: null })
-      .not('payload_ciphertext', 'is', null)
-      .lt('created_at', cutoff)
-      .select('id')
-      .limit(BATCH_SIZE);
+    // Use RPC for reliable batched updates (PostgREST may ignore LIMIT on UPDATE)
+    const { data, error } = await client.rpc(
+      'purge_expired_payload_ciphertexts',
+      { cutoff_ts: cutoff, batch_limit: BATCH_SIZE },
+    );
 
     if (error) {
-      logger.error({ error }, 'Payload retention: purge query failed');
+      logger.error({ error }, 'Payload retention: purge RPC failed');
       return;
     }
 
-    const count = data?.length ?? 0;
+    const count = typeof data === 'number' ? data : 0;
     if (count > 0) {
       logger.info(
         { purgedCount: count, cutoff },
