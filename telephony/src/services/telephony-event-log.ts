@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import { getSupabaseClient } from '../utils/supabase';
-import { logger } from '../utils/logger';
+import { getSupabaseClient } from '../utils/supabase.js';
+import { logger } from '../utils/logger.js';
 
 // --- Redaction policy for Twilio webhook payloads ---
 // strip: transcription, caller name, recordings, speech-to-text, digits
