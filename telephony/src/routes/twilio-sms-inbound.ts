@@ -3,17 +3,82 @@ import { logger } from '../server.js';
 import { getSupabaseClient } from '../utils/supabase.js';
 import { redactPhone } from '../utils/redact.js';
 import { sendSms, validateTwilioSignature } from '../utils/twilio.js';
+import { logTelephonyEvent } from '../services/telephony-event-log.js';
 
 export const twilioSmsInboundRouter = Router();
 
 const STOP_KEYWORDS = new Set(['stop', 'unsubscribe', 'cancel', 'end', 'quit']);
 const START_KEYWORDS = new Set(['start', 'subscribe', 'unstop']);
+const EMPTY_TWIML_RESPONSE =
+  '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+
+type TelephonyEventSeverity = 'info' | 'warn' | 'error';
 
 interface TwilioSmsWebhook {
   From: string;
   To: string;
   Body: string;
   MessageSid: string;
+}
+
+function toLogPayload(body: unknown): Record<string, unknown> {
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    return body as Record<string, unknown>;
+  }
+
+  return { body };
+}
+
+async function safeLogSmsEvent(opts: {
+  accountId?: string;
+  lineId?: string;
+  providerId?: string;
+  payload: Record<string, unknown>;
+  severity: TelephonyEventSeverity;
+}): Promise<void> {
+  try {
+    await logTelephonyEvent({
+      accountId: opts.accountId,
+      lineId: opts.lineId,
+      providerId: opts.providerId,
+      eventType: 'twilio.sms.inbound.webhook',
+      payload: opts.payload,
+      severity: opts.severity,
+    });
+  } catch (error) {
+    logger.warn({ error }, 'Failed to enqueue inbound SMS telephony event log');
+  }
+}
+
+async function resolveLineContextByPhone(
+  phoneE164: string | undefined,
+): Promise<{ accountId?: string; lineId?: string }> {
+  if (!phoneE164) {
+    return {};
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('ultaura_lines')
+    .select('id, account_id')
+    .eq('phone_e164', phoneE164)
+    .maybeSingle();
+
+  if (error) {
+    if (error.code !== 'PGRST116') {
+      logger.warn({ error, phone: redactPhone(phoneE164) }, 'Failed to resolve line context for inbound SMS');
+    }
+    return {};
+  }
+
+  if (!data) {
+    return {};
+  }
+
+  return {
+    accountId: data.account_id ?? undefined,
+    lineId: data.id ?? undefined,
+  };
 }
 
 function validateTwilioWebhook(req: Request, res: Response, next: () => void) {
@@ -49,9 +114,16 @@ function validateTwilioWebhook(req: Request, res: Response, next: () => void) {
 twilioSmsInboundRouter.use(validateTwilioWebhook);
 
 twilioSmsInboundRouter.post('/inbound', async (req: Request, res: Response) => {
+  const payload = toLogPayload(req.body);
+  let accountId: string | undefined;
+  let lineId: string | undefined;
+  let providerId: string | undefined;
+  let eventSeverity: TelephonyEventSeverity = 'info';
   try {
     const { From: from, Body: body, MessageSid: messageSid } = req.body as TwilioSmsWebhook;
     const normalizedBody = (body || '').trim().toLowerCase();
+    providerId = messageSid;
+    ({ accountId, lineId } = await resolveLineContextByPhone(from));
 
     logger.info({ from: redactPhone(from), messageSid, body: normalizedBody }, 'Inbound SMS received');
 
@@ -78,10 +150,19 @@ twilioSmsInboundRouter.post('/inbound', async (req: Request, res: Response) => {
       logger.info({ from: redactPhone(from) }, 'SMS opt-in processed');
     }
 
-    res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    res.type('text/xml').send(EMPTY_TWIML_RESPONSE);
   } catch (error) {
+    eventSeverity = 'error';
     logger.error({ error }, 'Error processing inbound SMS');
     res.status(500).send('Internal Server Error');
+  } finally {
+    void safeLogSmsEvent({
+      accountId,
+      lineId,
+      providerId,
+      payload,
+      severity: eventSeverity,
+    });
   }
 });
 

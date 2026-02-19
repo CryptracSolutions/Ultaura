@@ -8,6 +8,10 @@ import GlobalRole from '~/core/session/types/global-role';
 
 const CSRF_SECRET_COOKIE = 'csrfSecret';
 const NEXT_ACTION_HEADER = 'next-action';
+const ADMIN_MFA_PATH = '/admin/mfa';
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+const MFA_TRUE_VALUES = new Set(['true', '1', 'yes', 'on']);
+const MFA_FALSE_VALUES = new Set(['false', '0', 'no', 'off']);
 
 export const config = {
   matcher: [
@@ -45,7 +49,7 @@ async function withCsrfMiddleware(
     ignoreMethods: isServerAction(request)
       ? ['POST']
       : // always ignore GET, HEAD, and OPTIONS requests
-        ['GET', 'HEAD', 'OPTIONS'],
+        SAFE_METHODS,
   });
 
   const csrfError = await csrfMiddleware(request, response);
@@ -62,13 +66,12 @@ async function withCsrfMiddleware(
 }
 
 function isServerAction(request: NextRequest) {
-  const headers = new Headers(request.headers);
-
-  return headers.has(NEXT_ACTION_HEADER);
+  return request.headers.has(NEXT_ACTION_HEADER);
 }
 
 async function adminMiddleware(request: NextRequest, response: NextResponse) {
-  const isAdminPath = request.nextUrl.pathname.startsWith('/admin');
+  const pathname = request.nextUrl.pathname;
+  const isAdminPath = pathname.startsWith('/admin');
 
   if (!isAdminPath) {
     return response;
@@ -91,6 +94,47 @@ async function adminMiddleware(request: NextRequest, response: NextResponse) {
     return NextResponse.redirect(new URL('/404', origin), 307);
   }
 
+  const shouldEnforceMfa = getEnforceAdminMfa();
+  const isAdminMfaPath =
+    pathname === ADMIN_MFA_PATH || pathname.startsWith(`${ADMIN_MFA_PATH}/`);
+
+  if (shouldEnforceMfa && !isAdminMfaPath) {
+    const { data: assuranceLevel, error: assuranceLevelError } =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+    const isMfaAuthenticated =
+      !assuranceLevelError && assuranceLevel?.currentLevel === 'aal2';
+
+    if (!isMfaAuthenticated) {
+      return NextResponse.redirect(new URL(ADMIN_MFA_PATH, origin), 307);
+    }
+  }
+
   // in all other cases, return the response
   return response;
+}
+
+function getEnforceAdminMfa(): boolean {
+  const defaultValue = process.env.NODE_ENV === 'production';
+  const envValue = process.env.ADMIN_ENFORCE_MFA;
+
+  if (envValue === undefined) {
+    return defaultValue;
+  }
+
+  const normalizedValue = envValue.trim().toLowerCase();
+
+  if (!normalizedValue) {
+    return defaultValue;
+  }
+
+  if (MFA_TRUE_VALUES.has(normalizedValue)) {
+    return true;
+  }
+
+  if (MFA_FALSE_VALUES.has(normalizedValue)) {
+    return false;
+  }
+
+  return defaultValue;
 }

@@ -166,6 +166,35 @@ function checkEnvironment(): DiagnosticCheck {
   };
 }
 
+function checkEncryptionKeyHealth(): DiagnosticCheck {
+  const rawKey = process.env.ULTAURA_ENCRYPTION_KEY;
+
+  if (!rawKey) {
+    return {
+      name: 'Encryption Key Health',
+      status: 'fail',
+      details:
+        'ULTAURA_ENCRYPTION_KEY is missing. Set a 64-character hex key to enable payload encryption/decryption.',
+    };
+  }
+
+  const isHex64 = /^[0-9a-fA-F]{64}$/.test(rawKey);
+  if (!isHex64) {
+    return {
+      name: 'Encryption Key Health',
+      status: 'fail',
+      details:
+        `ULTAURA_ENCRYPTION_KEY format is invalid (${rawKey.length} chars). Expected exactly 64 hexadecimal characters.`,
+    };
+  }
+
+  return {
+    name: 'Encryption Key Health',
+    status: 'pass',
+    details: 'ULTAURA_ENCRYPTION_KEY is present and matches 64-hex format.',
+  };
+}
+
 async function checkTelephonyEventLog(): Promise<DiagnosticCheck> {
   try {
     const client = getSupabaseServerComponentClient({ admin: true });
@@ -190,8 +219,9 @@ async function checkTelephonyEventLog(): Promise<DiagnosticCheck> {
     if (rows.length === 0) {
       return {
         name: 'Telephony Event Log',
-        status: 'pass',
-        details: 'Query succeeded. No events yet.',
+        status: 'warn',
+        details:
+          'No telephony events found yet. Trigger a Twilio inbound/outbound call or SMS webhook and confirm telephony route logging is enabled.',
       };
     }
 
@@ -212,6 +242,25 @@ async function checkTelephonyEventLog(): Promise<DiagnosticCheck> {
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+function fromSettledCheck(
+  result: PromiseSettledResult<DiagnosticCheck>,
+  name: string,
+): DiagnosticCheck {
+  if (result.status === 'fulfilled') {
+    return result.value;
+  }
+
+  return {
+    name,
+    status: 'fail',
+    details: 'Check crashed unexpectedly.',
+    error:
+      result.reason instanceof Error
+        ? result.reason.message
+        : String(result.reason),
+  };
 }
 
 async function DiagnosticsPage() {
@@ -239,53 +288,15 @@ async function DiagnosticsPage() {
   ]);
 
   const envCheck = checkEnvironment();
+  const encryptionKeyCheck = checkEncryptionKeyHealth();
 
   const checks: DiagnosticCheck[] = [
-    supabaseAdminResult.status === 'fulfilled'
-      ? supabaseAdminResult.value
-      : {
-          name: 'Supabase Admin Client',
-          status: 'fail' as const,
-          details: 'Check crashed unexpectedly.',
-          error:
-            supabaseAdminResult.reason instanceof Error
-              ? supabaseAdminResult.reason.message
-              : String(supabaseAdminResult.reason),
-        },
-    supabaseAuthResult.status === 'fulfilled'
-      ? supabaseAuthResult.value
-      : {
-          name: 'Supabase Auth Admin',
-          status: 'fail' as const,
-          details: 'Check crashed unexpectedly.',
-          error:
-            supabaseAuthResult.reason instanceof Error
-              ? supabaseAuthResult.reason.message
-              : String(supabaseAuthResult.reason),
-        },
-    stripeResult.status === 'fulfilled'
-      ? stripeResult.value
-      : {
-          name: 'Stripe API',
-          status: 'fail' as const,
-          details: 'Check crashed unexpectedly.',
-          error:
-            stripeResult.reason instanceof Error
-              ? stripeResult.reason.message
-              : String(stripeResult.reason),
-        },
+    fromSettledCheck(supabaseAdminResult, 'Supabase Admin Client'),
+    fromSettledCheck(supabaseAuthResult, 'Supabase Auth Admin'),
+    fromSettledCheck(stripeResult, 'Stripe API'),
     envCheck,
-    telephonyResult.status === 'fulfilled'
-      ? telephonyResult.value
-      : {
-          name: 'Telephony Event Log',
-          status: 'fail' as const,
-          details: 'Check crashed unexpectedly.',
-          error:
-            telephonyResult.reason instanceof Error
-              ? telephonyResult.reason.message
-              : String(telephonyResult.reason),
-        },
+    encryptionKeyCheck,
+    fromSettledCheck(telephonyResult, 'Telephony Event Log'),
   ];
 
   // Fetch audit logs separately with its own error handling

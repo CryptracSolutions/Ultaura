@@ -9,8 +9,42 @@ import { generateStreamTwiML, generateMessageTwiML, formatToE164, validateTwilio
 import { getWebsocketUrl } from '../utils/env.js';
 import { redactPhone } from '../utils/redact.js';
 import { updateLogContext } from '../observability/log-context.js';
+import { logTelephonyEvent } from '../services/telephony-event-log.js';
 
 export const twilioInboundRouter = Router();
+
+type TelephonyEventSeverity = 'info' | 'warn' | 'error';
+
+function toLogPayload(body: unknown): Record<string, unknown> {
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    return body as Record<string, unknown>;
+  }
+
+  return { body };
+}
+
+async function safeLogInboundEvent(opts: {
+  accountId?: string;
+  lineId?: string;
+  callSessionId?: string;
+  providerId?: string;
+  payload: Record<string, unknown>;
+  severity: TelephonyEventSeverity;
+}): Promise<void> {
+  try {
+    await logTelephonyEvent({
+      accountId: opts.accountId,
+      lineId: opts.lineId,
+      callSessionId: opts.callSessionId,
+      providerId: opts.providerId,
+      eventType: 'twilio.voice.inbound.webhook',
+      payload: opts.payload,
+      severity: opts.severity,
+    });
+  } catch (error) {
+    logger.warn({ error }, 'Failed to enqueue inbound telephony event log');
+  }
+}
 
 // Twilio signature validation middleware
 function validateTwilioWebhook(req: Request, res: Response, next: () => void) {
@@ -58,6 +92,8 @@ const MESSAGES = {
   NOT_VERIFIED: "Hello, this phone number has not been verified yet. Please ask your family member to complete the verification process. Goodbye.",
   ACCOUNT_CANCELED: "Hello, the account associated with this phone number is no longer active. Goodbye.",
 };
+const TECHNICAL_DIFFICULTIES_MESSAGE =
+  "I'm sorry, I'm having technical difficulties. Please try again later.";
 
 function getDeniedMessage(reason: string | undefined): string {
   switch (reason) {
@@ -83,6 +119,12 @@ function getDeniedMessage(reason: string | undefined): string {
 // Handle inbound voice calls from Twilio
 twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
   const { CallSid } = req.body;
+  const payload = toLogPayload(req.body);
+  const providerId = typeof CallSid === 'string' ? CallSid : undefined;
+  let accountId: string | undefined;
+  let lineId: string | undefined;
+  let callSessionId: string | undefined;
+  let eventSeverity: TelephonyEventSeverity = 'info';
   const span = trace.getActiveSpan();
   if (span && typeof CallSid === 'string') {
     span.setAttribute('twilioCallSid', CallSid);
@@ -110,6 +152,8 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
     }
 
     const { line, account } = lineWithAccount;
+    accountId = account.id;
+    lineId = line.id;
 
     // Initial access check without trial reservation (session ID is not created yet).
     const accessCheck = await checkLineAccess(line, account, 'inbound', {
@@ -134,9 +178,14 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
 
     if (!session) {
       logger.error({ lineId: line.id }, 'Failed to create call session');
-      res.type('text/xml').send(generateMessageTwiML("I'm sorry, I'm having technical difficulties. Please try again later."));
+      eventSeverity = 'error';
+      res
+        .type('text/xml')
+        .send(generateMessageTwiML(TECHNICAL_DIFFICULTIES_MESSAGE));
       return;
     }
+
+    callSessionId = session.id;
 
     // Reserve trial daily cap using the real call session ID (idempotent for repeated checks).
     if (account.status === 'trial') {
@@ -171,9 +220,21 @@ twilioInboundRouter.post('/inbound', async (req: Request, res: Response) => {
 
     res.type('text/xml').send(twiml);
   } catch (error) {
+    eventSeverity = 'error';
     span?.recordException(error as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling inbound call');
-    res.type('text/xml').send(generateMessageTwiML("I'm sorry, I'm having technical difficulties. Please try again later."));
+    res
+      .type('text/xml')
+      .send(generateMessageTwiML(TECHNICAL_DIFFICULTIES_MESSAGE));
+  } finally {
+    void safeLogInboundEvent({
+      accountId,
+      lineId,
+      callSessionId,
+      providerId,
+      payload,
+      severity: eventSeverity,
+    });
   }
 });

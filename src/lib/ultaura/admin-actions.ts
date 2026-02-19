@@ -10,6 +10,7 @@ import type { DebugLog } from './admin-types';
 import { decodeBytea } from './bytea';
 import { decryptDebugPayload } from './debug-log-decrypt';
 import { hasSuperAdminRole } from './admin-auth';
+import { writeAdminAuditLog } from './admin/audit-log';
 
 type Filters = {
   startDate?: string;
@@ -62,6 +63,17 @@ function normalizeLogFields(log: ReturnType<typeof stripCipherFields>) {
   };
 }
 
+function formatDecryptFailure(log: DebugLogRow) {
+  const normalizedLog = normalizeLogFields(stripCipherFields(log));
+
+  return {
+    ...normalizedLog,
+    payload: { _error: 'Unable to decrypt debug payload' },
+    payload_encrypted: true,
+    payload_decrypt_failed: true,
+  };
+}
+
 function isUserAdmin(user: AdminUser) {
   return hasSuperAdminRole(user);
 }
@@ -94,7 +106,9 @@ export async function getDebugLogs(
   }
 
   // Use admin client to bypass RLS since we've already verified the user is an admin
-  const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient<any>;
+  const adminClient = getSupabaseServerActionClient({
+    admin: true,
+  }) as SupabaseClient<any>;
 
   let query = adminClient
     .from('ultaura_debug_logs')
@@ -131,7 +145,7 @@ export async function getDebugLogs(
   }
 
   const decryptedLogs = await Promise.all(
-    ((data as DebugLogRow[]) || []).map(async (log) => {
+    ((data as DebugLogRow[]) ?? []).map(async (log) => {
       const hasCiphertextFields = Boolean(
         log.payload_ciphertext || log.payload_iv || log.payload_tag
       );
@@ -146,13 +160,7 @@ export async function getDebugLogs(
           accountId: log.account_id,
         }, 'Invalid debug log ciphertext format');
 
-        const rest = normalizeLogFields(stripCipherFields(log));
-        return {
-          ...rest,
-          payload: { _error: 'Unable to decrypt debug payload' },
-          payload_encrypted: true,
-          payload_decrypt_failed: true,
-        };
+        return formatDecryptFailure(log);
       }
 
       if (hasEncryptedPayload && log.account_id && ciphertext && iv && tag) {
@@ -169,31 +177,71 @@ export async function getDebugLogs(
         );
 
         if (decrypted) {
-          const rest = normalizeLogFields(stripCipherFields(log));
+          const normalizedLog = normalizeLogFields(stripCipherFields(log));
           return {
-            ...rest,
+            ...normalizedLog,
             payload: decrypted,
             payload_encrypted: true,
+            payload_decrypt_failed: false,
           };
         }
 
-        const rest = normalizeLogFields(stripCipherFields(log));
-        return {
-          ...rest,
-          payload: { _error: 'Unable to decrypt debug payload' },
-          payload_encrypted: true,
-          payload_decrypt_failed: true,
-        };
+        return formatDecryptFailure(log);
       }
 
-      const rest = normalizeLogFields(stripCipherFields(log));
+      const normalizedLog = normalizeLogFields(stripCipherFields(log));
       return {
-        ...rest,
+        ...normalizedLog,
         payload_encrypted: hasEncryptedPayload,
         payload_decrypt_failed: hasEncryptedPayload,
       };
     })
   );
 
-  return { data: decryptedLogs, count: count || 0 };
+  const totalCount = count || 0;
+  const encryptedCount = decryptedLogs.filter((log) =>
+    Boolean(log.payload_encrypted),
+  ).length;
+  const decryptFailedCount = decryptedLogs.filter((log) =>
+    Boolean(log.payload_decrypt_failed),
+  ).length;
+
+  try {
+    await writeAdminAuditLog(
+      {
+        userId: session.user.id,
+        email: session.user.email ?? 'unknown',
+      },
+      {
+        action: 'admin.debug_logs.decrypt',
+        targetType: 'debug_logs',
+        metadata: {
+          returnedCount: decryptedLogs.length,
+          totalCount,
+          encryptedCount,
+          decryptFailedCount,
+          filters: {
+            startDate: filters.startDate ?? null,
+            endDate: filters.endDate ?? null,
+            callSessionId: filters.callSessionId ?? null,
+            eventType: filters.eventType ?? null,
+            toolName: filters.toolName ?? null,
+            accountId: filters.accountId ?? null,
+            limit,
+            offset,
+          },
+        },
+      }
+    );
+  } catch (auditError) {
+    logger.warn(
+      {
+        error: auditError,
+        adminUserId: session.user.id,
+      },
+      'Failed to write debug log decrypt audit entry'
+    );
+  }
+
+  return { data: decryptedLogs, count: totalCount };
 }

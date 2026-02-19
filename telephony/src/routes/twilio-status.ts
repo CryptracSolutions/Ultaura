@@ -14,8 +14,47 @@ import { validateTwilioSignature } from '../utils/twilio.js';
 import { updateLogContext } from '../observability/log-context.js';
 // Auto-instrumented HTTP spans; use active span for correlation.
 import { recordVoiceDisconnect } from '../utils/metrics.js';
+import { logTelephonyEvent } from '../services/telephony-event-log.js';
 
 export const twilioStatusRouter = Router();
+
+type TelephonyEventSeverity = 'info' | 'warn' | 'error';
+
+function toLogPayload(
+  body: unknown,
+  extras?: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalizedBody =
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : { body };
+
+  return extras ? { ...normalizedBody, ...extras } : normalizedBody;
+}
+
+async function safeLogStatusEvent(opts: {
+  eventType: string;
+  accountId?: string;
+  lineId?: string;
+  callSessionId?: string;
+  providerId?: string;
+  payload: Record<string, unknown>;
+  severity: TelephonyEventSeverity;
+}): Promise<void> {
+  try {
+    await logTelephonyEvent({
+      accountId: opts.accountId,
+      lineId: opts.lineId,
+      callSessionId: opts.callSessionId,
+      providerId: opts.providerId,
+      eventType: opts.eventType,
+      payload: opts.payload,
+      severity: opts.severity,
+    });
+  } catch (error) {
+    logger.warn({ error, eventType: opts.eventType }, 'Failed to enqueue status telephony event log');
+  }
+}
 
 // Twilio signature validation middleware
 function validateTwilioWebhook(req: Request, res: Response, next: () => void) {
@@ -92,6 +131,12 @@ function getEndReason(twilioStatus: string): 'hangup' | 'no_answer' | 'busy' | '
 // Handle Twilio status callbacks
 twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
   const { CallSid } = req.body;
+  const providerId = typeof CallSid === 'string' ? CallSid : undefined;
+  const payload = toLogPayload(req.body);
+  let accountId: string | undefined;
+  let lineId: string | undefined;
+  let callSessionId: string | undefined;
+  let eventSeverity: TelephonyEventSeverity = 'info';
   const span = trace.getActiveSpan();
   if (span && typeof CallSid === 'string') {
     span.setAttribute('twilioCallSid', CallSid);
@@ -124,6 +169,10 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
       return;
     }
 
+    accountId = session.account_id;
+    lineId = session.line_id;
+    callSessionId = session.id;
+
     updateLogContext({ callSessionId: session.id, twilioCallSid: CallSid });
     span?.setAttribute('callSessionId', session.id);
     logger.info({ callSessionId: session.id, twilioCallSid: CallSid }, 'Resolved call session for Twilio status');
@@ -131,6 +180,7 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
     const internalStatus = mapTwilioStatus(CallStatus);
 
     if (!internalStatus) {
+      eventSeverity = 'warn';
       logger.warn({ twilioCallSid: CallSid, status: CallStatus }, 'Unknown Twilio status');
       res.sendStatus(200);
       return;
@@ -198,22 +248,42 @@ twilioStatusRouter.post('/status', async (req: Request, res: Response) => {
 
     res.sendStatus(200);
   } catch (error) {
+    eventSeverity = 'error';
     span?.recordException(error as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling status callback');
     res.sendStatus(500);
+  } finally {
+    void safeLogStatusEvent({
+      eventType: 'twilio.voice.status.callback',
+      accountId,
+      lineId,
+      callSessionId,
+      providerId,
+      payload,
+      severity: eventSeverity,
+    });
   }
 });
 
 // Handle Twilio recording status callbacks
 twilioStatusRouter.post('/recording-status', async (req: Request, res: Response) => {
   const { CallSid } = req.body;
+  const { RecordingSid } = req.body;
+  const providerId = typeof RecordingSid === 'string'
+    ? RecordingSid
+    : (typeof CallSid === 'string' ? CallSid : undefined);
+  const payload = toLogPayload(req.body);
+  let accountId: string | undefined;
+  let lineId: string | undefined;
+  let callSessionId: string | undefined;
+  let eventSeverity: TelephonyEventSeverity = 'info';
   const span = trace.getActiveSpan();
   if (span && typeof CallSid === 'string') {
     span.setAttribute('twilioCallSid', CallSid);
   }
   try {
-    const { RecordingSid, RecordingStatus } = req.body;
+    const { RecordingStatus } = req.body;
 
     logger.info({
       twilioCallSid: CallSid,
@@ -233,6 +303,10 @@ twilioStatusRouter.post('/recording-status', async (req: Request, res: Response)
       return;
     }
 
+    accountId = session.account_id;
+    lineId = session.line_id;
+    callSessionId = session.id;
+
     updateLogContext({ callSessionId: session.id, twilioCallSid: CallSid });
     span?.setAttribute('callSessionId', session.id);
 
@@ -245,9 +319,20 @@ twilioStatusRouter.post('/recording-status', async (req: Request, res: Response)
     await updateCallSessionRecording(session.id, RecordingSid);
     res.sendStatus(200);
   } catch (error) {
+    eventSeverity = 'error';
     span?.recordException(error as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling recording status callback');
     res.sendStatus(500);
+  } finally {
+    void safeLogStatusEvent({
+      eventType: 'twilio.voice.recording_status.callback',
+      accountId,
+      lineId,
+      callSessionId,
+      providerId,
+      payload,
+      severity: eventSeverity,
+    });
   }
 });

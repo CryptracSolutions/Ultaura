@@ -1,2 +1,4 @@
 # Project-scoped Codex configuration (trusted projects).
 # MCP servers configured here are shared by the Codex CLI and IDE extension.
+[features]
+multi_agent = true

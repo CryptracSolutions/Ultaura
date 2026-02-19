@@ -40,6 +40,12 @@ export const metadata = {
 };
 
 type SearchType = 'email' | 'phone' | 'uid' | 'line_phone';
+const VALID_SEARCH_TYPES = new Set<SearchType>([
+  'email',
+  'phone',
+  'uid',
+  'line_phone',
+]);
 
 const SEARCH_TYPE_LABELS: Record<SearchType, string> = {
   email: 'Email',
@@ -262,7 +268,12 @@ function UserResultCard({ user }: { user: SearchResultUser }) {
                   'text-xs text-muted-foreground font-mono mt-0.5 truncate'
                 }
               >
-                {user.id}
+                <Link
+                  href={`/admin/users/${user.id}`}
+                  className={'hover:underline'}
+                >
+                  {user.id}
+                </Link>
               </p>
             </div>
           </div>
@@ -352,9 +363,12 @@ function UserResultCard({ user }: { user: SearchResultUser }) {
                   >
                     {/* Account row */}
                     <div className={'flex items-center gap-2 flex-wrap'}>
-                      <span className={'text-sm font-medium'}>
+                      <Link
+                        href={`/admin/accounts/${account.id}`}
+                        className={'text-sm font-medium hover:underline'}
+                      >
                         {account.name}
-                      </span>
+                      </Link>
                       <AccountStatusBadge status={account.status} />
                       {account.planId && (
                         <Badge size={'small'} color={'info'}>
@@ -366,7 +380,12 @@ function UserResultCard({ user }: { user: SearchResultUser }) {
                           'text-xs font-mono text-muted-foreground ml-auto hidden sm:inline'
                         }
                       >
-                        {account.id}
+                        <Link
+                          href={`/admin/accounts/${account.id}`}
+                          className={'hover:underline'}
+                        >
+                          {account.id}
+                        </Link>
                       </span>
                     </div>
 
@@ -385,9 +404,12 @@ function UserResultCard({ user }: { user: SearchResultUser }) {
                                 'h-3.5 w-3.5 text-muted-foreground shrink-0'
                               }
                             />
-                            <span className={'font-medium'}>
+                            <Link
+                              href={`/admin/lines/${line.id}`}
+                              className={'font-medium hover:underline'}
+                            >
                               {line.displayName}
-                            </span>
+                            </Link>
                             <span
                               className={
                                 'text-xs font-mono text-muted-foreground'
@@ -401,7 +423,12 @@ function UserResultCard({ user }: { user: SearchResultUser }) {
                                 'text-xs font-mono text-muted-foreground ml-auto hidden sm:inline'
                               }
                             >
-                              {line.id}
+                              <Link
+                                href={`/admin/lines/${line.id}`}
+                                className={'hover:underline'}
+                              >
+                                {line.id}
+                              </Link>
                             </span>
                           </div>
                         ))}
@@ -462,9 +489,7 @@ function LineStatusBadge({ status }: { status: string }) {
 // ---------------------------------------------------------------------------
 
 function validateSearchType(type?: string): SearchType {
-  const valid: SearchType[] = ['email', 'phone', 'uid', 'line_phone'];
-
-  if (type && valid.includes(type as SearchType)) {
+  if (type && VALID_SEARCH_TYPES.has(type as SearchType)) {
     return type as SearchType;
   }
 

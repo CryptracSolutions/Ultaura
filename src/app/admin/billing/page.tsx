@@ -57,11 +57,63 @@ interface DbSubscriptionRow {
   cancel_at_period_end: boolean | null;
 }
 
+const AUTH_EMAIL_LOOKUP_PER_PAGE = 200;
+const AUTH_EMAIL_LOOKUP_MAX_PAGES = 500;
+
+async function findAuthUserByEmail(
+  client: ReturnType<typeof getSupabaseServerComponentClient>,
+  email: string,
+): Promise<{ id: string } | null> {
+  const normalizedEmail = email.toLowerCase();
+  let reachedEnd = false;
+
+  for (let page = 1; page <= AUTH_EMAIL_LOOKUP_MAX_PAGES; page += 1) {
+    const { data, error } = await client.auth.admin.listUsers({
+      page,
+      perPage: AUTH_EMAIL_LOOKUP_PER_PAGE,
+    });
+
+    if (error) {
+      throw new Error(`Auth lookup failed: ${error.message}`);
+    }
+
+    const user = data.users.find(
+      (candidate: { id: string; email?: string }) =>
+        candidate.email?.toLowerCase() === normalizedEmail,
+    );
+
+    if (user) {
+      return { id: user.id };
+    }
+
+    const total = typeof data.total === 'number' ? data.total : undefined;
+    if (
+      data.users.length < AUTH_EMAIL_LOOKUP_PER_PAGE ||
+      (total !== undefined && page * AUTH_EMAIL_LOOKUP_PER_PAGE >= total)
+    ) {
+      reachedEnd = true;
+      break;
+    }
+  }
+
+  if (!reachedEnd) {
+    throw new Error(
+      `Auth lookup exceeded ${AUTH_EMAIL_LOOKUP_MAX_PAGES} pages.`,
+    );
+  }
+
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Search resolution                                                 */
 /* ------------------------------------------------------------------ */
 
 type SearchType = 'email' | 'org' | 'account' | 'customer' | 'subscription';
+type SubscriptionLookupResult = {
+  row: DbSubscriptionRow | null;
+  error: string | null;
+};
 
 function detectSearchType(
   params: BillingPageProps['searchParams'],
@@ -80,36 +132,33 @@ function detectSearchType(
 async function resolveSubscription(
   searchType: SearchType,
   query: string,
-): Promise<{ row: DbSubscriptionRow | null; error: string | null }> {
+): Promise<SubscriptionLookupResult> {
   const client = getSupabaseServerComponentClient({ admin: true });
 
   try {
     switch (searchType) {
       case 'email': {
         // email -> auth user -> org membership -> ultaura_accounts -> ultaura_subscriptions
-        const { data: users, error: authError } =
-          await client.auth.admin.listUsers({ perPage: 5 });
-
-        if (authError) {
-          return { row: null, error: `Auth lookup failed: ${authError.message}` };
-        }
-
-        const user = users.users.find(
-          (u: { email?: string }) =>
-            u.email?.toLowerCase() === query.toLowerCase(),
-        );
+        const user = await findAuthUserByEmail(client, query);
 
         if (!user) {
           return { row: null, error: `No user found with email "${query}".` };
         }
 
         // Find org membership
-        const { data: membership } = await client
+        const { data: membership, error: membershipError } = await client
           .from('memberships')
           .select('organization_id')
           .eq('user_id', user.id)
           .limit(1)
           .maybeSingle();
+
+        if (membershipError) {
+          return {
+            row: null,
+            error: `Membership lookup failed: ${membershipError.message}`,
+          };
+        }
 
         if (!membership) {
           return {
@@ -119,12 +168,19 @@ async function resolveSubscription(
         }
 
         // Find ultaura_accounts for this org
-        const { data: account } = await client
+        const { data: account, error: accountLookupError } = await client
           .from('ultaura_accounts')
           .select('id')
           .eq('organization_id', membership.organization_id)
           .limit(1)
           .maybeSingle();
+
+        if (accountLookupError) {
+          return {
+            row: null,
+            error: `Account lookup failed: ${accountLookupError.message}`,
+          };
+        }
 
         if (!account) {
           return {
@@ -137,12 +193,62 @@ async function resolveSubscription(
       }
 
       case 'org': {
-        const { data: account } = await client
+        let organizationId: number | null = null;
+
+        const isOrganizationUuid =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            query,
+          );
+
+        if (isOrganizationUuid) {
+          const { data: organization, error: organizationError } = await client
+            .from('organizations')
+            .select('id')
+            .eq('uuid', query)
+            .maybeSingle();
+
+          if (organizationError) {
+            return {
+              row: null,
+              error: `Organization lookup failed: ${organizationError.message}`,
+            };
+          }
+
+          if (!organization) {
+            return {
+              row: null,
+              error: `No organization found with UUID "${query}".`,
+            };
+          }
+
+          organizationId = organization.id;
+        } else {
+          const orgIdNumeric = Number.parseInt(query, 10);
+          if (!Number.isNaN(orgIdNumeric)) {
+            organizationId = orgIdNumeric;
+          }
+        }
+
+        if (organizationId === null) {
+          return {
+            row: null,
+            error: `Organization "${query}" is not a valid UUID or numeric organization ID.`,
+          };
+        }
+
+        const { data: account, error: accountLookupError } = await client
           .from('ultaura_accounts')
           .select('id')
-          .eq('organization_id', query)
+          .eq('organization_id', organizationId)
           .limit(1)
           .maybeSingle();
+
+        if (accountLookupError) {
+          return {
+            row: null,
+            error: `Account lookup failed: ${accountLookupError.message}`,
+          };
+        }
 
         if (!account) {
           return {
@@ -159,47 +265,21 @@ async function resolveSubscription(
       }
 
       case 'customer': {
-        const { data: sub, error } = await client
-          .from('ultaura_subscriptions')
-          .select('*')
-          .eq('stripe_customer_id', query)
-          .limit(1)
-          .maybeSingle();
-
-        if (error) {
-          return { row: null, error: `DB query failed: ${error.message}` };
-        }
-
-        if (!sub) {
-          return {
-            row: null,
-            error: `No subscription found for customer "${query}".`,
-          };
-        }
-
-        return { row: sub as DbSubscriptionRow, error: null };
+        return fetchSubscriptionByColumn(
+          client,
+          'stripe_customer_id',
+          query,
+          `No subscription found for customer "${query}".`,
+        );
       }
 
       case 'subscription': {
-        const { data: sub, error } = await client
-          .from('ultaura_subscriptions')
-          .select('*')
-          .eq('stripe_subscription_id', query)
-          .limit(1)
-          .maybeSingle();
-
-        if (error) {
-          return { row: null, error: `DB query failed: ${error.message}` };
-        }
-
-        if (!sub) {
-          return {
-            row: null,
-            error: `No subscription found for subscription ID "${query}".`,
-          };
-        }
-
-        return { row: sub as DbSubscriptionRow, error: null };
+        return fetchSubscriptionByColumn(
+          client,
+          'stripe_subscription_id',
+          query,
+          `No subscription found for subscription ID "${query}".`,
+        );
       }
 
       default:
@@ -215,11 +295,25 @@ async function resolveSubscription(
 async function fetchSubscriptionByAccountId(
   client: ReturnType<typeof getSupabaseServerComponentClient>,
   accountId: string,
-): Promise<{ row: DbSubscriptionRow | null; error: string | null }> {
+): Promise<SubscriptionLookupResult> {
+  return fetchSubscriptionByColumn(
+    client,
+    'account_id',
+    accountId,
+    `No subscription found for account "${accountId}".`,
+  );
+}
+
+async function fetchSubscriptionByColumn(
+  client: ReturnType<typeof getSupabaseServerComponentClient>,
+  column: 'account_id' | 'stripe_customer_id' | 'stripe_subscription_id',
+  value: string,
+  notFoundError: string,
+): Promise<SubscriptionLookupResult> {
   const { data: sub, error } = await client
     .from('ultaura_subscriptions')
     .select('*')
-    .eq('account_id', accountId)
+    .eq(column, value)
     .limit(1)
     .maybeSingle();
 
@@ -230,7 +324,7 @@ async function fetchSubscriptionByAccountId(
   if (!sub) {
     return {
       row: null,
-      error: `No subscription found for account "${accountId}".`,
+      error: notFoundError,
     };
   }
 

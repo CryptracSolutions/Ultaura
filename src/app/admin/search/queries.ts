@@ -66,6 +66,148 @@ interface LineRow {
   account_id: string;
 }
 
+interface AuthUserLike {
+  id: string;
+  email?: string;
+  phone?: string;
+  created_at: string;
+  last_sign_in_at?: string;
+  banned_until?: string;
+}
+
+const AUTH_LIST_USERS_PER_PAGE = 200;
+const AUTH_LIST_USERS_MAX_PAGES = 500;
+
+function toAuthUserInput(user: AuthUserLike): AuthUserInput {
+  return {
+    id: user.id,
+    email: user.email,
+    phone: user.phone,
+    created_at: user.created_at,
+    last_sign_in_at: user.last_sign_in_at,
+    banned_until: user.banned_until,
+  };
+}
+
+async function listAllAuthUsers(
+  client: SupabaseClient,
+): Promise<AuthUserInput[]> {
+  const authUsers: AuthUserInput[] = [];
+  let reachedEnd = false;
+
+  for (let page = 1; page <= AUTH_LIST_USERS_MAX_PAGES; page += 1) {
+    const { data, error } = await client.auth.admin.listUsers({
+      page,
+      perPage: AUTH_LIST_USERS_PER_PAGE,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const pageUsers = data.users.map((user) => toAuthUserInput(user));
+    authUsers.push(...pageUsers);
+
+    const total = typeof data.total === 'number' ? data.total : undefined;
+
+    if (
+      pageUsers.length < AUTH_LIST_USERS_PER_PAGE ||
+      (total !== undefined && authUsers.length >= total)
+    ) {
+      reachedEnd = true;
+      break;
+    }
+  }
+
+  if (!reachedEnd) {
+    throw new Error(
+      `Auth user search exceeded ${AUTH_LIST_USERS_MAX_PAGES} pages.`,
+    );
+  }
+
+  return authUsers;
+}
+
+function getNormalizedPhoneVariants(query: string): string[] {
+  const digits = query.replace(/\D/g, '');
+  if (!digits) {
+    return [];
+  }
+
+  const variants = new Set<string>();
+
+  variants.add(digits);
+  variants.add(`+${digits}`);
+
+  if (digits.length === 10) {
+    variants.add(`1${digits}`);
+    variants.add(`+1${digits}`);
+  }
+
+  if (digits.length === 11 && digits.startsWith('1')) {
+    variants.add(digits.slice(1));
+    variants.add(`+${digits}`);
+  }
+
+  if (digits.startsWith('00') && digits.length > 2) {
+    variants.add(digits.slice(2));
+    variants.add(`+${digits.slice(2)}`);
+  }
+
+  return Array.from(variants);
+}
+
+async function resolveUsersByAccountIds(
+  client: SupabaseClient,
+  accountIds: string[],
+): Promise<SearchResultUser[]> {
+  if (accountIds.length === 0) {
+    return [];
+  }
+
+  const { data: matchingAccounts } = await client
+    .from('ultaura_accounts')
+    .select('organization_id')
+    .in('id', accountIds);
+
+  if (!matchingAccounts || matchingAccounts.length === 0) {
+    return [];
+  }
+
+  const orgIds = Array.from(
+    new Set(
+      matchingAccounts.map(
+        (account: { organization_id: number }) => account.organization_id,
+      ),
+    ),
+  );
+
+  const { data: membershipData } = await client
+    .from('memberships')
+    .select('user_id')
+    .in('organization_id', orgIds);
+
+  if (!membershipData || membershipData.length === 0) {
+    return [];
+  }
+
+  const userIds: string[] = Array.from(
+    new Set<string>(
+      membershipData.map((membership: { user_id: string }) => membership.user_id),
+    ),
+  );
+
+  const authUsers = await Promise.all(
+    userIds.map(async (uid: string) => {
+      const { data } = await client.auth.admin.getUserById(uid);
+      return data?.user;
+    }),
+  );
+
+  const validUsers = authUsers.filter(Boolean) as AuthUserInput[];
+  return enrichUsers(client, validUsers);
+}
+
 /**
  * Enrich a list of auth users with their org memberships, accounts, and lines.
  */
@@ -185,40 +327,13 @@ export async function searchByEmail(
   query: string,
 ): Promise<SearchResultUser[]> {
   const lowerQuery = query.toLowerCase();
+  const authUsers = await listAllAuthUsers(client);
 
-  const { data, error } = await client.auth.admin.listUsers({
-    page: 1,
-    perPage: 50,
-  });
-
-  if (error) throw error;
-
-  const matching = data.users.filter(
-    (u: { email?: string }) =>
-      u.email && u.email.toLowerCase().includes(lowerQuery),
+  const matching = authUsers.filter(
+    (u) => u.email && u.email.toLowerCase().includes(lowerQuery),
   );
 
-  return enrichUsers(
-    client,
-    matching.map(
-      (u: {
-        id: string;
-        email?: string;
-        phone?: string;
-        created_at: string;
-        last_sign_in_at?: string;
-        banned_until?: string;
-      }) => ({
-        id: u.id,
-        email: u.email,
-        phone: u.phone,
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at,
-        banned_until:
-          'banned_until' in u ? (u.banned_until as string) : undefined,
-      }),
-    ),
-  );
+  return enrichUsers(client, matching);
 }
 
 /**
@@ -229,11 +344,22 @@ export async function searchByPhone(
   client: SupabaseClient,
   query: string,
 ): Promise<SearchResultUser[]> {
+  const variants = getNormalizedPhoneVariants(query);
+  if (variants.length === 0) return [];
+
+  const variantFilters = variants.map(
+    (value) => `phone_e164.ilike.%${value}%`,
+  );
+
+  let linesQuery = client.from('ultaura_lines').select('account_id');
+
+  linesQuery =
+    variantFilters.length === 1
+      ? linesQuery.ilike('phone_e164', `%${variants[0]}%`)
+      : linesQuery.or(variantFilters.join(','));
+
   // Find lines matching the phone number
-  const { data: matchingLines, error: linesError } = await client
-    .from('ultaura_lines')
-    .select('account_id')
-    .ilike('phone_e164', `%${query}%`);
+  const { data: matchingLines, error: linesError } = await linesQuery;
 
   if (linesError) throw linesError;
   if (!matchingLines || matchingLines.length === 0) return [];
@@ -245,48 +371,7 @@ export async function searchByPhone(
       ),
     ),
   );
-
-  // Get accounts -> organizations
-  const { data: matchingAccounts } = await client
-    .from('ultaura_accounts')
-    .select('organization_id')
-    .in('id', accountIds);
-
-  if (!matchingAccounts || matchingAccounts.length === 0) return [];
-
-  const orgIds = Array.from(
-    new Set(
-      matchingAccounts.map(
-        (a: { organization_id: number }) => a.organization_id,
-      ),
-    ),
-  );
-
-  // Get user_ids from memberships
-  const { data: membershipData } = await client
-    .from('memberships')
-    .select('user_id')
-    .in('organization_id', orgIds);
-
-  if (!membershipData || membershipData.length === 0) return [];
-
-  const userIds: string[] = Array.from(
-    new Set<string>(
-      membershipData.map((m: { user_id: string }) => m.user_id),
-    ),
-  );
-
-  // Fetch auth users
-  const authUsers = await Promise.all(
-    userIds.map(async (uid: string) => {
-      const { data } = await client.auth.admin.getUserById(uid);
-      return data?.user;
-    }),
-  );
-
-  const validUsers = authUsers.filter(Boolean) as AuthUserInput[];
-
-  return enrichUsers(client, validUsers);
+  return resolveUsersByAccountIds(client, accountIds);
 }
 
 /**
@@ -322,10 +407,15 @@ export async function searchByLinePhone(
   client: SupabaseClient,
   query: string,
 ): Promise<SearchResultUser[]> {
+  const normalizedPhones = getNormalizedPhoneVariants(query).filter((value) =>
+    value.startsWith('+'),
+  );
+  if (normalizedPhones.length === 0) return [];
+
   const { data: matchingLines, error: linesError } = await client
     .from('ultaura_lines')
     .select('account_id')
-    .eq('phone_e164', query.trim());
+    .in('phone_e164', normalizedPhones);
 
   if (linesError) throw linesError;
   if (!matchingLines || matchingLines.length === 0) return [];
@@ -337,43 +427,5 @@ export async function searchByLinePhone(
       ),
     ),
   );
-
-  const { data: matchingAccounts } = await client
-    .from('ultaura_accounts')
-    .select('organization_id')
-    .in('id', accountIds);
-
-  if (!matchingAccounts || matchingAccounts.length === 0) return [];
-
-  const orgIds = Array.from(
-    new Set(
-      matchingAccounts.map(
-        (a: { organization_id: number }) => a.organization_id,
-      ),
-    ),
-  );
-
-  const { data: membershipData } = await client
-    .from('memberships')
-    .select('user_id')
-    .in('organization_id', orgIds);
-
-  if (!membershipData || membershipData.length === 0) return [];
-
-  const userIds: string[] = Array.from(
-    new Set<string>(
-      membershipData.map((m: { user_id: string }) => m.user_id),
-    ),
-  );
-
-  const authUsers = await Promise.all(
-    userIds.map(async (uid: string) => {
-      const { data } = await client.auth.admin.getUserById(uid);
-      return data?.user;
-    }),
-  );
-
-  const validUsers = authUsers.filter(Boolean) as AuthUserInput[];
-
-  return enrichUsers(client, validUsers);
+  return resolveUsersByAccountIds(client, accountIds);
 }

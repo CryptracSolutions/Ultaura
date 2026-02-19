@@ -65,18 +65,14 @@ export async function aggregateTimeline(filter: TimelineFilter): Promise<{
 }> {
   const client = getSupabaseServerComponentClient({ admin: true });
   const sources = filter.sources?.length ? filter.sources : ALL_SOURCES;
-  const limit = filter.limit ?? 50;
+  const limit = filter.limit;
   const offset = filter.offset ?? 0;
 
-  const fetchers: Array<() => Promise<TimelineEntry[]>> = [];
-
-  for (const source of sources) {
-    fetchers.push(() =>
+  const results = await Promise.all(
+    sources.map((source) =>
       fetchSourceEntries(client, source, filter.accountIds, filter.lineIds),
-    );
-  }
-
-  const results = await Promise.all(fetchers.map((fn) => fn()));
+    ),
+  );
   const allEntries = results.flat();
 
   allEntries.sort(
@@ -84,7 +80,10 @@ export async function aggregateTimeline(filter: TimelineFilter): Promise<{
   );
 
   const total = allEntries.length;
-  const paginated = allEntries.slice(offset, offset + limit);
+  const paginated =
+    typeof limit === 'number'
+      ? allEntries.slice(offset, offset + limit)
+      : allEntries.slice(offset);
 
   return { entries: paginated, total };
 }
@@ -208,6 +207,8 @@ async function fetchCallEvents(
 ): Promise<TimelineEntry[]> {
   // call_events link through call_session_id; if we have accountIds/lineIds
   // we need to first find matching session IDs
+  let sessionIds: string[] | undefined;
+
   if (accountIds?.length || lineIds?.length) {
     let sessionQuery = client
       .from('ultaura_call_sessions')
@@ -217,27 +218,22 @@ async function fetchCallEvents(
     const { data: sessions } = await sessionQuery;
     if (!sessions?.length) return [];
 
-    const sessionIds = sessions.map((s: any) => s.id);
-
-    const { data, error } = await client
-      .from('ultaura_call_events')
-      .select('id, call_session_id, type, payload, created_at')
-      .in('call_session_id', sessionIds)
-      .order('created_at', { ascending: false })
-      .limit(SOURCE_LIMIT);
-
-    if (error || !data) return [];
-    return data.map((row: any) => mapCallEvent(row));
+    sessionIds = sessions.map((session: any) => session.id);
   }
 
-  const { data, error } = await client
+  let query = client
     .from('ultaura_call_events')
     .select('id, call_session_id, type, payload, created_at')
     .order('created_at', { ascending: false })
     .limit(SOURCE_LIMIT);
 
+  if (sessionIds) {
+    query = query.in('call_session_id', sessionIds);
+  }
+
+  const { data, error } = await query;
   if (error || !data) return [];
-  return data.map((row: any) => mapCallEvent(row));
+  return data.map(mapCallEvent);
 }
 
 function mapCallEvent(row: any): TimelineEntry {
@@ -313,17 +309,10 @@ async function fetchReminders(
   if (error || !data) return [];
 
   return data.map((row: any) => {
-    let messagePreview: string;
-    if (row.message) {
-      messagePreview =
-        row.message.length > 50
-          ? `${row.message.slice(0, 50)}...`
-          : row.message;
-    } else if (row.message_ciphertext) {
-      messagePreview = '[encrypted reminder]';
-    } else {
-      messagePreview = '[no message]';
-    }
+    const messagePreview = getReminderMessagePreview(
+      row.message,
+      row.message_ciphertext,
+    );
 
     return {
       id: row.id,
@@ -342,6 +331,21 @@ async function fetchReminders(
       },
     };
   });
+}
+
+function getReminderMessagePreview(
+  message: string | null,
+  messageCiphertext: string | null,
+): string {
+  if (message) {
+    return message.length > 50 ? `${message.slice(0, 50)}...` : message;
+  }
+
+  if (messageCiphertext) {
+    return '[encrypted reminder]';
+  }
+
+  return '[no message]';
 }
 
 async function fetchScheduleEvents(

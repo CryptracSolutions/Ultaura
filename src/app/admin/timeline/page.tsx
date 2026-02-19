@@ -63,17 +63,8 @@ async function TimelinePage({ searchParams }: TimelinePageProps) {
   const page = getPageFromQueryParams(searchParams.page);
   const offset = (page - 1) * PER_PAGE;
 
-  // Parse redaction mode
-  const redactionMode: RedactionMode =
-    searchParams.redaction && VALID_REDACTION_MODES.has(searchParams.redaction)
-      ? (searchParams.redaction as RedactionMode)
-      : 'admin_full';
-
-  // Parse source filters
-  const sourcesParam = searchParams.types?.split(',').filter(Boolean) ?? [];
-  const validSources = sourcesParam.filter((s) =>
-    VALID_SOURCES.has(s),
-  ) as TimelineSource[];
+  const redactionMode = parseRedactionMode(searchParams.redaction);
+  const validSources = parseSources(searchParams.types);
 
   // Resolve filter context
   let accountIds: string[] = [];
@@ -99,8 +90,6 @@ async function TimelinePage({ searchParams }: TimelinePageProps) {
     accountIds: accountIds.length > 0 ? accountIds : undefined,
     lineIds: lineIds.length > 0 ? lineIds : undefined,
     sources: validSources.length > 0 ? validSources : undefined,
-    limit: PER_PAGE,
-    offset,
   };
 
   let entries: Awaited<ReturnType<typeof aggregateTimeline>>['entries'] = [];
@@ -110,8 +99,9 @@ async function TimelinePage({ searchParams }: TimelinePageProps) {
   if (!resolveError) {
     try {
       const result = await aggregateTimeline(filter);
-      entries = applyRedaction(result.entries, redactionMode);
-      total = result.total;
+      const redactedEntries = applyRedaction(result.entries, redactionMode);
+      total = redactedEntries.length;
+      entries = redactedEntries.slice(offset, offset + PER_PAGE);
     } catch (err) {
       logger.error({ err }, 'Failed to aggregate timeline');
       fetchError =
@@ -223,7 +213,7 @@ async function resolveFilterContext(
 
       if (accounts && accounts.length > 0) {
         const ids = accounts.map((a: { id: string }) => a.id);
-        accountIds = Array.from(new Set(accountIds.concat(ids)));
+        accountIds = mergeUniqueIds(accountIds, ids);
       }
     }
 
@@ -234,7 +224,7 @@ async function resolveFilterContext(
   if (params.orgId) {
     const orgIdNum = parseInt(params.orgId, 10);
 
-    if (!isNaN(orgIdNum)) {
+    if (!Number.isNaN(orgIdNum)) {
       const { data: accounts } = await client
         .from('ultaura_accounts')
         .select('id')
@@ -242,7 +232,7 @@ async function resolveFilterContext(
 
       if (accounts && accounts.length > 0) {
         const ids = accounts.map((a: { id: string }) => a.id);
-        accountIds = Array.from(new Set(accountIds.concat(ids)));
+        accountIds = mergeUniqueIds(accountIds, ids);
       }
     }
 
@@ -254,6 +244,23 @@ async function resolveFilterContext(
     lineIds,
     description: descriptions.join(', '),
   };
+}
+
+function parseRedactionMode(mode: string | undefined): RedactionMode {
+  if (mode && VALID_REDACTION_MODES.has(mode)) {
+    return mode as RedactionMode;
+  }
+
+  return 'admin_full';
+}
+
+function parseSources(types: string | undefined): TimelineSource[] {
+  const sources = types?.split(',').filter(Boolean) ?? [];
+  return sources.filter((source) => VALID_SOURCES.has(source)) as TimelineSource[];
+}
+
+function mergeUniqueIds(existing: string[], incoming: string[]): string[] {
+  return Array.from(new Set([...existing, ...incoming]));
 }
 
 function truncateId(id: string): string {

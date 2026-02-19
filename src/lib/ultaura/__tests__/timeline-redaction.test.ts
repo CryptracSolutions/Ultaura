@@ -1,204 +1,182 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-// Test the redaction logic for timeline entries
-// These types mirror what will exist in ~/lib/ultaura/admin/timeline-redaction.ts
+vi.mock('server-only', () => ({}));
 
-type TimelineSource =
-  | 'call_session'
-  | 'call_event'
-  | 'safety_event'
-  | 'reminder'
-  | 'schedule_event'
-  | 'opt_out'
-  | 'trusted_contact'
-  | 'notification_recipient'
-  | 'data_export'
-  | 'consent_audit'
-  | 'telephony_event';
+import { applyRedaction } from '~/lib/ultaura/admin/timeline-redaction';
+import type { TimelineEntry } from '~/lib/ultaura/admin/timeline-aggregator';
 
-type RedactionMode = 'admin_full' | 'payer_simulated' | 'recipient_simulated';
-
-interface TimelineEntry {
-  id: string;
-  createdAt: string;
-  source: TimelineSource;
-  summary: string;
-  entityType: string;
-  entityId: string;
-  accountId: string | null;
-  lineId: string | null;
-  payload: Record<string, unknown>;
-}
-
-// Payer can see these sources
-const PAYER_VISIBLE_SOURCES: Set<TimelineSource> = new Set<TimelineSource>([
-  'call_session',
-  'reminder',
-  'schedule_event',
-  'opt_out',
-  'trusted_contact',
-  'data_export',
-  'consent_audit',
-]);
-
-// Recipient can see these sources
-const RECIPIENT_VISIBLE_SOURCES: Set<TimelineSource> = new Set<TimelineSource>([
-  'safety_event',
-]);
-
-function applyRedaction(
-  entries: TimelineEntry[],
-  mode: RedactionMode,
-): TimelineEntry[] {
-  if (mode === 'admin_full') return entries;
-
-  if (mode === 'payer_simulated') {
-    return entries
-      .filter((e) => PAYER_VISIBLE_SOURCES.has(e.source))
-      .map((e) => ({
-        ...e,
-        payload: {},
-        summary: e.source === 'call_session'
-          ? e.summary.replace(/\d+s/, '**s')
-          : e.summary,
-      }));
-  }
-
-  if (mode === 'recipient_simulated') {
-    return entries
-      .filter((e) => RECIPIENT_VISIBLE_SOURCES.has(e.source))
-      .map((e) => ({
-        ...e,
-        payload: {},
-        summary: `Safety alert: ${(e.payload as Record<string, string>).tier ?? 'unknown'} tier`,
-      }));
-  }
-
-  return entries;
-}
-
-const mockEntries: TimelineEntry[] = [
-  {
-    id: '1',
+function createEntry(overrides: Partial<TimelineEntry>): TimelineEntry {
+  return {
+    id: 'entry-1',
     createdAt: '2026-01-01T00:00:00Z',
     source: 'call_session',
     summary: 'Outbound call - completed (120s)',
     entityType: 'call_session',
-    entityId: 'cs-1',
-    accountId: 'acc-1',
+    entityId: 'call-session-1',
+    accountId: 'account-1',
     lineId: 'line-1',
-    payload: { status: 'completed', seconds_connected: 120 },
-  },
-  {
-    id: '2',
-    createdAt: '2026-01-01T00:01:00Z',
-    source: 'call_event',
-    summary: 'Call event: tool_call',
-    entityType: 'call_event',
-    entityId: 'ce-1',
-    accountId: 'acc-1',
-    lineId: 'line-1',
-    payload: { type: 'tool_call', tool: 'store_memory' },
-  },
-  {
-    id: '3',
-    createdAt: '2026-01-01T00:02:00Z',
-    source: 'safety_event',
-    summary: 'Safety event: high tier - suggested_988',
-    entityType: 'safety_event',
-    entityId: 'se-1',
-    accountId: 'acc-1',
-    lineId: 'line-1',
-    payload: { tier: 'high', action_taken: 'suggested_988' },
-  },
-  {
-    id: '4',
-    createdAt: '2026-01-01T00:03:00Z',
-    source: 'telephony_event',
-    summary: 'Telephony: status_callback (info)',
-    entityType: 'telephony_event',
-    entityId: 'te-1',
-    accountId: 'acc-1',
-    lineId: 'line-1',
-    payload: { CallStatus: 'completed', Duration: '120' },
-  },
-  {
-    id: '5',
-    createdAt: '2026-01-01T00:04:00Z',
-    source: 'reminder',
-    summary: 'Reminder sent: Take morning medication',
-    entityType: 'reminder',
-    entityId: 'r-1',
-    accountId: 'acc-1',
-    lineId: 'line-1',
-    payload: { message: 'Take morning medication', status: 'sent' },
-  },
-];
+    payload: {},
+    ...overrides,
+  };
+}
 
-describe('timeline redaction', () => {
-  describe('admin_full mode', () => {
-    it('returns all entries unchanged', () => {
-      const result = applyRedaction(mockEntries, 'admin_full');
-      expect(result).toHaveLength(5);
-      expect(result).toEqual(mockEntries);
-    });
+describe('timeline-redaction', () => {
+  it('returns entries unchanged for admin_full mode', () => {
+    const entries: TimelineEntry[] = [
+      createEntry({
+        source: 'telephony_event',
+        payload: { event_type: 'status_callback', severity: 'info' },
+      }),
+      createEntry({
+        id: 'entry-2',
+        source: 'call_event',
+        payload: { type: 'tool_call', event_payload: { tool: 'store_memory' } },
+      }),
+    ];
 
-    it('preserves full payloads', () => {
-      const result = applyRedaction(mockEntries, 'admin_full');
-      expect(result[0].payload).toEqual({
-        status: 'completed',
-        seconds_connected: 120,
-      });
+    const redacted = applyRedaction(entries, 'admin_full');
+
+    expect(redacted).toEqual(entries);
+  });
+
+  it('filters payer view to payer-visible sources (including safety_event)', () => {
+    const entries: TimelineEntry[] = [
+      createEntry({ id: 'call-session', source: 'call_session' }),
+      createEntry({ id: 'safety', source: 'safety_event' }),
+      createEntry({ id: 'reminder', source: 'reminder' }),
+      createEntry({ id: 'call-event', source: 'call_event' }),
+      createEntry({ id: 'telephony', source: 'telephony_event' }),
+      createEntry({
+        id: 'recipient',
+        source: 'notification_recipient',
+      }),
+    ];
+
+    const redacted = applyRedaction(entries, 'payer_simulated');
+    const sources = redacted.map((entry) => entry.source);
+
+    expect(sources).toEqual(['call_session', 'safety_event', 'reminder']);
+  });
+
+  it('redacts call session payload fields for payer view', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'call_session',
+          payload: {
+            direction: 'outbound',
+            status: 'completed',
+            seconds_connected: 120,
+            twilio_call_sid: 'CA123',
+            end_reason: 'completed',
+          },
+        }),
+      ],
+      'payer_simulated',
+    );
+
+    expect(redacted.payload).toEqual({
+      direction: 'outbound',
+      status: 'completed',
+      seconds_connected: 120,
     });
   });
 
-  describe('payer_simulated mode', () => {
-    it('filters out call_events and telephony_events', () => {
-      const result = applyRedaction(mockEntries, 'payer_simulated');
-      const sources = result.map((e) => e.source);
-      expect(sources).not.toContain('call_event');
-      expect(sources).not.toContain('telephony_event');
-    });
+  it('redacts safety_event summary and payload details for payer view', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'safety_event',
+          summary: 'Safety event: high tier - suggested_988',
+          payload: {
+            tier: 'high',
+            signals: ['hopeless'],
+            action_taken: 'suggested_988',
+          },
+        }),
+      ],
+      'payer_simulated',
+    );
 
-    it('keeps call_sessions, reminders, and other payer-visible sources', () => {
-      const result = applyRedaction(mockEntries, 'payer_simulated');
-      const sources = result.map((e) => e.source);
-      expect(sources).toContain('call_session');
-      expect(sources).toContain('reminder');
-    });
-
-    it('filters out safety_events from payer view', () => {
-      const result = applyRedaction(mockEntries, 'payer_simulated');
-      const sources = result.map((e) => e.source);
-      expect(sources).not.toContain('safety_event');
-    });
-
-    it('strips payloads', () => {
-      const result = applyRedaction(mockEntries, 'payer_simulated');
-      for (const entry of result) {
-        expect(entry.payload).toEqual({});
-      }
+    expect(redacted.summary).toBe('Safety event: high tier');
+    expect(redacted.payload).toEqual({
+      tier: 'high',
+      signals: '[hidden]',
+      action_taken: '[hidden]',
     });
   });
 
-  describe('recipient_simulated mode', () => {
-    it('only shows safety_events', () => {
-      const result = applyRedaction(mockEntries, 'recipient_simulated');
-      expect(result).toHaveLength(1);
-      expect(result[0].source).toBe('safety_event');
-    });
+  it('redacts reminder encrypted payload marker for payer view', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'reminder',
+          payload: {
+            message: 'Take medication',
+            has_encrypted_message: true,
+            status: 'sent',
+          },
+        }),
+      ],
+      'payer_simulated',
+    );
 
-    it('strips detailed payload', () => {
-      const result = applyRedaction(mockEntries, 'recipient_simulated');
-      expect(result[0].payload).toEqual({});
+    expect(redacted.payload).toEqual({
+      message: '[hidden]',
+      status: 'sent',
     });
   });
 
-  describe('empty entries', () => {
-    it('handles empty array for all modes', () => {
-      expect(applyRedaction([], 'admin_full')).toEqual([]);
-      expect(applyRedaction([], 'payer_simulated')).toEqual([]);
-      expect(applyRedaction([], 'recipient_simulated')).toEqual([]);
+  it('shows only minimal safety details for recipient view', () => {
+    const entries: TimelineEntry[] = [
+      createEntry({
+        id: 'safety',
+        source: 'safety_event',
+        summary: 'Safety event: medium tier - suggested_911',
+        payload: {
+          tier: 'medium',
+          signals: ['distress'],
+          action_taken: 'suggested_911',
+          call_session_id: 'call-1',
+        },
+      }),
+      createEntry({ id: 'reminder', source: 'reminder' }),
+    ];
+
+    const redacted = applyRedaction(entries, 'recipient_simulated');
+
+    expect(redacted).toHaveLength(1);
+    expect(redacted[0].source).toBe('safety_event');
+    expect(redacted[0].summary).toBe('Safety alert: medium tier');
+    expect(redacted[0].payload).toEqual({
+      tier: 'medium',
+      signals: '[hidden]',
+      action_taken: '[hidden]',
+      call_session_id: '[hidden]',
+    });
+  });
+
+  it('strips nested payload values for safe pass-through sources', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'schedule_event',
+          payload: {
+            event_type: 'triggered',
+            metadata: { reason: 'scheduler' },
+            tags: ['nightly'],
+            triggered_by: 'system',
+          },
+        }),
+      ],
+      'payer_simulated',
+    );
+
+    expect(redacted.payload).toEqual({
+      event_type: 'triggered',
+      metadata: '[hidden]',
+      tags: '[hidden]',
+      triggered_by: 'system',
     });
   });
 });

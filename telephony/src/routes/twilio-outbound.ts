@@ -11,8 +11,53 @@ import { generateStreamTwiML, generateMessageTwiML, generateHangupTwiML, validat
 import { getWebsocketUrl } from '../utils/env.js';
 import { getVoicemailMessage } from '../utils/voicemail-messages.js';
 import { updateLogContext } from '../observability/log-context.js';
+import { logTelephonyEvent } from '../services/telephony-event-log.js';
 
 export const twilioOutboundRouter = Router();
+
+type TelephonyEventSeverity = 'info' | 'warn' | 'error';
+const OUTBOUND_ERROR_MESSAGE = "I'm sorry, there was an error. Goodbye.";
+const MACHINE_ANSWER_TYPES = new Set([
+  'machine_start',
+  'machine_end_beep',
+  'machine_end_silence',
+  'machine_end_other',
+]);
+
+function toLogPayload(
+  body: unknown,
+  extras?: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalizedBody =
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : { body };
+
+  return extras ? { ...normalizedBody, ...extras } : normalizedBody;
+}
+
+async function safeLogOutboundEvent(opts: {
+  accountId?: string;
+  lineId?: string;
+  callSessionId?: string;
+  providerId?: string;
+  payload: Record<string, unknown>;
+  severity: TelephonyEventSeverity;
+}): Promise<void> {
+  try {
+    await logTelephonyEvent({
+      accountId: opts.accountId,
+      lineId: opts.lineId,
+      callSessionId: opts.callSessionId,
+      providerId: opts.providerId,
+      eventType: 'twilio.voice.outbound.webhook',
+      payload: opts.payload,
+      severity: opts.severity,
+    });
+  } catch (error) {
+    logger.warn({ error }, 'Failed to enqueue outbound telephony event log');
+  }
+}
 
 // Twilio signature validation middleware
 function validateTwilioWebhook(req: Request, res: Response, next: () => void) {
@@ -49,40 +94,55 @@ twilioOutboundRouter.use(validateTwilioWebhook);
 
 // Handle outbound call TwiML request (when Twilio answers the call)
 twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
-  const { callSessionId, overrideQuietHours } = req.query;
+  const { callSessionId: queryCallSessionId, overrideQuietHours } = req.query;
   const { CallSid, CallStatus, AnsweredBy } = req.body;
+  const providerId = typeof CallSid === 'string' ? CallSid : undefined;
+  let resolvedCallSessionId =
+    typeof queryCallSessionId === 'string' ? queryCallSessionId : undefined;
+  let accountId: string | undefined;
+  let lineId: string | undefined;
+  let eventSeverity: TelephonyEventSeverity = 'info';
+  const payload = toLogPayload(req.body, {
+    callSessionIdQuery: queryCallSessionId,
+    overrideQuietHoursQuery: overrideQuietHours,
+  });
   const span = trace.getActiveSpan();
   if (span) {
     if (typeof CallSid === 'string') {
       span.setAttribute('twilioCallSid', CallSid);
     }
-    if (typeof callSessionId === 'string') {
-      span.setAttribute('callSessionId', callSessionId);
+    if (typeof queryCallSessionId === 'string') {
+      span.setAttribute('callSessionId', queryCallSessionId);
     }
   }
   try {
     logger.info({
-      callSessionId,
+      callSessionId: queryCallSessionId,
       twilioCallSid: CallSid,
       status: CallStatus,
       answeredBy: AnsweredBy,
     }, 'Outbound call answered');
 
-    if (!callSessionId || typeof callSessionId !== 'string') {
+    if (!queryCallSessionId || typeof queryCallSessionId !== 'string') {
       logger.error('Missing callSessionId in outbound request');
-      res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an error. Goodbye."));
+      eventSeverity = 'error';
+      res.type('text/xml').send(generateMessageTwiML(OUTBOUND_ERROR_MESSAGE));
       return;
     }
 
-    updateLogContext({ callSessionId, twilioCallSid: CallSid });
+    updateLogContext({ callSessionId: queryCallSessionId, twilioCallSid: CallSid });
 
     // Get the call session
-    const session = await getCallSession(callSessionId);
+    const session = await getCallSession(queryCallSessionId);
     if (!session) {
-      logger.error({ callSessionId }, 'Call session not found');
-      res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an error. Goodbye."));
+      logger.error({ callSessionId: queryCallSessionId }, 'Call session not found');
+      eventSeverity = 'error';
+      res.type('text/xml').send(generateMessageTwiML(OUTBOUND_ERROR_MESSAGE));
       return;
     }
+    resolvedCallSessionId = session.id;
+    accountId = session.account_id;
+    lineId = session.line_id;
 
     span?.setAttribute('callSessionId', session.id);
 
@@ -90,7 +150,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     const lineWithAccount = await getLineById(session.line_id);
     if (!lineWithAccount) {
       logger.error({ lineId: session.line_id }, 'Line not found');
-      res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an error. Goodbye."));
+      res.type('text/xml').send(generateMessageTwiML(OUTBOUND_ERROR_MESSAGE));
       return;
     }
 
@@ -135,7 +195,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
           const sessionCreatedMs = new Date(session.created_at).getTime();
 
           if (sessionCreatedMs < trialEndsMs) {
-            logger.info({ callSessionId, trialEndsAt }, 'Trial expired after call initiation; allowing outbound call to proceed');
+            logger.info({ callSessionId: queryCallSessionId, trialEndsAt }, 'Trial expired after call initiation; allowing outbound call to proceed');
           } else {
             logger.info({ lineId: line.id, reason: accessCheck.reason }, 'Line access denied for outbound');
             res.type('text/xml').send(generateMessageTwiML("I'm sorry, there was an issue with your account. Please contact support. Goodbye."));
@@ -160,13 +220,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     });
 
     const answeredBy = typeof AnsweredBy === 'string' ? AnsweredBy : null;
-    const machineAnswers = new Set([
-      'machine_start',
-      'machine_end_beep',
-      'machine_end_silence',
-      'machine_end_other',
-    ]);
-    const isMachine = answeredBy ? machineAnswers.has(answeredBy) : false;
+    const isMachine = answeredBy ? MACHINE_ANSWER_TYPES.has(answeredBy) : false;
     const isFax = answeredBy === 'fax';
 
     if (answeredBy) {
@@ -177,7 +231,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     }
 
     if (isFax) {
-      logger.info({ callSessionId, answeredBy }, 'Fax detected, ending call');
+      logger.info({ callSessionId: queryCallSessionId, answeredBy }, 'Fax detected, ending call');
       res.type('text/xml').send(generateHangupTwiML());
       return;
     }
@@ -186,7 +240,7 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
     const startingLanguage = languageResult.language;
 
     if (isMachine) {
-      logger.info({ callSessionId, answeredBy }, 'Answering machine detected');
+      logger.info({ callSessionId: queryCallSessionId, answeredBy }, 'Answering machine detected');
       const voicemailBehavior = (session.is_test_call && session.is_preview_mode)
         ? 'none'
         : (line.voicemail_behavior || 'brief');
@@ -218,9 +272,19 @@ twilioOutboundRouter.post('/outbound', async (req: Request, res: Response) => {
 
     res.type('text/xml').send(twiml);
   } catch (error) {
+    eventSeverity = 'error';
     span?.recordException(error as Error);
     span?.setStatus({ code: SpanStatusCode.ERROR });
     logger.error({ error }, 'Error handling outbound call');
     res.type('text/xml').send(generateMessageTwiML("I'm sorry, I'm having technical difficulties. Goodbye."));
+  } finally {
+    void safeLogOutboundEvent({
+      accountId,
+      lineId,
+      callSessionId: resolvedCallSessionId,
+      providerId,
+      payload,
+      severity: eventSeverity,
+    });
   }
 });

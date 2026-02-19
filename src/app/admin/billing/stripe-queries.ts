@@ -64,6 +64,49 @@ export function stripeUrl(
   return `${base}${prefix}/${type}/${id}`;
 }
 
+function formatStripeError(action: string, error: unknown): Error {
+  const message =
+    error instanceof Error ? error.message : 'Unknown Stripe error';
+  return new Error(`Stripe ${action} failed: ${message}`);
+}
+
+function getProductName(price: Stripe.Price): string | null {
+  const product = price.product;
+
+  if (!product || typeof product !== 'object') {
+    return null;
+  }
+
+  if ('deleted' in product && product.deleted) {
+    return null;
+  }
+
+  return product.name ?? null;
+}
+
+function getDefaultPaymentMethod(
+  subscription: Stripe.Subscription,
+): SafeStripeSubscription['defaultPaymentMethod'] {
+  const defaultPaymentMethod = subscription.default_payment_method;
+
+  if (
+    !defaultPaymentMethod ||
+    typeof defaultPaymentMethod !== 'object' ||
+    !('card' in defaultPaymentMethod) ||
+    !defaultPaymentMethod.card
+  ) {
+    return null;
+  }
+
+  const card = defaultPaymentMethod.card;
+  return {
+    brand: card.brand ?? 'unknown',
+    last4: card.last4 ?? '????',
+    expMonth: card.exp_month ?? 0,
+    expYear: card.exp_year ?? 0,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Customer                                                          */
 /* ------------------------------------------------------------------ */
@@ -86,8 +129,8 @@ export async function getStripeCustomer(
       livemode: customer.livemode,
       created: customer.created,
     };
-  } catch {
-    return null;
+  } catch (error) {
+    throw formatStripeError(`customer lookup for "${customerId}"`, error);
   }
 }
 
@@ -106,37 +149,15 @@ export async function getStripeSubscription(
 
     const items = sub.items.data.map((item: Stripe.SubscriptionItem) => {
       const price = item.price;
-      const product =
-        price.product && typeof price.product === 'object' && !('deleted' in price.product && price.product.deleted)
-          ? (price.product as { name?: string | null })
-          : null;
 
       return {
         priceId: price.id,
-        productName: product?.name ?? null,
+        productName: getProductName(price),
         unitAmount: price.unit_amount,
         currency: price.currency,
         interval: price.recurring?.interval ?? 'one_time',
       };
     });
-
-    let defaultPaymentMethod: SafeStripeSubscription['defaultPaymentMethod'] =
-      null;
-
-    if (
-      sub.default_payment_method &&
-      typeof sub.default_payment_method === 'object' &&
-      'card' in sub.default_payment_method &&
-      sub.default_payment_method.card
-    ) {
-      const card = sub.default_payment_method.card;
-      defaultPaymentMethod = {
-        brand: card.brand ?? 'unknown',
-        last4: card.last4 ?? '????',
-        expMonth: card.exp_month ?? 0,
-        expYear: card.exp_year ?? 0,
-      };
-    }
 
     return {
       id: sub.id,
@@ -148,10 +169,13 @@ export async function getStripeSubscription(
       trialEnd: sub.trial_end,
       livemode: sub.livemode,
       items,
-      defaultPaymentMethod,
+      defaultPaymentMethod: getDefaultPaymentMethod(sub),
     };
-  } catch {
-    return null;
+  } catch (error) {
+    throw formatStripeError(
+      `subscription lookup for "${subscriptionId}"`,
+      error,
+    );
   }
 }
 
@@ -180,7 +204,7 @@ export async function getStripeInvoices(
       hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
       nextPaymentAttempt: inv.next_payment_attempt ?? null,
     }));
-  } catch {
-    return [];
+  } catch (error) {
+    throw formatStripeError(`invoice lookup for customer "${customerId}"`, error);
   }
 }
