@@ -3,11 +3,15 @@
 import {
   BugAntIcon,
   ChatBubbleLeftRightIcon,
+  ClockIcon,
+  CreditCardIcon,
   HomeIcon,
+  MagnifyingGlassIcon,
   MegaphoneIcon,
   UserGroupIcon,
   UserIcon,
   UsersIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import Sidebar, {
   SidebarContent,
@@ -52,6 +56,13 @@ function AdminSidebar() {
           </SidebarItem>
 
           <SidebarItem
+            path={'/admin/search'}
+            Icon={() => <MagnifyingGlassIcon className={'h-6'} />}
+          >
+            Search
+          </SidebarItem>
+
+          <SidebarItem
             path={'/admin/users'}
             Icon={() => <UserIcon className={'h-6'} />}
           >
@@ -63,6 +74,20 @@ function AdminSidebar() {
             Icon={() => <UserGroupIcon className={'h-6'} />}
           >
             Organizations
+          </SidebarItem>
+
+          <SidebarItem
+            path={'/admin/billing'}
+            Icon={() => <CreditCardIcon className={'h-6'} />}
+          >
+            Billing
+          </SidebarItem>
+
+          <SidebarItem
+            path={'/admin/timeline'}
+            Icon={() => <ClockIcon className={'h-6'} />}
+          >
+            Timeline
           </SidebarItem>
 
           <SidebarItem
@@ -97,6 +122,17 @@ function AdminSidebar() {
             Icon={() => <BugAntIcon className={'h-6'} />}
           >
             Debug Logs
+          </SidebarItem>
+        </SidebarGroup>
+
+        <SidebarDivider />
+
+        <SidebarGroup label={'System'} collapsible={false}>
+          <SidebarItem
+            path={'/admin/diagnostics'}
+            Icon={() => <WrenchScrewdriverIcon className={'h-6'} />}
+          >
+            Diagnostics
           </SidebarItem>
         </SidebarGroup>
       </SidebarContent>

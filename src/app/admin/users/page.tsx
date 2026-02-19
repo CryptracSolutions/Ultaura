@@ -6,11 +6,16 @@ import { getUsers } from '~/app/admin/users/queries';
 import UserData from '~/core/session/types/user-data';
 import getPageFromQueryParams from '~/app/admin/utils/get-page-from-query-param';
 import { PageBody } from '~/core/ui/Page';
+import Alert from '~/core/ui/Alert';
 import configuration from '~/configuration';
+import getLogger from '~/core/logger';
+
+const VALID_PER_PAGE = [20, 50, 100] as const;
 
 interface UsersAdminPageProps {
   searchParams: {
     page?: string;
+    perPage?: string;
   };
 }
 
@@ -18,10 +23,33 @@ export const metadata = {
   title: `Users | ${configuration.site.siteName}`,
 };
 
+function getPerPage(param?: string): number {
+  const parsed = param ? parseInt(param, 10) : 20;
+  if (VALID_PER_PAGE.includes(parsed as (typeof VALID_PER_PAGE)[number])) {
+    return parsed;
+  }
+  return 20;
+}
+
 async function UsersAdminPage({ searchParams }: UsersAdminPageProps) {
   const page = getPageFromQueryParams(searchParams.page);
-  const perPage = 1;
-  const { users, total } = await loadUsers(page, perPage);
+  const perPage = getPerPage(searchParams.perPage);
+
+  let users: Awaited<ReturnType<typeof loadUsers>>['users'] = [];
+  let total = 0;
+  let loadError: string | null = null;
+
+  try {
+    const result = await loadUsers(page, perPage);
+    users = result.users;
+    total = result.total;
+  } catch (err) {
+    const logger = getLogger();
+    logger.error({ err }, 'Failed to load admin users');
+    loadError =
+      err instanceof Error ? err.message : 'Failed to load users';
+  }
+
   const pageCount = Math.ceil(total / perPage);
 
   return (
@@ -29,12 +57,21 @@ async function UsersAdminPage({ searchParams }: UsersAdminPageProps) {
       <AdminHeader>Users</AdminHeader>
 
       <PageBody>
-        <UsersTable
-          users={users}
-          page={page}
-          pageCount={pageCount}
-          perPage={perPage}
-        />
+        <div className={'flex flex-col space-y-4'}>
+          {loadError && (
+            <Alert type={'error'}>
+              <Alert.Heading>Error Loading Users</Alert.Heading>
+              {loadError}
+            </Alert>
+          )}
+
+          <UsersTable
+            users={users}
+            page={page}
+            pageCount={pageCount}
+            perPage={perPage}
+          />
+        </div>
       </PageBody>
     </div>
   );
@@ -79,6 +116,7 @@ async function loadUsers(page = 1, perPage = 20) {
         lastSignInAt: user.last_sign_in_at,
         banDuration,
         data,
+        profileMissing: !data,
       };
     })
     .filter(Boolean);
