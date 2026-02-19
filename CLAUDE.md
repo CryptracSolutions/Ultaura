@@ -43,6 +43,22 @@ You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large 
 | Implementation teammates | Sonnet 4.6 |
 | Code simplifier | Sonnet 4.6 |
 
+**Every time you deploy an agent, you MUST state the model being used in your visible output to the user.** This applies to ALL agent types — Explore, Plan, Implementation teammates, Code simplifier, and any one-shot Task agents.
+
+**Silently deploying agents without stating the model is a workflow violation.**
+
+**Format:** When launching agents, announce them like this:
+
+> Launching **[agent role/name]** on **[model]** — [brief purpose]
+
+**Example formats:**
+- "Launching **Explore agent** on **Opus 4.6** — investigating database schema and RLS policies"
+- "Launching **Implementation teammate `frontend-1`** on **Sonnet 4.6** — building the schedule form component"
+- "Launching **Plan agent** on **Opus 4.6** — drafting implementation plan"
+- "Launching **code-simplifier** on **Sonnet 4.6** — reviewing modified files for cleanup"
+
+**For batch launches**, list each agent individually.
+
 You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
