@@ -32,7 +32,16 @@ You MUST:
 
 ## For Medium/Large Tasks: Mandatory Delegation via Agent Teams
 
-You MUST use the **Agent Teams** feature with all agents as **model: "opus"** (`Teammate` tool) for medium and large tasks. Teams give agents shared task boards, inter-agent messaging, and persistent context — producing correct implementations over cheap ones.
+You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large tasks. Teams give agents shared task boards, inter-agent messaging, and persistent context — producing correct implementations over cheap ones.
+
+**Model assignments** (non-negotiable):
+| Role | Model |
+|------|-------|
+| Orchestrator (you) | Opus — set via `/model opus` |
+| Explore agents | Opus 4.6 |
+| Plan agent | Opus 4.6 |
+| Implementation teammates | Sonnet 4.6 |
+| Code simplifier | Sonnet 4.6 |
 
 You MUST follow these steps IN ORDER:
 
@@ -51,7 +60,8 @@ You MUST follow these steps IN ORDER:
 
 ### Agent Teams Guidelines
 
-- **Always use `model: "opus"`** for ALL agent types
+- **Explore & Plan agents: `model: "opus"`** — Opus for reasoning-heavy research and planning
+- **Implementation teammates & code-simplifier: `model: "sonnet"`** — Sonnet 4.6 for all code writing
 - **Max 4 implementation/task teammates** in parallel (to avoid file conflicts)
 - **Max 6 explore agents** in parallel
 - **Use `SendMessage`** to coordinate — teammates can't hear your plain text
@@ -75,7 +85,7 @@ You MUST create a task list using `TaskCreate` for **any work with 4+ steps**:
 After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
 
 **How to deploy:**
-- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "opus"`
+- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "sonnet"`
 - This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
 - It is **blocking** — wait for its result before proceeding to shutdown
 
