@@ -96,11 +96,6 @@ const ProfileDropdown: React.FCC<{
             <div className={'flex flex-col text-center w-full truncate'}>
               <span className={'text-sm truncate'}>{displayLabel}</span>
 
-              <span
-                className={'text-xs text-gray-500 dark:text-gray-400 truncate'}
-              >
-                {signedInAsLabel}
-              </span>
             </div>
           </If>
         </DropdownMenuTrigger>

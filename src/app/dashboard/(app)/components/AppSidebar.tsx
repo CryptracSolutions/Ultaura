@@ -16,6 +16,7 @@ import useSignOut from '~/core/hooks/use-sign-out';
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import SubscriptionStatusBadge from './organizations/SubscriptionStatusBadge';
 
+import { cn } from '~/core/generic/shadcn-utils';
 import configuration from '~/configuration';
 import Logo from '~/core/ui/Logo';
 import LogoImage from '~/core/ui/Logo/LogoImage';
@@ -25,33 +26,51 @@ const AppSidebar: React.FC = () => {
 
   return (
     <Sidebar collapsed={ctx.collapsed}>
-      <SidebarContent className={'mt-2 mb-4'}>
-        <div className="flex w-full items-center">
-          {ctx.collapsed ? (
-            <CollapsedLogoButton onClick={() => ctx.setCollapsed(false)} />
-          ) : (
-            <>
-              <div className="flex-1 min-w-0">
-                <Logo
-                  href={'/'}
-                  className="h-10"
-                  label={'Dashboard'}
-                  showWordmark={true}
-                  wordmarkClassName="text-2xl font-semibold leading-none text-primary"
-                />
-              </div>
-              <CollapsibleButton
-                collapsed={false}
-                onClick={ctx.setCollapsed}
-              />
-            </>
-          )}
-        </div>
-      </SidebarContent>
+      <div className="flex w-full flex-col px-2 space-y-1.5 mt-2 mb-2">
+        <div className="relative h-10 w-full">
+          {/* Expanded — fades out when collapsing */}
+          <div className={cn(
+            'absolute inset-0 flex items-center justify-between transition-opacity duration-200',
+            ctx.collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100',
+          )}>
+            <Logo
+              href={'/'}
+              className="h-9 ml-2"
+              label={'Dashboard'}
+              showWordmark={false}
+            />
+            <CollapsibleButton collapsed={false} onClick={ctx.setCollapsed} />
+          </div>
 
-      <SidebarContent className={`h-[calc(100%-160px)] overflow-y-auto`}>
+          {/* Collapsed — fades in when collapsing, logo swaps to expand icon on hover */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => ctx.setCollapsed(false)}
+                className={cn(
+                  'group absolute inset-0 flex cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 transition-[opacity,background-color] duration-200 hover:bg-muted/60',
+                  ctx.collapsed ? 'opacity-100' : 'opacity-0 pointer-events-none',
+                )}
+                aria-label="Open sidebar"
+                tabIndex={ctx.collapsed ? 0 : -1}
+              >
+                <div className="relative flex h-10 w-full items-center justify-center">
+                  <LogoImage className="h-9 transition-opacity duration-200 group-hover:opacity-0" />
+                  <PanelLeft className="absolute text-primary h-[1.1rem] w-[1.1rem] shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                </div>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={20}>
+              <Trans i18nKey="common:expandSidebar" />
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+
+      <div className="flex w-full flex-col px-2 space-y-1.5 h-[calc(100%-160px)] overflow-y-auto">
         <AppSidebarNavigation />
-      </SidebarContent>
+      </div>
 
       <div className={'absolute left-0 bottom-4 w-full'}>
         <SidebarContent>
@@ -64,36 +83,6 @@ const AppSidebar: React.FC = () => {
 
 export default AppSidebar;
 
-function CollapsedLogoButton({
-  onClick,
-}: {
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={onClick}
-          className="group flex w-full flex-1 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 transition-colors hover:bg-muted/60"
-          aria-label="Open sidebar"
-        >
-          <div className="relative flex h-[42px] w-full items-center justify-center">
-            <LogoImage
-              className="h-[42px] transition-opacity duration-200 group-hover:opacity-0"
-            />
-            <PanelLeft
-              className="absolute text-primary h-[1.1rem] w-[1.1rem] shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-            />
-          </div>
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="right" sideOffset={20}>
-        <Trans i18nKey="common:expandSidebar" />
-      </TooltipContent>
-    </Tooltip>
-  );
-}
 
 function CollapsibleButton({
   collapsed,
