@@ -5,6 +5,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import getLogger from '~/core/logger';
 import { decodeBytea, encodeBytea, type ByteaInput } from './bytea';
 import { buildShingles, tokenizeText } from '~/lib/search/match';
+import {
+  isDecryptionError,
+  unwrapDEK,
+  wrapDEKWithCurrentKey,
+} from './crypto-kek';
 
 const logger = getLogger();
 
@@ -49,47 +54,12 @@ function decodeByteaOrThrow(
   return Buffer.from(decoded);
 }
 
-function getKEK(): Buffer {
-  const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
-
-  if (!kekHex) {
-    throw new Error('Missing ULTAURA_ENCRYPTION_KEY environment variable');
-  }
-
-  if (kekHex.length !== 64) {
-    throw new Error('ULTAURA_ENCRYPTION_KEY must be 64 hex characters');
-  }
-
-  return Buffer.from(kekHex, 'hex');
-}
-
-function unwrapDEK(wrapped: Buffer, iv: Buffer, tag: Buffer): Buffer {
-  const kek = getKEK();
-  const decipher = crypto.createDecipheriv(ALGORITHM, toUint8Array(kek), toUint8Array(iv), {
-    authTagLength: TAG_LENGTH,
-  });
-
-  decipher.setAuthTag(toUint8Array(tag));
-  return Buffer.concat([
-    Uint8Array.from(decipher.update(toUint8Array(wrapped))),
-    Uint8Array.from(decipher.final()),
-  ]);
-}
-
 function wrapDEK(dek: Buffer): { wrapped: Buffer; iv: Buffer; tag: Buffer } {
-  const kek = getKEK();
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, toUint8Array(kek), toUint8Array(iv), {
+  return wrapDEKWithCurrentKey(dek, {
+    algorithm: ALGORITHM,
     authTagLength: TAG_LENGTH,
+    ivLength: IV_LENGTH,
   });
-
-  const wrapped = Buffer.concat([
-    Uint8Array.from(cipher.update(toUint8Array(dek))),
-    Uint8Array.from(cipher.final()),
-  ]);
-  const tag = cipher.getAuthTag();
-
-  return { wrapped, iv, tag };
 }
 
 function isLegacyLine(createdAt: string | null | undefined): boolean {
@@ -121,7 +91,11 @@ async function getOrCreateAccountDEK(
     return unwrapDEK(
       wrapped,
       iv,
-      tag
+      tag,
+      {
+        algorithm: ALGORITHM,
+        authTagLength: TAG_LENGTH,
+      }
     );
   }
 
@@ -172,7 +146,11 @@ async function getLineDEK(
   return unwrapDEK(
     wrapped,
     iv,
-    tag
+    tag,
+    {
+      algorithm: ALGORITHM,
+      authTagLength: TAG_LENGTH,
+    }
   );
 }
 
@@ -331,8 +309,19 @@ export async function hashReminderQueryTokens(
   tokens: string[]
 ): Promise<string[]> {
   if (tokens.length === 0) return [];
-  const key = await getOrCreateAccountDEK(client, accountId);
-  return Array.from(new Set(tokens)).map((token) => hashSearchToken(key, token));
+  try {
+    const key = await getOrCreateAccountDEK(client, accountId);
+    return Array.from(new Set(tokens)).map((token) => hashSearchToken(key, token));
+  } catch (error) {
+    logger.warn(
+      {
+        accountId,
+        errorCode: isDecryptionError(error) ? error.code : 'UNKNOWN',
+      },
+      'Failed to hash reminder query tokens; returning empty token set.'
+    );
+    return [];
+  }
 }
 
 export async function encryptReminderMessage(

@@ -4,8 +4,8 @@ import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client'
 import getLogger from '~/core/logger';
 import { parseOrganizationIdCookie } from '~/lib/server/cookies/organization.cookie';
 import getCurrentOrganization from '~/lib/server/organizations/get-current-organization';
-import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { buildReminderSearchTokens, decryptReminderMessagesForLine, hashReminderQueryTokens } from '~/lib/ultaura/reminder-crypto';
+import { isDecryptionError } from '~/lib/ultaura/crypto-kek';
 import { DAYS_OF_WEEK, formatTime } from '~/lib/ultaura/constants';
 import type { SearchItem, SearchResponse } from '~/lib/search/types';
 import { SEARCH_CATEGORIES } from '~/lib/search/types';
@@ -65,17 +65,32 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Organization not found' }, { status: 403 });
   }
 
-  const account = await getUltauraAccount(organization.id);
-  if (!account) {
+  const { data: account, error: accountError } = await supabase
+    .from('ultaura_accounts')
+    .select('id')
+    .eq('organization_id', organization.id)
+    .single();
+
+  if (accountError || !account) {
     return NextResponse.json({ error: 'Account not found' }, { status: 403 });
   }
 
   const accountId = account.id;
 
-  const hashedQueryTokens =
-    shouldFetchReminders && queryTokens.length
+  let hashedQueryTokens: string[] = [];
+  try {
+    hashedQueryTokens = shouldFetchReminders && queryTokens.length
       ? await hashReminderQueryTokens(adminClient, accountId, queryTokens)
       : [];
+  } catch (error) {
+    logger.warn(
+      {
+        accountId,
+        errorCode: isDecryptionError(error) ? error.code : 'UNKNOWN',
+      },
+      'Failed to hash search tokens. Proceeding without hashed tokens.'
+    );
+  }
 
   const remindersQuery = shouldFetchReminders
     ? supabase

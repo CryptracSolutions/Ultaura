@@ -4,19 +4,53 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
+const AUTH_FAILURE_MESSAGE =
+  'Failed to authenticate DEK. The Key Encryption Key may be incorrect or corrupted.';
 
-function getKEK(): Buffer {
-  const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
+function parseHexKeyOrThrow(envName: string, required: boolean): Buffer | null {
+  const value = process.env[envName];
 
-  if (!kekHex) {
-    throw new Error('Missing ULTAURA_ENCRYPTION_KEY environment variable');
+  if (!value) {
+    if (required) {
+      throw new Error(`Missing ${envName} environment variable`);
+    }
+    return null;
   }
 
-  if (kekHex.length !== 64) {
-    throw new Error('ULTAURA_ENCRYPTION_KEY must be 64 hex characters (256 bits)');
+  if (!/^[0-9a-fA-F]{64}$/.test(value)) {
+    throw new Error(`${envName} must be 64 hex characters (256 bits)`);
   }
 
-  return Buffer.from(kekHex, 'hex');
+  return Buffer.from(value, 'hex');
+}
+
+function getKEKs(): { current: Buffer; previous: Buffer | null } {
+  return {
+    current: parseHexKeyOrThrow('ULTAURA_ENCRYPTION_KEY', true) as Buffer,
+    previous: parseHexKeyOrThrow('ULTAURA_ENCRYPTION_KEY_PREVIOUS', false),
+  };
+}
+
+function isAuthFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('unable to authenticate data') ||
+    message.includes('bad decrypt') ||
+    message.includes('auth tag') ||
+    message.includes('unsupported state')
+  );
+}
+
+function attemptUnwrap(wrapped: Buffer, iv: Buffer, tag: Buffer, key: Buffer): Buffer {
+  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, {
+    authTagLength: TAG_LENGTH,
+  });
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(wrapped), decipher.final()]);
 }
 
 export function generateDEK(): Buffer {
@@ -28,10 +62,10 @@ export function wrapDEK(dek: Buffer): {
   iv: Buffer;
   tag: Buffer;
 } {
-  const kek = getKEK();
+  const { current } = getKEKs();
   const iv = crypto.randomBytes(IV_LENGTH);
 
-  const cipher = crypto.createCipheriv(ALGORITHM, kek, iv, {
+  const cipher = crypto.createCipheriv(ALGORITHM, current, iv, {
     authTagLength: TAG_LENGTH,
   });
 
@@ -46,13 +80,25 @@ export function unwrapDEK(
   iv: Buffer,
   tag: Buffer
 ): Buffer {
-  const kek = getKEK();
+  const { current, previous } = getKEKs();
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, kek, iv, {
-    authTagLength: TAG_LENGTH,
-  });
+  try {
+    return attemptUnwrap(wrapped, iv, tag, current);
+  } catch (error) {
+    if (!isAuthFailure(error)) {
+      throw error;
+    }
 
-  decipher.setAuthTag(tag);
+    if (previous) {
+      try {
+        return attemptUnwrap(wrapped, iv, tag, previous);
+      } catch (fallbackError) {
+        if (!isAuthFailure(fallbackError)) {
+          throw fallbackError;
+        }
+      }
+    }
 
-  return Buffer.concat([decipher.update(wrapped), decipher.final()]);
+    throw new Error(AUTH_FAILURE_MESSAGE);
+  }
 }

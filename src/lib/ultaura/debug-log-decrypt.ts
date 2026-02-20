@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import getLogger from '~/core/logger';
 import { decodeBytea } from './bytea';
+import { isDecryptionError, unwrapDEK } from './crypto-kek';
 
 const logger = getLogger();
 const ALGORITHM = 'aes-256-gcm';
@@ -11,29 +12,6 @@ const TAG_LENGTH = 16;
 
 function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
   return Uint8Array.from(value);
-}
-
-function getKEK(): Buffer {
-  const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
-  if (!kekHex || kekHex.length !== 64) {
-    throw new Error('Invalid ULTAURA_ENCRYPTION_KEY');
-  }
-  return Buffer.from(kekHex, 'hex');
-}
-
-function unwrapDEK(wrapped: Buffer, iv: Buffer, tag: Buffer): Buffer {
-  const kek = getKEK();
-  const decipher = crypto.createDecipheriv(
-    ALGORITHM,
-    toUint8Array(kek),
-    toUint8Array(iv),
-    { authTagLength: TAG_LENGTH }
-  );
-  decipher.setAuthTag(toUint8Array(tag));
-  return Buffer.concat([
-    Uint8Array.from(decipher.update(toUint8Array(wrapped))),
-    Uint8Array.from(decipher.final()),
-  ]);
 }
 
 async function getAccountDEK(
@@ -60,7 +38,10 @@ async function getAccountDEK(
     return null;
   }
 
-  return unwrapDEK(Buffer.from(wrapped), Buffer.from(iv), Buffer.from(tag));
+  return unwrapDEK(Buffer.from(wrapped), Buffer.from(iv), Buffer.from(tag), {
+    algorithm: ALGORITHM,
+    authTagLength: TAG_LENGTH,
+  });
 }
 
 function buildDebugLogAAD(
@@ -110,6 +91,7 @@ export async function decryptDebugPayload(
     logger.error({
       debugLogId,
       accountId,
+      errorCode: isDecryptionError(error) ? error.code : 'UNKNOWN',
       errorName: err?.name,
       errorMessage: err?.message,
     }, 'Failed to decrypt debug payload');

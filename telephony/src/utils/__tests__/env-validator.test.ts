@@ -79,5 +79,24 @@ describe('validateEnvVariables', () => {
 
     expect(() => validateEnvVariables()).not.toThrow();
   });
-});
 
+  it('accepts ULTAURA_ENCRYPTION_KEY_PREVIOUS when valid hex64', () => {
+    stubExit();
+    setBaseEnv({
+      NODE_ENV: 'test',
+      ULTAURA_ENCRYPTION_KEY_PREVIOUS: 'b'.repeat(64),
+    });
+
+    expect(() => validateEnvVariables()).not.toThrow();
+  });
+
+  it('rejects ULTAURA_ENCRYPTION_KEY_PREVIOUS when not hex64', () => {
+    stubExit();
+    setBaseEnv({
+      NODE_ENV: 'test',
+      ULTAURA_ENCRYPTION_KEY_PREVIOUS: 'invalid-key',
+    });
+
+    expect(() => validateEnvVariables()).toThrow('process.exit:1');
+  });
+});

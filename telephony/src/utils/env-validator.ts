@@ -10,6 +10,7 @@ interface EnvVariable {
 const ULTAURA_ENV_VARS: EnvVariable[] = [
   // Required - Critical
   { name: 'ULTAURA_ENCRYPTION_KEY', required: true, format: 'hex64' },
+  { name: 'ULTAURA_ENCRYPTION_KEY_PREVIOUS', required: false, format: 'hex64' },
   { name: 'ULTAURA_INTERNAL_API_SECRET', required: true, format: 'min32' },
   { name: 'ULTAURA_BACKEND_URL', required: true, format: 'url' },
   // Optional: Used by the telephony service for self-referential tool calls to avoid cross-pod routing.

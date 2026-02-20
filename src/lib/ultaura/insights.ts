@@ -44,6 +44,7 @@ import type { SegmentType } from './types/retention';
 import { getPrivateTopicCodes, getSharingGate } from './sharing-gate';
 import { logConsentAudit } from './privacy';
 import { decodeBytea, encodeBytea, type ByteaInput } from './bytea';
+import { unwrapDEK, wrapDEKWithCurrentKey } from './crypto-kek';
 
 const logger = getLogger();
 
@@ -96,36 +97,6 @@ function decodeEncryptedPayload(
   };
 }
 
-function getKEK(): Buffer {
-  const kekHex = process.env.ULTAURA_ENCRYPTION_KEY;
-
-  if (!kekHex) {
-    throw new Error('Missing ULTAURA_ENCRYPTION_KEY environment variable');
-  }
-
-  if (kekHex.length !== 64) {
-    throw new Error('ULTAURA_ENCRYPTION_KEY must be 64 hex characters');
-  }
-
-  return Buffer.from(kekHex, 'hex');
-}
-
-function unwrapDEK(wrapped: Buffer, iv: Buffer, tag: Buffer): Buffer {
-  const kek = getKEK();
-  const decipher = crypto.createDecipheriv(
-    INSIGHTS_ALG,
-    toUint8Array(kek),
-    toUint8Array(iv),
-    { authTagLength: 16 }
-  );
-
-  decipher.setAuthTag(toUint8Array(tag));
-  return Buffer.concat([
-    Uint8Array.from(decipher.update(toUint8Array(wrapped))),
-    Uint8Array.from(decipher.final()),
-  ]);
-}
-
 function decryptValue(
   dek: Buffer,
   ciphertext: Buffer,
@@ -167,21 +138,20 @@ async function getOrCreateAccountDEK(
     return unwrapDEK(
       wrapped,
       iv,
-      tag
+      tag,
+      {
+        algorithm: INSIGHTS_ALG,
+        authTagLength: 16,
+      }
     );
   }
 
   const dek = crypto.randomBytes(32);
-  const kek = getKEK();
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(INSIGHTS_ALG, toUint8Array(kek), toUint8Array(iv), {
+  const { wrapped, iv, tag } = wrapDEKWithCurrentKey(dek, {
+    algorithm: INSIGHTS_ALG,
     authTagLength: 16,
+    ivLength: 12,
   });
-  const wrapped = Buffer.concat([
-    Uint8Array.from(cipher.update(toUint8Array(dek))),
-    Uint8Array.from(cipher.final()),
-  ]);
-  const tag = cipher.getAuthTag();
 
   const { error } = await client
     .from('ultaura_account_crypto_keys')
