@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { RelationshipRow } from '~/lib/ultaura/types';
 
 interface RelationshipsProps {
@@ -15,9 +16,9 @@ function formatLastMentioned(value: string | null, timezone: string): string {
 export function Relationships({ relationships, timezone }: RelationshipsProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
         <h3 className="text-sm font-semibold text-foreground">Relationships</h3>
-        <span className="text-xs text-muted-foreground">Mention tracking</span>
+        <InfoTip content="Tracks people your loved one mentions during calls — built automatically from conversation over time." />
       </div>
 
       {relationships.length === 0 ? (

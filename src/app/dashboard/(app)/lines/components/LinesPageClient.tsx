@@ -14,6 +14,7 @@ interface LinesPageClientProps {
   accountId: string;
   lines: LineRow[];
   planLinesLimit: number;
+  canUpgrade?: boolean;
   userType?: UserType;
   disabled?: boolean;
   vendorAlreadyAcknowledged?: boolean;
@@ -23,6 +24,7 @@ export function LinesPageClient({
   accountId,
   lines,
   planLinesLimit,
+  canUpgrade = true,
   userType,
   disabled = false,
   vendorAlreadyAcknowledged = false,
@@ -119,12 +121,14 @@ export function LinesPageClient({
         ) : (
           <p className="text-sm text-muted-foreground">
             You&apos;ve reached the line limit for your plan ({planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}).
-            <a
-              href="/dashboard/settings/subscription"
-              className="text-primary hover:underline ml-1"
-            >
-              Upgrade to add more
-            </a>
+            {canUpgrade && (
+              <a
+                href="/dashboard/settings/subscription"
+                className="text-primary hover:underline ml-1"
+              >
+                Upgrade to add more
+              </a>
+            )}
           </p>
         )}
       </div>

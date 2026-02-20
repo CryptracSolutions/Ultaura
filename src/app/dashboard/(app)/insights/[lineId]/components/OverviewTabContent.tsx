@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Info } from 'lucide-react';
 import type { InsightsDashboard, CallSessionRow } from '~/lib/ultaura/types';
+import { InfoTip } from '~/core/ui/InfoTip';
 import { InsightsSummary } from '../../components/InsightsSummary';
 import { CallMetrics } from '../../components/CallMetrics';
 import { CallActivityList } from '../../../lines/[lineId]/components/CallActivityList';
@@ -69,7 +70,16 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
 
           {/* Sharing Level - always shown */}
           <div className="rounded-xl bg-card p-6">
-            <h3 className="text-sm font-medium text-foreground">Sharing level</h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-medium text-foreground">Sharing level</h3>
+              <InfoTip
+                content={
+                  isFamilyManaged
+                    ? 'Your loved one sets this during their calls with Ultaura—not from this dashboard.'
+                    : 'You set this during your calls with Ultaura.'
+                }
+              />
+            </div>
             <div className="mt-3 -ml-1 flex flex-wrap gap-2">
               {SHARING_TIER_ORDER.map((tier) => {
                 const isActive = tier === activeTier;
@@ -87,11 +97,6 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
                 );
               })}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {isFamilyManaged
-                ? 'Your loved one sets this during their calls with Ultaura—not from this dashboard.'
-                : 'You set this during your calls with Ultaura.'}
-            </p>
             {sharingConsentNote ? (
               <p className="mt-1 text-xs text-muted-foreground">{sharingConsentNote}</p>
             ) : null}

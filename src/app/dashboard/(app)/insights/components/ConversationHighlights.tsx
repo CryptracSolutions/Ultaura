@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { ConversationHighlightsData } from '~/lib/ultaura/types';
 
 interface ConversationHighlightsProps {
@@ -20,9 +21,9 @@ export function ConversationHighlights({
 }: ConversationHighlightsProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
         <h3 className="text-sm font-semibold text-foreground">Conversation highlights</h3>
-        <span className="text-xs text-muted-foreground">Recent calls</span>
+        <InfoTip content="A per-call summary of topics discussed, new memories added, and milestones mentioned. Drawn from recent calls." />
       </div>
 
       {data.highlights.length === 0 ? (

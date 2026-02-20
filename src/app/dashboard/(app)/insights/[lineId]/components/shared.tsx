@@ -1,6 +1,7 @@
 'use client';
 
 import { Lock } from 'lucide-react';
+import { InfoTip } from '~/core/ui/InfoTip';
 
 // Re-export types and constants from tier-utils for client components
 export {
@@ -68,14 +69,16 @@ export function SafetyAlertsCard({
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Safety Alerts History</h3>
-        <span className="text-xs text-muted-foreground">Recent alerts</span>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-foreground">Safety Incidents</h3>
+          <InfoTip content="Detected in real time during calls when distress keywords or safety concerns are identified. Not related to Wellness Alerts." />
+        </div>
       </div>
       {events.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
           {highTierOnly
-            ? 'No high-tier safety alerts in the last 30 days.'
-            : 'No safety alerts in the last 30 days.'}
+            ? 'No high-tier safety incidents in the last 30 days.'
+            : 'No safety incidents in the last 30 days.'}
         </p>
       ) : (
         <div className="mt-4 space-y-3">
@@ -87,7 +90,7 @@ export function SafetyAlertsCard({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-foreground">{dateLabel}</span>
                   <span className="text-xs text-muted-foreground capitalize">
-                    {event.severity} alert
+                    {event.severity} incident
                   </span>
                 </div>
                 {event.eventType && (

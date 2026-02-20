@@ -22,7 +22,7 @@ export function SafetyTabContent({
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Safety alerts and wellbeing observations from recent calls.
+        Safety incidents and conversation concerns from recent calls.
       </p>
       {/* Safety Alerts - always visible */}
       <SafetyAlertsCard
@@ -36,7 +36,7 @@ export function SafetyTabContent({
         allowConcerns ? (
           <ConcernsList concerns={dashboard.concerns} />
         ) : (
-          <TierGateNotice title="Concerns" requiredTier="tier_4" lineName={lineName} />
+          <TierGateNotice title="Conversation Concerns" requiredTier="tier_4" lineName={lineName} />
         )
       )}
 

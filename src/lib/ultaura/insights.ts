@@ -478,9 +478,15 @@ async function decryptInsights(
   callSessionId: string,
   encrypted: EncryptedPayloadInput
 ): Promise<CallInsights> {
+  const decoded = decodeEncryptedPayload('insights', encrypted);
+
+  // Seed/test data fallback: all-zero IV + tag means plaintext JSON (not encrypted)
+  if (decoded.iv.every((b) => b === 0) && decoded.tag.every((b) => b === 0)) {
+    return JSON.parse(decoded.ciphertext.toString('utf8')) as CallInsights;
+  }
+
   const dek = await getOrCreateAccountDEK(client, accountId);
   const aad = buildInsightsAAD(accountId, lineId, callSessionId);
-  const decoded = decodeEncryptedPayload('insights', encrypted);
   return decryptValue(
     dek,
     decoded.ciphertext,
@@ -1730,15 +1736,21 @@ export async function getMemoryActivity(
 
   const client = await getAdminClient();
   const gate = await getSharingGate(client, lineId, line.account_id);
-  if (!gate.canAccessNonSafety || !gate.isSelfUser) {
+  if (!gate.canAccessNonSafety || (!gate.isSelfUser && gate.isFamilyOutputSuppressed) || !gate.allowConcerns) {
     return emptyResult;
   }
 
-  const { data, error } = await client
+  let query = client
     .from('ultaura_memories')
     .select('id, type, key, created_at, privacy_scope')
     .eq('line_id', lineId)
-    .eq('active', true)
+    .eq('active', true);
+
+  if (!gate.isSelfUser) {
+    query = query.neq('privacy_scope', 'line_only');
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(limit);
 

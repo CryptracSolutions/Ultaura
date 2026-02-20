@@ -176,13 +176,18 @@ async function DashboardPage() {
     : null;
   const usageSummary = usage
     ? (isOnTrial
-      ? `${usage.minutesUsed} minutes • ${formatCurrency(0)} during trial`
+      ? `${usage.minutesUsed} minutes`
       : isPayg
-      ? `${usage.minutesUsed} minutes • ${formatCurrency(usageCostCents)} est.`
-      : `${usage.minutesUsed} used • ${usage.minutesIncluded} included${
-          overageMinutes > 0 ? ` • ${overageMinutes} over` : ''
-        }`)
+      ? `${usage.minutesUsed} minutes`
+      : `${usage.minutesUsed} used${overageMinutes > 0 ? ` • ${overageMinutes} over` : ''}`)
     : 'Usage not available yet.';
+  const usageSummaryRight = usage
+    ? (isOnTrial
+      ? `${formatCurrency(0)} during trial`
+      : isPayg
+      ? `${formatCurrency(usageCostCents)} est.`
+      : `${usage.minutesIncluded} included`)
+    : null;
   const effectiveReminderLimit = getEffectiveReminderLimit(account);
   const reminderAllowanceRows = lines.map((line) => {
     const activeReminderCount = scheduledReminderStatsByLine[line.id] || 0;
@@ -335,8 +340,9 @@ async function DashboardPage() {
               )}
               <div className="relative flex-1" />
               <div className="relative mt-auto space-y-2">
-                <div className="text-xs text-muted-foreground">
-                  {usageSummary}
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{usageSummary}</span>
+                  {usageSummaryRight && <span>{usageSummaryRight}</span>}
                 </div>
                 <Link
                   href="/dashboard/usage"

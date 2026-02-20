@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { MemoryActivityData } from '~/lib/ultaura/types';
 
 interface MemoryActivityProps {
@@ -9,9 +10,9 @@ interface MemoryActivityProps {
 export function MemoryActivity({ data, timezone }: MemoryActivityProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
         <h3 className="text-sm font-semibold text-foreground">Memory activity</h3>
-        <span className="text-xs text-muted-foreground">Keys only</span>
+        <InfoTip content="Shows memory identifiers (keys) only — not the stored content itself. Full details stay private and are only accessible to Ara during calls." />
       </div>
 
       {data.items.length === 0 ? (

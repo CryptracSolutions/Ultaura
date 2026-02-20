@@ -114,6 +114,7 @@ export default async function LinesPage() {
               lines={lines}
               userType={userType}
               planLinesLimit={getPlanLinesLimit(account.plan_id ?? 'free_trial')}
+              canUpgrade={canUpgradePlan(account.plan_id ?? 'free_trial')}
               disabled={isTrialExpired}
               vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}
             />
@@ -122,6 +123,10 @@ export default async function LinesPage() {
       </PageBody>
     </>
   );
+}
+
+function canUpgradePlan(planId: string): boolean {
+  return planId !== 'family' && planId !== 'payg';
 }
 
 function getPlanLinesLimit(planId: string): number {

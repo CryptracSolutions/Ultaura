@@ -2,6 +2,7 @@
 
 import { DateTime } from 'luxon';
 import { BookOpen, Gamepad2, GraduationCap, Heart, TrendingUp, Lightbulb, CheckCircle, XCircle, Clock, MessageSquare } from 'lucide-react';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { StoryArc, SegmentStats, CallPreview } from '~/lib/ultaura/types/retention';
 
 interface EngagementFeaturesProps {
@@ -161,6 +162,12 @@ function CallPreviewCard({ preview, timezone }: { preview: CallPreview; timezone
   );
 }
 
+function EngagementTooltip() {
+  return (
+    <InfoTip content="Tracks interactive feature usage during calls — including trivia sessions, story arc progress, learning modules, and how often call preview topics are followed up on." />
+  );
+}
+
 export function EngagementFeatures({ storyArcs, segmentStats, timezone, callPreviews }: EngagementFeaturesProps) {
   const hasStoryArcs = storyArcs.length > 0;
   const hasSegmentData = segmentStats.totalSegments > 0;
@@ -169,7 +176,10 @@ export function EngagementFeatures({ storyArcs, segmentStats, timezone, callPrev
   if (!hasStoryArcs && !hasSegmentData && !hasCallPreviews) {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
-        <h3 className="text-sm font-semibold text-foreground mb-4">Engagement</h3>
+        <div className="flex items-center gap-1.5 mb-4">
+          <h3 className="text-sm font-semibold text-foreground">Engagement</h3>
+          <EngagementTooltip />
+        </div>
         <p className="text-sm text-muted-foreground">
           No engagement data yet. Interactive features like trivia, stories, and learning will appear here.
         </p>
@@ -180,7 +190,10 @@ export function EngagementFeatures({ storyArcs, segmentStats, timezone, callPrev
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Engagement</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-foreground">Engagement</h3>
+          <EngagementTooltip />
+        </div>
         {hasSegmentData && (
           <span className="text-xs text-muted-foreground">
             {segmentStats.totalSegments} total sessions

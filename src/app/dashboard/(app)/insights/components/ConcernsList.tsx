@@ -1,4 +1,7 @@
+'use client';
+
 import type { InsightsDashboard } from '~/lib/ultaura/types';
+import { InfoTip } from '~/core/ui/InfoTip';
 
 interface ConcernsListProps {
   concerns: InsightsDashboard['concerns'];
@@ -18,8 +21,9 @@ function titleCase(value: string): string {
 export function ConcernsList({ concerns }: ConcernsListProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Wellbeing Notes</h3>
+      <div className="flex items-center gap-1.5">
+        <h3 className="text-sm font-semibold text-foreground">Conversation Concerns</h3>
+        <InfoTip content="Extracted from conversation tone at the end of each call. Tracks weekly patterns like loneliness, sleep, or pain. Not related to Wellness Alerts or Safety Incidents." />
       </div>
 
       {concerns.length > 0 ? (
@@ -49,7 +53,7 @@ export function ConcernsList({ concerns }: ConcernsListProps) {
         </div>
       ) : (
         <p className="text-sm text-muted-foreground mt-4">
-          No wellbeing concerns detected this week.
+          No conversation concerns detected this week.
         </p>
       )}
     </div>

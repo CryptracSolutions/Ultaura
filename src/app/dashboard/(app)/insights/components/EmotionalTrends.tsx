@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { Smile, Meh, Frown, AlertCircle, CloudRain, Flame } from 'lucide-react';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { ElementType } from 'react';
 import type { EmotionalTrendsData, MoodSnapshotMood } from '~/lib/ultaura/types';
 
@@ -58,9 +59,9 @@ export function EmotionalTrends({ data, timezone }: EmotionalTrendsProps) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
         <h3 className="text-sm font-semibold text-foreground">Emotional trends</h3>
-        <span className="text-xs text-muted-foreground">Last 14 days</span>
+        <InfoTip content="Tracks mood at the start, middle, and end of each call over the last 14 days — showing how mood shifts within and across conversations, not just daily snapshots." />
       </div>
 
       {data.entries.length === 0 ? (

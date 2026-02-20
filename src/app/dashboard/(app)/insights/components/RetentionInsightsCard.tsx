@@ -1,3 +1,4 @@
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { InsightsDashboard } from '~/lib/ultaura/types';
 
 interface RetentionInsightsCardProps {
@@ -25,9 +26,9 @@ export function RetentionInsightsCard({ retention }: RetentionInsightsCardProps)
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
         <h3 className="text-sm font-semibold text-foreground">Retention Highlights</h3>
-        <span className="text-xs text-muted-foreground">Last 30 days</span>
+        <InfoTip content="Shows engagement patterns over the last 30 days — including story arc progress, preferred conversation topics, and how often call previews lead to full discussions." />
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">

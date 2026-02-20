@@ -3,6 +3,7 @@
 import type { ElementType } from 'react';
 import { DateTime } from 'luxon';
 import { AlertTriangle, AlertCircle, Info, User } from 'lucide-react';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { WellnessAlert } from '~/lib/ultaura/types';
 
 interface WellnessAlertsListProps {
@@ -31,10 +32,13 @@ export function WellnessAlertsList({ alerts }: WellnessAlertsListProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">Wellness Alerts</h3>
-        <p className="text-xs text-muted-foreground">
-          Alerts are summaries only. No private details are shared.
-        </p>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-foreground">Wellness Alerts</h3>
+          <InfoTip
+            content="Generated after each call ends by analyzing health mentions, mood changes, and cognitive observations. Summaries only — no private details are shared. Not related to Safety Incidents or Conversation Concerns on the Insights page."
+            contentClassName="max-w-[280px] text-left"
+          />
+        </div>
       </div>
 
       {alerts.length === 0 ? (
