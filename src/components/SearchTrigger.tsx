@@ -78,7 +78,7 @@ const SearchTrigger = () => {
   return (
     <Popover open={isDesktopOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <div ref={triggerRef} className="relative flex h-7 w-full min-w-0 items-center md:w-[41%]">
+        <div ref={triggerRef} className="relative flex h-[31px] w-full min-w-0 items-center md:w-[41%]">
           <TextField.Input
             ref={inputRef}
             type="text"
@@ -86,7 +86,7 @@ const SearchTrigger = () => {
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="!h-7 !min-h-0 pl-10 pr-12 shadow-sm"
+            className="!h-[31px] !min-h-0 pl-10 pr-12 shadow-sm"
             aria-label="Search"
             role="combobox"
             aria-haspopup="listbox"

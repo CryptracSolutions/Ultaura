@@ -49,7 +49,7 @@ const AppSidebar: React.FC = () => {
                 type="button"
                 onClick={() => ctx.setCollapsed(false)}
                 className={cn(
-                  'group absolute inset-0 flex cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 transition-[opacity,background-color] duration-200 hover:bg-muted/60',
+                  'group absolute inset-0 flex cursor-ew-resize items-center justify-center rounded-md border-0 bg-transparent p-0 transition-[opacity,background-color] duration-200 hover:bg-muted/60',
                   ctx.collapsed ? 'opacity-100' : 'opacity-0 pointer-events-none',
                 )}
                 aria-label="Open sidebar"
@@ -57,7 +57,7 @@ const AppSidebar: React.FC = () => {
               >
                 <div className="relative flex h-10 w-full items-center justify-center">
                   <LogoImage className="h-9 transition-opacity duration-200 group-hover:opacity-0" />
-                  <PanelLeft className="absolute text-primary h-[1.1rem] w-[1.1rem] shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                  <PanelLeft className="absolute text-white h-[1.1rem] w-[1.1rem] shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                 </div>
               </button>
             </TooltipTrigger>
@@ -68,7 +68,7 @@ const AppSidebar: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex w-full flex-col px-2 space-y-1.5 h-[calc(100%-160px)] overflow-y-auto">
+      <div className="flex w-full flex-col px-2 space-y-[2px] h-[calc(100%-160px)] overflow-y-auto">
         <AppSidebarNavigation />
       </div>
 
@@ -91,12 +91,12 @@ function CollapsibleButton({
   collapsed: boolean;
   onClick: (collapsed: boolean) => void;
 }>) {
-  const iconClassName = 'text-primary h-[1.1rem] w-[1.1rem] shrink-0';
+  const iconClassName = 'text-white h-[1.1rem] w-[1.1rem] shrink-0';
 
   return (
     <Tooltip>
       <TooltipTrigger
-        className="bg-transparent cursor-pointer block p-1 rounded-md hover:bg-muted/60 transition-colors"
+        className="bg-transparent cursor-ew-resize block p-1 rounded-md hover:bg-muted/60 transition-colors"
         aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
         onClick={() => onClick(!collapsed)}
       >

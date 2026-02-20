@@ -27,7 +27,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={onHelpToggle} aria-label="Help">
+            <Button variant="ghost" size="icon" onClick={onHelpToggle} aria-label="Help" className="rounded-full hover:bg-primary/10">
               <LifebuoyIcon className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
@@ -37,7 +37,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
         <Tooltip>
           <TooltipTrigger asChild>
             <Link href="/docs">
-              <Button variant="ghost" size="icon" aria-label="Documentation">
+              <Button variant="ghost" size="icon" aria-label="Documentation" className="rounded-full hover:bg-primary/10">
                 <QuestionMarkCircleIcon className="h-5 w-5" />
               </Button>
             </Link>
@@ -46,7 +46,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
         </Tooltip>
 
         <FeedbackPopupContainer tooltipContent="Feedback">
-          <Button variant="ghost" size="icon" aria-label="Send Feedback">
+          <Button variant="ghost" size="icon" aria-label="Send Feedback" className="rounded-full hover:bg-primary/10">
             <ChatBubbleLeftIcon className="h-5 w-5" />
           </Button>
         </FeedbackPopupContainer>

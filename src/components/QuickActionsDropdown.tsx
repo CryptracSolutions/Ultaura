@@ -37,7 +37,7 @@ const QuickActionsDropdown: React.FC = () => {
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Quick Actions">
+            <Button variant="ghost" size="icon" aria-label="Quick Actions" className="rounded-full hover:bg-primary/10">
               <PlusIcon className="h-5 w-5 text-primary" />
             </Button>
           </DropdownMenuTrigger>

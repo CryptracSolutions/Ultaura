@@ -101,9 +101,10 @@ const ProfileDropdown: React.FCC<{
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
-          className={'!min-w-[15rem]'}
-          collisionPadding={{ right: 20, left: 20 }}
-          sideOffset={20}
+          className={displayName ? '!min-w-0' : '!min-w-[15rem]'}
+          align={'center'}
+          sideOffset={8}
+          style={displayName ? { width: 'var(--radix-dropdown-menu-trigger-width)' } : undefined}
         >
           <DropdownMenuItem className={'!h-10 rounded-none'}>
             <div
