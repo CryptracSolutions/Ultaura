@@ -29,9 +29,6 @@ interface StatCardProps {
 }
 
 function StatCard({ icon, label, value, subtext, warning = false }: StatCardProps): JSX.Element {
-  // Detect if value is numeric for different styling
-  const isNumeric = /^\d+$/.test(value);
-
   return (
     <div className={`relative overflow-hidden rounded-xl bg-card p-5 card-border-accent ${warning ? 'ring-1 ring-amber-500/40' : ''}`}>
       {/* Subtle corner accent */}
@@ -44,16 +41,10 @@ function StatCard({ icon, label, value, subtext, warning = false }: StatCardProp
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         </div>
 
-        {/* Value - different treatment for numeric vs text */}
-        {isNumeric ? (
-          <div className="text-2xl font-bold text-foreground tracking-tight tabular-nums">
-            {value}
-          </div>
-        ) : (
-          <div className="text-base font-semibold text-foreground">
-            {value}
-          </div>
-        )}
+        {/* Value */}
+        <div className="text-base font-semibold text-foreground">
+          {value}
+        </div>
 
         {/* Subtext */}
         {subtext && (

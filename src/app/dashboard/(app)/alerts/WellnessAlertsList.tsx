@@ -55,15 +55,15 @@ export function WellnessAlertsList({ alerts }: WellnessAlertsListProps) {
                 className="rounded-lg border border-border/60 bg-muted/20 p-4"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex w-full flex-wrap items-center justify-between gap-2">
+                  <div className="w-full space-y-2">
+                    <div className="flex w-full items-center justify-between gap-2">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${SEVERITY_STYLES[alert.severity]}`}
                       >
                         <SeverityIcon className="h-3 w-3" aria-hidden="true" />
                         {alert.severity}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-xs text-primary">
+                      <span className="inline-flex items-center gap-1 rounded-full py-1 text-xs text-primary">
                         <User className="h-3.5 w-3.5" />
                         {alert.lineName}
                       </span>

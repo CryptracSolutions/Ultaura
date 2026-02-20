@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, BarChart3, Clock, DollarSign, Hourglass, ShieldAlert, User } from 'lucide-react';
+import { AlertTriangle, BarChart3, Clock, DollarSign, Hourglass, ShieldAlert, User, X } from 'lucide-react';
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -395,12 +396,14 @@ function TotalUsageTab({
   paygMinutes,
   monthlyUsage,
 }: TotalUsageTabProps) {
+  const [selectedBar, setSelectedBar] = useState<MonthlyUsageEntry | null>(null);
+
   const hasIncluded = monthlyUsage.some((m) => m.includedMinutes > 0);
   const hasTrial = monthlyUsage.some((m) => m.trialMinutes > 0);
   const hasPayg = monthlyUsage.some((m) => m.paygMinutes > 0);
   const hasOverage = monthlyUsage.some((m) => m.overageMinutes > 0);
 
-  const stackOrder: { key: string; name: string; color: string; show: boolean }[] = [
+  const stackOrder: { key: keyof MonthlyUsageEntry; name: string; color: string; show: boolean }[] = [
     { key: 'includedMinutes', name: 'Included', color: 'var(--chart-1)', show: hasIncluded },
     { key: 'trialMinutes', name: 'Trial', color: 'var(--chart-3)', show: hasTrial },
     { key: 'paygMinutes', name: 'Pay As You Go', color: 'oklch(0.72 0.19 350)', show: hasPayg },
@@ -408,6 +411,12 @@ function TotalUsageTab({
   ];
   const visibleBars = stackOrder.filter((b) => b.show);
   const lastBarKey = visibleBars.at(-1)?.key ?? null;
+
+  function handleBarClick(data: { activePayload?: { payload: MonthlyUsageEntry }[] }) {
+    const entry = data?.activePayload?.[0]?.payload;
+    if (!entry) return;
+    setSelectedBar((prev) => prev?.month === entry.month ? null : entry);
+  }
 
   return (
     <div className="space-y-5">
@@ -430,19 +439,19 @@ function TotalUsageTab({
       {/* Monthly history chart */}
       {monthlyUsage.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-5 pb-4">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <span className="text-primary"><BarChart3 className="w-4 h-4" /></span>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Monthly usage history
               </h3>
             </div>
-            {/* Inline legend */}
-            <div className="flex items-center gap-3">
+            {/* Inline legend — wraps gracefully when all 4 types are visible */}
+            <div className="flex flex-wrap gap-x-3 gap-y-1.5">
               {visibleBars.map((bar) => (
                 <div key={bar.key} className="flex items-center gap-1.5">
                   <span
-                    className="inline-block h-2 w-2 rounded-full"
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
                     style={{ backgroundColor: bar.color }}
                   />
                   <span className="text-[11px] text-muted-foreground">{bar.name}</span>
@@ -455,6 +464,8 @@ function TotalUsageTab({
               <BarChart
                 data={monthlyUsage}
                 margin={{ top: 4, right: 4, bottom: 0, left: -12 }}
+                onClick={handleBarClick}
+                style={{ cursor: 'pointer' }}
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -495,6 +506,43 @@ function TotalUsageTab({
               </BarChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Tap detail panel — shown when a bar is selected (great for mobile) */}
+          {selectedBar && (
+            <div className="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3">
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-xs font-semibold text-foreground">
+                  {formatMonthLabel(selectedBar.month)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedBar(null)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {visibleBars.map((bar) => {
+                  const minutes = selectedBar[bar.key] as number;
+                  if (minutes === 0) return null;
+                  return (
+                    <div key={bar.key} className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: bar.color }}
+                      />
+                      <span className="text-xs text-muted-foreground">{bar.name}</span>
+                      <span className="text-xs font-semibold text-foreground tabular-nums">
+                        {minutes} min
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -536,11 +584,11 @@ function PerUserTab({ perLineUsage }: PerUserTabProps) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Minutes this cycle</p>
+                <p className="text-xs font-medium text-primary uppercase tracking-wider">Minutes this cycle</p>
                 <p className="text-lg font-bold text-foreground tabular-nums">{entry.cycleMinutes}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Minutes all-time</p>
+                <p className="text-xs font-medium text-primary uppercase tracking-wider">Minutes all-time</p>
                 <p className="text-lg font-bold text-foreground tabular-nums">{entry.totalMinutes}</p>
               </div>
             </div>
@@ -560,8 +608,6 @@ interface StatCardProps {
 }
 
 function StatCard({ icon, label, value, subtitle }: StatCardProps) {
-  const isNumeric = /^\$?\d/.test(value);
-
   return (
     <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5">
       <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
@@ -570,15 +616,9 @@ function StatCard({ icon, label, value, subtitle }: StatCardProps) {
           <span className="text-primary">{icon}</span>
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         </div>
-        {isNumeric ? (
-          <div className="text-2xl font-bold text-foreground tracking-tight tabular-nums">
-            {value}
-          </div>
-        ) : (
-          <div className="text-base font-semibold text-foreground">
-            {value}
-          </div>
-        )}
+        <div className="text-base font-semibold text-foreground">
+          {value}
+        </div>
         {subtitle && (
           <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">{subtitle}</p>
         )}

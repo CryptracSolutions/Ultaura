@@ -8,7 +8,6 @@ import {
   ArrowLeftOnRectangleIcon,
   Squares2X2Icon,
   BuildingLibraryIcon,
-  EllipsisVerticalIcon,
   UserIcon,
   CreditCardIcon,
 } from '@heroicons/react/24/outline';
@@ -80,13 +79,14 @@ const ProfileDropdown: React.FCC<{
           aria-label="Open your profile menu"
           data-cy={'profile-dropdown-trigger'}
           className={classNames(
-            'flex cursor-pointer focus:outline-none group items-center',
+            'flex cursor-pointer focus:outline-none items-center',
             className,
             {
               ['items-center space-x-2.5 rounded-lg border border-primary' +
-              ' p-2 transition-colors transition-shadow' +
+              ' p-2 transition-colors' +
               ' shadow-[0_0_0_1px_oklch(0.696_0.119_180.426)]' +
-              ' dark:shadow-[0_0_0_1px_oklch(0.75_0.12_180.426)]']: displayName,
+              ' dark:shadow-[0_0_0_1px_oklch(0.75_0.12_180.426)]' +
+              ' hover:bg-primary/10']: displayName,
             },
           )}
         >
@@ -102,10 +102,6 @@ const ProfileDropdown: React.FCC<{
                 {signedInAsLabel}
               </span>
             </div>
-
-            <EllipsisVerticalIcon
-              className={'h-8 hidden text-primary group-hover:flex'}
-            />
           </If>
         </DropdownMenuTrigger>
 
