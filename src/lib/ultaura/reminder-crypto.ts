@@ -23,6 +23,17 @@ const SEARCH_TOKEN_CONTEXT = 'reminder_search_token_v1';
 const DEFAULT_DEK_CUTOFF = '2026-03-01T00:00:00Z';
 const PER_LINE_DEK_ENABLED = process.env.ULTAURA_PER_LINE_DEK_ENABLED !== 'false';
 const PER_LINE_DEK_CUTOFF = new Date(process.env.ULTAURA_PER_LINE_DEK_CUTOFF || DEFAULT_DEK_CUTOFF);
+const SEARCH_HASH_FALLBACK_WINDOW_MS = 15 * 60 * 1000;
+const SEARCH_HASH_FALLBACK_ALERT_THRESHOLD = Number.parseInt(
+  process.env.ULTAURA_SEARCH_HASH_FALLBACK_ALERT_THRESHOLD || '25',
+  10
+);
+const SEARCH_HASH_FALLBACK_WARN_EVERY = Number.parseInt(
+  process.env.ULTAURA_SEARCH_HASH_FALLBACK_WARN_EVERY || '10',
+  10
+);
+let searchHashFallbackWindowStartedAt = Date.now();
+let searchHashFallbackCountInWindow = 0;
 
 function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
   return Uint8Array.from(value);
@@ -286,6 +297,72 @@ function hashSearchToken(key: Buffer, token: string): string {
     .digest('hex');
 }
 
+function normalizeFallbackAlertThreshold(): number {
+  return Number.isFinite(SEARCH_HASH_FALLBACK_ALERT_THRESHOLD)
+    && SEARCH_HASH_FALLBACK_ALERT_THRESHOLD > 0
+    ? SEARCH_HASH_FALLBACK_ALERT_THRESHOLD
+    : 25;
+}
+
+function normalizeFallbackWarnInterval(): number {
+  return Number.isFinite(SEARCH_HASH_FALLBACK_WARN_EVERY)
+    && SEARCH_HASH_FALLBACK_WARN_EVERY > 0
+    ? SEARCH_HASH_FALLBACK_WARN_EVERY
+    : 10;
+}
+
+function recordSearchHashFallback(params: {
+  accountId: string;
+  errorCode: string;
+  tokenCount: number;
+}): void {
+  const now = Date.now();
+  if (now - searchHashFallbackWindowStartedAt >= SEARCH_HASH_FALLBACK_WINDOW_MS) {
+    searchHashFallbackWindowStartedAt = now;
+    searchHashFallbackCountInWindow = 0;
+  }
+
+  searchHashFallbackCountInWindow += 1;
+  const warnInterval = normalizeFallbackWarnInterval();
+  if (
+    searchHashFallbackCountInWindow === 1
+    || searchHashFallbackCountInWindow % warnInterval === 0
+  ) {
+    logger.warn(
+      {
+        event: 'reminder_search_hash_fallback',
+        accountId: params.accountId,
+        errorCode: params.errorCode,
+        tokenCount: params.tokenCount,
+        fallbackCountInWindow: searchHashFallbackCountInWindow,
+        fallbackWindowMs: SEARCH_HASH_FALLBACK_WINDOW_MS,
+        fallbackWindowStartedAt: new Date(searchHashFallbackWindowStartedAt).toISOString(),
+        warnInterval,
+      },
+      'Failed to hash reminder query tokens; returning empty token set.'
+    );
+  }
+
+  const threshold = normalizeFallbackAlertThreshold();
+  if (
+    searchHashFallbackCountInWindow === threshold
+    || searchHashFallbackCountInWindow % threshold === 0
+  ) {
+    logger.error(
+      {
+        event: 'reminder_search_hash_fallback_threshold',
+        accountId: params.accountId,
+        errorCode: params.errorCode,
+        tokenCount: params.tokenCount,
+        fallbackCountInWindow: searchHashFallbackCountInWindow,
+        threshold,
+        fallbackWindowMs: SEARCH_HASH_FALLBACK_WINDOW_MS,
+      },
+      'Reminder search hash fallback threshold reached.'
+    );
+  }
+}
+
 export async function buildReminderSearchTokens(
   client: SupabaseClient,
   accountId: string,
@@ -313,13 +390,11 @@ export async function hashReminderQueryTokens(
     const key = await getOrCreateAccountDEK(client, accountId);
     return Array.from(new Set(tokens)).map((token) => hashSearchToken(key, token));
   } catch (error) {
-    logger.warn(
-      {
-        accountId,
-        errorCode: isDecryptionError(error) ? error.code : 'UNKNOWN',
-      },
-      'Failed to hash reminder query tokens; returning empty token set.'
-    );
+    recordSearchHashFallback({
+      accountId,
+      errorCode: isDecryptionError(error) ? error.code : 'UNKNOWN',
+      tokenCount: tokens.length,
+    });
     return [];
   }
 }

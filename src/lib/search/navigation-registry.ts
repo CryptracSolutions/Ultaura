@@ -33,6 +33,14 @@ export function getNavigationItems(
     items.push(buildItem(`${item.path}`, item.label, item.path, item.Icon));
   });
 
+  // Always include a plain-language help destination so "help" is never a dead-end query.
+  items.push({
+    id: '/docs',
+    label: 'Help Center',
+    href: '/docs',
+    keywords: ['help', 'support', 'guide', 'faq', 'documentation', 'docs'],
+  });
+
   return items;
 }
 

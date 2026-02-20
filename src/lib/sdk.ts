@@ -145,7 +145,12 @@ class UserSdk {
    * Retrieves the current session of the client.
    */
   public getCurrentSession() {
-    return this.client.auth.getSession();
+    // @ts-expect-error: suppressGetSessionWarning is not part of the public API
+    this.client.auth.suppressGetSessionWarning = true;
+    const result = this.client.auth.getSession();
+    // @ts-expect-error: suppressGetSessionWarning is not part of the public API
+    this.client.auth.suppressGetSessionWarning = false;
+    return result;
   }
 
   /**

@@ -78,7 +78,7 @@ const SearchTrigger = () => {
   return (
     <Popover open={isDesktopOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <div ref={triggerRef} className="relative flex h-8 w-full max-w-sm items-center">
+        <div ref={triggerRef} className="relative flex h-7 w-full min-w-0 items-center md:w-[41%]">
           <TextField.Input
             ref={inputRef}
             type="text"
@@ -86,7 +86,7 @@ const SearchTrigger = () => {
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="!h-8 !min-h-0 pl-10 pr-12 shadow-sm"
+            className="!h-7 !min-h-0 pl-10 pr-12 shadow-sm"
             aria-label="Search"
             role="combobox"
             aria-haspopup="listbox"
@@ -105,7 +105,7 @@ const SearchTrigger = () => {
       <PopoverContent
         ref={contentRef}
         align="start"
-        className="w-[var(--radix-popover-trigger-width)] max-w-[var(--radix-popover-trigger-width)] p-0"
+        className="w-[var(--radix-popover-trigger-width)] max-w-none p-0"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={() => handleClose()}
         onEscapeKeyDown={() => handleClose()}

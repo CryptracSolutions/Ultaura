@@ -15,11 +15,15 @@ export type SearchItem = {
   href: string;
   category: SearchCategory;
   timestamp?: string;
+  matchReason?: string;
+  matchConfidence?: 'high' | 'medium' | 'low';
+  matchScore?: number;
 };
 
 export type SearchResponse = {
   query: string;
   results: Record<SearchCategory, SearchItem[]>;
+  searchId?: string;
 };
 
 export type DocsIndexItem = {

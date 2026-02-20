@@ -14,6 +14,7 @@ const LEASE_DURATION_SECONDS = 300;
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const LEASE_ID = 'onboarding-maintenance';
 const CONSECUTIVE_FAILURE_ALERT_THRESHOLD = 3;
+const CRYPTO_HEALTH_TASK_KEY = 'crypto_health';
 
 const WORKER_ID = `${process.env.HOSTNAME || 'local'}-${uuidv4().slice(0, 8)}`;
 
@@ -21,10 +22,17 @@ const TASKS = [
   {
     key: 'reconcile',
     path: '/api/internal/reconcile-onboarding-subscriptions',
+    method: 'POST',
   },
   {
     key: 'cleanup',
     path: '/api/internal/cleanup-onboarding-state',
+    method: 'POST',
+  },
+  {
+    key: CRYPTO_HEALTH_TASK_KEY,
+    path: '/api/internal/crypto-health',
+    method: 'GET',
   },
 ] as const;
 
@@ -36,6 +44,7 @@ let pollInterval: ReturnType<typeof setInterval> | null = null;
 let alignTimeout: ReturnType<typeof setTimeout> | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let consecutiveFailures = 0;
+const consecutiveFailuresByTask = new Map<string, number>();
 
 export function startOnboardingMaintenanceScheduler(): void {
   if (process.env.SCHEDULER_DISABLED === 'true') {
@@ -185,8 +194,9 @@ async function processOnboardingMaintenanceRun(): Promise<void> {
     appBaseUrl = resolveAppBaseUrl();
     webhookSecret = getInternalApiSecret();
   } catch (error) {
-    onboardingMaintenanceRunsTotal.labels('reconcile', 'failure').inc();
-    onboardingMaintenanceRunsTotal.labels('cleanup', 'failure').inc();
+    for (const task of TASKS) {
+      onboardingMaintenanceRunsTotal.labels(task.key, 'failure').inc();
+    }
     consecutiveFailures += 1;
     logger.error({ error, workerId: WORKER_ID }, 'Onboarding maintenance configuration error');
     if (consecutiveFailures >= CONSECUTIVE_FAILURE_ALERT_THRESHOLD) {
@@ -203,6 +213,7 @@ async function processOnboardingMaintenanceRun(): Promise<void> {
   logger.info({ appBaseUrl, workerId: WORKER_ID }, 'Running onboarding maintenance tasks');
 
   let failedTasks = 0;
+  const failedTaskKeys: string[] = [];
 
   for (const task of TASKS) {
     if (shuttingDown) {
@@ -213,11 +224,24 @@ async function processOnboardingMaintenanceRun(): Promise<void> {
     const success = await runMaintenanceTask(task, appBaseUrl, webhookSecret);
     if (!success) {
       failedTasks += 1;
+      failedTaskKeys.push(task.key);
+    }
+  }
+
+  for (const task of TASKS) {
+    if (failedTaskKeys.includes(task.key)) {
+      const nextCount = (consecutiveFailuresByTask.get(task.key) ?? 0) + 1;
+      consecutiveFailuresByTask.set(task.key, nextCount);
+    } else {
+      consecutiveFailuresByTask.set(task.key, 0);
     }
   }
 
   if (failedTasks === 0) {
     consecutiveFailures = 0;
+    for (const task of TASKS) {
+      consecutiveFailuresByTask.set(task.key, 0);
+    }
     logger.info({ workerId: WORKER_ID }, 'Onboarding maintenance run completed successfully');
     return;
   }
@@ -225,6 +249,7 @@ async function processOnboardingMaintenanceRun(): Promise<void> {
   consecutiveFailures += 1;
   logger.warn({
     failedTasks,
+    failedTaskKeys,
     consecutiveFailures,
     workerId: WORKER_ID,
   }, 'Onboarding maintenance run completed with failures');
@@ -237,6 +262,19 @@ async function processOnboardingMaintenanceRun(): Promise<void> {
       event: 'onboarding_maintenance_consecutive_failures',
     }, 'Onboarding maintenance has failed repeatedly');
   }
+
+  const cryptoHealthConsecutiveFailures =
+    consecutiveFailuresByTask.get(CRYPTO_HEALTH_TASK_KEY) ?? 0;
+  if (cryptoHealthConsecutiveFailures >= CONSECUTIVE_FAILURE_ALERT_THRESHOLD) {
+    logger.error({
+      task: CRYPTO_HEALTH_TASK_KEY,
+      consecutiveFailures: cryptoHealthConsecutiveFailures,
+      alertThreshold: CONSECUTIVE_FAILURE_ALERT_THRESHOLD,
+      workerId: WORKER_ID,
+      event: 'crypto_health_consecutive_failures',
+      endpoint: '/api/internal/crypto-health',
+    }, 'Crypto health check has failed repeatedly');
+  }
 }
 
 async function runMaintenanceTask(
@@ -248,7 +286,7 @@ async function runMaintenanceTask(
 
   try {
     const response = await fetch(url, {
-      method: 'POST',
+      method: task.method,
       headers: {
         'Content-Type': 'application/json',
         'X-Webhook-Secret': webhookSecret,

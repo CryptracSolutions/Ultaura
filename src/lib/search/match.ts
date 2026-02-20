@@ -29,11 +29,35 @@ const SYNONYM_MAP: Record<string, string[]> = {
   create: ['add', 'new'],
   new: ['add', 'create'],
   remind: ['reminder', 'remind'],
-  reminder: ['remind'],
+  reminder: ['remind', 'task', 'todo'],
+  reminderz: ['reminder'],
+  remnder: ['reminder'],
   schedule: ['checkin', 'call', 'check-in'],
   checkin: ['schedule', 'check-in', 'call'],
+  'check-in': ['checkin', 'schedule', 'call'],
+  check: ['checkin', 'check-in', 'schedule'],
   call: ['phone', 'dial'],
-  phone: ['call'],
+  phone: ['call', 'dial'],
+  dial: ['call', 'phone'],
+  calling: ['call', 'phone'],
+  voicemail: ['call', 'phone'],
+  safety: ['alert', 'concern', 'wellness'],
+  safty: ['safety', 'alert', 'concern'],
+  alert: ['safety', 'warning', 'concern'],
+  concern: ['worry', 'worried', 'alert'],
+  worried: ['concern', 'alert'],
+  worry: ['concern', 'alert'],
+  medium: ['medum'],
+  medum: ['medium'],
+  urgent: ['danger', 'critical', 'alert'],
+  danger: ['urgent', 'alert', 'safety'],
+  contact: ['person', 'phone'],
+  contacts: ['contact', 'people', 'person'],
+  person: ['contact', 'people'],
+  people: ['person', 'contacts'],
+  line: ['member', 'person'],
+  lines: ['line', 'members'],
+  member: ['line', 'person'],
   help: ['support', 'guide'],
   support: ['help'],
 };
@@ -109,7 +133,10 @@ export function scoreMatch(query: string, candidateText: string): number {
       return;
     }
 
-    if (token.length >= 4 && candidateTokens.some((entry) => levenshtein(token, entry) <= 1)) {
+    if (
+      token.length >= 4
+      && candidateTokens.some((entry) => levenshtein(token, entry) <= typoDistanceAllowance(token))
+    ) {
       score += 1;
     }
   });
@@ -122,6 +149,12 @@ export function scoreMatch(query: string, candidateText: string): number {
   });
 
   return score;
+}
+
+export function getMatchConfidence(score: number): 'high' | 'medium' | 'low' {
+  if (score >= 12) return 'high';
+  if (score >= 6) return 'medium';
+  return 'low';
 }
 
 export function highlightText(text: string, tokens: string[]): Array<{ text: string; match: boolean }> {
@@ -174,4 +207,12 @@ function levenshtein(a: string, b: string): number {
   }
 
   return matrix[a.length][b.length];
+}
+
+function typoDistanceAllowance(token: string): number {
+  if (token.length >= 8) {
+    return 2;
+  }
+
+  return 1;
 }

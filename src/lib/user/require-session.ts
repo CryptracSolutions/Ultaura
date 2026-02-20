@@ -15,7 +15,11 @@ import getLogger from '~/core/logger';
  */
 const requireSession = cache(
   async (client: SupabaseClient<Database>, verifyFromServer = true) => {
+    // @ts-expect-error: suppressGetSessionWarning is not part of the public API
+    client.auth.suppressGetSessionWarning = true;
     const { data, error } = await client.auth.getSession();
+    // @ts-expect-error: suppressGetSessionWarning is not part of the public API
+    client.auth.suppressGetSessionWarning = false;
 
     if (!data.session || error) {
       return redirectToSignIn(error);

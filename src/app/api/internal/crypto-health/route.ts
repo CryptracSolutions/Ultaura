@@ -16,6 +16,10 @@ const INTERNAL_SECRET_HEADER = 'x-webhook-secret';
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 const HEALTH_ALGORITHM = 'aes-256-gcm';
+const WARN_LOG_COOLDOWN_MS = 30_000;
+
+let lastWarnLogAt = 0;
+let lastWarnKey = '';
 
 type AccountKeyRow = {
   account_id: string;
@@ -45,12 +49,13 @@ function decodePayloadOrThrow(label: string, value: ByteaInput, expectedLength?:
   return buffer;
 }
 
-function buildFailureResponse(code: string, message: string) {
+function buildFailureResponse(code: string, message: string, accountId?: string) {
   return NextResponse.json(
     {
       ok: false,
       code,
       message,
+      accountId: accountId || null,
       checkedAt: new Date().toISOString(),
     },
     { status: 503 }
@@ -129,13 +134,14 @@ export async function GET(request: NextRequest) {
 
   if (queryError) {
     logger.error({ queryError, configuredAccountId }, 'Crypto health check query failed');
-    return buildFailureResponse('DB_ERROR', queryError);
+    return buildFailureResponse('DB_ERROR', queryError, configuredAccountId || undefined);
   }
 
   if (!row && configuredAccountId) {
     return buildFailureResponse(
       'ACCOUNT_KEY_NOT_FOUND',
-      'Configured account key row was not found for crypto health validation.'
+      'Configured account key row was not found for crypto health validation.',
+      configuredAccountId
     );
   }
 
@@ -166,20 +172,28 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     if (isDecryptionError(error)) {
-      logger.warn(
-        {
-          accountId: row.account_id,
-          errorCode: error.code,
-        },
-        'Crypto health check failed to unwrap DEK.'
-      );
-      return buildFailureResponse(error.code, error.message);
+      const warnKey = `${row.account_id}:${error.code}`;
+      const now = Date.now();
+      if (warnKey !== lastWarnKey || now - lastWarnLogAt >= WARN_LOG_COOLDOWN_MS) {
+        lastWarnKey = warnKey;
+        lastWarnLogAt = now;
+        logger.warn(
+          {
+            accountId: row.account_id,
+            errorCode: error.code,
+            dedupeWindowMs: WARN_LOG_COOLDOWN_MS,
+          },
+          'Crypto health check failed to unwrap DEK.'
+        );
+      }
+      return buildFailureResponse(error.code, error.message, row.account_id);
     }
 
     logger.error({ error, accountId: row.account_id }, 'Crypto health check failed unexpectedly');
     return buildFailureResponse(
       'UNKNOWN_ERROR',
-      'Crypto health check failed unexpectedly while validating account key.'
+      'Crypto health check failed unexpectedly while validating account key.',
+      row.account_id
     );
   }
 }

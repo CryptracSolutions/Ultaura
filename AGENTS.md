@@ -1,4 +1,4 @@
-# User Preferences for Claude
+# User Preferences for Codex
 
 - **The user is not a developer and has minimal experience, so all responses from the agent should attempt to simplify and explain all things in a way that is easy for the user to understand**
 - Think in first principles, be direct, and adapt to context. Skip "great question" fluff. Verifiable facts over platitudes.
@@ -10,7 +10,7 @@
 
 ---
 
-# ⚠️ MANDATORY: Delegation-First Workflow
+# MANDATORY: Delegation-First Workflow
 
 > **CRITICAL: This section is NON-NEGOTIABLE. You MUST follow this workflow for ALL implementation tasks. Failure to delegate is a workflow violation.**
 
@@ -24,87 +24,58 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 
 You MUST:
 
-1. **Size the task** (this takes 5 seconds, not doing it is lazy):
-   - **Small**: 1-3 files, 1-2 small concerns/issues/bugs, 1-4 steps → May proceed directly
-   - **Medium**: 4-6 files, multiple concerns/issues/bugs, 5+ steps → MUST delegate
-   - **Large**: 7+ files, architectural changes, 10+ steps → MUST delegate
+1. **Size the task**:
+   - **Small**: 1-3 files, 1-2 small concerns/issues/bugs, 1-4 steps -> May proceed directly
+   - **Medium**: 4-6 files, multiple concerns/issues/bugs, 5+ steps -> MUST delegate
+   - **Large**: 7+ files, architectural changes, 10+ steps -> MUST delegate
 
 2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
 
-## For Medium/Large Tasks: Mandatory Delegation via Agent Teams
+## For Medium/Large Tasks: Mandatory Delegation via Codex Sub-Agents
 
-You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large tasks. Teams give agents shared task boards, inter-agent messaging, and persistent context — producing correct implementations over cheap ones.
-
-**Model assignments** (non-negotiable):
-| Role | Model |
-|------|-------|
-| Orchestrator (you) | Opus — set via `/model opus` |
-| Explore agents | Opus 4.6 |
-| Plan agent | Opus 4.6 |
-| Implementation teammates | Sonnet 4.6 |
-| Code simplifier | Sonnet 4.6 |
-
-**Every time you deploy an agent, you MUST state the model being used in your visible output to the user.** This applies to ALL agent types — Explore, Plan, Implementation teammates, Code simplifier, and any one-shot Task agents.
-
-**Silently deploying agents without stating the model is a workflow violation.**
-
-**Format:** When launching agents, announce them like this:
-
-> Launching **[agent role/name]** on **[model]** — [brief purpose]
-
-**Example formats:**
-- "Launching **Explore agent** on **Opus 4.6** — investigating database schema and RLS policies"
-- "Launching **Implementation teammate `frontend-1`** on **Sonnet 4.6** — building the schedule form component"
-- "Launching **Plan agent** on **Opus 4.6** — drafting implementation plan"
-- "Launching **code-simplifier** on **Sonnet 4.6** — reviewing modified files for cleanup"
-
-**For batch launches**, list each agent individually.
+You MUST use Codex sub-agents for medium and large tasks and **always use `model: GPT-5.3-Codex**. Shared coordination and explicit ownership produce correct implementations over cheap ones.
 
 You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Launch 1-6 `Explore` agents | **ALWAYS** |
-| 2 | Enter plan mode | `EnterPlanMode` | **ALWAYS**
-| 2 | Clarify requirements and interview user | `AskUserQuestion` | **ALWAYS** if **ANY** ambiguity or clarifications needed |
-| 3 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
-| 4 | Spawn a team of implementation teammates | Launch 1-4 `Task` teammates using `Teammate` with `spawnTeam` | **ALWAYS** |
-| 5 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
-| 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
-| 7 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
-| 8 | Code simplification pass | `Task` with `subagent_type: "code-simplifier:code-simplifier"` | **ALWAYS for medium/large** |
-| 9 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
+| 1 | Understand current state of codebase | Launch 1-3 `explorer` sub-agents | **ALWAYS** |
+| 2 | Enter plan mode | `update_plan` | **ALWAYS** |
+| 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarifications needed |
+| 4 | Create shared task list | `update_plan` with explicit step breakdown | If 5+ steps | **ALWAYS** |
+| 5 | Spawn implementation sub-agents | Launch 1-3 `implementation` sub-agents in parallel | **ALWAYS** |
+| 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
+| 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
+| 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
+| 9 | Code simplification pass | Launch one-shot `code-simplifier` sub-agent | **ALWAYS for medium/large** |
+| 10 | Shutdown & cleanup | Explicitly wait for completion and close all sub-agents | **ALWAYS** |
 
-### Agent Teams Guidelines
+### Sub-Agent Coordination Guidelines
 
-- **Explore & Plan agents: `model: "opus"`** — Opus for reasoning-heavy research and planning
-- **Implementation teammates & code-simplifier: `model: "sonnet"`** — Sonnet 4.6 for all code writing
-- **Max 4 implementation/task teammates** in parallel (to avoid file conflicts)
-- **Max 6 explore agents** in parallel
-- **Use `SendMessage`** to coordinate — teammates can't hear your plain text
-- **Teammates persist** — reassign them to new tasks instead of spawning new agents
-- **Teammates go idle after each turn** — this is normal, send a message to wake them
-- **Use `TaskList`/`TaskUpdate`** as the shared coordination board
-- **Shutdown gracefully** — send `shutdown_request` to each teammate when done, then call `Teammate` cleanup
+- **Always use `model: GPT-5.3-Codex** for ALL agent types
+- **Max 3 explorer sub-agents** in parallel
+- **Max 3 implementation sub-agents** in parallel (to avoid file conflicts)
+- **Use explicit coordinator messages** for task handoffs and blockers
+- **Use `update_plan`** as the shared coordination board
+- **Shutdown gracefully** after all delegated tasks and verification complete
 
 ### Task Tracking (Shared Task Board)
 
-You MUST create a task list using `TaskCreate` for **any work with 4+ steps**:
+You MUST create a task list using `update_plan` for **any work with 5+ steps**:
 - Group related tasks together
-- Use `TaskUpdate` with `owner` to assign tasks to specific teammates
-- Use `TaskUpdate` to mark tasks `in_progress` when starting, `completed` when done
-- Use `TaskList` to check progress and find next tasks
-- Teammates can claim and update their own tasks
-- The task board is the single source of truth — use `SendMessage` for real-time coordination on top of it
+- Assign each task to a specific sub-agent in plan text
+- Mark tasks `in_progress` when starting, `completed` when done
+- Review plan state to determine next tasks
+- The task board is the single source of truth; use chat updates for real-time coordination on top of it
 
-### Code Simplification Pass (Step 8)
+### Code Simplification Pass (Step 9)
 
-After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
+After all implementation is complete, the team is shutdown cleanly, and TypeScript/visual verification passes, you MUST run a code-simplifier sub-agent.
 
 **How to deploy:**
-- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "sonnet"`
-- This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
-- It is **blocking** — wait for its result before proceeding to shutdown
+- Launch a one-shot sub-agent scoped to code simplification
+- This is a **one-shot agent**, NOT part of the main implementation pool
+- It is **blocking** - wait for its result before proceeding to shutdown
 
 **Prompt template:**
 > Review all files modified during this task for clarity, consistency, and maintainability. Simplify where possible without changing behavior or functionality. Focus on: variable/function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
@@ -121,21 +92,21 @@ After all implementation is complete and TypeScript/visual verification passes, 
 - Only non-code files were changed (docs, config, migrations)
 - User explicitly says "skip cleanup" or "don't simplify"
 
-### When to Use Teams vs. One-Shot Task Agents
+### When to Use Parallel Sub-Agents vs. Direct Work
 
 | Scenario | Use |
 |----------|-----|
-| Independent parallel research (explore codebase) | `Explore` for pure research/investigation |
-| Medium task (4-6 files, multiple concerns) | **Teams** — agents need shared context/coordination |
-| Large task (7+ files, architectural) | **Teams** — agents need shared context/coordination |
-| Interdependent work (frontend needs backend's API shape) | **Teams** — agents must communicate |
-| Sequential dependencies across agents | **Teams** — agents hand off context |
-| 1-3 isolated tasks | `Task` agent (one-shot) is sufficient |
+| Independent parallel research (explore codebase) | `explorer` sub-agents for pure research/investigation |
+| Medium task (4-6 files, multiple concerns) | **Sub-agent team** - agents need shared context/coordination |
+| Large task (7+ files, architectural) | **Sub-agent team** - agents need shared context/coordination |
+| Interdependent work (frontend needs backend's API shape) | **Sub-agent team** - agents must communicate |
+| Sequential dependencies across agents | **Sub-agent team** - agents hand off context |
+| 1-3 isolated tasks | Direct implementation is sufficient |
 
 ## Exceptions (Skip Delegation For)
 
 ONLY these cases may skip the delegation workflow:
-- **Typos/one-liners**: Single obvious fix"
+- **Typos/one-liners**: Single obvious fix
 - **Non-code**: Pure docs, config, questions
 - **Explicit bypass**: User says "skip the workflow", "small adjustment/change" or "do it yourself"
 - **Small tasks**: 1-3 files, < 4 steps, 1-2 small concerns or changes
@@ -143,7 +114,63 @@ ONLY these cases may skip the delegation workflow:
 Even for exceptions, STILL:
 - Auto-invoke relevant skills
 - Verify TypeScript compiles
-- Use Chrome MCP if it's a visible UI change
+- Use Playwright MCP if it's a visible UI change
+
+---
+
+### Plan Mode Guidance
+
+**When to enter plan mode** (`update_plan`):
+- Medium/Large tasks (4+ files or 5+ steps)
+- New features touching multiple services (dashboard + telephony + database)
+- Database schema changes or new migrations
+- Changes to the call flow or Grok tool handlers
+- When user explicitly requests planning first
+
+**Plan mode is NOT a formality — it is a deep-work phase.** A plan that just lists file names and vague steps is a BAD plan. Every plan must be detailed enough that a fresh agent with zero prior context can execute it without asking a single clarifying question.
+
+#### Phase 1: Research (Before Writing the Plan)
+
+1. **Explore the codebase** — Launch explorer sub-agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
+2. **Interview the user until ambiguity reaches zero** — Use `request_user_input` aggressively. Do NOT assume intent. Do NOT guess between two valid approaches. Ask. Interview scaling:
+   - Medium tasks: 6-12 clarifying questions minimum
+   - Large tasks: 12+ questions to nail down full scope
+   - Keep asking follow-ups until you have concrete answers for every decision point
+3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
+
+#### Phase 2: Writing the Plan
+
+Write the plan via `update_plan`. The plan MUST include ALL of the following sections. Missing sections = incomplete plan.
+
+| Section | What It Must Contain |
+|---------|---------------------|
+| **Goal** | 1-2 sentence summary of what we're building/changing and WHY |
+| **Current State** | How the system works today in the areas we're touching. Reference specific files, functions, types, and line numbers discovered during research. |
+| **Requirements** | Bullet list of every requirement — functional, non-functional, edge cases, and user-confirmed decisions from the interview. Number them (R1, R2, ...) so tasks can reference them. |
+| **Affected Files** | Every file that will be created, modified, or deleted, with a 1-line description of what changes. Group by area (dashboard, telephony, database, packages). |
+| **Database Changes** | If applicable: exact table/column names, types, defaults, constraints, RLS policies, and migration file name. Include the SQL or describe it precisely enough to write it. |
+| **Implementation Tasks** | Ordered, numbered task list. Each task must specify: (1) what to do, (2) which files to touch, (3) which requirements it satisfies (R1, R2...), (4) dependencies on other tasks, (5) acceptance criteria — how to verify it worked. |
+| **Type & API Contracts** | Any new or modified TypeScript types, Zod schemas, API request/response shapes, or function signatures. Write them out explicitly — don't say "add a type for X", show the type. |
+| **Edge Cases & Error Handling** | How errors, empty states, permission failures, race conditions, and unexpected input are handled. |
+| **Testing & Verification** | How to verify the implementation is correct: TypeScript compilation, specific UI states to check, API calls to test, migration verification steps. |
+| **Out of Scope** | Explicitly list what this plan does NOT cover, to prevent scope creep during implementation. |
+
+#### Phase 3: Plan Review
+
+Before finalizing the plan and proceeding to delegation:
+- Re-read the plan as if you are a fresh agent seeing it for the first time. Would you know exactly what to do? If not, add more detail.
+- Verify every file listed in "Affected Files" actually exists (or is explicitly marked as new).
+- Verify task dependencies form a valid DAG — no circular dependencies, correct ordering.
+- Confirm no requirements from the interview are missing from the tasks.
+
+#### What Makes a BAD Plan (Do Not Do These)
+
+- Vague task descriptions: "Update the dashboard" — update WHAT? HOW?
+- Missing file paths: "Add a new component" — WHERE? What's it called?
+- Assumed decisions: "We'll use a modal" — did the user confirm that?
+- No acceptance criteria: "Implement the feature" — how do we know it's done?
+- Skipping the interview: Jumping straight to writing the plan without asking questions via `request_user_input`
+- Listing files without explaining changes: "Modify `schedule-service.ts`" — to do WHAT?
 
 ---
 
@@ -162,66 +189,10 @@ Even for exceptions, STILL:
 | `marketing-psychology` | Applying psychological principles to marketing |
 | `pricing-strategy` | Pricing decisions, packaging, monetization |
 | `page-cro` | Optimizing page conversions, CRO analysis |
-| `skill-creator` | Creating new skills for Claude Code or Codex |
+| `skill-creator` | Creating new skills for Codex |
 | `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
 | `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
 | `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
-
----
-
-### Plan Mode Guidance
-
-**When to enter plan mode** (`/plan` or `EnterPlanMode`):
-- Medium/Large tasks (4+ files or 5+ steps)
-- New features touching multiple services (dashboard + telephony + database)
-- Database schema changes or new migrations
-- Changes to the call flow or Grok tool handlers
-- When user explicitly requests planning first
-
-**Plan mode is NOT a formality — it is a deep-work phase.** A plan that just lists file names and vague steps is a BAD plan. Every plan must be detailed enough that a fresh agent with zero prior context can execute it without asking a single clarifying question.
-
-#### Phase 1: Research (Before Writing the Plan)
-
-1. **Explore the codebase** — Launch Explore agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
-2. **Interview the user until ambiguity reaches zero** — Use `AskUserQuestion` aggressively. Do NOT assume intent. Do NOT guess between two valid approaches. Ask. Interview scaling:
-   - Medium tasks: 6-12 clarifying questions minimum
-   - Large tasks: 12+ questions to nail down full scope
-   - Keep asking follow-ups until you have concrete answers for every decision point
-3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
-
-#### Phase 2: Writing the Plan — **MUST use `Plan` agent with `model: "opus"`**
-
-The plan document MUST include ALL of the following sections. Missing sections = incomplete plan.
-
-| Section | What It Must Contain |
-|---------|---------------------|
-| **Goal** | 1-2 sentence summary of what we're building/changing and WHY |
-| **Current State** | How the system works today in the areas we're touching. Reference specific files, functions, types, and line numbers discovered during research. |
-| **Requirements** | Bullet list of every requirement — functional, non-functional, edge cases, and user-confirmed decisions from the interview. Number them (R1, R2, ...) so tasks can reference them. |
-| **Affected Files** | Every file that will be created, modified, or deleted, with a 1-line description of what changes. Group by area (dashboard, telephony, database, packages). |
-| **Database Changes** | If applicable: exact table/column names, types, defaults, constraints, RLS policies, and migration file name. Include the SQL or describe it precisely enough to write it. |
-| **Implementation Tasks** | Ordered, numbered task list. Each task must specify: (1) what to do, (2) which files to touch, (3) which requirements it satisfies (R1, R2...), (4) dependencies on other tasks, (5) acceptance criteria — how to verify it worked. |
-| **Type & API Contracts** | Any new or modified TypeScript types, Zod schemas, API request/response shapes, or function signatures. Write them out explicitly — don't say "add a type for X", show the type. |
-| **Edge Cases & Error Handling** | How errors, empty states, permission failures, race conditions, and unexpected input are handled. |
-| **Testing & Verification** | How to verify the implementation is correct: TypeScript compilation, specific UI states to check, API calls to test, migration verification steps. |
-| **Out of Scope** | Explicitly list what this plan does NOT cover, to prevent scope creep during implementation. |
-
-#### Phase 3: Plan Review
-
-Before exiting plan mode:
-- Re-read the plan as if you are a fresh agent seeing it for the first time. Would you know exactly what to do? If not, add more detail.
-- Verify every file listed in "Affected Files" actually exists (or is explicitly marked as new).
-- Verify task dependencies form a valid DAG — no circular dependencies, correct ordering.
-- Confirm no requirements from the interview are missing from the tasks.
-
-#### What Makes a BAD Plan (Do Not Do These)
-
-- Vague task descriptions: "Update the dashboard" — update WHAT? HOW?
-- Missing file paths: "Add a new component" — WHERE? What's it called?
-- Assumed decisions: "We'll use a modal" — did the user confirm that?
-- No acceptance criteria: "Implement the feature" — how do we know it's done?
-- Skipping the interview: Jumping straight to writing the plan without asking questions
-- Listing files without explaining changes: "Modify `schedule-service.ts`" — to do WHAT?
 
 ---
 
@@ -253,7 +224,7 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 
 ## Workflow Preferences
 
-> **See [MANDATORY: Delegation-First Workflow](#️-mandatory-delegation-first-workflow) above. This section contains supplementary guidance.**
+> **See [MANDATORY: Delegation-First Workflow](#mandatory-delegation-first-workflow) above. This section contains supplementary guidance.**
 
 ### Interview Scaling
 
@@ -263,37 +234,37 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 | Medium | 6-12 clarifying questions |
 | Large | 12+ detailed questions to nail down full scope |
 
-Use `AskUserQuestion` proactively when:
+Use `request_user_input` proactively when:
 - Requirements are ambiguous
 - Multiple valid approaches exist
 - User preferences would affect implementation
 - Scope could expand unexpectedly
 
-### Chrome Visual Verification
+### Playwright Visual Verification
 
-For **any UI/UX changes**, use Chrome MCP for visual verification (when made available by the user):
+For **any UI/UX changes**, use Playwright MCP for visual verification (when made available by the user):
 - **Batch checkpoints**: After every 3-5 files, visually verify changes
 - **Before/after awareness**: Note current state before changes
 - **Mobile check**: Always verify at 375px viewport (seniors use tablets/phones)
 - **Interactive states**: Verify hover, focus, loading, error states
 
-Skip Chrome for:
+Skip visual checks for:
 - Backend-only changes
 - Non-visual config changes
 - Database migrations
 
 ### Workflow Exceptions
 
-> **See "Exceptions" in the [MANDATORY: Delegation-First Workflow]**
+> **See "Exceptions" in the [MANDATORY: Delegation-First Workflow](#mandatory-delegation-first-workflow) section for the complete list.**
 
 Even when skipping delegation, you MUST still:
 - Auto-invoke relevant skills from the table below
 - Verify TypeScript compiles (`pnpm tsc --noEmit`)
-- Use Chrome MCP if it's a visible UI change
+- Use Playwright MCP if it's a visible UI change
 
 ### Lessons Learned
 
-Document mistakes and patterns here. After Claude makes an error, have it update this section.
+Document mistakes and patterns here. After Codex makes an error, have it update this section.
 
 #### Database & Supabase
 - Always add RLS policies when creating new `ultaura_*` tables
@@ -439,28 +410,6 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
 - Telephony pods drain active WebSocket calls on SIGTERM/SIGINT (30s max) before exit.
 - Internal ops endpoints (require `X-Webhook-Secret`): `/internal/scheduler-status`, `/internal/active-calls`, `/internal/metrics`.
 - Prometheus scraping should hit `/internal/metrics` with `X-Webhook-Secret` via ServiceMonitor `httpHeaders` + Secret.
-- Internal maintenance scheduler also checks Next.js internal endpoints hourly, including `/api/internal/crypto-health` (task key: `crypto_health`).
-- Alerting reference for crypto health checks:
-  - Metric: `ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="failure"}`
-  - Repeated-failure log event: `crypto_health_consecutive_failures`
-
-### KEK Rotation Runbook (ULTAURA_ENCRYPTION_KEY)
-
-1. Generate a new 64-hex key and set it as `ULTAURA_ENCRYPTION_KEY` in both Next.js and telephony.
-2. Move the prior key to `ULTAURA_ENCRYPTION_KEY_PREVIOUS` in both services.
-3. Restart/deploy services so both env vars are active everywhere.
-4. Verify decrypt health with:
-   - `GET /api/internal/crypto-health` (authorized with `x-webhook-secret`)
-   - Expect `200` `{ ok: true }` for the configured account check.
-5. Monitor for at least one maintenance window:
-   - `ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="failure"}`
-   - Log event `crypto_health_consecutive_failures` should remain absent.
-6. If healthy, remove `ULTAURA_ENCRYPTION_KEY_PREVIOUS` in both services and redeploy.
-
-Rollback:
-1. Restore the prior key as `ULTAURA_ENCRYPTION_KEY`.
-2. Put the attempted new key in `ULTAURA_ENCRYPTION_KEY_PREVIOUS`.
-3. Redeploy and verify `/api/internal/crypto-health` returns `200`.
 
 ## Security
 

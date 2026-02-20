@@ -1,4 +1,5 @@
 import Tile from '~/core/ui/Tile';
+import AdminCryptoHealthCard from './AdminCryptoHealthCard';
 
 interface Data {
   usersCount: number;
@@ -58,6 +59,8 @@ function AdminDashboard({
           </div>
         </Tile.Body>
       </Tile>
+
+      <AdminCryptoHealthCard />
     </div>
   );
 }

@@ -15,7 +15,7 @@ const MFA_FALSE_VALUES = new Set(['false', '0', 'no', 'off']);
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|locales|assets|api/chat|api/stripe/webhook).*)',
+    '/((?!_next/static|_next/image|favicon.ico|locales|assets|api/chat|api/stripe/webhook|api/search/track).*)',
   ],
 };
 

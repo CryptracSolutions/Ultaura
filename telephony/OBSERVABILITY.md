@@ -204,3 +204,22 @@ sum(rate(ultaura_voice_disconnect_total{reason=~"twilio_failed|grok_error"}[5m])
 and
 sum(rate(ultaura_voice_tool_calls_total[10m])) by (toolName) > 0.1
 ```
+
+#### Crypto health repeated failures (recommended)
+
+```
+sum(increase(ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="failure"}[3h])) >= 3
+and
+sum(increase(ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="success"}[3h])) == 0
+```
+
+Recommended alert config:
+
+- Alert name: `UltauraCryptoHealthFailures`
+- `for`: `10m`
+- Severity: `critical`
+- Trigger intent: repeated hourly crypto-health failures with no recovery in-window.
+
+Kubernetes/Prometheus Operator users can start from:
+
+- `telephony/k8s/prometheus-rule.example.yaml`

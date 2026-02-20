@@ -1,0 +1,35 @@
+# Example PrometheusRule for Ultaura telephony alerts
+#
+# Apply only if you run kube-prometheus-stack / Prometheus Operator.
+# Customize metadata.namespace, labels, and routing labels for your cluster.
+#
+# This rule alerts when crypto health checks fail repeatedly with no successes.
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ultaura-telephony-alerts
+  namespace: monitoring
+  labels:
+    app: ultaura-telephony
+spec:
+  groups:
+    - name: ultaura-telephony-runtime
+      rules:
+        - alert: UltauraCryptoHealthFailures
+          expr: |
+            sum(increase(ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="failure"}[3h])) >= 3
+            and
+            sum(increase(ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="success"}[3h])) == 0
+          for: 10m
+          labels:
+            severity: critical
+            service: ultaura-telephony
+            team: platform
+          annotations:
+            summary: "Ultaura crypto-health checks are failing repeatedly"
+            description: |
+              The hourly maintenance task `crypto_health` has failed at least 3 times in the last 3 hours
+              with no successful runs in the same window. This usually indicates KEK/DEK mismatch
+              or encryption-key configuration drift.
+            runbook: "Set ULTAURA_ENCRYPTION_KEY / ULTAURA_ENCRYPTION_KEY_PREVIOUS per KEK rotation runbook, then verify /api/internal/crypto-health returns 200."

@@ -1,21 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { type ComponentType, type SVGProps, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  BellIcon,
-  CalendarDaysIcon,
-  DocumentTextIcon,
-  ExclamationTriangleIcon,
-  LifebuoyIcon,
-  PhoneArrowUpRightIcon,
-  PhoneIcon,
-  PlusCircleIcon,
-  ShieldCheckIcon,
-  UserIcon,
-} from '@heroicons/react/24/outline';
+  Bell,
+  CalendarDays,
+  FileText,
+  Phone,
+  PhoneOutgoing,
+  ShieldCheck,
+  TriangleAlert,
+  UserRound,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
@@ -24,31 +22,17 @@ import { getNavigationItems } from '~/lib/search/navigation-registry';
 import { buildLineNavigationItems } from '~/lib/search/line-navigation';
 import type { SearchItem, SearchResponse } from '~/lib/search/types';
 import { SEARCH_CATEGORIES } from '~/lib/search/types';
+import { buildIntentBoostMap, getIntentBoost } from '~/lib/search/intent';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
-import { useAddLine } from '~/lib/contexts/AddLineContext';
-import { useAddReminder } from '~/lib/contexts/AddReminderContext';
-import { useAddSchedule } from '~/lib/contexts/AddScheduleContext';
-import { useManualCall } from '~/lib/contexts/ManualCallContext';
-import { useHelpPanel } from '~/lib/contexts/HelpPanelContext';
 import { highlightText, normalizeText, scoreMatch, tokenizeText } from '~/lib/search/match';
 
 const DEBOUNCE_MS = 150;
-
-type QuickAction = {
-  id: string;
-  label: string;
-  subtitle?: string;
-  keywords: string[];
-  icon: React.ReactNode;
-  action: () => void;
-};
 
 type Scored<T> = { item: T; score: number };
 
 type SearchRecent = {
   id: string;
-  kind: 'action' | 'item';
-  actionId?: string;
+  kind: 'item';
   href?: string;
   label: string;
   subtitle?: string;
@@ -74,11 +58,6 @@ export const SearchPanel = ({
   const { data: account } = useUltauraAccount();
   const { t } = useTranslation();
   const router = useRouter();
-  const { openAddReminder } = useAddReminder();
-  const { openAddSchedule } = useAddSchedule();
-  const { openAddLine } = useAddLine();
-  const { openManualCall } = useManualCall();
-  const { open: openHelp } = useHelpPanel();
   const { recents, addRecent } = useSearchRecents(isOpen);
 
   const generatedListId = useId();
@@ -88,13 +67,20 @@ export const SearchPanel = ({
   const [internalQuery, setInternalQuery] = useState('');
   const query = externalQuery !== undefined ? externalQuery : internalQuery;
   const onQueryChange = externalOnQueryChange || setInternalQuery;
-  const { cleanQuery, typeFilter } = useMemo(() => parseSearchQuery(query), [query]);
+  const cleanQuery = query;
 
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState<SearchResponse['results']>(
     buildEmptyResults,
   );
   const [isLoading, setIsLoading] = useState(false);
+  const lastSearchSessionRef = useRef<{
+    searchId: string | null;
+    query: string;
+    startedAtMs: number;
+    completedAtMs: number;
+    resultCount: number;
+  } | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -112,6 +98,7 @@ export const SearchPanel = ({
       setDebouncedQuery('');
       setResults(buildEmptyResults());
       setIsLoading(false);
+      lastSearchSessionRef.current = null;
     }
   }, [isOpen, externalQuery, onQueryChange]);
 
@@ -130,23 +117,12 @@ export const SearchPanel = ({
       return;
     }
 
-    const shouldFetch =
-      !typeFilter || !['actions', 'documentation'].includes(typeFilter);
-
-    if (!shouldFetch) {
-      setResults(buildEmptyResults());
-      setIsLoading(false);
-      return;
-    }
-
     const controller = new AbortController();
     setIsLoading(true);
 
     const url = new URL('/api/search', window.location.origin);
     url.searchParams.set('q', term);
-    if (typeFilter) {
-      url.searchParams.set('type', typeFilter);
-    }
+    const startedAt = performance.now();
 
     fetch(url.toString(), {
       signal: controller.signal,
@@ -159,6 +135,28 @@ export const SearchPanel = ({
       })
       .then((payload) => {
         setResults(payload.results ?? buildEmptyResults());
+        const completedAt = performance.now();
+        const latencyMs = Math.max(0, Math.round(completedAt - startedAt));
+        const totalResults = countTotalResultItems(payload.results ?? buildEmptyResults());
+
+        lastSearchSessionRef.current = {
+          searchId: payload.searchId ?? null,
+          query: term,
+          startedAtMs: startedAt,
+          completedAtMs: completedAt,
+          resultCount: totalResults,
+        };
+
+        trackSearchEvent({
+          event: 'query_executed',
+          query: term,
+          source: openMode ?? 'desktop',
+          searchId: payload.searchId,
+          latencyMs,
+          resultCount: totalResults,
+          zeroResults: totalResults === 0,
+          categoryCounts: summarizeCategoryCounts(payload.results ?? buildEmptyResults()),
+        });
       })
       .catch((error) => {
         if (error?.name === 'AbortError') return;
@@ -169,7 +167,7 @@ export const SearchPanel = ({
       });
 
     return () => controller.abort();
-  }, [debouncedQuery, typeFilter]);
+  }, [debouncedQuery, openMode]);
 
   const userType =
     account?.user_type === 'self' || account?.user_type === 'family_managed'
@@ -196,197 +194,108 @@ export const SearchPanel = ({
 
   const normalizedQuery = normalizeText(cleanQuery);
   const queryTokens = useMemo(() => tokenizeText(normalizedQuery), [normalizedQuery]);
+  const intentBoosts = useMemo(() => buildIntentBoostMap(normalizedQuery), [normalizedQuery]);
   const hasQuery = normalizedQuery.length > 0;
 
   const scoredNavigation = useMemo<Scored<ReturnType<typeof getNavigationItems>[number]>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'navigation');
     return navigationItems
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, [item.label, ...item.keywords].join(' ')),
+        score: scoreMatch(normalizedQuery, [item.label, ...item.keywords].join(' ')) + intentBoost,
       }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score);
-  }, [hasQuery, navigationItems, normalizedQuery]);
+  }, [hasQuery, intentBoosts, navigationItems, normalizedQuery]);
 
   const scoredDocs = useMemo<Scored<(typeof docsIndex)[number]>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'documentation');
     return docsIndex
       .map((doc) => ({
         item: doc,
         score: scoreMatch(
           normalizedQuery,
           [doc.title, doc.label, doc.section, ...doc.keywords].join(' ')
-        ),
+        ) + intentBoost,
       }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 6);
-  }, [docsIndex, hasQuery, normalizedQuery]);
-
-  const quickActions = useMemo<QuickAction[]>(
-    () => [
-      {
-        id: 'add-reminder',
-        label: 'Set reminder',
-        subtitle: 'Set a new reminder',
-        keywords: [
-          'set reminder',
-          'new reminder',
-          'create reminder',
-          'set reminder',
-          'reminder',
-          'remind',
-        ],
-        icon: <BellIcon className="h-4 w-4" />,
-        action: () => openAddReminder(),
-      },
-      {
-        id: 'add-schedule',
-        label: 'Add schedule',
-        subtitle: 'Schedule check-in calls',
-        keywords: [
-          'add schedule',
-          'create schedule',
-          'schedule call',
-          'call schedule',
-          'check-in',
-          'check in',
-        ],
-        icon: <CalendarDaysIcon className="h-4 w-4" />,
-        action: () => openAddSchedule(),
-      },
-      {
-        id: 'add-line',
-        label: 'Add line',
-        subtitle: 'Add a new loved one',
-        keywords: ['add line', 'new line', 'add loved one', 'create line', 'add senior'],
-        icon: <PlusCircleIcon className="h-4 w-4" />,
-        action: () => openAddLine(),
-      },
-      {
-        id: 'manual-call',
-        label: 'Start manual call',
-        subtitle: 'Place a call now',
-        keywords: ['manual call', 'start call', 'call now', 'test call', 'place call'],
-        icon: <PhoneArrowUpRightIcon className="h-4 w-4" />,
-        action: () => openManualCall(),
-      },
-      {
-        id: 'help-panel',
-        label: 'Help',
-        subtitle: 'Get answers and guidance',
-        keywords: ['help', 'support', 'faq', 'guide', 'docs', 'documentation'],
-        icon: <LifebuoyIcon className="h-4 w-4" />,
-        action: () => openHelp(),
-      },
-    ],
-    [openAddLine, openAddReminder, openAddSchedule, openHelp, openManualCall]
-  );
-
-  const actionById = useMemo(() => {
-    return new Map(quickActions.map((action) => [action.id, action]));
-  }, [quickActions]);
-
-  const scoredActions = useMemo<Scored<QuickAction>[]>(() => {
-    if (!hasQuery) {
-      return quickActions.map((action) => ({ item: action, score: 1 }));
-    }
-
-    return quickActions
-      .map((action) => ({
-        item: action,
-        score: scoreMatch(
-          normalizedQuery,
-          [action.label, action.subtitle ?? '', ...action.keywords].join(' ')
-        ),
-      }))
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => b.score - a.score);
-  }, [hasQuery, normalizedQuery, quickActions]);
+      .slice(0, 10);
+  }, [docsIndex, hasQuery, intentBoosts, normalizedQuery]);
 
   const scoredLines = useMemo<Scored<SearchItem>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'lines');
     return results.lines
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`),
+        score: getSearchItemScore(item, normalizedQuery) + intentBoost,
       }))
-      .filter((entry) => entry.score > 0)
+      .filter((entry) => isStrongSearchMatch(entry.score, normalizedQuery))
       .sort((a, b) => b.score - a.score);
-  }, [hasQuery, normalizedQuery, results.lines]);
+  }, [hasQuery, intentBoosts, normalizedQuery, results.lines]);
 
   const scoredReminders = useMemo<Scored<SearchItem>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'reminders');
     return results.reminders
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`),
+        score: getSearchItemScore(item, normalizedQuery) + intentBoost,
       }))
-      .filter((entry) => entry.score > 0)
+      .filter((entry) => isStrongSearchMatch(entry.score, normalizedQuery))
       .sort((a, b) => b.score - a.score);
-  }, [hasQuery, normalizedQuery, results.reminders]);
+  }, [hasQuery, intentBoosts, normalizedQuery, results.reminders]);
 
   const scoredSchedules = useMemo<Scored<SearchItem>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'schedules');
     return results.schedules
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`),
+        score: getSearchItemScore(item, normalizedQuery) + intentBoost,
       }))
-      .filter((entry) => entry.score > 0)
+      .filter((entry) => isStrongSearchMatch(entry.score, normalizedQuery))
       .sort((a, b) => b.score - a.score);
-  }, [hasQuery, normalizedQuery, results.schedules]);
+  }, [hasQuery, intentBoosts, normalizedQuery, results.schedules]);
 
   const scoredContacts = useMemo<Scored<SearchItem>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'contacts');
     return results.contacts
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`),
+        score: getSearchItemScore(item, normalizedQuery) + intentBoost,
       }))
-      .filter((entry) => entry.score > 0)
+      .filter((entry) => isStrongSearchMatch(entry.score, normalizedQuery))
       .sort((a, b) => b.score - a.score);
-  }, [hasQuery, normalizedQuery, results.contacts]);
+  }, [hasQuery, intentBoosts, normalizedQuery, results.contacts]);
 
   const scoredCalls = useMemo<Scored<SearchItem>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'calls');
     return results.calls
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`),
+        score: getSearchItemScore(item, normalizedQuery) + intentBoost,
       }))
-      .filter((entry) => entry.score > 0)
+      .filter((entry) => isStrongSearchMatch(entry.score, normalizedQuery))
       .sort((a, b) => b.score - a.score);
-  }, [hasQuery, normalizedQuery, results.calls]);
+  }, [hasQuery, intentBoosts, normalizedQuery, results.calls]);
 
   const scoredSafetyEvents = useMemo<Scored<SearchItem>[]>(() => {
     if (!hasQuery) return [];
+    const intentBoost = getIntentBoost(intentBoosts, 'safety_events');
     return results.safety_events
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`),
+        score: getSearchItemScore(item, normalizedQuery) + intentBoost,
       }))
-      .filter((entry) => entry.score > 0)
+      .filter((entry) => isStrongSearchMatch(entry.score, normalizedQuery))
       .sort((a, b) => b.score - a.score);
-  }, [hasQuery, normalizedQuery, results.safety_events]);
-
-  const isCategoryAllowed = useCallback(
-    (category: string) => !typeFilter || typeFilter === category,
-    [typeFilter]
-  );
-
-  const hasAnyResults =
-    (isCategoryAllowed('actions') && scoredActions.length > 0) ||
-    (isCategoryAllowed('navigation') && scoredNavigation.length > 0) ||
-    (isCategoryAllowed('documentation') && scoredDocs.length > 0) ||
-    (isCategoryAllowed('lines') && scoredLines.length > 0) ||
-    (isCategoryAllowed('reminders') && scoredReminders.length > 0) ||
-    (isCategoryAllowed('schedules') && scoredSchedules.length > 0) ||
-    (isCategoryAllowed('contacts') && scoredContacts.length > 0) ||
-    (isCategoryAllowed('calls') && scoredCalls.length > 0) ||
-    (isCategoryAllowed('safety_events') && scoredSafetyEvents.length > 0) ||
-    (!typeFilter && recents.length > 0);
+  }, [hasQuery, intentBoosts, normalizedQuery, results.safety_events]);
 
   const scoredNavigationItems = useMemo<Scored<SearchItem>[]>(() => {
     return scoredNavigation.map((entry) => ({
@@ -396,7 +305,7 @@ export const SearchPanel = ({
         href: entry.item.href,
         category: 'navigation',
       },
-      score: entry.score,
+      score: entry.score - 2,
     }));
   }, [scoredNavigation]);
 
@@ -409,18 +318,47 @@ export const SearchPanel = ({
         href: `/docs/${entry.item.resolvedPath}`,
         category: 'documentation',
       },
-      score: entry.score,
+      score: entry.score - 3.5,
     }));
   }, [scoredDocs]);
 
+  const unifiedResults = useMemo<Scored<SearchItem>[]>(() => {
+    if (!hasQuery) return [];
+
+    const ranked = [
+      ...scoredLines,
+      ...scoredReminders,
+      ...scoredSchedules,
+      ...scoredContacts,
+      ...scoredCalls,
+      ...scoredSafetyEvents,
+      ...scoredNavigationItems,
+      ...scoredDocItems,
+    ];
+
+    return ranked
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+  }, [
+    hasQuery,
+    scoredCalls,
+    scoredContacts,
+    scoredDocItems,
+    scoredLines,
+    scoredNavigationItems,
+    scoredReminders,
+    scoredSafetyEvents,
+    scoredSchedules,
+  ]);
+
   const isMobileSearch = externalQuery === undefined;
-  const shouldShowResults =
-    !isMobileSearch || hasQuery || isLoading || recents.length > 0 || Boolean(typeFilter);
-  const filterLabel = typeFilter ? getFilterLabel(typeFilter) : null;
+  const shouldShowResults = !isMobileSearch || isOpen;
 
   const handleSelect = (
     item: SearchItem | { href: string; label?: string; subtitle?: string; category?: string; id?: string }
   ) => {
+    const nowMs = performance.now();
+    const activeSession = lastSearchSessionRef.current;
     const href = 'href' in item ? item.href : undefined;
     const category = 'category' in item ? item.category : undefined;
     const label = 'label' in item ? item.label : undefined;
@@ -441,11 +379,14 @@ export const SearchPanel = ({
 
     trackSearchEvent({
       event: 'select_result',
-      query: query.trim(),
+      query: cleanQuery.trim(),
       source: openMode ?? 'desktop',
       category: category ?? 'unknown',
       itemId: id,
       href,
+      searchId: activeSession?.searchId ?? undefined,
+      resultCount: activeSession?.resultCount,
+      timeToClickMs: activeSession ? Math.max(0, Math.round(nowMs - activeSession.startedAtMs)) : undefined,
     });
 
     close();
@@ -458,31 +399,9 @@ export const SearchPanel = ({
     }
   };
 
-  const handleAction = (action: QuickAction) => {
-    addRecent({
-      id: action.id,
-      kind: 'action',
-      actionId: action.id,
-      label: action.label,
-      subtitle: action.subtitle,
-      category: 'action',
-      lastUsedAt: Date.now(),
-    });
-
-    trackSearchEvent({
-      event: 'select_action',
-      query: query.trim(),
-      source: openMode ?? 'desktop',
-      actionId: action.id,
-    });
-
-    close();
-    onQueryChange('');
-    if (openMode === 'desktop') {
-      (document.activeElement as HTMLElement | null)?.blur();
-    }
-    action.action();
-  };
+  const totalVisibleResults = useMemo(() => {
+    return unifiedResults.length;
+  }, [unifiedResults.length]);
 
   return (
     <Command shouldFilter={false} className="flex h-full w-full flex-col">
@@ -506,173 +425,42 @@ export const SearchPanel = ({
           role="listbox"
           className="max-h-[60vh] overflow-y-auto overscroll-contain touch-pan-y py-2"
         >
-          {isLoading ? (
-            <div className="px-4 py-2 text-xs text-muted-foreground">Searching...</div>
-          ) : null}
-          {!hasQuery && filterLabel ? (
-            <div className="px-4 py-3 text-xs text-muted-foreground">
-              Type to search {filterLabel}.
+          {hasQuery ? (
+            <div className="px-3 pb-1 pt-1 text-left text-[11px] text-muted-foreground">
+              {isLoading
+                ? 'Searching...'
+                : `${totalVisibleResults} result${totalVisibleResults === 1 ? '' : 's'}`}
             </div>
           ) : null}
 
-          {!hasQuery && !typeFilter && recents.length > 0 ? (
+          {!hasQuery ? (
+            <div className="px-3 pb-1 pt-1 text-[11px] text-muted-foreground">
+              {recents.length > 0
+                ? 'Recent'
+                : 'Search by name, phone, call, safety, or reminder.'}
+            </div>
+          ) : null}
+
+          {!hasQuery && recents.length > 0 ? (
             <Command.Group
               heading={
                 <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Recent
                 </span>
               }
-              className="px-2"
+              className="px-2 pt-1"
             >
-              {recents.map((recent) => {
-                if (recent.kind === 'action' && recent.actionId) {
-                  const action = actionById.get(recent.actionId);
-                  if (!action) return null;
-                  return (
-                    <ActionItem
-                      key={`recent-action-${recent.actionId}`}
-                      action={action}
-                      onSelect={() => handleAction(action)}
-                      tokens={queryTokens}
-                    />
-                  );
-                }
-
-                if (recent.kind === 'item' && recent.href) {
-                  return (
-                    <SearchResultItem
-                      key={`recent-item-${recent.id}`}
-                      item={{
-                        id: recent.id,
-                        label: recent.label,
-                        subtitle: recent.subtitle,
-                        href: recent.href,
-                        category: (recent.category as SearchItem['category']) ?? 'navigation',
-                      }}
-                      icon={getCategoryIcon(recent.category)}
-                      onSelect={handleSelect}
-                      highlightTokens={queryTokens}
-                    />
-                  );
-                }
-
-                return null;
-              })}
-            </Command.Group>
-          ) : null}
-
-          {isCategoryAllowed('actions') && scoredActions.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Actions
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredActions.map((entry) => (
-                <ActionItem
-                  key={entry.item.id}
-                  action={entry.item}
-                  onSelect={() => handleAction(entry.item)}
-                  tokens={queryTokens}
-                />
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {isCategoryAllowed('navigation') && scoredNavigation.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Navigation
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredNavigation.map((entry) => (
-                <Command.Item
-                  key={entry.item.id}
-                  value={entry.item.label}
-                  onSelect={() =>
-                    handleSelect({
-                      id: entry.item.id,
-                      label: entry.item.label,
-                      href: entry.item.href,
-                      category: 'navigation',
-                    })
-                  }
-                  className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                    {entry.item.Icon ? (
-                      <entry.item.Icon className="h-4 w-4" />
-                    ) : (
-                      getCategoryIcon('navigation')
-                    )}
-                  </span>
-                  <HighlightedText
-                    text={entry.item.label}
-                    tokens={queryTokens}
-                    className="truncate text-sm font-medium text-foreground"
-                  />
-                </Command.Item>
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {isCategoryAllowed('documentation') && scoredDocItems.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Documentation
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredDocItems.map((entry) => (
-                <Command.Item
-                  key={entry.item.id}
-                  value={entry.item.label}
-                  onSelect={() => handleSelect(entry.item)}
-                  className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                    {getCategoryIcon('documentation')}
-                  </span>
-                  <div className="flex min-w-0 flex-col">
-                    <HighlightedText
-                      text={entry.item.label}
-                      tokens={queryTokens}
-                      className="truncate text-sm font-medium text-foreground"
-                    />
-                    {entry.item.subtitle ? (
-                      <HighlightedText
-                        text={entry.item.subtitle}
-                        tokens={queryTokens}
-                        className="truncate text-xs text-muted-foreground"
-                      />
-                    ) : null}
-                  </div>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {isCategoryAllowed('lines') && scoredLines.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Lines
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredLines.map((entry) => (
+              {recents.map((recent) => (
                 <SearchResultItem
-                  key={entry.item.id}
-                  item={entry.item}
-                  icon={<PhoneIcon className="h-4 w-4" />}
+                  key={`recent-item-${recent.id}`}
+                  item={{
+                    id: recent.id,
+                    label: recent.label,
+                    subtitle: recent.subtitle,
+                    href: recent.href ?? '/dashboard',
+                    category: (recent.category as SearchItem['category']) ?? 'navigation',
+                  }}
+                  Icon={getCategoryIcon(recent.category)}
                   onSelect={handleSelect}
                   highlightTokens={queryTokens}
                 />
@@ -680,114 +468,24 @@ export const SearchPanel = ({
             </Command.Group>
           ) : null}
 
-          {isCategoryAllowed('reminders') && scoredReminders.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Reminders
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredReminders.map((entry) => (
+          {hasQuery && unifiedResults.length > 0 ? (
+            <div className="px-2 pt-1">
+              {unifiedResults.map((entry) => (
                 <SearchResultItem
-                  key={entry.item.id}
+                  key={`result-${entry.item.category}-${entry.item.id}`}
                   item={entry.item}
-                  icon={<BellIcon className="h-4 w-4" />}
+                  Icon={getCategoryIcon(entry.item.category)}
                   onSelect={handleSelect}
                   highlightTokens={queryTokens}
                 />
               ))}
-            </Command.Group>
+            </div>
           ) : null}
 
-          {isCategoryAllowed('schedules') && scoredSchedules.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Schedules
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredSchedules.map((entry) => (
-                <SearchResultItem
-                  key={entry.item.id}
-                  item={entry.item}
-                  icon={<CalendarDaysIcon className="h-4 w-4" />}
-                  onSelect={handleSelect}
-                  highlightTokens={queryTokens}
-                />
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {isCategoryAllowed('contacts') && scoredContacts.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Contacts
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredContacts.map((entry) => (
-                <SearchResultItem
-                  key={entry.item.id}
-                  item={entry.item}
-                  icon={<UserIcon className="h-4 w-4" />}
-                  onSelect={handleSelect}
-                  highlightTokens={queryTokens}
-                />
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {isCategoryAllowed('calls') && scoredCalls.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Calls
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredCalls.map((entry) => (
-                <SearchResultItem
-                  key={entry.item.id}
-                  item={entry.item}
-                  icon={<PhoneArrowUpRightIcon className="h-4 w-4" />}
-                  onSelect={handleSelect}
-                  highlightTokens={queryTokens}
-                />
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {isCategoryAllowed('safety_events') && scoredSafetyEvents.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Safety Events
-                </span>
-              }
-              className="px-2"
-            >
-              {scoredSafetyEvents.map((entry) => (
-                <SearchResultItem
-                  key={entry.item.id}
-                  item={entry.item}
-                  icon={<ExclamationTriangleIcon className="h-4 w-4" />}
-                  onSelect={handleSelect}
-                  highlightTokens={queryTokens}
-                />
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {hasQuery && !isLoading && !hasAnyResults ? (
-            <div className="px-4 py-6 text-sm text-muted-foreground">
-              No results found. Try a different search or use a quick action like &quot;Set reminder&quot;.
+          {hasQuery && !isLoading && unifiedResults.length === 0 ? (
+            <div className="space-y-2 px-4 py-6 text-sm text-muted-foreground">
+              <p>No exact matches yet for &quot;{cleanQuery.trim()}&quot;.</p>
+              <p>Try a person name, phone number, or words like “call”, “safety”, “reminder”, or “contact”.</p>
             </div>
           ) : null}
         </Command.List>
@@ -814,42 +512,6 @@ const SearchBottomSheet = () => {
     </Dialog>
   );
 };
-
-function ActionItem({
-  action,
-  onSelect,
-  tokens,
-}: {
-  action: QuickAction;
-  onSelect: () => void;
-  tokens: string[];
-}) {
-  return (
-    <Command.Item
-      value={`${action.label} ${action.subtitle ?? ''}`}
-      onSelect={onSelect}
-                  className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
-                >
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-        {action.icon}
-      </span>
-      <div className="flex min-w-0 flex-col">
-        <HighlightedText
-          text={action.label}
-          tokens={tokens}
-          className="truncate text-sm font-medium text-foreground"
-        />
-        {action.subtitle ? (
-          <HighlightedText
-            text={action.subtitle}
-            tokens={tokens}
-            className="truncate text-xs text-muted-foreground"
-          />
-        ) : null}
-      </div>
-    </Command.Item>
-  );
-}
 
 function HighlightedText({
   text,
@@ -879,36 +541,36 @@ function HighlightedText({
   );
 }
 
-function getCategoryIcon(category?: string) {
+function getCategoryIcon(category?: string): ComponentType<SVGProps<SVGSVGElement>> {
   switch (category) {
     case 'lines':
-      return <PhoneIcon className="h-4 w-4" />;
+      return Phone;
     case 'reminders':
-      return <BellIcon className="h-4 w-4" />;
+      return Bell;
     case 'schedules':
-      return <CalendarDaysIcon className="h-4 w-4" />;
+      return CalendarDays;
     case 'contacts':
-      return <UserIcon className="h-4 w-4" />;
+      return UserRound;
     case 'calls':
-      return <PhoneArrowUpRightIcon className="h-4 w-4" />;
+      return PhoneOutgoing;
     case 'safety_events':
-      return <ExclamationTriangleIcon className="h-4 w-4" />;
+      return TriangleAlert;
     case 'documentation':
-      return <DocumentTextIcon className="h-4 w-4" />;
+      return FileText;
     case 'navigation':
     default:
-      return <ShieldCheckIcon className="h-4 w-4" />;
+      return ShieldCheck;
   }
 }
 
 function SearchResultItem({
   item,
-  icon,
+  Icon,
   onSelect,
   highlightTokens,
 }: {
   item: SearchItem;
-  icon: React.ReactNode;
+  Icon: ComponentType<SVGProps<SVGSVGElement>>;
   onSelect: (item: SearchItem) => void;
   highlightTokens: string[];
 }) {
@@ -919,7 +581,7 @@ function SearchResultItem({
       className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
     >
       <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-        {icon}
+        <Icon className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
       </span>
       <div className="flex min-w-0 flex-col">
         <HighlightedText
@@ -934,6 +596,9 @@ function SearchResultItem({
             className="truncate text-xs text-muted-foreground"
           />
         ) : null}
+        <span className="truncate text-[11px] text-muted-foreground">
+          {CATEGORY_HINT_LABELS[item.category] ?? 'Result'}
+        </span>
       </div>
     </Command.Item>
   );
@@ -965,13 +630,7 @@ function useSearchRecents(isOpen: boolean) {
     setRecents((prev) => {
       const next = [
         entry,
-        ...prev.filter((existing) => {
-          if (entry.kind !== existing.kind) return true;
-          if (entry.kind === 'action') {
-            return entry.actionId !== existing.actionId;
-          }
-          return entry.href !== existing.href;
-        }),
+        ...prev.filter((existing) => entry.href !== existing.href),
       ].slice(0, RECENTS_LIMIT);
       sessionStorage.setItem(RECENTS_KEY, JSON.stringify(next));
       return next;
@@ -982,9 +641,15 @@ function useSearchRecents(isOpen: boolean) {
 }
 
 function trackSearchEvent(payload: {
-  event: 'select_action' | 'select_result';
+  event: 'select_result' | 'query_executed';
   query: string;
   source: string;
+  searchId?: string;
+  latencyMs?: number;
+  resultCount?: number;
+  zeroResults?: boolean;
+  timeToClickMs?: number;
+  categoryCounts?: Record<string, number>;
   actionId?: string;
   itemId?: string;
   href?: string;
@@ -1007,64 +672,36 @@ function trackSearchEvent(payload: {
   }).catch(() => undefined);
 }
 
-const TYPE_FILTER_ALIASES: Record<string, string> = {
-  action: 'actions',
-  actions: 'actions',
-  nav: 'navigation',
-  navigation: 'navigation',
-  doc: 'documentation',
-  docs: 'documentation',
-  documentation: 'documentation',
-  line: 'lines',
-  lines: 'lines',
-  reminder: 'reminders',
-  reminders: 'reminders',
-  schedule: 'schedules',
-  schedules: 'schedules',
-  contact: 'contacts',
-  contacts: 'contacts',
-  call: 'calls',
-  calls: 'calls',
-  safety: 'safety_events',
-  safety_event: 'safety_events',
-  safety_events: 'safety_events',
+const CATEGORY_HINT_LABELS: Record<SearchItem['category'], string> = {
+  navigation: 'Page',
+  documentation: 'Doc',
+  lines: 'Line',
+  reminders: 'Reminder',
+  schedules: 'Schedule',
+  contacts: 'Contact',
+  calls: 'Call',
+  safety_events: 'Alert',
 };
 
-const FILTER_LABELS: Record<string, string> = {
-  actions: 'actions',
-  navigation: 'navigation',
-  documentation: 'documentation',
-  lines: 'lines',
-  reminders: 'reminders',
-  schedules: 'schedules',
-  contacts: 'contacts',
-  calls: 'calls',
-  safety_events: 'safety events',
-};
-
-function parseSearchQuery(raw: string): { cleanQuery: string; typeFilter: string | null } {
-  const tokens = raw.split(/\\s+/).filter(Boolean);
-  let typeFilter: string | null = null;
-  const remaining: string[] = [];
-
-  tokens.forEach((token) => {
-    const match = token.match(/^(type|category):(.+)$/i);
-    if (match) {
-      const candidate = match[2]?.toLowerCase() ?? '';
-      const mapped = TYPE_FILTER_ALIASES[candidate];
-      if (mapped) {
-        typeFilter = mapped;
-        return;
-      }
-    }
-    remaining.push(token);
-  });
-
-  return { cleanQuery: remaining.join(' '), typeFilter };
+function countTotalResultItems(results: SearchResponse['results']): number {
+  return SEARCH_CATEGORIES.reduce((total, category) => total + (results[category]?.length ?? 0), 0);
 }
 
-function getFilterLabel(typeFilter: string) {
-  return FILTER_LABELS[typeFilter] ?? typeFilter;
+function summarizeCategoryCounts(results: SearchResponse['results']): Record<string, number> {
+  return SEARCH_CATEGORIES.reduce((acc, category) => {
+    acc[category] = results[category]?.length ?? 0;
+    return acc;
+  }, {} as Record<string, number>);
+}
+
+function getSearchItemScore(item: SearchItem, normalizedQuery: string): number {
+  return item.matchScore ?? scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`);
+}
+
+function isStrongSearchMatch(score: number, normalizedQuery: string): boolean {
+  const tokenCount = tokenizeText(normalizedQuery, { minLength: 2, maxTokens: 12 }).length;
+  const minScore = normalizedQuery.length <= 2 ? 6 : tokenCount <= 1 ? 4.5 : 3.5;
+  return score >= minScore;
 }
 
 function buildEmptyResults(): SearchResponse['results'] {
