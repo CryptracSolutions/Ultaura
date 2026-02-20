@@ -181,6 +181,19 @@ describe('store-call-preview tool', () => {
     expect(res.body.error).toBe('Call previews are disabled for this call type');
   });
 
+  it('blocks test calls', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      ...baseSession,
+      is_test_call: true,
+    });
+    const res = createMockRes();
+
+    await storeCallPreviewHandler({ body: basePreviewBody } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.body.error).toBe('Call previews are disabled for this call type');
+  });
+
   it('stores preview and expires pending previews', async () => {
     vi.mocked(getCallSession).mockResolvedValue(baseSession);
     supabaseMock.__state.singleResult = { data: { id: 'preview-1' }, error: null };
@@ -395,6 +408,27 @@ describe('manage-story-arc tool', () => {
     expect(supabaseMock.__state.updates[0].table).toBe('ultaura_story_arcs');
     expect(supabaseMock.__state.updates[0].payload).toEqual(expect.objectContaining({
       status: 'completed',
+    }));
+  });
+
+  it('abandon action - sets status to abandoned', async () => {
+    vi.mocked(getCallSession).mockResolvedValue(baseSession);
+    supabaseMock.__state.singleResult = { data: { id: 'arc-3' }, error: null };
+
+    const res = createMockRes();
+    await manageStoryArcHandler({
+      body: {
+        callSessionId: 'session-1',
+        lineId: 'line-1',
+        action: 'abandon',
+        storyArcId: 'arc-3',
+      },
+    } as any, res);
+
+    expect(res.body).toEqual({ success: true, storyArcId: 'arc-3' });
+    expect(supabaseMock.__state.updates[0].table).toBe('ultaura_story_arcs');
+    expect(supabaseMock.__state.updates[0].payload).toEqual(expect.objectContaining({
+      status: 'abandoned',
     }));
   });
 });

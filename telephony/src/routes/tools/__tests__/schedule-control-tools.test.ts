@@ -339,3 +339,297 @@ describe('schedule control tools hardening', () => {
     expect(incrementToolInvocations).not.toHaveBeenCalled();
   });
 });
+
+describe('schedule control tools happy paths', () => {
+  it('skip_schedule happy path: inserts exception and advances next_run_at', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [
+        {
+          data: {
+            id: SCHEDULE_ID,
+            line_id: LINE_ID,
+            account_id: 'acct-1',
+            next_run_at: '2030-01-12T14:00:00.000Z',
+            time_of_day: '09:00:00',
+            timezone: 'America/New_York',
+            days_of_week: [1, 2, 3, 4, 5],
+            retry_policy: null,
+          },
+          error: null,
+        },
+        { data: null, error: null }, // update next_run_at
+        { data: null, error: null }, // updateLineNextScheduledCallAt queries
+      ],
+      ultaura_schedule_exceptions: [{ data: { id: 'exc-1' }, error: null }],
+      ultaura_schedule_events: [{ data: null, error: null }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await skipHandler({
+      body: { callSessionId: SESSION_ID, lineId: LINE_ID, scheduleId: SCHEDULE_ID },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toContain("skipped");
+    expect(incrementToolInvocations).toHaveBeenCalledWith(SESSION_ID);
+  });
+
+  it('skip_schedule returns ALREADY_EXISTS on duplicate exception (23505 error)', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [{
+        data: {
+          id: SCHEDULE_ID,
+          line_id: LINE_ID,
+          account_id: 'acct-1',
+          next_run_at: '2030-01-12T14:00:00.000Z',
+          time_of_day: '09:00:00',
+          timezone: 'America/New_York',
+          days_of_week: [1, 2, 3, 4, 5],
+        },
+        error: null,
+      }],
+      ultaura_schedule_exceptions: [{
+        data: null,
+        error: { code: '23505', message: 'Duplicate exception' },
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await skipHandler({
+      body: { callSessionId: SESSION_ID, lineId: LINE_ID, scheduleId: SCHEDULE_ID },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.ALREADY_EXISTS);
+    expect(res.body.message).toContain("already a change");
+  });
+
+  it('skip_schedule returns NOT_FOUND when no schedule exists', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [{ data: null, error: null }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await skipHandler({
+      body: { callSessionId: SESSION_ID, lineId: LINE_ID, scheduleId: SCHEDULE_ID },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.NOT_FOUND);
+  });
+
+  it('snooze_schedule happy path: inserts snooze exception and updates next_run_at', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [
+        {
+          data: {
+            id: SCHEDULE_ID,
+            line_id: LINE_ID,
+            account_id: 'acct-1',
+            next_run_at: '2030-01-12T14:00:00.000Z',
+            time_of_day: '09:00:00',
+            timezone: 'America/New_York',
+            days_of_week: [1, 2, 3, 4, 5],
+          },
+          error: null,
+        },
+        { data: null, error: null }, // update
+      ],
+      ultaura_schedule_exceptions: [{ data: { id: 'exc-snooze-1' }, error: null }],
+      ultaura_schedule_events: [{ data: null, error: null }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await snoozeHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        scheduleId: SCHEDULE_ID,
+        snoozeMinutes: 30,
+      },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.newDatetime).toBeDefined();
+    expect(res.body.message).toContain('30 minutes');
+    expect(incrementToolInvocations).toHaveBeenCalledWith(SESSION_ID);
+  });
+
+  it('snooze_schedule returns INVALID_INPUT for out-of-range snoozeMinutes', async () => {
+    // SnoozeScheduleInputSchema validation should catch negative/zero snoozeMinutes
+    const res = createMockRes();
+    await snoozeHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        scheduleId: SCHEDULE_ID,
+        snoozeMinutes: -5,
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(false);
+    // Either Zod validation or handler error
+    expect(res.body.code === ErrorCodes.INVALID_INPUT || res.statusCode === 400).toBe(true);
+  });
+
+  it('snooze_schedule returns NOT_FOUND when no schedule exists', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [{ data: null, error: null }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await snoozeHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        scheduleId: SCHEDULE_ID,
+        snoozeMinutes: 30,
+      },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.NOT_FOUND);
+  });
+
+  it('reschedule_schedule happy path: creates one-time schedule and inserts exception', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [
+        {
+          data: {
+            id: SCHEDULE_ID,
+            line_id: LINE_ID,
+            account_id: 'acct-1',
+            next_run_at: '2030-01-12T14:00:00.000Z',
+            time_of_day: '09:00:00',
+            timezone: 'America/New_York',
+            days_of_week: [1, 2, 3, 4, 5],
+            retry_policy: { max_retries: 2, retry_window_minutes: 30 },
+          },
+          error: null,
+        },
+        { data: { id: 'onetime-sched-1' }, error: null }, // one-time insert
+        { data: null, error: null }, // update next_run_at
+        { data: null, error: null }, // updateLineNextScheduledCallAt
+      ],
+      ultaura_schedule_exceptions: [{ data: { id: 'exc-reschedule-1' }, error: null }],
+      ultaura_schedule_events: [
+        { data: null, error: null },
+        { data: null, error: null },
+      ],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await rescheduleHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        scheduleId: SCHEDULE_ID,
+        newDatetime: '2030-01-13T10:00:00',
+      },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.newDatetime).toBeDefined();
+    expect(incrementToolInvocations).toHaveBeenCalledWith(SESSION_ID);
+  });
+
+  it('reschedule_schedule returns INVALID_INPUT when new time is in the past', async () => {
+    vi.setSystemTime(new Date('2030-06-01T12:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [{
+        data: {
+          id: SCHEDULE_ID,
+          line_id: LINE_ID,
+          account_id: 'acct-1',
+          next_run_at: '2030-06-02T14:00:00.000Z',
+          time_of_day: '09:00:00',
+          timezone: 'America/New_York',
+          days_of_week: [1, 2, 3, 4, 5],
+        },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await rescheduleHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        scheduleId: SCHEDULE_ID,
+        newDatetime: '2030-01-01T09:00:00', // past
+      },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.INVALID_INPUT);
+    expect(res.body.message).toContain('future');
+  });
+
+  it('reschedule_schedule returns NOT_FOUND when no schedule exists', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { account_id: 'acct-1', allow_voice_schedule_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_schedules: [{ data: null, error: null }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await rescheduleHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        scheduleId: SCHEDULE_ID,
+        newDatetime: '2030-06-13T10:00:00',
+      },
+    } as any, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe(ErrorCodes.NOT_FOUND);
+  });
+});

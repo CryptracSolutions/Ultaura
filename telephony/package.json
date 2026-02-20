@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "vitest run -c vitest.config.ts",
+    "test:tool-coverage": "tsx scripts/check-tool-test-coverage.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

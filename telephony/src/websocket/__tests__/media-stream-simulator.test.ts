@@ -1,4 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  lastSessionUpdate as sharedLastSessionUpdate,
+  toolNamesFromSessionUpdate as sharedToolNamesFromSessionUpdate,
+  waitFor as sharedWaitFor,
+  findGrokSocketAsync as sharedFindGrokSocketAsync,
+} from './helpers/fake-websocket.js';
 
 const SENTINEL = 'SENSITIVE_SENTINEL_12345';
 
@@ -218,34 +224,13 @@ const CALL_SESSION_ID_2 = '00000000-0000-0000-0000-000000000200';
 const LINE_ID = '00000000-0000-0000-0000-000000000101';
 const ACCOUNT_ID = '00000000-0000-0000-0000-000000000102';
 
-function findGrokSocket(): FakeWebSocket {
-  const grok = FakeWebSocketClass.instances.find((ws) => ws.url?.includes('realtime'));
-  if (!grok) {
-    throw new Error('Grok WebSocket not created');
-  }
-  return grok;
+async function findGrokSocket(): Promise<FakeWebSocket> {
+  return sharedFindGrokSocketAsync(FakeWebSocketClass.instances as any) as Promise<any>;
 }
 
-function lastSessionUpdate(ws: FakeWebSocket) {
-  const updates = ws.sent
-    .map((raw: string) => {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean)
-    .filter((msg: any) => msg.type === 'session.update');
-  return updates[updates.length - 1] as any;
-}
-
-function toolNamesFromSessionUpdate(msg: any): string[] {
-  const tools = msg?.session?.tools ?? [];
-  return tools
-    .filter((t: any) => t?.type === 'function' && typeof t?.name === 'string')
-    .map((t: any) => t.name);
-}
+// Delegate to shared helpers (cast hoisted FakeWebSocket as compatible)
+const lastSessionUpdate: (ws: FakeWebSocket) => any = sharedLastSessionUpdate as any;
+const toolNamesFromSessionUpdate = sharedToolNamesFromSessionUpdate;
 
 beforeAll(async () => {
   vi.resetModules();
@@ -382,13 +367,7 @@ describe('media-stream simulator', () => {
       }
       throw new Error('Grok WebSocket not created');
     })();
-    const waitFor = async (predicate: () => boolean, label: string) => {
-      for (let i = 0; i < 200; i++) {
-        if (predicate()) return;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-      throw new Error(`Timed out waiting for ${label}`);
-    };
+    const waitFor = sharedWaitFor;
 
     await waitFor(() => Boolean(lastSessionUpdate(grokWs)), 'initial session.update');
     const initialUpdate = lastSessionUpdate(grokWs);
@@ -482,19 +461,13 @@ describe('media-stream simulator', () => {
       },
     })));
 
-    const waitFor = async (predicate: () => boolean, label: string) => {
-      for (let i = 0; i < 200; i++) {
-        if (predicate()) return;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-      throw new Error(`Timed out waiting for ${label}`);
-    };
+    const waitFor = sharedWaitFor;
 
     await waitFor(
       () => FakeWebSocketClass.instances.some((ws: any) => ws.url?.includes('realtime')),
       'Grok WebSocket creation'
     );
-    const grokWs = findGrokSocket();
+    const grokWs = await findGrokSocket();
     await waitFor(() => Boolean(lastSessionUpdate(grokWs)), 'initial session.update');
 
     const instructions = lastSessionUpdate(grokWs)?.session?.instructions ?? '';
@@ -517,19 +490,13 @@ describe('media-stream simulator', () => {
       },
     })));
 
-    const waitFor = async (predicate: () => boolean, label: string) => {
-      for (let i = 0; i < 200; i++) {
-        if (predicate()) return;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-      throw new Error(`Timed out waiting for ${label}`);
-    };
+    const waitFor = sharedWaitFor;
 
     await waitFor(
       () => FakeWebSocketClass.instances.some((ws: any) => ws.url?.includes('realtime')),
       'Grok WebSocket creation'
     );
-    const grokWs = findGrokSocket();
+    const grokWs = await findGrokSocket();
     await waitFor(() => Boolean(lastSessionUpdate(grokWs)), 'initial session.update');
 
     await grokWs.emitAsync('message', Buffer.from(JSON.stringify({

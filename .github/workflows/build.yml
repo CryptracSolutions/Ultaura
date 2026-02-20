@@ -158,6 +158,11 @@ jobs:
         if: steps.supabase-start.outputs.exit_code == 0
         run: pnpm test:reset:db
 
+      - name: 🔎 Telephony typecheck + tool coverage
+        run: |
+          pnpm --filter @ultaura/telephony typecheck
+          pnpm --filter @ultaura/telephony test:tool-coverage
+
       - name: 🔎 Unit tests (app + telephony)
         if: steps.supabase-start.outputs.exit_code == 0
         run: |

@@ -384,6 +384,417 @@ describe('set_reminder reminder limit handling', () => {
   });
 });
 
+describe('set_reminder additional cases', () => {
+  it('creates a recurring daily RRULE reminder', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-02T14:00:00.000Z' },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00', timezone: 'America/New_York',
+        message: 'Take medication', isRecurring: true, frequency: 'daily',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.rrule).toContain('FREQ=DAILY');
+    expect(res.body.isRecurring).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it('creates a recurring weekly RRULE reminder with daysOfWeek', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-06T14:00:00.000Z' },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-06T09:00:00', timezone: 'America/New_York',
+        message: 'Weekly check', isRecurring: true, frequency: 'weekly', daysOfWeek: [1, 3, 5],
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.rrule).toContain('FREQ=WEEKLY');
+    expect(res.body.rrule).toContain('BYDAY=MO,WE,FR');
+    vi.useRealTimers();
+  });
+
+  it('creates a recurring monthly RRULE reminder with dayOfMonth', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-15T14:00:00.000Z' },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-15T09:00:00', timezone: 'America/New_York',
+        message: 'Monthly billing', isRecurring: true, frequency: 'monthly', dayOfMonth: 15,
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.rrule).toContain('FREQ=MONTHLY');
+    expect(res.body.rrule).toContain('BYMONTHDAY=15');
+    vi.useRealTimers();
+  });
+
+  it('calls encryptReminderMessage with correct arguments', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-02T14:00:00.000Z' },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00', timezone: 'America/New_York',
+        message: 'Take your pill',
+      },
+    } as any, res);
+
+    expect(encryptReminderMessage).toHaveBeenCalledWith(
+      'acct-1',
+      LINE_ID,
+      expect.any(String),
+      'Take your pill'
+    );
+    vi.useRealTimers();
+  });
+
+  it('rejects set_reminder when dueAtLocal is in the past', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-06-01T12:00:00.000Z'));
+
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-01T09:00:00', timezone: 'America/New_York',
+        message: 'Old reminder',
+      },
+    } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.body.error).toContain('past');
+    vi.useRealTimers();
+  });
+
+  it('rejects set_reminder when dueAtLocal is within 5-minute buffer', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-02T13:58:00.000Z')); // 2 min before
+
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00', timezone: 'America/New_York', // 9am ET = 14:00 UTC, but 2 min away
+        message: 'Too soon',
+      },
+    } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.body.error).toContain('5 minutes');
+    vi.useRealTimers();
+  });
+
+  it('defaults message to Check-in call when no message provided', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-02T14:00:00.000Z' },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00', timezone: 'America/New_York',
+        // no message field
+      },
+    } as any, res);
+
+    expect(encryptReminderMessage).toHaveBeenCalledWith(
+      expect.any(String), expect.any(String), expect.any(String), 'Check-in call'
+    );
+    vi.useRealTimers();
+  });
+
+  it('returns 409 when session status is completed', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'completed',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00', timezone: 'America/New_York',
+        message: 'Test',
+      },
+    } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('returns 400 on Zod validation failure for missing required fields', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        // missing callSessionId, lineId, dueAtLocal, timezone
+      },
+    } as any, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+describe('edit_reminder additional cases', () => {
+  it('returns success:false when reminder is not found', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID,
+    } as any);
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { allow_voice_reminder_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_reminders: [{ data: null, error: { code: 'PGRST116', message: 'Not found' } }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await editHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        reminderId: REMINDER_ID, newTimeLocal: '2030-01-03T10:00:00', timezone: 'America/New_York',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain("couldn't find");
+  });
+
+  it('returns success:false when reminder status is canceled', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID,
+    } as any);
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { allow_voice_reminder_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_reminders: [{
+        data: { id: REMINDER_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'canceled', is_recurring: false },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await editHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        reminderId: REMINDER_ID, newTimeLocal: '2030-01-03T10:00:00', timezone: 'America/New_York',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain('no longer active');
+  });
+
+  it('returns success:false when voice control is disabled', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID,
+    } as any);
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { allow_voice_reminder_control: false, timezone: 'America/New_York' },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await editHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        reminderId: REMINDER_ID, newTimeLocal: '2030-01-03T10:00:00', timezone: 'America/New_York',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain('disabled reminder management by phone');
+  });
+
+  it('returns success:false when new time is in the past', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-06-01T12:00:00.000Z'));
+
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID,
+    } as any);
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { allow_voice_reminder_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_reminders: [{
+        data: { id: REMINDER_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'scheduled', is_recurring: false },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await editHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        reminderId: REMINDER_ID, newTimeLocal: '2030-01-01T09:00:00', timezone: 'America/New_York',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain('past');
+    vi.useRealTimers();
+  });
+
+  it('returns success:false when no changes are provided', async () => {
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID,
+    } as any);
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { allow_voice_reminder_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_reminders: [{
+        data: { id: REMINDER_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'scheduled', is_recurring: false },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+
+    const res = createMockRes();
+    await editHandler({
+      body: {
+        callSessionId: SESSION_ID, lineId: LINE_ID,
+        reminderId: REMINDER_ID,
+        // no newMessage, no newTimeLocal
+      },
+    } as any, res);
+
+    // Should fail with missing update (no newMessage or newTimeLocal provided fails Zod)
+    expect(res.body.success).toBe(false);
+  });
+});
+
 describe('reminder tool timezone formatting', () => {
   it('uses line timezone for list_reminders output', async () => {
     const dateSpy = vi.spyOn(Date.prototype, 'toLocaleDateString').mockReturnValue('DATE');
@@ -424,6 +835,7 @@ describe('reminder tool timezone formatting', () => {
       body: { callSessionId: SESSION_ID, lineId: LINE_ID },
     } as any, res);
 
+    expect(res.body.success).toBe(true);
     expect(res.body.reminders[0].dateTime).toBe('DATE at TIME');
     expect(dateSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
       timeZone: 'America/Chicago',
@@ -534,6 +946,7 @@ describe('reminder tool timezone formatting', () => {
       },
     } as any, res);
 
+    expect(res.body.success).toBe(true);
     expect(res.body.message).toContain('DATE at TIME');
     expect(dateSpy).toHaveBeenCalledWith('en-US', expect.objectContaining({
       timeZone: 'America/Denver',

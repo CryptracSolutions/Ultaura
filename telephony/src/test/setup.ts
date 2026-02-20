@@ -6,6 +6,8 @@ const defaults: Record<string, string> = {
   ULTAURA_PUBLIC_URL: 'http://localhost:3001',
   ULTAURA_WEBSOCKET_URL: 'ws://localhost:3001',
   ULTAURA_STREAM_TOKEN_SECRET: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  ULTAURA_ENABLE_RECORDING: 'false',
+  ULTAURA_APP_URL: 'http://localhost:3000',
   XAI_API_KEY: 'test-key',
   TWILIO_ACCOUNT_SID: 'AC00000000000000000000000000000000',
   TWILIO_AUTH_TOKEN: 'test-token',
