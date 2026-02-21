@@ -78,7 +78,7 @@ export function BadgeStrip() {
   }, []);
 
   return (
-    <section className="mt-6 mb-6 py-6 overflow-hidden relative isolate bg-background" style={{ zIndex: 10 }}>
+    <section className="py-6 overflow-hidden relative isolate bg-background" style={{ zIndex: 10 }}>
       <style jsx>{`
         @keyframes marquee {
           0% {

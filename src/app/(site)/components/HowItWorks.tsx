@@ -46,7 +46,7 @@ const HOW_IT_WORKS_STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="bg-surface-subtle pt-4 pb-12">
+    <section id="how-it-works" className="bg-surface-subtle py-12">
       <Container>
         {/* Header - right-aligned */}
         <div className="ml-auto max-w-2xl text-right space-y-4">

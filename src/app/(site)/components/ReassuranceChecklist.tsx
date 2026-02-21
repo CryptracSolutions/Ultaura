@@ -17,7 +17,7 @@ const REASSURANCES = [
 
 export function ReassuranceChecklist() {
   return (
-    <section className="mt-8 bg-primary/5 py-8">
+    <section className="bg-primary/5 py-12">
       <Container>
         <div className="mb-4 text-center">
           <Heading type={3}>Reassurance built in</Heading>

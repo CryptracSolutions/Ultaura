@@ -104,101 +104,9 @@ export function AudienceValueTabs() {
   const activeMeta = AUDIENCES.find((a) => a.id === active) ?? AUDIENCES[0]!;
 
   return (
-    <section className="pt-1 pb-12">
-      <Container>
-        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
-          <div className="relative">
-            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center">
-              <Pill>
-                Peace of mind for families, companionship for seniors, and
-                support for caregivers
-              </Pill>
-              <Heading type={2}>
-                Peace of mind starts with a <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">daily call</span>
-              </Heading>
-            </div>
-
-            <div className="mx-auto mt-6 flex max-w-4xl flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
-              {ALWAYS_INCLUDED.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted-foreground"
-                >
-                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mx-auto mt-8 max-w-4xl">
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
-                <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-semibold text-muted-foreground">
-                      Before
-                    </h3>
-                    <ul className="space-y-1.5 text-xs text-muted-foreground">
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>Wondering if they&apos;re okay — and no way to know until your next call</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>The guilt of knowing you should call more often</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>Missing the small changes that matter most</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-center">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <ArrowDownIcon className="h-3 w-3 -rotate-90" />
-                  </div>
-                </div>
-
-                <BlendedDemoFrame>
-                <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-semibold text-primary">
-                      With Ultaura
-                    </h3>
-                    <ul className="space-y-1.5 text-xs text-muted-foreground">
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                        <span>They have someone to talk to every day</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                        <span>You see that they&apos;re doing well — without hovering</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                        <span>Gentle alerts only when something needs your attention</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                </BlendedDemoFrame>
-              </div>
-
-              <div className="relative mt-5">
-                <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-border" />
-                <div className="relative flex items-center justify-between">
-                  <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Container>
-
-      <ReassuranceChecklist />
-
+    <>
+      {/* Choose Your Perspective */}
+      <section className="py-12">
       <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
           <div className="relative">
             <div className="mt-16 text-center">
@@ -448,6 +356,105 @@ export function AudienceValueTabs() {
             </div>
           </div>
         </div>
-    </section>
+      </section>
+
+      {/* Before vs. With Ultaura */}
+      <section className="bg-surface-subtle py-12">
+      <Container>
+        <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
+          <div className="relative">
+            <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center">
+              <Pill>
+                Peace of mind for families, companionship for seniors, and
+                support for caregivers
+              </Pill>
+              <Heading type={2}>
+                Peace of mind starts with a <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">daily call</span>
+              </Heading>
+            </div>
+
+            <div className="mx-auto mt-6 flex max-w-4xl flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
+              {ALWAYS_INCLUDED.map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted-foreground"
+                >
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mx-auto mt-8 max-w-4xl">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
+                <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground">
+                      Before
+                    </h3>
+                    <ul className="space-y-1.5 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
+                        <span>Wondering if they&apos;re okay — and no way to know until your next call</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
+                        <span>The guilt of knowing you should call more often</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
+                        <span>Missing the small changes that matter most</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <ArrowDownIcon className="h-3 w-3 -rotate-90" />
+                  </div>
+                </div>
+
+                <BlendedDemoFrame>
+                <div className="rounded-2xl border border-border/60 bg-sidebar p-6 shadow-xl">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold text-primary">
+                      With Ultaura
+                    </h3>
+                    <ul className="space-y-1.5 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                        <span>They have someone to talk to every day</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                        <span>You see that they&apos;re doing well — without hovering</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
+                        <span>Gentle alerts only when something needs your attention</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                </BlendedDemoFrame>
+              </div>
+
+              <div className="relative mt-5">
+                <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-border" />
+                <div className="relative flex items-center justify-between">
+                  <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Container>
+      </section>
+
+      {/* Reassurance Built In */}
+      <ReassuranceChecklist />
+    </>
   );
 }

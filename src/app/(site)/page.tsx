@@ -121,8 +121,25 @@ function Home() {
 
       <Testimonials />
 
+      {/* Final CTA */}
+      <section className="relative bg-surface-accent py-12 overflow-hidden">
+        <Container>
+          <div className="relative flex flex-col items-center text-center space-y-4">
+            <Heading type={2}>Give the gift of conversation</Heading>
+            <SubHeading className="max-w-xl">
+              Set up in 5 minutes. Cancel anytime, no commitment. Their first
+              call can happen today.
+            </SubHeading>
+            <MainCallToActionButton />
+            <span className="text-xs text-muted-foreground">
+              Free for 14 days · Cancel anytime · Works on any phone
+            </span>
+          </div>
+        </Container>
+      </section>
+
       {/* Support Channels */}
-      <section className="bg-surface-subtle py-10">
+      <section className="bg-surface-subtle py-12">
         <Container>
           <div className="flex flex-col items-center space-y-6">
             <Heading type={2}>
@@ -175,23 +192,6 @@ function Home() {
                 </div>
               </a>
             </div>
-          </div>
-        </Container>
-      </section>
-
-      {/* Final CTA */}
-      <section className="relative bg-surface-accent py-8 overflow-hidden">
-        <Container>
-          <div className="relative flex flex-col items-center text-center space-y-4">
-            <Heading type={2}>Give the gift of conversation</Heading>
-            <SubHeading className="max-w-xl">
-              Set up in 5 minutes. Cancel anytime, no commitment. Their first
-              call can happen today.
-            </SubHeading>
-            <MainCallToActionButton />
-            <span className="text-xs text-muted-foreground">
-              Free for 14 days · Cancel anytime · Works on any phone
-            </span>
           </div>
         </Container>
       </section>
