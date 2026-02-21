@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   PlayCircleIcon,
@@ -249,8 +250,8 @@ export default function DemoPage() {
               <div className="absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
               <div className="absolute -right-10 top-0 h-56 w-56 rounded-full bg-primary/5 blur-3xl" />
 
-              <div className="relative grid items-start gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-                <div className="flex flex-col space-y-6">
+              <div className="relative grid items-start gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+                <div className="flex flex-col space-y-6 lg:order-2">
                   <div className="inline-flex w-fit items-center rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
                     Hear the difference
                   </div>
@@ -273,182 +274,209 @@ export default function DemoPage() {
                     warm, natural, and genuinely engaging.
                   </SubHeading>
 
-                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                    {[
-                      'Works on any phone',
-                      'No app required',
-                      '100+ languages',
-                      'Natural interruptions',
-                    ].map((item) => (
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Each voice was recorded with a real human — so every call feels like talking to someone who truly cares.
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {GROK.VOICES.map((voice) => (
                       <span
-                        key={item}
-                        className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1"
+                        key={voice}
+                        className="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary"
                       >
-                        <CheckCircleIcon className="h-4 w-4 text-primary" />
-                        {item}
+                        {voice}
                       </span>
                     ))}
                   </div>
+
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <span className="text-primary">↓</span>
+                    Try each voice in the demo studio below
+                    <span className="text-primary">↓</span>
+                  </p>
+
                 </div>
 
+                <div className="lg:order-1">
                 <BlendedDemoFrame>
-                  <div className="rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl backdrop-blur">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      Demo studio
-                    </div>
-                    <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-                      <LanguageDropdownSwitcher
-                        onChange={(locale) =>
-                          setSelectedLocale(
-                            normalizeLocale(locale) ?? FALLBACK_LOCALE,
-                          )
-                        }
-                        className="w-auto"
-                        triggerClassName="!w-auto h-8 min-h-[32px] min-w-[8.5rem] border-border/70 bg-background/80 px-2 py-1 text-[11px] shadow-sm sm:h-9 sm:min-h-[36px] sm:text-xs"
-                        contentClassName="!w-[calc(var(--radix-select-trigger-width)+8px)] !min-w-[calc(var(--radix-select-trigger-width)+8px)]"
-                        ariaLabel="Select demo language"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-6 space-y-8">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                          1
-                        </span>
-                        <Heading type={4} className="text-base">
-                          What should they say?
-                        </Heading>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Choose a preset phrase
-                      </p>
-
-                      <div className="flex flex-wrap gap-2">
-                        {demoPresets.map((phrase) => (
-                          <button
-                            key={phrase.id}
-                            onClick={() => handlePresetClick(phrase.id)}
-                            className={
-                              'px-4 py-2 rounded-full text-sm font-medium transition-all' +
-                              (selectedPreset === phrase.id
-                                ? ' bg-primary text-primary-foreground shadow-md'
-                                : ' bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground')
-                            }
-                          >
-                            {phrase.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          or write your own
-                        </p>
-                        <Textarea
-                          value={customText}
-                          onChange={handleCustomTextChange}
-                          placeholder="Type your own text here..."
-                          maxLength={VOICE_DEMO.MAX_TEXT_LENGTH}
-                          rows={3}
-                          className={
-                            'min-h-[96px] resize-none rounded-xl bg-background px-4 py-3 text-base sm:text-sm' +
-                            (selectedPreset
-                              ? ' border-primary/30 bg-primary/5'
-                              : '')
-                          }
-                        />
-
-                        {errorMessage && (
-                          <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
-                            {errorMessage}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                          2
-                        </span>
-                        <Heading type={4} className="text-base">
-                          Choose a voice
-                        </Heading>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Click a voice to hear your text spoken aloud
-                      </p>
-
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                        {GROK.VOICES.map((voice) => {
-                          const voiceInfo = VOICE_DEMO.VOICE_INFO[voice];
-                          const isSelected = selectedVoice === voice;
-                          const isLoading =
-                            isSelected && playState === 'loading';
-                          const isPlaying =
-                            isSelected && playState === 'playing';
-
-                          return (
-                            <button
-                              key={voice}
-                              onClick={() => handlePlayVoice(voice)}
-                              disabled={playState === 'loading' && !isSelected}
-                              className={
-                                'group relative flex flex-col items-center rounded-2xl border p-5' +
-                                ' transition-all duration-200 text-left disabled:opacity-50' +
-                                (isSelected
-                                  ? ' border-primary bg-primary/5 shadow-lg shadow-primary/10'
-                                  : ' border-border bg-background hover:border-primary/50 hover:shadow-md')
-                              }
-                            >
-                              <div
-                                className={
-                                  'mb-4 rounded-full p-3 transition-colors' +
-                                  (isPlaying || isLoading
-                                    ? ' bg-primary text-primary-foreground'
-                                    : ' bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground')
-                                }
-                              >
-                                {isLoading ? (
-                                  <Loader2 className="h-7 w-7 animate-spin" />
-                                ) : isPlaying ? (
-                                  <StopCircleIcon className="h-7 w-7" />
-                                ) : (
-                                  <PlayCircleIcon className="h-7 w-7" />
-                                )}
-                              </div>
-
-                              <h3 className="text-base font-semibold text-foreground">
-                                {voice}
-                              </h3>
-                              <p className="text-xs text-muted-foreground mt-1 text-center">
-                                {voiceInfo.description}
-                              </p>
-
-                              <div className="mt-3 flex flex-wrap gap-1 justify-center">
-                                {voiceInfo.traits.map((trait) => (
-                                  <span
-                                    key={trait}
-                                    className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
-                                  >
-                                    {trait}
-                                  </span>
-                                ))}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                  <div className="relative w-full rounded-[1.35rem] overflow-hidden aspect-square">
+                    <Image
+                      src="/images/demo-voices.png"
+                      alt="The five voice personalities behind Ultaura"
+                      fill
+                      className="object-cover"
+                      priority
+                    />
                   </div>
                 </BlendedDemoFrame>
+                </div>
               </div>
             </div>
           </Container>
+        </div>
+      </section>
+
+      {/* Demo Studio */}
+      <section className="bg-surface-subtle py-12">
+        <div className="mx-auto w-full max-w-screen-xl px-4 sm:px-6 lg:px-8">
+          <BlendedDemoFrame>
+            <div className="rounded-3xl border border-border/60 bg-sidebar p-8 shadow-xl backdrop-blur">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  Demo studio
+                </div>
+                <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+                  <LanguageDropdownSwitcher
+                    onChange={(locale) =>
+                      setSelectedLocale(
+                        normalizeLocale(locale) ?? FALLBACK_LOCALE,
+                      )
+                    }
+                    className="w-auto"
+                    triggerClassName="!w-auto h-8 min-h-[32px] min-w-[8.5rem] border-border/70 bg-background/80 px-2 py-1 text-[11px] shadow-sm sm:h-9 sm:min-h-[36px] sm:text-xs"
+                    contentClassName="!w-[calc(var(--radix-select-trigger-width)+8px)] !min-w-[calc(var(--radix-select-trigger-width)+8px)]"
+                    ariaLabel="Select demo language"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:items-stretch">
+                {/* Step 1 */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      1
+                    </span>
+                    <Heading type={4} className="text-base">
+                      What should Ultaura say?
+                    </Heading>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Choose a preset phrase
+                  </p>
+
+                  <div className="flex flex-col gap-2">
+                    {demoPresets.map((phrase) => (
+                      <button
+                        key={phrase.id}
+                        onClick={() => handlePresetClick(phrase.id)}
+                        className={
+                          'px-4 py-2 rounded-full text-sm font-medium transition-all' +
+                          (selectedPreset === phrase.id
+                            ? ' bg-primary text-primary-foreground shadow-md'
+                            : ' bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20')
+                        }
+                      >
+                        {phrase.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      or write your own
+                    </p>
+                    <Textarea
+                      value={customText}
+                      onChange={handleCustomTextChange}
+                      placeholder="Type your own text here..."
+                      maxLength={VOICE_DEMO.MAX_TEXT_LENGTH}
+                      rows={3}
+                      className={
+                        'min-h-[96px] resize-none rounded-xl bg-background px-4 py-3 text-base sm:text-sm' +
+                        (selectedPreset
+                          ? ' border-primary/30 bg-primary/5'
+                          : '')
+                      }
+                    />
+
+                    {errorMessage && (
+                      <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+                        {errorMessage}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      2
+                    </span>
+                    <Heading type={4} className="text-base">
+                      Choose their voice
+                    </Heading>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Click a voice to hear your text spoken aloud
+                  </p>
+
+                  <div className="flex-1 grid gap-3 grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 lg:items-stretch lg:content-stretch">
+                    {GROK.VOICES.map((voice) => {
+                      const voiceInfo = VOICE_DEMO.VOICE_INFO[voice];
+                      const isSelected = selectedVoice === voice;
+                      const isLoading = isSelected && playState === 'loading';
+                      const isPlaying = isSelected && playState === 'playing';
+
+                      return (
+                        <button
+                          key={voice}
+                          onClick={() => handlePlayVoice(voice)}
+                          disabled={playState === 'loading' && !isSelected}
+                          className={
+                            'group relative flex flex-row items-center gap-3 rounded-2xl border px-4 py-3 h-full' +
+                            ' sm:flex-col sm:items-center sm:gap-0 sm:p-5' +
+                            ' transition-all duration-200 text-left disabled:opacity-50' +
+                            (isSelected
+                              ? ' border-primary bg-primary/5 shadow-lg shadow-primary/10'
+                              : ' border-border bg-background hover:border-primary/50 hover:shadow-md')
+                          }
+                        >
+                          <div
+                            className={
+                              'shrink-0 rounded-full p-2.5 transition-colors sm:mb-4 sm:p-3' +
+                              (isPlaying || isLoading
+                                ? ' bg-primary text-primary-foreground'
+                                : ' bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground')
+                            }
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-5 w-5 animate-spin sm:h-7 sm:w-7" />
+                            ) : isPlaying ? (
+                              <StopCircleIcon className="h-5 w-5 sm:h-7 sm:w-7" />
+                            ) : (
+                              <PlayCircleIcon className="h-5 w-5 sm:h-7 sm:w-7" />
+                            )}
+                          </div>
+
+                          <div className="flex flex-1 flex-col sm:items-center">
+                            <h3 className="text-sm font-semibold text-foreground sm:text-base">
+                              {voice}
+                            </h3>
+                            <p className="text-xs text-muted-foreground sm:mt-1 sm:text-center">
+                              {voiceInfo.description}
+                            </p>
+
+                            <div className="mt-auto pt-2 flex flex-wrap gap-1 sm:justify-center">
+                              {voiceInfo.traits.map((trait) => (
+                                <span
+                                  key={trait}
+                                  className="rounded-full bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-[10px]"
+                                >
+                                  {trait}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </BlendedDemoFrame>
         </div>
       </section>
 
