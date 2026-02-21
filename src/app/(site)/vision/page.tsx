@@ -31,7 +31,7 @@ import { withI18n } from '~/i18n/with-i18n';
 export const metadata = {
   title: 'Our Vision - Ultaura',
   description:
-    'Why we built Ultaura: a voice companion born from experience in elder care, designed with professionals, and built on principles of honesty, privacy, and safety.',
+    'Why we built Ultaura: an AI voice companion born from years in elder care. Addressing the loneliness crisis affecting 16 million seniors living alone in the US.',
 };
 
 const STATS = [

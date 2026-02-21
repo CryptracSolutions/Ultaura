@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import classNames from 'clsx';
 import {
   ArrowDownIcon,
@@ -100,15 +100,8 @@ function IconBadge({
 export function AudienceValueTabs() {
   const [active, setActive] = useState<AudienceId>('families');
 
-  const activeIndex = useMemo(
-    () => Math.max(0, AUDIENCES.findIndex((audience) => audience.id === active)),
-    [active],
-  );
-
-  const activeMeta = useMemo(
-    () => AUDIENCES.find((a) => a.id === active) ?? AUDIENCES[0]!,
-    [active],
-  );
+  const activeIndex = Math.max(0, AUDIENCES.findIndex((a) => a.id === active));
+  const activeMeta = AUDIENCES.find((a) => a.id === active) ?? AUDIENCES[0]!;
 
   return (
     <section className="pt-1 pb-12">
@@ -147,15 +140,15 @@ export function AudienceValueTabs() {
                     <ul className="space-y-1.5 text-xs text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>Wondering if they&apos;re okay between your calls</span>
+                        <span>Wondering if they&apos;re okay — and no way to know until your next call</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>Guilt when you can&apos;t check in</span>
+                        <span>The guilt of knowing you should call more often</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground" />
-                        <span>No way to know how their day really went</span>
+                        <span>Missing the small changes that matter most</span>
                       </li>
                     </ul>
                   </div>

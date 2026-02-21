@@ -8,29 +8,22 @@ import { PageHero, GradientText } from '~/app/(site)/components/PageHero';
 import { FAQ_DATA } from './faq-data';
 import { FAQLayout } from './components/FAQLayout';
 
-
 export const metadata = {
   title: 'FAQ - Ultaura',
   description:
-    'Frequently asked questions about Ultaura, the AI voice companion for seniors.',
+    'Everything you need to know about Ultaura — how calls work, privacy, safety monitoring, pricing, and setup. Answers to 30+ common questions.',
 };
 
-const FAQPage = () => {
-  // Flatten data for structured data (JSON-LD for SEO)
-  const flatData = FAQ_DATA.flatMap((category) => category.items);
+function FAQPage() {
+  const allItems = FAQ_DATA.flatMap((category) => category.items);
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: flatData.map((item) => {
-      return {
-        '@type': 'Question',
-        name: item.question,
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: item.answer,
-        },
-      };
-    }),
+    mainEntity: allItems.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: { '@type': 'Answer', text: item.answer },
+    })),
   };
 
   return (
@@ -97,6 +90,6 @@ const FAQPage = () => {
       </section>
     </div>
   );
-};
+}
 
 export default withI18n(FAQPage);

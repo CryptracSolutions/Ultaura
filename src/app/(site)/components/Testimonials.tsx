@@ -10,84 +10,75 @@ import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
 
 const TESTIMONIALS = [
   {
-    highlight: 'Ultaura has been a lifesaver.',
+    highlight: 'I finally stopped worrying on my drive to work.',
     content:
-      'My mom looks forward to her daily calls now. She tells me about the conversations afterward \u2014 and I feel so much better knowing she\u2019s connected, even on the days I can\u2019t call.',
+      'Mom lives alone and the mornings were always hard for me. Now she has someone to talk to before I even finish my coffee. She told me yesterday she likes the voice better than mine \u2014 I\u2019ll take it.',
     author: 'Sarah M.',
     role: 'Daughter',
-    date: 'Jan 2026',
     stars: 5,
   },
   {
-    highlight:
-      'I was skeptical at first, but the conversations are surprisingly natural.',
-    content: 'It helps my dad with the loneliness between visits.',
+    highlight: 'Dad actually picks up the phone now.',
+    content:
+      'He\u2019d let my calls go to voicemail half the time. But for some reason he answers every Ultaura call. I think he likes that there\u2019s no pressure to perform or pretend he\u2019s fine.',
     author: 'James P.',
     role: 'Son',
-    date: 'Dec 2025',
     stars: 4.5,
   },
   {
-    highlight: 'The dashboard gives me peace of mind without being intrusive.',
+    highlight: 'It\u2019s the thing I didn\u2019t know I was missing.',
     content:
-      'My aunt is in assisted living, and Ultaura helped her open up about her day. I can see call duration and timing, then check in when I need to \u2014 it feels like I\u2019m there without being overwhelming.',
+      'I manage care for three residents and I can\u2019t be everywhere. The call summaries help me catch things I\u2019d normally miss \u2014 changes in mood, new complaints, stuff they wouldn\u2019t tell me directly.',
     author: 'Emily R.',
     role: 'Caregiver',
-    date: 'Nov 2025',
     stars: 5,
   },
   {
-    highlight: 'My grandfather answers every call.',
+    highlight: 'Grandpa brought it up at dinner unprompted.',
     content:
-      'He actually looks forward to them. He\u2019ll tell me afterward what they talked about, and it gives us something new to connect over.',
+      'He never talks about technology. Ever. But he told my whole family about \u2018his calls\u2019 at Sunday dinner. When an 84-year-old voluntarily mentions a tech product, you know it\u2019s working.',
     author: 'Nina K.',
     role: 'Granddaughter',
-    date: 'Oct 2025',
     stars: 5,
   },
   {
-    highlight: 'Ultaura helped my dad stay more social.',
+    highlight: 'Less guilt, more peace of mind.',
     content:
-      'The calls give him a little routine, and I can see he\u2019s doing well without hovering or asking him to repeat himself.',
+      'I live three states away and checking in every day just wasn\u2019t realistic. Knowing he has a consistent routine and I can glance at the dashboard when I want to \u2014 that\u2019s huge.',
     author: 'Marcus T.',
     role: 'Son',
-    date: 'Sep 2025',
     stars: 4.5,
   },
   {
-    highlight: 'The setup was easy, and my aunt never had to install anything.',
+    highlight: 'My aunt thought it was a real person for the first week.',
     content:
-      'She just picks up the phone and chats. It keeps her independent and in a good mood.',
+      'She figured it out and honestly didn\u2019t care. She says it\u2019s better because there\u2019s no awkward small talk about the weather. They just jump into whatever she wants to talk about.',
     author: 'Leo B.',
     role: 'Nephew',
-    date: 'Aug 2025',
     stars: 5,
   },
   {
-    highlight: 'My grandmother lights up when she talks about her calls.',
+    highlight: 'The reminders alone were worth it.',
     content:
-      'That means everything to our family \u2014 knowing she has that connection gives us peace between visits.',
+      'Grandma was forgetting her afternoon medication constantly. We tried alarms, sticky notes, calling her ourselves. Ultaura just weaves it into the conversation naturally and she actually takes it now.',
     author: 'Omar A.',
     role: 'Grandson',
-    date: 'Jul 2025',
     stars: 5,
   },
   {
-    highlight: 'Ultaura feels respectful.',
+    highlight: 'I appreciate that they\u2019re upfront about it being AI.',
     content:
-      'My mom likes that it\u2019s upfront about being AI, and the tone is always gentle. That matters to us.',
+      'Mom was skeptical until I told her it\u2019s transparent about not being human. She respected that. Now she has a 15-minute call every morning and she\u2019s in a better mood for the rest of the day.',
     author: 'Luis C.',
     role: 'Son',
-    date: 'Jun 2025',
     stars: 4.5,
   },
   {
-    highlight: 'My grandmother laughs more after the calls.',
+    highlight: 'She\u2019s laughing more. That\u2019s all I needed to know.',
     content:
-      'She tells me about the questions she was asked and the memories it brought back. Those conversations have become part of her week.',
+      'I was nervous about the idea at first. But hearing Nana tell me about something funny from her call that morning \u2014 you can\u2019t put a price on that. It\u2019s given her something to look forward to.',
     author: 'Aisha N.',
     role: 'Granddaughter',
-    date: 'May 2025',
     stars: 5,
   },
 ];
@@ -125,14 +116,8 @@ export function Testimonials() {
     };
 
     updatePageSize();
-
-    if (media.addEventListener) {
-      media.addEventListener('change', updatePageSize);
-      return () => media.removeEventListener('change', updatePageSize);
-    }
-
-    media.addListener(updatePageSize);
-    return () => media.removeListener(updatePageSize);
+    media.addEventListener('change', updatePageSize);
+    return () => media.removeEventListener('change', updatePageSize);
   }, []);
 
   useEffect(() => {
@@ -148,7 +133,7 @@ export function Testimonials() {
               What <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">families</span> are saying
             </Heading>
             <SubHeading>
-              Real stories from families using Ultaura.
+              Stories from families like yours.
             </SubHeading>
           </div>
 
@@ -207,7 +192,7 @@ export function Testimonials() {
                     {testimonial.author}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {testimonial.role} · {testimonial.date}
+                    {testimonial.role}
                   </div>
                 </div>
               </div>

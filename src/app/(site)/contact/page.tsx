@@ -10,7 +10,7 @@ import ContactForm from './ContactForm';
 export const metadata = {
   title: 'Contact - Ultaura',
   description:
-    'Contact the Ultaura team for support, billing questions, or help getting started.',
+    'Contact Ultaura for support, billing questions, or help setting up calls for your loved one. Response time under 2 hours.',
 };
 
 const SUPPORT_EMAIL = 'support@ultaura.com';

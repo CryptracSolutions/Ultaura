@@ -25,6 +25,28 @@ export default async function RootLayout({
     <html lang={i18n.language} suppressHydrationWarning>
       <head>
         <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'Ultaura',
+              url: 'https://ultaura.com',
+              description:
+                'AI voice companion providing daily check-in calls for seniors',
+              email: 'support@ultaura.com',
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: '725 Joralemon St Unit 127',
+                addressLocality: 'Belleville',
+                addressRegion: 'NJ',
+                postalCode: '07109',
+                addressCountry: 'US',
+              },
+            }),
+          }}
+        />
+        <script
           // Pre-paint system theme: avoids a flash since the server can't know the OS theme.
           dangerouslySetInnerHTML={{
             __html: `
