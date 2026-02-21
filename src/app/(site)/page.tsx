@@ -13,7 +13,6 @@ import { Testimonials } from '~/app/(site)/components/Testimonials';
 import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
-import { ImpactStats } from '~/app/(site)/components/ImpactStats';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
 import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
 import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
@@ -114,8 +113,6 @@ function Home() {
       <HowItWorks />
 
       <AudienceValueTabs />
-
-      <ImpactStats />
 
       <Testimonials />
 
