@@ -13,6 +13,7 @@ import { Testimonials } from '~/app/(site)/components/Testimonials';
 import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
+import { ImpactStats } from '~/app/(site)/components/ImpactStats';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
 import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
 import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
@@ -52,6 +53,10 @@ function Home() {
                 your loved one at the time you choose, reminds them of anything
                 they need, holds great conversations, and keeps you informed.
               </SubHeading>
+
+              <p className="text-sm text-muted-foreground">
+                Every quiet day alone is a day their world gets a little smaller.
+              </p>
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <MainCallToActionButton />
@@ -110,6 +115,8 @@ function Home() {
 
       <AudienceValueTabs />
 
+      <ImpactStats />
+
       <Testimonials />
 
       {/* Pricing Section */}
@@ -133,6 +140,9 @@ function Home() {
                 </SubHeading>
                 <p className="text-sm text-muted-foreground mt-2">
                   Home care aides average $30/hour. Ultaura starts at $19/month.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  The real cost isn&apos;t just financial — it&apos;s the missed conversations, the unnoticed changes, and the growing distance between visits.
                 </p>
               </div>
             </div>

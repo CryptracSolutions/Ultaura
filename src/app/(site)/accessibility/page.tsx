@@ -6,7 +6,7 @@ import { withI18n } from '~/i18n/with-i18n';
 export const metadata = {
   title: 'Accessibility - Ultaura',
   description:
-    'Our commitment to accessibility and how Ultaura supports seniors and caregivers.',
+    "Ultaura's accessibility commitment. Designed for seniors and caregivers with hearing support, cognitive adaptations, and phone-first design.",
 };
 
 const LAST_UPDATED = 'February 5, 2026';

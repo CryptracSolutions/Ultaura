@@ -6,7 +6,7 @@ import { withI18n } from '~/i18n/with-i18n';
 export const metadata = {
   title: 'Privacy Policy - Ultaura',
   description:
-    'How Ultaura collects, uses, and protects your information. Plain-English summary and full policy.',
+    "How Ultaura protects your family's data. AES-256 encryption, no recordings stored, HIPAA-compliant practices. Full privacy policy.",
 };
 
 const LAST_UPDATED = 'February 5, 2026';

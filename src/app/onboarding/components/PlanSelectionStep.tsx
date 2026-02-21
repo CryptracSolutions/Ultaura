@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, Clock, Users, Zap, Heart } from 'lucide-react';
 
 import Heading from '~/core/ui/Heading';
@@ -11,47 +10,7 @@ import Trans from '~/core/ui/Trans';
 import Alert from '~/core/ui/Alert';
 import type { PlanId, UserType } from '~/lib/ultaura/types';
 import { PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
-
-const planFeatures: Record<string, string[]> = {
-  care: [
-    '200 minutes per month',
-    '1 phone line',
-    'Scheduled daily calls',
-    'Up to 5 reminders per line',
-    'Activity suggestions',
-    'Memory notes',
-    'Email support',
-  ],
-  comfort: [
-    '600 minutes per month',
-    '2 phone lines',
-    'Multiple call times daily',
-    'Up to 10 reminders per line',
-    'All Care features',
-    'Priority support',
-    'Family dashboard access',
-    'Call summaries',
-  ],
-  family: [
-    '1,200 minutes per month',
-    '4 phone lines',
-    'Unlimited call scheduling',
-    'Unlimited reminders',
-    'All Comfort features',
-    'Dedicated support',
-    'Safety alerts',
-    'Wellness insights',
-  ],
-  payg: [
-    'Pay only for what you use',
-    '4 phone lines',
-    'No monthly commitment',
-    'Unlimited reminders',
-    'All core features',
-    'Flexible scheduling',
-    '$0.15 per minute',
-  ],
-};
+import { SHARED_FEATURES, PLAN_LIMITS } from '~/lib/ultaura/plan-features';
 
 const planIcons: Record<string, React.ReactNode> = {
   care: <Heart className="w-6 h-6" />,
@@ -63,7 +22,7 @@ const planIcons: Record<string, React.ReactNode> = {
 const trialPlans = TRIAL_ELIGIBLE_PLANS.map((planId) => ({
   planId,
   plan: PLANS[planId],
-  features: planFeatures[planId] ?? [],
+  limits: PLAN_LIMITS[planId],
 }));
 
 const PlanSelectionStep: React.FCC<{
@@ -81,9 +40,9 @@ const PlanSelectionStep: React.FCC<{
     setSelectedPlanId(defaultPlanId);
   }, [defaultPlanId]);
 
-  const handleContinue = useCallback(async () => {
+  async function handleContinue() {
     await onSubmit(selectedPlanId);
-  }, [onSubmit, selectedPlanId]);
+  }
 
   return (
     <div className={'flex w-full flex-1 flex-col space-y-12'}>
@@ -100,7 +59,7 @@ const PlanSelectionStep: React.FCC<{
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {trialPlans.map(({ planId, plan, features }) => {
+        {trialPlans.map(({ planId, plan, limits }) => {
           const isPopular = planId === 'comfort';
           const selected = selectedPlanId === planId;
           const price = plan.monthlyPriceCents / 100;
@@ -152,11 +111,28 @@ const PlanSelectionStep: React.FCC<{
                 )}
               </div>
 
-              <ul className="space-y-3 mb-6 flex-1">
-                {features.map((feature, idx) => (
+              {limits && (
+                <ul className="space-y-2 mb-4">
+                  {Object.values(limits).map((limit, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm font-medium text-foreground">{limit}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">All plans include:</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <ul className="space-y-2 mb-4 flex-1">
+                {SHARED_FEATURES.map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                    <span className="text-sm text-foreground">{feature}</span>
+                    <span className="text-sm text-muted-foreground">{feature}</span>
                   </li>
                 ))}
               </ul>

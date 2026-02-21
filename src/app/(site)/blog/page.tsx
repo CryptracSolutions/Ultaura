@@ -10,7 +10,7 @@ import configuration from '~/configuration';
 
 export const metadata: Metadata = {
   title: `Blog - ${configuration.site.siteName}`,
-  description: `Tutorials, Guides and Updates from our team`,
+  description: `Caregiver guides, elder care tips, and product updates from the Ultaura team. Practical advice for families supporting aging loved ones.`,
 };
 
 async function BlogPage() {

@@ -6,7 +6,7 @@ import { withI18n } from '~/i18n/with-i18n';
 export const metadata = {
   title: 'Terms of Service - Ultaura',
   description:
-    'Terms that govern your use of Ultaura’s AI voice companion service.',
+    'Ultaura terms of service. Clear terms for our AI voice companion, including billing, cancellation, and data handling policies.',
 };
 
 const LAST_UPDATED = 'February 5, 2026';

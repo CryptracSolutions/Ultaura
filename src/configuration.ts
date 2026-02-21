@@ -12,7 +12,7 @@ enum Themes {
 const configuration = {
   site: {
     name: 'Ultaura - AI Voice Companion for Seniors',
-    description: 'AI voice companion that provides friendly phone conversations for your elderly loved ones. No app required — just a phone call.',
+    description: 'AI voice companion that calls your aging parent or grandparent daily for friendly conversation, medication reminders, and companionship. Works on any phone — no app needed. 14-day free trial.',
     themeColor: brandColors.primary,
     themeColorDark: brandColors.primaryDark,
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,

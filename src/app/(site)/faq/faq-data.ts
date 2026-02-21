@@ -231,7 +231,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'plans-available',
         question: 'What plans are available?',
         answer:
-          'We offer Care ($19/month, 200 minutes, 1 line), Comfort ($49/month, 600 minutes, 2 lines), and Family ($99/month, 1,200 minutes, 4 lines). Annual plans save 20%. All plans include the full feature set.',
+          'We offer Care ($19/month, 200 minutes, 1 line), Comfort ($49/month, 600 minutes, 2 lines), Family ($99/month, 1,200 minutes, 4 lines), and Pay As You Go ($0.15/minute, no monthly commitment). Annual plans save 20%. All plans include the full feature set — daily calls, insights, safety monitoring, reminders, and more. Plans differ only in included minutes, number of lines, and reminders per line.',
       },
       {
         id: 'free-trial',
@@ -253,9 +253,9 @@ export const FAQ_DATA: FAQCategory[] = [
       },
       {
         id: 'cancel',
-        question: 'How do I cancel my subscription?',
+        question: 'How do I cancel?',
         answer:
-          'You can cancel anytime from the Billing section in your dashboard. Your service continues until the end of your billing period. You can also export your data before canceling through the Privacy Center.',
+          'Cancel anytime from the Billing section of your dashboard. Your service continues until the end of your current billing period. After cancellation, your data is retained for 30 days in case you change your mind, then permanently deleted unless you export it first through the Privacy Center.',
       },
     ],
   },
