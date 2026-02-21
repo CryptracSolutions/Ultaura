@@ -135,6 +135,13 @@ function ChatBotContainer(
     };
   }, [mobileViewportHeight, mobileViewportTop]);
 
+  // Allow any component on the page to open the chatbot via custom event
+  useEffect(() => {
+    const handleOpenChat = () => onOpenChange(true);
+    window.addEventListener('ultaura:open-chat', handleOpenChat);
+    return () => window.removeEventListener('ultaura:open-chat', handleOpenChat);
+  }, [onOpenChange]);
+
   if (!state.isOpen) {
     return <ChatBotBubble onOpenChange={onOpenChange} />;
   }

@@ -1,6 +1,9 @@
 import {
   CheckCircleIcon,
   PlayCircleIcon,
+  ChatBubbleBottomCenterTextIcon,
+  EnvelopeIcon,
+  BookOpenIcon,
 } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
@@ -16,6 +19,8 @@ import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
 import { BadgeStrip } from '~/app/(site)/components/BadgeStrip';
 import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
 import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
+import { OpenChatCard } from '~/app/(site)/components/OpenChatButton';
+
 function Home() {
   return (
     <div className={'flex flex-col space-y-[0.055rem]'}>
@@ -116,38 +121,59 @@ function Home() {
 
       <Testimonials />
 
-      {/* Need Help Section */}
-      <section className="bg-surface-subtle py-16">
+      {/* Support Channels */}
+      <section className="bg-surface-subtle py-10">
         <Container>
-          <div className="flex flex-col items-center text-center">
-            <Heading type={2}>Questions<span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">?</span></Heading>
+          <div className="flex flex-col items-center space-y-6">
+            <Heading type={2}>
+              Need help?{' '}
+              <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
+                We&apos;ve got you
+              </span>
+            </Heading>
 
-            <div className="mt-8 w-full max-w-7xl">
-            <BlendedDemoFrame>
-            <div className="rounded-2xl border border-border/60 bg-sidebar px-4 py-5 sm:px-8 shadow-sm">
-              <p className="text-sm text-muted-foreground">
-                Curious about voices, schedules, or how Ultaura works? The team
-                is here—and we reply instantly.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                <Button
-                  round
-                  href="/contact"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  Chat with us
-                </Button>
-                <Button
-                  round
-                  variant="outline"
-                  href="/faq"
-                  className="border-primary/30 text-primary hover:bg-primary/5"
-                >
-                  FAQ →
-                </Button>
-              </div>
-            </div>
-            </BlendedDemoFrame>
+            <div className="grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* Live Chat */}
+              <OpenChatCard className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 text-left shadow-xl transition-colors hover:border-primary/30">
+                <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 transition-colors duration-200 group-hover:bg-primary">
+                  <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Live chat</h3>
+                  <p className="text-xs text-muted-foreground">Reply in seconds</p>
+                  <p className="mt-1 text-xs font-medium text-primary">Start a conversation &rarr;</p>
+                </div>
+              </OpenChatCard>
+
+              {/* Email */}
+              <a
+                href="mailto:support@ultaura.com"
+                className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 shadow-xl transition-colors hover:border-primary/30"
+              >
+                <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 transition-colors duration-200 group-hover:bg-primary">
+                  <EnvelopeIcon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Email us</h3>
+                  <p className="text-xs text-muted-foreground">We&apos;ll get back to you</p>
+                  <p className="mt-1 text-xs font-medium text-primary">support@ultaura.com</p>
+                </div>
+              </a>
+
+              {/* FAQ */}
+              <a
+                href="/faq"
+                className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 shadow-xl transition-colors hover:border-primary/30"
+              >
+                <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 transition-colors duration-200 group-hover:bg-primary">
+                  <BookOpenIcon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Browse FAQs</h3>
+                  <p className="text-xs text-muted-foreground">Answers anytime</p>
+                  <p className="mt-1 text-xs font-medium text-primary">View all questions &rarr;</p>
+                </div>
+              </a>
             </div>
           </div>
         </Container>
@@ -155,7 +181,6 @@ function Home() {
 
       {/* Final CTA */}
       <section className="relative bg-surface-accent py-8 overflow-hidden">
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
         <Container>
           <div className="relative flex flex-col items-center text-center space-y-4">
             <Heading type={2}>Give the gift of conversation</Heading>
