@@ -19,11 +19,11 @@ function Footer() {
       className={
         isBlogPostPage
           ? 'py-8 lg:py-24 border-t border-border'
-          : 'pt-4 pb-8 lg:pt-12 lg:pb-24 border-t border-border'
+          : 'pb-8 lg:pb-24'
       }
     >
       {!isBlogPostPage && (
-        <div className="border-b border-border pb-8 mb-8 lg:pb-12 lg:mb-12">
+        <div className="bg-surface-accent py-8 mb-8 lg:py-12 lg:mb-12">
           <Container>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
               <div>

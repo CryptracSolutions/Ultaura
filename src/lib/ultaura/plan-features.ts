@@ -11,27 +11,27 @@ export const SHARED_FEATURES = [
 export const PLAN_LIMITS: Record<string, { minutes: string; lines: string; reminders: string; support: string }> = {
   care: {
     minutes: '200 minutes/month',
-    lines: '1 phone line',
+    lines: 'Up to 1 phone line',
     reminders: 'Up to 5 reminders per line',
-    support: 'Email support',
+    support: 'Priority support',
   },
   comfort: {
     minutes: '600 minutes/month',
-    lines: '2 phone lines',
+    lines: 'Up to 2 phone lines',
     reminders: 'Up to 10 reminders per line',
     support: 'Priority support',
   },
   family: {
     minutes: '1,200 minutes/month',
-    lines: '4 phone lines',
+    lines: 'Up to 4 phone lines',
     reminders: 'Unlimited reminders',
-    support: 'Dedicated support contact',
+    support: 'Priority support',
   },
   payg: {
     minutes: '$0.15 per minute',
-    lines: '4 phone lines',
+    lines: 'Up to 4 phone lines',
     reminders: 'Unlimited reminders',
-    support: 'Email support',
+    support: 'Priority support',
   },
 };
 

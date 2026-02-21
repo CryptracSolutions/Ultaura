@@ -17,6 +17,7 @@ const CERTAINTY_ITEMS = [
   'Cancel anytime from your dashboard in one click. Service continues through the end of your billing period.',
   'Switch between monthly and annual billing anytime. Annual plans save 20%.',
   'Your data is always yours. Export or delete it from the Privacy Center at any time.',
+  'Upgrade, downgrade, or switch plans anytime. Changes take effect at the start of your next billing cycle.',
 ];
 
 const productStructuredData = {
@@ -85,7 +86,7 @@ function PricingPage() {
         </div>
 
         {/* Certainty block */}
-        <section className="mt-12 mb-16 rounded-xl border border-border bg-muted/40 p-8">
+        <section className="mt-12 mb-16 rounded-2xl border border-border/60 bg-sidebar shadow-xl p-8">
           <h2 className="text-xl font-semibold text-foreground mb-6 text-center">
             No surprises. Here&apos;s exactly what to expect.
           </h2>

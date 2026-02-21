@@ -17,10 +17,17 @@ const planIcons: Record<string, React.ReactNode> = {
   payg: <Zap className="w-6 h-6" />,
 };
 
+const PLAN_TAGLINES: Record<string, string> = {
+  care: 'Great for your loved one',
+  comfort: 'Perfect for most families',
+  family: 'Built for families who need more',
+  payg: 'Only pay for what you use',
+};
+
 const DAILY_COST: Record<string, { monthly: string; annual: string }> = {
-  care: { monthly: "That's about $0.63/day", annual: "That's about $0.49/day" },
-  comfort: { monthly: "That's about $1.63/day", annual: "That's about $1.29/day" },
-  family: { monthly: "That's about $3.30/day", annual: "That's about $2.60/day" },
+  care: { monthly: '$0.63/day', annual: '$0.49/day' },
+  comfort: { monthly: '$1.63/day', annual: '$1.29/day' },
+  family: { monthly: '$3.30/day', annual: '$2.60/day' },
 };
 
 interface UltauraPricingTableProps {
@@ -155,8 +162,8 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-primary">{plan.displayName}</h3>
-                  {isPopular && (
-                    <p className="text-xs text-muted-foreground italic">Ideal for families caring for two loved ones</p>
+                  {PLAN_TAGLINES[planId] && (
+                    <p className="text-xs text-muted-foreground italic">{PLAN_TAGLINES[planId]}</p>
                   )}
                 </div>
               </div>

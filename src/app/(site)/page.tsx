@@ -127,12 +127,12 @@ function Home() {
                 <Heading type={2}>Choose a <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">plan</span> that fits your needs</Heading>
 
                 <SubHeading className="text-sm sm:text-base">
-                  <span className="flex flex-col items-center gap-1 text-muted-foreground sm:flex-row sm:gap-2">
+                  <span className="flex flex-col items-center gap-1 text-muted-foreground">
                     <span className="inline-flex items-center gap-2">
                       <CheckCircleIcon className="h-4 w-4 text-primary" />
                       All plans include a 14-day free trial
                     </span>
-                    <span className="text-muted-foreground/80">Cancel anytime</span>
+                    <span className="text-muted-foreground/70">Cancel anytime</span>
                   </span>
                 </SubHeading>
                 <p className="text-sm text-muted-foreground mt-2">
