@@ -7,12 +7,10 @@ import TextField from '~/core/ui/TextField';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { SearchPanel } from '~/components/SearchCommandPalette';
 
-const SearchTrigger = () => {
+function SearchTrigger() {
   const { openDesktop, close, isDesktopOpen, prefillQuery, clearPrefillQuery } = useSearch();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
   useEffect(() => {
@@ -28,63 +26,46 @@ const SearchTrigger = () => {
     }
   }, [prefillQuery, query, clearPrefillQuery]);
 
-  const handleInputChange = (value: string) => {
-    setQuery(value);
-    if (value.trim().length > 0 && !isDesktopOpen) {
-      openDesktop();
-    }
-    if (value.trim().length === 0 && isDesktopOpen) {
-      close();
-    }
-  };
-
   const handleClose = useCallback(() => {
     close();
     setQuery('');
     inputRef.current?.blur();
   }, [close]);
 
-  const handleOpenChange = (open: boolean) => {
+  function handleInputChange(value: string) {
+    setQuery(value);
+    if (value.trim().length > 0 && !isDesktopOpen) {
+      openDesktop();
+    }
+  }
+
+  function handleOpenChange(open: boolean) {
     if (open) {
-      if (query.trim().length > 0) {
-        openDesktop();
-      } else {
-        close();
-      }
-    } else {
+      openDesktop();
+    } else if (document.activeElement !== inputRef.current) {
       handleClose();
     }
-  };
+  }
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  function handleKeyDown(event: React.KeyboardEvent) {
     if (event.key === 'Escape') {
       handleClose();
     }
-  };
-
-  useEffect(() => {
-    if (!isDesktopOpen) return;
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (triggerRef.current?.contains(target)) return;
-      if (contentRef.current?.contains(target)) return;
-      handleClose();
-    };
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [handleClose, isDesktopOpen]);
+  }
 
   return (
     <Popover open={isDesktopOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <div ref={triggerRef} className="relative flex h-[31px] w-full min-w-0 items-center md:w-[41%]">
+        <div className="relative flex h-[31px] w-full min-w-0 items-center md:w-[51%]">
           <TextField.Input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (!isDesktopOpen) openDesktop();
+            }}
             placeholder="Search..."
             className="!h-[31px] !min-h-0 pl-10 pr-12 shadow-sm"
             aria-label="Search"
@@ -103,7 +84,6 @@ const SearchTrigger = () => {
         </div>
       </PopoverTrigger>
       <PopoverContent
-        ref={contentRef}
         align="start"
         className="w-[var(--radix-popover-trigger-width)] max-w-none p-0"
         onOpenAutoFocus={(event) => event.preventDefault()}
@@ -119,6 +99,6 @@ const SearchTrigger = () => {
       </PopoverContent>
     </Popover>
   );
-};
+}
 
 export default SearchTrigger;

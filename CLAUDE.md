@@ -38,7 +38,7 @@ You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large 
 **Model assignments** (non-negotiable):
 | Role | Model |
 |------|-------|
-| Orchestrator (you) | Opus — set via `/model opus` |
+| Orchestrator (you) | Opus 4.6 — set via `/model Opus 4.6` |
 | Explore agents | Opus 4.6 |
 | Plan agent | Opus 4.6 |
 | Implementation teammates | Sonnet 4.6 |
@@ -64,119 +64,18 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Launch 1-6 `Explore` agents | **ALWAYS** |
-| 2 | Enter plan mode | `EnterPlanMode` | **ALWAYS**
-| 2 | Clarify requirements and interview user | `AskUserQuestion` | **ALWAYS** if **ANY** ambiguity or clarifications needed |
-| 3 | Create shared task list | `TaskCreate` for each step | If 3+ steps | **ALWAYS** |
-| 4 | Spawn a team of implementation teammates | Launch 1-4 `Task` teammates using `Teammate` with `spawnTeam` | **ALWAYS** |
-| 5 | Assign tasks | `TaskUpdate` with `owner` to assign work | **ALWAYS** |
-| 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | **ALWAYS** |
-| 7 | Verify | TypeScript check, visual check if UI | **ALWAYS** |
-| 8 | Code simplification pass | `Task` with `subagent_type: "code-simplifier:code-simplifier"` | **ALWAYS for medium/large** |
-| 9 | Shutdown & cleanup | `SendMessage` shutdown requests, then `Teammate` cleanup | **ALWAYS** |
+| 1 | Explore codebase | Launch 1-6 `Explore` agents | **ALWAYS** |
+| 2 | Plan & interview | `EnterPlanMode`, then `AskUserQuestion` to clarify (see Plan Mode Guidance) | **ALWAYS** |
+| 3 | Create shared task list | `TaskCreate` for each step | **ALWAYS** if 3+ steps |
+| 4 | Spawn implementation teammates | Launch 1-4 `Task` teammates. Use `isolation: "worktree"` for independent tasks (see Worktree Isolation) | **ALWAYS** |
+| 5 | Assign tasks | `TaskUpdate` with `owner` | **ALWAYS** |
+| 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | As needed |
+| 7 | Merge worktree branches | `git merge <branch> --no-edit` per worktree agent (see Merge-back process) | If worktrees used |
+| 8 | Verify | `pnpm tsc --noEmit`, visual check if UI via Chrome MCP | **ALWAYS** |
+| 9 | Code simplification | `Task` with `subagent_type: "code-simplifier:code-simplifier"` | **ALWAYS for medium/large** |
+| 10 | Shutdown & cleanup | `SendMessage` shutdown requests to each teammate | **ALWAYS** |
 
-### Agent Teams Guidelines
-
-- **Explore & Plan agents: `model: "opus"`** — Opus for reasoning-heavy research and planning
-- **Implementation teammates & code-simplifier: `model: "sonnet"`** — Sonnet 4.6 for all code writing
-- **Max 4 implementation/task teammates** in parallel (to avoid file conflicts)
-- **Max 6 explore agents** in parallel
-- **Use `SendMessage`** to coordinate — teammates can't hear your plain text
-- **Teammates persist** — reassign them to new tasks instead of spawning new agents
-- **Teammates go idle after each turn** — this is normal, send a message to wake them
-- **Use `TaskList`/`TaskUpdate`** as the shared coordination board
-- **Shutdown gracefully** — send `shutdown_request` to each teammate when done, then call `Teammate` cleanup
-
-### Task Tracking (Shared Task Board)
-
-You MUST create a task list using `TaskCreate` for **any work with 4+ steps**:
-- Group related tasks together
-- Use `TaskUpdate` with `owner` to assign tasks to specific teammates
-- Use `TaskUpdate` to mark tasks `in_progress` when starting, `completed` when done
-- Use `TaskList` to check progress and find next tasks
-- Teammates can claim and update their own tasks
-- The task board is the single source of truth — use `SendMessage` for real-time coordination on top of it
-
-### Code Simplification Pass (Step 8)
-
-After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
-
-**How to deploy:**
-- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "sonnet"`
-- This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
-- It is **blocking** — wait for its result before proceeding to shutdown
-
-**Prompt template:**
-> Review all files modified during this task for clarity, consistency, and maintainability. Simplify where possible without changing behavior or functionality. Focus on: variable/function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
-
-**Pass it:** A list of all files modified during the task (gathered from `git diff --name-only` or tracked during implementation).
-
-**What to do with results:**
-- If the agent made changes, include a brief "Code cleanup" summary in your final response
-- If the agent found nothing to simplify, skip mentioning it
-- If the agent's changes break TypeScript, revert them and note the issue
-
-**Skip this step ONLY when:**
-- The task was a typo/one-liner fix
-- Only non-code files were changed (docs, config, migrations)
-- User explicitly says "skip cleanup" or "don't simplify"
-
-### When to Use Teams vs. One-Shot Task Agents
-
-| Scenario | Use |
-|----------|-----|
-| Independent parallel research (explore codebase) | `Explore` for pure research/investigation |
-| Medium task (4-6 files, multiple concerns) | **Teams** — agents need shared context/coordination |
-| Large task (7+ files, architectural) | **Teams** — agents need shared context/coordination |
-| Interdependent work (frontend needs backend's API shape) | **Teams** — agents must communicate |
-| Sequential dependencies across agents | **Teams** — agents hand off context |
-| 1-3 isolated tasks | `Task` agent (one-shot) is sufficient |
-
-## Exceptions (Skip Delegation For)
-
-ONLY these cases may skip the delegation workflow:
-- **Typos/one-liners**: Single obvious fix"
-- **Non-code**: Pure docs, config, questions
-- **Explicit bypass**: User says "skip the workflow", "small adjustment/change" or "do it yourself"
-- **Small tasks**: 1-3 files, < 4 steps, 1-2 small concerns or changes
-
-Even for exceptions, STILL:
-- Auto-invoke relevant skills
-- Verify TypeScript compiles
-- Use Chrome MCP if it's a visible UI change
-
----
-
-### Auto-Invoke Skills (Critical & Non-negotiable)
-
-**ALWAYS** Automatically use the Skill tool to invoke these skills when the context matches:
-
-| Skill | Trigger When |
-|-------|--------------|
-| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
-| `remotion-best-practices` | Working with Remotion video code |
-| `copywriting` | Writing or improving marketing copy for pages |
-| `copy-editing` | Editing, reviewing, or proofreading existing copy |
-| `seo-audit` | Auditing SEO, diagnosing ranking issues |
-| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
-| `marketing-psychology` | Applying psychological principles to marketing |
-| `pricing-strategy` | Pricing decisions, packaging, monetization |
-| `page-cro` | Optimizing page conversions, CRO analysis |
-| `skill-creator` | Creating new skills for Claude Code or Codex |
-| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
-| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
-| `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
-
----
-
-### Plan Mode Guidance
-
-**When to enter plan mode** (`/plan` or `EnterPlanMode`):
-- Medium/Large tasks (4+ files or 5+ steps)
-- New features touching multiple services (dashboard + telephony + database)
-- Database schema changes or new migrations
-- Changes to the call flow or Grok tool handlers
-- When user explicitly requests planning first
+### Plan Mode Guidance (Step 2)
 
 **Plan mode is NOT a formality — it is a deep-work phase.** A plan that just lists file names and vague steps is a BAD plan. Every plan must be detailed enough that a fresh agent with zero prior context can execute it without asking a single clarifying question.
 
@@ -184,9 +83,11 @@ Even for exceptions, STILL:
 
 1. **Explore the codebase** — Launch Explore agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
 2. **Interview the user until ambiguity reaches zero** — Use `AskUserQuestion` aggressively. Do NOT assume intent. Do NOT guess between two valid approaches. Ask. Interview scaling:
+   - Small tasks: 0-6 questions (proceed if clear)
    - Medium tasks: 6-12 clarifying questions minimum
    - Large tasks: 12+ questions to nail down full scope
    - Keep asking follow-ups until you have concrete answers for every decision point
+   - Ask proactively when: requirements are ambiguous, multiple valid approaches exist, user preferences would affect implementation, or scope could expand unexpectedly
 3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
 
 #### Phase 2: Writing the Plan — **MUST use `Plan` agent with `model: "opus"`**
@@ -223,6 +124,141 @@ Before exiting plan mode:
 - Skipping the interview: Jumping straight to writing the plan without asking questions
 - Listing files without explaining changes: "Modify `schedule-service.ts`" — to do WHAT?
 
+### Agent Teams Guidelines
+
+- **Max 4 implementation teammates** in parallel (resource limit — worktrees remove file-conflict risk but 4 remains the cap)
+- **Max 6 explore agents** in parallel
+- **Use `SendMessage`** to coordinate — teammates can't hear your plain text
+- **Teammates persist** — reassign them to new tasks instead of spawning new agents
+- **Teammates go idle after each turn** — this is normal, send a message to wake them
+- **Use `TaskList`/`TaskUpdate`** as the shared coordination board
+
+### Worktree Isolation for Teammates
+
+Use git worktrees to give implementation teammates their own isolated copy of the repo. This **eliminates file conflicts** when agents work in parallel — each agent edits its own copy, then changes are merged back.
+
+**How it works:**
+- The `Task` tool has a built-in `isolation: "worktree"` parameter
+- When set, the agent gets a temporary git worktree (a full copy of the repo on a new branch)
+- Everything stays **local** — nothing is pushed to GitHub unless you explicitly run `git push`
+- If the agent makes no changes, the worktree is automatically cleaned up
+- If the agent makes changes, the worktree path and branch name are returned so you can merge them
+
+**When to use worktree isolation:**
+
+| Scenario | Use `isolation: "worktree"`? |
+|----------|------------------------------|
+| Agents working on **separate files/features** (e.g., one builds a component, another writes an API route) | **Yes** — clean isolation, no conflicts |
+| Agent doing a **standalone task** (new component, new migration, new service) | **Yes** — safe sandbox |
+| Agents that **depend on each other's real-time output** (e.g., frontend needs backend's types as they're written) | **No** — they can't see each other's changes until merge |
+| Multiple agents editing the **same files** | **No** — merge conflicts likely; coordinate via shared directory instead |
+
+**Merge-back process (Step 7):**
+
+When a worktree agent finishes, the `Task` tool returns the **branch name** and **worktree path**. If the agent made no changes, the worktree is auto-cleaned — skip it.
+
+For each agent that made changes:
+
+1. **Merge foundational branches first** (types, schemas, shared packages) before branches that depend on them.
+2. **Run the merge:**
+   ```bash
+   git merge <agent-branch-name> --no-edit
+   ```
+3. **If merge conflict** (rare when worktrees are used correctly):
+   - Read conflicting files to understand both sides
+   - Combine changes intelligently (keep both agents' work)
+   - `git add <resolved-file>` then `git commit --no-edit`
+4. **After ALL branches merged**, delete them:
+   ```bash
+   git branch -d <agent-branch-name>
+   ```
+5. **Proceed to Step 8 (Verify)** — TypeScript check happens there, not here.
+
+**Default behavior:**
+- **Independent tasks** (no file overlap) → launch with `isolation: "worktree"`
+- **Interdependent tasks** (shared files or real-time dependencies) → shared working directory with `SendMessage` coordination
+- **When unsure** → prefer worktree isolation — merging is safer than untangling file conflicts
+
+### Task Tracking (Shared Task Board)
+
+You MUST create a task list using `TaskCreate` for **any work with 3+ steps**:
+- Group related tasks together
+- Use `TaskUpdate` with `owner` to assign tasks to specific teammates
+- Use `TaskUpdate` to mark tasks `in_progress` when starting, `completed` when done
+- Use `TaskList` to check progress and find next tasks
+- Teammates can claim and update their own tasks
+- The task board is the single source of truth — use `SendMessage` for real-time coordination on top of it
+
+### Code Simplification Pass (Step 9)
+
+After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
+
+**How to deploy:**
+- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "sonnet"`
+- This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
+- It is **blocking** — wait for its result before proceeding to shutdown
+
+**Prompt template:**
+> Review all files modified during this task for clarity, consistency, and maintainability. Simplify where possible without changing behavior or functionality. Focus on: variable/function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
+
+**Pass it:** A list of all files modified during the task (gathered from `git diff --name-only` or tracked during implementation).
+
+**What to do with results:**
+- If the agent made changes, include a brief "Code cleanup" summary in your final response
+- If the agent found nothing to simplify, skip mentioning it
+- If the agent's changes break TypeScript, revert them and note the issue
+
+**Skip this step ONLY when:**
+- The task was a typo/one-liner fix
+- Only non-code files were changed (docs, config, migrations)
+- User explicitly says "skip cleanup" or "don't simplify"
+
+### When to Use Teams vs. One-Shot Agents vs. Worktree Isolation
+
+| Scenario | Approach |
+|----------|----------|
+| Pure research / codebase exploration | `Explore` agent (one-shot, no team needed) |
+| 1-3 isolated, independent tasks | `Task` agent (one-shot) with `isolation: "worktree"` |
+| Medium/Large tasks (4+ files) | **Teams** — shared task board + coordination |
+| Team tasks on **separate files** | **Teams + worktree** — `isolation: "worktree"` per teammate |
+| Team tasks on **shared files** or real-time dependencies | **Teams, shared directory** — no worktree, coordinate via `SendMessage` |
+| Sequential dependencies (A must finish before B starts) | **Teams, shared directory** — agents hand off context |
+
+## Exceptions (Skip Delegation For)
+
+ONLY these cases may skip the delegation workflow:
+- **Typos/one-liners**: Single obvious fix
+- **Non-code**: Pure docs, config, questions
+- **Explicit bypass**: User says "skip the workflow", "small adjustment/change" or "do it yourself"
+- **Small tasks**: 1-3 files, < 4 steps, 1-2 small concerns or changes
+
+Even for exceptions, STILL:
+- Auto-invoke relevant skills
+- Verify TypeScript compiles
+- Use Chrome MCP (when available) if it's a visible UI change
+
+---
+
+### Auto-Invoke Skills (Critical & Non-negotiable)
+
+**ALWAYS** Automatically use the Skill tool to invoke these skills when the context matches:
+
+| Skill | Trigger When |
+|-------|--------------|
+| `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
+| `remotion-best-practices` | Working with Remotion video code |
+| `copywriting` | Writing or improving marketing copy for pages |
+| `copy-editing` | Editing, reviewing, or proofreading existing copy |
+| `seo-audit` | Auditing SEO, diagnosing ranking issues |
+| `marketing-ideas` | Brainstorming marketing strategies or growth ideas |
+| `marketing-psychology` | Applying psychological principles to marketing |
+| `pricing-strategy` | Pricing decisions, packaging, monetization |
+| `page-cro` | Optimizing page conversions, CRO analysis |
+| `skill-creator` | Creating new skills for Claude Code or Codex |
+| `ultaura-ui` | Any dashboard UI work, buttons, forms, modals, styling |
+| `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
+| `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
+
 ---
 
 # Ultaura - AI Voice Companion for Seniors
@@ -255,20 +291,6 @@ Ultaura makes automated phone calls to seniors at scheduled times for friendly c
 
 > **See [MANDATORY: Delegation-First Workflow](#️-mandatory-delegation-first-workflow) above. This section contains supplementary guidance.**
 
-### Interview Scaling
-
-| Task Size | Interview Depth |
-|-----------|-----------------|
-| Small | 0-6 questions (proceed if clear) |
-| Medium | 6-12 clarifying questions |
-| Large | 12+ detailed questions to nail down full scope |
-
-Use `AskUserQuestion` proactively when:
-- Requirements are ambiguous
-- Multiple valid approaches exist
-- User preferences would affect implementation
-- Scope could expand unexpectedly
-
 ### Chrome Visual Verification
 
 For **any UI/UX changes**, use Chrome MCP for visual verification (when made available by the user):
@@ -281,15 +303,6 @@ Skip Chrome for:
 - Backend-only changes
 - Non-visual config changes
 - Database migrations
-
-### Workflow Exceptions
-
-> **See "Exceptions" in the [MANDATORY: Delegation-First Workflow]**
-
-Even when skipping delegation, you MUST still:
-- Auto-invoke relevant skills from the table below
-- Verify TypeScript compiles (`pnpm tsc --noEmit`)
-- Use Chrome MCP if it's a visible UI change
 
 ### Lessons Learned
 

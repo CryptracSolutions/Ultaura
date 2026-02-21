@@ -10,25 +10,58 @@ import {
   FileText,
   Phone,
   PhoneOutgoing,
+  Search,
   ShieldCheck,
   TriangleAlert,
   UserRound,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import useSWR from 'swr';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import { cn } from '~/core/generic/shadcn-utils';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { getNavigationItems } from '~/lib/search/navigation-registry';
 import { buildLineNavigationItems } from '~/lib/search/line-navigation';
-import type { SearchItem, SearchResponse } from '~/lib/search/types';
+import type { SearchCategory, SearchItem, SearchResponse } from '~/lib/search/types';
 import { SEARCH_CATEGORIES } from '~/lib/search/types';
 import { buildIntentBoostMap, getIntentBoost } from '~/lib/search/intent';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
+import useSupabase from '~/core/hooks/use-supabase';
 import { highlightText, normalizeText, scoreMatch, tokenizeText } from '~/lib/search/match';
 
 const DEBOUNCE_MS = 150;
+const RESULTS_PER_CATEGORY = 3;
 
 type Scored<T> = { item: T; score: number };
+
+type CategoryGroup = {
+  category: SearchCategory;
+  label: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  items: Scored<SearchItem>[];
+  totalCount: number;
+  bestScore: number;
+};
+
+const CATEGORY_GROUP_LABELS: Record<SearchCategory, string> = {
+  lines: 'Lines',
+  reminders: 'Reminders',
+  schedules: 'Schedules',
+  contacts: 'Contacts',
+  calls: 'Calls',
+  safety_events: 'Alerts',
+  navigation: 'Pages',
+  documentation: 'Docs',
+};
+
+const SUGGESTED_SEARCHES = [
+  { label: 'Reminders', query: 'reminder' },
+  { label: 'Calls', query: 'calls' },
+  { label: 'Schedules', query: 'schedule' },
+  { label: 'Safety alerts', query: 'safety' },
+  { label: 'Contacts', query: 'contact' },
+];
 
 type SearchRecent = {
   id: string;
@@ -63,17 +96,39 @@ export const SearchPanel = ({
   const generatedListId = useId();
   const listId = externalListId ?? generatedListId;
 
-  // Use external query/onQueryChange if provided (desktop), otherwise use internal state (mobile)
   const [internalQuery, setInternalQuery] = useState('');
   const query = externalQuery !== undefined ? externalQuery : internalQuery;
-  const onQueryChange = externalOnQueryChange || setInternalQuery;
-  const cleanQuery = query;
+  const onQueryChange = externalOnQueryChange ?? setInternalQuery;
 
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState<SearchResponse['results']>(
     buildEmptyResults,
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<SearchCategory>>(new Set());
+
+  const supabase = useSupabase();
+  const { data: userLines } = useSWR(
+    account?.id ? ['search-lines-hint', account.id] : null,
+    async () => {
+      const { data } = await supabase
+        .from('ultaura_lines')
+        .select('display_name, short_id')
+        .eq('account_id', account!.id)
+        .order('created_at', { ascending: true })
+        .limit(10);
+      return data ?? [];
+    },
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  );
+
+  const dynamicSuggestions = useMemo(() => {
+    if (!userLines || userLines.length === 0) return [];
+    return userLines.map((line) => ({
+      label: line.display_name,
+      query: line.display_name,
+    }));
+  }, [userLines]);
   const lastSearchSessionRef = useRef<{
     searchId: string | null;
     query: string;
@@ -84,11 +139,11 @@ export const SearchPanel = ({
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setDebouncedQuery(cleanQuery.trim());
+      setDebouncedQuery(query.trim());
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [cleanQuery]);
+  }, [query]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -98,6 +153,7 @@ export const SearchPanel = ({
       setDebouncedQuery('');
       setResults(buildEmptyResults());
       setIsLoading(false);
+      setExpandedCategories(new Set());
       lastSearchSessionRef.current = null;
     }
   }, [isOpen, externalQuery, onQueryChange]);
@@ -192,7 +248,7 @@ export const SearchPanel = ({
     return [...translated, ...lineNavigationItems];
   }, [account, t, userType, lineNavigationItems]);
 
-  const normalizedQuery = normalizeText(cleanQuery);
+  const normalizedQuery = normalizeText(query);
   const queryTokens = useMemo(() => tokenizeText(normalizedQuery), [normalizedQuery]);
   const intentBoosts = useMemo(() => buildIntentBoostMap(normalizedQuery), [normalizedQuery]);
   const hasQuery = normalizedQuery.length > 0;
@@ -322,23 +378,38 @@ export const SearchPanel = ({
     }));
   }, [scoredDocs]);
 
-  const unifiedResults = useMemo<Scored<SearchItem>[]>(() => {
+  const groupedResults = useMemo<CategoryGroup[]>(() => {
     if (!hasQuery) return [];
 
-    const ranked = [
-      ...scoredLines,
-      ...scoredReminders,
-      ...scoredSchedules,
-      ...scoredContacts,
-      ...scoredCalls,
-      ...scoredSafetyEvents,
-      ...scoredNavigationItems,
-      ...scoredDocItems,
-    ];
+    const categoryScoresMap: Record<SearchCategory, Scored<SearchItem>[]> = {
+      lines: scoredLines,
+      reminders: scoredReminders,
+      schedules: scoredSchedules,
+      contacts: scoredContacts,
+      calls: scoredCalls,
+      safety_events: scoredSafetyEvents,
+      navigation: scoredNavigationItems,
+      documentation: scoredDocItems,
+    };
 
-    return ranked
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+    const groups: CategoryGroup[] = [];
+
+    for (const category of SEARCH_CATEGORIES) {
+      const items = categoryScoresMap[category];
+      if (items.length === 0) continue;
+
+      groups.push({
+        category,
+        label: CATEGORY_GROUP_LABELS[category],
+        icon: getCategoryIcon(category),
+        items,
+        totalCount: items.length,
+        bestScore: items[0]?.score ?? 0,
+      });
+    }
+
+    groups.sort((a, b) => b.bestScore - a.bestScore);
+    return groups;
   }, [
     hasQuery,
     scoredCalls,
@@ -351,8 +422,7 @@ export const SearchPanel = ({
     scoredSchedules,
   ]);
 
-  const isMobileSearch = externalQuery === undefined;
-  const shouldShowResults = !isMobileSearch || isOpen;
+  const shouldShowResults = externalQuery !== undefined || isOpen;
 
   const handleSelect = (
     item: SearchItem | { href: string; label?: string; subtitle?: string; category?: string; id?: string }
@@ -379,7 +449,7 @@ export const SearchPanel = ({
 
     trackSearchEvent({
       event: 'select_result',
-      query: cleanQuery.trim(),
+      query: query.trim(),
       source: openMode ?? 'desktop',
       category: category ?? 'unknown',
       itemId: id,
@@ -400,8 +470,20 @@ export const SearchPanel = ({
   };
 
   const totalVisibleResults = useMemo(() => {
-    return unifiedResults.length;
-  }, [unifiedResults.length]);
+    return groupedResults.reduce((sum, group) => sum + group.totalCount, 0);
+  }, [groupedResults]);
+
+  const toggleCategoryExpand = (category: SearchCategory) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
 
   return (
     <Command shouldFilter={false} className="flex h-full w-full flex-col">
@@ -434,58 +516,160 @@ export const SearchPanel = ({
           ) : null}
 
           {!hasQuery ? (
-            <div className="px-3 pb-1 pt-1 text-[11px] text-muted-foreground">
-              {recents.length > 0
-                ? 'Recent'
-                : 'Search by name, phone, call, safety, or reminder.'}
-            </div>
+            <>
+              {recents.length > 0 ? (
+                <Command.Group
+                  heading={
+                    <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Recent
+                    </span>
+                  }
+                  className="px-2 pt-1"
+                >
+                  {recents.map((recent) => (
+                    <SearchResultItem
+                      key={`recent-item-${recent.id}`}
+                      item={{
+                        id: recent.id,
+                        label: recent.label,
+                        subtitle: recent.subtitle,
+                        href: recent.href ?? '/dashboard',
+                        category: (recent.category as SearchItem['category']) ?? 'navigation',
+                      }}
+                      Icon={getCategoryIcon(recent.category)}
+                      onSelect={handleSelect}
+                      highlightTokens={queryTokens}
+                    />
+                  ))}
+                </Command.Group>
+              ) : null}
+
+              <Command.Group
+                heading={
+                  <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {recents.length > 0 ? 'Suggestions' : 'Try searching for'}
+                  </span>
+                }
+                className="px-2 pt-1"
+              >
+                {dynamicSuggestions.map((suggestion) => (
+                  <Command.Item
+                    key={`suggest-dynamic-${suggestion.query}`}
+                    value={`suggest-${suggestion.label}`}
+                    onSelect={() => onQueryChange(suggestion.query)}
+                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      <Phone className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm text-foreground">{suggestion.label}</span>
+                  </Command.Item>
+                ))}
+                {SUGGESTED_SEARCHES.map((suggestion) => (
+                  <Command.Item
+                    key={`suggest-static-${suggestion.query}`}
+                    value={`suggest-${suggestion.label}`}
+                    onSelect={() => onQueryChange(suggestion.query)}
+                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      <Search className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm text-foreground">{suggestion.label}</span>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            </>
           ) : null}
 
-          {!hasQuery && recents.length > 0 ? (
-            <Command.Group
-              heading={
-                <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Recent
-                </span>
-              }
-              className="px-2 pt-1"
-            >
-              {recents.map((recent) => (
-                <SearchResultItem
-                  key={`recent-item-${recent.id}`}
-                  item={{
-                    id: recent.id,
-                    label: recent.label,
-                    subtitle: recent.subtitle,
-                    href: recent.href ?? '/dashboard',
-                    category: (recent.category as SearchItem['category']) ?? 'navigation',
-                  }}
-                  Icon={getCategoryIcon(recent.category)}
-                  onSelect={handleSelect}
-                  highlightTokens={queryTokens}
-                />
-              ))}
-            </Command.Group>
-          ) : null}
-
-          {hasQuery && unifiedResults.length > 0 ? (
+          {hasQuery && groupedResults.length > 0 ? (
             <div className="px-2 pt-1">
-              {unifiedResults.map((entry) => (
-                <SearchResultItem
-                  key={`result-${entry.item.category}-${entry.item.id}`}
-                  item={entry.item}
-                  Icon={getCategoryIcon(entry.item.category)}
-                  onSelect={handleSelect}
-                  highlightTokens={queryTokens}
-                />
-              ))}
+              {groupedResults.map((group, groupIndex) => {
+                const isExpanded = expandedCategories.has(group.category);
+                const visibleItems = isExpanded
+                  ? group.items
+                  : group.items.slice(0, RESULTS_PER_CATEGORY);
+                const hasMore = group.totalCount > RESULTS_PER_CATEGORY;
+                const Icon = group.icon;
+
+                return (
+                  <Command.Group
+                    key={group.category}
+                    heading={
+                      <div className={cn(
+                        'flex items-center gap-2 px-2 pb-1',
+                        groupIndex === 0 ? 'pt-1' : 'pt-3 border-t border-border/40 mt-2'
+                      )}>
+                        <Icon
+                          className="h-3.5 w-3.5 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {group.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/60">
+                          {group.totalCount}
+                        </span>
+                      </div>
+                    }
+                  >
+                    {visibleItems.map((entry) => (
+                      <SearchResultItem
+                        key={`result-${entry.item.category}-${entry.item.id}`}
+                        item={entry.item}
+                        Icon={getCategoryIcon(entry.item.category)}
+                        onSelect={handleSelect}
+                        highlightTokens={queryTokens}
+                      />
+                    ))}
+                    {hasMore ? (
+                      <button
+                        type="button"
+                        className={cn(
+                          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted cursor-pointer',
+                          isExpanded ? 'text-muted-foreground' : 'text-primary',
+                        )}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleCategoryExpand(group.category);
+                        }}
+                      >
+                        {isExpanded ? 'Show fewer' : `See all ${group.totalCount} results`}
+                      </button>
+                    ) : null}
+                  </Command.Group>
+                );
+              })}
             </div>
           ) : null}
 
-          {hasQuery && !isLoading && unifiedResults.length === 0 ? (
-            <div className="space-y-2 px-4 py-6 text-sm text-muted-foreground">
-              <p>No exact matches yet for &quot;{cleanQuery.trim()}&quot;.</p>
-              <p>Try a person name, phone number, or words like “call”, “safety”, “reminder”, or “contact”.</p>
+          {hasQuery && !isLoading && groupedResults.length === 0 ? (
+            <div className="px-2 pt-1">
+              <p className="px-2 py-2 text-sm text-muted-foreground">
+                No results for &quot;{query.trim()}&quot;
+              </p>
+              <Command.Group
+                heading={
+                  <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Try instead
+                  </span>
+                }
+              >
+                {SUGGESTED_SEARCHES.map((suggestion) => (
+                  <Command.Item
+                    key={`empty-suggest-${suggestion.query}`}
+                    value={`empty-${suggestion.label}`}
+                    onSelect={() => onQueryChange(suggestion.query)}
+                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      <Search className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm text-foreground">{suggestion.label}</span>
+                  </Command.Item>
+                ))}
+              </Command.Group>
             </div>
           ) : null}
         </Command.List>
@@ -596,9 +780,6 @@ function SearchResultItem({
             className="truncate text-xs text-muted-foreground"
           />
         ) : null}
-        <span className="truncate text-[11px] text-muted-foreground">
-          {CATEGORY_HINT_LABELS[item.category] ?? 'Result'}
-        </span>
       </div>
     </Command.Item>
   );
@@ -671,17 +852,6 @@ function trackSearchEvent(payload: {
     keepalive: true,
   }).catch(() => undefined);
 }
-
-const CATEGORY_HINT_LABELS: Record<SearchItem['category'], string> = {
-  navigation: 'Page',
-  documentation: 'Doc',
-  lines: 'Line',
-  reminders: 'Reminder',
-  schedules: 'Schedule',
-  contacts: 'Contact',
-  calls: 'Call',
-  safety_events: 'Alert',
-};
 
 function countTotalResultItems(results: SearchResponse['results']): number {
   return SEARCH_CATEGORIES.reduce((total, category) => total + (results[category]?.length ?? 0), 0);
