@@ -36,7 +36,8 @@ const ProfileDropdown: React.FCC<{
   displayName?: boolean;
   className?: string;
   accountName?: string;
-}> = ({ userSession, signOutRequested, displayName, className, accountName }) => {
+  planLabel?: string;
+}> = ({ userSession, signOutRequested, displayName, className, accountName, planLabel }) => {
   const { data: user } = useUser();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -79,14 +80,11 @@ const ProfileDropdown: React.FCC<{
           aria-label="Open your profile menu"
           data-cy={'profile-dropdown-trigger'}
           className={classNames(
-            'flex cursor-pointer focus:outline-none items-center',
+            'flex cursor-pointer focus:outline-none items-center transition-colors hover:bg-primary/10',
             className,
             {
-              ['items-center space-x-2.5 rounded-lg border border-primary' +
-              ' p-2 transition-colors' +
-              ' shadow-[0_0_0_1px_oklch(0.696_0.119_180.426)]' +
-              ' dark:shadow-[0_0_0_1px_oklch(0.75_0.12_180.426)]' +
-              ' hover:bg-primary/10']: displayName,
+              ['items-center space-x-2.5 rounded-lg p-2']: displayName,
+              ['rounded-md p-1']: !displayName,
             },
           )}
         >
@@ -95,7 +93,9 @@ const ProfileDropdown: React.FCC<{
           <If condition={displayName}>
             <div className={'flex flex-col text-center w-full truncate'}>
               <span className={'text-sm truncate'}>{displayLabel}</span>
-
+              {planLabel && (
+                <span className={'text-xs text-muted-foreground truncate'}>{planLabel}</span>
+              )}
             </div>
           </If>
         </DropdownMenuTrigger>

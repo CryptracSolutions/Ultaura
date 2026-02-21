@@ -79,7 +79,7 @@ export function SidebarGroup({
     const className = classNames(
       'group flex items-center justify-between px-3 space-x-2.5',
       {
-        'py-1.5': !sidebarCollapsed,
+        'py-2': !sidebarCollapsed,
       },
     );
 
@@ -156,10 +156,10 @@ export function SidebarItem({
 
   return (
     <Link key={path} href={path} className={className}>
-      <If condition={collapsed} fallback={<Icon className={'h-4'} />}>
+      <If condition={collapsed} fallback={<Icon className={'h-[18px]'} />}>
         <Tooltip>
           <TooltipTrigger>
-            <Icon className={'h-4'} />
+            <Icon className={'h-[18px]'} />
           </TooltipTrigger>
 
           <TooltipContent side={'right'} sideOffset={20}>
@@ -201,7 +201,7 @@ function getSidebarItemClassBuilder() {
       variants: {
         collapsed: {
           true: `justify-center py-2 [&>span]:opacity-0 [&>span]:max-w-0 [&>span]:min-w-0 [&>span]:overflow-hidden`,
-          false: `py-1.5 px-3 pr-12 space-x-2.5 [&>span]:opacity-100 [&>span]:max-w-32`,
+          false: `py-2 px-3 pr-12 space-x-2.5 [&>span]:opacity-100 [&>span]:max-w-32`,
         },
         active: {
           true: `shadow-[inset_1px_0_0_0_var(--primary)] bg-primary/10 font-medium`,

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { PanelLeft } from 'lucide-react';
 
 import AppSidebarNavigation from './AppSidebarNavigation';
-import Sidebar, { SidebarContent } from '~/core/ui/Sidebar';
+import Sidebar from '~/core/ui/Sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
 import Trans from '~/core/ui/Trans';
@@ -15,6 +15,8 @@ import useSignOut from '~/core/hooks/use-sign-out';
 
 import useCurrentOrganization from '~/lib/organizations/hooks/use-current-organization';
 import SubscriptionStatusBadge from './organizations/SubscriptionStatusBadge';
+import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
+import { PLANS } from '~/lib/ultaura/constants';
 
 import { cn } from '~/core/generic/shadcn-utils';
 import configuration from '~/configuration';
@@ -72,10 +74,10 @@ const AppSidebar: React.FC = () => {
         <AppSidebarNavigation />
       </div>
 
-      <div className={'absolute left-0 bottom-4 w-full'}>
-        <SidebarContent>
+      <div className={'absolute left-0 bottom-2 w-full'}>
+        <div className="w-full px-2">
           <ProfileDropdownContainer collapsed={ctx.collapsed} />
-        </SidebarContent>
+        </div>
       </div>
     </Sidebar>
   );
@@ -118,6 +120,14 @@ function ProfileDropdownContainer(props: { collapsed: boolean }) {
   const userSession = useUserSession();
   const signOut = useSignOut();
   const organization = useCurrentOrganization();
+  const account = useUltauraAccount();
+
+  const effectivePlanId = account.data?.status === 'trial'
+    ? (account.data?.trial_plan_id ?? account.data?.plan_id)
+    : account.data?.plan_id;
+  const planLabel = effectivePlanId
+    ? PLANS[effectivePlanId as keyof typeof PLANS]?.displayName
+    : undefined;
 
   return (
     <div className={props.collapsed ? '' : 'w-full'}>
@@ -129,6 +139,7 @@ function ProfileDropdownContainer(props: { collapsed: boolean }) {
         userSession={userSession}
         signOutRequested={signOut}
         accountName={organization?.name}
+        planLabel={planLabel}
       />
     </div>
   );
