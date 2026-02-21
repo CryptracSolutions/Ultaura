@@ -75,6 +75,7 @@ const AppSidebar: React.FC = () => {
       </div>
 
       <div className={'absolute left-0 bottom-2 w-full'}>
+        <hr className="border-border mb-2" />
         <div className="w-full px-2">
           <ProfileDropdownContainer collapsed={ctx.collapsed} />
         </div>
@@ -93,7 +94,7 @@ function CollapsibleButton({
   collapsed: boolean;
   onClick: (collapsed: boolean) => void;
 }>) {
-  const iconClassName = 'text-white h-[1.1rem] w-[1.1rem] shrink-0';
+  const iconClassName = 'text-foreground dark:text-white h-[1.1rem] w-[1.1rem] shrink-0';
 
   return (
     <Tooltip>

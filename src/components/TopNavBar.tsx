@@ -28,7 +28,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" onClick={onHelpToggle} aria-label="Help" className="rounded-full hover:bg-primary/10">
-              <LifebuoyIcon className="h-5 w-5" />
+              <QuestionMarkCircleIcon className="h-5 w-5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>Help</TooltipContent>
@@ -38,7 +38,7 @@ const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
           <TooltipTrigger asChild>
             <Link href="/docs">
               <Button variant="ghost" size="icon" aria-label="Documentation" className="rounded-full hover:bg-primary/10">
-                <QuestionMarkCircleIcon className="h-5 w-5" />
+                <LifebuoyIcon className="h-5 w-5" />
               </Button>
             </Link>
           </TooltipTrigger>
