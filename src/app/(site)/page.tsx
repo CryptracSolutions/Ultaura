@@ -7,7 +7,7 @@ import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
-import { UltauraPricingTable } from '~/components/ultaura/PricingTable';
+
 import { withI18n } from '~/i18n/with-i18n';
 import { Testimonials } from '~/app/(site)/components/Testimonials';
 import { HowItWorks } from '~/app/(site)/components/HowItWorks';
@@ -74,7 +74,7 @@ function Home() {
               </div>
 
               <span className={'mt-4 text-xs text-center text-primary'}>
-                14-day free trial • cancel anytime
+                14-day free trial • Start at $19/mo • Cancel anytime
               </span>
 
               <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
@@ -115,41 +115,6 @@ function Home() {
       <AudienceValueTabs />
 
       <Testimonials />
-
-      {/* Pricing Section */}
-      <section className="bg-surface-accent py-8">
-        <Container>
-          <div className="flex flex-col items-center justify-center space-y-8">
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <Pill>Simple, transparent pricing</Pill>
-
-              <div className="flex flex-col space-y-2.5">
-                <Heading type={2}>Choose a <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">plan</span> that fits your needs</Heading>
-
-                <SubHeading className="text-sm sm:text-base">
-                  <span className="flex flex-col items-center gap-1 text-muted-foreground">
-                    <span className="inline-flex items-center gap-2">
-                      <CheckCircleIcon className="h-4 w-4 text-primary" />
-                      All plans include a 14-day free trial
-                    </span>
-                    <span className="text-muted-foreground/70">Cancel anytime</span>
-                  </span>
-                </SubHeading>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Home care aides average $30/hour. Ultaura starts at $19/month.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  The real cost isn&apos;t just financial — it&apos;s the missed conversations, the unnoticed changes, and the growing distance between visits.
-                </p>
-              </div>
-            </div>
-
-            <div className="w-full">
-              <UltauraPricingTable />
-            </div>
-          </div>
-        </Container>
-      </section>
 
       {/* Need Help Section */}
       <section className="bg-surface-subtle py-16">
