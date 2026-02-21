@@ -137,10 +137,10 @@ function VisionPage() {
         subtitle="A voice companion born from watching too many seniors slip into silence — and knowing technology could do better."
       />
 
-      {/* Founder Origin */}
+      {/* Founder Origin + Stats */}
       <section className="py-16 md:py-24">
         <Container>
-          <div className="relative grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+          <div className="relative grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
             <div>
               <p className="text-sm font-medium text-primary mb-2">
                 Joseph Silvagnoli, Founder
@@ -184,13 +184,9 @@ function VisionPage() {
               </BlendedDemoFrame>
             </div>
           </div>
-        </Container>
-      </section>
 
-      {/* Stats */}
-      <section className="py-16 md:py-24">
-        <Container>
-          <div className="rounded-3xl border border-border/60 bg-sidebar px-6 py-10 shadow-xl lg:px-12 lg:py-12">
+          {/* Stats */}
+          <div className="mt-16 md:mt-24 rounded-3xl border border-border/60 bg-sidebar px-6 py-10 shadow-xl lg:px-12 lg:py-12">
             <div className="flex flex-col items-center text-center space-y-4 mb-10">
               <span className="inline-flex rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
                 The loneliness crisis
@@ -247,7 +243,13 @@ function VisionPage() {
             ))}
           </div>
 
-          <div className="mt-16 grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14">
+        </Container>
+      </section>
+
+      {/* Designed by Professionals */}
+      <section className="py-16 md:py-24">
+        <Container>
+          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14">
             <div className="mx-auto w-full max-w-sm md:mx-0 md:max-w-none">
               <BlendedDemoFrame>
                 <Image
@@ -314,9 +316,9 @@ function VisionPage() {
       </section>
 
       {/* Principles */}
-      <section className="py-16 md:py-24">
+      <section className="bg-surface-subtle py-16 md:py-24">
         <Container>
-          <div className="ml-auto max-w-2xl text-right space-y-4">
+          <div className="max-w-2xl space-y-4">
             <Heading type={2}>
               What <GradientText>we believe</GradientText>
             </Heading>

@@ -11,7 +11,7 @@ interface PageHeroProps {
 
 export function PageHero({ badge, title, subtitle, children }: PageHeroProps) {
   return (
-    <section className="bg-primary/10 py-16 lg:py-24">
+    <section className="bg-primary/10 py-16 md:py-24">
       <Container>
         <div className="flex flex-col items-center text-center space-y-4 sm:space-y-5">
           {/* Badge with decorative lines */}
