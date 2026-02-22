@@ -179,4 +179,100 @@ describe('timeline-redaction', () => {
       triggered_by: 'system',
     });
   });
+
+  it('redacts trusted_contact phone for payer view', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'trusted_contact',
+          payload: { name: 'Jane', phone_e164: '+14155551234', enabled: true },
+        }),
+      ],
+      'payer_simulated',
+    );
+
+    expect(redacted.payload).toEqual({
+      name: 'Jane',
+      phone_e164: '[hidden]',
+      enabled: true,
+    });
+  });
+
+  it('redacts consent_audit sensitive fields for payer view', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'consent_audit',
+          payload: {
+            actor_type: 'system',
+            action: 'granted',
+            consent_type: 'calls',
+            old_value: false,
+            new_value: true,
+          },
+        }),
+      ],
+      'payer_simulated',
+    );
+
+    expect(redacted.payload).toEqual({
+      action: 'granted',
+      consent_type: 'calls',
+      old_value: '[hidden]',
+      new_value: '[hidden]',
+      actor_type: '[hidden]',
+    });
+  });
+
+  it('strips nested payloads from opt_out for payer view', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'opt_out',
+          payload: {
+            channel: 'calls',
+            reason: 'personal',
+            source: 'voice',
+            metadata: { ip: '127.0.0.1', user_agent: 'test' },
+            tags: ['automated', 'sms'],
+          },
+        }),
+      ],
+      'payer_simulated',
+    );
+
+    expect(redacted.payload).toEqual({
+      channel: 'calls',
+      reason: 'personal',
+      source: 'voice',
+      metadata: '[hidden]',
+      tags: '[hidden]',
+    });
+  });
+
+  it('strips nested payloads from data_export for payer view', () => {
+    const [redacted] = applyRedaction(
+      [
+        createEntry({
+          source: 'data_export',
+          payload: {
+            requested_by: 'user-1',
+            format: 'json',
+            status: 'completed',
+            file_metadata: { size_bytes: 1024, path: '/tmp/export.json' },
+            included_tables: ['memories', 'call_sessions'],
+          },
+        }),
+      ],
+      'payer_simulated',
+    );
+
+    expect(redacted.payload).toEqual({
+      requested_by: 'user-1',
+      format: 'json',
+      status: 'completed',
+      file_metadata: '[hidden]',
+      included_tables: '[hidden]',
+    });
+  });
 });
