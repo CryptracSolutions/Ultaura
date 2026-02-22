@@ -1,5 +1,8 @@
 import 'server-only';
 
+import getLogger from '~/core/logger';
+const logger = getLogger();
+
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 
 export type TimelineSource =
@@ -40,11 +43,22 @@ export interface TimelineFilter {
   offset?: number;
 }
 
-// TODO: Performance — currently fetches up to 500 rows per source (11 sources),
-// merges/sorts in memory, then paginates. Acceptable at current data volume.
-// If any source table exceeds ~10k rows or admin timeline p95 > 1.5s, replace
-// in-memory merge with a DB-level UNION ALL query with server-side pagination
-// (e.g., a view or materialized view).
+/**
+ * PERFORMANCE NOTE — In-memory merge
+ *
+ * Current approach: fetch up to SOURCE_LIMIT (500) rows per source (11 sources = 5,500 max),
+ * merge in memory, sort by createdAt desc, paginate via offset/limit.
+ *
+ * This is acceptable at current scale. Migrate to DB-level UNION ALL when:
+ * - Any single source table exceeds ~10,000 rows for a single account/line filter
+ * - p95 response time for /admin/timeline exceeds 1.5 seconds
+ * - Total row count across all sources exceeds ~50,000 for a filtered query
+ *
+ * Tracking: Monitor via server-side timing logs or APM. The aggregateTimeline function
+ * is instrumented with duration logging below.
+ *
+ * See follow-up task description at the bottom of this file.
+ */
 const ALL_SOURCES: TimelineSource[] = [
   'call_session',
   'call_event',
@@ -63,6 +77,7 @@ export async function aggregateTimeline(filter: TimelineFilter): Promise<{
   entries: TimelineEntry[];
   total: number;
 }> {
+  const start = performance.now();
   const client = getSupabaseServerComponentClient({ admin: true });
   const sources = filter.sources?.length ? filter.sources : ALL_SOURCES;
   const limit = filter.limit;
@@ -84,6 +99,9 @@ export async function aggregateTimeline(filter: TimelineFilter): Promise<{
     typeof limit === 'number'
       ? allEntries.slice(offset, offset + limit)
       : allEntries.slice(offset);
+
+  const durationMs = Math.round(performance.now() - start);
+  logger.info({ durationMs, total: allEntries.length, sourceCount: results.length }, 'Timeline aggregation completed');
 
   return { entries: paginated, total };
 }
@@ -173,15 +191,13 @@ async function fetchCallSessions(
   if (error || !data) return [];
 
   return data.map((row: any) => {
-    const secondsPart =
-      row.seconds_connected != null ? ` (${row.seconds_connected}s)` : '';
-    const summary = `${row.direction ?? 'unknown'} call - ${row.status ?? 'unknown'}${secondsPart}`;
+    const secondsPart = row.seconds_connected != null ? ` (${row.seconds_connected}s)` : '';
 
     return {
       id: row.id,
       createdAt: row.created_at,
       source: 'call_session' as const,
-      summary,
+      summary: `${row.direction ?? 'unknown'} call - ${row.status ?? 'unknown'}${secondsPart}`,
       entityType: 'call_session',
       entityId: row.id,
       accountId: row.account_id,
@@ -233,14 +249,11 @@ async function fetchCallEvents(
 
   const { data, error } = await query;
   if (error || !data) return [];
-  return data.map(mapCallEvent);
-}
 
-function mapCallEvent(row: any): TimelineEntry {
-  return {
+  return data.map((row: any) => ({
     id: row.id,
     createdAt: row.created_at,
-    source: 'call_event',
+    source: 'call_event' as const,
     summary: `Call event: ${row.type ?? 'unknown'}`,
     entityType: 'call_event',
     entityId: row.id,
@@ -251,7 +264,7 @@ function mapCallEvent(row: any): TimelineEntry {
       type: row.type,
       event_payload: row.payload,
     },
-  };
+  }));
 }
 
 async function fetchSafetyEvents(
@@ -591,3 +604,30 @@ async function fetchTelephonyEvents(
     },
   }));
 }
+
+/**
+ * FOLLOW-UP TASK: Migrate aggregateTimeline to UNION ALL
+ *
+ * When the monitoring thresholds above are hit, replace the in-memory merge with
+ * a database-level UNION ALL query. Approach:
+ *
+ * 1. Create a Postgres function `aggregate_timeline(p_account_id uuid, p_line_id uuid, ...filters)`
+ *    that UNIONs all 11 source tables with normalized column names (id, source, created_at, payload jsonb)
+ * 2. Apply WHERE filters (account_id, line_id, date range) at the SQL level
+ * 3. ORDER BY created_at DESC, LIMIT/OFFSET at the SQL level
+ * 4. Return paginated results with a COUNT(*) OVER() window for total
+ * 5. The TypeScript function becomes a thin wrapper: call RPC, map rows to TimelineEntry[]
+ *
+ * Benefits:
+ * - Pagination is DB-native (no in-memory sort/slice)
+ * - Only fetches the rows needed for the current page
+ * - Scales to millions of rows per source
+ *
+ * Risks:
+ * - Complex SQL function (11-way UNION with different column shapes)
+ * - Must maintain parity with TypeScript source fetchers (column mappings, joins)
+ * - Migration requires parallel testing (run both paths, compare results)
+ *
+ * Estimated effort: Medium (1-2 days)
+ * Priority trigger: p95 > 1.5s OR any source > 10k rows for a single filter
+ */
