@@ -215,7 +215,7 @@ function MobileMenu() {
                   className="flex w-full items-center justify-center gap-2 h-14 px-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg hover:bg-primary/90 transition-colors"
                 >
                   <UserPlusIcon className="h-5 w-5" />
-                  Sign Up
+                  Start Free Trial
                 </Link>
                 <Link
                   href="/auth/sign-in"

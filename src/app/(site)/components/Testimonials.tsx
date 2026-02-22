@@ -209,7 +209,7 @@ export function Testimonials() {
               {TESTIMONIALS.map((testimonial) => (
                 <div
                   key={testimonial.author}
-                  className="w-[320px] md:w-[calc((100%-1.5rem)/2)] md:min-w-[calc((100%-1.5rem)/2)] flex-shrink-0 flex flex-col rounded-2xl border border-border/60 border-l-2 border-l-primary/30 bg-sidebar p-8 shadow-xl"
+                  className="w-full sm:w-[320px] md:w-[calc((100%-1.5rem)/2)] md:min-w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] lg:min-w-[calc((100%-3rem)/3)] flex-shrink-0 flex flex-col rounded-2xl border border-border/60 border-l-2 border-l-primary/30 bg-sidebar p-8 shadow-xl"
                   style={{ scrollSnapAlign: 'start' }}
                 >
                   {/* Stars */}

@@ -178,17 +178,17 @@ function Home() {
             </FadeInWhenVisible>
 
             <FadeInWhenVisible delay={0.28}>
-              <div className="flex items-center justify-center gap-6 pt-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheckIcon className="h-4 w-4 text-primary/60" />
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1">
+                  <ShieldCheckIcon className="h-4 w-4 text-primary" />
                   HIPAA Compliant
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <LockClosedIcon className="h-4 w-4 text-primary/60" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1">
+                  <LockClosedIcon className="h-4 w-4 text-primary" />
                   SOC 2 Certified
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircleIcon className="h-4 w-4 text-primary/60" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1">
+                  <CheckCircleIcon className="h-4 w-4 text-primary" />
                   AARP Recognized
                 </span>
               </div>
@@ -196,7 +196,6 @@ function Home() {
 
             <FadeInWhenVisible delay={0.34}>
               <span className="bg-background/50 rounded-full px-4 py-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <LockClosedIcon className="h-3 w-3" />
                 Free for 14 days · Cancel anytime · Works on any phone
               </span>
             </FadeInWhenVisible>

@@ -199,7 +199,7 @@ export function HowItWorks() {
             <div className="pointer-events-none absolute left-[var(--hiw-track-x)] top-4 h-[calc(100%-32px)] w-px -translate-x-1/2 bg-primary" />
             {HOW_IT_WORKS_STEPS.map((step, index) => (
               <div key={step.title} className="relative">
-                <div className="absolute left-[calc(var(--hiw-track-x)-2.5rem)] top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border-2 border-primary bg-background text-sm font-semibold text-primary shadow-sm">
+                <div className="absolute left-[calc(var(--hiw-track-x)-5rem)] top-1/2 z-10 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-primary bg-background text-sm font-semibold text-primary shadow-sm">
                   {index + 1}
                 </div>
                 <FadeInWhenVisible direction="right" delay={index * 0.05}>

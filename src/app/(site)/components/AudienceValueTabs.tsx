@@ -405,9 +405,9 @@ export function AudienceValueTabs() {
               </div>
 
               <div className="mx-auto mt-8 max-w-4xl">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
+                <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-3">
                   {/* Before card — deliberately dim */}
-                  <BlendedDemoFrame>
+                  <BlendedDemoFrame className="w-full">
                     <div className="h-full rounded-2xl border border-border/60 bg-background/80 p-6 shadow-xl">
                       <div className="space-y-3">
                         <h3 className="text-xs font-semibold text-muted-foreground">
@@ -431,13 +431,13 @@ export function AudienceValueTabs() {
                     </div>
                   </BlendedDemoFrame>
 
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center py-1 sm:py-0">
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <ArrowDownIcon className="h-3 w-3 -rotate-90" />
+                      <ArrowDownIcon className="h-3 w-3 sm:-rotate-90" />
                     </div>
                   </div>
 
-                  <BlendedDemoFrame>
+                  <BlendedDemoFrame className="w-full">
                     {/* With Ultaura card — brighter, elevated */}
                     <div className="h-full rounded-2xl border border-primary/40 bg-sidebar p-6 shadow-2xl">
                       <div className="space-y-3">

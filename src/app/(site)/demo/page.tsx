@@ -520,7 +520,13 @@ export default function DemoPage() {
       </section>
 
       {/* CTA Section */}
-      <section>
+      <section
+        className="relative overflow-hidden py-20 lg:py-28"
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 50% at 50% 50%, var(--surface-accent) 0%, transparent 70%), var(--background)',
+        }}
+      >
         <Container>
           <div className="max-w-2xl mx-auto text-center space-y-8">
             <Heading type={2}>Ready to get started?</Heading>

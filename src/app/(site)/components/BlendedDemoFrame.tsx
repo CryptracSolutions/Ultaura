@@ -1,4 +1,4 @@
-function BlendedDemoFrame(props: React.PropsWithChildren) {
+function BlendedDemoFrame(props: React.PropsWithChildren<{ className?: string }>) {
   const edgeFade =
     'radial-gradient(128% 128% at 50% 46%, #000 62%, rgba(0,0,0,0.92) 72%, transparent 100%)';
   const edgeMaskStyle: React.CSSProperties = {
@@ -7,7 +7,7 @@ function BlendedDemoFrame(props: React.PropsWithChildren) {
   };
 
   return (
-    <div className="relative isolate w-full">
+    <div className={`relative isolate w-full${props.className ? ` ${props.className}` : ''}`}>
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -inset-7 rounded-[2rem] bg-[radial-gradient(ellipse_at_center,rgba(10,186,181,0.22)_0%,rgba(10,186,181,0.08)_38%,rgba(10,186,181,0)_72%)] blur-2xl"

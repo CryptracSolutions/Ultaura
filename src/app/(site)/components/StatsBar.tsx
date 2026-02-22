@@ -83,13 +83,13 @@ export function StatsBar() {
         </div>
 
         {/* Mobile: 2x2 grid */}
-        <div className="grid grid-cols-2 gap-8 lg:hidden">
+        <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-x-8 gap-y-8 px-4 lg:hidden">
           {STATS.map((stat) => (
-            <div key={stat.label} className="flex flex-col items-center gap-1 text-center">
+            <div key={stat.label} className="flex min-w-0 flex-col items-center gap-1 text-center">
               <span className="text-4xl font-bold text-primary">
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
               </span>
-              <span className="text-sm text-muted-foreground">{stat.label}</span>
+              <span className="min-h-[2.5rem] text-sm leading-5 text-muted-foreground">{stat.label}</span>
             </div>
           ))}
         </div>
