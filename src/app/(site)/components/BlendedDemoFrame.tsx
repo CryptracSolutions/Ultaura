@@ -10,7 +10,7 @@ function BlendedDemoFrame(props: React.PropsWithChildren) {
     <div className="relative isolate w-full">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 rounded-[2rem] bg-[radial-gradient(ellipse_at_center,rgba(10,186,181,0.18)_0%,rgba(10,186,181,0.08)_38%,rgba(10,186,181,0)_72%)] blur-2xl"
+        className="pointer-events-none absolute -inset-7 rounded-[2rem] bg-[radial-gradient(ellipse_at_center,rgba(10,186,181,0.22)_0%,rgba(10,186,181,0.08)_38%,rgba(10,186,181,0)_72%)] blur-2xl"
       />
       <div
         aria-hidden="true"

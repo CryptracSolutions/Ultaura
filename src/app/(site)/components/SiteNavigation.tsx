@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import classNames from 'clsx';
 
@@ -16,6 +16,7 @@ import {
   EnvelopeIcon,
   ArrowRightOnRectangleIcon,
   UserPlusIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
 import NavigationMenuItem from '~/core/ui/Navigation/NavigationItem';
@@ -33,51 +34,98 @@ const navLinks = [
   { label: 'Documentation', path: '/docs', Icon: BookOpenIcon },
 ];
 
-const authLinks = [
-  { label: 'Sign In', path: '/auth/sign-in', Icon: ArrowRightOnRectangleIcon },
-  { label: 'Sign Up', path: '/auth/sign-up', Icon: UserPlusIcon },
+const resourceLinks = [
+  { label: 'FAQ', path: '/faq', Icon: QuestionMarkCircleIcon },
+  { label: 'Contact', path: '/contact', Icon: EnvelopeIcon },
+  { label: 'Documentation', path: '/docs', Icon: BookOpenIcon },
 ];
 
-// Legacy links object for desktop navigation
-const links = {
-  Demo: { label: 'Demo', path: '/demo' },
-  Pricing: { label: 'Pricing', path: '/pricing' },
-  Vision: { label: 'Vision', path: '/vision' },
-  Blog: { label: 'Blog', path: '/blog' },
-  FAQ: { label: 'FAQ', path: '/faq' },
-  Contact: { label: 'Contact', path: '/contact' },
-  Docs: { label: 'Documentation', path: '/docs' },
-};
+const desktopLinks = [
+  { label: 'Demo', path: '/demo' },
+  { label: 'Pricing', path: '/pricing' },
+  { label: 'Vision', path: '/vision' },
+  { label: 'Blog', path: '/blog' },
+];
 
-const SiteNavigation = () => {
-  const className = [
-    'font-semibold relative',
-    "after:content-[''] after:absolute after:bottom-0 after:left-[10px] after:right-[10px] after:h-[1px] after:bg-primary",
-    'after:[transform:scaleX(0)] after:[transform-origin:right_center]',
-    'after:[transition:transform_0.3s_cubic-bezier(0.25,1,0.5,1)]',
-    'hover:after:[transform:scaleX(1)] hover:after:[transform-origin:left_center]',
-  ].join(' ');
+const navItemClassName = [
+  'font-semibold relative',
+  "after:content-[''] after:absolute after:bottom-0 after:left-[10px] after:right-[10px] after:h-[1px] after:bg-primary",
+  'after:[transform:scaleX(0)] after:[transform-origin:right_center]',
+  'after:[transition:transform_0.3s_cubic-bezier(0.25,1,0.5,1)]',
+  'hover:after:[transform:scaleX(1)] hover:after:[transform-origin:left_center]',
+].join(' ');
 
+function SiteNavigation() {
   return (
     <>
-      <div className={'hidden items-center space-x-0.5 lg:flex'}>
+      <div className="hidden items-center space-x-0.5 lg:flex">
         <NavigationMenu scrollable>
-          <NavigationMenuItem className={className} link={links.Demo} />
-          <NavigationMenuItem className={className} link={links.Pricing} />
-          <NavigationMenuItem className={className} link={links.Vision} />
-          <NavigationMenuItem className={className} link={links.Blog} />
-          <NavigationMenuItem className={className} link={links.FAQ} />
-          <NavigationMenuItem className={className} link={links.Contact} />
-          <NavigationMenuItem className={className} link={links.Docs} />
+          {desktopLinks.map((link) => (
+            <NavigationMenuItem key={link.path} className={navItemClassName} link={link} />
+          ))}
         </NavigationMenu>
+        <ResourcesDropdown />
       </div>
 
-      <div className={'flex items-center lg:hidden'}>
+      <div className="flex items-center lg:hidden">
         <MobileMenu />
       </div>
     </>
   );
-};
+}
+
+function ResourcesDropdown() {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => setOpen(false), 120);
+  };
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        className={classNames(
+          'flex items-center gap-1 px-4 py-2 text-sm font-semibold text-foreground/80 hover:text-foreground transition-colors',
+        )}
+        aria-expanded={open}
+        aria-haspopup="true"
+      >
+        Resources
+        <ChevronDownIcon
+          className={classNames('h-3.5 w-3.5 transition-transform duration-200', {
+            'rotate-180': open,
+          })}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute top-full mt-1 rounded-xl border border-border/60 bg-sidebar/95 py-2 shadow-xl backdrop-blur z-50 min-w-[160px]">
+          {resourceLinks.map((item) => (
+            <Link
+              key={item.path}
+              href={item.path}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-muted/50 transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <item.Icon className="h-4 w-4 text-primary shrink-0" />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MobileMenu() {
   const userSession = useUserSession();

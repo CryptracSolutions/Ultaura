@@ -11,6 +11,7 @@ import {
   PlusCircleIcon,
   ShieldCheckIcon,
   SparklesIcon,
+  SpeakerWaveIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '~/core/generic/shadcn-utils';
 
@@ -97,7 +98,17 @@ const WELLNESS_ALERTS = [
 const MAX_BAR = Math.max(...WEEKLY_BARS.map((b) => b.value));
 const BAR_HEIGHT = 64;
 
-/* ───────── Component ───────── */
+function TypingIndicator({ isAra }: { isAra: boolean | undefined }) {
+  return (
+    <div className={cn('flex', isAra ? 'justify-start' : 'justify-end')}>
+      <div className={cn('flex items-center gap-1 rounded-2xl px-3 py-2', isAra ? 'bg-primary/10' : 'bg-primary')}>
+        <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full', isAra ? 'bg-primary' : 'bg-primary-foreground')} />
+        <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.2s]', isAra ? 'bg-primary' : 'bg-primary-foreground')} />
+        <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.4s]', isAra ? 'bg-primary' : 'bg-primary-foreground')} />
+      </div>
+    </div>
+  );
+}
 
 export function HeroDashboardPreview() {
   const [activeTab, setActiveTab] = useState(0);
@@ -249,10 +260,6 @@ export function HeroDashboardPreview() {
 
   return (
     <div ref={containerRef} className="relative min-w-0 w-full">
-      <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-center text-xs text-primary">
-        {isLiveCall ? 'Call Preview' : 'Caregiver View'}
-      </span>
-
       <div
         ref={shellRef}
         className="w-full overflow-hidden rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl"
@@ -768,24 +775,23 @@ export function HeroDashboardPreview() {
                   </div>
                 );
               })}
-              {visibleMessages < CHAT_MESSAGES.length && (() => {
-                const nextIsAra = CHAT_MESSAGES[visibleMessages]?.sender === 'ara';
-                return (
-                  <div className={cn('flex', nextIsAra ? 'justify-start' : 'justify-end')}>
-                    <div className={cn(
-                      'flex items-center gap-1 rounded-2xl px-3 py-2',
-                      nextIsAra ? 'bg-primary/10' : 'bg-primary',
-                    )}>
-                      <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full', nextIsAra ? 'bg-primary' : 'bg-primary-foreground')} />
-                      <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.2s]', nextIsAra ? 'bg-primary' : 'bg-primary-foreground')} />
-                      <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.4s]', nextIsAra ? 'bg-primary' : 'bg-primary-foreground')} />
-                    </div>
-                  </div>
-                );
-              })()}
+              {visibleMessages < CHAT_MESSAGES.length && (
+                <TypingIndicator isAra={CHAT_MESSAGES[visibleMessages]?.sender === 'ara'} />
+              )}
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-3 flex justify-center">
+        <button
+          type="button"
+          title="Coming soon"
+          className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm text-primary cursor-not-allowed opacity-70"
+        >
+          <SpeakerWaveIcon className="h-4 w-4" />
+          Listen to a sample
+        </button>
       </div>
     </div>
   );

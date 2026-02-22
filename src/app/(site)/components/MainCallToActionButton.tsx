@@ -5,23 +5,15 @@ import Button from '~/core/ui/Button';
 export function MainCallToActionButton() {
   return (
     <Button
-      className={
-        'bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg' +
-        ' hover:shadow-primary/30'
-      }
-      variant={'custom'}
-      size={'lg'}
+      className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-primary/30 hover:scale-[1.03] transition-transform animate-[pulse-glow_3s_ease-in-out_infinite]"
+      variant="custom"
+      size="lg"
       round
-      href={'/auth/sign-up'}
+      href="/auth/sign-up"
     >
-      <span className={'flex items-center justify-center space-x-2 w-full'}>
+      <span className="flex items-center justify-center space-x-2 w-full">
         <span>Start 14-day free trial</span>
-        <ChevronRightIcon
-          className={
-            'h-4 animate-in fade-in slide-in-from-left-8' +
-            ' delay-1000 fill-mode-both duration-1000 zoom-in'
-          }
-        />
+        <ChevronRightIcon className="h-4 animate-in fade-in slide-in-from-left-8 delay-1000 fill-mode-both duration-1000 zoom-in" />
       </span>
     </Button>
   );

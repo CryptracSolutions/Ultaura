@@ -1,3 +1,5 @@
+'use client';
+
 import { CheckCircle2 } from 'lucide-react';
 import { PlayCircleIcon } from '@heroicons/react/24/outline';
 
@@ -5,6 +7,7 @@ import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
+import { StaggerChildren } from '~/app/(site)/components/MotionWrappers';
 
 const REASSURANCES = [
   { text: 'They can opt out anytime', detail: 'If they ever want to stop, they just say so. No complicated process, no guilt.' },
@@ -17,20 +20,23 @@ const REASSURANCES = [
 
 export function ReassuranceChecklist() {
   return (
-    <section className="bg-primary/5 py-12">
+    <section className="bg-primary/5 py-16 lg:py-20">
       <Container>
         <div className="mb-4 text-center">
           <Heading type={3}>Reassurance built in</Heading>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StaggerChildren className="grid grid-cols-2 gap-3 lg:grid-cols-3">
           {REASSURANCES.map((item) => (
-            <div key={item.text} className="flex flex-col items-center text-center p-2 sm:p-3">
+            <div
+              key={item.text}
+              className="flex flex-col items-center text-center rounded-2xl border border-border/40 bg-sidebar/50 p-4 sm:p-5"
+            >
               <CheckCircle2 className="mb-1.5 h-5 w-5 text-primary sm:h-6 sm:w-6" />
               <span className="text-xs font-medium text-foreground sm:text-sm">{item.text}</span>
               <span className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">{item.detail}</span>
             </div>
           ))}
-        </div>
+        </StaggerChildren>
 
         <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <MainCallToActionButton />
