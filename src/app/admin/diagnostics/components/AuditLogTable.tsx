@@ -1,3 +1,12 @@
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '~/core/ui/Table';
+
 interface AuditLogRow {
   id: string;
   created_at: string;
@@ -45,34 +54,34 @@ function AuditLogTable({ logs }: AuditLogTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-muted/50">
-            <th className="px-4 py-2 text-left font-medium">Timestamp</th>
-            <th className="px-4 py-2 text-left font-medium">Admin</th>
-            <th className="px-4 py-2 text-left font-medium">Action</th>
-            <th className="px-4 py-2 text-left font-medium">Target</th>
-            <th className="px-4 py-2 text-left font-medium">Details</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Timestamp</TableHead>
+            <TableHead>Admin</TableHead>
+            <TableHead>Action</TableHead>
+            <TableHead>Target</TableHead>
+            <TableHead>Details</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {logs.map((log) => (
-            <tr key={log.id} className="border-b border-border last:border-0">
-              <td className="whitespace-nowrap px-4 py-2 text-muted-foreground">
+            <TableRow key={log.id}>
+              <TableCell className="whitespace-nowrap text-muted-foreground">
                 {formatTimestamp(log.created_at)}
-              </td>
-              <td className="px-4 py-2">{log.admin_email}</td>
-              <td className="px-4 py-2 font-mono text-xs">{log.action}</td>
-              <td className="px-4 py-2 font-mono text-xs">
+              </TableCell>
+              <TableCell>{log.admin_email}</TableCell>
+              <TableCell className="font-mono text-xs">{log.action}</TableCell>
+              <TableCell className="font-mono text-xs">
                 {formatTarget(log.target_type, log.target_id)}
-              </td>
-              <td className="max-w-xs truncate px-4 py-2 text-xs text-muted-foreground">
+              </TableCell>
+              <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                 {truncateDetails(log.metadata)}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

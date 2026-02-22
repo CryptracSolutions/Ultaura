@@ -54,7 +54,7 @@ async function UsersAdminPage({ searchParams }: UsersAdminPageProps) {
 
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>Users</AdminHeader>
+      <AdminHeader description="Manage platform users and accounts">Users</AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-4'}>

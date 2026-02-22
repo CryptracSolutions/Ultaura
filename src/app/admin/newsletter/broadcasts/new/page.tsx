@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function NewBroadcastPage() {
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>New Broadcast</AdminHeader>
+      <AdminHeader description="Compose a new broadcast">New Broadcast</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">

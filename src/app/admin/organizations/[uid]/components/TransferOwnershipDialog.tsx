@@ -93,10 +93,10 @@ function TransferOwnershipDialog({
             />
           </TextFieldLabel>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
               variant="outline"
-              size="small"
+              className="w-full"
               onClick={() => {
                 setOpen(false);
                 setConfirmation('');
@@ -108,7 +108,7 @@ function TransferOwnershipDialog({
 
             <Button
               variant="destructive"
-              size="small"
+              className="w-full"
               disabled={!isConfirmed || pending}
               loading={pending}
               onClick={handleSubmit}

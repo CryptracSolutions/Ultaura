@@ -1,5 +1,11 @@
-import Tile from '~/core/ui/Tile';
+import AdminStatCard from '~/app/admin/components/AdminStatCard';
 import AdminCryptoHealthCard from './AdminCryptoHealthCard';
+import {
+  UsersIcon,
+  UserGroupIcon,
+  CreditCardIcon,
+  BeakerIcon,
+} from '@heroicons/react/24/outline';
 
 interface Data {
   usersCount: number;
@@ -14,51 +20,30 @@ function AdminDashboard({
   data: Data;
 }>) {
   return (
-    <div
-      className={
-        'grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3' +
-        ' xl:grid-cols-4'
-      }
-    >
-      <Tile>
-        <Tile.Heading>Users</Tile.Heading>
+    <div className={'grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}>
+      <AdminStatCard
+        icon={UsersIcon}
+        label="Users"
+        value={data.usersCount}
+      />
 
-        <Tile.Body>
-          <div className={'flex justify-between'}>
-            <Tile.Figure>{data.usersCount}</Tile.Figure>
-          </div>
-        </Tile.Body>
-      </Tile>
+      <AdminStatCard
+        icon={UserGroupIcon}
+        label="Organizations"
+        value={data.organizationsCount}
+      />
 
-      <Tile>
-        <Tile.Heading>Organizations</Tile.Heading>
+      <AdminStatCard
+        icon={CreditCardIcon}
+        label="Paying Customers"
+        value={data.activeSubscriptions}
+      />
 
-        <Tile.Body>
-          <div className={'flex justify-between'}>
-            <Tile.Figure>{data.organizationsCount}</Tile.Figure>
-          </div>
-        </Tile.Body>
-      </Tile>
-
-      <Tile>
-        <Tile.Heading>Paying Customers</Tile.Heading>
-
-        <Tile.Body>
-          <div className={'flex justify-between'}>
-            <Tile.Figure>{data.activeSubscriptions}</Tile.Figure>
-          </div>
-        </Tile.Body>
-      </Tile>
-
-      <Tile>
-        <Tile.Heading>Trials</Tile.Heading>
-
-        <Tile.Body>
-          <div className={'flex justify-between'}>
-            <Tile.Figure>{data.trialSubscriptions}</Tile.Figure>
-          </div>
-        </Tile.Body>
-      </Tile>
+      <AdminStatCard
+        icon={BeakerIcon}
+        label="Trials"
+        value={data.trialSubscriptions}
+      />
 
       <AdminCryptoHealthCard />
     </div>

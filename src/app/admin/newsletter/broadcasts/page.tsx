@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import Alert from '~/core/ui/Alert';
 import { PageBody } from '~/core/ui/Page';
 import { adminListBroadcasts } from '~/lib/ultaura/newsletter-admin-actions';
 import BroadcastTable from '../components/BroadcastTable';
@@ -15,7 +16,7 @@ export default async function BroadcastsPage() {
 
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>Newsletter Broadcasts</AdminHeader>
+      <AdminHeader description="Manage email campaigns">Newsletter Broadcasts</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">
@@ -25,9 +26,7 @@ export default async function BroadcastsPage() {
             </Button>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <Alert type="error">{error}</Alert>}
 
           <BroadcastTable broadcasts={broadcasts} />
         </div>

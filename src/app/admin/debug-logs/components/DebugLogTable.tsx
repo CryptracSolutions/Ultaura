@@ -1,89 +1,15 @@
 'use client';
 
-import type { ColumnDef } from '@tanstack/react-table';
-
-import DataTable from '~/core/ui/DataTable';
+import AdminPagination from '~/app/admin/components/AdminPagination';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '~/core/ui/Table';
 import type { DebugLog } from '~/lib/ultaura/admin-types';
-
-type DebugLogRow = DebugLog;
-
-const columns: Array<ColumnDef<DebugLogRow>> = [
-  {
-    header: 'Created',
-    id: 'created_at',
-    size: 120,
-    cell: ({ row }) => {
-      const value = row.original.created_at;
-      if (!value) return <span className="text-muted-foreground">-</span>;
-      return <span suppressHydrationWarning>{new Date(value).toLocaleString()}</span>;
-    },
-  },
-  {
-    header: 'Event',
-    id: 'event_type',
-    size: 80,
-    cell: ({ row }) => (
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">
-        {row.original.event_type}
-      </span>
-    ),
-  },
-  {
-    header: 'Tool',
-    id: 'tool_name',
-    size: 120,
-    cell: ({ row }) => row.original.tool_name ?? '-',
-  },
-  {
-    header: 'Call Session',
-    id: 'call_session_id',
-    size: 200,
-    cell: ({ row }) => renderIdCell(row.original.call_session_id),
-  },
-  {
-    header: 'Account',
-    id: 'account_id',
-    size: 200,
-    cell: ({ row }) => renderIdCell(row.original.account_id),
-  },
-  {
-    header: 'Payload',
-    id: 'payload',
-    cell: ({ row }) => {
-      const {
-        payload,
-        payload_summary,
-        payload_encrypted,
-        payload_decrypt_failed,
-      } = row.original;
-
-      if (payload_decrypt_failed) {
-        return (
-          <div className="text-destructive text-xs">
-            [Unable to decrypt]
-            {payload_summary ? (
-              <div className="mt-1">{renderJsonCell(payload_summary)}</div>
-            ) : null}
-          </div>
-        );
-      }
-
-      return (
-        <div>
-          {payload_encrypted ? (
-            <span className="mr-2 text-xs text-muted-foreground">[Encrypted]</span>
-          ) : null}
-          {renderJsonCell(payload)}
-        </div>
-      );
-    },
-  },
-  {
-    header: 'Metadata',
-    id: 'metadata',
-    cell: ({ row }) => renderJsonCell(row.original.metadata),
-  },
-];
 
 function renderIdCell(value: string | null) {
   if (!value) return <span className="text-muted-foreground">-</span>;
@@ -116,21 +42,79 @@ export function DebugLogTable({
   perPage,
   pageCount,
 }: {
-  logs: DebugLogRow[];
+  logs: DebugLog[];
   page: number;
   perPage: number;
   pageCount: number;
 }) {
   return (
-    <DataTable
-      tableProps={{
-        'data-cy': 'ultaura-debug-logs-table',
-      }}
-      pageSize={perPage}
-      pageIndex={page - 1}
-      pageCount={pageCount}
-      columns={columns}
-      data={logs}
-    />
+    <div data-cy="ultaura-debug-logs-table">
+      <div className="rounded-xl bg-card card-border-accent overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[120px]">Created</TableHead>
+              <TableHead className="w-[80px]">Event</TableHead>
+              <TableHead className="w-[120px]">Tool</TableHead>
+              <TableHead className="w-[200px]">Call Session</TableHead>
+              <TableHead className="w-[200px]">Account</TableHead>
+              <TableHead>Payload</TableHead>
+              <TableHead>Metadata</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {logs.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  No logs found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              logs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>
+                    {log.created_at ? (
+                      <span suppressHydrationWarning>
+                        {new Date(log.created_at).toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {log.event_type}
+                    </span>
+                  </TableCell>
+                  <TableCell>{log.tool_name ?? '-'}</TableCell>
+                  <TableCell>{renderIdCell(log.call_session_id)}</TableCell>
+                  <TableCell>{renderIdCell(log.account_id)}</TableCell>
+                  <TableCell>
+                    {log.payload_decrypt_failed ? (
+                      <div className="text-destructive text-xs">
+                        [Unable to decrypt]
+                        {log.payload_summary ? (
+                          <div className="mt-1">{renderJsonCell(log.payload_summary)}</div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div>
+                        {log.payload_encrypted ? (
+                          <span className="mr-2 text-xs text-muted-foreground">[Encrypted]</span>
+                        ) : null}
+                        {renderJsonCell(log.payload)}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>{renderJsonCell(log.metadata)}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <AdminPagination page={page} pageCount={pageCount} perPage={perPage} />
+    </div>
   );
 }

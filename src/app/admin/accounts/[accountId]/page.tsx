@@ -1,14 +1,12 @@
 import Link from 'next/link';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import AdminGuard from '~/app/admin/components/AdminGuard';
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminBreadcrumbs from '~/app/admin/components/AdminBreadcrumbs';
+import AdminStatCard from '~/app/admin/components/AdminStatCard';
 import { PageBody } from '~/core/ui/Page';
-import Tile from '~/core/ui/Tile';
-import Heading from '~/core/ui/Heading';
 import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
-import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 
 import {
   Table,
@@ -110,16 +108,16 @@ async function AdminAccountDetailPage({ params }: Params) {
 
   return (
     <div className="flex flex-col flex-1">
-      <AdminHeader>Account Details</AdminHeader>
+      <AdminHeader description="Account details, usage, and subscription">Account Details</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col space-y-6">
-          <Breadcrumbs accountName={account.name} />
+          <AdminBreadcrumbs items={[{ label: account.name }]} />
 
           {/* Account Info */}
-          <Tile>
-            <div className="flex items-center justify-between">
-              <Heading type={4}>Account Info</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Account Info</h3>
 
               <div className="inline-flex">
                 <AccountStatusBadge status={account.status} />
@@ -127,185 +125,117 @@ async function AdminAccountDetailPage({ params }: Params) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextFieldLabel>
-                Account ID
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={account.id}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Account ID</span>
+                <span className="text-sm text-foreground">{account.id || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Name
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={account.name}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Name</span>
+                <span className="text-sm text-foreground">{account.name || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Billing Email
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={account.billing_email}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Billing Email</span>
+                <span className="text-sm text-foreground">{account.billing_email || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Plan ID
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={account.plan_id ?? 'None'}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Plan ID</span>
+                <span className="text-sm text-foreground">{account.plan_id ?? 'None'}</span>
+              </div>
 
-              <TextFieldLabel>
-                User Type
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={account.user_type}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">User Type</span>
+                <span className="text-sm text-foreground">{account.user_type || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Organization ID
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={String(account.organization_id)}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Organization ID</span>
+                <span className="text-sm text-foreground">{account.organization_id ?? '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Created At
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={new Date(account.created_at).toLocaleString()}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Created At</span>
+                <span className="text-sm text-foreground">{new Date(account.created_at).toLocaleString()}</span>
+              </div>
 
-              <TextFieldLabel>
-                Overage Cap (cents)
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={String(account.overage_cents_cap)}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Overage Cap (cents)</span>
+                <span className="text-sm text-foreground">{String(account.overage_cents_cap)}</span>
+              </div>
             </div>
 
             {account.trial_starts_at && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <TextFieldLabel>
-                  Trial Starts
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={new Date(
-                      account.trial_starts_at,
-                    ).toLocaleString()}
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Trial Starts</span>
+                  <span className="text-sm text-foreground">{new Date(account.trial_starts_at).toLocaleString()}</span>
+                </div>
 
-                <TextFieldLabel>
-                  Trial Ends
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={
-                      account.trial_ends_at
-                        ? new Date(account.trial_ends_at).toLocaleString()
-                        : 'N/A'
-                    }
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Trial Ends</span>
+                  <span className="text-sm text-foreground">
+                    {account.trial_ends_at
+                      ? new Date(account.trial_ends_at).toLocaleString()
+                      : 'N/A'}
+                  </span>
+                </div>
               </div>
             )}
-          </Tile>
+          </div>
 
           {/* Minutes Usage */}
-          <Tile>
-            <Heading type={4}>Minutes Usage</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Minutes Usage</h3>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="rounded-lg border border-border p-4 text-center">
-                <p className="text-2xl font-bold">
-                  {account.minutes_included}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Included Minutes
-                </p>
-              </div>
+              <AdminStatCard
+                label="Included Minutes"
+                value={account.minutes_included}
+              />
 
-              <div className="rounded-lg border border-border p-4 text-center">
-                <p className="text-2xl font-bold">{account.minutes_used}</p>
-                <p className="text-xs text-muted-foreground">Minutes Used</p>
-              </div>
+              <AdminStatCard
+                label="Minutes Used"
+                value={account.minutes_used}
+              />
 
-              <div className="rounded-lg border border-border p-4 text-center">
-                <p className="text-2xl font-bold">{overageMinutes}</p>
-                <p className="text-xs text-muted-foreground">
-                  Overage Minutes
-                </p>
-              </div>
+              <AdminStatCard
+                label="Overage Minutes"
+                value={overageMinutes}
+              />
 
-              <div className="rounded-lg border border-border p-4 text-center">
-                <p className="text-2xl font-bold">
-                  {Math.round(totalSecondsConnected / 60)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Total Connected (min)
-                </p>
-              </div>
+              <AdminStatCard
+                label="Total Connected (min)"
+                value={Math.round(totalSecondsConnected / 60)}
+              />
             </div>
 
             {account.cycle_start && account.cycle_end && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <TextFieldLabel>
-                  Cycle Start
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={new Date(
-                      account.cycle_start,
-                    ).toLocaleDateString()}
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Cycle Start</span>
+                  <span className="text-sm text-foreground">{new Date(account.cycle_start).toLocaleDateString()}</span>
+                </div>
 
-                <TextFieldLabel>
-                  Cycle End
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={new Date(
-                      account.cycle_end,
-                    ).toLocaleDateString()}
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Cycle End</span>
+                  <span className="text-sm text-foreground">{new Date(account.cycle_end).toLocaleDateString()}</span>
+                </div>
               </div>
             )}
-          </Tile>
+          </div>
 
           {/* Subscription Details */}
-          <Tile>
-            <Heading type={4}>Subscription</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Subscription</h3>
 
             {subscription ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TextFieldLabel>
-                  Subscription ID
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={subscription.id}
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Subscription ID</span>
+                  <span className="text-sm text-foreground">{subscription.id || '—'}</span>
+                </div>
 
                 <div className="flex flex-col space-y-1">
                   <span className="text-sm font-medium">Status</span>
@@ -314,68 +244,38 @@ async function AdminAccountDetailPage({ params }: Params) {
                   </div>
                 </div>
 
-                <TextFieldLabel>
-                  Plan ID
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={subscription.plan_id ?? 'None'}
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Plan ID</span>
+                  <span className="text-sm text-foreground">{subscription.plan_id ?? 'None'}</span>
+                </div>
 
-                <TextFieldLabel>
-                  Billing Interval
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={subscription.billing_interval ?? 'N/A'}
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Billing Interval</span>
+                  <span className="text-sm text-foreground">{subscription.billing_interval ?? 'N/A'}</span>
+                </div>
 
-                <TextFieldLabel>
-                  Stripe Subscription ID
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={
-                      subscription.stripe_subscription_id ?? 'None'
-                    }
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Stripe Subscription ID</span>
+                  <span className="text-sm text-foreground">{subscription.stripe_subscription_id ?? 'None'}</span>
+                </div>
 
-                <TextFieldLabel>
-                  Stripe Customer ID
-                  <TextFieldInput
-                    className="max-w-full"
-                    defaultValue={subscription.stripe_customer_id ?? 'None'}
-                    disabled
-                  />
-                </TextFieldLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-muted-foreground">Stripe Customer ID</span>
+                  <span className="text-sm text-foreground">{subscription.stripe_customer_id ?? 'None'}</span>
+                </div>
 
                 {subscription.current_period_start &&
                   subscription.current_period_end && (
                     <>
-                      <TextFieldLabel>
-                        Period Start
-                        <TextFieldInput
-                          className="max-w-full"
-                          defaultValue={new Date(
-                            subscription.current_period_start,
-                          ).toLocaleDateString()}
-                          disabled
-                        />
-                      </TextFieldLabel>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-muted-foreground">Period Start</span>
+                        <span className="text-sm text-foreground">{new Date(subscription.current_period_start).toLocaleDateString()}</span>
+                      </div>
 
-                      <TextFieldLabel>
-                        Period End
-                        <TextFieldInput
-                          className="max-w-full"
-                          defaultValue={new Date(
-                            subscription.current_period_end,
-                          ).toLocaleDateString()}
-                          disabled
-                        />
-                      </TextFieldLabel>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-muted-foreground">Period End</span>
+                        <span className="text-sm text-foreground">{new Date(subscription.current_period_end).toLocaleDateString()}</span>
+                      </div>
                     </>
                   )}
 
@@ -401,11 +301,11 @@ async function AdminAccountDetailPage({ params }: Params) {
                 No subscription found for this account.
               </p>
             )}
-          </Tile>
+          </div>
 
           {/* Lines */}
-          <Tile>
-            <Heading type={4}>Lines ({lines.length})</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Lines ({lines.length})</h3>
 
             {lines.length > 0 ? (
               <Table>
@@ -450,11 +350,11 @@ async function AdminAccountDetailPage({ params }: Params) {
                 No lines configured for this account.
               </p>
             )}
-          </Tile>
+          </div>
 
           {/* Quick Links */}
-          <Tile>
-            <Heading type={4}>Quick Links</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Quick Links</h3>
 
             <div className="flex space-x-3">
               <Button variant="outline" size="small">
@@ -463,7 +363,7 @@ async function AdminAccountDetailPage({ params }: Params) {
                 </Link>
               </Button>
             </div>
-          </Tile>
+          </div>
         </div>
       </PageBody>
     </div>
@@ -576,16 +476,4 @@ function LineStatusBadge({ status }: { status: string }) {
         </Badge>
       );
   }
-}
-
-function Breadcrumbs({ accountName }: { accountName: string }) {
-  return (
-    <div className="flex space-x-1 items-center text-xs p-2">
-      <Link href="/admin">Admin</Link>
-      <ChevronRightIcon className="w-3" />
-      <span>Accounts</span>
-      <ChevronRightIcon className="w-3" />
-      <span>{accountName}</span>
-    </div>
-  );
 }

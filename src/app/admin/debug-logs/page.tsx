@@ -44,7 +44,7 @@ export default async function DebugLogsPage({ searchParams }: DebugLogsPageProps
 
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>Ultaura Debug Logs</AdminHeader>
+      <AdminHeader description="Telephony event logs and tool traces">Debug Logs</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">

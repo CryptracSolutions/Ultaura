@@ -1,14 +1,11 @@
 import Link from 'next/link';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import AdminGuard from '~/app/admin/components/AdminGuard';
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminBreadcrumbs from '~/app/admin/components/AdminBreadcrumbs';
 import { PageBody } from '~/core/ui/Page';
-import Tile from '~/core/ui/Tile';
-import Heading from '~/core/ui/Heading';
 import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
-import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import { getMembershipsByOrganizationUid } from '~/app/admin/organizations/queries';
@@ -83,56 +80,47 @@ async function AdminOrganizationDetailPage({ params }: Params) {
 
   return (
     <div className="flex flex-col flex-1">
-      <AdminHeader>Organization Details</AdminHeader>
+      <AdminHeader description="Organization details and linked accounts">Organization Details</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col space-y-6">
-          <Breadcrumbs orgName={org.name} />
+          <AdminBreadcrumbs
+            items={[
+              { label: 'Organizations', href: '/admin/organizations' },
+              { label: org.name },
+            ]}
+          />
 
           {/* Organization Info */}
-          <Tile>
-            <Heading type={4}>Organization Info</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Organization Info</h3>
 
-            <TextFieldLabel>
-              Name
-              <TextFieldInput
-                className="max-w-sm"
-                defaultValue={org.name}
-                disabled
-              />
-            </TextFieldLabel>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Name</span>
+                <span className="text-sm text-foreground">{org.name}</span>
+              </div>
 
-            <TextFieldLabel>
-              UUID
-              <TextFieldInput
-                className="max-w-lg"
-                defaultValue={org.uuid}
-                disabled
-              />
-            </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">UUID</span>
+                <span className="text-sm text-foreground font-mono break-all">{org.uuid}</span>
+              </div>
 
-            <TextFieldLabel>
-              Internal ID
-              <TextFieldInput
-                className="max-w-sm"
-                defaultValue={String(org.id)}
-                disabled
-              />
-            </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Internal ID</span>
+                <span className="text-sm text-foreground">{org.id}</span>
+              </div>
 
-            <TextFieldLabel>
-              Created At
-              <TextFieldInput
-                className="max-w-sm"
-                defaultValue={new Date(org.created_at).toLocaleString()}
-                disabled
-              />
-            </TextFieldLabel>
-          </Tile>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Created At</span>
+                <span className="text-sm text-foreground">{new Date(org.created_at).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
 
           {/* Linked Ultaura Accounts */}
-          <Tile>
-            <Heading type={4}>Ultaura Accounts</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Ultaura Accounts</h3>
 
             {accounts.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -173,7 +161,7 @@ async function AdminOrganizationDetailPage({ params }: Params) {
                 ))}
               </div>
             )}
-          </Tile>
+          </div>
 
           {/* Members Section */}
           <OrgMembersSection
@@ -183,8 +171,8 @@ async function AdminOrganizationDetailPage({ params }: Params) {
           />
 
           {/* Quick Links */}
-          <Tile>
-            <Heading type={4}>Quick Links</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Quick Links</h3>
 
             <div className="flex space-x-3">
               <Button variant="outline" size="small">
@@ -199,7 +187,7 @@ async function AdminOrganizationDetailPage({ params }: Params) {
                 </Link>
               </Button>
             </div>
-          </Tile>
+          </div>
         </div>
       </PageBody>
     </div>
@@ -241,16 +229,4 @@ function StatusBadge({ status }: { status: string }) {
         </Badge>
       );
   }
-}
-
-function Breadcrumbs({ orgName }: { orgName: string }) {
-  return (
-    <div className="flex space-x-1 items-center text-xs p-2">
-      <Link href="/admin">Admin</Link>
-      <ChevronRightIcon className="w-3" />
-      <Link href="/admin/organizations">Organizations</Link>
-      <ChevronRightIcon className="w-3" />
-      <span>{orgName}</span>
-    </div>
-  );
 }

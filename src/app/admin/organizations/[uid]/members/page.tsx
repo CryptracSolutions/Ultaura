@@ -1,8 +1,7 @@
 import { use } from 'react';
-import Link from 'next/link';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminBreadcrumbs from '~/app/admin/components/AdminBreadcrumbs';
 import { getMembershipsByOrganizationUid } from '~/app/admin/organizations/queries';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import OrganizationsMembersTable from '~/app/admin/organizations/[uid]/members/components/OrganizationsMembersTable';
@@ -10,6 +9,7 @@ import getPageFromQueryParams from '~/app/admin/utils/get-page-from-query-param'
 
 import configuration from '~/configuration';
 import { PageBody } from '~/core/ui/Page';
+import { ORGANIZATIONS_TABLE } from '~/lib/db-tables';
 
 interface AdminMembersPageParams {
   params: {
@@ -35,15 +35,30 @@ function AdminMembersPage(params: AdminMembersPageParams) {
     getMembershipsByOrganizationUid(adminClient, { uid, page, perPage }),
   );
 
+  const orgResult = use(
+    adminClient
+      .from(ORGANIZATIONS_TABLE)
+      .select('name')
+      .eq('uuid', uid)
+      .single(),
+  );
+
+  const orgName = orgResult.data?.name ?? 'Organization';
   const pageCount = count ? Math.ceil(count / perPage) : 0;
 
   return (
     <div className={'flex flex-col flex-1'}>
-      <AdminHeader>Manage Members</AdminHeader>
+      <AdminHeader description="Organization member management">Manage Members</AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-4'}>
-          <Breadcrumbs />
+          <AdminBreadcrumbs
+            items={[
+              { label: 'Organizations', href: '/admin/organizations' },
+              { label: orgName, href: `/admin/organizations/${uid}` },
+              { label: 'Members' },
+            ]}
+          />
 
           <OrganizationsMembersTable
             page={page}
@@ -58,21 +73,3 @@ function AdminMembersPage(params: AdminMembersPageParams) {
 }
 
 export default AdminMembersPage;
-
-function Breadcrumbs() {
-  return (
-    <div className={'flex space-x-2 items-center p-2 text-xs'}>
-      <div className={'flex space-x-1.5 items-center'}>
-        <Link href={'/admin'}>Admin</Link>
-      </div>
-
-      <ChevronRightIcon className={'w-3'} />
-
-      <Link href={'/admin/organizations'}>Organizations</Link>
-
-      <ChevronRightIcon className={'w-3'} />
-
-      <span>Members</span>
-    </div>
-  );
-}

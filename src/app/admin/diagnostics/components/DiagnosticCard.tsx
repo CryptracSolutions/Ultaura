@@ -22,7 +22,7 @@ function DiagnosticCard({ name, status, details, error }: DiagnosticCardProps) {
   const config = statusConfig[status];
 
   return (
-    <div className="flex flex-col rounded-lg border border-border bg-background p-5">
+    <div className="flex flex-col rounded-xl bg-card p-5 card-border-accent">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{name}</h3>
         <Badge color={config.color} size="small">

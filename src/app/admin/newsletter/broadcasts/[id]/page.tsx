@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import Alert from '~/core/ui/Alert';
 import { PageBody } from '~/core/ui/Page';
 import { adminGetBroadcast } from '~/lib/ultaura/newsletter-admin-actions';
 import BroadcastDetailView from '../../components/BroadcastDetailView';
@@ -20,13 +21,11 @@ export default async function BroadcastDetailPage({
 
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>Broadcast Detail</AdminHeader>
+      <AdminHeader description="Broadcast delivery status">Broadcast Detail</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <Alert type="error">{error}</Alert>}
 
           {!broadcast && !error && (
             <p className="text-sm text-muted-foreground">

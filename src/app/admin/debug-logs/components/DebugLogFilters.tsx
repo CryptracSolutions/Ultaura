@@ -3,6 +3,14 @@
 import { useEffect, useState } from 'react';
 import { TextFieldInput } from '~/core/ui/TextField';
 import { DatePicker } from '~/core/ui/DatePicker';
+import Button from '~/core/ui/Button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/core/ui/Select';
 import { FilterModal, ActiveFilters, getActiveFilterCount } from './FilterModal';
 
 const EVENT_TYPE_OPTIONS = ['dtmf', 'tool_call', 'state_change', 'error', 'safety_tier'];
@@ -24,11 +32,6 @@ const TOOL_OPTIONS = [
   'log_safety_concern',
   'request_upgrade',
 ];
-
-const selectClassName =
-  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ' +
-  'ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
-  ' disabled:cursor-not-allowed disabled:opacity-50';
 
 export function DebugLogFilters({
   currentFilters,
@@ -66,17 +69,23 @@ function DebugLogFilterForm({
 }) {
   const [startDate, setStartDate] = useState(currentFilters.startDate ?? '');
   const [endDate, setEndDate] = useState(currentFilters.endDate ?? '');
+  const [selectedEventType, setSelectedEventType] = useState(currentFilters.eventType ?? '');
+  const [selectedToolName, setSelectedToolName] = useState(currentFilters.toolName ?? '');
 
   useEffect(() => {
     setStartDate(currentFilters.startDate ?? '');
     setEndDate(currentFilters.endDate ?? '');
-  }, [currentFilters.startDate, currentFilters.endDate]);
+    setSelectedEventType(currentFilters.eventType ?? '');
+    setSelectedToolName(currentFilters.toolName ?? '');
+  }, [currentFilters.startDate, currentFilters.endDate, currentFilters.eventType, currentFilters.toolName]);
 
   return (
     <>
       <form method="GET" id="filter-form" className="flex flex-col min-h-0 flex-1">
         <input type="hidden" name="startDate" value={startDate} />
         <input type="hidden" name="endDate" value={endDate} />
+        <input type="hidden" name="eventType" value={selectedEventType} />
+        <input type="hidden" name="toolName" value={selectedToolName} />
         <div className="flex-1 overflow-y-auto min-h-0 grid gap-4 lg:grid-cols-2 py-2">
           <div className="space-y-2">
             <label className="text-sm font-medium">Start date</label>
@@ -121,53 +130,47 @@ function DebugLogFilterForm({
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Event type</label>
-            <select
-              name="eventType"
-              className={selectClassName}
-              defaultValue={currentFilters.eventType ?? ''}
-            >
-              <option value="">All</option>
-              {EVENT_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            <Select value={selectedEventType} onValueChange={setSelectedEventType}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All</SelectItem>
+                {EVENT_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Tool name</label>
-            <select
-              name="toolName"
-              className={selectClassName}
-              defaultValue={currentFilters.toolName ?? ''}
-            >
-              <option value="">All</option>
-              {TOOL_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            <Select value={selectedToolName} onValueChange={setSelectedToolName}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All</SelectItem>
+                {TOOL_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </form>
 
       <div className="flex gap-3 pt-2 flex-shrink-0">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 py-2 px-4 rounded-lg border border-input bg-background text-foreground text-center font-medium hover:bg-muted transition-colors"
-        >
+        <Button variant="outline" onClick={onClose} className="flex-1">
           Discard
-        </button>
-        <button
-          type="submit"
-          form="filter-form"
-          className="flex-1 py-2 px-4 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-        >
+        </Button>
+        <Button variant="default" type="submit" form="filter-form" className="flex-1">
           Apply filters
-        </button>
+        </Button>
       </div>
     </>
   );

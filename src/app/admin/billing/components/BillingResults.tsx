@@ -3,6 +3,15 @@
 import React from 'react';
 
 import Badge from '~/core/ui/Badge';
+import Alert from '~/core/ui/Alert';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '~/core/ui/Table';
 
 import type {
   SafeStripeCustomer,
@@ -106,7 +115,7 @@ function invoiceStatusColor(status: string | null): BadgeColor {
 
 function Card(props: React.PropsWithChildren<{ title: string }>) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="rounded-xl bg-card p-5 card-border-accent">
       <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         {props.title}
       </h3>
@@ -120,14 +129,6 @@ function Row(props: React.PropsWithChildren<{ label: string }>) {
     <div className="flex items-start justify-between py-1.5 text-sm">
       <span className="text-muted-foreground">{props.label}</span>
       <span className="text-right font-medium">{props.children}</span>
-    </div>
-  );
-}
-
-function ErrorBanner({ message }: { message: string }) {
-  return (
-    <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-      {message}
     </div>
   );
 }
@@ -187,7 +188,7 @@ export default function BillingResults({
       {/* ---- Stripe Customer ---- */}
       <Card title="Stripe Customer">
         {stripeCustomerError ? (
-          <ErrorBanner message={stripeCustomerError} />
+          <Alert type="error">{stripeCustomerError}</Alert>
         ) : stripeCustomer ? (
           <>
             <Row label="Customer ID">
@@ -225,7 +226,7 @@ export default function BillingResults({
       {/* ---- Stripe Subscription ---- */}
       <Card title="Stripe Subscription">
         {stripeSubscriptionError ? (
-          <ErrorBanner message={stripeSubscriptionError} />
+          <Alert type="error">{stripeSubscriptionError}</Alert>
         ) : stripeSubscription ? (
           <>
             <Row label="Subscription ID">
@@ -333,36 +334,36 @@ export default function BillingResults({
       {/* ---- Recent Invoices ---- */}
       <Card title="Recent Invoices">
         {stripeInvoicesError ? (
-          <ErrorBanner message={stripeInvoicesError} />
+          <Alert type="error">{stripeInvoicesError}</Alert>
         ) : stripeInvoices.length > 0 ? (
-          <div className="overflow-x-auto -mx-5 px-5">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="pb-2 pr-4">Date</th>
-                  <th className="pb-2 pr-4">Amount</th>
-                  <th className="pb-2 pr-4">Status</th>
-                  <th className="pb-2">Link</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="-mx-5 px-5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Link</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {stripeInvoices.map((inv) => (
-                  <tr key={inv.id} className="border-b border-border/50">
-                    <td className="py-2 pr-4 whitespace-nowrap">
+                  <TableRow key={inv.id}>
+                    <TableCell className="whitespace-nowrap">
                       {formatTimestamp(inv.created)}
-                    </td>
-                    <td className="py-2 pr-4 whitespace-nowrap font-medium">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-medium">
                       {formatCurrency(inv.amountDue, inv.currency)}
-                    </td>
-                    <td className="py-2 pr-4">
+                    </TableCell>
+                    <TableCell>
                       <Badge
                         color={invoiceStatusColor(inv.status)}
                         size="small"
                       >
                         {inv.status ?? 'unknown'}
                       </Badge>
-                    </td>
-                    <td className="py-2">
+                    </TableCell>
+                    <TableCell>
                       {inv.hostedInvoiceUrl ? (
                         <a
                           href={inv.hostedInvoiceUrl}
@@ -382,11 +383,11 @@ export default function BillingResults({
                           Stripe
                         </a>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No invoices found.</p>

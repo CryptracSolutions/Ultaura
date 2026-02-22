@@ -1,61 +1,77 @@
 'use client';
 
-import DataTable from '~/core/ui/DataTable';
-import type { ColumnDef } from '@tanstack/react-table';
+import Badge from '~/core/ui/Badge';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '~/core/ui/Table';
 
 interface BroadcastTableProps {
   broadcasts: any[];
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  queued: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  sending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
-  sent: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
-};
-
-const columns: ColumnDef<any>[] = [
-  {
-    header: 'Subject',
-    accessorKey: 'name',
-    cell: ({ row }) => (
-      <a
-        href={`/admin/newsletter/broadcasts/${row.original.id}`}
-        className="text-primary hover:underline"
-      >
-        {row.original.name || row.original.subject || 'Untitled'}
-      </a>
-    ),
-  },
-  {
-    header: 'Status',
-    accessorKey: 'status',
-    cell: ({ row }) => {
-      const status = row.original.status || 'draft';
-      const style = STATUS_STYLES[status] || STATUS_STYLES.draft;
-      return (
-        <span
-          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${style}`}
-        >
-          {status}
-        </span>
-      );
-    },
-  },
-  {
-    header: 'Created',
-    accessorKey: 'created_at',
-    cell: ({ row }) => (
-      <span suppressHydrationWarning>
-        {row.original.created_at
-          ? new Date(row.original.created_at).toLocaleDateString()
-          : '-'}
-      </span>
-    ),
-  },
-];
+function statusBadgeColor(
+  status: string,
+): 'normal' | 'info' | 'success' | 'error' | 'warn' {
+  switch (status) {
+    case 'draft':
+      return 'normal';
+    case 'queued':
+    case 'sending':
+      return 'info';
+    case 'sent':
+      return 'success';
+    case 'failed':
+    case 'cancelled':
+      return 'error';
+    case 'scheduled':
+      return 'warn';
+    default:
+      return 'normal';
+  }
+}
 
 export default function BroadcastTable({ broadcasts }: BroadcastTableProps) {
-  return <DataTable data={broadcasts} columns={columns} />;
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Subject</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Created</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {broadcasts.map((broadcast) => {
+          const status = broadcast.status || 'draft';
+          return (
+            <TableRow key={broadcast.id}>
+              <TableCell>
+                <a
+                  href={`/admin/newsletter/broadcasts/${broadcast.id}`}
+                  className="text-primary hover:underline"
+                >
+                  {broadcast.name || broadcast.subject || 'Untitled'}
+                </a>
+              </TableCell>
+              <TableCell>
+                <Badge color={statusBadgeColor(status)} size="small">
+                  {status}
+                </Badge>
+              </TableCell>
+              <TableCell suppressHydrationWarning>
+                {broadcast.created_at
+                  ? new Date(broadcast.created_at).toLocaleDateString()
+                  : '-'}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
 }

@@ -441,7 +441,7 @@ async function BillingPage({ searchParams }: BillingPageProps) {
 
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>Billing Lookup</AdminHeader>
+      <AdminHeader description="Look up subscriptions and billing data">Billing Lookup</AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-6 pb-12'}>
@@ -453,7 +453,7 @@ async function BillingPage({ searchParams }: BillingPageProps) {
           {/* ---- Search form ---- */}
           <div
             className={
-              'rounded-lg border border-border bg-background p-5 space-y-4'
+              'rounded-xl bg-card p-5 card-border-accent space-y-4'
             }
           >
             <Heading type={5}>Search</Heading>
@@ -527,7 +527,7 @@ async function BillingPage({ searchParams }: BillingPageProps) {
           {!search && (
             <div
               className={
-                'rounded-lg border border-border bg-background p-8 text-center text-muted-foreground'
+                'rounded-xl bg-card p-8 card-border-accent text-center text-muted-foreground'
               }
             >
               <MagnifyingGlassIcon

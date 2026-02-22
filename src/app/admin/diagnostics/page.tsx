@@ -327,7 +327,7 @@ async function DiagnosticsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <AdminHeader>Diagnostics</AdminHeader>
+      <AdminHeader description="System health and audit trail">Diagnostics</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">

@@ -1,16 +1,31 @@
 'use client';
 
 import { useState } from 'react';
+import Alert from '~/core/ui/Alert';
+import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
 import { adminCancelBroadcast } from '~/lib/ultaura/newsletter-admin-actions';
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  queued: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  sending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
-  sent: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
-};
+function statusBadgeColor(
+  status: string,
+): 'normal' | 'info' | 'success' | 'error' | 'warn' {
+  switch (status) {
+    case 'draft':
+      return 'normal';
+    case 'queued':
+    case 'sending':
+      return 'info';
+    case 'sent':
+      return 'success';
+    case 'failed':
+    case 'cancelled':
+      return 'error';
+    case 'scheduled':
+      return 'warn';
+    default:
+      return 'normal';
+  }
+}
 
 interface BroadcastDetailViewProps {
   broadcast: any;
@@ -50,8 +65,6 @@ export default function BroadcastDetailView({
     }
   }
 
-  const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.draft;
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -60,11 +73,9 @@ export default function BroadcastDetailView({
         </h2>
 
         <div className="flex items-center gap-3">
-          <span
-            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusStyle}`}
-          >
+          <Badge color={statusBadgeColor(status)} size="small">
             {status}
-          </span>
+          </Badge>
         </div>
 
         <p className="text-sm text-muted-foreground" suppressHydrationWarning>
@@ -90,7 +101,7 @@ export default function BroadcastDetailView({
         </div>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <Alert type="error">{error}</Alert>}
 
       {canCancel && (
         <div>

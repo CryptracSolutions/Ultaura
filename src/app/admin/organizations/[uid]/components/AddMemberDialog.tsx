@@ -14,6 +14,14 @@ import {
   DialogTrigger,
 } from '~/core/ui/Dialog';
 
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '~/core/ui/Select';
+
 import Alert from '~/core/ui/Alert';
 import MembershipRole from '~/lib/organizations/types/membership-role';
 import { adminAddMember } from '~/app/admin/organizations/[uid]/actions.server';
@@ -93,20 +101,24 @@ function AddMemberDialog({ orgUid }: AddMemberDialogProps) {
 
           <TextFieldLabel>
             Role
-            <select
-              value={role}
-              onChange={(e) => setRole(Number(e.target.value))}
-              className="flex h-11 min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm transition-colors focus-visible:outline-none focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50"
+            <Select
+              value={String(role)}
+              onValueChange={(v) => setRole(Number(v))}
             >
-              <option value={MembershipRole.Member}>Member</option>
-              <option value={MembershipRole.Admin}>Admin</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(MembershipRole.Member)}>Member</SelectItem>
+                <SelectItem value={String(MembershipRole.Admin)}>Admin</SelectItem>
+              </SelectContent>
+            </Select>
           </TextFieldLabel>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
               variant="outline"
-              size="small"
+              className="w-full"
               onClick={() => {
                 setOpen(false);
                 setEmail('');
@@ -118,7 +130,7 @@ function AddMemberDialog({ orgUid }: AddMemberDialogProps) {
             </Button>
 
             <Button
-              size="small"
+              className="w-full"
               disabled={!email.trim() || pending}
               loading={pending}
               onClick={handleSubmit}

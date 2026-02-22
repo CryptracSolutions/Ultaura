@@ -17,7 +17,7 @@ async function AdminPage() {
 
   return (
     <div className={'flex flex-col flex-1'}>
-      <AdminHeader>Admin</AdminHeader>
+      <AdminHeader description="Platform overview and system health">Admin</AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-4'}>

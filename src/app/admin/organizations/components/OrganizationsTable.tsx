@@ -1,13 +1,20 @@
 'use client';
 
-import { ColumnDef } from '@tanstack/react-table';
 import { EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { getI18n } from 'react-i18next';
 
-import DataTable from '~/core/ui/DataTable';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '~/core/ui/Table';
 import { getOrganizations } from '~/app/admin/organizations/queries';
 import SubscriptionStatusBadge from '~/app/dashboard/(app)/components/organizations/SubscriptionStatusBadge';
+import AdminPagination from '~/app/admin/components/AdminPagination';
 
 import {
   DropdownMenu,
@@ -23,151 +30,6 @@ import configuration from '~/configuration';
 type Response = Awaited<ReturnType<typeof getOrganizations>>;
 type Organizations = Response['organizations'];
 
-const columns: Array<ColumnDef<Organizations[0]>> = [
-  {
-    header: 'ID',
-    accessorKey: 'id',
-    id: 'id',
-    size: 10,
-  },
-  {
-    header: 'UUID',
-    accessorKey: 'uuid',
-    id: 'uuid',
-    size: 200,
-  },
-  {
-    header: 'Name',
-    accessorKey: 'name',
-    id: 'name',
-  },
-  {
-    header: 'Subscription',
-    id: 'subscription',
-    cell: ({ row }) => {
-      const priceId = row.original?.subscription?.data?.priceId;
-
-      const plan = configuration.stripe.products.find((product) => {
-        return product.plans.some((plan) => plan.stripePriceId === priceId);
-      });
-
-      if (plan) {
-        const price = plan.plans.find((plan) => plan.stripePriceId === priceId);
-
-        if (!price) {
-          return 'Unknown Price';
-        }
-
-        return `${plan.name} - ${price.name}`;
-      }
-
-      return '-';
-    },
-  },
-  {
-    header: 'Subscription Status',
-    id: 'subscription-status',
-    cell: ({ row }) => {
-      const subscription = row.original?.subscription?.data;
-
-      if (!subscription) {
-        return '-';
-      }
-
-      return <SubscriptionStatusBadge subscription={subscription} />;
-    },
-  },
-  {
-    header: 'Subscription Period',
-    id: 'subscription-period',
-    cell: ({ row }) => {
-      const subscription = row.original?.subscription?.data;
-      const i18n = getI18n();
-      const language = i18n.language ?? 'en';
-
-      if (!subscription) {
-        return '-';
-      }
-
-      const canceled = subscription.cancelAtPeriodEnd;
-      const date = subscription.periodEndsAt;
-      const formattedDate = new Date(date).toLocaleDateString(language);
-
-      return canceled ? (
-        <span className={'text-orange-500'}>Stops on {formattedDate}</span>
-      ) : (
-        <span className={'text-green-500'}>Renews on {formattedDate}</span>
-      );
-    },
-  },
-  {
-    header: 'Members',
-    id: 'members',
-    cell: ({ row }) => {
-      const memberships = row.original.memberships.filter((item) => !item.code);
-      const invites = row.original.memberships.length - memberships.length;
-      const uid = row.original.uuid;
-      const length = memberships.length;
-
-      return (
-        <Link
-          data-cy={'organization-members-link'}
-          href={`organizations/${uid}/members`}
-          className={'hover:underline cursor-pointer'}
-        >
-          {length} member{length === 1 ? '' : 's'}{' '}
-          {invites ? `(${invites} invites)` : ''}
-        </Link>
-      );
-    },
-  },
-  {
-    header: '',
-    id: 'actions',
-    cell: ({ row }) => {
-      const organization = row.original;
-      const uid = organization.uuid;
-
-      return (
-        <div className={'flex justify-end'}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <span className="sr-only">Open menu</span>
-                <EllipsisHorizontalIcon className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(uid)}
-              >
-                Copy UUID
-              </DropdownMenuItem>
-
-              <DropdownMenuItem asChild>
-                <Link href={`/admin/organizations/${uid}/members`}>
-                  View Members
-                </Link>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem asChild>
-                <Link
-                  className={'text-red-500'}
-                  href={`/admin/organizations/${uid}/delete`}
-                >
-                  Delete
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
-    },
-  },
-];
-
 function OrganizationsTable({
   organizations,
   pageCount,
@@ -180,16 +42,117 @@ function OrganizationsTable({
   page: number;
 }>) {
   return (
-    <DataTable
-      tableProps={{
-        'data-cy': 'admin-organizations-table',
-      }}
-      pageSize={perPage}
-      pageIndex={page - 1}
-      pageCount={pageCount}
-      columns={columns}
-      data={organizations}
-    />
+    <div data-cy="admin-organizations-table" className="flex flex-col gap-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>ID</TableHead>
+            <TableHead>UUID</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Subscription</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Period</TableHead>
+            <TableHead>Members</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+
+        <TableBody>
+          {organizations.map((org) => {
+            const priceId = org.subscription?.data?.priceId;
+            const plan = configuration.stripe.products.find((product) =>
+              product.plans.some((p) => p.stripePriceId === priceId),
+            );
+            const price = plan?.plans.find((p) => p.stripePriceId === priceId);
+            const subscriptionLabel = plan && price ? `${plan.name} - ${price.name}` : '-';
+
+            const subscription = org.subscription?.data;
+            const i18n = getI18n();
+            const language = i18n?.language ?? 'en';
+            let periodLabel: React.ReactNode = '-';
+
+            if (subscription) {
+              const canceled = subscription.cancelAtPeriodEnd;
+              const formattedDate = new Date(subscription.periodEndsAt).toLocaleDateString(language);
+              periodLabel = canceled ? (
+                <span className="text-orange-500">Stops on {formattedDate}</span>
+              ) : (
+                <span className="text-green-500">Renews on {formattedDate}</span>
+              );
+            }
+
+            const memberships = org.memberships.filter((item) => !item.code);
+            const invites = org.memberships.length - memberships.length;
+            const memberCount = memberships.length;
+
+            return (
+              <TableRow key={org.uuid}>
+                <TableCell>{org.id}</TableCell>
+                <TableCell className="font-mono text-xs">{org.uuid}</TableCell>
+                <TableCell>{org.name}</TableCell>
+                <TableCell>{subscriptionLabel}</TableCell>
+                <TableCell>
+                  {subscription ? (
+                    <SubscriptionStatusBadge subscription={subscription} />
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell>{periodLabel}</TableCell>
+                <TableCell>
+                  <Link
+                    data-cy="organization-members-link"
+                    href={`organizations/${org.uuid}/members`}
+                    className="hover:underline cursor-pointer"
+                  >
+                    {memberCount} member{memberCount === 1 ? '' : 's'}{' '}
+                    {invites ? `(${invites} invites)` : ''}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <div className="flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <span className="sr-only">Open menu</span>
+                          <EllipsisHorizontalIcon className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => navigator.clipboard.writeText(org.uuid)}
+                        >
+                          Copy UUID
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/organizations/${org.uuid}/members`}>
+                            View Members
+                          </Link>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem asChild>
+                          <Link
+                            className="text-red-500"
+                            href={`/admin/organizations/${org.uuid}/delete`}
+                          >
+                            Delete
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+
+      <AdminPagination page={page} pageCount={pageCount} perPage={perPage} />
+    </div>
   );
 }
 

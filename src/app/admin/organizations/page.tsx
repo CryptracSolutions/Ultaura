@@ -41,7 +41,7 @@ async function OrganizationsAdminPage({
 
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>Manage Organizations</AdminHeader>
+      <AdminHeader description="View and manage organizations">Manage Organizations</AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-4'}>

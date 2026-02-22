@@ -1,12 +1,9 @@
 import Link from 'next/link';
 
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
-
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import AdminHeader from '~/app/admin/components/AdminHeader';
 import AdminGuard from '~/app/admin/components/AdminGuard';
-import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
-import Heading from '~/core/ui/Heading';
+import AdminBreadcrumbs from '~/app/admin/components/AdminBreadcrumbs';
 
 import {
   Table,
@@ -17,7 +14,6 @@ import {
   TableRow,
 } from '~/core/ui/Table';
 
-import Tile from '~/core/ui/Tile';
 import Badge from '~/core/ui/Badge';
 import Label from '~/core/ui/Label';
 import { PageBody } from '~/core/ui/Page';
@@ -70,22 +66,27 @@ async function AdminUserPage({ params }: Params) {
 
   return (
     <div className={'flex flex-col flex-1'}>
-      <AdminHeader>Manage User</AdminHeader>
+      <AdminHeader description="View and manage user details">Manage User</AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-6'}>
           <div className={'flex justify-between'}>
-            <Breadcrumbs displayName={displayName ?? email ?? ''} />
+            <AdminBreadcrumbs
+              items={[
+                { label: 'Users', href: '/admin/users' },
+                { label: displayName ?? email ?? '' },
+              ]}
+            />
 
             <div>
               <UserActionsDropdown uid={uid} isBanned={isBanned} />
             </div>
           </div>
 
-          <Tile>
-            <Heading type={4}>User Details</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground">User Details</h3>
 
-            <div className={'flex space-x-2 items-center'}>
+            <div className={'flex space-x-2 items-center mt-4'}>
               <div>
                 <Label>Status</Label>
               </div>
@@ -103,38 +104,28 @@ async function AdminUserPage({ params }: Params) {
               </div>
             </div>
 
-            <TextFieldLabel>
-              Display name
-              <TextFieldInput
-                className={'max-w-sm'}
-                defaultValue={displayName ?? ''}
-                disabled
-              />
-            </TextFieldLabel>
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Display name</span>
+                <span className="text-sm text-foreground">{displayName || '—'}</span>
+              </div>
 
-            <TextFieldLabel>
-              Email
-              <TextFieldInput
-                className={'max-w-sm'}
-                defaultValue={email ?? ''}
-                disabled
-              />
-            </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Email</span>
+                <span className="text-sm text-foreground">{email || '—'}</span>
+              </div>
 
-            <TextFieldLabel>
-              Phone number
-              <TextFieldInput
-                className={'max-w-sm'}
-                defaultValue={phone ?? ''}
-                disabled
-              />
-            </TextFieldLabel>
-          </Tile>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Phone number</span>
+                <span className="text-sm text-foreground">{phone || '—'}</span>
+              </div>
+            </div>
+          </div>
 
-          <Tile>
-            <Heading type={4}>Organizations</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground">Organizations</h3>
 
-            <Table>
+            <Table className="mt-4">
               <TableHeader>
                 <TableRow>
                   <TableHead>Organization ID</TableHead>
@@ -170,7 +161,7 @@ async function AdminUserPage({ params }: Params) {
                 })}
               </TableBody>
             </Table>
-          </Tile>
+          </div>
         </div>
       </PageBody>
     </div>
@@ -214,7 +205,7 @@ async function loadData(uid: string) {
         id,
         role,
         organization: organization_id !inner (
-          id, 
+          id,
           uuid,
           name
         )
@@ -233,20 +224,4 @@ async function loadData(uid: string) {
     user: user.data,
     organizations: organizations.data,
   };
-}
-
-function Breadcrumbs(
-  props: React.PropsWithChildren<{
-    displayName: string;
-  }>,
-) {
-  return (
-    <div className={'flex space-x-1 items-center text-xs p-2'}>
-      <Link href={'/admin'}>Admin</Link>
-      <ChevronRightIcon className={'w-3'} />
-      <Link href={'/admin/users'}>Users</Link>
-      <ChevronRightIcon className={'w-3'} />
-      <span>{props.displayName}</span>
-    </div>
-  );
 }

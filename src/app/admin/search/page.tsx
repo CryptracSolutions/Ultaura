@@ -11,11 +11,11 @@ import AdminHeader from '~/app/admin/components/AdminHeader';
 import AdminGuard from '~/app/admin/components/AdminGuard';
 
 import { PageBody } from '~/core/ui/Page';
-import { TextFieldInput } from '~/core/ui/TextField';
 import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
 import Alert from '~/core/ui/Alert';
-import Heading from '~/core/ui/Heading';
+
+import { SearchForm } from '~/app/admin/search/components/SearchForm';
 
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import configuration from '~/configuration';
@@ -54,12 +54,6 @@ const SEARCH_TYPE_LABELS: Record<SearchType, string> = {
   line_phone: 'Line Phone',
 };
 
-const SEARCH_TYPE_PLACEHOLDERS: Record<SearchType, string> = {
-  email: 'user@example.com',
-  phone: '+15551234567',
-  uid: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-  line_phone: '+15559876543',
-};
 
 interface SearchPageProps {
   searchParams: {
@@ -124,57 +118,12 @@ async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <div className={'flex flex-1 flex-col'}>
-      <AdminHeader>Search</AdminHeader>
+      <AdminHeader description="Find users, accounts, and lines">Search</AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-6'}>
           {/* Search Form */}
-          <div
-            className={
-              'rounded-lg border border-border bg-background p-5 space-y-4'
-            }
-          >
-            <Heading type={5}>Find Users, Accounts, and Lines</Heading>
-
-            <form method={'GET'} className={'flex flex-col space-y-4'}>
-              <div className={'flex flex-col sm:flex-row gap-3'}>
-                <div className={'flex-1'}>
-                  <TextFieldInput
-                    name={'q'}
-                    defaultValue={searchQuery}
-                    placeholder={SEARCH_TYPE_PLACEHOLDERS[searchType]}
-                    autoFocus
-                  />
-                </div>
-
-                <div className={'w-full sm:w-48'}>
-                  <select
-                    name={'type'}
-                    defaultValue={searchType}
-                    className={
-                      'flex h-11 min-h-[44px] w-full rounded-md border border-input ' +
-                      'bg-background px-3 py-2 text-base sm:text-sm transition-colors ' +
-                      'focus:outline-none focus:border-primary disabled:cursor-not-allowed ' +
-                      'disabled:opacity-50'
-                    }
-                  >
-                    {Object.entries(SEARCH_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <Button type={'submit'} variant={'default'}>
-                    <MagnifyingGlassIcon className={'h-4 w-4'} />
-                    <span>Search</span>
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
+          <SearchForm searchQuery={searchQuery} searchType={searchType} />
 
           {/* Error */}
           {searchError && (
@@ -188,7 +137,7 @@ async function SearchPage({ searchParams }: SearchPageProps) {
           {searched && !searchError && results.length === 0 && (
             <div
               className={
-                'rounded-lg border border-border bg-background p-8 text-center text-muted-foreground'
+                'rounded-xl bg-card p-8 card-border-accent text-center text-muted-foreground'
               }
             >
               <MagnifyingGlassIcon
@@ -231,7 +180,7 @@ function UserResultCard({ user }: { user: SearchResultUser }) {
   return (
     <div
       className={
-        'rounded-lg border border-border bg-background overflow-hidden'
+        'rounded-xl border border-border bg-background overflow-hidden'
       }
     >
       {/* User Header */}
@@ -452,9 +401,9 @@ function UserResultCard({ user }: { user: SearchResultUser }) {
 }
 
 function AccountStatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, 'success' | 'warn' | 'error' | 'normal'> = {
+  const colorMap: Record<string, 'success' | 'warn' | 'error' | 'normal' | 'info'> = {
     active: 'success',
-    trial: 'info' as 'success',
+    trial: 'info',
     suspended: 'error',
     cancelled: 'error',
   };

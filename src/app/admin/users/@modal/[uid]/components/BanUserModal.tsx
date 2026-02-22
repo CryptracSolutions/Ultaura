@@ -4,10 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { banUser } from '~/app/admin/users/@modal/[uid]/actions.server';
 
-import Modal from '~/core/ui/Modal';
+import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
+import Alert from '~/core/ui/Alert';
 import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import ErrorBoundary from '~/core/ui/ErrorBoundary';
@@ -39,33 +42,47 @@ function BanUserModal({
   };
 
   return (
-    <Modal heading={'Ban User'} isOpen={isOpen} setIsOpen={onDismiss}>
-      <ErrorBoundary fallback={<BanErrorAlert />}>
-        <form action={onConfirm}>
-          <div className={'flex flex-col space-y-4'}>
-            <div className={'flex flex-col space-y-2 text-sm'}>
-              <p>
-                You are about to ban <b>{displayText}</b>.
-              </p>
+    <Dialog open={isOpen} onOpenChange={onDismiss}>
+      <DialogContent
+        className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <DialogTitle className="text-xl font-semibold truncate">Ban User</DialogTitle>
+          <DialogPrimitive.Close asChild>
+            <Button variant="ghost" size="icon">
+              <XMarkIcon className="h-5 w-5" />
+            </Button>
+          </DialogPrimitive.Close>
+        </div>
 
-              <p>
-                You can unban them later, but they will not be able to log in or
-                use their account until you do.
-              </p>
+        <ErrorBoundary fallback={<BanErrorAlert />}>
+          <form action={onConfirm}>
+            <div className={'flex flex-col space-y-4'}>
+              <div className={'flex flex-col space-y-2 text-sm'}>
+                <p>
+                  You are about to ban <b>{displayText}</b>.
+                </p>
 
-              <TextFieldLabel>
-                Type <b>BAN</b> to confirm
-                <TextFieldInput type="text" required pattern={'BAN'} />
-              </TextFieldLabel>
+                <p>
+                  You can unban them later, but they will not be able to log in or
+                  use their account until you do.
+                </p>
 
-              <p>Are you sure you want to do this?</p>
+                <TextFieldLabel>
+                  Type <b>BAN</b> to confirm
+                  <TextFieldInput type="text" required pattern={'BAN'} />
+                </TextFieldLabel>
+
+                <p>Are you sure you want to do this?</p>
+              </div>
+
+              <BanUserActions onDismiss={onDismiss} />
             </div>
-
-            <BanUserActions onDismiss={onDismiss} />
-          </div>
-        </form>
-      </ErrorBoundary>
-    </Modal>
+          </form>
+        </ErrorBoundary>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -87,10 +104,10 @@ export default BanUserModal;
 
 function BanErrorAlert() {
   return (
-    <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-      <p className="font-medium">There was an error banning this user.</p>
+    <Alert type="error">
+      <Alert.Heading>There was an error banning this user.</Alert.Heading>
       Check the logs for more information.
-    </div>
+    </Alert>
   );
 }
 
@@ -98,7 +115,7 @@ function BanUserActions({ onDismiss }: { onDismiss: () => void }) {
   const { pending } = useFormStatus();
 
   return (
-    <div className="flex gap-3 pt-2">
+    <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
       <Button
         type="button"
         onClick={onDismiss}

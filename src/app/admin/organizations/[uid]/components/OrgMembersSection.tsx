@@ -7,8 +7,6 @@ import { EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
 
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
-import Heading from '~/core/ui/Heading';
-import Tile from '~/core/ui/Tile';
 import Alert from '~/core/ui/Alert';
 
 import {
@@ -89,9 +87,9 @@ function OrgMembersSection({
   const [error, setError] = useState('');
 
   return (
-    <Tile>
-      <div className="flex items-center justify-between">
-        <Heading type={4}>Members ({memberships.length})</Heading>
+    <div className="rounded-xl bg-card p-6 card-border-accent">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-foreground">Members ({memberships.length})</h3>
 
         <AddMemberDialog orgUid={orgUid} />
       </div>
@@ -128,7 +126,7 @@ function OrgMembersSection({
             ))}
         </TableBody>
       </Table>
-    </Tile>
+    </div>
   );
 }
 

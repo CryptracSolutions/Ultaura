@@ -115,7 +115,7 @@ async function TimelinePage({ searchParams }: TimelinePageProps) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <AdminHeader>Case Timeline</AdminHeader>
+      <AdminHeader description="Activity feed across accounts and lines">Case Timeline</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">

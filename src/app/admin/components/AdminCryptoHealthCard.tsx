@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
-import Tile from '~/core/ui/Tile';
+import AdminStatCard from '~/app/admin/components/AdminStatCard';
 
 const AUTO_REFRESH_MS = process.env.NODE_ENV === 'development' ? 120_000 : 60_000;
 
@@ -100,34 +100,27 @@ export default function AdminCryptoHealthCard() {
     };
   }, [fetchHealth]);
 
-  const view = useMemo(
-    () => statusView(statusCode, payload, loading),
-    [statusCode, payload, loading],
-  );
+  const view = statusView(statusCode, payload, loading);
 
   return (
-    <Tile>
-      <Tile.Heading>Crypto Health</Tile.Heading>
+    <AdminStatCard label="Crypto Health" value={view.label}>
+      <div className={'flex items-center justify-between gap-3'}>
+        <Badge color={view.color} size={'small'}>
+          <span>{view.label}</span>
+        </Badge>
 
-      <Tile.Body>
-        <div className={'flex items-center justify-between gap-3'}>
-          <Badge color={view.color} size={'small'}>
-            <span>{view.label}</span>
-          </Badge>
+        <Button size={'sm'} variant={'outline'} onClick={() => void fetchHealth()} loading={loading}>
+          Refresh
+        </Button>
+      </div>
 
-          <Button size={'sm'} variant={'outline'} onClick={() => void fetchHealth()} loading={loading}>
-            Refresh
-          </Button>
-        </div>
+      <p className={'text-sm text-muted-foreground'}>{view.detail}</p>
 
-        <p className={'text-sm text-muted-foreground'}>{view.detail}</p>
-
-        <div className={'flex flex-col gap-1 text-xs text-muted-foreground'}>
-          <span>Code: {payload?.code || 'N/A'}</span>
-          <span>Account: {payload?.accountId || 'N/A'}</span>
-          <span>Last checked: {formatCheckedAt(payload?.checkedAt)}</span>
-        </div>
-      </Tile.Body>
-    </Tile>
+      <div className={'flex flex-col gap-1 text-xs text-muted-foreground'}>
+        <span>Code: {payload?.code || 'N/A'}</span>
+        <span>Account: {payload?.accountId || 'N/A'}</span>
+        <span>Last checked: {formatCheckedAt(payload?.checkedAt)}</span>
+      </div>
+    </AdminStatCard>
   );
 }

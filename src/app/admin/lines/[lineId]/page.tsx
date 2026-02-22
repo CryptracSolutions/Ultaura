@@ -1,14 +1,11 @@
 import Link from 'next/link';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import AdminGuard from '~/app/admin/components/AdminGuard';
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminBreadcrumbs from '~/app/admin/components/AdminBreadcrumbs';
 import { PageBody } from '~/core/ui/Page';
-import Tile from '~/core/ui/Tile';
-import Heading from '~/core/ui/Heading';
 import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
-import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 
 import {
   Table,
@@ -84,16 +81,21 @@ async function AdminLineDetailPage({ params }: Params) {
 
   return (
     <div className="flex flex-col flex-1">
-      <AdminHeader>Line Details</AdminHeader>
+      <AdminHeader description="Line configuration and call history">Line Details</AdminHeader>
 
       <PageBody>
         <div className="flex flex-col space-y-6">
-          <Breadcrumbs displayName={line.display_name} />
+          <AdminBreadcrumbs
+            items={[
+              { label: 'Account', href: '/admin/accounts/' + line.account_id },
+              { label: line.display_name },
+            ]}
+          />
 
           {/* Line Info */}
-          <Tile>
-            <div className="flex items-center justify-between">
-              <Heading type={4}>Line Info</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Line Info</h3>
 
               <div className="inline-flex">
                 <LineStatusBadge status={line.status} />
@@ -101,111 +103,67 @@ async function AdminLineDetailPage({ params }: Params) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextFieldLabel>
-                Line ID
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.id}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Line ID</span>
+                <span className="text-sm text-foreground">{line.id || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Short ID
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.short_id}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Short ID</span>
+                <span className="text-sm text-foreground">{line.short_id || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Display Name
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.display_name}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Display Name</span>
+                <span className="text-sm text-foreground">{line.display_name || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Phone Number
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.phone_e164}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Phone Number</span>
+                <span className="text-sm text-foreground">{line.phone_e164 || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Timezone
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.timezone}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Timezone</span>
+                <span className="text-sm text-foreground">{line.timezone || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Preferred Voice
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.preferred_grok_voice}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Preferred Voice</span>
+                <span className="text-sm text-foreground">{line.preferred_grok_voice || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Created At
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={new Date(line.created_at).toLocaleString()}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Created At</span>
+                <span className="text-sm text-foreground">{new Date(line.created_at).toLocaleString()}</span>
+              </div>
 
-              <TextFieldLabel>
-                Account ID
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.account_id}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Account ID</span>
+                <span className="text-sm text-foreground">{line.account_id || '—'}</span>
+              </div>
             </div>
-          </Tile>
+          </div>
 
           {/* Call Configuration */}
-          <Tile>
-            <Heading type={4}>Call Configuration</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Call Configuration</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextFieldLabel>
-                Quiet Hours Start
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.quiet_hours_start}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Quiet Hours Start</span>
+                <span className="text-sm text-foreground">{line.quiet_hours_start || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Quiet Hours End
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.quiet_hours_end}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Quiet Hours End</span>
+                <span className="text-sm text-foreground">{line.quiet_hours_end || '—'}</span>
+              </div>
 
-              <TextFieldLabel>
-                Voicemail Behavior
-                <TextFieldInput
-                  className="max-w-full"
-                  defaultValue={line.voicemail_behavior}
-                  disabled
-                />
-              </TextFieldLabel>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">Voicemail Behavior</span>
+                <span className="text-sm text-foreground">{line.voicemail_behavior || '—'}</span>
+              </div>
 
               <div className="flex flex-col space-y-1">
                 <span className="text-sm font-medium">Inbound Allowed</span>
@@ -248,13 +206,13 @@ async function AdminLineDetailPage({ params }: Params) {
                 </div>
               </div>
             </div>
-          </Tile>
+          </div>
 
           {/* Recent Call Sessions */}
-          <Tile>
-            <Heading type={4}>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
               Recent Call Sessions ({callSessions.length})
-            </Heading>
+            </h3>
 
             {callSessions.length > 0 ? (
               <Table>
@@ -333,11 +291,11 @@ async function AdminLineDetailPage({ params }: Params) {
                 No call sessions found for this line.
               </p>
             )}
-          </Tile>
+          </div>
 
           {/* Quick Links */}
-          <Tile>
-            <Heading type={4}>Quick Links</Heading>
+          <div className="rounded-xl bg-card p-5 card-border-accent">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Quick Links</h3>
 
             <div className="flex space-x-3">
               <Button variant="outline" size="small">
@@ -352,7 +310,7 @@ async function AdminLineDetailPage({ params }: Params) {
                 </Link>
               </Button>
             </div>
-          </Tile>
+          </div>
         </div>
       </PageBody>
     </div>
@@ -446,16 +404,4 @@ function CallStatusBadge({ status }: { status: string }) {
         </Badge>
       );
   }
-}
-
-function Breadcrumbs({ displayName }: { displayName: string }) {
-  return (
-    <div className="flex space-x-1 items-center text-xs p-2">
-      <Link href="/admin">Admin</Link>
-      <ChevronRightIcon className="w-3" />
-      <span>Lines</span>
-      <ChevronRightIcon className="w-3" />
-      <span>{displayName}</span>
-    </div>
-  );
 }

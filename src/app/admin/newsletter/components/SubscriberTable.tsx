@@ -1,8 +1,15 @@
 'use client';
 
-import type { ColumnDef } from '@tanstack/react-table';
-
-import DataTable from '~/core/ui/DataTable';
+import Badge from '~/core/ui/Badge';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '~/core/ui/Table';
+import AdminPagination from '~/app/admin/components/AdminPagination';
 import type { SubscriberRow } from '~/lib/ultaura/newsletter-admin-actions';
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -13,101 +20,23 @@ const TOPIC_LABELS: Record<string, string> = {
 
 const ALL_TOPICS = ['blog_digest', 'elder_care_tips', 'product_updates'];
 
-const STATUS_COLORS: Record<string, string> = {
-  confirmed: 'bg-green-100 text-green-800',
-  pending: 'bg-yellow-100 text-yellow-800',
-  unsubscribed: 'bg-gray-100 text-gray-800',
-  bounced: 'bg-red-100 text-red-800',
-  complained: 'bg-red-100 text-red-800',
-};
-
-const columns: Array<ColumnDef<SubscriberRow>> = [
-  {
-    header: 'Email',
-    id: 'email',
-    cell: ({ row }) => row.original.email,
-  },
-  {
-    header: 'Name',
-    id: 'first_name',
-    cell: ({ row }) => {
-      const name = row.original.first_name;
-      if (!name) return <span className="text-muted-foreground">-</span>;
-      return name;
-    },
-  },
-  {
-    header: 'Status',
-    id: 'status',
-    cell: ({ row }) => {
-      const status = row.original.status;
-      const colorClass = STATUS_COLORS[status] || 'bg-gray-100 text-gray-800';
-      return (
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
-        >
-          {status}
-        </span>
-      );
-    },
-  },
-  {
-    header: 'Topics',
-    id: 'topics',
-    cell: ({ row }) => {
-      const topics = row.original.topics;
-      const subscribedKeys = new Set(
-        topics.filter((t) => t.subscribed).map((t) => t.topic_key),
-      );
-
-      return (
-        <div className="flex gap-1">
-          {ALL_TOPICS.map((key) => {
-            const isSubscribed = subscribedKeys.has(key);
-            const colorClass = isSubscribed
-              ? 'bg-green-100 text-green-800'
-              : 'bg-gray-100 text-gray-500';
-            return (
-              <span
-                key={key}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
-              >
-                {TOPIC_LABELS[key] || key}
-              </span>
-            );
-          })}
-        </div>
-      );
-    },
-  },
-  {
-    header: 'Source',
-    id: 'source',
-    cell: ({ row }) => row.original.source,
-  },
-  {
-    header: 'Confirmed',
-    id: 'confirmed_at',
-    cell: ({ row }) => {
-      const value = row.original.confirmed_at;
-      if (!value) return <span className="text-muted-foreground">-</span>;
-      return (
-        <span suppressHydrationWarning>
-          {new Date(value).toLocaleDateString()}
-        </span>
-      );
-    },
-  },
-  {
-    header: 'Created',
-    id: 'created_at',
-    cell: ({ row }) => (
-      <span suppressHydrationWarning>
-        {new Date(row.original.created_at).toLocaleDateString()}
-      </span>
-    ),
-  },
-];
+function statusBadgeColor(
+  status: string,
+): 'success' | 'warn' | 'normal' | 'error' {
+  switch (status) {
+    case 'confirmed':
+      return 'success';
+    case 'pending':
+      return 'warn';
+    case 'unsubscribed':
+      return 'normal';
+    case 'bounced':
+    case 'complained':
+      return 'error';
+    default:
+      return 'normal';
+  }
+}
 
 export function SubscriberTable({
   subscribers,
@@ -121,15 +50,78 @@ export function SubscriberTable({
   pageCount: number;
 }) {
   return (
-    <DataTable
-      tableProps={{
-        'data-cy': 'newsletter-subscribers-table',
-      }}
-      pageSize={perPage}
-      pageIndex={page - 1}
-      pageCount={pageCount}
-      columns={columns}
-      data={subscribers}
-    />
+    <div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Topics</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead>Confirmed</TableHead>
+            <TableHead>Created</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {subscribers.map((subscriber) => {
+            const subscribedKeys = new Set(
+              subscriber.topics
+                .filter((t) => t.subscribed)
+                .map((t) => t.topic_key),
+            );
+
+            return (
+              <TableRow key={subscriber.email}>
+                <TableCell>{subscriber.email}</TableCell>
+                <TableCell>
+                  {subscriber.first_name ? (
+                    subscriber.first_name
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    color={statusBadgeColor(subscriber.status)}
+                    size="small"
+                  >
+                    {subscriber.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    {ALL_TOPICS.map((key) => (
+                      <Badge
+                        key={key}
+                        color={subscribedKeys.has(key) ? 'success' : 'normal'}
+                        size="small"
+                      >
+                        {TOPIC_LABELS[key] || key}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>{subscriber.source}</TableCell>
+                <TableCell>
+                  {subscriber.confirmed_at ? (
+                    <span suppressHydrationWarning>
+                      {new Date(subscriber.confirmed_at).toLocaleDateString()}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell suppressHydrationWarning>
+                  {new Date(subscriber.created_at).toLocaleDateString()}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+
+      <AdminPagination page={page} pageCount={pageCount} perPage={perPage} />
+    </div>
   );
 }

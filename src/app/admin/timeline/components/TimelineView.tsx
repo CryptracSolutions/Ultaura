@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
+import Alert from '~/core/ui/Alert';
 import {
   Select,
   SelectContent,
@@ -220,10 +221,10 @@ export default function TimelineView({
         </div>
 
         {currentRedactionMode !== 'admin_full' && (
-          <div className="rounded-md border border-warning/50 bg-warning/5 px-3 py-2 text-sm text-warning">
+          <Alert type="warn">
             Viewing in simulated <strong>{currentRedactionMode === 'payer_simulated' ? 'payer' : 'recipient'}</strong> mode.
             Some entries and payload details are hidden or redacted.
-          </div>
+          </Alert>
         )}
       </div>
 

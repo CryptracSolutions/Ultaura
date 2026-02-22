@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import Alert from '~/core/ui/Alert';
 import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
 import {
@@ -103,6 +104,13 @@ export default function BroadcastComposer() {
     }
   }
 
+  const toolbarButtonClass = (active: boolean) =>
+    `px-2.5 py-1.5 text-xs rounded-md font-medium transition-colors ${
+      active
+        ? 'bg-primary/10 text-primary'
+        : 'hover:bg-muted text-muted-foreground'
+    }`;
+
   return (
     <div className="flex flex-col gap-5">
       <TextField>
@@ -149,20 +157,20 @@ export default function BroadcastComposer() {
 
       <div className="flex flex-col space-y-1">
         <label className="text-sm font-medium">Content</label>
-        <div className="border rounded-md p-3 min-h-[200px]">
+        <div className="border border-border rounded-xl p-3 min-h-[200px]">
           {editor && (
             <div className="flex gap-1 border-b pb-2 mb-2">
               <button
                 type="button"
                 onClick={() => editor.chain().focus().toggleBold().run()}
-                className={`px-2 py-1 text-xs rounded ${editor.isActive('bold') ? 'bg-muted font-bold' : 'hover:bg-muted'}`}
+                className={toolbarButtonClass(editor.isActive('bold'))}
               >
                 Bold
               </button>
               <button
                 type="button"
                 onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={`px-2 py-1 text-xs rounded ${editor.isActive('italic') ? 'bg-muted italic' : 'hover:bg-muted'}`}
+                className={toolbarButtonClass(editor.isActive('italic'))}
               >
                 Italic
               </button>
@@ -171,7 +179,7 @@ export default function BroadcastComposer() {
                 onClick={() =>
                   editor.chain().focus().toggleHeading({ level: 2 }).run()
                 }
-                className={`px-2 py-1 text-xs rounded ${editor.isActive('heading', { level: 2 }) ? 'bg-muted font-bold' : 'hover:bg-muted'}`}
+                className={toolbarButtonClass(editor.isActive('heading', { level: 2 }))}
               >
                 H2
               </button>
@@ -180,14 +188,14 @@ export default function BroadcastComposer() {
                 onClick={() =>
                   editor.chain().focus().toggleHeading({ level: 3 }).run()
                 }
-                className={`px-2 py-1 text-xs rounded ${editor.isActive('heading', { level: 3 }) ? 'bg-muted font-bold' : 'hover:bg-muted'}`}
+                className={toolbarButtonClass(editor.isActive('heading', { level: 3 }))}
               >
                 H3
               </button>
               <button
                 type="button"
                 onClick={toggleLink}
-                className={`px-2 py-1 text-xs rounded ${editor.isActive('link') ? 'bg-muted' : 'hover:bg-muted'}`}
+                className={toolbarButtonClass(editor.isActive('link'))}
               >
                 Link
               </button>
@@ -196,7 +204,7 @@ export default function BroadcastComposer() {
                 onClick={() =>
                   editor.chain().focus().toggleBulletList().run()
                 }
-                className={`px-2 py-1 text-xs rounded ${editor.isActive('bulletList') ? 'bg-muted' : 'hover:bg-muted'}`}
+                className={toolbarButtonClass(editor.isActive('bulletList'))}
               >
                 Bullet list
               </button>
@@ -205,7 +213,7 @@ export default function BroadcastComposer() {
                 onClick={() =>
                   editor.chain().focus().toggleOrderedList().run()
                 }
-                className={`px-2 py-1 text-xs rounded ${editor.isActive('orderedList') ? 'bg-muted' : 'hover:bg-muted'}`}
+                className={toolbarButtonClass(editor.isActive('orderedList'))}
               >
                 Ordered list
               </button>
@@ -215,8 +223,8 @@ export default function BroadcastComposer() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {success && <p className="text-sm text-green-600">{success}</p>}
+      {error && <Alert type="error">{error}</Alert>}
+      {success && <Alert type="success">{success}</Alert>}
 
       <div className="flex gap-3">
         <Button onClick={handleSendNow} loading={loading} disabled={loading}>
