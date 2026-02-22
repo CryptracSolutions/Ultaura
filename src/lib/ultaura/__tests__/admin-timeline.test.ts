@@ -3,15 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 
 // Hoisted shared state — must be declared before vi.mock so the factory can close over these refs
-const { mockResponses, filterCalls } = vi.hoisted(() => ({
+const { mockResponses, filterCalls, fromCalls } = vi.hoisted(() => ({
   mockResponses: {} as Record<string, { data: any[] | null; error: any }>,
   filterCalls: [] as Array<{ table: string; method: string; args: any[] }>,
+  fromCalls: [] as string[],
 }));
 
 // Override the setup.ts mock with a table-name-keyed chainable mock
 vi.mock('~/core/supabase/server-component-client', () => ({
   default: vi.fn(() => ({
     from: (tableName: string) => {
+      fromCalls.push(tableName);
       const chain: any = {
         select: () => chain,
         eq: (...args: any[]) => {
@@ -94,6 +96,21 @@ function makeNotificationRecipientRow(
   };
 }
 
+function makeCallEventRow(
+  id: string,
+  createdAt: string,
+  overrides: Record<string, any> = {},
+) {
+  return {
+    id,
+    call_session_id: 'session-1',
+    type: 'tool_call',
+    payload: { tool: 'store_memory' },
+    created_at: createdAt,
+    ...overrides,
+  };
+}
+
 function makeDataExportRow(
   id: string,
   createdAt: string,
@@ -119,6 +136,7 @@ describe('aggregateTimeline', () => {
       delete mockResponses[key];
     }
     filterCalls.length = 0;
+    fromCalls.length = 0;
   });
 
   it('sorts entries by createdAt DESC', async () => {
@@ -279,13 +297,20 @@ describe('aggregateTimeline', () => {
       sources: ['call_session', 'safety_event'],
     });
 
+    // Verify at the query level: only the requested tables were queried
+    expect(fromCalls).toContain('ultaura_call_sessions');
+    expect(fromCalls).toContain('ultaura_safety_events');
+    // No other ultaura_ tables should have been queried
+    const otherTables = fromCalls.filter(
+      (t) =>
+        t !== 'ultaura_call_sessions' && t !== 'ultaura_safety_events',
+    );
+    expect(otherTables).toEqual([]);
+
+    // Also verify returned entries match
     const sources = result.entries.map((e) => e.source);
     expect(sources).toContain('call_session');
     expect(sources).toContain('safety_event');
-    // No other source types should appear
-    expect(
-      sources.every((s) => s === 'call_session' || s === 'safety_event'),
-    ).toBe(true);
     expect(result.total).toBe(2);
   });
 
@@ -320,5 +345,55 @@ describe('aggregateTimeline', () => {
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].source).toBe('safety_event');
     expect(result.entries[0].id).toBe('se-1');
+  });
+
+  it('call_event two-query path: pre-queries sessions then filters events by call_session_id', async () => {
+    // fetchCallEvents first queries ultaura_call_sessions for matching session IDs,
+    // then queries ultaura_call_events with .in('call_session_id', [...ids])
+    mockResponses['ultaura_call_sessions'] = {
+      data: [{ id: 'session-a' }, { id: 'session-b' }],
+      error: null,
+    };
+    mockResponses['ultaura_call_events'] = {
+      data: [
+        makeCallEventRow('ce-1', '2026-01-01T00:00:00Z', { call_session_id: 'session-a' }),
+        makeCallEventRow('ce-2', '2026-01-02T00:00:00Z', { call_session_id: 'session-b' }),
+      ],
+      error: null,
+    };
+
+    const result = await aggregateTimeline({
+      sources: ['call_event'],
+      accountIds: ['acc-1'],
+    });
+
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries.every((e) => e.source === 'call_event')).toBe(true);
+
+    // Verify the two-query path: sessions queried first, then events filtered by session IDs
+    const sessionInFilter = filterCalls.find(
+      (c) => c.table === 'ultaura_call_events' && c.method === 'in' && c.args[0] === 'call_session_id',
+    );
+    expect(sessionInFilter).toBeDefined();
+    expect(sessionInFilter!.args[1]).toEqual(['session-a', 'session-b']);
+  });
+
+  it('call_event two-query path: returns empty when pre-query finds no matching sessions', async () => {
+    // When the session pre-query returns no results, fetchCallEvents early-returns []
+    mockResponses['ultaura_call_sessions'] = {
+      data: [],
+      error: null,
+    };
+
+    const result = await aggregateTimeline({
+      sources: ['call_event'],
+      accountIds: ['acc-nonexistent'],
+    });
+
+    expect(result.entries).toEqual([]);
+    expect(result.total).toBe(0);
+    // ultaura_call_events should NOT have been queried at all
+    const eventQueries = fromCalls.filter((t) => t === 'ultaura_call_events');
+    expect(eventQueries).toEqual([]);
   });
 });

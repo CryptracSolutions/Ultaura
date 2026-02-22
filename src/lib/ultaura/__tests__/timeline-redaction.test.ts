@@ -229,7 +229,13 @@ describe('timeline-redaction', () => {
       [
         createEntry({
           source: 'opt_out',
-          payload: { channel: 'calls', reason: 'personal', source: 'voice' },
+          payload: {
+            channel: 'calls',
+            reason: 'personal',
+            source: 'voice',
+            metadata: { ip: '127.0.0.1', user_agent: 'test' },
+            tags: ['automated', 'sms'],
+          },
         }),
       ],
       'payer_simulated',
@@ -239,6 +245,8 @@ describe('timeline-redaction', () => {
       channel: 'calls',
       reason: 'personal',
       source: 'voice',
+      metadata: '[hidden]',
+      tags: '[hidden]',
     });
   });
 
@@ -247,7 +255,13 @@ describe('timeline-redaction', () => {
       [
         createEntry({
           source: 'data_export',
-          payload: { requested_by: 'user-1', format: 'json', status: 'completed' },
+          payload: {
+            requested_by: 'user-1',
+            format: 'json',
+            status: 'completed',
+            file_metadata: { size_bytes: 1024, path: '/tmp/export.json' },
+            included_tables: ['memories', 'call_sessions'],
+          },
         }),
       ],
       'payer_simulated',
@@ -257,6 +271,8 @@ describe('timeline-redaction', () => {
       requested_by: 'user-1',
       format: 'json',
       status: 'completed',
+      file_metadata: '[hidden]',
+      included_tables: '[hidden]',
     });
   });
 });
