@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminGuard from '~/app/admin/components/AdminGuard';
 import getPageFromQueryParams from '~/app/admin/utils/get-page-from-query-param';
 import { PageBody } from '~/core/ui/Page';
 import {
@@ -25,13 +26,13 @@ interface NewsletterPageProps {
   };
 }
 
-export default async function NewsletterPage({
+async function NewsletterPage({
   searchParams,
 }: NewsletterPageProps) {
   const page = getPageFromQueryParams(searchParams.page);
   const perPage = searchParams.perPage ? Number(searchParams.perPage) : 25;
 
-  const [stats, { subscribers, total }] = await Promise.all([
+  const [stats, { subscribers, total, effectivePerPage }] = await Promise.all([
     getSubscriberStats(),
     listSubscribers({
       page,
@@ -42,7 +43,7 @@ export default async function NewsletterPage({
     }),
   ]);
 
-  const pageCount = total ? Math.ceil(total / perPage) : 0;
+  const pageCount = total ? Math.ceil(total / effectivePerPage) : 0;
 
   return (
     <div className={'flex flex-1 flex-col'}>
@@ -57,7 +58,7 @@ export default async function NewsletterPage({
           <SubscriberTable
             subscribers={subscribers}
             page={page}
-            perPage={perPage}
+            perPage={effectivePerPage}
             pageCount={pageCount}
           />
         </div>
@@ -65,3 +66,5 @@ export default async function NewsletterPage({
     </div>
   );
 }
+
+export default AdminGuard(NewsletterPage);

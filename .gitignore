@@ -58,3 +58,5 @@ packages/*/dist
 
 # remotion render output
 remotion/out
+.dmux/
+.dmux-hooks/

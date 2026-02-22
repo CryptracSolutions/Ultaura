@@ -20,6 +20,10 @@ const mocks = vi.hoisted(() => {
       data: [] as Array<{ subscriber_id: string }>,
       error: null as { message: string } | null,
     },
+    adminContext: {
+      userId: 'admin-user-1',
+      email: 'admin@example.com',
+    } as { userId: string; email: string } | null,
   };
 
   const createThenableChain = (
@@ -104,6 +108,8 @@ const mocks = vi.hoisted(() => {
       return adminClient;
     }),
     isUltauraAdmin: vi.fn(async () => state.isAdmin),
+    getCurrentAdminContext: vi.fn(async () => state.adminContext),
+    writeAdminAuditLog: vi.fn(async () => undefined),
     loggerError: vi.fn(),
   };
 });
@@ -123,6 +129,11 @@ vi.mock('~/core/logger', () => ({
     warn: vi.fn(),
     debug: vi.fn(),
   })),
+}));
+
+vi.mock('~/lib/ultaura/admin/audit-log', () => ({
+  getCurrentAdminContext: mocks.getCurrentAdminContext,
+  writeAdminAuditLog: mocks.writeAdminAuditLog,
 }));
 
 vi.mock('~/lib/resend/broadcasts', () => ({
@@ -150,6 +161,10 @@ describe('listSubscribers', () => {
     mocks.state.topicEqCalls.length = 0;
     mocks.state.subscriberQueryResult = { data: [], count: 0, error: null };
     mocks.state.topicQueryResult = { data: [], error: null };
+    mocks.state.adminContext = {
+      userId: 'admin-user-1',
+      email: 'admin@example.com',
+    };
   });
 
   it('returns original count and rows when no topic filter is provided', async () => {
@@ -190,6 +205,7 @@ describe('listSubscribers', () => {
     });
 
     expect(result.total).toBe(11);
+    expect(result.effectivePerPage).toBe(2);
     expect(result.subscribers.map((subscriber) => subscriber.id)).toEqual(['sub-1', 'sub-2']);
     expect(mocks.state.fromCalls).toEqual(['ultaura_newsletter_subscribers']);
     expect(mocks.state.subscriberSelectColumns[0]).toContain(
@@ -209,6 +225,17 @@ describe('listSubscribers', () => {
     expect(mocks.state.subscriberOrderCalls).toEqual([['created_at', { ascending: false }]]);
     expect(mocks.state.subscriberRangeCalls).toEqual([[2, 3]]);
     expect(mocks.state.getSupabaseArgs).toEqual([{ admin: true }]);
+    expect(mocks.getCurrentAdminContext).toHaveBeenCalledTimes(1);
+    expect(mocks.writeAdminAuditLog).toHaveBeenCalledWith(
+      { userId: 'admin-user-1', email: 'admin@example.com' },
+      expect.objectContaining({
+        action: 'newsletter.subscribers.list',
+        targetType: 'newsletter_subscribers',
+        metadata: expect.objectContaining({
+          resultCount: 11,
+        }),
+      }),
+    );
   });
 
   it('returns filtered total and subscribers when a topic filter is provided', async () => {
@@ -260,6 +287,7 @@ describe('listSubscribers', () => {
     });
 
     expect(result.total).toBe(2);
+    expect(result.effectivePerPage).toBe(10);
     expect(result.subscribers.map((subscriber) => subscriber.id)).toEqual(['sub-2', 'sub-1']);
     expect(mocks.state.fromCalls).toEqual(['ultaura_newsletter_subscribers']);
     expect(mocks.state.subscriberSelectColumns[0]).toContain(
@@ -271,6 +299,16 @@ describe('listSubscribers', () => {
     expect(mocks.state.subscriberInCalls).toEqual([]);
     expect(mocks.state.subscriberOrderCalls).toEqual([['created_at', { ascending: false }]]);
     expect(mocks.state.subscriberRangeCalls).toEqual([[0, 9]]);
+  });
+
+  it('defaults NaN perPage to a safe effectivePerPage for pagination', async () => {
+    const result = await listSubscribers({
+      page: 2,
+      perPage: Number.NaN,
+    });
+
+    expect(result.effectivePerPage).toBe(25);
+    expect(mocks.state.subscriberRangeCalls).toEqual([[25, 49]]);
   });
 
 });

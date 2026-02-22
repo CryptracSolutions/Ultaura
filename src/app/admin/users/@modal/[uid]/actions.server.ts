@@ -110,7 +110,7 @@ export const impersonateUser = withAdminSession(async ({ userId }) => {
 });
 
 export const deleteUserAction = withAdminSession(
-  async ({ userId }: { userId: string; csrfToken: string }) => {
+  async ({ userId }: { userId: string }) => {
     await assertUserIsNotCurrentSuperAdmin(userId);
 
     const logger = getLogger();

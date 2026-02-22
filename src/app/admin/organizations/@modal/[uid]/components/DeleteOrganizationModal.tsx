@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogTitle,
 } from '~/core/ui/Dialog';
-import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import Organization from '~/lib/organizations/types/organization';
 import { deleteOrganizationAction } from '~/app/admin/organizations/@modal/[uid]/actions.server';
@@ -24,7 +23,6 @@ function DeleteOrganizationModal({
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(true);
   const [pending, startTransition] = useTransition();
-  const csrfToken = useCsrfToken();
 
   const onDismiss = () => {
     router.back();
@@ -35,7 +33,6 @@ function DeleteOrganizationModal({
     startTransition(async () => {
       await deleteOrganizationAction({
         id: organization.id,
-        csrfToken,
       });
 
       onDismiss();

@@ -13,6 +13,55 @@ import {
 
 const getClient = () => getSupabaseServerActionClient({ admin: true });
 
+interface AdminAuthRpcError {
+  message: string;
+}
+
+function extractRpcUserId(data: unknown): string | null {
+  if (typeof data === 'string' && data.length > 0) {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return extractRpcUserId(data[0]);
+  }
+
+  if (data && typeof data === 'object') {
+    const row = data as Record<string, unknown>;
+
+    if (typeof row.user_id === 'string' && row.user_id.length > 0) {
+      return row.user_id;
+    }
+
+    if (typeof row.id === 'string' && row.id.length > 0) {
+      return row.id;
+    }
+  }
+
+  return null;
+}
+
+async function getAuthUserIdByEmail(
+  client: ReturnType<typeof getClient>,
+  email: string,
+) {
+  const rpcClient = client as unknown as {
+    rpc: (
+      fn: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: AdminAuthRpcError | null }>;
+  };
+  const { data, error } = await rpcClient.rpc('get_user_id_by_email', {
+    lookup_email: email,
+  });
+
+  if (error) {
+    throw new Error('Failed to look up user by email');
+  }
+
+  return extractRpcUserId(data);
+}
+
 export const adminTransferOwnership = withAdminSession(
   async (formData: FormData) => {
     const orgId = formData.get('orgId') as string;
@@ -130,19 +179,10 @@ export const adminAddMember = withAdminSession(async (formData: FormData) => {
     throw new Error('Organization not found');
   }
 
-  // Look up the auth user by email
-  const { data: usersData, error: listError } =
-    await client.auth.admin.listUsers({ perPage: 1000 });
+  // Look up the auth user by email via RPC (avoids auth.users scans)
+  const authUserId = await getAuthUserIdByEmail(client, email);
 
-  if (listError) {
-    throw new Error('Failed to look up users');
-  }
-
-  const authUser = usersData.users.find(
-    (u) => u.email?.toLowerCase() === email,
-  );
-
-  if (!authUser) {
+  if (!authUserId) {
     throw new Error(`No user found with email: ${email}`);
   }
 
@@ -151,7 +191,7 @@ export const adminAddMember = withAdminSession(async (formData: FormData) => {
     .from(MEMBERSHIPS_TABLE)
     .select('id')
     .eq('organization_id', org.id)
-    .eq('user_id', authUser.id)
+    .eq('user_id', authUserId)
     .is('code', null)
     .maybeSingle();
 
@@ -162,7 +202,7 @@ export const adminAddMember = withAdminSession(async (formData: FormData) => {
   // Insert membership
   const { error: insertError } = await client.from(MEMBERSHIPS_TABLE).insert({
     organization_id: org.id,
-    user_id: authUser.id,
+    user_id: authUserId,
     role: validRole,
   });
 
@@ -178,7 +218,7 @@ export const adminAddMember = withAdminSession(async (formData: FormData) => {
       targetType: 'organization',
       targetId: orgUid,
       metadata: {
-        addedUserId: authUser.id,
+        addedUserId: authUserId,
         addedEmail: email,
         role: validRole,
       },

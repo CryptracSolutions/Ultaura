@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminGuard from '~/app/admin/components/AdminGuard';
 import getPageFromQueryParams from '~/app/admin/utils/get-page-from-query-param';
 import { PageBody } from '~/core/ui/Page';
 import { getDebugLogs } from '~/lib/ultaura/admin-actions';
@@ -23,7 +24,7 @@ interface DebugLogsPageProps {
   };
 }
 
-export default async function DebugLogsPage({ searchParams }: DebugLogsPageProps) {
+async function DebugLogsPage({ searchParams }: DebugLogsPageProps) {
   const page = getPageFromQueryParams(searchParams.page);
   const perPage = 50;
   const offset = (page - 1) * perPage;
@@ -65,6 +66,8 @@ export default async function DebugLogsPage({ searchParams }: DebugLogsPageProps
     </div>
   );
 }
+
+export default AdminGuard(DebugLogsPage);
 
 function resolveRetentionDays() {
   const rawValue = process.env.DEBUG_LOG_RETENTION_DAYS;

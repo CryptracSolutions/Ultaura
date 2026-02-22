@@ -7,6 +7,12 @@ import { Database } from '~/database.types';
 
 type Client = SupabaseClient<Database>;
 
+// TODO(admin-audit R22): These shared admin org query helpers still trust
+// caller-provided search/pagination inputs and the external client instance.
+// If a caller passes a non-admin client, RLS may return incomplete/partial rows
+// (admin UI truncation risk, not a data leak). The broader validation/clamp split
+// and external-client trust refactor are deferred to a follow-up.
+
 export async function getOrganizations(
   client: Client,
   search: string,
@@ -87,7 +93,7 @@ export async function getMembershipsByOrganizationUid(
   },
 ) {
   const startOffset = (params.page - 1) * params.perPage;
-  const endOffset = startOffset + params.perPage;
+  const endOffset = startOffset + params.perPage - 1;
 
   const { data, error, count } = await client
     .from(MEMBERSHIPS_TABLE)

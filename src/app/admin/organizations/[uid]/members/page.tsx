@@ -1,6 +1,7 @@
 import { use } from 'react';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminGuard from '~/app/admin/components/AdminGuard';
 import AdminBreadcrumbs from '~/app/admin/components/AdminBreadcrumbs';
 import { getMembershipsByOrganizationUid } from '~/app/admin/organizations/queries';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
@@ -72,4 +73,4 @@ function AdminMembersPage(params: AdminMembersPageParams) {
   );
 }
 
-export default AdminMembersPage;
+export default AdminGuard(AdminMembersPage);

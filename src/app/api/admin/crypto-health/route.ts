@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
-import GlobalRole from '~/core/session/types/global-role';
+import isUserSuperAdmin from '~/app/admin/utils/is-user-super-admin';
 import getLogger from '~/core/logger';
 
 export const dynamic = 'force-dynamic';
@@ -13,26 +13,18 @@ function getInternalSecret(): string | null {
   return process.env.ULTAURA_INTERNAL_API_SECRET || process.env.ULTAURA_API_SECRET || null;
 }
 
-async function assertSuperAdmin(): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const supabase = getSupabaseRouteHandlerClient();
-  const { data, error } = await supabase.auth.getUser();
+export async function GET(request: NextRequest) {
+  const client = getSupabaseRouteHandlerClient();
+  const { data, error } = await client.auth.getUser();
 
   if (error || !data.user) {
-    return { ok: false, status: 401, error: 'Unauthorized' };
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const role = data.user.app_metadata?.role;
-  if (role !== GlobalRole.SuperAdmin) {
-    return { ok: false, status: 403, error: 'Forbidden' };
-  }
+  const isAdmin = await isUserSuperAdmin({ client });
 
-  return { ok: true };
-}
-
-export async function GET(request: NextRequest) {
-  const authResult = await assertSuperAdmin();
-  if (!authResult.ok) {
-    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const secret = getInternalSecret();

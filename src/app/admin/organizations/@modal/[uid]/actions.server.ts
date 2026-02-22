@@ -16,7 +16,7 @@ import {
 const getClient = () => getSupabaseServerActionClient({ admin: true });
 
 export const deleteOrganizationAction = withAdminSession(
-  async ({ id }: { id: number; csrfToken: string }) => {
+  async ({ id }: { id: number }) => {
     const logger = getLogger();
     const client = getClient();
     const admin = await getCurrentAdminContext();

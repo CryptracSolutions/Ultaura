@@ -1,15 +1,15 @@
 'use server';
 
-import type { SupabaseClient, User } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
 import requireSession from '~/lib/user/require-session';
+import isUserSuperAdmin from '~/app/admin/utils/is-user-super-admin';
 import type { Database } from '~/database.types';
 import type { DebugLog } from './admin-types';
 import { decodeBytea } from './bytea';
 import { decryptDebugPayload } from './debug-log-decrypt';
-import { hasSuperAdminRole } from './admin-auth';
 import { writeAdminAuditLog } from './admin/audit-log';
 
 type Filters = {
@@ -22,8 +22,6 @@ type Filters = {
   limit?: number;
   offset?: number;
 };
-
-type AdminUser = Pick<User, 'app_metadata'>;
 
 type DebugLogRow = Database['public']['Tables']['ultaura_debug_logs']['Row'];
 
@@ -74,10 +72,6 @@ function formatDecryptFailure(log: DebugLogRow) {
   };
 }
 
-function isUserAdmin(user: AdminUser) {
-  return hasSuperAdminRole(user);
-}
-
 function normalizeDateStart(value: string) {
   if (value.includes('T')) return value;
   return new Date(`${value}T00:00:00.000Z`).toISOString();
@@ -89,10 +83,9 @@ function normalizeDateEnd(value: string) {
 }
 
 export async function isUltauraAdmin(): Promise<boolean> {
-  const client = getSupabaseServerActionClient();
-  const session = await requireSession(client);
-
-  return isUserAdmin(session.user);
+  return isUserSuperAdmin({
+    client: getSupabaseServerActionClient(),
+  });
 }
 
 export async function getDebugLogs(
@@ -101,7 +94,9 @@ export async function getDebugLogs(
   const client = getSupabaseServerActionClient();
   const session = await requireSession(client);
 
-  if (!isUserAdmin(session.user)) {
+  const isAdmin = await isUserSuperAdmin({ client });
+
+  if (!isAdmin) {
     throw new Error('Unauthorized');
   }
 
@@ -135,7 +130,7 @@ export async function getDebugLogs(
   }
 
   const offset = filters.offset ?? 0;
-  const limit = filters.limit ?? 50;
+  const limit = Math.min(filters.limit ?? 50, 200);
   query = query.range(offset, offset + limit - 1);
 
   const { data, error, count } = await query;

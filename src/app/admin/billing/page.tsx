@@ -57,52 +57,55 @@ interface DbSubscriptionRow {
   cancel_at_period_end: boolean | null;
 }
 
-const AUTH_EMAIL_LOOKUP_PER_PAGE = 200;
-const AUTH_EMAIL_LOOKUP_MAX_PAGES = 500;
+interface AdminAuthRpcError {
+  message: string;
+}
+
+function extractRpcUserId(data: unknown): string | null {
+  if (typeof data === 'string' && data.length > 0) {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return extractRpcUserId(data[0]);
+  }
+
+  if (data && typeof data === 'object') {
+    const row = data as Record<string, unknown>;
+
+    if (typeof row.user_id === 'string' && row.user_id.length > 0) {
+      return row.user_id;
+    }
+
+    if (typeof row.id === 'string' && row.id.length > 0) {
+      return row.id;
+    }
+  }
+
+  return null;
+}
 
 async function findAuthUserByEmail(
   client: ReturnType<typeof getSupabaseServerComponentClient>,
   email: string,
 ): Promise<{ id: string } | null> {
   const normalizedEmail = email.toLowerCase();
-  let reachedEnd = false;
+  const rpcClient = client as unknown as {
+    rpc: (
+      fn: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: AdminAuthRpcError | null }>;
+  };
+  const { data, error } = await rpcClient.rpc('get_user_id_by_email', {
+    lookup_email: normalizedEmail,
+  });
 
-  for (let page = 1; page <= AUTH_EMAIL_LOOKUP_MAX_PAGES; page += 1) {
-    const { data, error } = await client.auth.admin.listUsers({
-      page,
-      perPage: AUTH_EMAIL_LOOKUP_PER_PAGE,
-    });
-
-    if (error) {
-      throw new Error(`Auth lookup failed: ${error.message}`);
-    }
-
-    const user = data.users.find(
-      (candidate: { id: string; email?: string }) =>
-        candidate.email?.toLowerCase() === normalizedEmail,
-    );
-
-    if (user) {
-      return { id: user.id };
-    }
-
-    const total = typeof data.total === 'number' ? data.total : undefined;
-    if (
-      data.users.length < AUTH_EMAIL_LOOKUP_PER_PAGE ||
-      (total !== undefined && page * AUTH_EMAIL_LOOKUP_PER_PAGE >= total)
-    ) {
-      reachedEnd = true;
-      break;
-    }
+  if (error) {
+    throw new Error(`Auth lookup failed: ${error.message}`);
   }
 
-  if (!reachedEnd) {
-    throw new Error(
-      `Auth lookup exceeded ${AUTH_EMAIL_LOOKUP_MAX_PAGES} pages.`,
-    );
-  }
-
-  return null;
+  const id = extractRpcUserId(data);
+  return id ? { id } : null;
 }
 
 /* ------------------------------------------------------------------ */

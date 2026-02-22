@@ -4,6 +4,10 @@ import getLogger from '~/core/logger';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import { isUltauraAdmin } from '~/lib/ultaura/admin-actions';
 import {
+  getCurrentAdminContext,
+  writeAdminAuditLog,
+} from '~/lib/ultaura/admin/audit-log';
+import {
   listBroadcasts as listResendBroadcasts,
   getBroadcast as getResendBroadcast,
   createBroadcast as createResendBroadcast,
@@ -17,10 +21,48 @@ import sanitizeHtml from 'sanitize-html';
 import { renderBroadcastHtmlEmail } from '~/lib/emails/newsletter-broadcast';
 
 const logger = getLogger();
+const DEFAULT_SUBSCRIBERS_PER_PAGE = 25;
+const MIN_SUBSCRIBERS_PER_PAGE = 1;
+const MAX_SUBSCRIBERS_PER_PAGE = 100;
+
+type AdminAuditLogEntry = Parameters<typeof writeAdminAuditLog>[1];
 
 async function assertAdmin() {
   const isAdmin = await isUltauraAdmin();
   if (!isAdmin) throw new Error('Unauthorized');
+}
+
+function getEffectiveSubscriberPerPage(perPage: number) {
+  const normalizedPerPage = Number.isFinite(perPage)
+    ? Math.floor(perPage)
+    : DEFAULT_SUBSCRIBERS_PER_PAGE;
+
+  return Math.min(
+    MAX_SUBSCRIBERS_PER_PAGE,
+    Math.max(MIN_SUBSCRIBERS_PER_PAGE, normalizedPerPage),
+  );
+}
+
+async function safeWriteNewsletterAdminAuditLog(entry: AdminAuditLogEntry) {
+  try {
+    const adminContext = await getCurrentAdminContext();
+
+    if (!adminContext) {
+      return;
+    }
+
+    await writeAdminAuditLog(adminContext, entry);
+  } catch (error) {
+    logger.warn(
+      {
+        error,
+        action: entry.action,
+        targetType: entry.targetType,
+        targetId: entry.targetId,
+      },
+      'Failed to write newsletter admin audit log',
+    );
+  }
 }
 
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
@@ -56,6 +98,20 @@ export interface SubscriberRow {
 export interface SubscriberListResult {
   subscribers: SubscriberRow[];
   total: number;
+  effectivePerPage: number;
+}
+
+function mapSubscriberRow(row: any): SubscriberRow {
+  return {
+    id: row.id,
+    email: row.email,
+    first_name: row.first_name,
+    status: row.status,
+    source: row.source,
+    confirmed_at: row.confirmed_at,
+    created_at: row.created_at,
+    topics: row.ultaura_newsletter_topic_subscriptions || [],
+  };
 }
 
 export async function listSubscribers(params: {
@@ -68,7 +124,8 @@ export async function listSubscribers(params: {
   await assertAdmin();
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const { page, perPage, status, source, topic } = params;
-  const offset = (page - 1) * perPage;
+  const effectivePerPage = getEffectiveSubscriberPerPage(perPage);
+  const offset = (page - 1) * effectivePerPage;
   const topicRelation = topic
     ? 'ultaura_newsletter_topic_subscriptions!inner(topic_key, subscribed)'
     : 'ultaura_newsletter_topic_subscriptions(topic_key, subscribed)';
@@ -94,25 +151,30 @@ export async function listSubscribers(params: {
 
   const { data, count, error } = await query
     .order('created_at', { ascending: false })
-    .range(offset, offset + perPage - 1);
+    .range(offset, offset + effectivePerPage - 1);
 
+  const total = count || 0;
   if (error) {
     logger.error({ error }, 'Failed to list newsletter subscribers');
-    return { subscribers: [], total: 0 };
   }
+  const subscribers = error ? [] : (data || []).map(mapSubscriberRow);
 
-  let subscribers = (data || []).map((row: any) => ({
-    id: row.id,
-    email: row.email,
-    first_name: row.first_name,
-    status: row.status,
-    source: row.source,
-    confirmed_at: row.confirmed_at,
-    created_at: row.created_at,
-    topics: row.ultaura_newsletter_topic_subscriptions || [],
-  }));
+  await safeWriteNewsletterAdminAuditLog({
+    action: 'newsletter.subscribers.list',
+    targetType: 'newsletter_subscribers',
+    metadata: {
+      filters: {
+        page,
+        perPage,
+        status: status ?? null,
+        source: source ?? null,
+        topic: topic ?? null,
+      },
+      resultCount: total,
+    },
+  });
 
-  return { subscribers, total: count || 0 };
+  return { subscribers, total, effectivePerPage };
 }
 
 export async function getSubscriberStats() {
@@ -186,7 +248,11 @@ export async function adminGetBroadcast(broadcastId: string) {
     const { data, error } = await getResendBroadcast(broadcastId);
     if (error) throw error;
     if (data && typeof data === 'object' && 'html' in data) {
-      (data as { html?: string }).html = sanitizeHtml(String((data as { html?: string }).html || ''), SANITIZE_OPTIONS);
+      const broadcast = data as { html?: string };
+      broadcast.html = sanitizeHtml(
+        String(broadcast.html || ''),
+        SANITIZE_OPTIONS,
+      );
     }
     return { broadcast: data, error: null };
   } catch (err) {
@@ -223,19 +289,31 @@ export async function adminCreateAndSendBroadcast(params: {
     if (createError || !created)
       throw createError || new Error('Failed to create broadcast');
 
+    let action: 'scheduled' | 'sent';
+
     if (params.scheduleAt) {
       const { error: scheduleError } = await scheduleResendBroadcast(created.id, params.scheduleAt);
       if (scheduleError) throw scheduleError;
-      return {
-        success: true,
-        broadcastId: created.id,
-        action: 'scheduled' as const,
-      };
+      action = 'scheduled';
+    } else {
+      const { error: sendError } = await sendResendBroadcast(created.id);
+      if (sendError) throw sendError;
+      action = 'sent';
     }
 
-    const { error: sendError } = await sendResendBroadcast(created.id);
-    if (sendError) throw sendError;
-    return { success: true, broadcastId: created.id, action: 'sent' as const };
+    await safeWriteNewsletterAdminAuditLog({
+      action: 'newsletter.broadcast.send',
+      targetType: 'broadcast',
+      targetId: created.id,
+      metadata: {
+        broadcastId: created.id,
+        subject: params.subject,
+        topicKey: params.topicKey,
+        action,
+      },
+    });
+
+    return { success: true, broadcastId: created.id, action };
   } catch (err) {
     logger.error({ error: err }, 'Failed to create/send broadcast');
     return {
@@ -252,6 +330,16 @@ export async function adminCancelBroadcast(broadcastId: string) {
   try {
     const { error: removeError } = await removeResendBroadcast(broadcastId);
     if (removeError) throw removeError;
+
+    await safeWriteNewsletterAdminAuditLog({
+      action: 'newsletter.broadcast.cancel',
+      targetType: 'broadcast',
+      targetId: broadcastId,
+      metadata: {
+        broadcastId,
+      },
+    });
+
     return { success: true };
   } catch (err) {
     logger.error({ error: err }, 'Failed to cancel broadcast');

@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminGuard from '~/app/admin/components/AdminGuard';
 import Alert from '~/core/ui/Alert';
 import { PageBody } from '~/core/ui/Page';
 import { adminGetBroadcast } from '~/lib/ultaura/newsletter-admin-actions';
@@ -14,7 +15,7 @@ interface BroadcastDetailPageProps {
   params: { id: string };
 }
 
-export default async function BroadcastDetailPage({
+async function BroadcastDetailPage({
   params,
 }: BroadcastDetailPageProps) {
   const { broadcast, error } = await adminGetBroadcast(params.id);
@@ -39,3 +40,5 @@ export default async function BroadcastDetailPage({
     </div>
   );
 }
+
+export default AdminGuard(BroadcastDetailPage);

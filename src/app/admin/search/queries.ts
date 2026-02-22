@@ -66,66 +66,88 @@ interface LineRow {
   account_id: string;
 }
 
-interface AuthUserLike {
-  id: string;
-  email?: string;
-  phone?: string;
-  created_at: string;
-  last_sign_in_at?: string;
-  banned_until?: string;
+interface AdminAuthRpcError {
+  message: string;
 }
 
-const AUTH_LIST_USERS_PER_PAGE = 200;
-const AUTH_LIST_USERS_MAX_PAGES = 500;
+function getRpcRows(data: unknown): unknown[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
 
-function toAuthUserInput(user: AuthUserLike): AuthUserInput {
+  if (
+    data &&
+    typeof data === 'object' &&
+    Array.isArray((data as { rows?: unknown[] }).rows)
+  ) {
+    return (data as { rows: unknown[] }).rows;
+  }
+
+  return [];
+}
+
+function toAuthUserInputFromRpcRow(row: unknown): AuthUserInput | null {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+
+  const value = row as Record<string, unknown>;
+  const id = typeof value.id === 'string' ? value.id : undefined;
+  const createdAt =
+    typeof value.created_at === 'string'
+      ? value.created_at
+      : typeof value.createdAt === 'string'
+        ? value.createdAt
+        : undefined;
+
+  if (!id || !createdAt) {
+    return null;
+  }
+
   return {
-    id: user.id,
-    email: user.email,
-    phone: user.phone,
-    created_at: user.created_at,
-    last_sign_in_at: user.last_sign_in_at,
-    banned_until: user.banned_until,
+    id,
+    email: typeof value.email === 'string' ? value.email : undefined,
+    phone: typeof value.phone === 'string' ? value.phone : undefined,
+    created_at: createdAt,
+    last_sign_in_at:
+      typeof value.last_sign_in_at === 'string'
+        ? value.last_sign_in_at
+        : typeof value.lastSignInAt === 'string'
+          ? value.lastSignInAt
+          : undefined,
+    banned_until:
+      typeof value.banned_until === 'string'
+        ? value.banned_until
+        : typeof value.bannedUntil === 'string'
+          ? value.bannedUntil
+          : undefined,
   };
 }
 
-async function listAllAuthUsers(
+async function searchAuthUsersByEmailRpc(
   client: SupabaseClient,
+  query: string,
 ): Promise<AuthUserInput[]> {
-  const authUsers: AuthUserInput[] = [];
-  let reachedEnd = false;
+  const rpcClient = client as unknown as {
+    rpc: (
+      fn: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: AdminAuthRpcError | null }>;
+  };
+  const { data, error } = await rpcClient.rpc('search_auth_users_by_email', {
+    query: query.toLowerCase(),
+    result_limit: 50,
+  });
 
-  for (let page = 1; page <= AUTH_LIST_USERS_MAX_PAGES; page += 1) {
-    const { data, error } = await client.auth.admin.listUsers({
-      page,
-      perPage: AUTH_LIST_USERS_PER_PAGE,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    const pageUsers = data.users.map((user) => toAuthUserInput(user));
-    authUsers.push(...pageUsers);
-
-    const total = typeof data.total === 'number' ? data.total : undefined;
-
-    if (
-      pageUsers.length < AUTH_LIST_USERS_PER_PAGE ||
-      (total !== undefined && authUsers.length >= total)
-    ) {
-      reachedEnd = true;
-      break;
-    }
+  if (error) {
+    throw error;
   }
 
-  if (!reachedEnd) {
-    throw new Error(
-      `Auth user search exceeded ${AUTH_LIST_USERS_MAX_PAGES} pages.`,
-    );
-  }
+  const rows = getRpcRows(data);
 
-  return authUsers;
+  return rows
+    .map((row) => toAuthUserInputFromRpcRow(row))
+    .filter((row): row is AuthUserInput => Boolean(row));
 }
 
 function getNormalizedPhoneVariants(query: string): string[] {
@@ -320,20 +342,14 @@ async function enrichUsers(
 
 /**
  * Search users by email (partial, case-insensitive).
- * Uses the auth admin API to list users and filters by email.
+ * Uses a DB RPC to avoid scanning auth.users via paginated admin API calls.
  */
 export async function searchByEmail(
   client: SupabaseClient,
   query: string,
 ): Promise<SearchResultUser[]> {
-  const lowerQuery = query.toLowerCase();
-  const authUsers = await listAllAuthUsers(client);
-
-  const matching = authUsers.filter(
-    (u) => u.email && u.email.toLowerCase().includes(lowerQuery),
-  );
-
-  return enrichUsers(client, matching);
+  const authUsers = await searchAuthUsersByEmailRpc(client, query.trim());
+  return enrichUsers(client, authUsers);
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 
 import AdminHeader from '~/app/admin/components/AdminHeader';
+import AdminGuard from '~/app/admin/components/AdminGuard';
 import Alert from '~/core/ui/Alert';
 import { PageBody } from '~/core/ui/Page';
 import { adminListBroadcasts } from '~/lib/ultaura/newsletter-admin-actions';
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
   title: 'Newsletter Broadcasts',
 };
 
-export default async function BroadcastsPage() {
+async function BroadcastsPage() {
   const { broadcasts, error } = await adminListBroadcasts();
 
   return (
@@ -34,3 +35,5 @@ export default async function BroadcastsPage() {
     </div>
   );
 }
+
+export default AdminGuard(BroadcastsPage);

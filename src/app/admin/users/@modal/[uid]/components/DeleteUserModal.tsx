@@ -8,7 +8,6 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
 import { deleteUserAction } from '~/app/admin/users/@modal/[uid]/actions.server';
-import useCsrfToken from '~/core/hooks/use-csrf-token';
 import { TextFieldInput, TextFieldLabel } from '~/core/ui/TextField';
 import Button from '~/core/ui/Button';
 
@@ -20,7 +19,6 @@ function DeleteUserModal({
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(true);
   const [pending, startTransition] = useTransition();
-  const csrfToken = useCsrfToken();
   const displayText = user.email ?? user.phone ?? '';
 
   const onDismiss = () => {
@@ -33,7 +31,6 @@ function DeleteUserModal({
     startTransition(async () => {
       await deleteUserAction({
         userId: user.id,
-        csrfToken,
       });
 
       onDismiss();
