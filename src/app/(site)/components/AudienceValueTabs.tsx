@@ -107,11 +107,11 @@ export function AudienceValueTabs() {
   return (
     <>
       {/* Choose Your Perspective */}
-      <section className="py-20 lg:py-24">
+      <section className="pt-10 pb-20 lg:pt-12 lg:pb-24">
         <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
           <div className="relative">
             <FadeInWhenVisible>
-              <div className="mt-16 text-center">
+              <div className="mt-8 text-center">
                 <Heading type={2}>
                   <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">Choose</span> your perspective
                 </Heading>
@@ -378,11 +378,11 @@ export function AudienceValueTabs() {
       </section>
 
       {/* Before vs. With Ultaura */}
-      <section className="bg-surface-subtle py-20 lg:py-24">
+      <section className="bg-surface-subtle pt-10 pb-20 lg:pt-12 lg:pb-24">
         <Container>
           <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
             <div className="relative">
-              <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center">
+              <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center pt-8">
                 <Pill>
                   Peace of mind for families, companionship for seniors, and
                   support for caregivers

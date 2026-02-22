@@ -28,7 +28,7 @@ function Home() {
   return (
     <div className={'flex flex-col space-y-0'}>
       {/* Hero Section */}
-      <Container>
+      <Container className="pb-8 lg:pb-0">
         <div className="relative mt-8 mb-6 lg:mt-16 lg:mb-12 lg:min-h-[calc(100svh-80px)] lg:flex lg:items-center">
           <div className="absolute -left-24 top-8 h-96 w-96 rounded-full bg-primary/15 blur-3xl dark:bg-primary/8" />
           <div className="absolute -right-24 bottom-8 h-96 w-96 rounded-full bg-primary/15 blur-3xl dark:bg-primary/8" />
@@ -132,7 +132,9 @@ function Home() {
         </div>
       </Container>
 
-      <StatsBar />
+      <div className="mt-12 lg:mt-16">
+        <StatsBar />
+      </div>
 
       {/* How It Works */}
       <HowItWorks />

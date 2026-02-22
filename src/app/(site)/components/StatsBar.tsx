@@ -64,7 +64,7 @@ function AnimatedNumber({
 export function StatsBar() {
   return (
     <FadeInWhenVisible>
-      <section className="py-16 lg:py-20">
+      <section className="bg-primary/5 pt-16 pb-16 lg:py-20">
         {/* Desktop: single row with dividers */}
         <div className="hidden lg:flex items-center justify-center gap-20">
           {STATS.map((stat, index) => (
