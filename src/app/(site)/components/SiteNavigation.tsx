@@ -89,20 +89,20 @@ function ResourcesDropdown() {
 
   return (
     <div
-      className="relative"
+      className="relative mt-px"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       <button
         className={classNames(
-          'flex items-center gap-1 px-4 py-2 text-sm font-semibold text-foreground/80 hover:text-foreground transition-colors',
+          `${navItemClassName} flex h-full items-center justify-center gap-0.5 px-2.5 py-1 text-sm text-muted-foreground transition-transform duration-500 active:translate-y-[2px] hover:text-primary lg:justify-start`,
         )}
         aria-expanded={open}
         aria-haspopup="true"
       >
         Resources
         <ChevronDownIcon
-          className={classNames('h-3.5 w-3.5 transition-transform duration-200', {
+          className={classNames('h-3 w-3 text-primary transition-transform duration-200', {
             'rotate-180': open,
           })}
         />

@@ -32,7 +32,7 @@ function Footer() {
                   <p className="text-sm font-medium text-muted-foreground">Subscribe to our newsletter</p>
                   <p className="text-sm text-muted-foreground">Elder care tips and product updates, delivered weekly.</p>
                 </div>
-                <div className="w-full sm:w-auto sm:min-w-[280px]">
+                <div className="w-full sm:ml-auto sm:w-auto sm:min-w-[280px]">
                   <NewsletterForm source="footer" compact />
                 </div>
               </div>

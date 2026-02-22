@@ -783,14 +783,14 @@ export function HeroDashboardPreview() {
         </div>
       </div>
 
-      <div className="mt-3 flex justify-center">
+      <div className="mt-3 mb-3 flex justify-center">
         <button
           type="button"
           title="Coming soon"
-          className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm text-primary cursor-not-allowed opacity-70"
+          className="inline-flex items-center gap-2 rounded-full bg-primary/30 px-4 py-2 text-sm font-medium text-black dark:text-white cursor-not-allowed opacity-90"
         >
           <SpeakerWaveIcon className="h-4 w-4" />
-          Listen to a sample
+          Listen to Ultaura
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import {
   motion,
   useScroll,
+  useSpring,
   useTransform,
   useInView,
   useReducedMotion,
@@ -105,13 +106,19 @@ export function HowItWorks() {
     offset: ['start 70%', 'end 30%'],
   });
 
-  const lineScaleY = useTransform(scrollYProgress, [0, 1], [0, 1]);
+  const smoothScrollProgress = useSpring(scrollYProgress, {
+    stiffness: 110,
+    damping: 30,
+    mass: 0.35,
+  });
+
+  const lineScaleY = useTransform(smoothScrollProgress, [0, 1], [0, 1]);
 
   return (
     <section
       id="how-it-works"
       ref={sectionRef}
-      className="bg-surface-subtle py-20 lg:py-24"
+      className="bg-surface-subtle py-16 lg:py-20"
     >
       <Container>
         {/* Header - right-aligned */}
@@ -145,7 +152,7 @@ export function HowItWorks() {
             </div>
 
             {/* Steps */}
-            <div className="relative space-y-8">
+            <div className="relative space-y-6">
               {HOW_IT_WORKS_STEPS.map((step, index) => {
                 const isLeft = index % 2 === 0;
                 return (
@@ -164,7 +171,7 @@ export function HowItWorks() {
                     <div className="flex items-center justify-center">
                       <StepCircle
                         index={index}
-                        scrollProgress={scrollYProgress}
+                        scrollProgress={smoothScrollProgress}
                         totalSteps={HOW_IT_WORKS_STEPS.length}
                       />
                     </div>
@@ -186,7 +193,7 @@ export function HowItWorks() {
         {/* Mobile vertical timeline */}
         <div className="mt-10 lg:hidden">
           <div
-            className="relative space-y-8 pl-20"
+            className="relative space-y-6 pl-20"
             style={{ '--hiw-track-x': '1.75rem' } as React.CSSProperties}
           >
             <div className="pointer-events-none absolute left-[var(--hiw-track-x)] top-4 h-[calc(100%-32px)] w-px -translate-x-1/2 bg-primary" />
@@ -213,7 +220,7 @@ function StepCard({
   step: (typeof HOW_IT_WORKS_STEPS)[number];
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 border-t-2 border-t-primary/40 bg-sidebar p-6 shadow-xl hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
+    <div className="rounded-2xl border border-border/60 border-t-2 border-t-primary/40 bg-sidebar p-5 shadow-xl hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
       <div className="flex items-start gap-4">
         <div className="group rounded-xl border border-primary/10 bg-primary/10 p-3 transition-colors duration-200 hover:border-primary hover:bg-primary shrink-0">
           <step.icon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />

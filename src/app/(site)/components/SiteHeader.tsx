@@ -48,7 +48,7 @@ function SiteHeader() {
               />
             </div>
 
-            <div className="ml-6 hidden min-w-0 flex-1 items-center rounded-2xl border border-border/70 bg-sidebar/95 pl-4 pr-0 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 lg:flex lg:w-[75%] lg:flex-none lg:origin-left lg:scale-[1.2]">
+            <div className="ml-6 hidden min-w-0 flex-1 items-center rounded-2xl border border-border/70 bg-sidebar/95 pl-4 pr-0 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 lg:flex lg:w-[71%] lg:flex-none lg:origin-left lg:scale-[1.2]">
               <SiteNavigation />
 
               <div className="ml-auto">

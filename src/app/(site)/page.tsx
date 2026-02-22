@@ -215,14 +215,14 @@ function Home() {
               </span>
             </Heading>
 
-            <StaggerChildren className="grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3">
+            <StaggerChildren className="grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3 [&>div]:w-full">
               {/* Live Chat */}
-              <OpenChatCard className="h-full group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 text-left shadow-xl transition-all duration-300 hover:border-primary/30 hover:-translate-y-1 hover:shadow-2xl">
+              <OpenChatCard className="h-full w-full min-h-[96px] group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 text-left shadow-xl transition-all duration-300 hover:border-primary/30 hover:-translate-y-1 hover:shadow-2xl">
                 <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 transition-colors duration-200 group-hover:bg-primary">
                   <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Live chat</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Chat with Ultaura</h3>
                   <p className="text-xs text-muted-foreground">Reply in seconds</p>
                   <p className="mt-1 text-xs font-medium text-primary">Start a conversation &rarr;</p>
                 </div>
@@ -231,30 +231,30 @@ function Home() {
               {/* Email */}
               <a
                 href="mailto:support@ultaura.com"
-                className="h-full group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 shadow-xl transition-all duration-300 hover:border-primary/30 hover:-translate-y-1 hover:shadow-2xl"
+                className="h-full w-full min-h-[96px] group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 shadow-xl transition-all duration-300 hover:border-primary/30 hover:-translate-y-1 hover:shadow-2xl"
               >
                 <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 transition-colors duration-200 group-hover:bg-primary">
                   <EnvelopeIcon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Email us</h3>
-                  <p className="text-xs text-muted-foreground">We&apos;ll get back to you</p>
-                  <p className="mt-1 text-xs font-medium text-primary">support@ultaura.com</p>
+                  <p className="text-xs text-muted-foreground">Speak to the team directly</p>
+                  <p className="mt-1 text-xs font-medium text-primary">support@ultaura.com &rarr;</p>
                 </div>
               </a>
 
               {/* FAQ */}
               <a
                 href="/faq"
-                className="h-full group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 shadow-xl transition-all duration-300 hover:border-primary/30 hover:-translate-y-1 hover:shadow-2xl"
+                className="h-full w-full min-h-[96px] group flex items-center gap-4 rounded-2xl border border-border/60 bg-sidebar px-6 py-4 shadow-xl transition-all duration-300 hover:border-primary/30 hover:-translate-y-1 hover:shadow-2xl"
               >
                 <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 transition-colors duration-200 group-hover:bg-primary">
                   <BookOpenIcon className="h-5 w-5 text-primary transition-colors duration-200 group-hover:text-primary-foreground" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Browse FAQs</h3>
-                  <p className="text-xs text-muted-foreground">Answers anytime</p>
-                  <p className="mt-1 text-xs font-medium text-primary">View all questions &rarr;</p>
+                  <p className="text-xs text-muted-foreground">Find answers to most questions here</p>
+                  <p className="mt-1 text-xs font-medium text-primary">Visit FAQ page &rarr;</p>
                 </div>
               </a>
             </StaggerChildren>

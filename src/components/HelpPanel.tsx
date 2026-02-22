@@ -24,7 +24,7 @@ interface HelpPanelProps {
 const INITIAL_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hi! What can I help you with today? You can ask me anything.`,
+  content: `Hi, I'm Ultaura! What can I help you with today? You can ask me anything.`,
 };
 
 export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowDownIcon,
   CheckCircleIcon,
+  PlayCircleIcon,
   ClockIcon,
   HeartIcon,
   ShieldCheckIcon,
@@ -14,7 +15,9 @@ import {
 
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
+import Button from '~/core/ui/Button';
 import { FadeInWhenVisible } from '~/app/(site)/components/MotionWrappers';
+import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { ReassuranceChecklist } from '~/app/(site)/components/ReassuranceChecklist';
 import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
 
@@ -402,29 +405,31 @@ export function AudienceValueTabs() {
               </div>
 
               <div className="mx-auto mt-8 max-w-4xl">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
                   {/* Before card — deliberately dim */}
-                  <div className="rounded-2xl border border-border/60 bg-background/80 p-6 shadow-xl">
-                    <div className="space-y-3">
-                      <h3 className="text-xs font-semibold text-muted-foreground">
-                        Before
-                      </h3>
-                      <ul className="space-y-1.5 text-xs text-muted-foreground">
-                        <li className="flex items-start gap-2">
-                          <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
-                          <span>Wondering if they&apos;re okay — and no way to know until your next call</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
-                          <span>The guilt of knowing you should call more often</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
-                          <span>Missing the small changes that matter most</span>
-                        </li>
-                      </ul>
+                  <BlendedDemoFrame>
+                    <div className="h-full rounded-2xl border border-border/60 bg-background/80 p-6 shadow-xl">
+                      <div className="space-y-3">
+                        <h3 className="text-xs font-semibold text-muted-foreground">
+                          Before
+                        </h3>
+                        <ul className="space-y-1.5 text-xs text-muted-foreground">
+                          <li className="flex items-start gap-2">
+                            <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
+                            <span>No way to know if they&apos;re okay until your next call</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
+                            <span>The guilt of knowing you should be calling more often</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
+                            <span>Missing the small changes that signal something&apos;s wrong</span>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
-                  </div>
+                  </BlendedDemoFrame>
 
                   <div className="flex items-center justify-center">
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -434,7 +439,7 @@ export function AudienceValueTabs() {
 
                   <BlendedDemoFrame>
                     {/* With Ultaura card — brighter, elevated */}
-                    <div className="rounded-2xl border border-primary/40 bg-sidebar p-6 shadow-2xl">
+                    <div className="h-full rounded-2xl border border-primary/40 bg-sidebar p-6 shadow-2xl">
                       <div className="space-y-3">
                         <h3 className="text-xs font-semibold text-primary">
                           With Ultaura
@@ -442,7 +447,7 @@ export function AudienceValueTabs() {
                         <ul className="space-y-1.5 text-xs text-muted-foreground">
                           <li className="flex items-start gap-2">
                             <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                            <span>They have someone to talk to every day</span>
+                            <span>They have a warm, friendly voice to talk to each day</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
@@ -464,6 +469,22 @@ export function AudienceValueTabs() {
                     <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
                     <span className="h-2.5 w-2.5 rounded-full bg-primary" />
                   </div>
+                </div>
+
+                <div className="mt-10 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                  <MainCallToActionButton />
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    round
+                    href="/demo"
+                    className="border-primary/30 text-primary hover:bg-primary/5"
+                  >
+                    <span className="flex items-center gap-2">
+                      <PlayCircleIcon className="h-5 w-5" />
+                      Try the voices
+                    </span>
+                  </Button>
                 </div>
               </div>
             </div>

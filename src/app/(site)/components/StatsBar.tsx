@@ -5,10 +5,10 @@ import { useInView, useReducedMotion } from 'framer-motion';
 import { FadeInWhenVisible } from './MotionWrappers';
 
 const STATS = [
-  { value: 2400, suffix: '+', label: 'Calls completed' },
-  { value: 850, suffix: '+', label: 'Families trust Ultaura' },
+  { value: 10000, suffix: '+', label: 'Calls completed' },
+  { value: 1750, suffix: '+', label: 'Families trust Ultaura' },
+  { value: 18, suffix: ' min', label: 'Avg. conversation' },
   { value: 4.9, suffix: '', label: 'Average rating' },
-  { value: 98, suffix: '%', label: 'Pickup rate' },
 ];
 
 function AnimatedNumber({
@@ -51,7 +51,7 @@ function AnimatedNumber({
     requestAnimationFrame(tick);
   }, [isInView, isDecimal, prefersReducedMotion, value]);
 
-  const formatted = isDecimal ? displayed.toFixed(1) : displayed.toString();
+  const formatted = isDecimal ? displayed.toFixed(1) : displayed.toLocaleString();
 
   return (
     <span ref={ref}>
@@ -64,19 +64,19 @@ function AnimatedNumber({
 export function StatsBar() {
   return (
     <FadeInWhenVisible>
-      <section className="py-16 lg:py-20 border-y border-primary/20">
+      <section className="py-16 lg:py-20">
         {/* Desktop: single row with dividers */}
         <div className="hidden lg:flex items-center justify-center gap-20">
           {STATS.map((stat, index) => (
             <div key={stat.label} className="flex items-center gap-20">
               <div className="flex flex-col items-center gap-1 text-center">
-                <span className="text-4xl lg:text-5xl font-bold text-foreground">
+                <span className="text-4xl lg:text-5xl font-bold text-primary">
                   <AnimatedNumber value={stat.value} suffix={stat.suffix} />
                 </span>
                 <span className="text-sm lg:text-base text-muted-foreground">{stat.label}</span>
               </div>
               {index < STATS.length - 1 && (
-                <div className="h-14 w-px bg-primary" aria-hidden="true" />
+                <div className="h-[6rem] w-px bg-primary" aria-hidden="true" />
               )}
             </div>
           ))}
@@ -86,7 +86,7 @@ export function StatsBar() {
         <div className="grid grid-cols-2 gap-8 lg:hidden">
           {STATS.map((stat) => (
             <div key={stat.label} className="flex flex-col items-center gap-1 text-center">
-              <span className="text-4xl font-bold text-foreground">
+              <span className="text-4xl font-bold text-primary">
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
               </span>
               <span className="text-sm text-muted-foreground">{stat.label}</span>

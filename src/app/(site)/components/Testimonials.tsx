@@ -192,7 +192,7 @@ export function Testimonials() {
               </span>{' '}
               are saying
             </Heading>
-            <SubHeading>Stories from families like yours.</SubHeading>
+            <SubHeading>Our favorite stories from families just like yours.</SubHeading>
           </div>
 
           {/* Carousel */}
@@ -209,7 +209,7 @@ export function Testimonials() {
               {TESTIMONIALS.map((testimonial) => (
                 <div
                   key={testimonial.author}
-                  className="w-[320px] md:w-[380px] flex-shrink-0 flex flex-col rounded-2xl border border-border/60 border-l-2 border-l-primary/30 bg-sidebar p-8 shadow-xl"
+                  className="w-[320px] md:w-[calc((100%-1.5rem)/2)] md:min-w-[calc((100%-1.5rem)/2)] flex-shrink-0 flex flex-col rounded-2xl border border-border/60 border-l-2 border-l-primary/30 bg-sidebar p-8 shadow-xl"
                   style={{ scrollSnapAlign: 'start' }}
                 >
                   {/* Stars */}
