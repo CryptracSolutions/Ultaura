@@ -39,11 +39,11 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Launch 1-3 `explorer` sub-agents | **ALWAYS** |
+| 1 | Understand current state of codebase | Launch up to 4 `explorer` sub-agents | **ALWAYS** |
 | 2 | Enter plan mode | `update_plan` | **ALWAYS** |
 | 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarifications needed |
 | 4 | Create shared task list | `update_plan` with explicit step breakdown | If 5+ steps | **ALWAYS** |
-| 5 | Spawn implementation sub-agents | Launch 1-3 `implementation` sub-agents in parallel | **ALWAYS** |
+| 5 | Spawn implementation sub-agents | Launch up to 4 `implementation` sub-agents in parallel | **ALWAYS** |
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
 | 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
@@ -53,8 +53,8 @@ You MUST follow these steps IN ORDER:
 ### Sub-Agent Coordination Guidelines
 
 - **Always use `model: GPT-5.3-Codex** for ALL agent types
-- **Max 3 explorer sub-agents** in parallel
-- **Max 3 implementation sub-agents** in parallel (to avoid file conflicts)
+- **Max 4 explorer sub-agents** in parallel
+- **Max 4 implementation sub-agents** in parallel (to avoid file conflicts)
 - **Use explicit coordinator messages** for task handoffs and blockers
 - **Use `update_plan`** as the shared coordination board
 - **Shutdown gracefully** after all delegated tasks and verification complete
@@ -134,7 +134,7 @@ Even for exceptions, STILL:
 1. **Explore the codebase** — Launch explorer sub-agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
 2. **Interview the user until ambiguity reaches zero** — Use `request_user_input` aggressively. Do NOT assume intent. Do NOT guess between two valid approaches. Ask. Interview scaling:
    - Medium tasks: 6-12 clarifying questions minimum
-   - Large tasks: 12+ questions to nail down full scope
+   - Large tasks: 13+ questions to nail down full scope
    - Keep asking follow-ups until you have concrete answers for every decision point
 3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
 

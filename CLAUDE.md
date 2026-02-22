@@ -64,10 +64,10 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Explore codebase | Launch 1-6 `Explore` agents | **ALWAYS** |
+| 1 | Explore codebase | Launch up to 6 `Explore` agents | **ALWAYS** |
 | 2 | Plan & interview | `EnterPlanMode`, then `AskUserQuestion` to clarify (see Plan Mode Guidance) | **ALWAYS** |
 | 3 | Create shared task list | `TaskCreate` for each step | **ALWAYS** if 3+ steps |
-| 4 | Spawn implementation teammates | Launch 1-4 `Task` teammates. Use `isolation: "worktree"` for independent tasks (see Worktree Isolation) | **ALWAYS** |
+| 4 | Spawn implementation teammates | Launch up to 6 `Task` teammates. Use `isolation: "worktree"` for independent tasks (see Worktree Isolation) | **ALWAYS** |
 | 5 | Assign tasks | `TaskUpdate` with `owner` | **ALWAYS** |
 | 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | As needed |
 | 7 | Merge worktree branches | `git merge <branch> --no-edit` per worktree agent (see Merge-back process) | If worktrees used |
@@ -90,7 +90,7 @@ You MUST follow these steps IN ORDER:
    - Ask proactively when: requirements are ambiguous, multiple valid approaches exist, user preferences would affect implementation, or scope could expand unexpectedly
 3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
 
-#### Phase 2: Writing the Plan — **MUST use `Plan` agent with `model: "opus"`**
+#### Phase 2: Writing the Plan — **MUST use `Plan` agent with `model: "Opus 4.6"`**
 
 The plan document MUST include ALL of the following sections. Missing sections = incomplete plan.
 
@@ -126,7 +126,7 @@ Before exiting plan mode:
 
 ### Agent Teams Guidelines
 
-- **Max 4 implementation teammates** in parallel (resource limit — worktrees remove file-conflict risk but 4 remains the cap)
+- **Max 6 implementation teammates** in parallel (resource limit — worktrees remove file-conflict risk but 6 remains the cap)
 - **Max 6 explore agents** in parallel
 - **Use `SendMessage`** to coordinate — teammates can't hear your plain text
 - **Teammates persist** — reassign them to new tasks instead of spawning new agents
