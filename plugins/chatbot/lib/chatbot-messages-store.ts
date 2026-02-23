@@ -8,7 +8,7 @@ const LOCAL_STORAGE_KEY = createLocalStorageKey();
 const emptyMessages = [
   {
     id: 'initial-message',
-    content: `Hi, I'm the ${configuration.site.siteName} chatbot! How can I help you?`,
+    content: `Hi! I'm Ultaura. What can I help you with today? You can ask me anything.`,
     role: ChatBotMessageRole.Assistant,
   },
 ];
