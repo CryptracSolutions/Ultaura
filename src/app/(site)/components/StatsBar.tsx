@@ -7,21 +7,15 @@ import { FadeInWhenVisible } from './MotionWrappers';
 
 const STATS = [
   {
-    value: 10000,
+    value: 50000,
     prefix: '+',
-    label: 'Calls completed',
-    description: 'Thousands of friendly conversations happening every day, bringing warmth and connection to seniors across the country',
-  },
-  {
-    value: 1750,
-    prefix: '+',
-    label: 'Families trust Ultaura',
-    description: 'Families rely on us to stay connected with their loved ones, giving them peace of mind without the burden of constant calling',
+    label: 'Hours of companionship',
+    description: 'A friendly voice and a personal assistant in one — reminding them about medications, appointments, and daily routines so nothing slips through the cracks',
   },
   {
     value: 18,
     suffix: ' min',
-    label: 'Avg. conversation',
+    label: 'Average conversation length',
     description: 'Meaningful chats that go beyond a quick check-in, building real relationships and giving seniors someone who truly listens',
   },
   {
@@ -30,6 +24,12 @@ const STATS = [
     label: 'Average rating',
     description: 'Seniors and families consistently rate their experience highly, praising the genuine connection and ease of use',
     showStar: true,
+  },
+  {
+    value: 100,
+    suffix: '+',
+    label: 'Languages supported',
+    description: 'Ultaura speaks their language — whether it\u2019s English, Spanish, Mandarin, or over a hundred others, every call feels like home',
   },
 ];
 
@@ -45,7 +45,7 @@ function AnimatedNumber({
   showStar?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-60px' });
+  const isInView = useInView(ref, { once: true, margin: '0px' });
   const prefersReducedMotion = useReducedMotion();
   const [displayed, setDisplayed] = useState(0);
   const isDecimal = value % 1 !== 0;
@@ -93,12 +93,12 @@ export function StatsBar() {
   return (
     <FadeInWhenVisible>
       <section className="bg-primary/5 pt-16 pb-16 lg:py-20">
-        {/* Large Desktop: 4 columns in a row with dividers */}
-        <div className="hidden xl:flex items-stretch justify-center gap-8 2xl:gap-12">
+        {/* Large Desktop: columns in a row with dividers */}
+        <div className="hidden xl:flex items-stretch justify-center gap-6 2xl:gap-8 px-8 2xl:px-12 max-w-[1400px] mx-auto">
           {STATS.map((stat, index) => (
-            <div key={stat.label} className="flex items-stretch gap-8 2xl:gap-12">
-              <div className="flex flex-col items-start gap-1 text-left w-[260px] 2xl:w-[280px]">
-                <span className="text-4xl xl:text-5xl font-bold text-primary mb-2 whitespace-nowrap">
+            <div key={stat.label} className="flex items-stretch gap-6 2xl:gap-8 flex-1 min-w-0">
+              <div className="flex flex-col items-start gap-1 text-left">
+                <span className="font-heading text-4xl xl:text-5xl font-bold text-primary mb-2 whitespace-nowrap">
                   <AnimatedNumber
                     value={stat.value}
                     prefix={stat.prefix}
@@ -124,7 +124,7 @@ export function StatsBar() {
         <div className="hidden md:grid xl:hidden w-full max-w-4xl mx-auto grid-cols-2 gap-x-8 gap-y-12 px-6">
           {STATS.map((stat) => (
             <div key={stat.label} className="flex flex-col items-start gap-1 text-left">
-              <span className="text-3xl md:text-4xl font-bold text-primary mb-2 whitespace-nowrap">
+              <span className="font-heading text-3xl md:text-4xl font-bold text-primary mb-2 whitespace-nowrap">
                 <AnimatedNumber
                   value={stat.value}
                   prefix={stat.prefix}
@@ -141,10 +141,10 @@ export function StatsBar() {
         </div>
 
         {/* Mobile: 2x2 grid with smaller text */}
-        <div className="grid md:hidden w-full max-w-lg mx-auto grid-cols-2 gap-x-4 gap-y-8 px-4">
+        <div className="grid md:hidden w-full max-w-md mx-auto grid-cols-2 gap-x-6 gap-y-10 px-6">
           {STATS.map((stat) => (
             <div key={stat.label} className="flex min-w-0 flex-col items-start gap-1 text-left">
-              <span className="text-2xl sm:text-3xl font-bold text-primary mb-1 whitespace-nowrap">
+              <span className="font-heading text-3xl sm:text-4xl font-bold text-primary mb-1">
                 <AnimatedNumber
                   value={stat.value}
                   prefix={stat.prefix}

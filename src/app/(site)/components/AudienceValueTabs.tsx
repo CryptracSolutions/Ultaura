@@ -50,10 +50,11 @@ const AUDIENCES: Array<{
 ];
 
 const ALWAYS_INCLUDED = [
+  'Safety alerts',
+  '100+ languages',
   'Daily check-in calls',
-  'Medication & routine reminders',
-  'At-a-glance summaries for family',
-  'Safety alerts to people they trust',
+  'Conversation summaries',
+  'Medication + routine reminders',
 ];
 
 function Pill(props: React.PropsWithChildren) {
@@ -384,11 +385,10 @@ export function AudienceValueTabs() {
             <div className="relative">
               <div className="mx-auto flex max-w-3xl flex-col items-center space-y-6 text-center pt-8">
                 <Pill>
-                  Peace of mind for families, companionship for seniors, and
-                  support for caregivers
+                  Daily connection for those who matter most
                 </Pill>
                 <Heading type={2}>
-                  Peace of mind starts with a <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">daily call</span>
+                  <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">Peace of mind</span> starts with a daily call
                 </Heading>
               </div>
 
@@ -396,7 +396,7 @@ export function AudienceValueTabs() {
                 {ALWAYS_INCLUDED.map((item) => (
                   <div
                     key={item}
-                    className="flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted-foreground"
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-2.5 py-1 text-xs text-muted-foreground"
                   >
                     <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
                     <span>{item}</span>
@@ -410,21 +410,21 @@ export function AudienceValueTabs() {
                   <BlendedDemoFrame className="w-full">
                     <div className="h-full rounded-2xl border border-border/60 bg-background/80 p-6 shadow-xl">
                       <div className="space-y-3">
-                        <h3 className="text-xs font-semibold text-muted-foreground">
+                        <h3 className="text-xs font-semibold text-foreground">
                           Before
                         </h3>
-                        <ul className="space-y-1.5 text-xs text-muted-foreground">
+                        <ul className="space-y-1.5 text-xs text-foreground">
                           <li className="flex items-start gap-2">
-                            <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
-                            <span>No way to know if they&apos;re okay until your next call</span>
+                            <span className="mt-1 h-2 w-2 rounded-full bg-foreground/70" />
+                            <span>The silence between calls slowly becomes a weight you carry alone</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
-                            <span>The guilt of knowing you should be calling more often</span>
+                            <span className="mt-1 h-2 w-2 rounded-full bg-foreground/70" />
+                            <span>Small changes slip by unnoticed until they become problems you could have prevented</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
-                            <span>Missing the small changes that signal something&apos;s wrong</span>
+                            <span className="mt-1 h-2 w-2 rounded-full bg-foreground/70" />
+                            <span>Distance wins, and you&apos;re left wondering what&apos;s happening while you&apos;re not there</span>
                           </li>
                         </ul>
                       </div>
@@ -444,18 +444,18 @@ export function AudienceValueTabs() {
                         <h3 className="text-xs font-semibold text-primary">
                           With Ultaura
                         </h3>
-                        <ul className="space-y-1.5 text-xs text-muted-foreground">
+                        <ul className="space-y-1.5 text-xs text-foreground">
                           <li className="flex items-start gap-2">
                             <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                            <span>They have a warm, friendly voice to talk to each day</span>
+                            <span>A warm, genuine conversation waiting for them every single morning</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                            <span>You see that they&apos;re doing well — without hovering</span>
+                            <span>You finally know they&apos;re okay—without hovering, without guilt, without constantly calling</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                            <span>Gentle alerts only when something needs your attention</span>
+                            <span>The quiet confidence of being present, even when you simply can&apos;t be there</span>
                           </li>
                         </ul>
                       </div>
@@ -463,7 +463,7 @@ export function AudienceValueTabs() {
                   </BlendedDemoFrame>
                 </div>
 
-                <div className="relative mt-5">
+                <div className="relative mt-5 hidden sm:block">
                   <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-border" />
                   <div className="relative flex items-center justify-between">
                     <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />

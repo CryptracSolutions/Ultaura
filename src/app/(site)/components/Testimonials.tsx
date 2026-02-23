@@ -20,7 +20,7 @@ const TESTIMONIALS = [
     image: '/images/testimonials/leo-b.webp',
     initials: 'LB',
     location: 'Boston, MA',
-    stars: 5,
+    stars: 4.5,
   },
   {
     highlight: 'Mom started telling me about her day again.',
@@ -39,7 +39,7 @@ const TESTIMONIALS = [
       'I\u2019m serious. We\u2019ve been fighting this battle for two years. She ignores my texts, ignores the alarms, ignores the little pill box I bought her. Somehow when Ultaura mentions it during their morning call she just does it. I stopped questioning it.',
     author: 'Nina K.',
     role: 'Granddaughter',
-    image: '/images/testimonials/nina-k.webp',
+    image: '/images/testimonials/sarah-m.webp',
     initials: 'NK',
     location: 'Chicago, IL',
     stars: 5,
@@ -53,7 +53,7 @@ const TESTIMONIALS = [
     image: '/images/testimonials/omar-a.webp',
     initials: 'OA',
     location: 'Miami, FL',
-    stars: 5,
+    stars: 4,
   },
   {
     highlight: 'I went from calling him out of obligation to calling him because I missed him.',
@@ -72,7 +72,7 @@ const TESTIMONIALS = [
       'That sounds dramatic but that was my life. Mom fell last year and I basically became her full-time worrier from 800 miles away. Having something that actually talks to her every morning and flags if something seems off, I sleep better. She sleeps better. We both needed this.',
     author: 'Sarah M.',
     role: 'Daughter',
-    image: '/images/testimonials/sarah-m.webp',
+    image: '/images/testimonials/nina-k.webp',
     initials: 'SM',
     location: 'Austin, TX',
     stars: 5,
@@ -86,7 +86,7 @@ const TESTIMONIALS = [
     image: '/images/testimonials/emily-r.webp',
     initials: 'ER',
     location: 'Denver, CO',
-    stars: 5,
+    stars: 4,
   },
   {
     highlight: 'I used to dread calling him because neither of us knew what to say.',
@@ -117,7 +117,7 @@ function StarRating({ stars }: { stars: number }) {
   const hasHalf = stars % 1 !== 0;
 
   return (
-    <div className="flex items-center gap-1 text-amber-400">
+    <div className="flex items-center gap-1 text-xl text-amber-400">
       {Array.from({ length: 5 }).map((_, i) => {
         if (i < fullStars) {
           return <span key={i}>★</span>;
@@ -234,21 +234,21 @@ export function Testimonials() {
                   </p>
 
                   {/* Author - pinned to bottom, stacked vertically */}
-                  <div className="flex items-start gap-3 mt-auto pt-4">
+                  <div className="flex items-center gap-3 mt-auto pt-4">
                     {testimonial.image ? (
                       <Image
                         src={testimonial.image}
                         alt={testimonial.author}
                         width={40}
                         height={40}
-                        className="h-10 w-10 rounded-full object-cover shrink-0"
+                        className="h-[62px] w-[62px] rounded-full object-cover shrink-0"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                      <div className="h-[62px] w-[62px] rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                         {testimonial.initials}
                       </div>
                     )}
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-end ml-auto text-right">
                       <span className="font-semibold text-foreground">{testimonial.author}</span>
                       <span className="text-sm text-muted-foreground">
                         {testimonial.role} · {testimonial.location}
