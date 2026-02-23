@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { EnvelopeIcon } from '@heroicons/react/24/outline';
 import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
 
@@ -60,15 +61,18 @@ export default function NewsletterForm({
     return (
       <form onSubmit={handleSubmit}>
         <div className="flex items-center gap-2">
-          <TextField.Input
-            type="email"
-            required
-            placeholder="Your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="flex-1"
-            aria-label="Email address"
-          />
+          <div className="relative flex-1">
+            <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary pointer-events-none" />
+            <TextField.Input
+              type="email"
+              required
+              placeholder="Your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full pl-9"
+              aria-label="Email address"
+            />
+          </div>
           <Button type="submit" loading={loading}>
             Subscribe
           </Button>

@@ -12,64 +12,9 @@ import SubHeading from '~/core/ui/SubHeading';
 
 const TESTIMONIALS = [
   {
-    highlight: 'I finally stopped worrying on my drive to work.',
+    highlight: 'My aunt has opinions about everything and finally someone has time for all of them.',
     content:
-      'Mom lives alone and the mornings were always hard for me. Now she has someone to talk to before I even finish my coffee. She told me yesterday she likes the voice better than mine \u2014 I\u2019ll take it.',
-    author: 'Sarah M.',
-    role: 'Daughter',
-    image: '/images/testimonials/sarah-m.webp',
-    initials: 'SM',
-    location: 'Austin, TX',
-    stars: 5,
-  },
-  {
-    highlight: 'Dad actually picks up the phone now.',
-    content:
-      'He\u2019d let my calls go to voicemail half the time. But for some reason he answers every Ultaura call. I think he likes that there\u2019s no pressure to perform or pretend he\u2019s fine.',
-    author: 'James P.',
-    role: 'Son',
-    image: '/images/testimonials/james-p.webp',
-    initials: 'JP',
-    location: 'Seattle, WA',
-    stars: 4.5,
-  },
-  {
-    highlight: 'It\u2019s the thing I didn\u2019t know I was missing.',
-    content:
-      'I manage care for three residents and I can\u2019t be everywhere. The call summaries help me catch things I\u2019d normally miss \u2014 changes in mood, new complaints, stuff they wouldn\u2019t tell me directly.',
-    author: 'Emily R.',
-    role: 'Caregiver',
-    image: '/images/testimonials/emily-r.webp',
-    initials: 'ER',
-    location: 'Denver, CO',
-    stars: 5,
-  },
-  {
-    highlight: 'Grandpa brought it up at dinner unprompted.',
-    content:
-      'He never talks about technology. Ever. But he told my whole family about \u2018his calls\u2019 at Sunday dinner. When an 84-year-old voluntarily mentions a tech product, you know it\u2019s working.',
-    author: 'Nina K.',
-    role: 'Granddaughter',
-    image: '/images/testimonials/nina-k.webp',
-    initials: 'NK',
-    location: 'Chicago, IL',
-    stars: 5,
-  },
-  {
-    highlight: 'Less guilt, more peace of mind.',
-    content:
-      'I live three states away and checking in every day just wasn\u2019t realistic. Knowing he has a consistent routine and I can glance at the dashboard when I want to \u2014 that\u2019s huge.',
-    author: 'Marcus T.',
-    role: 'Son',
-    image: '/images/testimonials/marcus-t.webp',
-    initials: 'MT',
-    location: 'Portland, OR',
-    stars: 4.5,
-  },
-  {
-    highlight: 'My aunt thought it was a real person for the first week.',
-    content:
-      'She figured it out and honestly didn\u2019t care. She says it\u2019s better because there\u2019s no awkward small talk about the weather. They just jump into whatever she wants to talk about.',
+      'She\u2019s the kind of person who wants to tell you every detail about the grocery store trip. I love her but I can\u2019t do that every day. Ultaura apparently can. She told me she had a 30 min conversation about whether romaine or iceberg is better.',
     author: 'Leo B.',
     role: 'Nephew',
     image: '/images/testimonials/leo-b.webp',
@@ -78,20 +23,9 @@ const TESTIMONIALS = [
     stars: 5,
   },
   {
-    highlight: 'The reminders alone were worth it.',
+    highlight: 'Mom started telling me about her day again.',
     content:
-      'Grandma was forgetting her afternoon medication constantly. We tried alarms, sticky notes, calling her ourselves. Ultaura just weaves it into the conversation naturally and she actually takes it now.',
-    author: 'Omar A.',
-    role: 'Grandson',
-    image: '/images/testimonials/omar-a.webp',
-    initials: 'OA',
-    location: 'Miami, FL',
-    stars: 5,
-  },
-  {
-    highlight: 'I appreciate that they\u2019re upfront about it being AI.',
-    content:
-      'Mom was skeptical until I told her it\u2019s transparent about not being human. She respected that. Now she has a 15-minute call every morning and she\u2019s in a better mood for the rest of the day.',
+      'After Dad passed she just kind of shut down. Short answers, no stories, no complaining about the neighbors like she used to. I set her up with Ultaura mostly as an experiment. Two weeks later she called me to complain about the neighbor\u2019s new fence. I almost threw a party.',
     author: 'Luis C.',
     role: 'Son',
     image: '/images/testimonials/luis-c.webp',
@@ -100,9 +34,75 @@ const TESTIMONIALS = [
     stars: 4.5,
   },
   {
-    highlight: 'She\u2019s laughing more. That\u2019s all I needed to know.',
+    highlight: 'My abuela takes her meds now. That\u2019s it. That\u2019s the review.',
     content:
-      'I was nervous about the idea at first. But hearing Nana tell me about something funny from her call that morning \u2014 you can\u2019t put a price on that. It\u2019s given her something to look forward to.',
+      'I\u2019m serious. We\u2019ve been fighting this battle for two years. She ignores my texts, ignores the alarms, ignores the little pill box I bought her. Somehow when Ultaura mentions it during their morning call she just does it. I stopped questioning it.',
+    author: 'Nina K.',
+    role: 'Granddaughter',
+    image: '/images/testimonials/nina-k.webp',
+    initials: 'NK',
+    location: 'Chicago, IL',
+    stars: 5,
+  },
+  {
+    highlight: 'He talks to Ultaura more than he talks to me and I\u2019m weirdly okay with it.',
+    content:
+      'Getting more than 3 words out of my grandpa on FaceTime is impossible. But my dad said he heard him laughing during his Ultaura call last Tuesday. Actual laughing. I don\u2019t even remember the last time I heard that.',
+    author: 'Omar A.',
+    role: 'Grandson',
+    image: '/images/testimonials/omar-a.webp',
+    initials: 'OA',
+    location: 'Miami, FL',
+    stars: 5,
+  },
+  {
+    highlight: 'I went from calling him out of obligation to calling him because I missed him.',
+    content:
+      'Every missed call felt like I was failing. Ultaura didn\u2019t replace me but it filled the gaps I couldn\u2019t. Dad has someone to talk to on the days I can\u2019t and I stopped carrying that weight around.',
+    author: 'Marcus T.',
+    role: 'Son',
+    image: '/images/testimonials/marcus-t.webp',
+    initials: 'MT',
+    location: 'Portland, OR',
+    stars: 4.5,
+  },
+  {
+    highlight: 'I don\u2019t check her location 5x a day anymore.',
+    content:
+      'That sounds dramatic but that was my life. Mom fell last year and I basically became her full-time worrier from 800 miles away. Having something that actually talks to her every morning and flags if something seems off, I sleep better. She sleeps better. We both needed this.',
+    author: 'Sarah M.',
+    role: 'Daughter',
+    image: '/images/testimonials/sarah-m.webp',
+    initials: 'SM',
+    location: 'Austin, TX',
+    stars: 5,
+  },
+  {
+    highlight: 'I manage three clients and I can\u2019t give any of them enough time.',
+    content:
+      'That\u2019s the reality of home care. 45-minute visits, then you\u2019re out the door. Two of my clients get Ultaura calls now and the difference in their mood when I show up is real. They\u2019ve already talked to someone that day. I\u2019m not their only human contact anymore and honestly that takes pressure off both of us.',
+    author: 'Emily R.',
+    role: 'Caregiver',
+    image: '/images/testimonials/emily-r.webp',
+    initials: 'ER',
+    location: 'Denver, CO',
+    stars: 5,
+  },
+  {
+    highlight: 'I used to dread calling him because neither of us knew what to say.',
+    content:
+      'After Mom passed it was just awkward silence on the phone. He didn\u2019t want to burden me and I didn\u2019t know how to help. Now he\u2019s got this daily call and when I do call him on weekends he actually has things to talk about.',
+    author: 'James P.',
+    role: 'Son',
+    image: '/images/testimonials/james-p.webp',
+    initials: 'JP',
+    location: 'Seattle, WA',
+    stars: 4.5,
+  },
+  {
+    highlight: 'Nana can\u2019t wait for mornings now.',
+    content:
+      'She lives alone and most days are the same. Same chair, same TV, same routine. But now she has this thing she looks forward to and she actually gets dressed before the call. My mom noticed first.',
     author: 'Aisha N.',
     role: 'Granddaughter',
     image: '/images/testimonials/aisha-n.webp',

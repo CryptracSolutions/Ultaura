@@ -2,21 +2,47 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { useInView, useReducedMotion } from 'framer-motion';
+import { StarIcon } from '@heroicons/react/24/solid';
 import { FadeInWhenVisible } from './MotionWrappers';
 
 const STATS = [
-  { value: 10000, suffix: '+', label: 'Calls completed' },
-  { value: 1750, suffix: '+', label: 'Families trust Ultaura' },
-  { value: 18, suffix: ' min', label: 'Avg. conversation' },
-  { value: 4.9, suffix: '', label: 'Average rating' },
+  {
+    value: 10000,
+    prefix: '+',
+    label: 'Calls completed',
+    description: 'Thousands of friendly conversations happening every day, bringing warmth and connection to seniors across the country',
+  },
+  {
+    value: 1750,
+    prefix: '+',
+    label: 'Families trust Ultaura',
+    description: 'Families rely on us to stay connected with their loved ones, giving them peace of mind without the burden of constant calling',
+  },
+  {
+    value: 18,
+    suffix: ' min',
+    label: 'Avg. conversation',
+    description: 'Meaningful chats that go beyond a quick check-in, building real relationships and giving seniors someone who truly listens',
+  },
+  {
+    value: 4.7,
+    suffix: '/5',
+    label: 'Average rating',
+    description: 'Seniors and families consistently rate their experience highly, praising the genuine connection and ease of use',
+    showStar: true,
+  },
 ];
 
 function AnimatedNumber({
   value,
+  prefix,
   suffix,
+  showStar,
 }: {
   value: number;
-  suffix: string;
+  prefix?: string;
+  suffix?: string;
+  showStar?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
@@ -54,9 +80,11 @@ function AnimatedNumber({
   const formatted = isDecimal ? displayed.toFixed(1) : displayed.toLocaleString();
 
   return (
-    <span ref={ref}>
+    <span ref={ref} className="inline-flex items-center gap-1">
+      {prefix}
       {formatted}
       {suffix}
+      {showStar && <StarIcon className="h-6 w-6 text-primary" />}
     </span>
   );
 }
@@ -65,31 +93,69 @@ export function StatsBar() {
   return (
     <FadeInWhenVisible>
       <section className="bg-primary/5 pt-16 pb-16 lg:py-20">
-        {/* Desktop: single row with dividers */}
-        <div className="hidden lg:flex items-center justify-center gap-20">
+        {/* Large Desktop: 4 columns in a row with dividers */}
+        <div className="hidden xl:flex items-stretch justify-center gap-8 2xl:gap-12">
           {STATS.map((stat, index) => (
-            <div key={stat.label} className="flex items-center gap-20">
-              <div className="flex flex-col items-center gap-1 text-center">
-                <span className="text-4xl lg:text-5xl font-bold text-primary">
-                  <AnimatedNumber value={stat.value} suffix={stat.suffix} />
+            <div key={stat.label} className="flex items-stretch gap-8 2xl:gap-12">
+              <div className="flex flex-col items-start gap-1 text-left w-[260px] 2xl:w-[280px]">
+                <span className="text-4xl xl:text-5xl font-bold text-primary mb-2 whitespace-nowrap">
+                  <AnimatedNumber
+                    value={stat.value}
+                    prefix={stat.prefix}
+                    suffix={stat.suffix}
+                    showStar={stat.showStar}
+                  />
                 </span>
-                <span className="text-sm lg:text-base text-muted-foreground">{stat.label}</span>
+                <span className="text-sm xl:text-base font-semibold text-foreground">
+                  {stat.label}
+                </span>
+                <span className="text-sm text-muted-foreground leading-relaxed">
+                  {stat.description}
+                </span>
               </div>
               {index < STATS.length - 1 && (
-                <div className="h-[6rem] w-px bg-primary" aria-hidden="true" />
+                <div className="h-auto w-px bg-primary/30 self-stretch" aria-hidden="true" />
               )}
             </div>
           ))}
         </div>
 
-        {/* Mobile: 2x2 grid */}
-        <div className="mx-auto grid w-full max-w-md grid-cols-2 gap-x-8 gap-y-8 px-4 lg:hidden">
+        {/* Tablet and Small Desktop: 2x2 grid */}
+        <div className="hidden md:grid xl:hidden w-full max-w-4xl mx-auto grid-cols-2 gap-x-8 gap-y-12 px-6">
           {STATS.map((stat) => (
-            <div key={stat.label} className="flex min-w-0 flex-col items-center gap-1 text-center">
-              <span className="text-4xl font-bold text-primary">
-                <AnimatedNumber value={stat.value} suffix={stat.suffix} />
+            <div key={stat.label} className="flex flex-col items-start gap-1 text-left">
+              <span className="text-3xl md:text-4xl font-bold text-primary mb-2 whitespace-nowrap">
+                <AnimatedNumber
+                  value={stat.value}
+                  prefix={stat.prefix}
+                  suffix={stat.suffix}
+                  showStar={stat.showStar}
+                />
               </span>
-              <span className="min-h-[2.5rem] text-sm leading-5 text-muted-foreground">{stat.label}</span>
+              <span className="text-base font-semibold text-foreground">{stat.label}</span>
+              <span className="text-sm text-muted-foreground leading-relaxed">
+                {stat.description}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile: 2x2 grid with smaller text */}
+        <div className="grid md:hidden w-full max-w-lg mx-auto grid-cols-2 gap-x-4 gap-y-8 px-4">
+          {STATS.map((stat) => (
+            <div key={stat.label} className="flex min-w-0 flex-col items-start gap-1 text-left">
+              <span className="text-2xl sm:text-3xl font-bold text-primary mb-1 whitespace-nowrap">
+                <AnimatedNumber
+                  value={stat.value}
+                  prefix={stat.prefix}
+                  suffix={stat.suffix}
+                  showStar={stat.showStar}
+                />
+              </span>
+              <span className="text-sm font-semibold text-foreground">{stat.label}</span>
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                {stat.description}
+              </span>
             </div>
           ))}
         </div>

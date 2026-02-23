@@ -156,7 +156,7 @@ function Home() {
           <div className="relative flex flex-col items-center text-center space-y-4">
             <FadeInWhenVisible>
               <blockquote className="text-lg italic text-muted-foreground text-center max-w-xl mx-auto">
-                <p>&ldquo;She&apos;s laughing more. That&apos;s all I needed to know.&rdquo;</p>
+                <p>&ldquo;Nana can&apos;t wait for mornings now.&rdquo;</p>
                 <footer className="mt-2 flex items-center justify-center gap-2 not-italic">
                   <Image
                     src="/images/testimonials/aisha-n.webp"

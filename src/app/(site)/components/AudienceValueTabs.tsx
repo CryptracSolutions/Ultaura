@@ -107,7 +107,7 @@ export function AudienceValueTabs() {
   return (
     <>
       {/* Choose Your Perspective */}
-      <section className="pt-10 pb-20 lg:pt-12 lg:pb-24">
+      <section className="pt-5 pb-11 lg:pt-6 lg:pb-12">
         <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
           <div className="relative">
             <FadeInWhenVisible>

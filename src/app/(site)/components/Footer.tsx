@@ -27,12 +27,12 @@ function Footer() {
         <div className="bg-surface-subtle/50 py-6 mb-8 lg:py-8 lg:mb-12">
           <Container>
             <FadeInWhenVisible>
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-start sm:gap-6">
-                <div>
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-start sm:gap-6">
+                <div className="text-left">
                   <p className="text-sm font-medium text-muted-foreground">Subscribe to our newsletter</p>
                   <p className="text-sm text-muted-foreground">Elder care tips and product updates, delivered weekly.</p>
                 </div>
-                <div className="w-full sm:ml-auto sm:w-auto sm:min-w-[280px]">
+                <div className="w-full sm:ml-auto sm:w-auto sm:min-w-[403px]">
                   <NewsletterForm source="footer" compact />
                 </div>
               </div>
