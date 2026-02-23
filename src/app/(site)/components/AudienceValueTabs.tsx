@@ -438,8 +438,8 @@ export function AudienceValueTabs() {
                   </div>
 
                   <BlendedDemoFrame className="w-full">
-                    {/* With Ultaura card — brighter, elevated */}
-                    <div className="h-full rounded-2xl border border-primary/40 bg-sidebar p-6 shadow-2xl">
+                    {/* With Ultaura card — same muted styling as Before */}
+                    <div className="h-full rounded-2xl border border-border/60 bg-background/80 p-6 shadow-xl">
                       <div className="space-y-3">
                         <h3 className="text-xs font-semibold text-primary">
                           With Ultaura

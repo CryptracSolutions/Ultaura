@@ -41,8 +41,10 @@ You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large 
 | Orchestrator (you) | Opus 4.6 — set via `/model Opus 4.6` |
 | Explore agents | Opus 4.6 |
 | Plan agent | Opus 4.6 |
-| Implementation teammates | Sonnet 4.6 |
+| Implementation teammates | Sonnet 4.6 (default) — upgrade to Opus 4.6 when the task is genuinely complex |
 | Code simplifier | Sonnet 4.6 |
+
+**Implementation model override rule:** The orchestrator should upgrade a specific implementation teammate to Opus 4.6 when the task involves ambiguous requirements, tricky state management, or needs to reason about multiple interacting systems simultaneously. Sonnet stays the default because it follows plan specs precisely without over-engineering — Opus is reserved for tasks where deeper reasoning outweighs that risk.
 
 **Every time you deploy an agent, you MUST state the model being used in your visible output to the user.** This applies to ALL agent types — Explore, Plan, Implementation teammates, Code simplifier, and any one-shot Task agents.
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useReducedMotion } from 'framer-motion';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import Image from 'next/image';
 
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
@@ -16,6 +17,7 @@ const TESTIMONIALS = [
       'Mom lives alone and the mornings were always hard for me. Now she has someone to talk to before I even finish my coffee. She told me yesterday she likes the voice better than mine \u2014 I\u2019ll take it.',
     author: 'Sarah M.',
     role: 'Daughter',
+    image: '/images/testimonials/sarah-m.webp',
     initials: 'SM',
     location: 'Austin, TX',
     stars: 5,
@@ -26,6 +28,7 @@ const TESTIMONIALS = [
       'He\u2019d let my calls go to voicemail half the time. But for some reason he answers every Ultaura call. I think he likes that there\u2019s no pressure to perform or pretend he\u2019s fine.',
     author: 'James P.',
     role: 'Son',
+    image: '/images/testimonials/james-p.webp',
     initials: 'JP',
     location: 'Seattle, WA',
     stars: 4.5,
@@ -36,6 +39,7 @@ const TESTIMONIALS = [
       'I manage care for three residents and I can\u2019t be everywhere. The call summaries help me catch things I\u2019d normally miss \u2014 changes in mood, new complaints, stuff they wouldn\u2019t tell me directly.',
     author: 'Emily R.',
     role: 'Caregiver',
+    image: '/images/testimonials/emily-r.webp',
     initials: 'ER',
     location: 'Denver, CO',
     stars: 5,
@@ -46,6 +50,7 @@ const TESTIMONIALS = [
       'He never talks about technology. Ever. But he told my whole family about \u2018his calls\u2019 at Sunday dinner. When an 84-year-old voluntarily mentions a tech product, you know it\u2019s working.',
     author: 'Nina K.',
     role: 'Granddaughter',
+    image: '/images/testimonials/nina-k.webp',
     initials: 'NK',
     location: 'Chicago, IL',
     stars: 5,
@@ -56,6 +61,7 @@ const TESTIMONIALS = [
       'I live three states away and checking in every day just wasn\u2019t realistic. Knowing he has a consistent routine and I can glance at the dashboard when I want to \u2014 that\u2019s huge.',
     author: 'Marcus T.',
     role: 'Son',
+    image: '/images/testimonials/marcus-t.webp',
     initials: 'MT',
     location: 'Portland, OR',
     stars: 4.5,
@@ -66,6 +72,7 @@ const TESTIMONIALS = [
       'She figured it out and honestly didn\u2019t care. She says it\u2019s better because there\u2019s no awkward small talk about the weather. They just jump into whatever she wants to talk about.',
     author: 'Leo B.',
     role: 'Nephew',
+    image: '/images/testimonials/leo-b.webp',
     initials: 'LB',
     location: 'Boston, MA',
     stars: 5,
@@ -76,6 +83,7 @@ const TESTIMONIALS = [
       'Grandma was forgetting her afternoon medication constantly. We tried alarms, sticky notes, calling her ourselves. Ultaura just weaves it into the conversation naturally and she actually takes it now.',
     author: 'Omar A.',
     role: 'Grandson',
+    image: '/images/testimonials/omar-a.webp',
     initials: 'OA',
     location: 'Miami, FL',
     stars: 5,
@@ -86,6 +94,7 @@ const TESTIMONIALS = [
       'Mom was skeptical until I told her it\u2019s transparent about not being human. She respected that. Now she has a 15-minute call every morning and she\u2019s in a better mood for the rest of the day.',
     author: 'Luis C.',
     role: 'Son',
+    image: '/images/testimonials/luis-c.webp',
     initials: 'LC',
     location: 'Phoenix, AZ',
     stars: 4.5,
@@ -96,6 +105,7 @@ const TESTIMONIALS = [
       'I was nervous about the idea at first. But hearing Nana tell me about something funny from her call that morning \u2014 you can\u2019t put a price on that. It\u2019s given her something to look forward to.',
     author: 'Aisha N.',
     role: 'Granddaughter',
+    image: '/images/testimonials/aisha-n.webp',
     initials: 'AN',
     location: 'Atlanta, GA',
     stars: 5,
@@ -225,9 +235,19 @@ export function Testimonials() {
 
                   {/* Author - pinned to bottom, stacked vertically */}
                   <div className="flex items-start gap-3 mt-auto pt-4">
-                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                      {testimonial.initials}
-                    </div>
+                    {testimonial.image ? (
+                      <Image
+                        src={testimonial.image}
+                        alt={testimonial.author}
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-full object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                        {testimonial.initials}
+                      </div>
+                    )}
                     <div className="flex flex-col">
                       <span className="font-semibold text-foreground">{testimonial.author}</span>
                       <span className="text-sm text-muted-foreground">

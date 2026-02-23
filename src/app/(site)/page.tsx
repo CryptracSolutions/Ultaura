@@ -8,6 +8,8 @@ import {
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
+import Image from 'next/image';
+
 import Container from '~/core/ui/Container';
 import SubHeading from '~/core/ui/SubHeading';
 import Heading from '~/core/ui/Heading';
@@ -156,9 +158,13 @@ function Home() {
               <blockquote className="text-lg italic text-muted-foreground text-center max-w-xl mx-auto">
                 <p>&ldquo;She&apos;s laughing more. That&apos;s all I needed to know.&rdquo;</p>
                 <footer className="mt-2 flex items-center justify-center gap-2 not-italic">
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-[10px] font-semibold text-primary">
-                    AN
-                  </span>
+                  <Image
+                    src="/images/testimonials/aisha-n.webp"
+                    alt="Aisha N."
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 rounded-full object-cover"
+                  />
                   <span className="text-xs text-muted-foreground">Aisha N., Granddaughter</span>
                 </footer>
               </blockquote>
