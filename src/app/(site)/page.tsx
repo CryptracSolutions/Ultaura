@@ -147,7 +147,7 @@ function Home() {
 
       {/* Final CTA */}
       <section
-        className="relative bg-background py-20 lg:py-28 overflow-hidden"
+        className="relative bg-background py-10 lg:py-14 overflow-hidden"
         style={{
           background: `radial-gradient(ellipse 80% 50% at 50% 50%, var(--surface-accent) 0%, transparent 70%), var(--background)`
         }}
