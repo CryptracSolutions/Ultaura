@@ -116,7 +116,7 @@ export interface ChangelogListQueryOptions {
 
 export const DismissChangelogInputSchema = z.object({
   lastSeenEntryId: z.string().uuid().nullable(),
-  lastSeenPublishedAt: z.string().datetime(),
+  lastSeenPublishedAt: z.string().datetime({ offset: true }),
 });
 
 export type DismissChangelogInput = z.infer<typeof DismissChangelogInputSchema>;
