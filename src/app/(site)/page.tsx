@@ -116,7 +116,7 @@ function Home() {
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
-                    Control when calls happen — quiet hours built in
+                    Control when calls happen — or let them call Ultaura
                   </div>
                 </div>
               </FadeInWhenVisible>

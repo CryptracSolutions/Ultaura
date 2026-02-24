@@ -205,7 +205,7 @@ export function AudienceValueTabs() {
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
                           <span>Call summary</span>
                           <span className="font-semibold text-foreground">
-                            18 min
+                            18 min · Happy
                           </span>
                         </div>
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
@@ -214,17 +214,23 @@ export function AudienceValueTabs() {
                             Tue 6:30 PM · Sun 5:00 PM
                           </span>
                         </div>
-                        <div className="mt-2 flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          See how their calls are going at a glance — duration, mood, and timing.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Call insights</span>
+                          <span className="font-semibold text-foreground">
+                            Engagement, topics & more
+                          </span>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Get a quiet alert only when something seems off.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Wellness + Safety alerts</span>
+                          <span className="font-semibold text-foreground">
+                            Supported
+                          </span>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Stay close to their life without needing to call every day.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Stay connected</span>
+                          <span className="font-semibold text-foreground">
+                            Always
+                          </span>
                         </div>
                       </div>
                     )}
@@ -232,28 +238,34 @@ export function AudienceValueTabs() {
                     {active === 'seniors' && (
                       <div className="mt-6 space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
-                          <span>Daily call window</span>
+                          <span>Daily call</span>
                           <span className="font-semibold text-foreground">
-                            Afternoon
+                            Morning · 9 am
                           </span>
                         </div>
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
-                          <span>Tone</span>
+                          <span>Voice</span>
                           <span className="font-semibold text-foreground">
-                            Warm & gentle
+                            Ara · warm & nurturing
                           </span>
                         </div>
-                        <div className="mt-2 flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Talk about your day, your memories, whatever&apos;s on your mind.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Talk about</span>
+                          <span className="font-semibold text-foreground">
+                            Life, events & memories
+                          </span>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Gentle reminders for medications and appointments — so you don&apos;t have to keep track.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Reminders</span>
+                          <span className="font-semibold text-foreground">
+                            Meds, appointments & dates
+                          </span>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Call anytime, day or night. There&apos;s always someone happy to listen.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Availability</span>
+                          <span className="font-semibold text-foreground">
+                            24/7/365
+                          </span>
                         </div>
                       </div>
                     )}
@@ -261,28 +273,34 @@ export function AudienceValueTabs() {
                     {active === 'care-teams' && (
                       <div className="mt-6 space-y-3 text-sm text-muted-foreground">
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
-                          <span>Scheduling windows</span>
+                          <span>Scheduling times</span>
                           <span className="font-semibold text-foreground">
                             Built in
                           </span>
                         </div>
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
-                          <span>Shift handoffs</span>
+                          <span>Safety alerts</span>
                           <span className="font-semibold text-foreground">
-                            Supported
+                            Instant notifications
                           </span>
                         </div>
-                        <div className="mt-2 flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Daily calls that fit around your facility&apos;s schedule and routines.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Flexibility</span>
+                          <span className="font-semibold text-foreground">
+                            Fits your routines
+                          </span>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Frees up staff time without reducing the quality of check-ins.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Efficiency</span>
+                          <span className="font-semibold text-foreground">
+                            Saves you time
+                          </span>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                          Consistent care across shift changes — every resident gets the same warmth.
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
+                          <span>Family updates</span>
+                          <span className="font-semibold text-foreground">
+                            Automatic & secure
+                          </span>
                         </div>
                       </div>
                     )}
@@ -296,11 +314,16 @@ export function AudienceValueTabs() {
                             <IconBadge icon={ShieldCheckIcon} />
                             Privacy that respects both of you
                           </CardTitle>
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            You see when they talked and for how long — never what
-                            they said. They keep their independence. You keep your
-                            peace of mind.
-                          </p>
+                          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Your loved one keeps their independence while you keep your peace of mind</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>See call timing, duration, topics, and insights — never the full transcript</span>
+                            </li>
+                          </ul>
                         </CardShell>
 
                         <CardShell>
@@ -308,10 +331,16 @@ export function AudienceValueTabs() {
                             <IconBadge icon={ClockIcon} />
                             Their schedule, their terms
                           </CardTitle>
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            Calls happen when they prefer. Quiet hours are built
-                            in. They&apos;re in control of their routine.
-                          </p>
+                          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Complete control over when calls happen — quiet hours, pauses, vacation</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>They can call inbound anytime, or skip days when they prefer</span>
+                            </li>
+                          </ul>
                         </CardShell>
                       </>
                     )}
@@ -323,24 +352,33 @@ export function AudienceValueTabs() {
                             <IconBadge icon={HeartIcon} />
                             A conversation worth having
                           </CardTitle>
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            Not a script. Not a checklist. A real conversation
-                            about the things you care about — your garden, your
-                            grandkids, that recipe you&apos;ve been thinking about.
-                            Ask about yesterday&apos;s game, today&apos;s headlines, or the weather.
-                          </p>
+                          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Real conversations about what matters — no scripts, no checklists</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Someone who truly listens, remembers your stories, and cares about your day</span>
+                            </li>
+                          </ul>
                         </CardShell>
 
                         <CardShell>
                           <CardTitle>
                             <IconBadge icon={ShieldCheckIcon} />
-                            Always honest, always respectful
+                            Your helpful daily assistant
                           </CardTitle>
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            Ultaura tells you it&apos;s AI from the start. No
-                            tricks, no confusion. Just a warm voice and a good
-                            chat.
-                          </p>
+                          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Remembers your preferences and helps with weather, news, or reminders</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Always there when you call — patient, never rushed, and ready for good company</span>
+                            </li>
+                          </ul>
                         </CardShell>
                       </>
                     )}
@@ -352,10 +390,16 @@ export function AudienceValueTabs() {
                             <IconBadge icon={ClockIcon} />
                             Fits your schedule, not the other way around
                           </CardTitle>
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            Set call windows, quiet hours, and routines that match
-                            how your facility actually runs.
-                          </p>
+                          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Call windows and quiet hours tailored to your daily flow</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Less time on routine check-ins, more time for meaningful resident care</span>
+                            </li>
+                          </ul>
                         </CardShell>
 
                         <CardShell>
@@ -363,10 +407,16 @@ export function AudienceValueTabs() {
                             <IconBadge icon={UserGroupIcon} />
                             Support that scales
                           </CardTitle>
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            Whether you have 5 residents or 50, every person gets
-                            a daily conversation that feels personal.
-                          </p>
+                          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Whether you care for 1 resident or 100, each individual receives consistent attention</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                              <span>Insights dashboard that helps you track patterns and stay involved</span>
+                            </li>
+                          </ul>
                         </CardShell>
                       </>
                     )}

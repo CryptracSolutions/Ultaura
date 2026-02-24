@@ -33,7 +33,7 @@ const HOW_IT_WORKS_STEPS = [
   {
     title: 'Choose a voice and a time',
     description:
-      'Pick from five distinct voices and set a daily call window that fits their routine. They just answer the phone.',
+      'Pick from five distinct voices and set a daily call window that fits their routine. They just answer the phone — or call Ultaura whenever they feel like talking.',
     icon: CalendarIcon,
   },
   {
