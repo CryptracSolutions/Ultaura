@@ -804,6 +804,93 @@ export type Database = {
           },
         ]
       }
+      ultaura_changelog_dismissals: {
+        Row: {
+          created_at: string
+          dismissed_at: string
+          id: string
+          last_seen_entry_id: string | null
+          last_seen_published_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string
+          id?: string
+          last_seen_entry_id?: string | null
+          last_seen_published_at: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string
+          id?: string
+          last_seen_entry_id?: string | null
+          last_seen_published_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_changelog_dismissals_last_seen_entry_id_fkey"
+            columns: ["last_seen_entry_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_changelog_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_changelog_dismissals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_changelog_entries: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          email_sent: boolean
+          id: string
+          publish_batch_id: string | null
+          published: boolean
+          published_at: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          email_sent?: boolean
+          id?: string
+          publish_batch_id?: string | null
+          published?: boolean
+          published_at?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          email_sent?: boolean
+          id?: string
+          publish_batch_id?: string | null
+          published?: boolean
+          published_at?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ultaura_cognitive_flags: {
         Row: {
           concern_level: string | null
@@ -5773,4 +5860,3 @@ export const Constants = {
     },
   },
 } as const
-

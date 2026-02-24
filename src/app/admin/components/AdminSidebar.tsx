@@ -8,6 +8,7 @@ import {
   ChatBubbleLeftRightIcon,
   ClockIcon,
   CreditCardIcon,
+  DocumentTextIcon,
   HomeIcon,
   MagnifyingGlassIcon,
   MegaphoneIcon,
@@ -35,6 +36,7 @@ import useSignOut from '~/core/hooks/use-sign-out';
 
 const NEWSLETTER_PATH = '/admin/newsletter';
 const BROADCASTS_PATH = '/admin/newsletter/broadcasts';
+const CHANGELOG_PATH = '/admin/changelog';
 
 function isNewsletterSubscribersRoute(currentPath: string) {
   return (
@@ -47,6 +49,13 @@ function isNewsletterBroadcastsRoute(currentPath: string) {
   return (
     currentPath === BROADCASTS_PATH ||
     currentPath.startsWith(`${BROADCASTS_PATH}/`)
+  );
+}
+
+function isChangelogRoute(currentPath: string) {
+  return (
+    currentPath === CHANGELOG_PATH ||
+    currentPath.startsWith(`${CHANGELOG_PATH}/`)
   );
 }
 
@@ -128,7 +137,7 @@ function AdminSidebar({
             </SidebarItem>
           </SidebarGroup>
 
-          <SidebarGroup label={'Newsletter'} collapsible={false}>
+          <SidebarGroup label={'Content'} collapsible={false}>
             <SidebarItem
               path={NEWSLETTER_PATH}
               activeMatch={isNewsletterSubscribersRoute}
@@ -143,6 +152,14 @@ function AdminSidebar({
               Icon={MegaphoneIcon}
             >
               Broadcasts
+            </SidebarItem>
+
+            <SidebarItem
+              path={CHANGELOG_PATH}
+              activeMatch={isChangelogRoute}
+              Icon={DocumentTextIcon}
+            >
+              Changelog
             </SidebarItem>
           </SidebarGroup>
 
@@ -275,9 +292,10 @@ function AdminMobileOverlay({
     { path: '/admin/billing', label: 'Billing', Icon: CreditCardIcon },
   ];
 
-  const newsletterItems = [
+  const contentItems = [
     { path: NEWSLETTER_PATH, label: 'Subscribers', Icon: UsersIcon },
     { path: BROADCASTS_PATH, label: 'Broadcasts', Icon: MegaphoneIcon },
+    { path: CHANGELOG_PATH, label: 'Changelog', Icon: DocumentTextIcon },
   ];
 
   const observeItems = [
@@ -325,8 +343,8 @@ function AdminMobileOverlay({
           ))}
         </MobileSection>
 
-        <MobileSection label="Newsletter">
-          {newsletterItems.map((item) => (
+        <MobileSection label="Content">
+          {contentItems.map((item) => (
             <MobileLink key={item.path} path={item.path} label={item.label} Icon={item.Icon} onClick={closeMenu} />
           ))}
         </MobileSection>

@@ -11,6 +11,7 @@ import {
   Tailwind,
   Text,
 } from '@react-email/components';
+import React from 'react';
 
 import { brandColors } from '~/lib/brand-colors';
 
@@ -32,7 +33,8 @@ export function EmailLayout({
   baseUrl,
 }: EmailLayoutProps) {
   const siteUrl = baseUrl || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const logoUrl = `${siteUrl.replace(/\/$/, '')}/logos/logo-email.png`;
+  const normalizedSiteUrl = siteUrl.replace(/\/$/, '');
+  const logoUrl = `${normalizedSiteUrl}/logos/logo-email.png`;
 
   return (
     <Html>
@@ -121,11 +123,11 @@ export function EmailLayout({
               Companionship, one call at a time.
             </Text>
 
-            {footerLinks && footerLinks.length > 0 && (
+            {footerLinks?.length ? (
               <Text className="text-[12px] text-stone-500 mt-[8px] mb-0 text-center">
-                {footerLinks.map((link, i) => (
+                {footerLinks.map((link, index) => (
                   <span key={link.href}>
-                    {i > 0 && ' | '}
+                    {index > 0 && ' | '}
                     <Link
                       href={link.href}
                       style={{ color: brandColors.primary }}
@@ -135,7 +137,7 @@ export function EmailLayout({
                   </span>
                 ))}
               </Text>
-            )}
+            ) : null}
           </Container>
         </Body>
       </Tailwind>

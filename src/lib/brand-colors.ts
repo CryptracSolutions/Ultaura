@@ -39,6 +39,14 @@ export const brandColors = {
 
   /** Border color matching the design system */
   border: '#E7E5E4', // stone-200
+
+  /** Semantic colors shared by dashboard changelog badges and changelog email labels */
+  changelog: {
+    newFeature: '#15803D',
+    improvement: '#2563EB',
+    fix: '#D97706',
+    announcement: '#7C3AED',
+  },
 } as const;
 
 export type BrandColors = typeof brandColors;

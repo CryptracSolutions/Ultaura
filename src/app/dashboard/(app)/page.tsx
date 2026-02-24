@@ -3,11 +3,16 @@ import { Repeat, Phone, Clock, Zap } from 'lucide-react';
 
 import AppHeader from './components/AppHeader';
 import { DashboardUpcomingTabs } from './components/DashboardUpcomingTabs';
+import WhatsNewSection from './components/WhatsNewSection';
 import { withI18n } from '~/i18n/with-i18n';
 import Trans from '~/core/ui/Trans';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
+import {
+  getPublishedChangelogDashboardItems,
+  getUserChangelogDismissal,
+} from '~/lib/ultaura/changelog';
 import { getLines } from '~/lib/ultaura/lines';
 import {
   getActiveScheduleStatsByLine,
@@ -76,6 +81,7 @@ export const metadata = {
 
 async function DashboardPage() {
   const appData = await loadAppDataForUser();
+  const userId = appData.auth.user.id;
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {
@@ -125,7 +131,17 @@ async function DashboardPage() {
     ? 'Your home for call activity, schedules, and reminders.'
     : <Trans i18nKey={'common:dashboardTabDescription'} />;
 
-  const [lines, usage, activity, upcomingSchedules, upcomingReminders, scheduledReminderStatsByLine, activeScheduleStatsByLine] = await Promise.all([
+  const [
+    lines,
+    usage,
+    activity,
+    upcomingSchedules,
+    upcomingReminders,
+    scheduledReminderStatsByLine,
+    activeScheduleStatsByLine,
+    publishedChangelog,
+    changelogDismissal,
+  ] = await Promise.all([
     getLines(account.id),
     getUsageSummary(account.id),
     getLineActivity(account.id),
@@ -133,6 +149,8 @@ async function DashboardPage() {
     getUpcomingReminders(account.id),
     getScheduledReminderStatsByLine(account.id),
     getActiveScheduleStatsByLine(account.id),
+    getPublishedChangelogDashboardItems({ limit: 5 }),
+    getUserChangelogDismissal(userId),
   ]);
 
   const unverifiedCount = lines.filter((l) => !l.phone_verified_at).length;
@@ -220,6 +238,14 @@ async function DashboardPage() {
     })
     .slice(0, 8);
 
+  const showWhatsNew = shouldShowWhatsNewSection(
+    publishedChangelog.items.length,
+    publishedChangelog.latestEntryId,
+    publishedChangelog.latestPublishedAt,
+    changelogDismissal?.lastSeenEntryId ?? null,
+    changelogDismissal?.lastSeenPublishedAt ?? null,
+  );
+
   return (
     <>
       <AppHeader
@@ -271,6 +297,16 @@ async function DashboardPage() {
               )}
             </div>
           )}
+
+          {showWhatsNew ? (
+            <WhatsNewSection
+              userId={userId}
+              initialUpdates={publishedChangelog.items}
+              totalCount={publishedChangelog.totalCount}
+              latestEntryId={publishedChangelog.latestEntryId}
+              latestPublishedAt={publishedChangelog.latestPublishedAt}
+            />
+          ) : null}
 
           {/* At a glance */}
           <div className="grid gap-4 md:grid-cols-2">
@@ -565,6 +601,35 @@ async function DashboardPage() {
 }
 
 export default withI18n(DashboardPage);
+
+function shouldShowWhatsNewSection(
+  itemCount: number,
+  latestEntryId: string | null,
+  latestPublishedAt: string | null,
+  dismissedEntryId: string | null,
+  dismissedPublishedAt: string | null,
+) {
+  if (itemCount === 0) {
+    return false;
+  }
+
+  const latestTime = toTimestampOrNaN(latestPublishedAt);
+  const dismissedTime = toTimestampOrNaN(dismissedPublishedAt);
+  const dismissedMatchesLatestByTime =
+    Number.isFinite(latestTime) &&
+    Number.isFinite(dismissedTime) &&
+    dismissedTime >= latestTime;
+  const dismissedMatchesLatestByEntryId =
+    Boolean(dismissedEntryId) &&
+    Boolean(latestEntryId) &&
+    dismissedEntryId === latestEntryId;
+
+  return !(dismissedMatchesLatestByTime || dismissedMatchesLatestByEntryId);
+}
+
+function toTimestampOrNaN(value: string | null) {
+  return value ? new Date(value).getTime() : Number.NaN;
+}
 
 function formatDateTime(iso: string, timezone?: string | null) {
   const date = new Date(iso);
