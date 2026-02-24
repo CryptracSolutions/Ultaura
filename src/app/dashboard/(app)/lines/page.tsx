@@ -81,6 +81,10 @@ export default async function LinesPage() {
 
   const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
   const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
+  const effectivePlanId =
+    account.status === 'trial'
+      ? (account.trial_plan_id ?? account.plan_id ?? 'free_trial')
+      : (account.plan_id ?? 'free_trial');
 
   // Determine if we should show any alerts
   const isPayg = account.plan_id === 'payg';
@@ -113,8 +117,8 @@ export default async function LinesPage() {
               accountId={account.id}
               lines={lines}
               userType={userType}
-              planLinesLimit={getPlanLinesLimit(account.plan_id ?? 'free_trial')}
-              canUpgrade={canUpgradePlan(account.plan_id ?? 'free_trial')}
+              planLinesLimit={getPlanLinesLimit(effectivePlanId)}
+              canUpgrade={canUpgradePlan(effectivePlanId)}
               disabled={isTrialExpired}
               vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}
             />
@@ -129,19 +133,9 @@ function canUpgradePlan(planId: string): boolean {
   return planId !== 'family' && planId !== 'payg';
 }
 
-function getPlanLinesLimit(planId: string): number {
-  switch (planId) {
-    case 'free_trial':
-    case 'care':
-      return 1;
-    case 'comfort':
-      return 2;
-    case 'family':
-    case 'payg':
-      return 4;
-    default:
-      return 1;
-  }
+function getPlanLinesLimit(planId: string): number | null {
+  const plan = PLANS[planId as keyof typeof PLANS];
+  return plan ? plan.linesIncluded : 1;
 }
 
 function LinesListSkeleton() {

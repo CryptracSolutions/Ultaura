@@ -6,7 +6,7 @@ interface TrialStatusCardProps {
   hoursRemaining: number;
   trialEndsAt: string | null;
   minutesIncluded: number | 'Unlimited';
-  linesIncluded: number;
+  linesIncluded: number | null;
 }
 
 export function TrialStatusCard({
@@ -73,10 +73,19 @@ export function TrialStatusCard({
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
-                <span className="font-medium">{linesIncluded}</span>{' '}
-                <span className="text-muted-foreground">
-                  phone line{linesIncluded > 1 ? 's' : ''}
-                </span>
+                {linesIncluded === null ? (
+                  <>
+                    <span className="font-medium">Unlimited</span>{' '}
+                    <span className="text-muted-foreground">phone lines</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium">{linesIncluded}</span>{' '}
+                    <span className="text-muted-foreground">
+                      phone line{linesIncluded > 1 ? 's' : ''}
+                    </span>
+                  </>
+                )}
               </span>
             </div>
           </div>

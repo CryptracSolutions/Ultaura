@@ -147,7 +147,7 @@ export interface Plan {
   monthlyPriceCents: number;
   annualPriceCents: number;
   minutesIncluded: number;
-  linesIncluded: number;
+  linesIncluded: number | null;
   remindersPerLine: number | null;
   overageRateCentsPerMin: number;
 }

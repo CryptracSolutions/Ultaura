@@ -55,7 +55,7 @@ export const PLANS: Record<PlanId, Plan> = {
     monthlyPriceCents: 0,
     annualPriceCents: 0,
     minutesIncluded: 0,
-    linesIncluded: 4,
+    linesIncluded: null,
     remindersPerLine: null,
     overageRateCentsPerMin: 15,
   },

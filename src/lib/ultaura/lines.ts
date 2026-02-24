@@ -96,7 +96,18 @@ const createLineWithTrial = withTrialCheck(async (
     : (account.plan_id || 'free_trial');
   const plan = await getPlan(planId);
 
-  if (existingLines.length >= (plan?.lines_included || 1)) {
+  if (!plan) {
+    logger.error({ accountId: account.id, planId }, 'Failed to load plan for line limit enforcement');
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to validate plan limits'
+      ),
+    };
+  }
+
+  if (typeof plan.lines_included === 'number' && existingLines.length >= plan.lines_included) {
     return {
       success: false,
       error: createError(

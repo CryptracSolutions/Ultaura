@@ -27,7 +27,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'what-is-line',
         question: 'What is a "line"?',
         answer:
-          'A line represents one phone number that Ultaura calls. Each line has its own schedule, preferences, reminders, and memory. Depending on your plan, you can have 1 to 4 lines for different family members.',
+          'A line represents one phone number that Ultaura calls. Each line has its own schedule, preferences, reminders, and memory. Depending on your plan, you can have 1 to 4 lines, or unlimited lines on Pay As You Go, for different family members.',
       },
       {
         id: 'is-real-person',
@@ -231,7 +231,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'plans-available',
         question: 'What plans are available?',
         answer:
-          'We offer Care ($19/month, 200 minutes, 1 line), Comfort ($49/month, 600 minutes, 2 lines), Family ($99/month, 1,200 minutes, 4 lines), and Pay As You Go ($0.15/minute, no monthly commitment). Annual plans save 20%. All plans include the full feature set — daily calls, insights, safety monitoring, reminders, and more. Plans differ only in included minutes, number of lines, and reminders per line.',
+          'We offer Care ($19/month, 200 minutes, 1 line), Comfort ($49/month, 600 minutes, 2 lines), Family ($99/month, 1,200 minutes, 4 lines), and Pay As You Go ($0.15/minute, no monthly commitment, unlimited lines). Annual plans save 20%. All plans include the full feature set — daily calls, insights, safety monitoring, reminders, and more. Plans differ only in included minutes, number of lines, and reminders per line.',
       },
       {
         id: 'free-trial',

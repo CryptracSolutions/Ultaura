@@ -1,3 +1,10 @@
+type PlanLimitDetails = {
+  minutes: string;
+  lines: string;
+  reminders: string;
+  support: string;
+};
+
 export const SHARED_FEATURES = [
   'Daily scheduled calls',
   'Mood and wellness insights',
@@ -8,7 +15,7 @@ export const SHARED_FEATURES = [
   'Wellness and cognitive tracking',
 ] as const;
 
-export const PLAN_LIMITS: Record<string, { minutes: string; lines: string; reminders: string; support: string }> = {
+export const PLAN_LIMITS: Record<string, PlanLimitDetails> = {
   care: {
     minutes: '200 minutes/month',
     lines: 'Up to 1 phone line',
@@ -29,7 +36,7 @@ export const PLAN_LIMITS: Record<string, { minutes: string; lines: string; remin
   },
   payg: {
     minutes: '$0.15 per minute',
-    lines: 'Up to 4 phone lines',
+    lines: 'Unlimited phone lines',
     reminders: 'Unlimited reminders',
     support: 'Priority support',
   },

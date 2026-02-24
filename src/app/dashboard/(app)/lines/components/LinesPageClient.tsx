@@ -13,7 +13,7 @@ import Button from '~/core/ui/Button';
 interface LinesPageClientProps {
   accountId: string;
   lines: LineRow[];
-  planLinesLimit: number;
+  planLinesLimit: number | null;
   canUpgrade?: boolean;
   userType?: UserType;
   disabled?: boolean;
@@ -49,12 +49,12 @@ export function LinesPageClient({
   const refreshActiveLines = useCallback(async () => {
     const { data } = await supabase
       .from('ultaura_call_sessions')
-      .select('line_id, status, connected_at')
+      .select('line_id, status')
       .eq('account_id', accountId)
       .in('status', ['ringing', 'in_progress']);
 
     const next: Record<string, 'ringing' | 'in_progress'> = {};
-    (data || []).forEach((session) => {
+    (data ?? []).forEach((session) => {
       if (session.status === 'in_progress') {
         next[session.line_id] = 'in_progress';
       } else if (session.status === 'ringing' && !next[session.line_id]) {
@@ -85,14 +85,16 @@ export function LinesPageClient({
   }, [accountId, refreshActiveLines, supabase]);
 
   const isLineOnVacation = useCallback((line: LineRow) => {
-    const ranges = (line.vacation_ranges as Array<{ start: string; end: string }>) || [];
-    if (ranges.length === 0) return false;
+    const vacationRanges = (line.vacation_ranges as Array<{ start: string; end: string }>) ?? [];
+    if (vacationRanges.length === 0) return false;
     const today = DateTime.now().setZone(line.timezone).toISODate();
     if (!today) return false;
-    return ranges.some((range) => today >= range.start && today <= range.end);
+    return vacationRanges.some((range) => today >= range.start && today <= range.end);
   }, []);
 
-  const canAddLine = !disabled && lines.length < planLinesLimit;
+  const hasUnlimitedLines = planLinesLimit === null;
+  const canAddLine = !disabled && (hasUnlimitedLines || lines.length < planLinesLimit);
+  const limitedPlanLinesLimit = planLinesLimit ?? 0;
   const isSelfUser = userType === 'self';
 
   return (
@@ -108,19 +110,26 @@ export function LinesPageClient({
             .
           </p>
         ) : canAddLine ? (
-          <Button
-            variant="default"
-            size="small"
-            block
-            onClick={() => setIsAddModalOpen(true)}
-            className="sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
-          </Button>
-        ) : lines.length > planLinesLimit ? (
+          <div className="space-y-2">
+            <Button
+              variant="default"
+              size="small"
+              block
+              onClick={() => setIsAddModalOpen(true)}
+              className="sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
+            </Button>
+            {hasUnlimitedLines ? (
+              <p className="text-sm text-muted-foreground">
+                {lines.length} line{lines.length === 1 ? '' : 's'} on your plan. You can add more anytime.
+              </p>
+            ) : null}
+          </div>
+        ) : !hasUnlimitedLines && lines.length > limitedPlanLinesLimit ? (
           <p className="text-sm text-muted-foreground">
-            Your plan includes {planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}, but you currently have {lines.length}. Your existing lines will keep working, but you can&apos;t add new ones until you upgrade or remove a line.
+            Your plan includes {limitedPlanLinesLimit} line{limitedPlanLinesLimit > 1 ? 's' : ''}, but you currently have {lines.length}. Your existing lines will keep working, but you can&apos;t add new ones until you upgrade or remove a line.
             {canUpgrade && (
               <a
                 href="/dashboard/settings/subscription"
@@ -132,7 +141,7 @@ export function LinesPageClient({
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            You&apos;ve reached the line limit for your plan ({planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}).
+            You&apos;ve reached the line limit for your plan ({limitedPlanLinesLimit} line{limitedPlanLinesLimit > 1 ? 's' : ''}).
             {canUpgrade && (
               <a
                 href="/dashboard/settings/subscription"

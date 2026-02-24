@@ -163,7 +163,7 @@ const configuration = {
         features: [
           'Pay only for what you use',
           '$0.15 per minute',
-          'Up to 4 phone lines',
+          'Unlimited phone lines',
           'Daily check-in calls',
           'Unlimited reminders',
           'No monthly commitment',

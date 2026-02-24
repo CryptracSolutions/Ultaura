@@ -9,11 +9,18 @@ import { getInternalApiSecret } from '../../utils/env.js';
 import { redactPhone } from '../../utils/redact.js';
 
 // Plan information for Grok to explain
-const PLAN_INFO: Record<string, { name: string; price: string; minutes: number | null; lines: number }> = {
+type PlanInfo = {
+  name: string;
+  price: string;
+  minutes: number | null;
+  lines: number | null;
+};
+
+const PLAN_INFO: Record<string, PlanInfo> = {
   care: { name: 'Care', price: '$19/month', minutes: 200, lines: 1 },
   comfort: { name: 'Comfort', price: '$49/month', minutes: 600, lines: 2 },
   family: { name: 'Family', price: '$99/month', minutes: 1200, lines: 4 },
-  payg: { name: 'Pay as you go', price: '$0/month + $0.15/minute', minutes: null, lines: 4 },
+  payg: { name: 'Pay as you go', price: '$0/month + $0.15/minute', minutes: null, lines: null },
 };
 
 export const requestUpgradeRouter = Router();
@@ -62,12 +69,15 @@ requestUpgradeRouter.post('/', async (req: Request, res: Response) => {
     // If no plan specified, return plan options for Grok to explain
     if (!planId) {
       await recordStateChange();
-      const planList = Object.entries(PLAN_INFO)
-        .map(([_id, info]) => {
+      const planList = Object.values(PLAN_INFO)
+        .map((info) => {
+          const linesText = info.lines === null
+            ? 'unlimited lines'
+            : `${info.lines} phone line${info.lines > 1 ? 's' : ''}`;
           if (info.minutes) {
-            return `${info.name}: ${info.price}, ${info.minutes} minutes/month, ${info.lines} phone line${info.lines > 1 ? 's' : ''}`;
+            return `${info.name}: ${info.price}, ${info.minutes} minutes/month, ${linesText}`;
           }
-          return `${info.name}: ${info.price}, ${info.lines} phone lines`;
+          return `${info.name}: ${info.price}, ${linesText}`;
         })
         .join('. ');
 

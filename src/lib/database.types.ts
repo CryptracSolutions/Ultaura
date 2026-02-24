@@ -2971,7 +2971,7 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
-          lines_included: number
+          lines_included: number | null
           minutes_included: number
           monthly_price_cents: number
           overage_rate_cents_per_min: number
@@ -2982,7 +2982,7 @@ export type Database = {
           created_at?: string
           display_name: string
           id: string
-          lines_included?: number
+          lines_included?: number | null
           minutes_included?: number
           monthly_price_cents?: number
           overage_rate_cents_per_min?: number
@@ -2993,7 +2993,7 @@ export type Database = {
           created_at?: string
           display_name?: string
           id?: string
-          lines_included?: number
+          lines_included?: number | null
           minutes_included?: number
           monthly_price_cents?: number
           overage_rate_cents_per_min?: number
