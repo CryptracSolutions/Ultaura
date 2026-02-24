@@ -7,7 +7,6 @@ node_modules
 
 # testing
 /coverage
-scripts/test-emails.tsx
 
 # next.js
 /.next/
@@ -19,6 +18,7 @@ scripts/test-emails.tsx
 # misc
 .DS_Store
 *.pem
+email-previews.html
 
 # debug
 npm-debug.log*
