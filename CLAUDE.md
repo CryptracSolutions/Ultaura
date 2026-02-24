@@ -85,12 +85,26 @@ You MUST follow these steps IN ORDER:
 
 1. **Explore the codebase** — Launch Explore agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
 2. **Interview the user until ambiguity reaches zero** — Use `AskUserQuestion` aggressively. Do NOT assume intent. Do NOT guess between two valid approaches. Ask. Interview scaling:
-   - Small tasks: 0-6 questions (proceed if clear)
-   - Medium tasks: 6-12 clarifying questions minimum
-   - Large tasks: 12+ questions to nail down full scope
+   - Small tasks: 0-9 questions (proceed if clear)
+   - Medium tasks: 9-18 clarifying questions minimum
+   - Large tasks: 18+ questions to nail down full scope
    - Keep asking follow-ups until you have concrete answers for every decision point
    - Ask proactively when: requirements are ambiguous, multiple valid approaches exist, user preferences would affect implementation, or scope could expand unexpectedly
 3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
+
+### Interview Scaling
+
+Use `AskUserQuestion` tool proactively when:
+- Requirements are ambiguous
+- Multiple valid approaches exist
+- User preferences would affect implementation
+- Scope could expand unexpectedly
+
+| Task Size | Interview Depth |
+|-----------|-----------------|
+| Small | 0-9 questions (proceed if clear) |
+| Medium | 9-18 clarifying questions |
+| Large | 18+ detailed questions to nail down full scope and solve all ambiguities |
 
 #### Phase 2: Writing the Plan — **MUST use `Plan` agent with `model: "Opus 4.6"`**
 
@@ -263,40 +277,9 @@ Even for exceptions, STILL:
 
 ---
 
-# Ultaura - AI Voice Companion for Seniors
-
-AI-powered voice companion providing check-in calls for elderly individuals. Built on MakerKit SaaS template with Twilio telephony and xAI Grok Voice Agent.
-
-## Overview
-
-Ultaura makes automated phone calls to seniors at scheduled times for friendly conversation, reminders, activity suggestions, and companionship. Family members (payers) manage lines, schedules, and usage through a web dashboard. The system includes mood tracking, wellness alerts, cognitive observation, and family notification features.
-
-### Key Features
-
-- **Scheduled Check-in Calls**: Configure daily call times with quiet hours and vacation mode
-- **Natural Voice Conversations**: Powered by xAI Grok Voice Agent (Ara, Eve, Leo, Rex, Sal voices)
-- **Recurring Reminders**: RRULE-based with pause/snooze/skip functionality
-- **Memory System**: Encrypted storage with semantic search, topic exclusions, and decay
-- **Safety Monitoring**: Detects distress keywords, logs events with severity tiers
-- **Trusted Contacts**: Emergency contacts notified during safety events
-- **Multi-Line Support**: Up to 4 lines on Family plan
-- **Usage-Based Billing**: Minutes pooled at account level with overage at $0.15/min
-- **Answering Machine Detection**: Configurable voicemail behavior when calls reach machines
-- **Insights Dashboard**: Mood tracking, emotional trends, conversation highlights
-- **Wellness Alerts**: Automated alerts to family when concerns detected
-- **Weekly Summaries**: Email digests for family members
-- **Milestones**: Birthday, anniversary, and memorial tracking
-- **Accessibility Settings**: Hearing and cognitive support adaptations
-- **Privacy Center**: Consent management, data export, data deletion
-
-## Workflow Preferences
-
-> **See [MANDATORY: Delegation-First Workflow](#️-mandatory-delegation-first-workflow) above. This section contains supplementary guidance.**
-
 ### Chrome Visual Verification
 
 For **any UI/UX changes**, use Chrome MCP for visual verification (when made available by the user):
-- **Batch checkpoints**: After every 3-5 files, visually verify changes
 - **Before/after awareness**: Note current state before changes
 - **Mobile check**: Always verify at 375px viewport (seniors use tablets/phones)
 - **Interactive states**: Verify hover, focus, loading, error states
@@ -305,211 +288,3 @@ Skip Chrome for:
 - Backend-only changes
 - Non-visual config changes
 - Database migrations
-
-### Lessons Learned
-
-Document mistakes and patterns here. After Claude makes an error, have it update this section.
-
-#### Database & Supabase
-- Always add RLS policies when creating new `ultaura_*` tables
-- New tables must have `account_id` or `line_id` for RLS scoping
-- Run `supabase db diff` to verify migration changes before committing
-
-#### Telephony
-- Grok tools must be registered in both `/telephony/src/routes/tools/` AND the prompt definitions in `@ultaura/prompts`
-- WebSocket handlers must handle disconnect gracefully (30s drain on SIGTERM)
-- Always use the service role client for telephony operations (RLS bypass)
-
-#### Telephony Grok Voice Agent Test Guardrails
-- Scope: This suite validates in-call telephony behavior for the Grok Voice Agent using simulated calls (no live Grok API and no real phone/audio calls).
-- Run before push for telephony work:
-  - `pnpm --filter @ultaura/telephony typecheck`
-  - `pnpm --filter @ultaura/telephony test:tool-coverage`
-  - `pnpm --filter @ultaura/telephony test`
-- Also run websocket simulators when changing call flow, timers, overage prompts, teardown, or bridge routing:
-  - `pnpm --filter @ultaura/telephony test -- src/websocket/__tests__/media-stream-simulator.test.ts src/websocket/__tests__/call-scenario-simulator.test.ts`
-- `test:tool-coverage` enforces:
-  - canonical-tool matrix parity with `GROK_TOOLS` in `/packages/prompts/src/tools/definitions.ts`
-  - success-path and failure-path evidence per canonical tool
-  - exact `getPostHandler(router, '/path')` extraction for multi-route routers
-- Out of scope for this suite:
-  - dashboard/UI behavior
-  - live provider integration behavior
-  - Twilio audio-quality/media fidelity checks
-
-#### React/Next.js
-- Server actions go in `/src/lib/ultaura/`
-- Use the existing patterns for error handling with `ActionResult<T>` types
-- Dashboard pages should use the existing layout components
-
-#### Common Mistakes
-- Forgetting to add new tables to the ARCHITECTURE.md reference
-- Not testing with both payer and line user_type accounts
-- Missing encryption for PII fields (use line/account encryption services)
-- Legacy migration `20241220000001` contains stale plan data (including Family `2200` minutes). Never copy pricing/allowance values from old migrations; use `src/lib/ultaura/constants.ts` and alignment migration `20260327000011` as source of truth.
-
-*Add new lessons as they're discovered.*
-
-## Architecture
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Next.js Web   │────▶│  Telephony API   │────▶│  Twilio Voice   │
-│   Dashboard     │     │  (Express.js)    │     │                 │
-└─────────────────┘     └──────────────────┘     └────────┬────────┘
-        │                       │                         │
-        ▼                       ▼                         ▼
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│    Supabase     │     │  xAI Grok Voice  │     │  Media Stream   │
-│    Database     │     │  (Realtime API)  │◀────│   WebSocket     │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-        │                       │
-        ▼                       ▼
-┌─────────────────┐     ┌──────────────────┐
-│  Upstash Redis  │     │  OpenAI/xAI      │
-│  Rate Limiting  │     │  Embeddings      │
-└─────────────────┘     └──────────────────┘
-```
-
-## Components
-
-1. **Next.js Dashboard** (`/src/app/dashboard/(app)/`)
-   - Line management with phone verification
-   - Schedule and reminder configuration
-   - Trusted contacts management
-   - Usage monitoring and billing
-   - Insights dashboard with mood trends
-   - Wellness alerts management
-   - Privacy center with consent controls
-   - Milestones tracking
-
-2. **Telephony Backend** (`/telephony/`)
-   - Express.js server on port 3001
-   - WebSocket bridge: Twilio Media Streams ↔ Grok Realtime API
-   - Call scheduler with distributed locking
-   - Weekly summary scheduler
-   - Recording deletion scheduler
-   - Memory decay and embedding jobs
-   - 46 Grok tool endpoints
-   - 44 service modules
-   - Rate limiting with Upstash Redis
-
-3. **Database** (`/supabase/migrations/`)
-   - Migration files with RLS policies
-   - Core, billing, safety, insights, privacy, and personalization tables
-   - Distributed scheduler coordination
-   - Vector embeddings for semantic memory search
-
-4. **Shared Packages** (`/packages/`)
-   - `@ultaura/types` - Shared TypeScript types
-   - `@ultaura/prompts` - Grok system prompts and tool definitions
-   - `@ultaura/schemas` - Zod validation schemas
-
-## Plans & Pricing
-
-| Plan | Monthly | Annual | Minutes | Lines |
-|------|---------|--------|---------|-------|
-| Free Trial | $0 | - | 20/day | 1 |
-| Care | $19 | $180 | 200 | 1 |
-| Comfort | $49 | $470 | 600 | 2 |
-| Family | $99 | $950 | 1,200 | 4 |
-| Pay As You Go | $0 | - | 0 | 4 |
-
-- All overages: $0.15/min (except Free Trial: no overage charges)
-- Trial duration: 14 days
-- Annual discount: ~20%
-
-## Call Flow
-
-1. Scheduler triggers outbound call via Twilio (with AMD enabled)
-2. Twilio performs Answering Machine Detection:
-   - **Human/Unknown**: Proceeds to conversation
-   - **Machine**: Applies line's `voicemail_behavior` setting (none/brief/detailed)
-   - **Fax**: Hangs up immediately
-3. If human, Twilio opens Media Stream WebSocket at `/twilio/media`
-4. Telephony bridges audio to Grok Realtime API
-5. Grok converses using 46 available tools (reminders, safety, memory, insights, etc.)
-6. Call ends, usage recorded in minute ledger
-7. Call insights extracted and stored (encrypted)
-8. Memory summaries encrypted and stored with embeddings
-9. Wellness alerts triggered if concerns detected
-10. Weekly summary scheduler aggregates data for family notifications
-11. Overage reported to Stripe if applicable
-
-## Reference Documentation
-
-For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md):
-- Database tables and schemas (60 ultaura_ tables; note: 4 newsletter tables may not yet be listed in ARCHITECTURE.md)
-- Server actions by module (in `/src/lib/ultaura/`)
-- Telephony API endpoints
-- Grok tool endpoints (46 tools in `/telephony/src/routes/tools/`)
-- Telephony service modules (44 services)
-- Next.js API routes
-
-## Operations Notes
-
-- See `telephony/OBSERVABILITY.md` for logging, metrics, and tracing details.
-- WebSocket media streams require sticky sessions; ingress should hash on the `callSessionId` query param.
-- Scheduler leases include: `schedules`, `reminders`, `weekly-summaries`, `recording-deletions`, `embeddings`, `decay-job`.
-- Telephony pods drain active WebSocket calls on SIGTERM/SIGINT (30s max) before exit.
-- Internal ops endpoints (require `X-Webhook-Secret`): `/internal/scheduler-status`, `/internal/active-calls`, `/internal/metrics`.
-- Prometheus scraping should hit `/internal/metrics` with `X-Webhook-Secret` via ServiceMonitor `httpHeaders` + Secret.
-- Internal maintenance scheduler also checks Next.js internal endpoints hourly, including `/api/internal/crypto-health` (task key: `crypto_health`).
-- Alerting reference for crypto health checks:
-  - Metric: `ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="failure"}`
-  - Repeated-failure log event: `crypto_health_consecutive_failures`
-
-### KEK Rotation Runbook (ULTAURA_ENCRYPTION_KEY)
-
-1. Generate a new 64-hex key and set it as `ULTAURA_ENCRYPTION_KEY` in both Next.js and telephony.
-2. Move the prior key to `ULTAURA_ENCRYPTION_KEY_PREVIOUS` in both services.
-3. Restart/deploy services so both env vars are active everywhere.
-4. Verify decrypt health with:
-   - `GET /api/internal/crypto-health` (authorized with `x-webhook-secret`)
-   - Expect `200` `{ ok: true }` for the configured account check.
-5. Monitor for at least one maintenance window:
-   - `ultaura_onboarding_maintenance_runs_total{task="crypto_health",result="failure"}`
-   - Log event `crypto_health_consecutive_failures` should remain absent.
-6. If healthy, remove `ULTAURA_ENCRYPTION_KEY_PREVIOUS` in both services and redeploy.
-
-Rollback:
-1. Restore the prior key as `ULTAURA_ENCRYPTION_KEY`.
-2. Put the attempted new key in `ULTAURA_ENCRYPTION_KEY_PREVIOUS`.
-3. Redeploy and verify `/api/internal/crypto-health` returns `200`.
-
-## Security
-
-### Phone Verification
-All lines must be verified via Twilio Verify before receiving calls.
-
-### Memory Encryption
-AES-256-GCM envelope encryption:
-- KEK (Key Encryption Key) in environment
-- DEK (Data Encryption Key) per account, wrapped with KEK
-- Per-line DEK option for enhanced privacy (enabled by default for new lines created after 2026-03-01; legacy lines use account-level DEK)
-- AAD binding includes account and line IDs
-
-### Rate Limiting
-Distributed rate limiting via Upstash Redis:
-- Per-phone verification limits
-- Per-IP request limits
-- Per-account action limits
-- Anomaly detection with cost thresholds
-
-### Safety Monitoring
-- Detects distress keywords (suicide, self-harm, hopeless, etc.)
-- Logs events with tiers: low, medium, high
-- Actions: none, suggested_988, suggested_911, notified_contact, transferred_call
-- Wellness alerts sent to family members
-
-### Consent & Opt-out
-- Tracks payer/line consent for calls, SMS, data retention
-- Voice consent capture during calls
-- Respects opt-out requests by channel (calls, SMS, all)
-- Topic exclusions for sensitive subjects
-- GDPR-compliant data export and deletion
-
-### RLS Policies
-All tables have Row Level Security:
-- Users access only their organization's data
-- Service role required for telephony operations
