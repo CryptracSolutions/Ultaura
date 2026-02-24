@@ -49,6 +49,19 @@ const productStructuredData = {
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
     },
+    {
+      '@type': 'Offer',
+      name: 'Pay As You Go',
+      price: '0.00',
+      priceCurrency: 'USD',
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: '0.15',
+        priceCurrency: 'USD',
+        unitText: 'per minute',
+      },
+      availability: 'https://schema.org/InStock',
+    },
   ],
 };
 

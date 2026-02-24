@@ -118,6 +118,18 @@ export function LinesPageClient({
             <Plus className="w-4 h-4" />
             {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
           </Button>
+        ) : lines.length > planLinesLimit ? (
+          <p className="text-sm text-muted-foreground">
+            Your plan includes {planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}, but you currently have {lines.length}. Your existing lines will keep working, but you can&apos;t add new ones until you upgrade or remove a line.
+            {canUpgrade && (
+              <a
+                href="/dashboard/settings/subscription"
+                className="text-primary hover:underline ml-1"
+              >
+                Upgrade to add more
+              </a>
+            )}
+          </p>
         ) : (
           <p className="text-sm text-muted-foreground">
             You&apos;ve reached the line limit for your plan ({planLinesLimit} line{planLinesLimit > 1 ? 's' : ''}).
