@@ -73,7 +73,7 @@ const EmailPasswordSignUpForm: React.FCC<{
 
         <TextField>
           <TextField.Label>
-            <Trans i18nKey={'common:password'} />
+            New Password
 
             <TextField.Input
               {...passwordControl}
@@ -96,7 +96,7 @@ const EmailPasswordSignUpForm: React.FCC<{
 
         <TextField>
           <TextField.Label>
-            <Trans i18nKey={'auth:repeatPassword'} />
+            Confirm password
 
             <TextField.Input
               {...repeatPasswordControl}

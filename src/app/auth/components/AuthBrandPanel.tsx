@@ -8,7 +8,7 @@ import {
   SparklesIcon,
   LockClosedIcon,
   CreditCardIcon,
-  PhoneIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 
 const BULLET_POINTS = [
@@ -32,20 +32,28 @@ const BULLET_POINTS = [
     icon: SparklesIcon,
     text: 'Five warm voice personalities to choose from',
   },
+  {
+    icon: ClockIcon,
+    text: 'Available whenever they want to talk, day or night',
+  },
 ];
 
 const TRUST_BADGES = [
   {
-    icon: PhoneIcon,
-    text: '10,000+ daily check-ins',
-  },
-  {
     icon: LockClosedIcon,
-    text: 'Bank-level encryption',
+    text: 'Private conversations, always secure',
   },
   {
     icon: CreditCardIcon,
     text: 'No credit card required',
+  },
+  {
+    icon: ClockIcon,
+    text: 'Always there when you need them',
+  },
+  {
+    icon: ShieldCheckIcon,
+    text: 'HIPAA compliant & secure',
   },
 ];
 
@@ -74,14 +82,6 @@ function AuthBrandPanel() {
         }
       />
 
-      {/* Soft glow effect behind content area */}
-      <div
-        aria-hidden
-        className={
-          'pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2' +
-          ' h-[500px] w-[500px] rounded-full bg-white/10 blur-3xl'
-        }
-      />
 
       <div className={'relative mx-auto flex max-w-md flex-col items-center text-center text-white'}>
         {/* Logo with soft glow effect */}
@@ -94,7 +94,7 @@ function AuthBrandPanel() {
             }
           />
           <Logo
-            className={'relative h-[77px] w-auto brightness-0 invert'}
+            className={'relative h-[85px] w-auto brightness-0 invert'}
             label={'Ultaura'}
           />
         </div>
@@ -102,19 +102,17 @@ function AuthBrandPanel() {
         {/* Larger, bolder headline */}
         <Heading
           type={1}
-          className={'mt-5 text-white text-4xl md:text-[2.25rem] leading-[1.1]'}
+          className={'mt-5 text-white text-3xl md:text-[1.8rem] font-medium leading-[1.1] whitespace-nowrap'}
         >
           Companionship, One Call at a Time
         </Heading>
 
         {/* Bullet points with icons */}
-        <ul className={'mx-auto mt-8 w-full max-w-sm space-y-4 text-left'}>
+        <ul className={'mx-auto mt-8 grid w-full max-w-lg grid-cols-2 gap-4 text-left'}>
           {BULLET_POINTS.map((point, index) => (
-            <li key={index} className={'flex items-start gap-3'}>
-              <div className={'mt-0.5 shrink-0 rounded-lg bg-white/20 p-1.5'}>
-                <point.icon className={'h-4 w-4 text-white'} />
-              </div>
-              <span className={'text-sm leading-relaxed text-white/95'}>
+            <li key={index} className={'flex items-start gap-2'}>
+              <point.icon className={'mt-0.5 h-4 w-4 shrink-0 text-white'} />
+              <span className={'text-[12px] leading-relaxed text-white'}>
                 {point.text}
               </span>
             </li>
@@ -127,11 +125,11 @@ function AuthBrandPanel() {
             <div
               key={index}
               className={
-                'flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5' +
-                ' text-xs font-medium text-white/95 backdrop-blur-sm'
+                'flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5' +
+                ' text-[12px] font-medium text-white backdrop-blur-sm'
               }
             >
-              <badge.icon className={'h-3.5 w-3.5 text-white/90'} />
+              <badge.icon className={'h-3.5 w-3.5 text-white'} />
               <span>{badge.text}</span>
             </div>
           ))}

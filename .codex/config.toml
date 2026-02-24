@@ -2,3 +2,37 @@
 # MCP servers configured here are shared by the Codex CLI and IDE extension.
 [features]
 multi_agent = true
+
+# Multi-agent configuration for this repo.
+# - Role details are defined in `.codex/agents/*.toml`
+# - Use `/agent` inside Codex to spawn/switch roles
+[agents]
+max_threads = 6
+
+[agents.default]
+description = "Ultaura coordinator + general helper (fallback)."
+config_file = "agents/default.toml"
+
+[agents.explorer]
+description = "Read-only codebase exploration and mapping."
+config_file = "agents/explorer.toml"
+
+[agents.worker]
+description = "Implements concrete changes (edits allowed)."
+config_file = "agents/worker.toml"
+
+[agents.monitor]
+description = "Runs checks/tests/builds and reports results (read-only by default)."
+config_file = "agents/monitor.toml"
+
+[agents.reviewer]
+description = "Find correctness, security, and test risks (read-only)."
+config_file = "agents/reviewer.toml"
+
+[agents.planner]
+description = "Writes decision-complete plans/specs (read-only)."
+config_file = "agents/planner.toml"
+
+[agents.simplifier]
+description = "Cleanup/simplification pass after verification (edits allowed, no behavior changes)."
+config_file = "agents/simplifier.toml"

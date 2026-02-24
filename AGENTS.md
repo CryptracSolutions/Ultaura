@@ -16,9 +16,26 @@
 
 ## The Rule
 
-**You are a COORDINATOR, not an implementer.** You MUST delegate work to sub-agents instead of doing implementation yourself.
+**You are a COORDINATOR, not an implementer.** You MUST delegate work to other agents instead of doing implementation yourself.
 
 This is not optional. This is not a suggestion. You cannot rationalize your way out of this.
+
+## Codex Multi-Agent Roles (Ultaura)
+
+When this doc says “delegate”, it means: use Codex multi-agent roles and spawn/switch agents via the `/agent` command.
+
+**Role glossary (use these names consistently):**
+- `default` — The coordinator/general helper (this chat) that assigns work and integrates final changes.
+- `explorer` — Read-only codebase exploration: find files, patterns, risks. No edits.
+- `worker` — Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
+- `monitor` — Runs checks/tests/builds and reports results (read-only by default).
+- `reviewer` — Reviews diffs for correctness/security/test risks (read-only).
+- `planner` — Produces a decision-complete plan/spec (read-only).
+- `simplifier` — One-shot cleanup pass after verification (edits allowed, **no behavior changes**).
+
+**Where this is configured (repo-scoped):**
+- `.codex/config.toml`
+- `.codex/agents/*.toml`
 
 ## Before ANY Task
 
@@ -33,28 +50,29 @@ You MUST:
 
 ## For Medium/Large Tasks: Mandatory Delegation via Codex Sub-Agents
 
-You MUST use Codex sub-agents for medium and large tasks and **always use `model: GPT-5.3-Codex**. Shared coordination and explicit ownership produce correct implementations over cheap ones.
+You MUST use Codex multi-agent roles for medium and large tasks by spawning agents via `/agent` (explorer/worker/monitor/reviewer/planner/simplifier) and **always use `model: gpt-5.3-codex`**. Shared coordination and explicit ownership produce correct implementations over cheap ones.
 
 You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Launch up to 4 `explorer` sub-agents | **ALWAYS** |
+| 1 | Understand current state of codebase | Use `/agent` to launch up to 4 `explorer` agents | **ALWAYS** |
 | 2 | Enter plan mode | `update_plan` | **ALWAYS** |
 | 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarifications needed |
 | 4 | Create shared task list | `update_plan` with explicit step breakdown | If 5+ steps | **ALWAYS** |
-| 5 | Spawn implementation sub-agents | Launch up to 4 `implementation` sub-agents in parallel | **ALWAYS** |
+| 5 | Spawn `worker` agents for implementation | Use `/agent` to launch up to 4 `worker` agents in parallel | **ALWAYS** |
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
 | 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
-| 9 | Code simplification pass | Launch one-shot `code-simplifier` sub-agent | **ALWAYS for medium/large** |
-| 10 | Shutdown & cleanup | Explicitly wait for completion and close all sub-agents | **ALWAYS** |
+| 9 | Code simplification pass | Use `/agent` to launch a one-shot `simplifier` agent | **ALWAYS for medium/large** |
+| 10 | Shutdown & cleanup | Explicitly wait for completion and close all agents | **ALWAYS** |
 
 ### Sub-Agent Coordination Guidelines
 
-- **Always use `model: GPT-5.3-Codex** for ALL agent types
-- **Max 4 explorer sub-agents** in parallel
-- **Max 4 implementation sub-agents** in parallel (to avoid file conflicts)
+- Spawn agents using `/agent` and assign a clear role (`explorer`/`worker`/`monitor`/`reviewer`/`planner`/`simplifier`).
+- **Always use `model: gpt-5.3-codex`** for ALL agent types
+- **Max 4 explorer agents** in parallel
+- **Max 4 worker agents** in parallel (to avoid file conflicts)
 - **Use explicit coordinator messages** for task handoffs and blockers
 - **Use `update_plan`** as the shared coordination board
 - **Shutdown gracefully** after all delegated tasks and verification complete
@@ -70,10 +88,10 @@ You MUST create a task list using `update_plan` for **any work with 5+ steps**:
 
 ### Code Simplification Pass (Step 9)
 
-After all implementation is complete, the team is shutdown cleanly, and TypeScript/visual verification passes, you MUST run a code-simplifier sub-agent.
+After all implementation is complete, the team is shutdown cleanly, and TypeScript/visual verification passes, you MUST run a one-shot `simplifier` agent.
 
 **How to deploy:**
-- Launch a one-shot sub-agent scoped to code simplification
+- Launch a one-shot `simplifier` agent scoped to code simplification
 - This is a **one-shot agent**, NOT part of the main implementation pool
 - It is **blocking** - wait for its result before proceeding to shutdown
 
@@ -96,7 +114,7 @@ After all implementation is complete, the team is shutdown cleanly, and TypeScri
 
 | Scenario | Use |
 |----------|-----|
-| Independent parallel research (explore codebase) | `explorer` sub-agents for pure research/investigation |
+| Independent parallel research (explore codebase) | `explorer` agents for pure research/investigation |
 | Medium task (4-6 files, multiple concerns) | **Sub-agent team** - agents need shared context/coordination |
 | Large task (7+ files, architectural) | **Sub-agent team** - agents need shared context/coordination |
 | Interdependent work (frontend needs backend's API shape) | **Sub-agent team** - agents must communicate |
@@ -131,7 +149,7 @@ Even for exceptions, STILL:
 
 #### Phase 1: Research (Before Writing the Plan)
 
-1. **Explore the codebase** — Launch explorer sub-agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
+1. **Explore the codebase** — Launch `explorer` agents to understand every area that will be touched. Read the actual files, not just file names. Understand current patterns, types, imports, and data flow.
 2. **Interview the user until ambiguity reaches zero** — Use `request_user_input` aggressively. Do NOT assume intent. Do NOT guess between two valid approaches. Ask. Interview scaling:
    - Medium tasks: 6-12 clarifying questions minimum
    - Large tasks: 13+ questions to nail down full scope

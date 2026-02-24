@@ -22,10 +22,10 @@ function AuthPageShell({
       >
         <div className={'mb-8 flex w-full max-w-md items-center justify-center lg:hidden'}>
           <Logo
-            className={'h-12 w-auto'}
+            className={'h-14 w-auto'}
             label={'Ultaura'}
             showWordmark
-            wordmarkClassName={'text-primary'}
+            wordmarkClassName={'text-primary text-[28px]'}
           />
         </div>
 
