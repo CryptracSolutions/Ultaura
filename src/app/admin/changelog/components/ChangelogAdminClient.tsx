@@ -284,6 +284,38 @@ export default function ChangelogAdminClient({
         </Alert>
       ) : null}
 
+      <div className="flex w-full sm:justify-end">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <Button
+            variant="outline"
+            onClick={openCreateDialog}
+            disabled={isBusy}
+            className="w-full sm:w-auto"
+          >
+            New Entry
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleRetryLatestUnsentEmail}
+            disabled={isBusy || !retryableBatchId}
+            loading={pendingAction?.kind === 'retry-latest-unsent'}
+            className="w-full sm:w-auto"
+          >
+            Retry Unsent Email
+          </Button>
+
+          <Button
+            onClick={handlePublishAndSend}
+            disabled={isBusy || draftCount === 0}
+            loading={pendingAction?.kind === 'publish'}
+            className="w-full sm:w-auto"
+          >
+            Publish &amp; Send Email
+          </Button>
+        </div>
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Changelog Admin</CardTitle>
@@ -304,33 +336,6 @@ export default function ChangelogAdminClient({
                 Retry Latest Unsent Email
               </p>
               <p className="text-sm text-muted-foreground">{retryHelperText}</p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={openCreateDialog}
-                disabled={isBusy}
-              >
-                New Entry
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={handleRetryLatestUnsentEmail}
-                disabled={isBusy || !retryableBatchId}
-                loading={pendingAction?.kind === 'retry-latest-unsent'}
-              >
-                Retry Unsent Email
-              </Button>
-
-              <Button
-                onClick={handlePublishAndSend}
-                disabled={isBusy || draftCount === 0}
-                loading={pendingAction?.kind === 'publish'}
-              >
-                Publish &amp; Send Email
-              </Button>
             </div>
           </div>
         </CardContent>

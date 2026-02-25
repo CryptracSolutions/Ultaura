@@ -21,8 +21,8 @@ async function BroadcastsPage() {
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">
-          <div className="flex justify-end">
-            <Button href="/admin/newsletter/broadcasts/new">
+          <div className="flex w-full sm:justify-end">
+            <Button href="/admin/newsletter/broadcasts/new" className="w-full sm:w-auto">
               New Broadcast
             </Button>
           </div>

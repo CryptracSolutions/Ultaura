@@ -217,7 +217,7 @@ export default function ChangelogEntryDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="w-full sm:w-auto"
+              className="w-full sm:flex-1"
             >
               Cancel
             </Button>
@@ -225,7 +225,7 @@ export default function ChangelogEntryDialog({
               type="submit"
               loading={isSubmitting}
               disabled={isSubmitting}
-              className="w-full sm:w-auto"
+              className="w-full sm:flex-1"
             >
               {isCreateMode ? 'Create Entry' : 'Save Changes'}
             </Button>

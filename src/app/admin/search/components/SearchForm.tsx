@@ -73,8 +73,8 @@ export function SearchForm({ searchQuery, searchType }: SearchFormProps) {
             </Select>
           </div>
 
-          <div>
-            <Button type="submit" variant="default">
+          <div className="w-full sm:w-auto">
+            <Button type="submit" variant="default" className="w-full sm:w-auto">
               <MagnifyingGlassIcon className="h-4 w-4" />
               <span>Search</span>
             </Button>

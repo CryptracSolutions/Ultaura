@@ -53,7 +53,7 @@ export function SubscriberFilters({
 
   return (
     <div className="flex flex-wrap gap-4">
-      <div className="w-48">
+      <div className="w-full sm:w-48">
         <Select
           value={status}
           onValueChange={(value) => {
@@ -76,7 +76,7 @@ export function SubscriberFilters({
         </Select>
       </div>
 
-      <div className="w-48">
+      <div className="w-full sm:w-48">
         <Select
           value={source}
           onValueChange={(value) => {
@@ -99,7 +99,7 @@ export function SubscriberFilters({
         </Select>
       </div>
 
-      <div className="w-48">
+      <div className="w-full sm:w-48">
         <Select
           value={topic}
           onValueChange={(value) => {

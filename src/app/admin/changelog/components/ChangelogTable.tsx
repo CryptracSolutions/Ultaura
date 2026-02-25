@@ -2,6 +2,14 @@
 
 import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
+import { EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '~/core/ui/Dropdown';
 import {
   Table,
   TableBody,
@@ -59,7 +67,7 @@ export default function ChangelogTable({
             <TableHead>Status</TableHead>
             <TableHead>Published At</TableHead>
             <TableHead>Email Sent</TableHead>
-            <TableHead className="w-[210px]">Actions</TableHead>
+            <TableHead className="w-[110px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -138,26 +146,35 @@ export default function ChangelogTable({
                 </TableCell>
 
                 <TableCell>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onEdit(entry)}
-                      disabled={disabled}
-                      loading={isSaving}
-                    >
-                      Edit
-                    </Button>
-
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => onDelete(entry)}
-                      disabled={disabled}
-                      loading={isDeleting}
-                    >
-                      Delete
-                    </Button>
+                  <div className="flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={disabled || isSaving || isDeleting}
+                        >
+                          <span className="sr-only">Open changelog actions</span>
+                          <EllipsisHorizontalIcon className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          disabled={disabled || isSaving || isDeleting}
+                          onClick={() => onEdit(entry)}
+                        >
+                          {isSaving ? 'Editing...' : 'Edit'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={disabled || isSaving || isDeleting}
+                          className="text-red-500"
+                          onClick={() => onDelete(entry)}
+                        >
+                          {isDeleting ? 'Deleting...' : 'Delete'}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
