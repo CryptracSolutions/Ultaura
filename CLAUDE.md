@@ -10,6 +10,136 @@
 
 ---
 
+# What is Ultaura?
+
+**Ultaura is an AI voice companion and assistant for seniors.** It makes daily phone calls to reduce loneliness, provide on-demand help, and surface early signs of cognitive, emotional, or health changes to the people who care about them.
+
+The product serves **two audiences equally**:
+- **Seniors** receive daily AI companion calls — a friendly voice that remembers their life, checks in on them, sets reminders, and helps when they need it. The senior can also call Ultaura anytime they want assistance or just to chat.
+- **Families/caregivers** use the dashboard to set up and monitor their loved one's lines, view wellness insights, manage schedules, set reminders, and receive alerts when something seems off.
+
+The dashboard is **family-first in design** but accessible to seniors too.
+
+## Non-Negotiable Principles
+
+These apply to EVERY change, no exceptions:
+
+| Principle | What It Means for Code |
+|-----------|----------------------|
+| **Privacy is sacred** | All personal data (memories, insights, call content) is encrypted at rest (AES-256-GCM) with per-line data encryption keys. Consent is granular and opt-in. Never log, expose, or weaken encryption. Never skip consent checks. |
+| **Accessibility first** | UI must be senior-friendly: large tap targets, high contrast, simple flows, minimal cognitive load. Always verify at 375px viewport. |
+| **Safety above features** | Multi-layer safety system (AI classifier + heuristics + keyword scanning + verification gate) protects vulnerable users. Never disable, bypass, or weaken safety checks. If a feature conflicts with safety, safety wins. |
+
+---
+
+# Tech Stack
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| **Frontend** | Next.js 14 (App Router), React 18, TypeScript | Tailwind CSS v4, Radix UI primitives, shadcn/ui pattern, Framer Motion |
+| **Telephony backend** | Express.js, Node.js | Bridges Twilio ↔ xAI Grok realtime voice API via WebSockets |
+| **Voice AI** | xAI Grok (`grok-3-fast`) | Realtime voice model via `wss://api.x.ai/v1/realtime` |
+| **Embeddings** | xAI (`grok-embedding-small`), OpenAI (`text-embedding-3-small`) | Semantic search over memories, feature-flagged |
+| **Safety classifier** | OpenAI (`gpt-4o-mini`) | Configurable via env var |
+| **Database** | Supabase (PostgreSQL 15) | 107+ migrations, extensive RLS, row-level encryption |
+| **Auth** | Supabase Auth (SSR) | |
+| **Payments** | Stripe | Subscriptions, metered usage, checkout |
+| **Email** | React Email + Resend | |
+| **Observability** | OpenTelemetry (OTLP/gRPC), Sentry, Pino | Telephony has full tracing instrumentation |
+| **Video** | Remotion | Marketing/onboarding video generation |
+| **Package manager** | pnpm (workspace monorepo) | |
+| **Testing** | Vitest (unit), Cypress (E2E) | |
+
+---
+
+# Project Structure
+
+This is a **pnpm workspace monorepo**. Each part has a distinct purpose:
+
+```
+Ultaura/
+├── src/                        # Next.js 14 frontend (App Router)
+│   ├── app/
+│   │   ├── (site)/             # Public marketing pages (landing, pricing, blog, docs)
+│   │   ├── dashboard/          # Family/caregiver dashboard (lines, schedules, insights, billing)
+│   │   ├── admin/              # Internal admin panel
+│   │   ├── onboarding/         # New user onboarding flow
+│   │   ├── auth/               # Login, signup, password reset
+│   │   └── api/                # Next.js API routes (Stripe webhooks, internal APIs, search)
+│   ├── components/             # React components (UI primitives + Ultaura-specific)
+│   ├── lib/
+│   │   ├── ultaura/            # ~65 files: core business logic (accounts, lines, schedules,
+│   │   │                       #   reminders, billing, insights, privacy, memories, safety)
+│   │   ├── stripe/             # Stripe integration helpers
+│   │   ├── emails/             # Email templates (React Email) and sending logic
+│   │   └── server/             # Server-side utilities
+│   └── content/                # Blog posts and docs (MDX via Velite)
+│
+├── telephony/                  # Express.js telephony backend (@ultaura/telephony)
+│   └── src/
+│       ├── websocket/          # Grok realtime voice bridge (Twilio ↔ xAI WebSocket)
+│       ├── routes/tools/       # 50+ voice agent tools (memory, reminders, safety, insights,
+│       │                       #   scheduling, relationships, milestones, consent, billing)
+│       ├── services/           # ~47 service modules (memory, safety, embedding, billing,
+│       │                       #   call-summarization, cognitive-flags, persona-analyzer, etc.)
+│       ├── scheduler/          # Cron jobs (outbound calls, weekly summaries, cleanup,
+│       │                       #   embedding queue, memory decay)
+│       └── middleware/         # Auth, rate limiting (Upstash Redis)
+│
+├── packages/                   # Shared monorepo packages
+│   ├── prompts/                # @ultaura/prompts — AI prompt builders, persona profiles,
+│   │                           #   safety rules, tool definitions for the voice agent
+│   ├── schemas/                # @ultaura/schemas — Zod validation schemas
+│   └── types/                  # @ultaura/types — Shared TypeScript types
+│
+├── supabase/
+│   ├── migrations/             # 107+ SQL migration files (PostgreSQL)
+│   ├── templates/              # Supabase auth email templates
+│   └── seed.sql                # Database seed data
+│
+├── remotion/                   # Video generation (Remotion)
+│
+└── plugins/                    # Embeddable UI widgets
+    ├── chatbot/                # Chat widget
+    ├── feedback-popup/         # Feedback collection widget
+    └── cookie-banner/          # Cookie consent widget
+```
+
+### How the pieces connect
+
+1. **A call happens**: Twilio receives/places a call → `telephony/` bridges audio to xAI Grok via WebSocket → Grok uses tools from `routes/tools/` to store memories, set reminders, log insights, etc. → all data goes to Supabase.
+2. **Family views the dashboard**: `src/app/dashboard/` reads from Supabase (via `src/lib/ultaura/`) → decrypts insights/memories on the server → renders the UI.
+3. **Prompts are compiled**: `packages/prompts/` builds the system prompt for each call, combining the senior's persona, safety rules, conversation history, and available tools.
+4. **Shared types flow everywhere**: `packages/types/` and `packages/schemas/` are imported by both `src/` and `telephony/` to keep data contracts in sync.
+
+---
+
+# MCP Servers
+
+## xAI Docs MCP (configured in `.mcp.json`)
+
+xAI hosts a free, no-auth MCP server that gives direct access to all xAI documentation.
+
+**Endpoint:** `https://docs.x.ai/api/mcp`
+
+**Tools available:**
+- `list_doc_pages` — lists all xAI doc pages
+- `get_doc_page` — retrieves a specific page by slug
+- `search_docs` — searches docs with a query
+
+**When to use it:**
+- Working on `telephony/src/websocket/grok-bridge.ts` or anything involving the Grok realtime API
+- Modifying voice agent tools or prompt builders in `packages/prompts/`
+- Debugging xAI API errors, understanding model parameters, or checking rate limits
+- Implementing new xAI features (embeddings, function calling, audio formats)
+- Any time you'd otherwise web-search for xAI/Grok documentation
+
+**When NOT to use it:**
+- Frontend-only work unrelated to xAI
+- Supabase/Stripe/Twilio questions (use their own docs)
+
+---
+
 # ⚠️ MANDATORY: Delegation-First Workflow
 
 > **CRITICAL: This section is NON-NEGOTIABLE. You MUST follow this workflow for ALL implementation tasks. Failure to delegate is a workflow violation.**
