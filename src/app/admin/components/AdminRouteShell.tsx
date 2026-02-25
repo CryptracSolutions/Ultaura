@@ -8,6 +8,7 @@ import UserSessionContext from '~/core/session/contexts/user-session';
 import type UserSession from '~/core/session/types/user-session';
 import AdminSidebar from './AdminSidebar';
 import AdminMobileHeader from './AdminMobileHeader';
+import AdminMobileNavigation from './AdminMobileNavigation';
 import { Page } from '~/core/ui/Page';
 
 interface AdminRouteShellProps {
@@ -25,13 +26,11 @@ function AdminRouteShell({ children, userSession }: AdminRouteShellProps) {
   return (
     <UserSessionContext.Provider value={{ userSession: userSessionState, setUserSession: setUserSessionState }}>
       <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
-        <Page
-          contentContainerClassName={className}
-          sidebar={<AdminSidebar isOpen={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />}
-        >
+        <Page contentContainerClassName={className} sidebar={<AdminSidebar />}>
           <AdminMobileHeader onMenuOpen={() => setMobileMenuOpen(true)} />
           {children}
         </Page>
+        <AdminMobileNavigation isOpen={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
       </SidebarContext.Provider>
     </UserSessionContext.Provider>
   );
@@ -40,7 +39,7 @@ function AdminRouteShell({ children, userSession }: AdminRouteShellProps) {
 export default AdminRouteShell;
 
 const contentClassName = cva(
-  ['ml-0 mr-0 pt-14 lg:pt-0 overflow-x-hidden transition-[margin] duration-300 ease-in-out motion-reduce:transition-none'],
+  ['ml-0 mr-0 overflow-x-hidden transition-[margin] duration-300 ease-in-out motion-reduce:transition-none'],
   {
     variants: {
       collapsed: {

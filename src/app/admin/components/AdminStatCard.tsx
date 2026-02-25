@@ -3,7 +3,7 @@ import { cn } from '~/core/generic/shadcn-utils';
 interface AdminStatCardProps {
   icon?: React.ElementType;
   label: string;
-  value: string | number;
+  value?: string | number;
   subtext?: string;
   children?: React.ReactNode;
   className?: string;
@@ -17,7 +17,9 @@ function AdminStatCard({ icon: Icon, label, value, subtext, children, className 
         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
         <span className="text-base font-medium text-foreground">{label}</span>
       </div>
-      <div className="relative text-3xl font-bold text-foreground">{value}</div>
+      {value !== undefined && value !== null && value !== '' ? (
+        <div className="relative text-3xl font-bold text-foreground">{value}</div>
+      ) : null}
       {subtext && <div className="text-xs text-muted-foreground">{subtext}</div>}
       {children}
     </div>

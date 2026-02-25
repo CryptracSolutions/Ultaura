@@ -1,5 +1,4 @@
 import AdminStatCard from '~/app/admin/components/AdminStatCard';
-import AdminCryptoHealthCard from './AdminCryptoHealthCard';
 import {
   UsersIcon,
   UserGroupIcon,
@@ -44,8 +43,6 @@ function AdminDashboard({
         label="Trials"
         value={data.trialSubscriptions}
       />
-
-      <AdminCryptoHealthCard />
     </div>
   );
 }

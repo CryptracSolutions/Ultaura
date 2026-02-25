@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useCallback, useContext, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useContext } from 'react';
 
 import {
   BugAntIcon,
@@ -16,7 +15,6 @@ import {
   UserIcon,
   UsersIcon,
   WrenchScrewdriverIcon,
-  XMarkIcon,
   ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
 import { PanelLeft } from 'lucide-react';
@@ -29,6 +27,7 @@ import Logo from '~/core/ui/Logo';
 import LogoImage from '~/core/ui/Logo/LogoImage';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import ProfileDropdown from '~/components/ProfileDropdown';
+import classNames from 'clsx';
 import SidebarContext from '~/lib/contexts/sidebar';
 import Button from '~/core/ui/Button';
 import useUserSession from '~/core/hooks/use-user-session';
@@ -59,29 +58,22 @@ function isChangelogRoute(currentPath: string) {
   );
 }
 
-function AdminSidebar({
-  isOpen,
-  onOpenChange,
-}: {
-  isOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
-}) {
+function AdminSidebar() {
   const ctx = useContext(SidebarContext);
   const userSession = useUserSession();
   const signOut = useSignOut();
 
   return (
-    <>
-      <Sidebar collapsed={ctx.collapsed}>
+    <Sidebar collapsed={ctx.collapsed}>
         {/* Top zone */}
         <div className="flex w-full flex-col px-2 space-y-1.5 mt-2 mb-2">
           <div className="relative h-10 w-full">
             {/* Expanded */}
             <div
-              className={[
+              className={classNames(
                 'absolute inset-0 flex items-center justify-between transition-opacity duration-200',
                 ctx.collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100',
-              ].join(' ')}
+              )}
             >
               <Logo href="/" className="h-9 ml-2" label="Home" showWordmark={false} />
               <CollapsibleButton collapsed={false} onClick={ctx.setCollapsed} />
@@ -93,10 +85,10 @@ function AdminSidebar({
                 <button
                   type="button"
                   onClick={() => ctx.setCollapsed(false)}
-                  className={[
+                  className={classNames(
                     'group absolute inset-0 flex cursor-ew-resize items-center justify-center rounded-md border-0 bg-transparent p-0 transition-[opacity,background-color] duration-200 hover:bg-muted/60',
                     ctx.collapsed ? 'opacity-100' : 'opacity-0 pointer-events-none',
-                  ].join(' ')}
+                  )}
                   aria-label="Open sidebar"
                   tabIndex={ctx.collapsed ? 0 : -1}
                 >
@@ -205,16 +197,7 @@ function AdminSidebar({
             </div>
           </div>
         </div>
-      </Sidebar>
-
-      {/* Mobile overlay */}
-      <AdminMobileOverlay
-        isOpen={isOpen ?? false}
-        onOpenChange={onOpenChange ?? (() => {})}
-        userSession={userSession}
-        signOut={signOut}
-      />
-    </>
+    </Sidebar>
   );
 }
 
@@ -242,163 +225,5 @@ function CollapsibleButton({
         {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       </TooltipContent>
     </Tooltip>
-  );
-}
-
-function AdminMobileOverlay({
-  isOpen,
-  onOpenChange,
-  userSession,
-  signOut,
-}: {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  userSession: ReturnType<typeof useUserSession>;
-  signOut: () => Promise<void>;
-}) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
-
-  const closeMenu = useCallback(() => {
-    setAnimationState('closing');
-    setTimeout(() => {
-      setIsVisible(false);
-      setAnimationState('closed');
-      onOpenChange(false);
-    }, 300);
-  }, [onOpenChange]);
-
-  useEffect(() => {
-    if (isOpen && animationState === 'closed') {
-      setIsVisible(true);
-      setAnimationState('opening');
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setAnimationState('open');
-        });
-      });
-    } else if (!isOpen && (animationState === 'open' || animationState === 'opening')) {
-      closeMenu();
-    }
-  }, [isOpen, animationState, closeMenu]);
-
-  if (!isVisible) {
-    return null;
-  }
-
-  const manageItems = [
-    { path: '/admin/users', label: 'Users', Icon: UserIcon },
-    { path: '/admin/organizations', label: 'Organizations', Icon: UserGroupIcon },
-    { path: '/admin/billing', label: 'Billing', Icon: CreditCardIcon },
-  ];
-
-  const contentItems = [
-    { path: NEWSLETTER_PATH, label: 'Subscribers', Icon: UsersIcon },
-    { path: BROADCASTS_PATH, label: 'Broadcasts', Icon: MegaphoneIcon },
-    { path: CHANGELOG_PATH, label: 'Changelog', Icon: DocumentTextIcon },
-  ];
-
-  const observeItems = [
-    { path: '/admin/timeline', label: 'Timeline', Icon: ClockIcon },
-    { path: '/admin/debug-logs', label: 'Debug Logs', Icon: BugAntIcon },
-    { path: '/admin/diagnostics', label: 'Diagnostics', Icon: WrenchScrewdriverIcon },
-    { path: '/admin/feedback', label: 'Feedback', Icon: ChatBubbleLeftRightIcon },
-  ];
-
-  return (
-    <div
-      className={[
-        'fixed inset-0 z-50 bg-sidebar transition-transform duration-300 ease-out',
-        animationState === 'open' ? 'translate-x-0' : '-translate-x-full',
-      ].join(' ')}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-        <Logo
-          href="/"
-          className="h-10"
-          label="Home"
-          showWordmark
-          wordmarkClassName="text-2xl font-semibold leading-none text-primary"
-        />
-        <button
-          onClick={closeMenu}
-          className="p-2 hover:bg-muted rounded-md transition-colors"
-          aria-label="Close menu"
-        >
-          <XMarkIcon className="h-6 w-6" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="overflow-y-auto h-[calc(100dvh-57px)]">
-        <div className="py-2">
-          <MobileLink path="/admin" label="Overview" Icon={HomeIcon} onClick={closeMenu} />
-          <MobileLink path="/admin/search" label="Search" Icon={MagnifyingGlassIcon} onClick={closeMenu} />
-        </div>
-
-        <MobileSection label="Manage">
-          {manageItems.map((item) => (
-            <MobileLink key={item.path} path={item.path} label={item.label} Icon={item.Icon} onClick={closeMenu} />
-          ))}
-        </MobileSection>
-
-        <MobileSection label="Content">
-          {contentItems.map((item) => (
-            <MobileLink key={item.path} path={item.path} label={item.label} Icon={item.Icon} onClick={closeMenu} />
-          ))}
-        </MobileSection>
-
-        <MobileSection label="Observe">
-          {observeItems.map((item) => (
-            <MobileLink key={item.path} path={item.path} label={item.label} Icon={item.Icon} onClick={closeMenu} />
-          ))}
-        </MobileSection>
-
-        <div className="py-2">
-          <MobileLink path="/dashboard" label="Back to App" Icon={ArrowLeftIcon} onClick={closeMenu} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MobileLink({
-  path,
-  label,
-  Icon,
-  onClick,
-}: {
-  path: string;
-  label: string;
-  Icon: React.ElementType;
-  onClick: () => void;
-}) {
-  return (
-    <Link
-      href={path}
-      onClick={onClick}
-      className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
-    >
-      <Icon className="h-6 w-6 text-primary" />
-      <span className="text-foreground">{label}</span>
-    </Link>
-  );
-}
-
-function MobileSection({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="py-2">
-      <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      {children}
-    </div>
   );
 }

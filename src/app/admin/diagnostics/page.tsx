@@ -10,6 +10,7 @@ import getLogger from '~/core/logger';
 import DiagnosticCard from './components/DiagnosticCard';
 import type { DiagnosticStatus } from './components/DiagnosticCard';
 import AuditLogTable from './components/AuditLogTable';
+import AdminCryptoHealthCard from '~/app/admin/components/AdminCryptoHealthCard';
 import {
   writeAdminAuditLog,
   getCurrentAdminContext,
@@ -348,6 +349,9 @@ async function DiagnosticsPage() {
                 error={check.error}
               />
             ))}
+            <div className="md:col-span-2">
+              <AdminCryptoHealthCard />
+            </div>
           </div>
 
           <div className="flex flex-col gap-3">
