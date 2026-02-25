@@ -368,11 +368,12 @@ export function VacationSettings({
                   Vacation saved
                 </div>
               </div>
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleAddAnother}
+                  className="w-full"
                 >
                   Add another
                 </Button>
@@ -380,6 +381,7 @@ export function VacationSettings({
                   type="button"
                   variant="default"
                   onClick={closeModal}
+                  className="w-full"
                 >
                   Done
                 </Button>
@@ -417,11 +419,12 @@ export function VacationSettings({
 
               <p className="text-xs text-muted-foreground">Dates are based on {line.timezone}.</p>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={attemptCloseVacation}
+                  className="w-full"
                 >
                   Cancel
                 </Button>
@@ -430,6 +433,7 @@ export function VacationSettings({
                   variant="default"
                   disabled={disabled || isSaving}
                   loading={isSaving}
+                  className="w-full"
                 >
                   Add Vacation
                 </Button>

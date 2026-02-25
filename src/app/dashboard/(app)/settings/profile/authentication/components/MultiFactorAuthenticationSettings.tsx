@@ -141,7 +141,7 @@ function SetupMfaButton(
 ) {
   return (
     <div>
-      <Button variant="default" onClick={props.onClick}>
+      <Button variant="default" onClick={props.onClick} className="w-full sm:w-auto">
         <Trans i18nKey={'profile:setupMfaButtonLabel'} />
       </Button>
     </div>

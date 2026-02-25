@@ -59,7 +59,7 @@
   "linkAccount": "Link Account",
   "connectWithProvider": "Connect with {{ provider }}",
   "connectedWithProvider": "Connected with {{ provider }}",
-  "setupMfaButtonLabel": "Setup a new Factor",
+  "setupMfaButtonLabel": "Setup MFA",
   "multiFactorSetupError": "Sorry, there was an error while setting up your factor. Please try again.",
   "multiFactorAuthHeading": "Secure your account with Multi-Factor Authentication",
   "multiFactorAuthDescription": "Enable Multi-Factor Authentication to verify your identity for an extra layer of security to your account in case your password is stolen. In addition to entering your password, it requires you confirm your identity via SMS.",

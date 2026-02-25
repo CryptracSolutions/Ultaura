@@ -64,6 +64,14 @@ function SubscriptionStatusBadge({
       break;
   }
 
+  if (status === 'active') {
+    return (
+      <Badge size={'small'} color={type}>
+        <Trans i18nKey={label} />
+      </Badge>
+    );
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger>

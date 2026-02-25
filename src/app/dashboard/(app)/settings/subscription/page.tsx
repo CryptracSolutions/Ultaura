@@ -32,7 +32,7 @@ async function SubscriptionSettingsPage() {
   const trialPlan = PLANS[trialPlanId];
 
   return (
-    <div className={'flex flex-col space-y-4 w-full pb-12'}>
+    <div className={'flex w-full flex-col space-y-4 pb-12'}>
       <PlansStatusAlertContainer />
 
       {/* Show trial status card if on active trial */}

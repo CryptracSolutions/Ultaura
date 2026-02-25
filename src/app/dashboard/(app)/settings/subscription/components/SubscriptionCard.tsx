@@ -9,7 +9,6 @@ import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
 
 import PricingTable from '~/components/PricingTable';
-import SubscriptionStatusBadge from '~/app/dashboard/(app)/components/organizations/SubscriptionStatusBadge';
 
 import configuration from '~/configuration';
 
@@ -54,7 +53,7 @@ const SubscriptionCard: React.FC<{
 
   return (
     <div
-      className={'flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-2'}
+      className={'flex flex-col gap-3'}
       data-cy={'subscription-card'}
       data-cy-status={subscription.status}
     >
@@ -65,33 +64,19 @@ const SubscriptionCard: React.FC<{
               <span data-cy={'subscription-name'}>{details.product.name}</span>
             </Heading>
 
-            <SubscriptionStatusBadge subscription={subscription} />
+            <span className={'ml-auto flex items-center space-x-1 shrink-0 text-right'}>
+              <PricingTable.Price>{details.plan.price}</PricingTable.Price>
+
+              <span className={'lowercase text-gray-500 dark:text-gray-400'}>
+                /{details.plan.name}
+              </span>
+            </span>
           </div>
 
           <span className={'text-gray-500 dark:text-gray-400 text-sm'}>
             {details.product.description}
           </span>
         </div>
-
-        <If condition={isActive}>
-          <div className={'hidden sm:block'}>
-            <RenewStatusDescription
-              dates={dates}
-              cancelAtPeriodEnd={cancelAtPeriodEnd}
-            />
-          </div>
-        </If>
-
-      </div>
-
-      <div className={'flex flex-col gap-2 shrink-0 sm:hidden'}>
-        <span className={'flex items-center space-x-1'}>
-          <PricingTable.Price>{details.plan.price}</PricingTable.Price>
-
-          <span className={'lowercase text-gray-500 dark:text-gray-400'}>
-            /{details.plan.name}
-          </span>
-        </span>
 
         <If condition={isActive}>
           <RenewStatusDescription

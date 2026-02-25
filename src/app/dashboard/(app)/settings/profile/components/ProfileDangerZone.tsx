@@ -46,6 +46,7 @@ function DeleteProfileModal() {
           data-cy={'delete-account-button'}
           variant="destructive"
           size="small"
+          className="w-full sm:w-auto"
         >
           <Trans i18nKey={'profile:deleteAccount'} />
         </Button>
