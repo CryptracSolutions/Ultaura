@@ -1,9 +1,6 @@
-import Trans from '~/core/ui/Trans';
-
 import Plans from './components/Plans';
 import PlansStatusAlertContainer from './components/PlanStatusAlertContainer';
 import { withI18n } from '~/i18n/with-i18n';
-import Heading from '~/core/ui/Heading';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { PLANS } from '~/lib/ultaura/constants';
@@ -36,16 +33,6 @@ async function SubscriptionSettingsPage() {
 
   return (
     <div className={'flex flex-col space-y-4 w-full pb-12'}>
-      <div className={'flex flex-col px-2 space-y-1'}>
-        <Heading type={4}>
-          <Trans i18nKey={'common:subscriptionSettingsTabLabel'} />
-        </Heading>
-
-        <span className={'text-gray-500 dark:text-gray-400'}>
-          <Trans i18nKey={'subscription:subscriptionTabSubheading'} />
-        </span>
-      </div>
-
       <PlansStatusAlertContainer />
 
       {/* Show trial status card if on active trial */}

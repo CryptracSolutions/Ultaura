@@ -40,7 +40,7 @@ function DeleteProfileContainer() {
 function DeleteProfileModal() {
   return (
     <Modal
-      heading={<Trans i18nKey={'profile:deleteAccount'} />}
+      heading="Delete your account"
       Trigger={
         <Button
           data-cy={'delete-account-button'}
@@ -65,15 +65,13 @@ function DeleteProfileForm() {
       className={'flex flex-col space-y-4'}
     >
       <div className={'flex flex-col space-y-6'}>
-        <div className={'border-2 border-red-500 p-4 text-sm text-red-500'}>
-          <div className={'flex flex-col space-y-2'}>
-            <div>
-              <Trans i18nKey={'profile:deleteAccountDescription'} />
-            </div>
+        <div className={'flex flex-col space-y-2 text-sm text-red-500'}>
+          <div>
+            <Trans i18nKey={'profile:deleteAccountDescription'} />
+          </div>
 
-            <div>
-              <Trans i18nKey={'common:modalConfirmationQuestion'} />
-            </div>
+          <div>
+            <Trans i18nKey={'common:modalConfirmationQuestion'} />
           </div>
         </div>
 
@@ -109,8 +107,9 @@ function DeleteAccountSubmitButton() {
       loading={pending}
       variant="destructive"
       size="small"
+      className="w-full"
     >
-      <Trans i18nKey={'profile:deleteAccount'} />
+      Delete your account
     </Button>
   );
 }
@@ -130,13 +129,14 @@ function DeleteAccountActions() {
   const { pending } = useFormStatus();
 
   return (
-    <div className="flex gap-3 pt-2">
+    <div className="flex flex-col gap-3 pt-4 sm:flex-row">
       <DialogPrimitiveClose asChild>
         <Button
           type="button"
           disabled={pending}
           variant="outline"
           size="small"
+          className="w-full"
         >
           <Trans i18nKey={'common:cancel'} />
         </Button>

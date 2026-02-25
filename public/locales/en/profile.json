@@ -1,6 +1,6 @@
 {
   "generalTab": "My Details",
-  "generalTabSubheading": "Manage your profile details",
+  "generalTabSubheading": "Update your name and profile photo.",
   "emailTab": "Email",
   "emailTabTabSubheading": "Update your email address",
   "passwordTab": "Password",
@@ -34,6 +34,8 @@
   "newEmail": "Your New Email",
   "repeatEmail": "Repeat Email",
   "updateEmailSubmitLabel": "Update Email Address",
+  "updateEmailFromEmailTabHintPrefix": "To update your email address, go to",
+  "updateEmailFromEmailTabHintLinkLabel": "Email ->",
   "updateEmailSuccess": "Email update request successful",
   "updateEmailSuccessMessage": "We sent you an email to confirm your new email address. Please check your inbox and click on the link to confirm your new email address.",
   "updateEmailLoading": "Updating your email...",

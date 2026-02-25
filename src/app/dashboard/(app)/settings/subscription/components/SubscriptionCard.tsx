@@ -10,14 +10,27 @@ import Trans from '~/core/ui/Trans';
 
 import PricingTable from '~/components/PricingTable';
 import SubscriptionStatusBadge from '~/app/dashboard/(app)/components/organizations/SubscriptionStatusBadge';
-import SubscriptionStatusAlert from '~/app/dashboard/(app)/settings/subscription/components/SubscriptionStatusAlert';
 
 import configuration from '~/configuration';
+
+export function useSubscriptionPlanDetails(priceId: string) {
+  const products = configuration.stripe.products;
+
+  return useMemo(() => {
+    for (const product of products) {
+      for (const plan of product.plans) {
+        if (plan.stripePriceId === priceId) {
+          return { plan, product };
+        }
+      }
+    }
+  }, [products, priceId]);
+}
 
 const SubscriptionCard: React.FC<{
   subscription: OrganizationSubscription;
 }> = ({ subscription }) => {
-  const details = useSubscriptionDetails(subscription.priceId);
+  const details = useSubscriptionPlanDetails(subscription.priceId);
   const cancelAtPeriodEnd = subscription.cancelAtPeriodEnd;
   const isActive = subscription.status === 'active';
   const language = getI18n().language;
@@ -41,20 +54,18 @@ const SubscriptionCard: React.FC<{
 
   return (
     <div
-      className={'flex space-x-2'}
+      className={'flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-2'}
       data-cy={'subscription-card'}
       data-cy-status={subscription.status}
     >
-      <div className={'flex flex-col space-y-4 w-9/12'}>
+      <div className={'flex flex-col space-y-4 flex-1 min-w-0'}>
         <div className={'flex flex-col space-y-1'}>
-          <div className={'flex items-center space-x-4'}>
+          <div className={'flex flex-wrap items-center gap-x-3 gap-y-1'}>
             <Heading type={4}>
               <span data-cy={'subscription-name'}>{details.product.name}</span>
             </Heading>
 
-            <div>
-              <SubscriptionStatusBadge subscription={subscription} />
-            </div>
+            <SubscriptionStatusBadge subscription={subscription} />
           </div>
 
           <span className={'text-gray-500 dark:text-gray-400 text-sm'}>
@@ -63,23 +74,31 @@ const SubscriptionCard: React.FC<{
         </div>
 
         <If condition={isActive}>
-          <RenewStatusDescription
-            dates={dates}
-            cancelAtPeriodEnd={cancelAtPeriodEnd}
-          />
+          <div className={'hidden sm:block'}>
+            <RenewStatusDescription
+              dates={dates}
+              cancelAtPeriodEnd={cancelAtPeriodEnd}
+            />
+          </div>
         </If>
 
-        <SubscriptionStatusAlert subscription={subscription} values={dates} />
       </div>
 
-      <div className={'w-3/12'}>
-        <span className={'flex items-center justify-end space-x-1'}>
+      <div className={'flex flex-col gap-2 shrink-0 sm:hidden'}>
+        <span className={'flex items-center space-x-1'}>
           <PricingTable.Price>{details.plan.price}</PricingTable.Price>
 
           <span className={'lowercase text-gray-500 dark:text-gray-400'}>
             /{details.plan.name}
           </span>
         </span>
+
+        <If condition={isActive}>
+          <RenewStatusDescription
+            dates={dates}
+            cancelAtPeriodEnd={cancelAtPeriodEnd}
+          />
+        </If>
       </div>
     </div>
   );
@@ -119,20 +138,6 @@ function RenewStatusDescription(
       </If>
     </span>
   );
-}
-
-function useSubscriptionDetails(priceId: string) {
-  const products = configuration.stripe.products;
-
-  return useMemo(() => {
-    for (const product of products) {
-      for (const plan of product.plans) {
-        if (plan.stripePriceId === priceId) {
-          return { plan, product };
-        }
-      }
-    }
-  }, [products, priceId]);
 }
 
 export default SubscriptionCard;

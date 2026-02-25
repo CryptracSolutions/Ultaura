@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
+import Link from 'next/link';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -16,7 +17,6 @@ import type UserData from '~/core/session/types/user-data';
 
 import configuration from '~/configuration';
 import ImageUploader from '~/core/ui/ImageUploader';
-import Button from '~/core/ui/Button';
 import { USERS_TABLE } from '~/lib/db-tables';
 import { useAutoSave } from '~/core/hooks/use-auto-save';
 
@@ -112,17 +112,15 @@ function UpdateProfileForm({
             <TextField.Input disabled value={email} />
           </TextField.Label>
 
-          <div>
-            <Button
-              variant="outline"
-              size="small"
+          <p className={'text-xs text-muted-foreground'}>
+            <Trans i18nKey={'profile:updateEmailFromEmailTabHintPrefix'} />{' '}
+            <Link
               href={'../' + configuration.paths.settings.email}
+              className={'font-medium text-primary hover:underline'}
             >
-              <span className={'text-xs font-normal'}>
-                <Trans i18nKey={'profile:updateEmailSubmitLabel'} />
-              </span>
-            </Button>
-          </div>
+              <Trans i18nKey={'profile:updateEmailFromEmailTabHintLinkLabel'} />
+            </Link>
+          </p>
         </TextField>
       </div>
     </div>

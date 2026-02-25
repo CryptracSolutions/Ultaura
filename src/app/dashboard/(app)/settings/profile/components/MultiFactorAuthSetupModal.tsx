@@ -32,7 +32,7 @@ function MultiFactorAuthSetupModal(
 
   return (
     <Modal
-      heading={<Trans i18nKey={'profile:setupMfaButtonLabel'} />}
+      heading="Setup a new factor"
       description="Scan the QR code and confirm your authenticator app."
       isOpen={props.isOpen}
       setIsOpen={props.setIsOpen}
@@ -142,13 +142,14 @@ function MultiFactorAuthSetupForm({
               </TextField.Hint>
             </TextField.Label>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 size="small"
                 onClick={onCancel}
                 disabled={state.loading}
+                className="w-full"
               >
                 <Trans i18nKey={'common:cancel'} />
               </Button>
@@ -159,6 +160,7 @@ function MultiFactorAuthSetupForm({
                 size="small"
                 disabled={!verificationCode || state.loading}
                 loading={state.loading}
+                className="w-full"
               >
                 {state.loading ? (
                   <Trans i18nKey={'profile:verifyingCode'} />
@@ -296,12 +298,13 @@ function FactorNameForm(
           </TextField.Hint>
         </TextField.Label>
 
-        <div className="flex gap-3 pt-2">
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row">
           <Button
             type="button"
             variant="outline"
             size="small"
             onClick={props.onCancel}
+            className="w-full"
           >
             <Trans i18nKey={'common:cancel'} />
           </Button>
@@ -310,8 +313,9 @@ function FactorNameForm(
             type="submit"
             variant="default"
             size="small"
+            className="w-full"
           >
-            <Trans i18nKey={'profile:factorNameSubmitLabel'} />
+            Set factor
           </Button>
         </div>
       </div>
