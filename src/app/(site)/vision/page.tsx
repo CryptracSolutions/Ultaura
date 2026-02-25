@@ -38,7 +38,7 @@ const STATS = [
   { value: '1 in 3', label: 'older adults experience chronic loneliness', source: 'AARP/National Academies' },
   { value: '15/day', label: 'cigarettes — the mortality risk equivalent of loneliness', source: 'Holt-Lunstad' },
   { value: '16M', label: 'seniors live alone in the United States', source: 'Census Bureau' },
-  { value: '$19/mo', label: 'Ultaura vs $30/hr for in-home aides', source: 'Care.com/Genworth' },
+  { value: '$30/hr', label: 'Average cost for in-home companion care vs $19/mo for Ultaura', source: 'Care.com/Genworth' },
 ];
 
 const FEATURES = [

@@ -87,9 +87,6 @@ function PricingPage() {
             <CheckCircleIcon className="h-4 w-4 text-primary" />
             All plans include a 14-day free trial
           </span>
-          <span className="text-muted-foreground/80">
-            Cancel anytime
-          </span>
         </span>
       </PageHero>
 

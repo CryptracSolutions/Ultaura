@@ -75,7 +75,7 @@ function Home() {
                 </p>
               </FadeInWhenVisible>
 
-              <FadeInWhenVisible delay={0.22}>
+              <FadeInWhenVisible delay={0.22} margin="200px">
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <MainCallToActionButton />
                   <Button
@@ -93,14 +93,14 @@ function Home() {
                 </div>
               </FadeInWhenVisible>
 
-              <FadeInWhenVisible delay={0.26}>
+              <FadeInWhenVisible delay={0.26} margin="200px">
                 <span className={'mt-4 text-xs text-center text-primary flex items-center gap-1.5 justify-center sm:justify-start'}>
                   <ShieldCheckIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                   14-day free trial • Start at $19/mo • Cancel anytime
                 </span>
               </FadeInWhenVisible>
 
-              <FadeInWhenVisible delay={0.30}>
+              <FadeInWhenVisible delay={0.30} margin="200px">
                 <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                   <div className="flex items-center gap-2">
                     <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />

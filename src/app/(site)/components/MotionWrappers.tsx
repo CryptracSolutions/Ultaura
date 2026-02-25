@@ -6,6 +6,7 @@ import {
   useInView,
   useReducedMotion,
   type Variants,
+  type UseInViewOptions,
 } from 'framer-motion';
 
 interface FadeInWhenVisibleProps {
@@ -14,6 +15,7 @@ interface FadeInWhenVisibleProps {
   direction?: 'up' | 'down' | 'left' | 'right';
   duration?: number;
   className?: string;
+  margin?: UseInViewOptions['margin'];
 }
 
 const directionOffsets: Record<NonNullable<FadeInWhenVisibleProps['direction']>, { x: number; y: number }> = {
@@ -29,9 +31,10 @@ export function FadeInWhenVisible({
   direction = 'up',
   duration = 0.6,
   className,
+  margin,
 }: FadeInWhenVisibleProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-80px' });
+  const isInView = useInView(ref, { once: true, margin: margin ?? '-80px' });
   const prefersReducedMotion = useReducedMotion();
 
   if (prefersReducedMotion) {
