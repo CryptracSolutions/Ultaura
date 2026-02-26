@@ -437,6 +437,7 @@ export function RemindersPageClient({
                 timezone: editingReminder.timezone,
                 isRecurring: editingReminder.isRecurring,
                 lineShortId: editingReminder.lineShortId,
+                deliveryMethod: editingReminder.deliveryMethod,
               }
             : null
         }

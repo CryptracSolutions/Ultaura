@@ -34,12 +34,15 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         return;
       }
 
-      const missingUpdate = issues.some((issue) => issue.message === 'Provide a message or time update');
+      const missingUpdate = issues.some((issue) => (
+        issue.message === 'Provide a message or time update'
+        || issue.message === 'Provide a message, time, or delivery method update'
+      ));
       if (missingUpdate) {
         res.json({
           success: false,
           code: ErrorCodes.INVALID_INPUT,
-          message: 'What would you like to change? I can update the message or the time.',
+          message: 'What would you like to change? I can update the message, time, or delivery method.',
         });
         return;
       }
@@ -78,7 +81,16 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { callSessionId, lineId, reminderId, newMessage, newTimeLocal, timezone } = parsed.data;
+    const {
+      callSessionId,
+      lineId,
+      reminderId,
+      newMessage,
+      newTimeLocal,
+      newDeliveryMethod: parsedNewDeliveryMethod,
+      timezone,
+    } = parsed.data;
+    const newDeliveryMethod = parsedNewDeliveryMethod;
 
     const session = await getCallSession(callSessionId);
     if (!session) {
@@ -262,6 +274,12 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         });
         return;
       }
+    }
+
+    if (newDeliveryMethod && newDeliveryMethod !== (reminder.delivery_method ?? 'outbound_call')) {
+      oldValues.deliveryMethod = reminder.delivery_method ?? null;
+      updates.delivery_method = newDeliveryMethod;
+      changes.push('delivery method');
     }
 
     if (Object.keys(updates).length === 0) {

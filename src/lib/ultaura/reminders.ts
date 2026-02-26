@@ -401,7 +401,7 @@ const createReminderWithTrial = withTrialCheck(async (
     message_tag: encodeBytea(encryptedMessage.tag),
     message_alg: encryptedMessage.alg,
     message_kid: encryptedMessage.kid,
-    delivery_method: 'outbound_call',
+    delivery_method: parsed.data.deliveryMethod ?? 'outbound_call',
     status: 'scheduled',
     privacy_scope: 'line_only',
     search_tokens: searchTokens,
@@ -1148,6 +1148,15 @@ export async function editReminder(
       }
     }
 
+    if (inputData.updates.deliveryMethod !== undefined) {
+      const currentDeliveryMethod = inputData.reminder.delivery_method === 'sms' ? 'sms' : 'outbound_call';
+      if (inputData.updates.deliveryMethod !== currentDeliveryMethod) {
+        oldValues.deliveryMethod = currentDeliveryMethod;
+        updates.delivery_method = inputData.updates.deliveryMethod;
+        newValues.deliveryMethod = inputData.updates.deliveryMethod;
+      }
+    }
+
     if (inputData.reminder.timezone !== lineTimezone) {
       updates.timezone = lineTimezone;
       if (inputData.reminder.is_recurring && updates.time_of_day === undefined) {
@@ -1396,6 +1405,7 @@ export async function getAllReminders(accountId: string): Promise<{
   message: string;
   dueAt: string;
   timezone: string;
+  deliveryMethod: 'outbound_call' | 'sms';
   status: 'scheduled' | 'sent' | 'missed' | 'canceled';
   isRecurring: boolean;
   rrule: string | null;
@@ -1423,6 +1433,7 @@ export async function getAllReminders(accountId: string): Promise<{
       message_tag,
       due_at,
       timezone,
+      delivery_method,
       status,
       is_recurring,
       rrule,
@@ -1468,6 +1479,7 @@ export async function getAllReminders(accountId: string): Promise<{
     message: resolveDecryptedMessage(reminder.message ?? null, messageMap.get(reminder.id)),
     dueAt: reminder.due_at,
     timezone: reminder.timezone,
+    deliveryMethod: reminder.delivery_method === 'sms' ? 'sms' : 'outbound_call',
     status: reminder.status as 'scheduled' | 'sent' | 'missed' | 'canceled',
     isRecurring: reminder.is_recurring,
     rrule: reminder.rrule,

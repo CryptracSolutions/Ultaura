@@ -12,6 +12,8 @@ import {
   SkipForward,
   X,
   Repeat,
+  Phone,
+  MessageSquare,
 } from 'lucide-react';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import type { ActionItem } from '~/components/ultaura/ResponsiveActionMenu';
@@ -36,6 +38,7 @@ export interface ReminderCardReminder {
   snoozedUntil: string | null;
   lineTimezone: string;
   linePhoneE164: string;
+  deliveryMethod?: 'outbound_call' | 'sms' | null;
 }
 
 export interface ReminderCardProps {
@@ -137,6 +140,22 @@ function getEffectiveIcon(reminder: ReminderCardReminder) {
   return { bg: config.bg, iconColor: config.iconColor, icon: config.icon };
 }
 
+function getDeliveryMethodBadge(reminder: ReminderCardReminder) {
+  const deliveryMethod = reminder.deliveryMethod ?? 'outbound_call';
+
+  if (deliveryMethod === 'sms') {
+    return {
+      label: 'SMS',
+      icon: MessageSquare,
+    };
+  }
+
+  return {
+    label: 'Call',
+    icon: Phone,
+  };
+}
+
 function buildActions(
   reminder: ReminderCardReminder,
   props: Pick<ReminderCardProps, 'onEdit' | 'onPause' | 'onResume' | 'onSnooze' | 'onSkip' | 'onCancel'>,
@@ -211,6 +230,8 @@ export function ReminderCard({
   const statusConfig = STATUS_CONFIG[reminder.status];
   const effective = getEffectiveIcon(reminder);
   const EffectiveIcon = effective.icon;
+  const deliveryBadge = getDeliveryMethodBadge(reminder);
+  const DeliveryIcon = deliveryBadge.icon;
 
   return (
     <div
@@ -250,6 +271,11 @@ export function ReminderCard({
                 {formatRelativeTime(reminder.dueAt)}
               </span>
             )}
+
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+              <DeliveryIcon className="h-3 w-3" aria-hidden="true" />
+              {deliveryBadge.label}
+            </span>
 
             {/* Recurrence badge */}
             {reminder.isRecurring && (

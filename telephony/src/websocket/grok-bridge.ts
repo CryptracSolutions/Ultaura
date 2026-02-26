@@ -60,6 +60,34 @@ function randomBetween(minMs: number, maxMs: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function mapReminderDeliveryMethod(value: unknown): 'outbound_call' | 'sms' | undefined {
+  if (value === 'sms') return 'sms';
+  if (value === 'call' || value === 'outbound_call') return 'outbound_call';
+  return undefined;
+}
+
+function warnOnUnsupportedReminderDeliveryMethod(
+  toolName: 'set_reminder' | 'edit_reminder',
+  argName: 'delivery_method' | 'new_delivery_method',
+  value: unknown,
+  callSessionId: string
+): void {
+  if (value == null) {
+    return;
+  }
+
+  if (mapReminderDeliveryMethod(value) !== undefined) {
+    return;
+  }
+
+  logger.warn({
+    toolName,
+    argName,
+    deliveryMethod: value,
+    callSessionId,
+  }, 'Unsupported reminder delivery method from Grok tool args');
+}
+
 function sanitizePromptSnippet(input: string): string {
   return input
     .replace(/[\r\n\t]+/g, ' ')
@@ -1154,12 +1182,19 @@ At the START of this call:
 
           switch (name) {
             case 'set_reminder':
+              warnOnUnsupportedReminderDeliveryMethod(
+                'set_reminder',
+                'delivery_method',
+                args.delivery_method,
+                this.options.callSessionId
+              );
               result = await this.callToolEndpoint(`${baseUrl}/tools/set_reminder`, {
                 callSessionId: this.options.callSessionId,
                 lineId: this.options.lineId,
                 dueAtLocal: args.due_at_local,
                 timezone: this.options.timezone,
                 message: args.message,
+                deliveryMethod: mapReminderDeliveryMethod(args.delivery_method),
                 // Recurrence fields
                 isRecurring: args.is_recurring || false,
                 frequency: args.frequency,
@@ -1541,12 +1576,19 @@ At the START of this call:
             break;
 
           case 'edit_reminder':
+            warnOnUnsupportedReminderDeliveryMethod(
+              'edit_reminder',
+              'new_delivery_method',
+              args.new_delivery_method,
+              this.options.callSessionId
+            );
             result = await this.callToolEndpoint(`${baseUrl}/tools/edit_reminder`, {
               callSessionId: this.options.callSessionId,
               lineId: this.options.lineId,
               reminderId: args.reminder_id,
               newMessage: args.new_message,
               newTimeLocal: args.new_time_local,
+              newDeliveryMethod: mapReminderDeliveryMethod(args.new_delivery_method),
               timezone: this.options.timezone,
             });
             break;

@@ -13,6 +13,9 @@ const runPersonaAnalyzerForAllLines = vi.hoisted(() => vi.fn());
 const getLineById = vi.hoisted(() => vi.fn());
 const checkLineAccess = vi.hoisted(() => vi.fn());
 const isInQuietHours = vi.hoisted(() => vi.fn());
+const enforceRateLimit = vi.hoisted(() => vi.fn());
+const sendSms = vi.hoisted(() => vi.fn());
+const decryptReminderMessage = vi.hoisted(() => vi.fn());
 const fetchMock = vi.hoisted(() => vi.fn());
 const leaseAcquisitionsLabels = vi.hoisted(() =>
   vi.fn((..._args: [string, string, string]) => ({ inc: vi.fn() }))
@@ -56,6 +59,18 @@ vi.mock('../../services/line-lookup.js', () => ({
   isInQuietHours,
 }));
 
+vi.mock('../../services/rate-limiter.js', () => ({
+  enforceRateLimit,
+}));
+
+vi.mock('../../utils/twilio.js', () => ({
+  sendSms,
+}));
+
+vi.mock('../../utils/reminder-crypto.js', () => ({
+  decryptReminderMessage,
+}));
+
 vi.mock('../../utils/metrics.js', () => ({
   activeLeases: { labels: activeLeasesLabels },
   leaseAcquisitions: { labels: leaseAcquisitionsLabels },
@@ -73,9 +88,11 @@ const {
   processWithLease,
   processScheduledCalls,
   processSchedule,
+  processReminder,
   completeScheduleWithResult,
   releaseReminderClaim,
   handleRecurringReminderSuccess,
+  getReminderSmsBody,
   resetState,
   setShuttingDown,
   setIsRunning,
@@ -108,6 +125,9 @@ describe('call-scheduler', () => {
     checkLineAccess.mockReset();
     isInQuietHours.mockReset();
     fetchMock.mockReset();
+    enforceRateLimit.mockReset();
+    sendSms.mockReset();
+    decryptReminderMessage.mockReset();
     leaseAcquisitionsLabels.mockClear();
     activeLeasesLabels.mockClear();
     leaseHoldDurationLabels.mockClear();
@@ -495,6 +515,219 @@ describe('call-scheduler', () => {
 
       expect(recalculateBaselinesForAllLines).not.toHaveBeenCalled();
       expect(runPersonaAnalyzerForAllLines).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('REMINDERS: sms delivery path', () => {
+    function buildReminder(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'rem-sms-1',
+        account_id: 'acc-1',
+        line_id: 'line-1',
+        due_at: '2025-01-10T14:00:00.000Z',
+        timezone: 'America/New_York',
+        is_recurring: false,
+        rrule: null,
+        interval_days: null,
+        days_of_week: null,
+        day_of_month: null,
+        time_of_day: '09:00',
+        ends_at: null,
+        occurrence_count: 0,
+        message: null,
+        message_ciphertext: new Uint8Array([1]),
+        message_iv: new Uint8Array([2]),
+        message_tag: new Uint8Array([3]),
+        message_alg: 'AES-256-GCM',
+        message_kid: 'kek_v1',
+        delivery_method: 'sms',
+        status: 'scheduled',
+        privacy_scope: 'line_only',
+        created_by_call_session_id: null,
+        is_paused: false,
+        paused_at: null,
+        snoozed_until: null,
+        original_due_at: null,
+        current_snooze_count: 0,
+        last_delivery_status: null,
+        processing_claimed_at: null,
+        processing_claimed_by: WORKER_ID,
+        created_at: '2025-01-10T13:00:00.000Z',
+        ...overrides,
+      };
+    }
+
+    function mockReminderDbSuccess(): void {
+      rpcMock.mockResolvedValueOnce(rpcResponses.completionSuccess);
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'ultaura_reminders') {
+          return createQueryBuilder({ data: { id: 'rem-sms-1' }, error: null });
+        }
+        if (table === 'ultaura_reminder_events') {
+          return createQueryBuilder({ data: { id: 'evt-1' }, error: null });
+        }
+        return createQueryBuilder({ data: null, error: null });
+      });
+    }
+
+    it('labels successful SMS reminder outcome with method=sms', async () => {
+      getLineById.mockResolvedValueOnce({
+        line: {
+          id: 'line-1',
+          phone_e164: '+15551234567',
+          do_not_call: true,
+          vacation_ranges: [],
+          timezone: 'America/New_York',
+        },
+        account: { id: 'acc-1' },
+      });
+      enforceRateLimit.mockResolvedValueOnce({ allowed: true });
+      decryptReminderMessage.mockResolvedValueOnce('Take your medication');
+      sendSms.mockResolvedValueOnce('SM123');
+      mockReminderDbSuccess();
+
+      await processReminder(buildReminder() as any);
+
+      expect(enforceRateLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sms', accountId: 'acc-1', phoneNumber: '+15551234567' })
+      );
+      expect(sendSms).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: '+15551234567',
+          body: 'Hi there, this is a reminder to Take your medication. - Ultaura',
+        })
+      );
+      expect(checkLineAccess).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'success', method: 'sms' });
+    });
+
+    it('marks SMS reminder missed when rate limited and labels method=sms', async () => {
+      getLineById.mockResolvedValueOnce({
+        line: {
+          id: 'line-1',
+          phone_e164: '+15551234567',
+          do_not_call: false,
+          vacation_ranges: [],
+          timezone: 'America/New_York',
+        },
+        account: { id: 'acc-1' },
+      });
+      enforceRateLimit.mockResolvedValueOnce({
+        allowed: false,
+        retryAfter: 60,
+        limitType: 'account',
+        redisAvailable: true,
+      });
+      mockReminderDbSuccess();
+
+      await processReminder(buildReminder() as any);
+
+      expect(sendSms).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({
+        outcome: 'rate_limited',
+        method: 'sms',
+      });
+      expect(reminderOutcomesTotalInc).not.toHaveBeenCalledWith({ outcome: 'missed', method: 'sms' });
+    });
+
+    it('falls back to call on SMS opt-out and labels success with method=call', async () => {
+      getLineById.mockResolvedValueOnce({
+        line: {
+          id: 'line-1',
+          phone_e164: '+15551234567',
+          do_not_call: false,
+          vacation_ranges: [],
+          timezone: 'America/New_York',
+        },
+        account: { id: 'acc-1' },
+      });
+      enforceRateLimit.mockResolvedValueOnce({ allowed: true });
+      decryptReminderMessage.mockResolvedValueOnce('Time for your walk');
+      sendSms.mockRejectedValueOnce(new Error('Recipient has opted out of SMS'));
+      checkLineAccess.mockResolvedValueOnce({ allowed: true });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ sessionId: 'sess-1' }),
+      });
+      mockReminderDbSuccess();
+
+      await processReminder(buildReminder() as any);
+
+      expect(sendSms).toHaveBeenCalled();
+      expect(checkLineAccess).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:3001/calls/outbound',
+        expect.any(Object)
+      );
+      expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'success', method: 'call' });
+      expect(reminderOutcomesTotalInc).not.toHaveBeenCalledWith({ outcome: 'success', method: 'sms' });
+    });
+
+    it('does not fall back to call on generic SMS send failure and records missed/sms outcome', async () => {
+      getLineById.mockResolvedValueOnce({
+        line: {
+          id: 'line-1',
+          phone_e164: '+15551234567',
+          do_not_call: false,
+          vacation_ranges: [],
+          timezone: 'America/New_York',
+        },
+        account: { id: 'acc-1' },
+      });
+      enforceRateLimit.mockResolvedValueOnce({ allowed: true });
+      decryptReminderMessage.mockResolvedValueOnce('Take vitamins');
+      sendSms.mockRejectedValueOnce(new Error('Twilio request failed'));
+      mockReminderDbSuccess();
+
+      await processReminder(buildReminder() as any);
+
+      expect(sendSms).toHaveBeenCalled();
+      expect(checkLineAccess).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'missed', method: 'sms' });
+      expect(reminderOutcomesTotalInc).not.toHaveBeenCalledWith({ outcome: 'success', method: 'call' });
+    });
+  });
+
+  describe('REMINDERS: getReminderSmsBody edge cases', () => {
+    function buildSmsBodyReminder(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'rem-body-1',
+        account_id: 'acc-1',
+        line_id: 'line-1',
+        message: null,
+        message_ciphertext: new Uint8Array([1]),
+        message_iv: new Uint8Array([2]),
+        message_tag: new Uint8Array([3]),
+        ...overrides,
+      } as any;
+    }
+
+    it('throws when decryption fails', async () => {
+      decryptReminderMessage.mockRejectedValueOnce(new Error('decrypt failed'));
+
+      await expect(getReminderSmsBody(buildSmsBodyReminder(), 'Pat'))
+        .rejects.toThrow('decrypt failed');
+    });
+
+    it('falls back to plaintext when decrypted message is whitespace', async () => {
+      decryptReminderMessage.mockResolvedValueOnce('   ');
+
+      await expect(getReminderSmsBody(
+        buildSmsBodyReminder({ message: '  Call your daughter  ' }),
+        ' Pat '
+      )).resolves.toBe('Hi Pat, this is a reminder to Call your daughter. - Ultaura');
+    });
+
+    it('throws when no decrypted or plaintext reminder message is available', async () => {
+      decryptReminderMessage.mockResolvedValueOnce('   ');
+
+      await expect(getReminderSmsBody(
+        buildSmsBodyReminder({ message: '   ' }),
+        null
+      )).rejects.toThrow('No message for SMS reminder');
     });
   });
 

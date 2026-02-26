@@ -27,11 +27,14 @@ export const RecurrenceSchema = z.object({
   endsAt: DateTimeStringSchema.optional(),
 });
 
+export const ReminderDeliveryMethodSchema = z.enum(['outbound_call', 'sms']);
+
 export const CreateReminderInputSchema = z.object({
   lineId: z.string().uuid(),
   dueAt: DateTimeStringSchema,
   message: z.string().min(1).max(500),
   timezone: z.string().refine(isValidIANATimezone, 'Must be a valid IANA timezone'),
+  deliveryMethod: ReminderDeliveryMethodSchema.optional().default('outbound_call'),
   recurrence: RecurrenceSchema.optional(),
 });
 
@@ -40,6 +43,7 @@ export type CreateReminderInput = z.infer<typeof CreateReminderInputSchema>;
 export const EditReminderInputSchema = z.object({
   message: z.string().min(1).max(500).optional(),
   dueAt: DateTimeStringSchema.optional(),
+  deliveryMethod: ReminderDeliveryMethodSchema.optional(),
   recurrence: z.object({
     frequency: EditRecurrenceFrequencySchema,
     interval: z.number().int().min(1).max(365).optional(),
@@ -58,7 +62,5 @@ export const SnoozeInputSchema = z.object({
     `Minutes must be one of: ${VALID_SNOOZE_MINUTES.join(', ')}`
   ),
 });
-
-export const ReminderDeliveryMethodSchema = z.enum(['outbound_call']);
 
 export { MAX_SNOOZE_COUNT, VALID_SNOOZE_MINUTES };

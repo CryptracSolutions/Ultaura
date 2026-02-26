@@ -28,6 +28,7 @@ export type UpgradePlanId = 'care' | 'comfort' | 'family' | 'payg';
 export interface SetReminderArgs {
   message: string;
   due_at_local: string;
+  delivery_method?: 'call' | 'sms';
   is_recurring?: boolean;
   frequency?: 'daily' | 'weekly' | 'monthly' | 'custom';
   interval?: number;
@@ -187,6 +188,7 @@ export interface EditReminderArgs {
   reminder_id: string;
   new_message?: string;
   new_time_local?: string;
+  new_delivery_method?: 'call' | 'sms';
 }
 
 export interface ReminderIdArgs {

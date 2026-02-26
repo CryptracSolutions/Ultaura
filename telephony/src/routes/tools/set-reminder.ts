@@ -188,6 +188,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       dueAtLocal,
       timezone,
       message,
+      deliveryMethod: parsedDeliveryMethod,
       privacyScope = 'line_only',
       // Recurrence fields
       isRecurring = false,
@@ -197,6 +198,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       dayOfMonth,
       endsAtLocal,
     } = parsed.data;
+    const deliveryMethod = parsedDeliveryMethod ?? 'outbound_call';
 
     logger.info({
       callSessionId,
@@ -405,7 +407,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
       p_due_at: dueAt.toISOString(),
       p_timezone: tz,
       p_message: null,
-      p_delivery_method: 'outbound_call',
+      p_delivery_method: deliveryMethod,
       p_status: 'scheduled',
       p_privacy_scope: privacyScope,
       p_message_ciphertext: encodeBytea(encryptedMessage.ciphertext),
@@ -437,7 +439,7 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
         p_due_at: dueAt.toISOString(),
         p_timezone: tz,
         p_message: messageForStorage,
-        p_delivery_method: 'outbound_call',
+        p_delivery_method: deliveryMethod,
         p_status: 'scheduled',
         p_privacy_scope: privacyScope,
         p_message_ciphertext: encodeBytea(encryptedMessage.ciphertext),
@@ -539,20 +541,24 @@ setReminderRouter.post('/', async (req: Request, res: Response) => {
 
     // Build response message
     const scheduleInfo = formatReminderSchedule(dueAt, tz);
-    let responseMessage = `Reminder set for ${scheduleInfo}`;
+    const isSmsReminder = deliveryMethod === 'sms';
+    const recurringReminderPrefix = isSmsReminder ? 'Recurring text reminder set' : 'Recurring reminder set';
+    let responseMessage = isSmsReminder
+      ? `I'll send you a text reminder at ${scheduleInfo}`
+      : `Reminder set for ${scheduleInfo}`;
     if (isRecurring && rrule) {
       if (frequency === 'daily') {
         responseMessage = intervalDays && intervalDays > 1
-          ? `Recurring reminder set: every ${intervalDays} days starting ${scheduleInfo}`
-          : `Recurring reminder set: daily starting ${scheduleInfo}`;
+          ? `${recurringReminderPrefix}: every ${intervalDays} days starting ${scheduleInfo}`
+          : `${recurringReminderPrefix}: daily starting ${scheduleInfo}`;
       } else if (frequency === 'weekly') {
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const days = daysOfWeekVal?.map(d => dayNames[d]).join(', ') || '';
-        responseMessage = `Recurring reminder set: every ${days} starting ${scheduleInfo}`;
+        responseMessage = `${recurringReminderPrefix}: every ${days} starting ${scheduleInfo}`;
       } else if (frequency === 'monthly') {
-        responseMessage = `Recurring reminder set: monthly on day ${dayOfMonthVal} starting ${scheduleInfo}`;
+        responseMessage = `${recurringReminderPrefix}: monthly on day ${dayOfMonthVal} starting ${scheduleInfo}`;
       } else if (frequency === 'custom') {
-        responseMessage = `Recurring reminder set: every ${intervalDays} days starting ${scheduleInfo}`;
+        responseMessage = `${recurringReminderPrefix}: every ${intervalDays} days starting ${scheduleInfo}`;
       }
     }
 

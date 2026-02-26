@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { IANAZone } from 'luxon';
+import { ReminderDeliveryMethodSchema } from '../reminder.js';
 
 const isValidIANATimezone = (tz: string) => {
   const normalized = tz.trim();
@@ -18,9 +19,10 @@ export const EditReminderInputSchema = z.object({
   reminderId: z.string().uuid(),
   newMessage: z.string().max(500).optional(),
   newTimeLocal: LocalDateTimeSchema.optional(),
+  newDeliveryMethod: ReminderDeliveryMethodSchema.optional(),
   timezone: z.string().refine(isValidIANATimezone, 'Must be a valid IANA timezone').optional(),
-}).refine((data) => Boolean(data.newMessage || data.newTimeLocal), {
-  message: 'Provide a message or time update',
+}).refine((data) => Boolean(data.newMessage || data.newTimeLocal || data.newDeliveryMethod), {
+  message: 'Provide a message, time, or delivery method update',
 });
 
 export type EditReminderInput = z.infer<typeof EditReminderInputSchema>;

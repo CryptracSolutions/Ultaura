@@ -10,7 +10,10 @@ import { getBackendUrl, getInternalApiSecret } from '../utils/env.js';
 import { isInQuietHours, checkLineAccess, getLineById } from '../services/line-lookup.js';
 import { recalculateBaselinesForAllLines } from '../services/baseline.js';
 import { runPersonaAnalyzerForAllLines } from '../services/persona-analyzer.js';
+import { enforceRateLimit } from '../services/rate-limiter.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
+import { decryptReminderMessage } from '../utils/reminder-crypto.js';
+import { sendSms } from '../utils/twilio.js';
 import {
   activeLeases,
   leaseAcquisitions,
@@ -72,6 +75,12 @@ let lastCleanupTimestamp = 0;
 let lastBaselineRunDate: string | null = null;
 let lastPersonaRunDate: string | null = null;
 const leaseExistenceCache = new Map<string, boolean>();
+
+type ReminderMetricMethod = 'call' | 'sms';
+
+function getReminderMetricMethod(reminder: ReminderRow): ReminderMetricMethod {
+  return reminder.delivery_method === 'sms' ? 'sms' : 'call';
+}
 
 /**
  * Calculate the next occurrence for a recurring reminder.
@@ -716,6 +725,7 @@ async function processReminders(): Promise<void> {
  */
 async function processReminder(reminder: ReminderRow): Promise<void> {
   const supabase = getSupabaseClient();
+  const configuredMethod = getReminderMetricMethod(reminder);
 
   // Generate idempotency key for this specific reminder occurrence
   const idempotencyKey = `reminder:${reminder.id}:${reminder.due_at}`;
@@ -738,16 +748,9 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 
   const { line, account } = lineWithAccount;
 
-  // Check if line is opted out
-  if (line.do_not_call) {
-    logger.info({ reminderId: reminder.id }, 'Line opted out, marking reminder missed');
-    await handleReminderFailure(supabase, reminder, 'missed', line.timezone);
-    return;
-  }
-
   if (isDateWithinVacation(reminder.due_at, line)) {
     logger.info({ reminderId: reminder.id, lineId: reminder.line_id }, 'Line on vacation, skipping reminder');
-    reminderOutcomesTotal.inc({ outcome: 'suppressed_vacation' });
+    reminderOutcomesTotal.inc({ outcome: 'suppressed_vacation', method: configuredMethod });
 
     if (reminder.is_recurring) {
       const nextDueAt = calculateNextReminderOccurrence(reminder, line.timezone);
@@ -869,13 +872,66 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
     return;
   }
 
-  // Check access
+  if (configuredMethod === 'sms') {
+    try {
+      const rateLimitResult = await enforceRateLimit({
+        action: 'sms',
+        accountId: reminder.account_id,
+        phoneNumber: line.phone_e164,
+      });
+
+      if (!rateLimitResult.allowed) {
+        logger.warn(
+          { reminderId: reminder.id, lineId: reminder.line_id, limitType: rateLimitResult.limitType },
+          'SMS reminder rate limited'
+        );
+        reminderOutcomesTotal.inc({ outcome: 'rate_limited', method: 'sms' });
+        await handleReminderFailure(supabase, reminder, 'missed', line.timezone, 'sms', {
+          skipOutcomeMetric: true,
+        });
+        return;
+      }
+
+      const smsBody = await getReminderSmsBody(reminder, line.display_name);
+      await sendSms({
+        to: line.phone_e164,
+        body: smsBody,
+      });
+
+      reminderOutcomesTotal.inc({ outcome: 'success', method: 'sms' });
+      logger.info({ reminderId: reminder.id }, 'Reminder SMS sent');
+
+      const updated = await handleReminderSuccess(supabase, reminder, line.timezone);
+      if (!updated) {
+        return;
+      }
+
+      await releaseReminderClaim(reminder.id);
+      return;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Recipient has opted out of SMS') {
+        logger.info({ reminderId: reminder.id, lineId: reminder.line_id }, 'SMS opt-out detected, falling back to reminder call');
+      } else {
+        logger.error({ error, reminderId: reminder.id }, 'Failed to send reminder SMS');
+        await handleReminderFailure(supabase, reminder, 'missed', line.timezone, 'sms');
+        return;
+      }
+    }
+  }
+
+  // Call-only checks (intentionally after SMS path so SMS reminders can bypass these unless falling back to call)
+  if (line.do_not_call) {
+    logger.info({ reminderId: reminder.id }, 'Line opted out, marking reminder missed');
+    await handleReminderFailure(supabase, reminder, 'missed', line.timezone, 'call');
+    return;
+  }
+
   const accessCheck = await checkLineAccess(line, account, 'outbound', {
     skipTrialReservation: true,
   });
   if (!accessCheck.allowed) {
     logger.info({ reminderId: reminder.id, reason: accessCheck.reason }, 'Access denied for reminder');
-    await handleReminderFailure(supabase, reminder, 'missed', line.timezone);
+    await handleReminderFailure(supabase, reminder, 'missed', line.timezone, 'call');
     return;
   }
 
@@ -903,33 +959,9 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       // Check for idempotency conflict
       if (errorData.code === 'DUPLICATE_SCHEDULED_CALL') {
         logger.warn({ reminderId: reminder.id, idempotencyKey }, 'Duplicate reminder call, already processed');
-        reminderOutcomesTotal.inc({ outcome: 'success' });
-        // Still need to handle recurring logic
-        if (reminder.is_recurring) {
-          const updated = await handleRecurringReminderSuccess(supabase, reminder, line.timezone);
-          if (updated) {
-            await releaseReminderClaim(reminder.id);
-          }
-        } else {
-          const { data: updated, error: updateError } = await supabase
-            .from('ultaura_reminders')
-            .update({ status: 'sent', last_delivery_status: 'completed' })
-            .eq('id', reminder.id)
-            .eq('processing_claimed_by', WORKER_ID)
-            .select('id')
-            .maybeSingle();
-
-          if (updateError) {
-            logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update reminder');
-            await releaseReminderClaim(reminder.id);
-            return;
-          }
-
-          if (!updated) {
-            logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
-            return;
-          }
-
+        reminderOutcomesTotal.inc({ outcome: 'success', method: 'call' });
+        const updated = await handleReminderSuccess(supabase, reminder, line.timezone);
+        if (updated) {
           await releaseReminderClaim(reminder.id);
         }
         return;
@@ -938,50 +970,12 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
       throw new Error('Failed to initiate reminder call');
     }
 
-    reminderOutcomesTotal.inc({ outcome: 'success' });
+    reminderOutcomesTotal.inc({ outcome: 'success', method: 'call' });
     logger.info({ reminderId: reminder.id }, 'Reminder call initiated');
 
-    // Handle recurring vs one-time reminders
-    if (reminder.is_recurring) {
-      const updated = await handleRecurringReminderSuccess(supabase, reminder, line.timezone);
-      if (!updated) {
-        return;
-      }
-    } else {
-      // One-time reminder: mark as sent
-      const { data: updated, error: updateError } = await supabase
-        .from('ultaura_reminders')
-        .update({
-          status: 'sent',
-          last_delivery_status: 'completed',
-          current_snooze_count: 0,
-          snoozed_until: null,
-          original_due_at: null,
-        })
-        .eq('id', reminder.id)
-        .eq('processing_claimed_by', WORKER_ID)
-        .select('id')
-        .maybeSingle();
-
-      if (updateError) {
-        logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update reminder');
-        await releaseReminderClaim(reminder.id);
-        return;
-      }
-
-      if (!updated) {
-        logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
-        return;
-      }
-
-      // Log delivery event
-      await supabase.from('ultaura_reminder_events').insert({
-        account_id: reminder.account_id,
-        reminder_id: reminder.id,
-        line_id: reminder.line_id,
-        event_type: 'delivered',
-        triggered_by: 'system',
-      });
+    const updated = await handleReminderSuccess(supabase, reminder, line.timezone);
+    if (!updated) {
+      return;
     }
 
     // Release the claim
@@ -989,7 +983,7 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
 
   } catch (error) {
     logger.error({ error, reminderId: reminder.id }, 'Failed to initiate reminder call');
-    await handleReminderFailure(supabase, reminder, 'missed', line.timezone);
+    await handleReminderFailure(supabase, reminder, 'missed', line.timezone, 'call');
   }
 }
 
@@ -1153,6 +1147,89 @@ async function handleRecurringReminderSuccess(
   return true;
 }
 
+async function handleReminderSuccess(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  reminder: ReminderRow,
+  timezone: string
+): Promise<boolean> {
+  if (reminder.is_recurring) {
+    return handleRecurringReminderSuccess(supabase, reminder, timezone);
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from('ultaura_reminders')
+    .update({
+      status: 'sent',
+      last_delivery_status: 'completed',
+      current_snooze_count: 0,
+      snoozed_until: null,
+      original_due_at: null,
+    })
+    .eq('id', reminder.id)
+    .eq('processing_claimed_by', WORKER_ID)
+    .select('id')
+    .maybeSingle();
+
+  if (updateError) {
+    logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to update reminder');
+    await releaseReminderClaim(reminder.id);
+    return false;
+  }
+
+  if (!updated) {
+    logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost, skipping event insert');
+    return false;
+  }
+
+  await supabase.from('ultaura_reminder_events').insert({
+    account_id: reminder.account_id,
+    reminder_id: reminder.id,
+    line_id: reminder.line_id,
+    event_type: 'delivered',
+    triggered_by: 'system',
+  });
+
+  return true;
+}
+
+async function getReminderSmsBody(reminder: ReminderRow, recipientName?: string | null): Promise<string> {
+  let messageText: string | null = null;
+
+  if (reminder.message_ciphertext && reminder.message_iv && reminder.message_tag) {
+    const decrypted = await decryptReminderMessage(
+      reminder.account_id,
+      reminder.line_id,
+      reminder.id,
+      {
+        ciphertext: reminder.message_ciphertext,
+        iv: reminder.message_iv,
+        tag: reminder.message_tag,
+      }
+    );
+
+    const trimmed = decrypted.trim();
+    if (trimmed) {
+      messageText = trimmed;
+    }
+  }
+
+  if (!messageText) {
+    const plaintext = reminder.message?.trim();
+    if (plaintext) {
+      messageText = plaintext;
+    }
+  }
+
+  if (!messageText) {
+    throw new Error('No message for SMS reminder');
+  }
+
+  const trimmedRecipientName = typeof recipientName === 'string' ? recipientName.trim() : '';
+  const name = trimmedRecipientName || 'there';
+
+  return `Hi ${name}, this is a reminder to ${messageText}. - Ultaura`;
+}
+
 /**
  * Handle reminder failure (missed or error).
  * For recurring reminders, still advances to next occurrence.
@@ -1161,11 +1238,15 @@ async function handleReminderFailure(
   supabase: ReturnType<typeof getSupabaseClient>,
   reminder: ReminderRow,
   status: 'missed' | 'canceled',
-  timezone?: string
+  timezone?: string,
+  method: ReminderMetricMethod = getReminderMetricMethod(reminder),
+  options?: { skipOutcomeMetric?: boolean }
 ): Promise<void> {
   const eventType = status === 'missed' ? 'no_answer' : 'failed';
   const outcome = status === 'missed' ? 'missed' : 'failed';
-  reminderOutcomesTotal.inc({ outcome });
+  if (!options?.skipOutcomeMetric) {
+    reminderOutcomesTotal.inc({ outcome, method });
+  }
 
   if (reminder.is_recurring) {
     // For recurring reminders that fail, still advance to next occurrence
@@ -1263,7 +1344,9 @@ export const __test__ = {
   completeScheduleWithResult,
   releaseReminderClaim,
   handleRecurringReminderSuccess,
+  handleReminderSuccess,
   handleReminderFailure,
+  getReminderSmsBody,
   calculateNextRun,
   WORKER_ID,
   resetState: () => {

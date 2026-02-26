@@ -6,6 +6,6 @@ export type {
   MemoryType,
 } from '@ultaura/types';
 
-export type ReminderDeliveryMethod = 'outbound_call';
+export type ReminderDeliveryMethod = 'outbound_call' | 'sms';
 export type VoicemailBehavior = 'none' | 'brief' | 'detailed';
 export type LineStatus = 'active' | 'paused' | 'disabled';

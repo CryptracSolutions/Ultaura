@@ -3,6 +3,8 @@ import { DateTime } from 'luxon';
 import { ErrorCodes } from '@ultaura/schemas';
 import {
   createReminder,
+  editReminder,
+  getAllReminders,
   pauseReminder,
   snoozeReminder,
 } from '../reminders';
@@ -111,6 +113,38 @@ describe('reminders', () => {
     if (!secondPause.success) {
       expect(secondPause.error.code).toBe(ErrorCodes.REMINDER_NOT_PAUSABLE);
     }
+  });
+
+  it('supports sms delivery method for create/edit/getAllReminders', async () => {
+    const dueAt = DateTime.now()
+      .setZone('America/Los_Angeles')
+      .plus({ days: 2 })
+      .set({ hour: 10, minute: 30, second: 0, millisecond: 0 })
+      .toFormat("yyyy-MM-dd'T'HH:mm:ss");
+
+    const created = await createReminder({
+      lineId,
+      dueAt,
+      message: 'Send by SMS',
+      timezone: 'America/Los_Angeles',
+      deliveryMethod: 'sms',
+    });
+
+    expect(created.success).toBe(true);
+    if (!created.success) return;
+    expect(created.data.delivery_method).toBe('sms');
+
+    const edited = await editReminder(created.data.id, { deliveryMethod: 'outbound_call' }, lineShortId);
+    expect(edited.success).toBe(true);
+
+    const editedBack = await editReminder(created.data.id, { deliveryMethod: 'sms' }, lineShortId);
+    expect(editedBack.success).toBe(true);
+
+    const reminders = await getAllReminders(accountId);
+    const updated = reminders.find((reminder) => reminder.reminderId === created.data.id);
+
+    expect(updated).toBeDefined();
+    expect(updated?.deliveryMethod).toBe('sms');
   });
 
   it('calculates next monthly occurrence by clamping to month length', () => {

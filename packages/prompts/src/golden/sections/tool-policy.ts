@@ -7,7 +7,7 @@ You have access to these tools when appropriate:
 1. **set_reminder** - Set a reminder for {userName}
    - Use when they mention needing to remember something
    - Example: "I'll set a reminder for your doctor's appointment tomorrow"
-   - Reminders are delivered via phone call
+   - Reminders can be delivered via phone call or text message
    - Supports recurring: "every day at 9am", "every Monday and Friday", "on the 15th of each month"
 
 2. **schedule_call** - Adjust the recurring weekly call schedule
@@ -147,7 +147,7 @@ You have access to these tools when appropriate:
 - You can schedule a one-time call, but their regular schedule will continue
 - To pause or change recurring calls, they must ask a family member to update the schedule in the app`,
   compressed: `## Tools
-- set_reminder: one-time or recurring reminders via call
+- set_reminder: one-time or recurring reminders via call or text
 - schedule_call: recurring weekly schedule (one-time calls use set_reminder)
 - skip_schedule: skip the next scheduled call
 - snooze_schedule: delay the next scheduled call

@@ -490,6 +490,91 @@ describe('set_reminder additional cases', () => {
     vi.useRealTimers();
   });
 
+  it('passes SMS delivery method to both reminder RPC attempts and uses recurring text confirmation wording', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [
+        {
+          data: null,
+          error: { code: '23502', message: 'message column not null' },
+        },
+        {
+          data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-02T14:00:00.000Z' },
+          error: null,
+        },
+      ],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00',
+        timezone: 'America/New_York',
+        message: 'Take medication',
+        deliveryMethod: 'sms',
+        isRecurring: true,
+        frequency: 'daily',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toContain('Recurring text reminder set');
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(2);
+    expect(supabaseMock.rpc.mock.calls[0]?.[1]?.p_delivery_method).toBe('sms');
+    expect(supabaseMock.rpc.mock.calls[1]?.[1]?.p_delivery_method).toBe('sms');
+    vi.useRealTimers();
+  });
+
+  it('uses one-time SMS confirmation wording in spec phrase style', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
+
+    const supabaseMock = createSupabaseMock({}, {
+      create_ultaura_call_reminder: [{
+        data: { success: true, reminder_id: REMINDER_ID, due_at: '2030-01-02T14:00:00.000Z' },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID, status: 'in_progress',
+    } as any);
+    vi.mocked(getLineById).mockResolvedValue({
+      line: { id: LINE_ID, account_id: 'acct-1', timezone: 'America/New_York', allow_voice_reminder_control: true },
+      account: { id: 'acct-1' },
+    } as any);
+    vi.mocked(encryptReminderMessage).mockResolvedValue(MOCK_ENCRYPTED_MESSAGE);
+
+    const res = createMockRes();
+    await setHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        dueAtLocal: '2030-01-02T09:00:00',
+        timezone: 'America/New_York',
+        message: 'Take medication',
+        deliveryMethod: 'sms',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toContain("I'll send you a text reminder at");
+    vi.useRealTimers();
+  });
+
   it('calls encryptReminderMessage with correct arguments', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2030-01-01T00:00:00.000Z'));
@@ -792,6 +877,99 @@ describe('edit_reminder additional cases', () => {
 
     // Should fail with missing update (no newMessage or newTimeLocal provided fails Zod)
     expect(res.body.success).toBe(false);
+  });
+
+  it('updates reminder delivery method and mentions delivery method in response', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { allow_voice_reminder_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_reminders: [
+        {
+          data: {
+            id: REMINDER_ID,
+            account_id: 'acct-1',
+            line_id: LINE_ID,
+            status: 'scheduled',
+            is_recurring: false,
+            delivery_method: 'outbound_call',
+            due_at: '2030-01-02T14:00:00.000Z',
+          },
+          error: null,
+        },
+        { error: null },
+      ],
+      ultaura_reminder_events: [{ error: null }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID,
+    } as any);
+
+    const res = createMockRes();
+    await editHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        reminderId: REMINDER_ID,
+        newDeliveryMethod: 'sms',
+        newTimeLocal: '2030-01-03T10:00:00',
+        timezone: 'America/New_York',
+      },
+    } as any, res);
+
+    const reminderFromCalls = supabaseMock.from.mock.calls
+      .map((call: any[], index: number) => ({
+        table: call[0],
+        builder: supabaseMock.from.mock.results[index]?.value,
+      }))
+      .filter((entry: { table: string }) => entry.table === 'ultaura_reminders');
+    const updateBuilder = reminderFromCalls[1]?.builder as { update: ReturnType<typeof vi.fn> };
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.message).toContain('delivery method');
+    expect(updateBuilder.update).toHaveBeenCalledWith(expect.objectContaining({
+      delivery_method: 'sms',
+    }));
+  });
+
+  it('treats unchanged delivery method as no-op and returns a no-change message', async () => {
+    const supabaseMock = createSupabaseMock({
+      ultaura_lines: [{
+        data: { allow_voice_reminder_control: true, timezone: 'America/New_York' },
+        error: null,
+      }],
+      ultaura_reminders: [{
+        data: {
+          id: REMINDER_ID,
+          account_id: 'acct-1',
+          line_id: LINE_ID,
+          status: 'scheduled',
+          is_recurring: false,
+          delivery_method: 'sms',
+          due_at: '2030-01-02T14:00:00.000Z',
+        },
+        error: null,
+      }],
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue(supabaseMock as any);
+    vi.mocked(getCallSession).mockResolvedValue({
+      id: SESSION_ID, account_id: 'acct-1', line_id: LINE_ID,
+    } as any);
+
+    const res = createMockRes();
+    await editHandler({
+      body: {
+        callSessionId: SESSION_ID,
+        lineId: LINE_ID,
+        reminderId: REMINDER_ID,
+        newDeliveryMethod: 'sms',
+      },
+    } as any, res);
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain('Nothing seems to have changed');
   });
 });
 

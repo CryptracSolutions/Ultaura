@@ -16,7 +16,9 @@ import Button from '~/core/ui/Button';
 import Textarea from '~/core/ui/Textarea';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { ReminderDeliveryMethodRadioGroup } from '~/components/ultaura/ReminderDeliveryMethodRadioGroup';
 import { editReminder } from '~/lib/ultaura/reminders';
+import type { ReminderDeliveryMethod } from '~/lib/ultaura/types';
 
 interface EditReminderModalProps {
   reminder: {
@@ -26,6 +28,7 @@ interface EditReminderModalProps {
     timezone: string;
     isRecurring: boolean;
     lineShortId: string;
+    deliveryMethod?: ReminderDeliveryMethod | null;
   } | null;
   lineDisplayName: string;
   onClose: () => void;
@@ -37,11 +40,13 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
   const [editMessage, setEditMessage] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
+  const [editDeliveryMethod, setEditDeliveryMethod] = useState<ReminderDeliveryMethod>('outbound_call');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialState, setInitialState] = useState<{
     message: string;
     date: string;
     time: string;
+    deliveryMethod: ReminderDeliveryMethod;
   } | null>(null);
 
   // Initialize state when reminder opens
@@ -55,24 +60,33 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
     const hours = dueDate.getHours().toString().padStart(2, '0');
     const minutes = dueDate.getMinutes().toString().padStart(2, '0');
     const timeStr = `${hours}:${minutes}`;
+    const deliveryMethod = reminder.deliveryMethod ?? 'outbound_call';
 
     setEditMessage(reminder.message);
     setEditDate(dateStr);
     setEditTime(timeStr);
-    setInitialState({ message: reminder.message, date: dateStr, time: timeStr });
+    setEditDeliveryMethod(deliveryMethod);
+    setInitialState({
+      message: reminder.message,
+      date: dateStr,
+      time: timeStr,
+      deliveryMethod,
+    });
   }, [reminder]);
 
   const hasChanges =
     Boolean(reminder && initialState) &&
     (editMessage.trim() !== initialState!.message ||
       editDate !== initialState!.date ||
-      editTime !== initialState!.time);
+      editTime !== initialState!.time ||
+      editDeliveryMethod !== initialState!.deliveryMethod);
 
   const discardChanges = useCallback(() => {
     if (initialState) {
       setEditMessage(initialState.message);
       setEditDate(initialState.date);
       setEditTime(initialState.time);
+      setEditDeliveryMethod(initialState.deliveryMethod);
     }
     setIsSubmitting(false);
     onClose();
@@ -89,7 +103,11 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
 
     setIsSubmitting(true);
 
-    const updates: { message?: string; dueAt?: string } = {};
+    const updates: {
+      message?: string;
+      dueAt?: string;
+      deliveryMethod?: ReminderDeliveryMethod;
+    } = {};
 
     if (editMessage.trim() !== reminder.message) {
       updates.message = editMessage.trim();
@@ -99,6 +117,10 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
     const oldDueAt = new Date(reminder.dueAt);
     if (newDueAt.getTime() !== oldDueAt.getTime()) {
       updates.dueAt = newDueAt.toISOString();
+    }
+
+    if (editDeliveryMethod !== (reminder.deliveryMethod ?? 'outbound_call')) {
+      updates.deliveryMethod = editDeliveryMethod;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -201,6 +223,12 @@ export function EditReminderModal({ reminder, lineDisplayName, onClose }: EditRe
                 />
               </div>
             </div>
+
+            <ReminderDeliveryMethodRadioGroup
+              value={editDeliveryMethod}
+              onChange={setEditDeliveryMethod}
+              disabled={isSubmitting}
+            />
 
             <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button

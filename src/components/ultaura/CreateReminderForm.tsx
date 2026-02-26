@@ -11,6 +11,8 @@ import { createReminder } from '~/lib/ultaura/reminders';
 import Button from '~/core/ui/Button';
 import Textarea from '~/core/ui/Textarea';
 import TextField from '~/core/ui/TextField';
+import { ReminderDeliveryMethodRadioGroup } from '~/components/ultaura/ReminderDeliveryMethodRadioGroup';
+import type { ReminderDeliveryMethod } from '~/lib/ultaura/types';
 
 export interface CreateReminderFormProps {
   lineId: string;
@@ -39,6 +41,7 @@ export function CreateReminderForm({
   const [message, setMessage] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
+  const [deliveryMethod, setDeliveryMethod] = useState<ReminderDeliveryMethod>('outbound_call');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +58,12 @@ export function CreateReminderForm({
   const today = new Date().toISOString().split('T')[0];
 
   // Track dirty state
-  const isDirty = message.trim() !== '' || date !== '' || time !== '09:00' || isRecurring;
+  const isDirty =
+    message.trim() !== '' ||
+    date !== '' ||
+    time !== '09:00' ||
+    deliveryMethod !== 'outbound_call' ||
+    isRecurring;
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -87,6 +95,7 @@ export function CreateReminderForm({
         dueAt: dueAt.toISOString(),
         message: message.trim(),
         timezone,
+        deliveryMethod,
         recurrence: isRecurring
           ? {
               frequency,
@@ -175,6 +184,13 @@ export function CreateReminderForm({
               />
             </div>
           </div>
+
+          {/* Delivery method */}
+          <ReminderDeliveryMethodRadioGroup
+            value={deliveryMethod}
+            onChange={setDeliveryMethod}
+            disabled={isSubmitting}
+          />
 
           {/* Recurrence Options */}
           <div className="border-t border-input pt-4">

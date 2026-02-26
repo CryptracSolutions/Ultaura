@@ -123,7 +123,7 @@ export const scheduleOutcomesTotal = new Counter({
 export const reminderOutcomesTotal = new Counter({
   name: 'ultaura_scheduler_reminder_outcomes_total',
   help: 'Total reminder processing outcomes',
-  labelNames: ['outcome'],
+  labelNames: ['outcome', 'method'],
   registers: [registry],
 });
 

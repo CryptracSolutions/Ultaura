@@ -3,7 +3,7 @@ const DEFAULTS = {
   verifyCheckPerPhone: 10,
   perIp: 20,
   perAccount: 10,
-  smsPerAccount: 15,
+  smsPerAccount: 50,
   emailPerAccount: 15,
   remindersPerSession: 5,
   anomalyCostThreshold: 10.0,

@@ -71,7 +71,7 @@ export type ScheduleEventType =
 export type ScheduleEventTrigger = 'dashboard' | 'voice' | 'system';
 export type ReminderStatus = 'scheduled' | 'sent' | 'missed' | 'canceled';
 export type ReminderDeliveryStatus = 'completed' | 'no_answer' | 'failed';
-export type ReminderDeliveryMethod = 'outbound_call';
+export type ReminderDeliveryMethod = 'outbound_call' | 'sms';
 export type ReminderEventType =
   | 'created'
   | 'edited'

@@ -124,4 +124,76 @@ describe('GrokBridge observability', () => {
     expect(toolSpan).toBeTruthy();
     expect(toolSpan?.attributes.toolName).toBe('set_reminder');
   });
+
+  it('forwards reminder delivery method args to tool endpoints with telephony field names', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true }),
+    }));
+    vi.stubGlobal('fetch', fetchMock as any);
+
+    const bridge = createBridge();
+    await (bridge as any).handleToolCall('call-3', 'set_reminder', JSON.stringify({
+      due_at_local: '2024-01-01T12:00:00',
+      message: 'Hello',
+      delivery_method: 'sms',
+    }));
+    await (bridge as any).handleToolCall('call-4', 'edit_reminder', JSON.stringify({
+      reminder_id: 'rem-1',
+      new_delivery_method: 'call',
+    }));
+    await (bridge as any).handleToolCall('call-5', 'edit_reminder', JSON.stringify({
+      reminder_id: 'rem-2',
+      new_delivery_method: 'outbound_call',
+    }));
+
+    const setBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const editBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const legacyEditBody = JSON.parse(fetchMock.mock.calls[2][1].body as string);
+
+    expect(setBody.deliveryMethod).toBe('sms');
+    expect(editBody.newDeliveryMethod).toBe('outbound_call');
+    expect(editBody.reminderId).toBe('rem-1');
+    expect(legacyEditBody.newDeliveryMethod).toBe('outbound_call');
+    expect(legacyEditBody.reminderId).toBe('rem-2');
+  });
+
+  it('warns on unsupported non-null reminder delivery methods while keeping endpoint mapping undefined', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true }),
+    }));
+    vi.stubGlobal('fetch', fetchMock as any);
+
+    const bridge = createBridge();
+    await (bridge as any).handleToolCall('call-6', 'set_reminder', JSON.stringify({
+      due_at_local: '2024-01-01T12:00:00',
+      message: 'Hello',
+      delivery_method: 'pigeon',
+    }));
+    await (bridge as any).handleToolCall('call-7', 'edit_reminder', JSON.stringify({
+      reminder_id: 'rem-3',
+      new_delivery_method: 'fax',
+    }));
+
+    const setBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const editBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const warningLogs = logEntries.filter((entry) => entry.msg === 'Unsupported reminder delivery method from Grok tool args');
+
+    expect(setBody.deliveryMethod).toBeUndefined();
+    expect(editBody.newDeliveryMethod).toBeUndefined();
+    expect(warningLogs).toHaveLength(2);
+    expect(warningLogs[0]?.payload).toEqual(expect.objectContaining({
+      toolName: 'set_reminder',
+      argName: 'delivery_method',
+      deliveryMethod: 'pigeon',
+    }));
+    expect(warningLogs[1]?.payload).toEqual(expect.objectContaining({
+      toolName: 'edit_reminder',
+      argName: 'new_delivery_method',
+      deliveryMethod: 'fax',
+    }));
+  });
 });

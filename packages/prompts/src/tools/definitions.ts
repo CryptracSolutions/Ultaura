@@ -414,6 +414,11 @@ For recurring reminders, parse natural language like:
           type: 'string',
           description: 'First occurrence: ISO 8601 format in user\'s local time (e.g., 2025-12-27T14:00:00)',
         },
+        delivery_method: {
+          type: 'string',
+          enum: ['call', 'sms'],
+          description: 'How to deliver the reminder. Use "call" for a phone call or "sms" for a text message. Default is "call".',
+        },
         is_recurring: {
           type: 'boolean',
           description: 'Whether this reminder repeats. Default false for one-time reminders.',
@@ -1119,6 +1124,11 @@ DO NOT call for normal sadness, missing loved ones, or everyday frustrations.`,
         new_time_local: {
           type: 'string',
           description: 'New time in ISO 8601 format in user\'s local time (optional)',
+        },
+        new_delivery_method: {
+          type: 'string',
+          enum: ['call', 'sms'],
+          description: 'New reminder delivery method: phone call ("call") or text message ("sms") (optional)',
         },
       },
       required: ['reminder_id'],
