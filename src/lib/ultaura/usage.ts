@@ -3,8 +3,16 @@
 import { revalidatePath } from 'next/cache';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import getLogger from '~/core/logger';
-import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
+import {
+  createError,
+  ErrorCodes,
+  LifeNoteInputSchema,
+  type ActionResult,
+  type LifeNoteInput,
+} from '@ultaura/schemas';
+import { getMyLinkedContact } from './contacts';
 import { getUltauraAccountById, withTrialCheck } from './helpers';
+import { screenLifeNote } from './life-note-safety';
 import type { CallSessionRow, LineActivity, LineUsageSummary, MonthlyUsageEntry, PerLineUsageEntry, TotalUsageSummary, UsageSummary, UltauraAccountRow } from './types';
 
 const logger = getLogger();
@@ -38,6 +46,30 @@ function getInternalApiSecret(): string {
   }
 
   return secret;
+}
+
+type ManualCallLifeNotePayload = {
+  lifeNote: string;
+  lifeNoteAuthorName: string;
+  lifeNoteAuthorRelationship: string | null;
+};
+
+type ManualCallStartResult = {
+  sessionId: string;
+  lifeNoteStatus?: 'included' | 'dropped_unverified';
+};
+
+function normalizeManualCallLifeNote(value: unknown): ManualCallLifeNotePayload | null {
+  if (value == null) return null;
+  const parsed = LifeNoteInputSchema.safeParse(value);
+  if (!parsed.success) return null;
+
+  const data: LifeNoteInput = parsed.data;
+  return {
+    lifeNote: data.note,
+    lifeNoteAuthorName: data.authorName,
+    lifeNoteAuthorRelationship: data.authorRelationship ?? null,
+  };
 }
 
 export async function getUsageSummary(accountId: string): Promise<UsageSummary | null> {
@@ -295,8 +327,9 @@ const initiateManualCallWithTrial = withTrialCheck(async (
   input: {
     lineId: string;
     overrideQuietHours?: boolean;
+    lifeNote?: LifeNoteInput;
   }
-): Promise<ActionResult<{ sessionId: string }>> => {
+): Promise<ActionResult<ManualCallStartResult>> => {
   const line = await getSupabaseServerComponentClient()
     .from('ultaura_lines')
     .select('account_id')
@@ -311,6 +344,53 @@ const initiateManualCallWithTrial = withTrialCheck(async (
   }
 
   const telephonyUrl = getTelephonyBackendUrl();
+  let normalizedLifeNote = normalizeManualCallLifeNote(input.lifeNote);
+  let lifeNoteStatus: ManualCallStartResult['lifeNoteStatus'];
+
+  if (input.lifeNote != null && !normalizedLifeNote) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Invalid life note'),
+    };
+  }
+
+  if (normalizedLifeNote) {
+    const linkedContact = await getMyLinkedContact(input.lineId);
+    if (!linkedContact) {
+      return {
+        success: false,
+        error: createError(
+          ErrorCodes.INVALID_INPUT,
+          'You must link yourself to a trusted contact before adding a Life Note.'
+        ),
+      };
+    }
+
+    const screeningResult = await screenLifeNote(normalizedLifeNote.lifeNote);
+
+    if (screeningResult.safe === false) {
+      return {
+        success: false,
+        error: createError(
+          ErrorCodes.INVALID_INPUT,
+          'This note could not be shared.',
+          { lifeNoteRejected: true }
+        ),
+      };
+    }
+
+    if (screeningResult.safe === null) {
+      normalizedLifeNote = null;
+      lifeNoteStatus = 'dropped_unverified';
+    } else {
+      normalizedLifeNote = {
+        lifeNote: normalizedLifeNote.lifeNote,
+        lifeNoteAuthorName: linkedContact.name,
+        lifeNoteAuthorRelationship: linkedContact.relationship ?? null,
+      };
+      lifeNoteStatus = 'included';
+    }
+  }
 
   try {
     const response = await fetch(`${telephonyUrl}/calls/outbound`, {
@@ -323,6 +403,7 @@ const initiateManualCallWithTrial = withTrialCheck(async (
         lineId: input.lineId,
         reason: 'manual',
         overrideQuietHours: input.overrideQuietHours ?? false,
+        ...normalizedLifeNote,
       }),
     });
 
@@ -339,7 +420,13 @@ const initiateManualCallWithTrial = withTrialCheck(async (
       };
     }
 
-    return { success: true, data: { sessionId: payload?.sessionId } };
+    return {
+      success: true,
+      data: {
+        sessionId: payload?.sessionId,
+        ...(lifeNoteStatus ? { lifeNoteStatus } : {}),
+      },
+    };
   } catch (error) {
     logger.error({ error }, 'Failed to initiate manual call');
     return {
@@ -384,8 +471,8 @@ export async function initiateTestCall(
 
 export async function initiateManualCall(
   lineId: string,
-  options?: { overrideQuietHours?: boolean }
-): Promise<ActionResult<{ sessionId: string }>> {
+  options?: { overrideQuietHours?: boolean; lifeNote?: LifeNoteInput }
+): Promise<ActionResult<ManualCallStartResult>> {
   const line = await getSupabaseServerComponentClient()
     .from('ultaura_lines')
     .select('account_id')
@@ -417,6 +504,7 @@ export async function initiateManualCall(
   return initiateManualCallWithTrial(account, {
     lineId,
     overrideQuietHours: options?.overrideQuietHours,
+    lifeNote: options?.lifeNote,
   });
 }
 

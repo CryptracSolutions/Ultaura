@@ -28,6 +28,7 @@ import { summarizeArgs } from '../utils/redact.js';
 import { buildReminderMessageAAD, decryptReminderMessageWithDek } from '../utils/reminder-crypto.js';
 import { getSupabaseClient } from '../utils/supabase.js';
 import { registerGrokBridge, unregisterGrokBridge, getGrokBridge } from './grok-bridge-registry.js';
+import { takeLifeNoteForCallSession } from './life-note-store.js';
 import { getFallbackMessage } from '../utils/fallback-messages.js';
 import {
   FALLBACK_TTS_WAIT_MS,
@@ -733,6 +734,7 @@ export async function handleMediaStreamConnection(
                 onDisconnect,
               });
             } else {
+              const lifeNote = takeLifeNoteForCallSession(callSessionId);
               grokBridge = new GrokBridge({
                 callSessionId,
                 twilioCallSid,
@@ -774,6 +776,7 @@ export async function handleMediaStreamConnection(
                 pendingCallPreview: retentionContext.pendingPreview,
                 segmentPreferences: retentionContext.segmentPreferences,
                 activeStoryArcs: retentionContext.activeStoryArcs,
+                lifeNote,
                 interruptionTolerance: line.interruption_tolerance,
                 fillerWordPatience: line.filler_word_patience,
                 silenceToleranceMs: line.silence_tolerance_ms,

@@ -18,7 +18,7 @@ const TOPIC_LABELS: Record<string, string> = {
   requests: 'Requests',
 };
 
-function sanitizePromptValue(value: string, maxLength: number = 140): string {
+export function sanitizePromptValue(value: string, maxLength: number = 140): string {
   return value
     .replace(/[\r\n\t]+/g, ' ')
     .replace(/\s{2,}/g, ' ')

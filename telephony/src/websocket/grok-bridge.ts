@@ -25,6 +25,7 @@ import { getOrCreateSafetyState } from '../services/safety-state.js';
 import type { SafetyState } from '../services/safety-state.js';
 import type { CallPreview } from '../services/call-preview.js';
 import type { StoryArc } from '../services/retention-context.js';
+import { sanitizePromptValue } from '../services/prompt-context.js';
 import { buildContextWindow, clearJobsForSession, enqueueClassifierJob } from '../services/safety-classifier.js';
 import { detectHeuristics } from '../services/safety-heuristics.js';
 import { scanForSafetyKeywords } from '../services/safety-keywords.js';
@@ -39,6 +40,7 @@ import {
 import { runWithLogContext, type LogContext } from '../observability/log-context.js';
 import { runWithSpan, startSpan, SpanKind, SpanStatusCode, withSpan } from '../observability/tracing.js';
 import { voiceToolCallsTotal, voiceToolErrorsTotal } from '../utils/metrics.js';
+import type { LifeNotePayload } from './life-note-store.js';
 
 const GROK_REALTIME_URL = process.env.XAI_REALTIME_URL || 'wss://api.x.ai/v1/realtime';
 const ROUTINE_TIME_WINDOW_MINUTES = 120;
@@ -218,6 +220,7 @@ interface GrokBridgeOptions {
   pendingCallPreview?: CallPreview | null;
   segmentPreferences?: string | null;
   activeStoryArcs?: StoryArc[];
+  lifeNote?: LifeNotePayload | null;
   // Plan info for upgrade context
   currentPlanId: PlanId;
   accountStatus: AccountStatus;
@@ -583,7 +586,7 @@ export class GrokBridge {
           prompt += `\n\n${consentSections.join('\n\n')}`;
         }
 
-        return prompt;
+        return this.appendLifeNoteSection(prompt);
       }
 
       let prompt = 'SYSTEM: This is a reminder call, but the reminder details are unavailable. ' +
@@ -599,7 +602,7 @@ export class GrokBridge {
         prompt += `\n\n${consentSections.join('\n\n')}`;
       }
 
-      return prompt;
+      return this.appendLifeNoteSection(prompt);
     }
 
     let prompt = compilePrompt('voice_realtime', {
@@ -675,7 +678,47 @@ At the START of this call:
       prompt += `\n\n## Active Story Arcs\n${arcs}`;
     }
 
-    return prompt;
+    return this.appendLifeNoteSection(prompt);
+  }
+
+  private appendLifeNoteSection(prompt: string): string {
+    const lifeNote = this.options.lifeNote;
+    if (!lifeNote?.note || !lifeNote.authorName) {
+      return prompt;
+    }
+
+    const note = sanitizePromptValue(lifeNote.note, 200);
+    if (!note) {
+      return prompt;
+    }
+
+    const safeName = sanitizePromptSnippet(lifeNote.authorName);
+    if (!safeName) {
+      return prompt;
+    }
+    const safeRelationship = lifeNote.relationship
+      ? sanitizePromptSnippet(lifeNote.relationship)
+      : null;
+    const safeUserName = sanitizePromptSnippet(this.options.userName || 'the user');
+
+    const familyReference = safeRelationship
+      ? `your ${safeRelationship} ${safeName}`
+      : safeName;
+    const authorLabel = safeRelationship
+      ? `${safeName} (${safeRelationship})`
+      : safeName;
+    const exampleMention = safeRelationship
+      ? `"Your ${safeRelationship} ${safeName} mentioned..."`
+      : `"${safeName} mentioned..."`;
+    const exampleHeard = safeRelationship
+      ? `"I heard from your ${safeRelationship} that..."`
+      : `"I heard from ${safeName} that..."`;
+
+    return `${prompt}\n\n## Life Note
+${authorLabel} shared this update before the call: "${note}"
+Within the first few minutes, naturally bring this up if you haven't already. Attribute it to ${familyReference}.
+Say something like ${exampleMention} or ${exampleHeard}
+If ${safeUserName} doesn't engage with this topic, move on gracefully and do not repeat if already covered.`;
   }
 
   private getConsentPromptSections(): string[] {

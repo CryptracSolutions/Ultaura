@@ -7,6 +7,12 @@ import { createCallSession, failCallSession, getCallSessionByIdempotencyKey } fr
 import { initiateOutboundCall } from '../utils/twilio.js';
 import { getPublicUrl } from '../utils/env.js';
 import { requireInternalSecret } from '../middleware/auth.js';
+import { sanitizePromptValue } from '../services/prompt-context.js';
+import {
+  clearLifeNoteForCallSession,
+  setLifeNoteForCallSession,
+  type LifeNotePayload,
+} from '../websocket/life-note-store.js';
 
 export const callsRouter = Router();
 
@@ -26,6 +32,31 @@ function mapAccessDeniedReasonToEndReason(
   return 'error';
 }
 
+function sanitizeOptionalLifeNoteField(value: unknown, maxLength: number): string | null {
+  return typeof value === 'string'
+    ? sanitizePromptValue(value, maxLength) || null
+    : null;
+}
+
+function extractLifeNotePayload(body: Record<string, unknown>): LifeNotePayload | null {
+  const note = sanitizeOptionalLifeNoteField(body.lifeNote, 200);
+
+  if (!note) {
+    return null;
+  }
+
+  const authorName = sanitizeOptionalLifeNoteField(body.lifeNoteAuthorName, 100);
+  if (!authorName) {
+    return null;
+  }
+
+  const relationshipRaw = body.lifeNoteAuthorRelationship;
+  const relationship =
+    relationshipRaw === null ? null : sanitizeOptionalLifeNoteField(relationshipRaw, 100);
+
+  return { note, authorName, relationship };
+}
+
 // Initiate an outbound call
 callsRouter.post('/outbound', async (req: Request, res: Response) => {
   try {
@@ -38,6 +69,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       targetPhoneNumber,
       overrideQuietHours,
     } = req.body;
+    const lifeNote = extractLifeNotePayload((req.body ?? {}) as Record<string, unknown>);
 
     if (!lineId) {
       res.status(400).json({ error: 'Missing lineId' });
@@ -117,6 +149,10 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       return;
     }
 
+    if (lifeNote) {
+      setLifeNoteForCallSession(session.id, lifeNote);
+    }
+
     // Reserve trial cap (if applicable) with the real session ID before Twilio call initiation.
     const accessCheck = await checkLineAccess(line, account, 'outbound', {
       skipDnc: hasAlternateTarget,
@@ -125,15 +161,16 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
     });
     if (!accessCheck.allowed) {
       logger.info({ lineId, callSessionId: session.id, reason: accessCheck.reason }, 'Line access denied');
+      clearLifeNoteForCallSession(session.id);
       await failCallSession(session.id, mapAccessDeniedReasonToEndReason(accessCheck.reason));
       res.status(400).json({ error: 'Access denied', code: accessCheck.reason });
       return;
     }
 
-    // Get base URL for callbacks
-    const publicUrl = getPublicUrl().replace(/\/$/, '');
-
     try {
+      // Get base URL for callbacks
+      const publicUrl = getPublicUrl().replace(/\/$/, '');
+
       // Initiate the call via Twilio
       const callSid = await initiateOutboundCall({
         to: callDestination,
@@ -158,6 +195,7 @@ callsRouter.post('/outbound', async (req: Request, res: Response) => {
       });
     } catch (error) {
       logger.error({ error, callSessionId: session.id }, 'Failed to initiate Twilio call');
+      clearLifeNoteForCallSession(session.id);
       await failCallSession(session.id, 'error');
       res.status(500).json({ error: 'Failed to initiate call' });
     }

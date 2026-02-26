@@ -4271,6 +4271,7 @@ export type Database = {
           notify_on: string[]
           phone_e164: string
           relationship: string | null
+          user_id: string | null
         }
         Insert: {
           account_id: string
@@ -4282,6 +4283,7 @@ export type Database = {
           notify_on?: string[]
           phone_e164: string
           relationship?: string | null
+          user_id?: string | null
         }
         Update: {
           account_id?: string
@@ -4293,6 +4295,7 @@ export type Database = {
           notify_on?: string[]
           phone_e164?: string
           relationship?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -4307,6 +4310,13 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_trusted_contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -5964,4 +5974,3 @@ export const Constants = {
     },
   },
 } as const
-

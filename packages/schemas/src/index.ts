@@ -6,5 +6,6 @@ export * from './schedule.js';
 export * from './schedule-exception.js';
 export * from './reminder.js';
 export * from './contact.js';
+export * from './life-note.js';
 export * from './account.js';
 export * as telephony from './telephony/index.js';
