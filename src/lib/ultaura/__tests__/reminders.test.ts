@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DateTime } from 'luxon';
 import { ErrorCodes } from '@ultaura/schemas';
+vi.mock('server-only', () => ({}));
 import {
   createReminder,
   editReminder,
@@ -10,6 +11,8 @@ import {
 } from '../reminders';
 import { getNextReminderOccurrence } from '../timezone';
 import { cleanupTestData, createTestAccount, createTestLine } from './setup';
+
+const LOS_ANGELES_TZ = 'America/Los_Angeles';
 
 describe('reminders', () => {
   let accountId: string;
@@ -25,7 +28,7 @@ describe('reminders', () => {
     userId = context.user.id;
 
     const line = await createTestLine(accountId, {
-      timezone: 'America/Los_Angeles',
+      timezone: LOS_ANGELES_TZ,
     });
     lineId = line.id;
     lineShortId = line.short_id;
@@ -37,7 +40,7 @@ describe('reminders', () => {
 
   it('stores reminder dueAt as UTC for local input', async () => {
     const target = DateTime.now()
-      .setZone('America/Los_Angeles')
+      .setZone(LOS_ANGELES_TZ)
       .plus({ days: 1 })
       .set({ hour: 14, minute: 0, second: 0, millisecond: 0 });
 
@@ -47,7 +50,7 @@ describe('reminders', () => {
       lineId,
       dueAt: dueAtLocal,
       message: 'Take medication',
-      timezone: 'America/Los_Angeles',
+      timezone: LOS_ANGELES_TZ,
     });
 
     expect(result.success).toBe(true);
@@ -60,7 +63,7 @@ describe('reminders', () => {
 
   it('enforces the snooze limit', async () => {
     const dueAt = DateTime.now()
-      .setZone('America/Los_Angeles')
+      .setZone(LOS_ANGELES_TZ)
       .plus({ days: 1 })
       .toFormat("yyyy-MM-dd'T'HH:mm:ss");
 
@@ -68,7 +71,7 @@ describe('reminders', () => {
       lineId,
       dueAt,
       message: 'Daily check-in',
-      timezone: 'America/Los_Angeles',
+      timezone: LOS_ANGELES_TZ,
     });
 
     expect(created.success).toBe(true);
@@ -89,7 +92,7 @@ describe('reminders', () => {
 
   it('does not allow pausing a reminder twice', async () => {
     const dueAt = DateTime.now()
-      .setZone('America/Los_Angeles')
+      .setZone(LOS_ANGELES_TZ)
       .plus({ days: 2 })
       .toFormat("yyyy-MM-dd'T'HH:mm:ss");
 
@@ -97,7 +100,7 @@ describe('reminders', () => {
       lineId,
       dueAt,
       message: 'Pause test',
-      timezone: 'America/Los_Angeles',
+      timezone: LOS_ANGELES_TZ,
     });
 
     expect(created.success).toBe(true);
@@ -117,7 +120,7 @@ describe('reminders', () => {
 
   it('supports sms delivery method for create/edit/getAllReminders', async () => {
     const dueAt = DateTime.now()
-      .setZone('America/Los_Angeles')
+      .setZone(LOS_ANGELES_TZ)
       .plus({ days: 2 })
       .set({ hour: 10, minute: 30, second: 0, millisecond: 0 })
       .toFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -126,7 +129,7 @@ describe('reminders', () => {
       lineId,
       dueAt,
       message: 'Send by SMS',
-      timezone: 'America/Los_Angeles',
+      timezone: LOS_ANGELES_TZ,
       deliveryMethod: 'sms',
     });
 
@@ -134,10 +137,18 @@ describe('reminders', () => {
     if (!created.success) return;
     expect(created.data.delivery_method).toBe('sms');
 
-    const edited = await editReminder(created.data.id, { deliveryMethod: 'outbound_call' }, lineShortId);
+    const edited = await editReminder(
+      created.data.id,
+      { deliveryMethod: 'outbound_call' },
+      lineShortId
+    );
     expect(edited.success).toBe(true);
 
-    const editedBack = await editReminder(created.data.id, { deliveryMethod: 'sms' }, lineShortId);
+    const editedBack = await editReminder(
+      created.data.id,
+      { deliveryMethod: 'sms' },
+      lineShortId
+    );
     expect(editedBack.success).toBe(true);
 
     const reminders = await getAllReminders(accountId);
@@ -174,7 +185,7 @@ describe('reminders', () => {
 describe('reminder error mapping', () => {
   it('maps U0001 insert errors to REMINDER_LIMIT_REACHED', async () => {
     vi.resetModules();
-    vi.doMock('server-only', () => ({}));
+    const mockedLineId = '11111111-1111-4111-8111-111111111111';
 
     const mockInsertSingle = vi.fn().mockResolvedValue({
       data: null,
@@ -207,10 +218,10 @@ describe('reminder error mapping', () => {
     }));
     vi.doMock('../lines', () => ({
       getLine: vi.fn().mockResolvedValue({
-        id: 'line-1',
+        id: mockedLineId,
         short_id: 'LS1',
         account_id: 'acct-1',
-        timezone: 'America/Los_Angeles',
+        timezone: LOS_ANGELES_TZ,
         created_at: '2025-01-01T00:00:00.000Z',
       }),
     }));
@@ -235,10 +246,10 @@ describe('reminder error mapping', () => {
     const { createReminder: mockedCreateReminder } = await import('../reminders');
 
     const result = await mockedCreateReminder({
-      lineId: 'line-1',
+      lineId: mockedLineId,
       dueAt: '2030-01-02T09:00:00',
       message: 'Test reminder',
-      timezone: 'America/Los_Angeles',
+      timezone: LOS_ANGELES_TZ,
     });
 
     expect(result.success).toBe(false);
@@ -251,7 +262,6 @@ describe('reminder error mapping', () => {
     vi.doUnmock('../lines');
     vi.doUnmock('../helpers');
     vi.doUnmock('../reminder-crypto');
-    vi.doUnmock('server-only');
     vi.resetModules();
   });
 });

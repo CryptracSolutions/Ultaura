@@ -222,6 +222,8 @@ export interface ReminderRow {
   original_due_at: string | null;
   current_snooze_count: number;
   last_delivery_status: 'completed' | 'no_answer' | 'failed' | null;
+  delivery_retry_count: number;
+  next_delivery_attempt_at: string | null;
   // Scheduler claim fields
   processing_claimed_at: string | null;
   processing_claimed_by: string | null;

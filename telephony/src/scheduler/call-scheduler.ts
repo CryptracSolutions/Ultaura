@@ -13,7 +13,11 @@ import { runPersonaAnalyzerForAllLines } from '../services/persona-analyzer.js';
 import { enforceRateLimit } from '../services/rate-limiter.js';
 import { getNextOccurrence, getNextReminderOccurrence } from '../utils/timezone.js';
 import { decryptReminderMessage } from '../utils/reminder-crypto.js';
-import { sendSms } from '../utils/twilio.js';
+import {
+  sendSms,
+  SMS_OPT_OUT_ERROR_MESSAGE,
+  SMS_OPT_OUT_LOOKUP_UNAVAILABLE_ERROR_MESSAGE,
+} from '../utils/twilio.js';
 import {
   activeLeases,
   leaseAcquisitions,
@@ -77,9 +81,196 @@ let lastPersonaRunDate: string | null = null;
 const leaseExistenceCache = new Map<string, boolean>();
 
 type ReminderMetricMethod = 'call' | 'sms';
+type SmsFailureClass =
+  | 'opt_out'
+  | 'opt_out_lookup_unavailable'
+  | 'rate_limited'
+  | 'config'
+  | 'twilio_transient'
+  | 'twilio_permanent'
+  | 'content'
+  | 'unknown';
+
+type SmsFailurePolicy = {
+  classification: SmsFailureClass;
+  allowInlineRetry: boolean;
+  allowDelayedRetry: boolean;
+  fallbackEligible: boolean;
+};
+
+const SMS_INLINE_RETRY_DELAY_MS = 3_000;
+const SMS_INLINE_MAX_RETRIES = 1;
+const ONE_TIME_SMS_DELAYED_RETRY_OFFSETS_MS = [2 * 60 * 1000, 10 * 60 * 1000] as const;
 
 function getReminderMetricMethod(reminder: ReminderRow): ReminderMetricMethod {
   return reminder.delivery_method === 'sms' ? 'sms' : 'call';
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getErrorMessage(error: unknown): string | undefined {
+  return error instanceof Error ? error.message : undefined;
+}
+
+function getNumericErrorField(error: unknown, field: 'code' | 'status'): number | undefined {
+  if (!error || typeof error !== 'object' || !(field in error)) {
+    return undefined;
+  }
+
+  const value = (error as { code?: unknown; status?: unknown })[field];
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+function getNumericErrorCode(error: unknown): number | undefined {
+  return getNumericErrorField(error, 'code');
+}
+
+function getNumericStatus(error: unknown): number | undefined {
+  return getNumericErrorField(error, 'status');
+}
+
+function classifySmsFailure(error: unknown): SmsFailurePolicy {
+  const message = getErrorMessage(error);
+  const code = getNumericErrorCode(error);
+  const status = getNumericStatus(error);
+
+  if (message === SMS_OPT_OUT_ERROR_MESSAGE || code === 21610) {
+    return {
+      classification: 'opt_out',
+      allowInlineRetry: false,
+      allowDelayedRetry: false,
+      fallbackEligible: true,
+    };
+  }
+
+  if (message === SMS_OPT_OUT_LOOKUP_UNAVAILABLE_ERROR_MESSAGE) {
+    return {
+      classification: 'opt_out_lookup_unavailable',
+      allowInlineRetry: true,
+      allowDelayedRetry: true,
+      fallbackEligible: true,
+    };
+  }
+
+  if (message === 'Missing TWILIO_PHONE_NUMBER environment variable') {
+    return {
+      classification: 'config',
+      allowInlineRetry: false,
+      allowDelayedRetry: false,
+      fallbackEligible: true,
+    };
+  }
+
+  if (code === 20429 || status === 429) {
+    return {
+      classification: 'rate_limited',
+      allowInlineRetry: false,
+      allowDelayedRetry: true,
+      fallbackEligible: true,
+    };
+  }
+
+  if (code === 30007 || code === 30008 || code === 21617) {
+    return {
+      classification: 'content',
+      allowInlineRetry: false,
+      allowDelayedRetry: false,
+      fallbackEligible: false,
+    };
+  }
+
+  if (status !== undefined && status >= 500) {
+    return {
+      classification: 'twilio_transient',
+      allowInlineRetry: true,
+      allowDelayedRetry: true,
+      fallbackEligible: true,
+    };
+  }
+
+  if (code !== undefined) {
+    if (code >= 30001 && code <= 30006) {
+      return {
+        classification: 'twilio_transient',
+        allowInlineRetry: true,
+        allowDelayedRetry: true,
+        fallbackEligible: true,
+      };
+    }
+
+    if (code >= 21200 && code < 30000) {
+      return {
+        classification: 'twilio_permanent',
+        allowInlineRetry: false,
+        allowDelayedRetry: false,
+        fallbackEligible: false,
+      };
+    }
+  }
+
+  return {
+    classification: 'unknown',
+    allowInlineRetry: true,
+    allowDelayedRetry: true,
+    fallbackEligible: false,
+  };
+}
+
+async function scheduleOneTimeReminderSmsDelayedRetry(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  reminder: ReminderRow,
+  classification: SmsFailureClass
+): Promise<boolean> {
+  const retryIndex = Math.max(0, reminder.delivery_retry_count || 0);
+  const retryOffsetMs = ONE_TIME_SMS_DELAYED_RETRY_OFFSETS_MS[retryIndex];
+  if (retryOffsetMs === undefined) {
+    return false;
+  }
+
+  const nextAttemptAt = new Date(new Date(reminder.due_at).getTime() + retryOffsetMs).toISOString();
+
+  const { data: updated, error: updateError } = await supabase
+    .from('ultaura_reminders')
+    .update({
+      status: 'scheduled',
+      delivery_retry_count: retryIndex + 1,
+      next_delivery_attempt_at: nextAttemptAt,
+    })
+    .eq('id', reminder.id)
+    .eq('processing_claimed_by', WORKER_ID)
+    .select('id')
+    .maybeSingle();
+
+  if (updateError) {
+    logger.error({ error: updateError, reminderId: reminder.id }, 'Failed to queue delayed SMS reminder retry');
+    return false;
+  }
+
+  if (!updated) {
+    logger.warn({ reminderId: reminder.id, workerId: WORKER_ID }, 'Reminder claim lost while queueing delayed SMS retry');
+    return true;
+  }
+
+  logger.info({
+    reminderId: reminder.id,
+    classification,
+    deliveryRetryCount: retryIndex + 1,
+    nextAttemptAt,
+  }, 'Queued delayed SMS reminder retry');
+
+  await releaseReminderClaim(reminder.id);
+  return true;
 }
 
 /**
@@ -765,6 +956,8 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
             current_snooze_count: 0,
             snoozed_until: null,
             original_due_at: null,
+            delivery_retry_count: 0,
+            next_delivery_attempt_at: null,
           })
           .eq('id', reminder.id)
           .eq('processing_claimed_by', WORKER_ID)
@@ -804,6 +997,8 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
           current_snooze_count: 0,
           snoozed_until: null,
           original_due_at: null,
+          delivery_retry_count: 0,
+          next_delivery_attempt_at: null,
         })
         .eq('id', reminder.id)
         .eq('processing_claimed_by', WORKER_ID)
@@ -842,6 +1037,8 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
         current_snooze_count: 0,
         snoozed_until: null,
         original_due_at: null,
+        delivery_retry_count: 0,
+        next_delivery_attempt_at: null,
       })
       .eq('id', reminder.id)
       .eq('processing_claimed_by', WORKER_ID)
@@ -873,6 +1070,10 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
   }
 
   if (configuredMethod === 'sms') {
+    let smsBody: string | null = null;
+    let smsFailurePolicy: SmsFailurePolicy | null = null;
+    let lastSmsError: unknown = null;
+
     try {
       const rateLimitResult = await enforceRateLimit({
         action: 'sms',
@@ -886,35 +1087,119 @@ async function processReminder(reminder: ReminderRow): Promise<void> {
           'SMS reminder rate limited'
         );
         reminderOutcomesTotal.inc({ outcome: 'rate_limited', method: 'sms' });
-        await handleReminderFailure(supabase, reminder, 'missed', line.timezone, 'sms', {
-          skipOutcomeMetric: true,
-        });
-        return;
-      }
-
-      const smsBody = await getReminderSmsBody(reminder, line.display_name);
-      await sendSms({
-        to: line.phone_e164,
-        body: smsBody,
-      });
-
-      reminderOutcomesTotal.inc({ outcome: 'success', method: 'sms' });
-      logger.info({ reminderId: reminder.id }, 'Reminder SMS sent');
-
-      const updated = await handleReminderSuccess(supabase, reminder, line.timezone);
-      if (!updated) {
-        return;
-      }
-
-      await releaseReminderClaim(reminder.id);
-      return;
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Recipient has opted out of SMS') {
-        logger.info({ reminderId: reminder.id, lineId: reminder.line_id }, 'SMS opt-out detected, falling back to reminder call');
+        smsFailurePolicy = {
+          classification: 'rate_limited',
+          allowInlineRetry: false,
+          allowDelayedRetry: true,
+          fallbackEligible: true,
+        };
       } else {
-        logger.error({ error, reminderId: reminder.id }, 'Failed to send reminder SMS');
+        try {
+          smsBody = await getReminderSmsBody(reminder, line.display_name);
+        } catch (error) {
+          lastSmsError = error;
+          smsFailurePolicy = {
+            classification: 'content',
+            allowInlineRetry: false,
+            allowDelayedRetry: false,
+            fallbackEligible: false,
+          };
+        }
+
+        if (smsBody) {
+          let sendAttempt = 0;
+          while (true) {
+            try {
+              await sendSms({
+                to: line.phone_e164,
+                body: smsBody,
+              });
+
+              reminderOutcomesTotal.inc({ outcome: 'success', method: 'sms' });
+              logger.info({ reminderId: reminder.id, sendAttempt }, 'Reminder SMS sent');
+
+              const updated = await handleReminderSuccess(supabase, reminder, line.timezone);
+              if (!updated) {
+                return;
+              }
+
+              await releaseReminderClaim(reminder.id);
+              return;
+            } catch (error) {
+              lastSmsError = error;
+              smsFailurePolicy = classifySmsFailure(error);
+
+              if (smsFailurePolicy.classification === 'opt_out') {
+                logger.info({ reminderId: reminder.id, lineId: reminder.line_id }, 'SMS opt-out detected, falling back to reminder call');
+                break;
+              }
+
+              if (
+                smsFailurePolicy.allowInlineRetry &&
+                sendAttempt < SMS_INLINE_MAX_RETRIES
+              ) {
+                sendAttempt += 1;
+                logger.warn(
+                  {
+                    reminderId: reminder.id,
+                    lineId: reminder.line_id,
+                    classification: smsFailurePolicy.classification,
+                    sendAttempt,
+                    delayMs: SMS_INLINE_RETRY_DELAY_MS,
+                  },
+                  'Retrying reminder SMS inline after send failure'
+                );
+                await delay(SMS_INLINE_RETRY_DELAY_MS);
+                continue;
+              }
+
+              break;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      lastSmsError = error;
+      smsFailurePolicy = classifySmsFailure(error);
+    }
+
+    if (smsFailurePolicy) {
+      const shouldQueueDelayedRetry =
+        !reminder.is_recurring &&
+        smsFailurePolicy.allowDelayedRetry;
+
+      if (shouldQueueDelayedRetry) {
+        const queued = await scheduleOneTimeReminderSmsDelayedRetry(
+          supabase,
+          reminder,
+          smsFailurePolicy.classification
+        );
+        if (queued) {
+          return;
+        }
+      }
+
+      if (!smsFailurePolicy.fallbackEligible) {
+        logger.error({
+          error: lastSmsError,
+          reminderId: reminder.id,
+          classification: smsFailurePolicy.classification,
+        }, 'Failed to send reminder SMS (no call fallback)');
         await handleReminderFailure(supabase, reminder, 'missed', line.timezone, 'sms');
         return;
+      }
+
+      if (!shouldQueueDelayedRetry) {
+        if (
+          smsFailurePolicy.classification !== 'opt_out' &&
+          smsFailurePolicy.classification !== 'opt_out_lookup_unavailable'
+        ) {
+          logger.warn({
+            reminderId: reminder.id,
+            classification: smsFailurePolicy.classification,
+            deliveryRetryCount: reminder.delivery_retry_count,
+          }, 'SMS reminder retries exhausted, falling back to call');
+        }
       }
     }
   }
@@ -1031,6 +1316,8 @@ async function handleRecurringReminderSuccess(
         status: 'sent',
         occurrence_count: (reminder.occurrence_count || 0) + 1,
         last_delivery_status: 'completed',
+        delivery_retry_count: 0,
+        next_delivery_attempt_at: null,
         current_snooze_count: 0,
         snoozed_until: null,
         original_due_at: null,
@@ -1070,6 +1357,8 @@ async function handleRecurringReminderSuccess(
         status: 'sent',
         occurrence_count: (reminder.occurrence_count || 0) + 1,
         last_delivery_status: 'completed',
+        delivery_retry_count: 0,
+        next_delivery_attempt_at: null,
         current_snooze_count: 0,
         snoozed_until: null,
         original_due_at: null,
@@ -1109,6 +1398,8 @@ async function handleRecurringReminderSuccess(
       status: 'scheduled',
       occurrence_count: (reminder.occurrence_count || 0) + 1,
       last_delivery_status: 'completed',
+      delivery_retry_count: 0,
+      next_delivery_attempt_at: null,
       current_snooze_count: 0,
       snoozed_until: null,
       original_due_at: null,
@@ -1161,6 +1452,8 @@ async function handleReminderSuccess(
     .update({
       status: 'sent',
       last_delivery_status: 'completed',
+      delivery_retry_count: 0,
+      next_delivery_attempt_at: null,
       current_snooze_count: 0,
       snoozed_until: null,
       original_due_at: null,
@@ -1259,6 +1552,8 @@ async function handleReminderFailure(
           due_at: nextDueAt,
           status: 'scheduled',
           last_delivery_status: 'no_answer',
+          delivery_retry_count: 0,
+          next_delivery_attempt_at: null,
           current_snooze_count: 0,
           snoozed_until: null,
           original_due_at: null,
@@ -1303,6 +1598,8 @@ async function handleReminderFailure(
     .update({
       status,
       last_delivery_status: status === 'missed' ? 'no_answer' : 'failed',
+      delivery_retry_count: 0,
+      next_delivery_attempt_at: null,
     })
     .eq('id', reminder.id)
     .eq('processing_claimed_by', WORKER_ID)

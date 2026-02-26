@@ -65,6 +65,8 @@ vi.mock('../../services/rate-limiter.js', () => ({
 
 vi.mock('../../utils/twilio.js', () => ({
   sendSms,
+  SMS_OPT_OUT_ERROR_MESSAGE: 'Recipient has opted out of SMS',
+  SMS_OPT_OUT_LOOKUP_UNAVAILABLE_ERROR_MESSAGE: 'Failed to check SMS opt-out status',
 }));
 
 vi.mock('../../utils/reminder-crypto.js', () => ({
@@ -519,6 +521,26 @@ describe('call-scheduler', () => {
   });
 
   describe('REMINDERS: sms delivery path', () => {
+    const SMS_INLINE_RETRY_DELAY_MS = 3_000;
+
+    function mockReminderLineLookup(doNotCall: boolean): void {
+      getLineById.mockResolvedValueOnce({
+        line: {
+          id: 'line-1',
+          phone_e164: '+15551234567',
+          do_not_call: doNotCall,
+          vacation_ranges: [],
+          timezone: 'America/New_York',
+        },
+        account: { id: 'acc-1' },
+      });
+    }
+
+    function expectNoCallFallback(): void {
+      expect(checkLineAccess).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+
     function buildReminder(overrides: Record<string, unknown> = {}) {
       return {
         id: 'rem-sms-1',
@@ -550,6 +572,8 @@ describe('call-scheduler', () => {
         original_due_at: null,
         current_snooze_count: 0,
         last_delivery_status: null,
+        delivery_retry_count: 0,
+        next_delivery_attempt_at: null,
         processing_claimed_at: null,
         processing_claimed_by: WORKER_ID,
         created_at: '2025-01-10T13:00:00.000Z',
@@ -570,17 +594,26 @@ describe('call-scheduler', () => {
       });
     }
 
-    it('labels successful SMS reminder outcome with method=sms', async () => {
-      getLineById.mockResolvedValueOnce({
-        line: {
-          id: 'line-1',
-          phone_e164: '+15551234567',
-          do_not_call: true,
-          vacation_ranges: [],
-          timezone: 'America/New_York',
-        },
-        account: { id: 'acc-1' },
+    function mockReminderDbSuccessWithBuilders() {
+      const reminderBuilder = createQueryBuilder({ data: { id: 'rem-sms-1' }, error: null });
+      const eventsBuilder = createQueryBuilder({ data: { id: 'evt-1' }, error: null });
+
+      rpcMock.mockResolvedValueOnce(rpcResponses.completionSuccess);
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'ultaura_reminders') {
+          return reminderBuilder;
+        }
+        if (table === 'ultaura_reminder_events') {
+          return eventsBuilder;
+        }
+        return createQueryBuilder({ data: null, error: null });
       });
+
+      return { reminderBuilder, eventsBuilder };
+    }
+
+    it('labels successful SMS reminder outcome with method=sms', async () => {
+      mockReminderLineLookup(true);
       enforceRateLimit.mockResolvedValueOnce({ allowed: true });
       decryptReminderMessage.mockResolvedValueOnce('Take your medication');
       sendSms.mockResolvedValueOnce('SM123');
@@ -597,22 +630,30 @@ describe('call-scheduler', () => {
           body: 'Hi there, this is a reminder to Take your medication. - Ultaura',
         })
       );
-      expect(checkLineAccess).not.toHaveBeenCalled();
-      expect(fetchMock).not.toHaveBeenCalled();
+      expectNoCallFallback();
       expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'success', method: 'sms' });
     });
 
-    it('marks SMS reminder missed when rate limited and labels method=sms', async () => {
-      getLineById.mockResolvedValueOnce({
-        line: {
-          id: 'line-1',
-          phone_e164: '+15551234567',
-          do_not_call: false,
-          vacation_ranges: [],
-          timezone: 'America/New_York',
-        },
-        account: { id: 'acc-1' },
-      });
+    it('retries SMS inline once and succeeds without call fallback', async () => {
+      mockReminderLineLookup(false);
+      enforceRateLimit.mockResolvedValueOnce({ allowed: true });
+      decryptReminderMessage.mockResolvedValueOnce('Drink water');
+      sendSms
+        .mockRejectedValueOnce({ code: 30001, status: 502, message: 'Queue issue' })
+        .mockResolvedValueOnce('SM456');
+      mockReminderDbSuccess();
+
+      const reminderPromise = processReminder(buildReminder() as any);
+      await vi.advanceTimersByTimeAsync(SMS_INLINE_RETRY_DELAY_MS);
+      await reminderPromise;
+
+      expect(sendSms).toHaveBeenCalledTimes(2);
+      expectNoCallFallback();
+      expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'success', method: 'sms' });
+    });
+
+    it('records rate_limited metric for SMS reminders and does not mark missed immediately', async () => {
+      mockReminderLineLookup(false);
       enforceRateLimit.mockResolvedValueOnce({
         allowed: false,
         retryAfter: 60,
@@ -632,17 +673,31 @@ describe('call-scheduler', () => {
       expect(reminderOutcomesTotalInc).not.toHaveBeenCalledWith({ outcome: 'missed', method: 'sms' });
     });
 
+    it('queues one-time delayed SMS retry at due_at+2m after retryable failure exhaustion', async () => {
+      mockReminderLineLookup(false);
+      enforceRateLimit.mockResolvedValueOnce({ allowed: true });
+      decryptReminderMessage.mockResolvedValueOnce('Take vitamins');
+      sendSms
+        .mockRejectedValueOnce({ code: 30001, status: 502, message: 'Twilio unavailable' })
+        .mockRejectedValueOnce({ code: 30001, status: 502, message: 'Twilio unavailable' });
+      const { reminderBuilder, eventsBuilder } = mockReminderDbSuccessWithBuilders();
+
+      const reminderPromise = processReminder(buildReminder() as any);
+      await vi.advanceTimersByTimeAsync(SMS_INLINE_RETRY_DELAY_MS);
+      await reminderPromise;
+
+      expect(sendSms).toHaveBeenCalledTimes(2);
+      expectNoCallFallback();
+      expect(reminderBuilder.update).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'scheduled',
+        delivery_retry_count: 1,
+        next_delivery_attempt_at: '2025-01-10T14:02:00.000Z',
+      }));
+      expect(eventsBuilder.insert).not.toHaveBeenCalled();
+    });
+
     it('falls back to call on SMS opt-out and labels success with method=call', async () => {
-      getLineById.mockResolvedValueOnce({
-        line: {
-          id: 'line-1',
-          phone_e164: '+15551234567',
-          do_not_call: false,
-          vacation_ranges: [],
-          timezone: 'America/New_York',
-        },
-        account: { id: 'acc-1' },
-      });
+      mockReminderLineLookup(false);
       enforceRateLimit.mockResolvedValueOnce({ allowed: true });
       decryptReminderMessage.mockResolvedValueOnce('Time for your walk');
       sendSms.mockRejectedValueOnce(new Error('Recipient has opted out of SMS'));
@@ -665,29 +720,96 @@ describe('call-scheduler', () => {
       expect(reminderOutcomesTotalInc).not.toHaveBeenCalledWith({ outcome: 'success', method: 'sms' });
     });
 
-    it('does not fall back to call on generic SMS send failure and records missed/sms outcome', async () => {
-      getLineById.mockResolvedValueOnce({
-        line: {
-          id: 'line-1',
-          phone_e164: '+15551234567',
-          do_not_call: false,
-          vacation_ranges: [],
-          timezone: 'America/New_York',
-        },
-        account: { id: 'acc-1' },
+    it('falls back to call after delayed SMS retries are exhausted for eligible failures and labels method by actual attempt', async () => {
+      mockReminderLineLookup(false);
+      enforceRateLimit.mockResolvedValueOnce({
+        allowed: false,
+        retryAfter: 60,
+        limitType: 'account',
+        redisAvailable: true,
       });
+      checkLineAccess.mockResolvedValueOnce({ allowed: true });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ sessionId: 'sess-2' }),
+      });
+      mockReminderDbSuccess();
+
+      await processReminder(buildReminder({ delivery_retry_count: 2 }) as any);
+
+      expect(sendSms).not.toHaveBeenCalled();
+      expect(checkLineAccess).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalled();
+      expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'rate_limited', method: 'sms' });
+      expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'success', method: 'call' });
+      expect(reminderOutcomesTotalInc).not.toHaveBeenCalledWith({ outcome: 'success', method: 'sms' });
+    });
+
+    it('does not fall back to call for non-eligible content failures and records missed/sms outcome', async () => {
+      mockReminderLineLookup(false);
       enforceRateLimit.mockResolvedValueOnce({ allowed: true });
       decryptReminderMessage.mockResolvedValueOnce('Take vitamins');
-      sendSms.mockRejectedValueOnce(new Error('Twilio request failed'));
+      sendSms.mockRejectedValueOnce({ code: 30007, status: 400, message: 'Carrier content violation' });
       mockReminderDbSuccess();
 
       await processReminder(buildReminder() as any);
 
       expect(sendSms).toHaveBeenCalled();
-      expect(checkLineAccess).not.toHaveBeenCalled();
-      expect(fetchMock).not.toHaveBeenCalled();
+      expectNoCallFallback();
       expect(reminderOutcomesTotalInc).toHaveBeenCalledWith({ outcome: 'missed', method: 'sms' });
       expect(reminderOutcomesTotalInc).not.toHaveBeenCalledWith({ outcome: 'success', method: 'call' });
+    });
+
+    it('queues delayed retry for one-time reminder when SMS opt-out lookup is unavailable before call fallback', async () => {
+      mockReminderLineLookup(false);
+      enforceRateLimit.mockResolvedValueOnce({ allowed: true });
+      decryptReminderMessage.mockResolvedValueOnce('Take vitamins');
+      sendSms
+        .mockRejectedValueOnce(new Error('Failed to check SMS opt-out status'))
+        .mockRejectedValueOnce(new Error('Failed to check SMS opt-out status'));
+      const { reminderBuilder, eventsBuilder } = mockReminderDbSuccessWithBuilders();
+
+      const reminderPromise = processReminder(buildReminder() as any);
+      await vi.advanceTimersByTimeAsync(SMS_INLINE_RETRY_DELAY_MS);
+      await reminderPromise;
+
+      expect(sendSms).toHaveBeenCalledTimes(2);
+      expectNoCallFallback();
+      expect(reminderBuilder.update).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'scheduled',
+        delivery_retry_count: 1,
+        next_delivery_attempt_at: '2025-01-10T14:02:00.000Z',
+      }));
+      expect(eventsBuilder.insert).not.toHaveBeenCalled();
+    });
+
+    it('does not queue delayed SMS retry for recurring reminders', async () => {
+      mockReminderLineLookup(false);
+      enforceRateLimit.mockResolvedValueOnce({ allowed: true });
+      decryptReminderMessage.mockResolvedValueOnce('Stretch now');
+      sendSms
+        .mockRejectedValueOnce({ code: 30001, status: 502, message: 'Twilio unavailable' })
+        .mockRejectedValueOnce({ code: 30001, status: 502, message: 'Twilio unavailable' });
+      checkLineAccess.mockResolvedValueOnce({ allowed: true });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ sessionId: 'sess-4' }),
+      });
+      const { reminderBuilder } = mockReminderDbSuccessWithBuilders();
+
+      const reminderPromise = processReminder(buildReminder({
+        is_recurring: true,
+        rrule: 'FREQ=DAILY',
+        delivery_retry_count: 0,
+      }) as any);
+      await vi.advanceTimersByTimeAsync(SMS_INLINE_RETRY_DELAY_MS);
+      await reminderPromise;
+
+      expect(sendSms).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalled();
+      expect(reminderBuilder.update).not.toHaveBeenCalledWith(expect.objectContaining({
+        delivery_retry_count: 1,
+      }));
     });
   });
 
@@ -749,12 +871,29 @@ describe('call-scheduler', () => {
   });
 
   describe('SCHEDULE EXCEPTIONS: processing branches', () => {
-    it('SCHEDULE EXCEPTIONS: future snooze updates next_run_at and skips outbound call', async () => {
-      vi.setSystemTime(new Date('2025-01-10T12:00:00.000Z'));
+    function buildScheduleExceptionTestSchedule() {
+      return {
+        id: 'sched-123',
+        line_id: 'line-456',
+        next_run_at: '2025-01-10T14:00:00.000Z',
+        days_of_week: [1, 2, 3, 4, 5],
+        time_of_day: '09:00',
+        timezone: 'America/New_York',
+        retry_count: 0,
+        retry_policy: { max_retries: 2, retry_window_minutes: 30 },
+      };
+    }
+
+    function mockScheduleExceptionLineLookup(): void {
       getLineById.mockResolvedValueOnce({
         line: { id: 'line-456', do_not_call: false, vacation_ranges: [], timezone: 'America/New_York' },
         account: { id: 'acc-789' },
       });
+    }
+
+    it('SCHEDULE EXCEPTIONS: future snooze updates next_run_at and skips outbound call', async () => {
+      vi.setSystemTime(new Date('2025-01-10T12:00:00.000Z'));
+      mockScheduleExceptionLineLookup();
       checkLineAccess.mockResolvedValueOnce({ allowed: true });
       isInQuietHours.mockReturnValueOnce(false);
 
@@ -774,16 +913,7 @@ describe('call-scheduler', () => {
         return createQueryBuilder({ data: null, error: null });
       });
 
-      const schedule = {
-        id: 'sched-123',
-        line_id: 'line-456',
-        next_run_at: '2025-01-10T14:00:00.000Z',
-        days_of_week: [1, 2, 3, 4, 5],
-        time_of_day: '09:00',
-        timezone: 'America/New_York',
-        retry_count: 0,
-        retry_policy: { max_retries: 2, retry_window_minutes: 30 },
-      };
+      const schedule = buildScheduleExceptionTestSchedule();
 
       await processSchedule(schedule as any);
 
@@ -795,10 +925,7 @@ describe('call-scheduler', () => {
     });
 
     it('SCHEDULE EXCEPTIONS: skip/reschedule block call and complete as skipped', async () => {
-      getLineById.mockResolvedValueOnce({
-        line: { id: 'line-456', do_not_call: false, vacation_ranges: [], timezone: 'America/New_York' },
-        account: { id: 'acc-789' },
-      });
+      mockScheduleExceptionLineLookup();
       checkLineAccess.mockResolvedValueOnce({ allowed: true });
       isInQuietHours.mockReturnValueOnce(false);
       rpcMock.mockResolvedValueOnce(rpcResponses.completionSuccess);
@@ -818,16 +945,7 @@ describe('call-scheduler', () => {
         return createQueryBuilder({ data: null, error: null });
       });
 
-      const schedule = {
-        id: 'sched-123',
-        line_id: 'line-456',
-        next_run_at: '2025-01-10T14:00:00.000Z',
-        days_of_week: [1, 2, 3, 4, 5],
-        time_of_day: '09:00',
-        timezone: 'America/New_York',
-        retry_count: 0,
-        retry_policy: { max_retries: 2, retry_window_minutes: 30 },
-      };
+      const schedule = buildScheduleExceptionTestSchedule();
 
       await processSchedule(schedule as any);
 

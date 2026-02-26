@@ -9,6 +9,9 @@ import { getSupabaseClient } from './supabase.js';
 
 let twilioClient: Twilio.Twilio | null = null;
 
+export const SMS_OPT_OUT_ERROR_MESSAGE = 'Recipient has opted out of SMS';
+export const SMS_OPT_OUT_LOOKUP_UNAVAILABLE_ERROR_MESSAGE = 'Failed to check SMS opt-out status';
+
 export function getTwilioClient(): Twilio.Twilio {
   if (twilioClient) {
     return twilioClient;
@@ -409,11 +412,13 @@ export async function sendSms(options: {
   body: string;
   skipOptOutCheck?: boolean;
 }): Promise<string> {
-  if (!options.skipOptOutCheck) {
-    const isOptedOut = await checkSmsOptOut(options.to);
+  const { to, body, skipOptOutCheck } = options;
+
+  if (!skipOptOutCheck) {
+    const isOptedOut = await checkSmsOptOut(to);
     if (isOptedOut) {
-      logger.info({ to: redactPhone(options.to) }, 'SMS blocked due to opt-out');
-      throw new Error('Recipient has opted out of SMS');
+      logger.info({ to: redactPhone(to) }, 'SMS blocked due to opt-out');
+      throw new Error(SMS_OPT_OUT_ERROR_MESSAGE);
     }
   }
 
@@ -426,15 +431,15 @@ export async function sendSms(options: {
 
   try {
     const message = await client.messages.create({
-      to: options.to,
+      to,
       from,
-      body: options.body,
+      body,
     });
 
-  logger.info({ messageSid: message.sid, to: redactPhone(options.to) }, 'SMS sent');
+    logger.info({ messageSid: message.sid, to: redactPhone(to) }, 'SMS sent');
     return message.sid;
   } catch (error) {
-    logger.error({ error, to: redactPhone(options.to) }, 'Failed to send SMS');
+    logger.error({ error, to: redactPhone(to) }, 'Failed to send SMS');
     throw error;
   }
 }
@@ -449,8 +454,8 @@ async function checkSmsOptOut(phoneE164: string): Promise<boolean> {
     .maybeSingle();
 
   if (error) {
-    logger.error({ error, phone: redactPhone(phoneE164) }, 'Failed to check SMS opt-out status');
-    return false;
+    logger.error({ error, phone: redactPhone(phoneE164) }, SMS_OPT_OUT_LOOKUP_UNAVAILABLE_ERROR_MESSAGE);
+    throw new Error(SMS_OPT_OUT_LOOKUP_UNAVAILABLE_ERROR_MESSAGE);
   }
 
   return !!data;

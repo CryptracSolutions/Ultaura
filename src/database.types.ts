@@ -506,6 +506,48 @@ export type Database = {
           },
         ]
       }
+      ultaura_admin_audit_log: {
+        Row: {
+          action: string
+          admin_email: string
+          admin_user_id: string
+          created_at: string
+          id: string
+          ip: string | null
+          metadata: Json | null
+          request_id: string | null
+          target_id: string | null
+          target_type: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          admin_email: string
+          admin_user_id: string
+          created_at?: string
+          id?: string
+          ip?: string | null
+          metadata?: Json | null
+          request_id?: string | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          admin_email?: string
+          admin_user_id?: string
+          created_at?: string
+          id?: string
+          ip?: string | null
+          metadata?: Json | null
+          request_id?: string | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       ultaura_call_events: {
         Row: {
           call_session_id: string
@@ -838,13 +880,6 @@ export type Database = {
             columns: ["last_seen_entry_id"]
             isOneToOne: false
             referencedRelation: "ultaura_changelog_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ultaura_changelog_dismissals_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -3354,6 +3389,7 @@ export type Database = {
           day_of_month: number | null
           days_of_week: number[] | null
           delivery_method: string
+          delivery_retry_count: number
           due_at: string
           ends_at: string | null
           id: string
@@ -3368,6 +3404,7 @@ export type Database = {
           message_iv: string | null
           message_kid: string | null
           message_tag: string | null
+          next_delivery_attempt_at: string | null
           occurrence_count: number
           original_due_at: string | null
           paused_at: string | null
@@ -3389,6 +3426,7 @@ export type Database = {
           day_of_month?: number | null
           days_of_week?: number[] | null
           delivery_method?: string
+          delivery_retry_count?: number
           due_at: string
           ends_at?: string | null
           id?: string
@@ -3403,6 +3441,7 @@ export type Database = {
           message_iv?: string | null
           message_kid?: string | null
           message_tag?: string | null
+          next_delivery_attempt_at?: string | null
           occurrence_count?: number
           original_due_at?: string | null
           paused_at?: string | null
@@ -3424,6 +3463,7 @@ export type Database = {
           day_of_month?: number | null
           days_of_week?: number[] | null
           delivery_method?: string
+          delivery_retry_count?: number
           due_at?: string
           ends_at?: string | null
           id?: string
@@ -3438,6 +3478,7 @@ export type Database = {
           message_iv?: string | null
           message_kid?: string | null
           message_tag?: string | null
+          next_delivery_attempt_at?: string | null
           occurrence_count?: number
           original_due_at?: string | null
           paused_at?: string | null
@@ -4040,6 +4081,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ultaura_telephony_event_log: {
+        Row: {
+          account_id: string | null
+          call_session_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          line_id: string | null
+          payload_ciphertext: string | null
+          payload_redacted: Json | null
+          processed: boolean
+          provider: string
+          provider_id: string | null
+          severity: string
+        }
+        Insert: {
+          account_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          line_id?: string | null
+          payload_ciphertext?: string | null
+          payload_redacted?: Json | null
+          processed?: boolean
+          provider?: string
+          provider_id?: string | null
+          severity?: string
+        }
+        Update: {
+          account_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          line_id?: string | null
+          payload_ciphertext?: string | null
+          payload_redacted?: Json | null
+          processed?: boolean
+          provider?: string
+          provider_id?: string | null
+          severity?: string
+        }
+        Relationships: []
+      }
       ultaura_topic_exclusions: {
         Row: {
           account_id: string
@@ -4442,6 +4528,7 @@ export type Database = {
           day_of_month: number | null
           days_of_week: number[] | null
           delivery_method: string
+          delivery_retry_count: number
           due_at: string
           ends_at: string | null
           id: string
@@ -4456,6 +4543,7 @@ export type Database = {
           message_iv: string | null
           message_kid: string | null
           message_tag: string | null
+          next_delivery_attempt_at: string | null
           occurrence_count: number
           original_due_at: string | null
           paused_at: string | null
@@ -4588,6 +4676,7 @@ export type Database = {
         Args: { p_account_id: string; p_key: string; p_line_id: string }
         Returns: number
       }
+      get_admin_platform_stats: { Args: never; Returns: Json }
       get_effective_plan_id: { Args: { p_account_id: string }; Returns: string }
       get_organizations_for_authenticated_user: {
         Args: never
@@ -4655,6 +4744,7 @@ export type Database = {
           overage_minutes: number
         }[]
       }
+      get_user_id_by_email: { Args: { lookup_email: string }; Returns: string }
       heartbeat_scheduler_lease: {
         Args: {
           p_extend_seconds?: number
@@ -4671,7 +4761,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      install_extensions: { Args: never; Returns: undefined }
       is_line_on_vacation: { Args: { p_line_id: string }; Returns: boolean }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }
@@ -4724,6 +4813,10 @@ export type Database = {
         Returns: undefined
       }
       prune_newsletter_operational_data: { Args: never; Returns: undefined }
+      purge_expired_payload_ciphertexts: {
+        Args: { batch_limit?: number; cutoff_ts: string }
+        Returns: number
+      }
       release_scheduler_lease: {
         Args: { p_lease_id: string; p_worker_id: string }
         Returns: boolean
@@ -4759,6 +4852,17 @@ export type Database = {
         }[]
       }
       run_retention_cleanup: { Args: never; Returns: Json }
+      search_auth_users_by_email: {
+        Args: { query: string; result_limit?: number }
+        Returns: {
+          banned_until: string
+          created_at: string
+          email: string
+          id: string
+          last_sign_in_at: string
+          phone: string
+        }[]
+      }
       transfer_organization: {
         Args: { org_id: number; target_user_membership_id: number }
         Returns: undefined
@@ -5860,3 +5964,4 @@ export const Constants = {
     },
   },
 } as const
+
