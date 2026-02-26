@@ -88,6 +88,17 @@ function createBridge() {
   } as any);
 }
 
+function getMockedFetchJsonBody(fetchMock: { mock: { calls: unknown[][] } }, callIndex: number) {
+  const calls = fetchMock.mock.calls as Array<[unknown, { body?: unknown }?]>;
+  const call = calls[callIndex];
+  expect(call).toBeDefined();
+
+  const init = call?.[1];
+  expect(init?.body).toBeDefined();
+
+  return JSON.parse(String(init?.body)) as Record<string, unknown>;
+}
+
 describe('GrokBridge observability', () => {
   it('includes callSessionId in tool endpoint logs', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
@@ -148,9 +159,9 @@ describe('GrokBridge observability', () => {
       new_delivery_method: 'outbound_call',
     }));
 
-    const setBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    const editBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
-    const legacyEditBody = JSON.parse(fetchMock.mock.calls[2][1].body as string);
+    const setBody = getMockedFetchJsonBody(fetchMock, 0);
+    const editBody = getMockedFetchJsonBody(fetchMock, 1);
+    const legacyEditBody = getMockedFetchJsonBody(fetchMock, 2);
 
     expect(setBody.deliveryMethod).toBe('sms');
     expect(editBody.newDeliveryMethod).toBe('outbound_call');
@@ -178,8 +189,8 @@ describe('GrokBridge observability', () => {
       new_delivery_method: 'fax',
     }));
 
-    const setBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    const editBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const setBody = getMockedFetchJsonBody(fetchMock, 0);
+    const editBody = getMockedFetchJsonBody(fetchMock, 1);
     const warningLogs = logEntries.filter((entry) => entry.msg === 'Unsupported reminder delivery method from Grok tool args');
 
     expect(setBody.deliveryMethod).toBeUndefined();
