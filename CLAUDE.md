@@ -220,21 +220,8 @@ You MUST follow these steps IN ORDER:
    - Large tasks: 18+ questions to nail down full scope
    - Keep asking follow-ups until you have concrete answers for every decision point
    - Ask proactively when: requirements are ambiguous, multiple valid approaches exist, user preferences would affect implementation, or scope could expand unexpectedly
-3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user).
-
-### Interview Scaling
-
-Use `AskUserQuestion` tool proactively when:
-- Requirements are ambiguous
-- Multiple valid approaches exist
-- User preferences would affect implementation
-- Scope could expand unexpectedly
-
-| Task Size | Interview Depth |
-|-----------|-----------------|
-| Small | 0-9 questions (proceed if clear) |
-| Medium | 9-18 clarifying questions |
-| Large | 18+ detailed questions to nail down full scope and solve all ambiguities |
+   - **HARD RULE: Do NOT begin writing the plan until every interview question has a concrete answer.** If the user says "just figure it out" or "up to you," you MUST document the assumption you're making as an explicit `[ASSUMPTION]` tag in the Requirements section (e.g., `[ASSUMPTION] User deferred — choosing modal over inline edit because it matches existing patterns in schedule-form.tsx`). Every `[ASSUMPTION]` tag is a flag for the user to review during plan approval. Unresolved ambiguity that is neither answered nor tagged is a planning violation.
+3. **Identify every decision point** — Before writing a single line of the plan, list every fork in the road: naming conventions, UI placement, data model choices, error handling strategy, migration approach, API shape, etc. Each one must be resolved (either by codebase convention or by asking the user). If resolved by convention, cite the file/line where the convention is established. If resolved by the user, reference which interview answer confirmed it.
 
 #### Phase 2: Writing the Plan — **MUST use `Plan` agent with `model: "Opus 4.6"`**
 
@@ -249,17 +236,68 @@ The plan document MUST include ALL of the following sections. Missing sections =
 | **Database Changes** | If applicable: exact table/column names, types, defaults, constraints, RLS policies, and migration file name. Include the SQL or describe it precisely enough to write it. |
 | **Implementation Tasks** | Ordered, numbered task list. Each task must specify: (1) what to do, (2) which files to touch, (3) which requirements it satisfies (R1, R2...), (4) dependencies on other tasks, (5) acceptance criteria — how to verify it worked. |
 | **Type & API Contracts** | Any new or modified TypeScript types, Zod schemas, API request/response shapes, or function signatures. Write them out explicitly — don't say "add a type for X", show the type. |
+| **Security & Privacy Impact** | For every change in the plan, analyze: does it touch encrypted data, add/modify API routes, change RLS/permissions, expose PII to the client, interact with the safety system, or introduce new input paths? If no impact, state "No security impact" with a 1-sentence justification. This section is validated and deepened during the Phase 3 security review pass. |
 | **Edge Cases & Error Handling** | How errors, empty states, permission failures, race conditions, and unexpected input are handled. |
 | **Testing & Verification** | How to verify the implementation is correct: TypeScript compilation, specific UI states to check, API calls to test, migration verification steps. |
 | **Out of Scope** | Explicitly list what this plan does NOT cover, to prevent scope creep during implementation. |
+| **Plan Review Checklist** | The filled-out checklist from Phase 3. Must be the final section. |
 
-#### Phase 3: Plan Review
+#### Phase 3: Plan Review — Mandatory 4-Pass Deep Review
 
-Before exiting plan mode:
-- Re-read the plan as if you are a fresh agent seeing it for the first time. Would you know exactly what to do? If not, add more detail.
-- Verify every file listed in "Affected Files" actually exists (or is explicitly marked as new).
+**This is NOT a skim.** Before exiting plan mode, the plan MUST survive all 4 review passes below. Each pass uses a different lens. Skipping a pass or doing them superficially is a planning violation.
+
+**Pass 1: Completeness Traceability**
+- Build a traceability matrix: for every requirement (R1, R2, ...), confirm at least one implementation task covers it. For every task, confirm it maps to at least one requirement.
+- Flag any orphaned requirements (R# with no task) or orphaned tasks (task with no R#). Both are plan defects — fix them before proceeding.
+- Verify every file listed in "Affected Files" actually exists in the codebase (or is explicitly marked as `[NEW]`).
 - Verify task dependencies form a valid DAG — no circular dependencies, correct ordering.
-- Confirm no requirements from the interview are missing from the tasks.
+
+**Pass 2: Security & Privacy Impact**
+- For every change in the plan, answer these questions. If the answer to all is "no impact," the plan must still state that explicitly in the Security section.
+  - Does this touch encrypted data (memories, insights, call content)? If yes, does the plan preserve AES-256-GCM encryption and per-line data keys?
+  - Does this add or modify any API route? What auth/RLS protects it? Could an unauthenticated or wrong-tenant user reach it?
+  - Does this change any RLS policies, DB permissions, or row-level access patterns?
+  - Could this expose PII to the client (browser) that wasn't exposed before? Check every `select` query and API response shape.
+  - Does this interact with the safety system (AI classifier, heuristics, keyword scanning, verification gate)? Could it weaken or bypass any layer?
+  - Does this introduce any new user input paths? If yes, what validation/sanitization is planned?
+
+**Pass 3: Accessibility Audit (UI changes only — skip if backend-only)**
+- Does every new/modified UI element meet senior-friendly standards? Large tap targets (min 44px), high contrast, simple flows, minimal cognitive load.
+- Has the plan accounted for 375px viewport behavior?
+- Are loading, empty, and error states defined for every new UI surface?
+
+**Pass 4: Adversarial "Break My Plan" Pass**
+- **Assume the plan has at least 3 flaws. Find them.** This is mandatory — you cannot declare "no flaws found" without documenting what you checked.
+- Attack vectors to check:
+  - What happens if a database migration fails halfway? Is there a rollback path?
+  - What happens if an API call times out or returns unexpected data?
+  - Are there race conditions (e.g., two concurrent requests modifying the same row)?
+  - What if the user has no data yet (empty state)? What if they have a massive amount (performance)?
+  - Could a malicious user exploit any new input path?
+  - What assumption am I making that could be wrong?
+- **Document every flaw found and how the plan addresses it.** Add fixes to the relevant task's acceptance criteria or to the Edge Cases section.
+
+#### Pre-Exit Checklist (MUST appear in the plan document before calling `ExitPlanMode`)
+
+The plan document must include this checklist, filled out, as its final section. The agent cannot call `ExitPlanMode` until every item is checked. Copy this template and fill it in:
+
+```
+## Plan Review Checklist
+- [ ] Every requirement (R#) maps to at least one task
+- [ ] Every task maps to at least one requirement (R#)
+- [ ] Every task has concrete acceptance criteria (not "it works")
+- [ ] Security & Privacy pass completed — impact section filled out
+- [ ] Accessibility pass completed (or marked N/A for backend-only)
+- [ ] Adversarial pass completed — found and addressed [N] flaws: [list them]
+- [ ] All interview questions answered — no unresolved ambiguity
+- [ ] All [ASSUMPTION] tags documented for user-deferred decisions
+- [ ] File paths verified as real or marked [NEW]
+- [ ] Task dependency graph has no cycles
+- [ ] No requirement from the interview is missing from the tasks
+- [ ] Plan is detailed enough for a fresh agent with zero context to execute without questions
+```
+
+If any item cannot be checked, the plan is not ready. Fix the gap before exiting.
 
 #### What Makes a BAD Plan (Do Not Do These)
 
@@ -269,6 +307,9 @@ Before exiting plan mode:
 - No acceptance criteria: "Implement the feature" — how do we know it's done?
 - Skipping the interview: Jumping straight to writing the plan without asking questions
 - Listing files without explaining changes: "Modify `schedule-service.ts`" — to do WHAT?
+- Rubber-stamping the review passes: Saying "Pass 4 complete, no issues" without documenting what you checked — the adversarial pass REQUIRES finding at least 3 flaws or documenting the specific attack vectors you tested
+- Missing the checklist: Calling `ExitPlanMode` without a filled-out Plan Review Checklist at the bottom of the plan document
+- Untagged assumptions: Making decisions the user didn't explicitly confirm without an `[ASSUMPTION]` tag
 
 ### Agent Teams Guidelines
 
