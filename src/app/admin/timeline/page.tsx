@@ -153,6 +153,8 @@ async function TimelinePage({ searchParams }: TimelinePageProps) {
               perPage={PER_PAGE}
               currentSources={validSources}
               currentRedactionMode={redactionMode}
+              currentAccountId={searchParams.accountId}
+              currentLineId={searchParams.lineId}
             />
           )}
         </div>

@@ -103,16 +103,14 @@ export default function AdminCryptoHealthCard() {
   const view = statusView(statusCode, payload, loading);
 
   return (
-    <AdminStatCard label="Crypto Health">
-      <div className={'flex items-center justify-between gap-3'}>
-        <Button size={'sm'} variant={'outline'} onClick={() => void fetchHealth()} loading={loading}>
-          Refresh
-        </Button>
-
+    <AdminStatCard
+      label="Crypto Health"
+      headerRight={
         <Badge color={view.color} size={'small'}>
           <span>{view.label}</span>
         </Badge>
-      </div>
+      }
+    >
 
       <div className={'mt-2.5 flex flex-col gap-1.5'}>
         <p className={'text-sm text-muted-foreground'}>{view.detail}</p>
@@ -120,7 +118,12 @@ export default function AdminCryptoHealthCard() {
         <div className={'flex flex-col gap-1 text-xs text-muted-foreground'}>
           <span>Code: {payload?.code || 'N/A'}</span>
           <span>Account: {payload?.accountId || 'N/A'}</span>
-          <span>Last checked: {formatCheckedAt(payload?.checkedAt)}</span>
+          <div className={'flex items-center justify-between gap-3'}>
+            <span>Last checked: {formatCheckedAt(payload?.checkedAt)}</span>
+            <Button size={'sm'} variant={'outline'} onClick={() => void fetchHealth()} loading={loading}>
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
     </AdminStatCard>

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import Alert from '~/core/ui/Alert';
+import { TextFieldInput } from '~/core/ui/TextField';
 import {
   Select,
   SelectContent,
@@ -29,6 +30,8 @@ interface TimelineViewProps {
   perPage: number;
   currentSources: TimelineSource[];
   currentRedactionMode: RedactionMode;
+  currentAccountId?: string;
+  currentLineId?: string;
 }
 
 const ALL_SOURCES: { value: TimelineSource; label: string }[] = [
@@ -43,6 +46,13 @@ const ALL_SOURCES: { value: TimelineSource; label: string }[] = [
   { value: 'data_export', label: 'Data Exports' },
   { value: 'consent_audit', label: 'Consent Audit' },
   { value: 'telephony_event', label: 'Telephony Events' },
+];
+
+const SOURCE_GROUPS: { label: string; sources: TimelineSource[] }[] = [
+  { label: 'Calls', sources: ['call_session', 'call_event', 'telephony_event'] },
+  { label: 'Safety & Scheduling', sources: ['safety_event', 'reminder', 'schedule_event'] },
+  { label: 'Contacts', sources: ['trusted_contact', 'notification_recipient'] },
+  { label: 'Privacy & Data', sources: ['opt_out', 'consent_audit', 'data_export'] },
 ];
 
 const SOURCE_BADGE_COLORS: Record<TimelineSource, string> = {
@@ -86,6 +96,8 @@ export default function TimelineView({
   perPage,
   currentSources,
   currentRedactionMode,
+  currentAccountId,
+  currentLineId,
 }: TimelineViewProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -95,7 +107,10 @@ export default function TimelineView({
   const [selectedSources, setSelectedSources] = useState<Set<TimelineSource>>(
     () => new Set(currentSources),
   );
+  const [accountIdInput, setAccountIdInput] = useState(currentAccountId ?? '');
+  const [lineIdInput, setLineIdInput] = useState(currentLineId ?? '');
 
+  const hasActiveIdFilter = Boolean(currentAccountId || currentLineId);
   const pageCount = Math.ceil(total / perPage);
 
   const buildUrl = useCallback(
@@ -146,6 +161,22 @@ export default function TimelineView({
     [buildUrl, navigateTo],
   );
 
+  const handleIdFilterApply = useCallback(() => {
+    navigateTo(
+      buildUrl({
+        accountId: accountIdInput.trim() || undefined,
+        lineId: lineIdInput.trim() || undefined,
+        page: '1',
+      }),
+    );
+  }, [accountIdInput, lineIdInput, buildUrl, navigateTo]);
+
+  const handleIdFilterClear = useCallback(() => {
+    setAccountIdInput('');
+    setLineIdInput('');
+    navigateTo(buildUrl({ accountId: undefined, lineId: undefined, page: '1' }));
+  }, [buildUrl, navigateTo]);
+
   const handleRedactionChange = useCallback(
     (mode: string) => {
       logTimelineRedactionModeChanged(mode, currentRedactionMode).catch(() => {});
@@ -172,27 +203,42 @@ export default function TimelineView({
     <div className="flex flex-col gap-6">
       {/* Filter Bar */}
       <div className="flex flex-col gap-4 rounded-lg border border-border bg-background p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-3">
             <span className="text-sm font-medium text-foreground">
               Source Filters
             </span>
-            <div className="flex flex-wrap gap-2">
-              {ALL_SOURCES.map(({ value, label }) => {
-                const isActive = selectedSources.has(value) || selectedSources.size === 0;
+            <div className="flex flex-col gap-3">
+              {SOURCE_GROUPS.map((group) => {
+                const sources = ALL_SOURCES.filter((s) =>
+                  group.sources.includes(s.value),
+                );
                 return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => handleSourceToggle(value)}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
-                      isActive
-                        ? SOURCE_BADGE_COLORS[value] + ' border-transparent'
-                        : 'border-border bg-muted/30 text-muted-foreground opacity-50 hover:opacity-75'
-                    }`}
-                  >
-                    {label}
-                  </button>
+                  <div key={group.label} className="flex flex-col gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {group.label}
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {sources.map(({ value, label }) => {
+                        const isActive =
+                          selectedSources.has(value) || selectedSources.size === 0;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => handleSourceToggle(value)}
+                            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                              isActive
+                                ? SOURCE_BADGE_COLORS[value] + ' border-transparent'
+                                : 'border-border bg-muted/30 text-muted-foreground opacity-50 hover:opacity-75'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -220,10 +266,56 @@ export default function TimelineView({
           </div>
         </div>
 
+        {/* ID Filters */}
+        <div className="flex flex-col gap-1.5 border-t border-border/60 pt-4">
+          <span className="text-xs font-medium text-muted-foreground">ID Filters</span>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+            <TextFieldInput
+              type="text"
+              placeholder="Account UUID"
+              value={accountIdInput}
+              onChange={(e) => setAccountIdInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleIdFilterApply()}
+              className="h-9 w-full sm:w-64 text-xs font-mono"
+              aria-label="Filter by account ID"
+            />
+            <TextFieldInput
+              type="text"
+              placeholder="Line UUID"
+              value={lineIdInput}
+              onChange={(e) => setLineIdInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleIdFilterApply()}
+              className="h-9 w-full sm:w-64 text-xs font-mono"
+              aria-label="Filter by line ID"
+            />
+            <div className="flex flex-col sm:flex-row sm:ml-auto gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleIdFilterApply}
+                disabled={isPending}
+                className="w-full sm:w-auto"
+              >
+                Apply
+              </Button>
+              {hasActiveIdFilter && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleIdFilterClear}
+                  disabled={isPending}
+                  className="w-full sm:w-auto"
+                >
+                  Clear ×
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {currentRedactionMode !== 'admin_full' && (
           <Alert type="warn">
-            Viewing in simulated <strong>{currentRedactionMode === 'payer_simulated' ? 'payer' : 'recipient'}</strong> mode.
-            Some entries and payload details are hidden or redacted.
+            {`Viewing in simulated ${currentRedactionMode === 'payer_simulated' ? 'payer' : 'recipient'} mode. Some entries and payload details are hidden or redacted.`}
           </Alert>
         )}
       </div>

@@ -34,34 +34,36 @@ export function FilterModal({ children, activeFilterCount }: FilterModalProps) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="sm:max-w-[468px] flex flex-col max-h-[85vh] overflow-y-auto"
+          className="sm:max-w-[560px] flex flex-col max-h-[85vh]"
           overlayClassName="bg-black/50 backdrop-blur-none"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             startDateInputRef.current?.focus();
           }}
         >
-          <div className="flex items-start justify-between gap-4 flex-shrink-0">
-            <div className="min-w-0">
-              <DialogTitle className="truncate">Filter Debug Logs</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                Narrow down logs by date, session, or event type.
-              </DialogDescription>
+          <div className="flex flex-col overflow-y-auto">
+            <div className="flex items-start justify-between gap-4 flex-shrink-0">
+              <div className="min-w-0">
+                <DialogTitle className="truncate">Filter Debug Logs</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Narrow down logs by date, session, or event type.
+                </DialogDescription>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
 
-          {typeof children === 'function'
-            ? children({ onClose: () => setOpen(false), startDateInputRef })
-            : children}
+            {typeof children === 'function'
+              ? children({ onClose: () => setOpen(false), startDateInputRef })
+              : children}
+          </div>
         </DialogContent>
       </Dialog>
     </>

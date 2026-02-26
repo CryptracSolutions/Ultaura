@@ -71,6 +71,8 @@ function DebugLogFilterForm({
   const [endDate, setEndDate] = useState(currentFilters.endDate ?? '');
   const [selectedEventType, setSelectedEventType] = useState(currentFilters.eventType ?? '');
   const [selectedToolName, setSelectedToolName] = useState(currentFilters.toolName ?? '');
+  const EVENT_TYPE_ALL_VALUE = '__all_event_types__';
+  const TOOL_NAME_ALL_VALUE = '__all_tools__';
 
   useEffect(() => {
     setStartDate(currentFilters.startDate ?? '');
@@ -86,7 +88,7 @@ function DebugLogFilterForm({
         <input type="hidden" name="endDate" value={endDate} />
         <input type="hidden" name="eventType" value={selectedEventType} />
         <input type="hidden" name="toolName" value={selectedToolName} />
-        <div className="flex-1 overflow-y-auto min-h-0 grid gap-4 lg:grid-cols-2 py-2">
+        <div className="flex-1 overflow-y-auto min-h-0 grid gap-4 lg:grid-cols-2 py-2 px-1">
           <div className="space-y-2">
             <label className="text-sm font-medium">Start date</label>
             <DatePicker
@@ -130,12 +132,17 @@ function DebugLogFilterForm({
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Event type</label>
-            <Select value={selectedEventType} onValueChange={setSelectedEventType}>
+            <Select
+              value={selectedEventType === '' ? EVENT_TYPE_ALL_VALUE : selectedEventType}
+              onValueChange={(value) =>
+                setSelectedEventType(value === EVENT_TYPE_ALL_VALUE ? '' : value)
+              }
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All</SelectItem>
+                <SelectItem value={EVENT_TYPE_ALL_VALUE}>All</SelectItem>
                 {EVENT_TYPE_OPTIONS.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
@@ -147,12 +154,17 @@ function DebugLogFilterForm({
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Tool name</label>
-            <Select value={selectedToolName} onValueChange={setSelectedToolName}>
+            <Select
+              value={selectedToolName === '' ? TOOL_NAME_ALL_VALUE : selectedToolName}
+              onValueChange={(value) =>
+                setSelectedToolName(value === TOOL_NAME_ALL_VALUE ? '' : value)
+              }
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All</SelectItem>
+                <SelectItem value={TOOL_NAME_ALL_VALUE}>All</SelectItem>
                 {TOOL_OPTIONS.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
