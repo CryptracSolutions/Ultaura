@@ -115,7 +115,7 @@ const configuration = {
           'Daily check-in calls',
           'Up to 10 reminders per line',
           'Memory & conversation history',
-          'Priority support',
+          '24/7 Priority support',
         ],
         plans: [
           {

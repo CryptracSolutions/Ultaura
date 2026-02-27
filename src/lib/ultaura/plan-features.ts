@@ -20,25 +20,25 @@ export const PLAN_LIMITS: Record<string, PlanLimitDetails> = {
     minutes: '200 minutes/month',
     lines: 'Up to 1 phone line',
     reminders: 'Up to 5 reminders per line',
-    support: 'Priority support',
+    support: '24/7 Priority support',
   },
   comfort: {
     minutes: '600 minutes/month',
     lines: 'Up to 2 phone lines',
     reminders: 'Up to 10 reminders per line',
-    support: 'Priority support',
+    support: '24/7 Priority support',
   },
   family: {
     minutes: '1,200 minutes/month',
     lines: 'Up to 4 phone lines',
     reminders: 'Unlimited reminders',
-    support: 'Priority support',
+    support: '24/7 Priority support',
   },
   payg: {
     minutes: '$0.15 per minute',
     lines: 'Unlimited phone lines',
     reminders: 'Unlimited reminders',
-    support: 'Priority support',
+    support: '24/7 Priority support',
   },
 };
 
