@@ -103,11 +103,8 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
             ) : null}
           </div>
 
-          {/* Summary + Call Activity */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <InsightsSummary summary={dashboard.summary} showMood={allowMood} />
-            <CallMetrics activity={dashboard.callActivity} />
-          </div>
+          <InsightsSummary summary={dashboard.summary} showMood={allowMood} />
+          <CallMetrics activity={dashboard.callActivity} />
 
           {/* Call History - collapsible */}
           <Accordion>
