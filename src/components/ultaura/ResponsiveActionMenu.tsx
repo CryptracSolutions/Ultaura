@@ -152,9 +152,9 @@ export function ResponsiveActionMenu({
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <DialogTitle className="truncate">{title ?? 'Actions'}</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-base font-semibold leading-snug break-words">{title ?? 'Actions'}</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground mt-1">
                 Select an action below
               </DialogDescription>
             </div>

@@ -280,7 +280,7 @@ export function RemindersPageClient({
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
                 {/* Line header */}
                 <div className="px-6 py-4 border-b border-border bg-muted/30">
-                  <h3 className="font-semibold text-foreground">{line.display_name}</h3>
+                  <h3 className="font-semibold text-primary">{line.display_name}</h3>
                   <p className="text-sm text-muted-foreground">
                     {activeCount} active reminders
                   </p>
