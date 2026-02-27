@@ -13,7 +13,7 @@ interface InsightsTabNavProps {
 const INSIGHTS_TABS = [
   { key: 'overview', label: 'Overview', pathSuffix: '' },
   { key: 'safety', label: 'Safety & Concerns', pathSuffix: '/safety' },
-  { key: 'mood', label: 'Mood & Wellness', pathSuffix: '/mood' },
+  { key: 'mood', label: 'Mood', pathSuffix: '/mood' },
   { key: 'engagement', label: 'Engagement', pathSuffix: '/engagement' },
   { key: 'conversations', label: 'Conversations', pathSuffix: '/conversations' },
   { key: 'memory', label: 'Memory', pathSuffix: '/memory' },

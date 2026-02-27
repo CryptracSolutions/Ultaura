@@ -101,23 +101,49 @@ export function CreateScheduleForm({
             <label className="block text-sm font-medium text-foreground mb-3">
               Which days should we call?
             </label>
-            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-              {DAYS_OF_WEEK.map((day, index) => (
-                <button
-                  key={day.value}
-                  data-autofocus={index === 0 ? true : undefined}
-                  type="button"
-                  onClick={() => toggleDay(day.value)}
-                  disabled={isLoading}
-                  className={`px-3 py-3 sm:px-4 sm:py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 ${
-                    selectedDays.includes(day.value)
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background text-foreground border-input hover:bg-muted'
-                  }`}
-                >
-                  {day.short}
-                </button>
-              ))}
+            <div className="space-y-3">
+              {/* Weekdays */}
+              <div>
+                <span className="text-xs text-muted-foreground mb-1.5 block">Weekdays</span>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS_OF_WEEK.filter((d) => d.value >= 1 && d.value <= 5).map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleDay(day.value)}
+                      disabled={isLoading}
+                      className={`w-14 h-10 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 ${
+                        selectedDays.includes(day.value)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background text-foreground border-input hover:bg-muted'
+                      }`}
+                    >
+                      {day.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Weekends */}
+              <div>
+                <span className="text-xs text-muted-foreground mb-1.5 block">Weekends</span>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS_OF_WEEK.filter((d) => d.value === 0 || d.value === 6).map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleDay(day.value)}
+                      disabled={isLoading}
+                      className={`w-14 h-10 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 ${
+                        selectedDays.includes(day.value)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background text-foreground border-input hover:bg-muted'
+                      }`}
+                    >
+                      {day.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               Select the days of the week for regular calls

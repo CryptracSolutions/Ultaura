@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Info, Share2 } from 'lucide-react';
+import { History, Info, Phone, Share2 } from 'lucide-react';
 import type { InsightsDashboard, CallSessionRow } from '~/lib/ultaura/types';
 import { InfoTip } from '~/core/ui/InfoTip';
 import { InsightsSummary } from '../../components/InsightsSummary';
@@ -109,7 +109,13 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
           {/* Call History - collapsible */}
           <Accordion>
             <AccordionItem value="call-history">
-              <AccordionTrigger>Call History</AccordionTrigger>
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold text-foreground">Call History</span>
+                  <InfoTip content="A complete list of all calls made and received over the past 30 days, including call duration and outcome." />
+                </div>
+              </AccordionTrigger>
               <AccordionContent>
                 <CallActivityList sessions={dashboard.callHistory} />
               </AccordionContent>

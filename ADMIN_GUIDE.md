@@ -1,6 +1,6 @@
 # Ultaura Admin Suite - Complete User Guide
 
-> **Last updated:** February 2026
+> **Last updated:** February 27, 2026
 > **Audience:** Platform owner / super-admin (non-developer)
 > **Purpose:** Definitive reference for every screen, button, and workflow in the Ultaura admin panel
 
@@ -63,6 +63,7 @@ Think of it as your mission control for running Ultaura.
 The admin panel uses a **three-layer security system** to make sure only authorized people can access it:
 
 1. **Layer 1 -- The Front Door (Middleware):** Before any admin page even starts loading, the system checks three things at the network level:
+
    - Are you logged in? If not, you're sent to the sign-in page.
    - Do you have the super-admin role? If not, you see a 404 page (the system hides the fact that the admin panel even exists from non-admins).
    - Have you completed MFA? If MFA is enforced (it is in production) and you haven't verified with your second factor, you're sent to the MFA gate page.
@@ -86,10 +87,12 @@ In production, MFA is **enforced** for all admin access. This means you need bot
 **How to get here:** Navigate to `/admin` without having completed MFA verification.
 
 **What you see:**
+
 - If MFA is enforced: A warning message explaining that MFA is required to access the admin panel.
 - If MFA is not enforced: An informational message recommending MFA setup.
 
 **What you can do:**
+
 - Click **Set Up MFA** -- this takes you to your profile settings page where you can configure an authenticator app.
 - Click **Continue Without MFA** -- this only appears when MFA is not enforced (typically in development). In production, this button is hidden.
 - Click **Back to Dashboard** -- returns you to the regular user dashboard.
@@ -98,7 +101,7 @@ In production, MFA is **enforced** for all admin access. This means you need bot
 
 ### Audit Logging
 
-Every action you take in the admin panel is permanently recorded in an audit log. This includes:
+Admin audit logging is comprehensive for sensitive and investigative actions, but not literally every single page interaction. Logged events include:
 
 - **Who did it:** Your user ID and email address
 - **What they did:** The specific action (e.g., "user.ban", "org.delete", "admin.search")
@@ -135,24 +138,24 @@ The page has **four tabs** across the top. Each tab reveals a different set of m
 
 Six stat cards:
 
-| Card | What It Shows |
-|------|---------------|
-| **MRR** | Monthly Recurring Revenue -- the total amount all paying subscribers are billed per month, calculated from active subscriptions. This is one of the most important business health metrics. |
-| **ARR** | Annual Recurring Revenue -- MRR multiplied by 12. Represents projected yearly revenue if current subscriptions hold steady. |
-| **Users** | Total number of registered user accounts on the platform (both active and inactive). |
-| **Organizations** | Total number of organizations (family groups) created on the platform. |
-| **Paying Customers** | Number of active, paid subscriptions (excludes trials and cancelled). |
-| **Trials** | Number of users currently in the 14-day free trial period. |
+| Card                 | What It Shows                                                                                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MRR**              | Monthly Recurring Revenue -- the total amount all paying subscribers are billed per month, calculated from active subscriptions. This is one of the most important business health metrics. |
+| **ARR**              | Annual Recurring Revenue -- MRR multiplied by 12. Represents projected yearly revenue if current subscriptions hold steady.                                                                 |
+| **Users**            | Total number of registered user accounts on the platform (both active and inactive).                                                                                                        |
+| **Organizations**    | Total number of organizations (family groups) created on the platform.                                                                                                                      |
+| **Paying Customers** | Number of active, paid subscriptions (excludes trials and cancelled).                                                                                                                       |
+| **Trials**           | Number of users currently in the 14-day free trial period.                                                                                                                                  |
 
 #### Revenue Tab
 
 Three stat cards plus a chart:
 
-| Card | What It Shows |
-|------|---------------|
-| **Overage / PAYG Revenue** | Total revenue from overage minutes (when users exceed their plan's included minutes) and pay-as-you-go usage. |
-| **Subscribers** | Breakdown of paying subscribers by billing interval -- how many are on monthly plans vs. annual plans. |
-| **Pending Cancellations** | Number of subscriptions that are set to cancel at the end of their current billing period (the user has cancelled but their subscription hasn't expired yet). |
+| Card                       | What It Shows                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overage / PAYG Revenue** | Total revenue from overage minutes (when users exceed their plan's included minutes) and pay-as-you-go usage.                                                 |
+| **Subscribers**            | Breakdown of paying subscribers by billing interval -- how many are on monthly plans vs. annual plans.                                                        |
+| **Pending Cancellations**  | Number of subscriptions that are set to cancel at the end of their current billing period (the user has cancelled but their subscription hasn't expired yet). |
 
 Below the cards is a **Plan Distribution Chart** -- a horizontal bar chart showing how many accounts are on each plan (Free Trial, Care, Comfort, Family, Usage Based). This tells you which plans are most popular.
 
@@ -160,37 +163,32 @@ Below the cards is a **Plan Distribution Chart** -- a horizontal bar chart showi
 
 Six stat cards:
 
-| Card | What It Shows |
-|------|---------------|
-| **Minutes Used This Month** | Total phone call minutes consumed across all accounts in the current period. |
-| **Minutes Allotted** | Total phone call minutes available across all active plans (the sum of every account's included minutes). |
-| **Active Lines** | Number of phone lines that are currently set up and active (lines that can receive or place calls). |
-| **Total Calls** | Number of phone calls made or received this month across the entire platform. |
-| **Call Answer Rate** | Percentage of outbound calls that were answered by the senior. A low rate might indicate scheduling issues. |
-| **Avg Call Duration** | Average length of a phone call in minutes and seconds. Helps gauge engagement -- longer calls generally mean better conversations. |
+| Card                        | What It Shows                                                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Minutes Used This Month** | Total phone call minutes consumed across all accounts in the current period.                                                                                              |
+| **Minutes Allotted**        | Total phone call minutes available across all active plans (the sum of every account's included minutes).                                                                 |
+| **Active Lines**            | Number of phone lines that are currently set up and active (lines that can receive or place calls).                                                                       |
+| **Total Calls**             | Number of phone calls made or received this month across the entire platform.                                                                                             |
+| **Call Answer Rate**        | Platform-level answered-call ratio from aggregated call records. Treat this as an overall engagement/connection metric (not a strict outbound-only senior-answer metric). |
+| **Avg Call Duration**       | Average length of a phone call in minutes and seconds. Helps gauge engagement -- longer calls generally mean better conversations.                                        |
 
 #### Costs Tab
 
 Two stat cards:
 
-| Card | What It Shows |
-|------|---------------|
-| **Twilio Costs This Month** | Total costs paid to Twilio (the phone provider) for call minutes and phone numbers. |
-| **AI Model Costs This Month** | Total costs paid to xAI for the Grok voice AI model usage. |
+| Card                          | What It Shows                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| **Twilio Costs This Month**   | Total costs paid to Twilio (the phone provider) for call minutes and phone numbers. |
+| **AI Model Costs This Month** | Total costs paid to xAI for the Grok voice AI model usage.                          |
 
-At the bottom of the page (visible on all tabs), you'll also see the **Encryption Health Card**. This automatically checks every 60 seconds in production (every 120 seconds in development) whether the platform's encryption system is working correctly. It shows:
-- **Checking** (while loading): The health check is in progress.
-- **Healthy** (green badge): Everything is working.
-- **Warning** (yellow badge): There might be an issue -- check the detail text.
-- **Auth/Config issue** (red badge): The health check couldn't authenticate or there's a configuration problem.
-- A **Refresh** button to manually re-check.
-- The last-checked timestamp.
+Note: the **Encryption Health Card** is currently shown on the **Diagnostics** page (not directly on the Overview tabs). It auto-checks every 60 seconds in production (every 120 seconds in development) and also supports manual refresh.
 
 ### What Actions You Can Take
 
 This page is primarily read-only -- it's a monitoring dashboard. You can:
+
 - **Switch between tabs** by clicking Overview, Revenue, Usage, or Costs.
-- **Refresh the Encryption Health Card** by clicking the Refresh button on the card.
+- **Use Diagnostics for encryption health** when you need to validate encryption status or run a manual refresh.
 
 ### When and Why You'd Use This
 
@@ -202,7 +200,7 @@ This page is primarily read-only -- it's a monitoring dashboard. You can:
 ### Important Things to Know
 
 - MRR and ARR are calculated from active subscription data in your database, not directly from Stripe. They should match, but if you notice a discrepancy, use the Billing Lookup page to cross-reference.
-- The Encryption Health Card auto-refreshes. If it ever shows "Warning" or "Auth/Config issue," investigate immediately on the Diagnostics page -- encryption is critical for protecting senior call data.
+- Encryption health should be checked on Diagnostics. If it ever shows "Warning" or "Auth/Config issue," investigate immediately -- encryption is critical for protecting senior call data.
 
 ---
 
@@ -219,6 +217,7 @@ The Search page is your universal lookup tool for finding any user, organization
 ### What You See on the Screen
 
 At the top is a **search form** with two parts:
+
 1. A **dropdown selector** for the search type, with four options:
    - **Email** -- search by the user's email address (partial matches work)
    - **Phone** -- search by a phone number associated with the user (searches Ultaura line phone numbers and traces back to the owning user)
@@ -230,6 +229,7 @@ At the top is a **search form** with two parts:
 Below the form, **search results** appear as hierarchical cards showing the full picture for each matched user:
 
 **User Card** (top level):
+
 - User ID (clickable link to user detail page)
 - Email address
 - Phone number
@@ -238,16 +238,19 @@ Below the form, **search results** appear as hierarchical cards showing the full
 - Status badge (Active or Banned)
 
 **Nested under each user -- Organizations:**
+
 - Organization name
-- The user's role in that organization (Owner, Admin, or Member)
+- The user's role in that organization (stored as role codes; some views may display numeric enum values)
 
 **Nested under each organization -- Accounts:**
+
 - Account ID
 - Account name
 - Plan name
 - Account status
 
 **Nested under each account -- Lines:**
+
 - Line display name
 - Phone number
 - Line status
@@ -259,7 +262,7 @@ This hierarchical view lets you see the complete picture: User -> Organization -
 - **Change the search type** by selecting from the dropdown (Email, Phone, User ID, Line Phone).
 - **Type your search query** and click **Search** or press Enter.
 - **Click on any user ID** in the results to go to their User Detail page.
-- **Click on any organization name** to navigate to that organization's detail page.
+- **Click on an organization entry** to open that organization's members view (from there you can navigate deeper into organization management).
 - **Click on any account** to see account details.
 
 ### When and Why You'd Use This
@@ -295,18 +298,19 @@ The Users page shows a paginated list of every registered user on the platform. 
 
 A **paginated table** with the following columns:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Avatar** | The user's profile photo (or a default placeholder) |
-| **ID** | The user's UUID, displayed as a clickable link that takes you to their detail page |
-| **Email** | The user's email address |
-| **Name** | The user's display name (may be blank if they haven't set one) |
-| **Created at** | When the user registered |
-| **Last sign in** | When they last logged in |
-| **Status** | A badge showing either "Active" (green) or "Banned" (red) |
-| **Actions** | A three-dot menu (**...**) with available actions |
+| Column           | What It Shows                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| **Avatar**       | The user's profile photo (or a default placeholder)                                |
+| **ID**           | The user's UUID, displayed as a clickable link that takes you to their detail page |
+| **Email**        | The user's email address                                                           |
+| **Name**         | The user's display name (may be blank if they haven't set one)                     |
+| **Created at**   | When the user registered                                                           |
+| **Last sign in** | When they last logged in                                                           |
+| **Status**       | A badge showing either "Active" (green) or "Banned" (red)                          |
+| **Actions**      | A three-dot menu (**...**) with available actions                                  |
 
 Below the table is a **pagination control** with:
+
 - A "rows per page" dropdown (20, 50, or 100 rows)
 - Previous and Next page buttons
 
@@ -315,12 +319,14 @@ Below the table is a **pagination control** with:
 For each user row, click the **... menu** to see available actions. The menu changes depending on the user's status:
 
 **For active (non-banned) users:**
+
 1. **Copy user ID** -- copies the user's UUID to your clipboard. Useful for support tickets or cross-referencing.
 2. **Impersonate User** -- opens a confirmation dialog. If you confirm, you'll be logged in as that user and redirected to their dashboard. (See [Impersonation Workflow](#i-need-to-impersonate-a-user-to-debug-their-view) for details.)
 3. **Ban User** (orange text) -- opens a confirmation dialog where you must type "BAN" to confirm. This prevents the user from logging in.
 4. **Delete User** (red text) -- opens a confirmation dialog where you must type "DELETE" to confirm. This permanently removes the user and their data.
 
 **For banned users:**
+
 1. **Copy user ID** -- same as above.
 2. **Reactivate User** -- lifts the ban and restores access.
 
@@ -354,6 +360,7 @@ The User Detail page shows everything about a single user: their identity, statu
 **Breadcrumbs** at the top: Admin > Users > [User ID]
 
 **User Information Section:**
+
 - **Status badge** -- Active (green) or Banned (red)
 - **Display Name** -- the user's chosen name
 - **Email** -- their email address
@@ -361,14 +368,15 @@ The User Detail page shows everything about a single user: their identity, statu
 
 **Organizations Table** showing every organization this user belongs to:
 
-| Column | What It Shows |
-|--------|---------------|
-| **ID** | The membership's internal ID |
-| **UUID** | The organization's UUID |
-| **Name** | The organization's name (clickable link to the organization detail page) |
-| **Role** | The user's role in that organization: Owner, Admin, or Member |
+| Column   | What It Shows                                                                     |
+| -------- | --------------------------------------------------------------------------------- |
+| **ID**   | The organization ID                                                               |
+| **UUID** | The organization's UUID                                                           |
+| **Name** | The organization's name (clickable link into the organization members/admin flow) |
+| **Role** | The user's role in that organization: Owner, Admin, or Member                     |
 
 **Actions Dropdown** (top-right corner) with these options:
+
 - **Impersonate** -- log in as this user (available for both active and banned users)
 - **Ban** (orange text) -- ban this user (only for active users)
 - **Reactivate** -- lift a ban (only for banned users)
@@ -379,7 +387,7 @@ Note: Unlike the users table's row menu, the detail page dropdown does not have 
 #### What Actions You Can Take
 
 - **Take action on the user** via the dropdown (impersonate, ban, reactivate, delete).
-- **Click any organization name** in the table to navigate to that organization's detail page.
+- **Click any organization name** in the table to navigate to that organization's members/admin flow.
 
 #### When and Why You'd Use This
 
@@ -410,29 +418,31 @@ At the top is a **search bar** for filtering organizations by name.
 
 Below is a **paginated table** with:
 
-| Column | What It Shows |
-|--------|---------------|
-| **ID** | Internal numeric ID |
-| **UUID** | The organization's unique identifier |
-| **Name** | The organization's display name |
-| **Subscription** | The plan for the organization's subscription (e.g., "Care", "Comfort") |
-| **Status** | Subscription status badge (e.g., Active, Trialing, Cancelled) |
-| **Period** | The current billing period end date -- shows "Renews [date]" or "Stops [date]" depending on whether the subscription is set to renew or cancel |
-| **Members** | Number of members, with invite count in parentheses if there are pending invites (e.g., "3 (1 invited)") |
-| **Actions** | Three-dot menu |
+| Column           | What It Shows                                                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ID**           | Internal numeric ID                                                                                                                            |
+| **UUID**         | The organization's unique identifier                                                                                                           |
+| **Name**         | The organization's display name                                                                                                                |
+| **Subscription** | The plan for the organization's subscription (e.g., "Care", "Comfort")                                                                         |
+| **Status**       | Subscription status badge (e.g., Active, Trialing, Cancelled)                                                                                  |
+| **Period**       | The current billing period end date -- shows "Renews [date]" or "Stops [date]" depending on whether the subscription is set to renew or cancel |
+| **Members**      | Number of members, with invite count in parentheses if there are pending invites (e.g., "3 (1 invited)")                                       |
+| **Actions**      | Three-dot menu                                                                                                                                 |
 
 **Pagination** at the bottom (10 organizations per page).
 
 #### What Actions You Can Take
 
 For each organization row, click the **... menu**:
+
 1. **Copy UUID** -- copies the organization UUID to your clipboard.
 2. **View Members** -- navigates to the dedicated members page for that organization.
 3. **Delete** (red text) -- opens a confirmation dialog where you must type "DELETE" to confirm. This permanently deletes the organization and all its associated data (accounts, lines, subscriptions).
 
 You can also:
+
 - **Search by name** using the search bar at the top.
-- **Click a row** to navigate to the organization detail page.
+- **Click a row** to navigate to the organization members view.
 - **Navigate between pages** using the pagination controls.
 
 #### When and Why You'd Use This
@@ -466,6 +476,7 @@ The Organization Detail page shows everything about a single organization: its m
 **Four sections:**
 
 **1. Organization Info**
+
 - Organization Name
 - UUID
 - Internal ID (numeric)
@@ -474,6 +485,7 @@ The Organization Detail page shows everything about a single organization: its m
 **2. Ultaura Accounts**
 
 A list of all accounts linked to this organization. Each account shows:
+
 - Account name
 - Status badge
 - Plan ID (which plan they're on)
@@ -483,18 +495,20 @@ A list of all accounts linked to this organization. Each account shows:
 
 A table showing every member of this organization:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Membership ID** | Internal ID for this membership record |
-| **User** | The member's display name or email |
-| **User ID** | Their UUID, as a clickable link to the User Detail page |
-| **Role** | A badge showing Owner (purple), Admin (blue), or Member (default) |
-| **Actions** | Three-dot menu with role and membership management options |
+| Column            | What It Shows                                                     |
+| ----------------- | ----------------------------------------------------------------- |
+| **Membership ID** | Internal ID for this membership record                            |
+| **User**          | The member's display name or email                                |
+| **User ID**       | Their UUID, as a clickable link to the User Detail page           |
+| **Role**          | A badge showing Owner (purple), Admin (blue), or Member (default) |
+| **Actions**       | Three-dot menu with role and membership management options        |
 
 Above the members table:
+
 - An **Add Member** button that opens a dialog
 
 For each member row, the **... menu** offers:
+
 - **View User** -- navigate to the User Detail page
 - **Set as Admin** -- change the member's role to Admin (not available for the owner)
 - **Set as Member** -- change the member's role to Member (not available for the owner)
@@ -503,12 +517,14 @@ For each member row, the **... menu** offers:
 Each non-owner member row also has a **Transfer Ownership** button next to the dropdown menu. Clicking it opens a dialog to transfer organization ownership to that specific member.
 
 **4. Quick Links**
+
 - **Full Members List** -- link to the dedicated members page (with pagination)
 - **Delete Organization** -- link to the delete confirmation modal
 
 #### What Actions You Can Take
 
 1. **Add a Member:**
+
    - Click the **Add Member** button
    - Enter the email address of an existing Ultaura user
    - Select their role (Member or Admin -- you cannot add someone directly as Owner)
@@ -516,16 +532,19 @@ Each non-owner member row also has a **Transfer Ownership** button next to the d
    - The user must already have an Ultaura account. If the email isn't found, you'll see an error.
 
 2. **Change a Member's Role:**
+
    - Click the **... menu** next to the member
    - Select **Set as Admin** or **Set as Member**
    - The change takes effect immediately
 
 3. **Remove a Member:**
+
    - Click the **... menu** next to the member
    - Select **Remove Member**
    - The member is immediately removed from the organization
 
 4. **Transfer Ownership:**
+
    - Click the **Transfer Ownership** button on the row of the member you want to make the new owner
    - A confirmation dialog appears showing who the current owner is and who will become the new owner (the member whose button you clicked)
    - You must type "TRANSFER" to confirm
@@ -533,6 +552,7 @@ Each non-owner member row also has a **Transfer Ownership** button next to the d
    - If something goes wrong during the promotion, the system attempts to roll back the demotion
 
 5. **View Account Details:**
+
    - Click **View Account** on any listed account to go to the Account Detail page
 
 6. **Delete Organization:**
@@ -573,17 +593,18 @@ A dedicated, full-page view of all members in an organization. This is a simplif
 
 A **paginated table** with:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Membership ID** | Internal membership record ID |
-| **User ID** | The member's UUID, clickable link to User Detail |
-| **Name** | Display name |
-| **Role** | Owner, Admin, or Member badge |
-| **Actions** | Menu with view and impersonation options |
+| Column            | What It Shows                                    |
+| ----------------- | ------------------------------------------------ |
+| **Membership ID** | Internal membership record ID                    |
+| **User ID**       | The member's UUID, clickable link to User Detail |
+| **Name**          | Display name                                     |
+| **Role**          | Owner, Admin, or Member badge                    |
+| **Actions**       | Menu with view and impersonation options         |
 
 #### What Actions You Can Take
 
 For each member, the **... menu** offers:
+
 - **View User** -- navigate to the User Detail page
 - **Impersonate User** -- impersonate this user (opens the impersonation confirmation flow)
 
@@ -604,11 +625,12 @@ The Billing Lookup page is your tool for investigating billing questions. It let
 #### What You See on the Screen
 
 **Search Form** at the top with five input fields:
+
 - **Email** -- the user's email address
 - **Organization UUID** -- the organization's unique identifier
 - **Account ID** -- the Ultaura account ID
-- **Stripe Customer ID** -- starts with "cus_"
-- **Stripe Subscription ID** -- starts with "sub_"
+- **Stripe Customer ID** -- starts with "cus\_"
+- **Stripe Subscription ID** -- starts with "sub\_"
 
 You only need to fill in one field -- the system will trace the connection to find the associated subscription. If you fill in multiple fields, only the first one (in top-to-bottom order) is used.
 
@@ -616,6 +638,7 @@ You only need to fill in one field -- the system will trace the connection to fi
 
 **Card 1: Database Subscription**
 What your system knows about this subscription:
+
 - Subscription ID
 - Account ID
 - Plan ID (e.g., "care", "comfort", "family")
@@ -628,6 +651,7 @@ What your system knows about this subscription:
 
 **Card 2: Stripe Customer**
 What Stripe knows about the customer:
+
 - Customer ID
 - Email address
 - Name
@@ -637,6 +661,7 @@ What Stripe knows about the customer:
 
 **Card 3: Stripe Subscription**
 What Stripe knows about the subscription:
+
 - Subscription ID
 - Status badge
 - Mode badge (Live/Test)
@@ -650,12 +675,12 @@ What Stripe knows about the subscription:
 **Card 4: Recent Invoices**
 A table of the last 5 invoices:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Date** | Invoice creation date |
-| **Amount** | Invoice total (e.g., "$19.00") |
-| **Status** | Badge: paid, open, draft, void, uncollectible |
-| **View** | Link to the invoice (opens the hosted invoice page if available, or Stripe Dashboard) |
+| Column     | What It Shows                                                                         |
+| ---------- | ------------------------------------------------------------------------------------- |
+| **Date**   | Invoice creation date                                                                 |
+| **Amount** | Invoice total (e.g., "$19.00")                                                        |
+| **Status** | Badge: paid, open, draft, void, uncollectible                                         |
+| **View**   | Link to the invoice (opens the hosted invoice page if available, or Stripe Dashboard) |
 
 #### What Actions You Can Take
 
@@ -695,31 +720,32 @@ The Subscribers page shows everyone who has signed up for Ultaura's email newsle
 
 **Stat Cards** at the top (six cards):
 
-| Card | What It Shows |
-|------|---------------|
-| **Confirmed** | Number of subscribers who have confirmed their email address |
-| **Pending** | Number who signed up but haven't confirmed yet |
-| **Unsubscribed** | Number who opted out |
-| **Blog Digest** | Number subscribed to the blog digest topic |
-| **Elder Care Tips** | Number subscribed to the elder care tips topic |
-| **Product Updates** | Number subscribed to the product updates topic |
+| Card                | What It Shows                                                |
+| ------------------- | ------------------------------------------------------------ |
+| **Confirmed**       | Number of subscribers who have confirmed their email address |
+| **Pending**         | Number who signed up but haven't confirmed yet               |
+| **Unsubscribed**    | Number who opted out                                         |
+| **Blog Digest**     | Number subscribed to the blog digest topic                   |
+| **Elder Care Tips** | Number subscribed to the elder care tips topic               |
+| **Product Updates** | Number subscribed to the product updates topic               |
 
 **Filter Controls** -- three dropdown selectors:
+
 - **Status:** All, Confirmed, Pending, Unsubscribed, Expired
 - **Source:** All, Homepage, Footer, Blog Listing, Blog Post
 - **Topic:** All, Blog Digest, Elder Care Tips, Product Updates
 
 **Subscriber Table** with:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Email** | The subscriber's email address |
-| **Name** | Their name (if provided) |
-| **Status** | Badge: Confirmed (green), Pending (yellow), Unsubscribed (red) |
-| **Topics** | Three small badges showing which topics they're subscribed to -- each shows the topic name with a subscribed/unsubscribed state |
-| **Source** | Where they signed up from (homepage, footer, blog listing, or blog post) |
-| **Confirmed** | Date they confirmed their subscription (if applicable) |
-| **Created** | Date they signed up |
+| Column        | What It Shows                                                                         |
+| ------------- | ------------------------------------------------------------------------------------- |
+| **Email**     | The subscriber's email address                                                        |
+| **Name**      | Their name (if provided)                                                              |
+| **Status**    | Badge: Confirmed (green), Pending (yellow), Unsubscribed (neutral)                    |
+| **Topics**    | Three compact badges using short labels (BD, ECT, PU) to indicate topic subscriptions |
+| **Source**    | Where they signed up from (homepage, footer, blog listing, or blog post)              |
+| **Confirmed** | Date they confirmed their subscription (if applicable)                                |
+| **Created**   | Date they signed up                                                                   |
 
 Pagination at the bottom.
 
@@ -759,11 +785,11 @@ A **New Broadcast** button at the top right.
 
 A **table of all broadcasts**:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Subject** | The email subject line, clickable to view broadcast details |
-| **Status** | Badge showing the broadcast state: Draft (gray), Queued (blue), Sending (blue), Sent (green), Failed (red), Cancelled (gray), Scheduled (yellow) |
-| **Created** | When the broadcast was created |
+| Column      | What It Shows                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Subject** | The email subject line, clickable to view broadcast details                                                                                      |
+| **Status**  | Badge showing the broadcast state: Draft (gray), Queued (blue), Sending (blue), Sent (green), Failed (red), Cancelled (gray), Scheduled (yellow) |
+| **Created** | When the broadcast was created                                                                                                                   |
 
 #### What Actions You Can Take
 
@@ -810,12 +836,14 @@ The Broadcast Composer is a full email editor where you write and send newslette
 #### What Actions You Can Take
 
 1. **Compose the email:**
+
    - Enter a subject line
    - Optionally enter preview text
    - Select the target topic (determines which subscribers receive it)
    - Write your content in the rich text editor using the formatting tools
 
 2. **Send immediately:**
+
    - Click **Send Now**
    - A browser confirmation dialog appears: "Are you sure you want to send this broadcast now? This cannot be undone."
    - Click **OK** to send
@@ -862,11 +890,13 @@ The Broadcast Detail page shows the full content and status of a single broadcas
 - **Email content preview** -- the full HTML content of the broadcast rendered as it would appear in an email
 
 If the broadcast is in **Draft** or **Queued** status:
+
 - A **Cancel Broadcast** button (red)
 
 #### What Actions You Can Take
 
 - **Cancel a broadcast** that hasn't been sent yet:
+
   1. Click **Cancel Broadcast**
   2. The broadcast status changes to Cancelled and it will not be delivered
 
@@ -875,7 +905,7 @@ If the broadcast is in **Draft** or **Queued** status:
 #### When and Why You'd Use This
 
 - **Reviewing what was sent** -- check the content of a past broadcast.
-- **Canceling a scheduled broadcast** -- if you notice an error in a scheduled broadcast, cancel it before it goes out.
+- **Canceling an unsent broadcast** -- if you notice an error while it is still Draft or Queued, cancel it before it goes out.
 - **Checking delivery status** -- see if a broadcast was successfully sent or if it failed.
 
 #### Important Things to Know
@@ -899,11 +929,13 @@ The Changelog page is where you manage "What's New" updates for Ultaura users. Y
 #### What You See on the Screen
 
 **Three action buttons** at the top:
+
 1. **New Entry** -- creates a new changelog draft
 2. **Retry Unsent Email** -- retries sending notification emails for the latest batch that failed to send
 3. **Publish & Send Email** -- publishes all draft entries and sends email notifications
 
 **Changelog Admin card** explaining the publishing workflow:
+
 - How the "Publish & Send Email" button works (publishes drafts and sends notifications)
 - How the "Retry Latest Unsent Email" button works (resends emails for published entries that failed)
 
@@ -911,34 +943,38 @@ The Changelog page is where you manage "What's New" updates for Ultaura users. Y
 
 **Entries Table:**
 
-| Column | What It Shows |
-|--------|---------------|
-| **Title** | The entry title, with the description shown below it in smaller text, and the sort order number |
-| **Category** | A badge showing the category (New Feature, Improvement, Fix, or Announcement) |
-| **Status** | Published (green) or Draft (gray) |
-| **Published At** | When the entry was published (blank for drafts) |
-| **Email Sent** | Whether notification emails were sent for this entry, with the send timestamp |
-| **Actions** | Three-dot menu with Edit and Delete options |
+| Column           | What It Shows                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| **Title**        | The entry title, with the description shown below it in smaller text, and the sort order number |
+| **Category**     | A badge showing the category (New Feature, Improvement, Fix, or Announcement)                   |
+| **Status**       | Published (green) or Draft (gray)                                                               |
+| **Published At** | When the entry was published (blank for drafts)                                                 |
+| **Email Sent**   | Whether notification emails were sent for this entry, with the send timestamp                   |
+| **Actions**      | Three-dot menu with Edit and Delete options                                                     |
 
 #### What Actions You Can Take
 
 1. **Create a New Entry:**
+
    - Click **New Entry**
    - A dialog appears with: Title (required), Description (required), Category (required, select from dropdown), Sort Order (optional number for controlling display order)
    - Fill in the fields and click **Save**
    - The entry is created as a Draft
 
 2. **Edit an Entry:**
+
    - Click the **... menu** on any entry -> **Edit**
    - The same dialog appears with the current values pre-filled
    - Make your changes and click **Save**
 
 3. **Delete an Entry:**
+
    - Click the **... menu** on any entry -> **Delete**
    - A confirmation dialog appears
    - Click **"Delete Entry"** to permanently delete it
 
 4. **Publish All Drafts & Send Email:**
+
    - Click **Publish & Send Email**
    - All draft entries are published (made visible to users)
    - Email notifications are sent to subscribed users
@@ -985,6 +1021,7 @@ The Timeline is the most powerful observation tool in the admin panel. It create
 **Filter Bar** across the top, organized into four groups:
 
 **Source Filters** (toggle buttons grouped by category):
+
 - **Calls:** Call Sessions, Call Events, Telephony Events
 - **Safety & Scheduling:** Safety Events, Reminders, Schedule Events
 - **Contacts:** Trusted Contacts, Notification Recipients
@@ -993,21 +1030,24 @@ The Timeline is the most powerful observation tool in the admin panel. It create
 Each source has a color-coded badge. Toggle them on/off to show/hide those event types in the timeline.
 
 **Redaction Preview Selector** -- three options:
+
 - **Admin Full** -- you see everything (the default)
 - **Payer View** -- simulates what a family member/caregiver sees (some details hidden)
 - **Recipient View** -- simulates what the senior sees (most details hidden)
 
 **ID Filters** -- two text inputs:
+
 - **Account UUID** -- filter to show events for a specific account
 - **Line UUID** -- filter to show events for a specific phone line
 - **Apply** and **Clear** buttons
 
-The timeline also supports filtering by User ID or Organization ID via URL parameters. When you navigate to the timeline from a user or organization context (e.g., from Search results), the system automatically resolves the user/organization to its associated accounts and lines, showing all relevant events.
+The timeline supports URL-based filtering context in addition to the Account UUID and Line UUID inputs. In day-to-day admin work, the most reliable direct filters are Account UUID and Line UUID.
 
 **The Timeline** itself is a vertical list of events, each showing:
+
 - A **color-coded dot** indicating the source type
 - A **source badge** (e.g., "Call Session", "Safety Event", "Reminder")
-- A **summary** describing what happened (e.g., "Inbound call -- completed -- 4m 32s", "Tier 2 safety event detected")
+- A **summary** describing what happened (e.g., "Inbound call -- completed -- 4m 32s", "Medium safety event detected")
 - A **relative timestamp** (e.g., "2 hours ago", "Yesterday at 3:15 PM")
 - **Metadata tags** showing the associated Account ID and Line ID
 - A **"View Raw" toggle** that expands to show the full JSON payload of the event
@@ -1021,9 +1061,10 @@ The timeline also supports filtering by User ID or Organization ID via URL param
 2. **Filter by account or line** -- enter an Account UUID or Line UUID in the ID filter fields and click **Apply**. Click **Clear** to remove the filter.
 
 3. **Switch redaction mode** -- click between Admin Full, Payer View, and Recipient View to see how the same events look under different privacy levels:
+
    - **Admin Full:** Everything is visible, including Twilio session IDs, safety signal details, exact phone numbers, consent audit details, and raw payload data.
-   - **Payer View:** Sensitive details are hidden. Call sessions show direction, status, and duration but hide Twilio IDs. Safety events show the tier but hide the specific signals and actions taken. Encrypted reminder messages show as "[hidden]." Trusted contact phone numbers are hidden. Consent audit old/new values are hidden.
-   - **Recipient View:** Only safety events are visible, and even those only show the tier level.
+   - **Payer View:** Sensitive details are hidden. Call sessions show direction, status, and duration but hide Twilio IDs. Safety events show severity but hide specific signals and actions taken. Encrypted reminder messages show as "[hidden]." Trusted contact phone numbers are hidden. Consent audit old/new values are hidden.
+   - **Recipient View:** Only safety events are visible, and even those only show a minimal severity-level summary.
 
 4. **View raw data** -- click "View Raw" on any event to expand the full JSON payload. This shows every field the system recorded for that event.
 
@@ -1063,35 +1104,35 @@ A banner at the top shows the **log retention period** (how many days of logs ar
 
 A **Filters** button that opens a filter dialog with six filter options:
 
-| Filter | What It Does |
-|--------|--------------|
-| **Start Date** | Only show logs from this date onward |
-| **End Date** | Only show logs up to this date |
-| **Call Session ID** | Filter to a specific phone call |
-| **Account ID** | Filter to a specific account |
-| **Event Type** | Filter by: DTMF (keypad), Tool Call, State Change, Error, Safety Tier |
-| **Tool Name** | Filter by specific tool (16 tools available, including: set_reminder, list_reminders, edit_reminder, pause_reminder, resume_reminder, snooze_reminder, cancel_reminder, schedule_call, store_memory, update_memory, forget_memory, mark_private, choose_overage_action, request_opt_out, log_safety_concern, request_upgrade) |
+| Filter              | What It Does                                                                                                                                                                                                                                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Start Date**      | Only show logs from this date onward                                                                                                                                                                                                                                                                                          |
+| **End Date**        | Only show logs up to this date                                                                                                                                                                                                                                                                                                |
+| **Call Session ID** | Filter to a specific phone call                                                                                                                                                                                                                                                                                               |
+| **Account ID**      | Filter to a specific account                                                                                                                                                                                                                                                                                                  |
+| **Event Type**      | Filter by: DTMF (keypad), Tool Call, State Change, Error, Safety Tier                                                                                                                                                                                                                                                         |
+| **Tool Name**       | Filter by specific tool (16 tools available, including: set_reminder, list_reminders, edit_reminder, pause_reminder, resume_reminder, snooze_reminder, cancel_reminder, schedule_call, store_memory, update_memory, forget_memory, mark_private, choose_overage_action, request_opt_out, log_safety_concern, request_upgrade) |
 
-When filters are active, the button shows a **badge with the count** of active filters, and **pills** appear below showing each active filter with an option to remove it.
+When filters are active, the button shows a **badge with the count** of active filters, and **pills** appear below showing each active filter.
 
 **Debug Log Table:**
 
-| Column | What It Shows |
-|--------|---------------|
-| **Created** | Date and time of the event |
-| **Event** | Badge showing: DTMF, Tool Call, State Change, Error, or Safety Tier |
-| **Tool** | Badge showing which voice AI tool was used (blank if not a tool call event) |
-| **Call Session** | Truncated session ID (hover to see full) |
-| **Account** | Truncated account ID (hover to see full) |
-| **Payload** | The event data -- click to expand. Shows "[Encrypted]" for encrypted payloads, or "[Unable to decrypt]" if the system couldn't decrypt it |
-| **Metadata** | Additional context data -- click to expand |
+| Column           | What It Shows                                                                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Created**      | Date and time of the event                                                                                                                |
+| **Event**        | Badge showing: DTMF, Tool Call, State Change, Error, or Safety Tier                                                                       |
+| **Tool**         | Badge showing which voice AI tool was used (blank if not a tool call event)                                                               |
+| **Call Session** | Truncated session ID (hover to see full)                                                                                                  |
+| **Account**      | Truncated account ID (hover to see full)                                                                                                  |
+| **Payload**      | The event data -- click to expand. Shows "[Encrypted]" for encrypted payloads, or "[Unable to decrypt]" if the system couldn't decrypt it |
+| **Metadata**     | Additional context data -- click to expand                                                                                                |
 
 Pagination at the bottom.
 
 #### What Actions You Can Take
 
 1. **Apply filters** -- click the Filters button, set your criteria, and apply. The table updates to show only matching logs.
-2. **Remove individual filters** -- click the "x" on any filter pill to remove it.
+2. **Clear or adjust filters** -- reopen the Filters dialog to change values or clear them.
 3. **Expand payloads** -- click on any Payload or Metadata cell to see the full JSON data.
 4. **Page through results** -- use the pagination controls.
 
@@ -1127,32 +1168,33 @@ The Diagnostics page is your system health dashboard. It runs automated checks a
 
 **Diagnostic Cards Grid** -- seven cards total. Six standard diagnostic checks plus the Encryption Health Card:
 
-| Check | What It Tests | Pass Means | Fail Means |
-|-------|--------------|------------|------------|
-| **Supabase Admin Client** | Can the system connect to the database and read data? | Database is reachable and working | Database connection is broken -- calls, signups, and the dashboard will all be affected |
-| **Supabase Auth Admin** | Can the system manage user authentication? | Auth service is working | Auth is broken -- users can't sign in, sign up, or manage their accounts |
-| **Stripe API** | Can the system connect to Stripe for billing? | Billing integration is working | Stripe connection is broken -- payments, subscription changes, and checkout will fail |
-| **Environment Variables** | Are all required configuration values present? | All 7 critical environment variables are set (Stripe keys, Supabase URLs and keys, MFA config, API secrets) | Missing configuration -- the specific missing variable is listed in the error detail |
-| **Encryption Key Health** | Is the master encryption key valid? | The encryption key exists and is in the correct format (64-character hex string) | Encryption is broken -- call data, memories, and other sensitive information cannot be encrypted or decrypted |
-| **Telephony Event Log** | Is the telephony system logging events? | Recent telephony events exist, meaning calls are being processed | No recent events -- the telephony system may be down or not logging correctly |
+| Check                     | What It Tests                                         | Pass Means                                                                                                  | Fail Means                                                                                                    |
+| ------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Supabase Admin Client** | Can the system connect to the database and read data? | Database is reachable and working                                                                           | Database connection is broken -- calls, signups, and the dashboard will all be affected                       |
+| **Supabase Auth Admin**   | Can the system manage user authentication?            | Auth service is working                                                                                     | Auth is broken -- users can't sign in, sign up, or manage their accounts                                      |
+| **Stripe API**            | Can the system connect to Stripe for billing?         | Billing integration is working                                                                              | Stripe connection is broken -- payments, subscription changes, and checkout will fail                         |
+| **Environment Variables** | Are all required configuration values present?        | All 7 critical environment variables are set (Stripe keys, Supabase URLs and keys, MFA config, API secrets) | Missing configuration -- the specific missing variable is listed in the error detail                          |
+| **Encryption Key Health** | Is the master encryption key valid?                   | The encryption key exists and is in the correct format (64-character hex string)                            | Encryption is broken -- call data, memories, and other sensitive information cannot be encrypted or decrypted |
+| **Telephony Event Log**   | Is the telephony system logging events?               | Recent telephony events exist, meaning calls are being processed                                            | No recent events -- the telephony system may be down or not logging correctly                                 |
 
 Each card shows:
+
 - The check name
 - A **Pass** (green), **Fail** (red), or **Warn** (yellow) badge
 - Detail text explaining the result
 - Error message (if the check failed)
 
-Below the diagnostic cards is the **Encryption Health Card** (the same auto-refreshing card from the Overview dashboard).
+Below the diagnostic cards is the **Encryption Health Card** (the primary location for this auto-refreshing encryption health check).
 
 **Admin Audit Log Table** at the bottom -- the last 20 admin actions:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Timestamp** | When the action was taken |
-| **Admin** | Who performed the action (shows the admin's email address) |
-| **Action** | The action code in monospace font (e.g., "user.ban", "admin.search", "stripe.lookup") |
-| **Target** | The type and ID of what was acted on |
-| **Details** | Truncated JSON showing additional context (hover or click to see full details) |
+| Column        | What It Shows                                                                         |
+| ------------- | ------------------------------------------------------------------------------------- |
+| **Timestamp** | When the action was taken                                                             |
+| **Admin**     | Who performed the action (shows the admin's email address)                            |
+| **Action**    | The action code in monospace font (e.g., "user.ban", "admin.search", "stripe.lookup") |
+| **Target**    | The type and ID of what was acted on                                                  |
+| **Details**   | Truncated JSON string showing additional context                                      |
 
 #### What Actions You Can Take
 
@@ -1194,17 +1236,18 @@ A **search bar** at the top for filtering feedback by text content.
 
 A **paginated table** (8 submissions per page):
 
-| Column | What It Shows |
-|--------|---------------|
-| **Type** | A colored badge: red for **Bug**, blue for **Question**, green for **Feedback** (or other types) |
-| **Text** | The first 35 characters of the feedback, clickable to view the full submission |
-| **User** | A "View User" link to the user's admin detail page, or a dash (-) if the feedback was submitted anonymously |
-| **Language** | The user's browser language (e.g., "en-US") |
-| **Screen Size** | The user's screen dimensions (e.g., "1440x900") -- helpful for reproducing UI bugs |
-| **Date** | When the feedback was submitted |
-| **Actions** | Three-dot menu |
+| Column          | What It Shows                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Type**        | A colored badge: red for **Bug**, blue for **Question**, green for **Feedback** (or other types)            |
+| **Text**        | The first 35 characters of the feedback, clickable to view the full submission                              |
+| **User**        | A "View User" link to the user's admin detail page, or a dash (-) if the feedback was submitted anonymously |
+| **Language**    | The user's browser language (e.g., "en-US")                                                                 |
+| **Screen Size** | The user's screen dimensions (e.g., "1440x900") -- helpful for reproducing UI bugs                          |
+| **Date**        | When the feedback was submitted                                                                             |
+| **Actions**     | Three-dot menu                                                                                              |
 
 For each row, the **... menu** offers:
+
 1. **View** -- opens the full feedback detail page
 2. **Reply** (only for questions) -- opens your email client with the submitter's email address pre-filled
 3. **Delete** -- opens a confirmation dialog ("Are you sure you want to delete this feedback submission?") with a red **Yep, delete it** button
@@ -1249,6 +1292,7 @@ The full view of a single feedback submission, including the complete text, any 
 **Breadcrumbs:** Admin > Feedback > Submission
 
 **Metadata badges** at the top:
+
 - **Type** -- Bug (red), Question (blue), or Feedback (green)
 - **User** -- the user's ID as a clickable link to their admin profile, or "Anonymous"
 - **Screen** -- the page/screen the user was on when they submitted feedback (e.g., "Dashboard", "Settings")
@@ -1287,6 +1331,7 @@ The Account Detail page shows everything about a single Ultaura account -- the c
 **Five sections:**
 
 **1. Account Info**
+
 - Account Status badge (e.g., Active, Trialing) -- displayed prominently in the header
 - Account ID (UUID)
 - Account Name
@@ -1302,18 +1347,19 @@ The Account Detail page shows everything about a single Ultaura account -- the c
 
 Four stat cards:
 
-| Card | What It Shows |
-|------|---------------|
-| **Included Minutes** | How many minutes are included in the account's plan (e.g., 200 for Care, 600 for Comfort) |
-| **Minutes Used** | How many minutes have been used in the current billing cycle |
-| **Overage Minutes** | How many minutes were used beyond the included amount (these are billed at $0.15/minute) |
-| **Total Connected (min)** | Total minutes of actual connected call time |
+| Card                      | What It Shows                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| **Included Minutes**      | How many minutes are included in the account's plan (e.g., 200 for Care, 600 for Comfort) |
+| **Minutes Used**          | How many minutes have been used in the current billing cycle                              |
+| **Overage Minutes**       | How many minutes were used beyond the included amount (these are billed at $0.15/minute)  |
+| **Total Connected (min)** | Total minutes of actual connected call time                                               |
 
 Below the cards: **Cycle Start** and **Cycle End** dates showing the current billing cycle period.
 
 **3. Subscription**
 
 Full subscription details:
+
 - Subscription ID
 - Status (active, trialing, cancelled, etc.)
 - Plan name
@@ -1327,15 +1373,16 @@ Full subscription details:
 
 A table of all phone lines on this account:
 
-| Column | What It Shows |
-|--------|---------------|
+| Column           | What It Shows                                                               |
+| ---------------- | --------------------------------------------------------------------------- |
 | **Display Name** | The name given to this line (usually the senior's name, e.g., "Mom's Line") |
-| **Phone** | The Ultaura phone number assigned to this line |
-| **Status** | Active, Paused, etc. |
-| **Timezone** | The timezone configured for this line (affects call scheduling) |
-| **Actions** | A "View" button that links to the Line Detail page |
+| **Phone**        | The Ultaura phone number assigned to this line                              |
+| **Status**       | Active, Paused, etc.                                                        |
+| **Timezone**     | The timezone configured for this line (affects call scheduling)             |
+| **Actions**      | A "View" button that links to the Line Detail page                          |
 
 **5. Quick Links**
+
 - **View Timeline** -- opens the Timeline page filtered to this account
 
 ### What Actions You Can Take
@@ -1373,6 +1420,7 @@ The Line Detail page shows everything about a single phone line -- the specific 
 **Four sections:**
 
 **1. Line Info**
+
 - Line Status badge (e.g., Active, Paused) -- displayed prominently in the header
 - Line ID (full UUID)
 - Short ID (abbreviated version, used in some interfaces)
@@ -1384,6 +1432,7 @@ The Line Detail page shows everything about a single phone line -- the specific 
 - Account ID (link back to the parent account)
 
 **2. Call Configuration**
+
 - **Quiet Hours Start** and **Quiet Hours End** -- the time window when no calls should be made (e.g., 9 PM to 8 AM)
 - **Voicemail Behavior** -- what the AI does when the call goes to voicemail
 - **Inbound Allowed** -- badge showing whether the senior can call Ultaura (yes/no)
@@ -1394,17 +1443,18 @@ The Line Detail page shows everything about a single phone line -- the specific 
 
 A table showing the most recent phone calls:
 
-| Column | What It Shows |
-|--------|---------------|
-| **Session ID** | Truncated call session identifier |
-| **Direction** | Badge: Inbound (the senior called Ultaura) or Outbound (Ultaura called the senior) |
-| **Status** | Badge: Completed, No Answer, Busy, Failed, etc. |
-| **Answered By** | Who/what answered (e.g., "human", "voicemail") |
-| **Duration** | Call length in minutes and seconds |
-| **End Reason** | Why the call ended (e.g., "normal", "timeout") |
-| **Created** | When the call happened |
+| Column          | What It Shows                                                                      |
+| --------------- | ---------------------------------------------------------------------------------- |
+| **Session ID**  | Truncated call session identifier                                                  |
+| **Direction**   | Badge: Inbound (the senior called Ultaura) or Outbound (Ultaura called the senior) |
+| **Status**      | Badge: Completed, No Answer, Busy, Failed, etc.                                    |
+| **Answered By** | Who/what answered (e.g., "human", "voicemail")                                     |
+| **Duration**    | Call length in minutes and seconds                                                 |
+| **End Reason**  | Why the call ended (e.g., "normal", "timeout")                                     |
+| **Created**     | When the call happened                                                             |
 
 **4. Quick Links**
+
 - **View Parent Account** -- navigate to the Account Detail page
 - **View Timeline** -- open the Timeline filtered to this line
 
@@ -1466,10 +1516,10 @@ A table showing the most recent phone calls:
 3. Go to **Timeline** (Sidebar -> Observe -> Timeline).
 4. Enter the Account UUID or Line UUID in the ID filters and click **Apply**.
 5. Turn on the **Safety Events** and **Call Sessions** source filters (turn others off to reduce noise).
-6. Look for **Safety Events** -- these are flagged when the AI detects something concerning. Check the tier level:
-   - Tier 1: Low concern (informational)
-   - Tier 2: Moderate concern
-   - Tier 3: High concern (immediate attention needed)
+6. Look for **Safety Events** -- these are flagged when the AI detects something concerning. Check the severity level:
+   - Low: informational / lower concern
+   - Medium: moderate concern
+   - High: urgent concern (immediate attention needed)
 7. For each safety event, click **View Raw** to see the full details: what signals triggered the flag, what action the system took, and the associated call session.
 8. Cross-reference with **Call Sessions** around the same time to understand the full context.
 9. If you need more detail about what happened during the call, go to **Debug Logs** (Sidebar -> Observe -> Debug Logs), filter by the Call Session ID, and review the tool calls and state changes.
@@ -1524,6 +1574,7 @@ A table showing the most recent phone calls:
 7. **To return to your admin account**: Log out of the impersonated session and log back in with your own credentials. You can also navigate directly to `/admin` (you'll need to re-authenticate).
 
 **Safety notes:**
+
 - You cannot impersonate yourself.
 - The impersonation is audit-logged with your admin ID, the target user's ID, and the timestamp. There is a permanent record that cannot be deleted.
 - While impersonated, you have full access to the user's account. Be careful not to make changes -- you're there to observe, not modify.
@@ -1533,12 +1584,13 @@ A table showing the most recent phone calls:
 
 **Ban vs. Delete -- when to use which:**
 
-| Action | When to Use | Reversible? |
-|--------|-------------|-------------|
-| **Ban** | The user is violating terms of service but you might need their data for investigation, or you may want to reactivate them later | Yes -- you can reactivate at any time |
-| **Delete** | The user needs to be permanently removed and all their data destroyed. Use for spam accounts, or after an investigation is complete and you're certain about removal. | No -- permanent and irreversible |
+| Action     | When to Use                                                                                                                                                           | Reversible?                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| **Ban**    | The user is violating terms of service but you might need their data for investigation, or you may want to reactivate them later                                      | Yes -- you can reactivate at any time |
+| **Delete** | The user needs to be permanently removed and all their data destroyed. Use for spam accounts, or after an investigation is complete and you're certain about removal. | No -- permanent and irreversible      |
 
 **To ban a user:**
+
 1. Find the user via **Search** or the **Users** list.
 2. Navigate to their **User Detail** page (or use the row menu in the Users table).
 3. Click the **... menu** -> **Ban User**.
@@ -1548,6 +1600,7 @@ A table showing the most recent phone calls:
 7. Their data remains intact for investigation purposes.
 
 **To delete a user:**
+
 1. Find the user via **Search** or the **Users** list.
 2. Navigate to their **User Detail** page (or use the row menu in the Users table).
 3. Click the **... menu** -> **Delete User**.
@@ -1556,6 +1609,7 @@ A table showing the most recent phone calls:
 6. The user and their data are permanently removed. You're redirected to the Users list.
 
 **Recommended workflow for bad actors:**
+
 1. **First, ban** -- this immediately blocks access while preserving data.
 2. **Investigate** -- use Timeline and Debug Logs to understand what happened.
 3. **Document** -- note the audit log entries for your records.
@@ -1577,7 +1631,7 @@ A table showing the most recent phone calls:
 4. Switch to the **Usage Tab**:
    - **Minutes Used vs. Allotted** shows overall platform utilization. If total usage is well below allotted, users aren't fully utilizing their plans. If it's near or above, expect overage revenue.
    - **Active Lines** shows how many seniors are actually connected
-   - **Call Answer Rate** indicates engagement quality -- a low rate might mean calls are happening at wrong times
+   - **Call Answer Rate** indicates overall engagement/connection quality in aggregate call data -- a low rate can still suggest timing or reachability problems
    - **Avg Call Duration** indicates conversation quality -- longer calls generally mean better AI engagement
 5. Switch to the **Costs Tab**:
    - **Twilio Costs** and **AI Model Costs** are your two main variable costs
@@ -1588,7 +1642,7 @@ A table showing the most recent phone calls:
 1. Find the relevant account or line (via **Search** or by navigating from a user's detail page).
 2. Go to the **Line Detail** page for the specific phone line.
 3. Check the **Recent Call Sessions** table -- look for the failed call. Note:
-   - The **Status** column will show "Failed" or another error status
+   - The **Status** column will show "Failed" or another non-success status
    - The **End Reason** column may give a clue (e.g., "timeout", "error", "busy")
    - Note the **Session ID** of the failed call
 4. Go to **Debug Logs** (Sidebar -> Observe -> Debug Logs).
@@ -1616,46 +1670,46 @@ A table showing the most recent phone calls:
    - Publishes all draft entries (they become visible on the public changelog page)
    - Sends a single email notification to subscribed users summarizing all the new entries
 8. If the email sending fails (you'll see an error message), click **Retry Unsent Email** to try again.
-9. Verify in the table that entries show "Published" status and the "Email Sent" column shows a timestamp.
+9. Verify in the table that entries show "Published" status. The "Email Sent" field reflects send state, but a timestamp may be blank in some records depending on the underlying entry data.
 
 ---
 
 ## 11. Glossary
 
-| Term | Definition |
-|------|-----------|
-| **AAL2** | Authenticator Assurance Level 2 -- a security standard meaning the user has verified their identity with at least two different authentication methods (e.g., password + authenticator app). Required for admin access in production. |
-| **Account** | An Ultaura account represents one subscription and billing relationship. It belongs to an organization and contains one or more phone lines. |
-| **ARR** | Annual Recurring Revenue -- the total value of all active subscriptions projected over a full year (MRR x 12). |
-| **Audit Log** | A permanent, tamper-proof record of every admin action. Includes who did it, what they did, when, from what IP address, and with what browser. |
-| **Broadcast** | A one-time email sent to newsletter subscribers. Can be sent immediately or scheduled for later. |
-| **CSRF** | Cross-Site Request Forgery -- a type of attack where a malicious website tricks your browser into performing actions. The admin panel has built-in protection against this. |
-| **DEK** | Data Encryption Key -- a unique encryption key assigned to each Ultaura account. Used to encrypt sensitive data (call content, memories, reminders) so that even database access alone can't read the data. |
-| **Do Not Call** | A line setting that prevents Ultaura from making any outbound calls to that phone number. The senior can still call Ultaura inbound if inbound is allowed. |
-| **DTMF** | Dual-Tone Multi-Frequency -- the technical term for phone keypad tones. When a senior presses a number key during a call, it's logged as a DTMF event. |
-| **E.164** | The international standard format for phone numbers (e.g., +15551234567). Includes the country code prefix. |
-| **Impersonation** | Logging in as another user to see exactly what they see. Used for debugging user-reported issues. Always audit-logged. |
-| **KEK** | Key Encryption Key -- the master encryption key used to encrypt/decrypt individual DEKs. Stored as an environment variable, never in the database. |
-| **Line** | A phone line in Ultaura -- represents the connection to one senior. Each line has its own phone number, call schedule, quiet hours, and AI personality. |
-| **MFA** | Multi-Factor Authentication -- requiring two or more forms of identity verification (typically password + authenticator app code). |
-| **MRR** | Monthly Recurring Revenue -- the total amount of revenue generated by all active subscriptions per month. The most common SaaS metric for tracking business health. |
-| **Organization** | A family group in Ultaura. Contains members (family/caregivers), accounts (billing relationships), and lines (connections to seniors). |
-| **Overage** | Minutes used beyond what's included in a subscription plan. Billed at $0.15 per minute. |
-| **Overage Cap** | The maximum dollar amount of overage charges allowed per billing cycle (default: $100). Protects users from unexpectedly large bills. |
-| **PAYG** | Pay As You Go -- a pricing plan with no base fee and no included minutes. Every minute is billed at the overage rate ($0.15/min). |
-| **Quiet Hours** | A time window (e.g., 9 PM - 8 AM) when Ultaura will not make outbound calls to a line. Respects the line's timezone. |
-| **Redaction** | Hiding or removing sensitive details from data displays. The Timeline has three redaction modes: Admin Full (see everything), Payer View (see what the family sees), Recipient View (see what the senior sees). |
-| **Redaction Mode** | The privacy filter applied to Timeline data. "Admin Full" shows all data. "Payer Simulated" shows what a paying family member would see (some details hidden). "Recipient Simulated" shows what the senior would see (most details hidden). |
-| **RLS** | Row-Level Security -- a database feature that restricts which rows a user can see based on their identity. Prevents users from accessing other users' data. Admin operations bypass RLS using a special service key. |
-| **Safety Event** | An event triggered when the AI detects something potentially concerning during a call -- signs of distress, confusion, dangerous situations, or other safety-relevant signals. Categorized by tier (1 = low, 2 = moderate, 3 = high). |
-| **Safety Tier** | The severity level of a safety event. Tier 1: informational/low concern. Tier 2: moderate concern, may trigger notifications. Tier 3: high concern, triggers immediate alerts to caregivers. |
-| **Session ID** | A unique identifier for a single phone call. Used to look up all events, tool calls, and logs associated with that call. |
-| **Stripe** | The payment processing service Ultaura uses for subscriptions, charges, and invoices. |
-| **Super Admin** | The highest privilege level in Ultaura. Only super-admins can access the admin panel. The role is stored in the user's authentication metadata. |
-| **Topic** | A newsletter subscription category. Ultaura has three: Blog Digest, Elder Care Tips, and Product Updates. Subscribers choose which topics they want to receive. |
-| **UUID** | Universally Unique Identifier -- a long string of letters and numbers (e.g., "550e8400-e29b-41d4-a716-446655440000") used as a unique ID for users, organizations, accounts, and lines. |
-| **Voicemail Behavior** | What Ultaura does when an outbound call goes to the senior's voicemail -- options include leaving a message, hanging up, or trying again later. |
+| Term                   | Definition                                                                                                                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AAL2**               | Authenticator Assurance Level 2 -- a security standard meaning the user has verified their identity with at least two different authentication methods (e.g., password + authenticator app). Required for admin access in production. |
+| **Account**            | An Ultaura account represents one subscription and billing relationship. It belongs to an organization and contains one or more phone lines.                                                                                          |
+| **ARR**                | Annual Recurring Revenue -- the total value of all active subscriptions projected over a full year (MRR x 12).                                                                                                                        |
+| **Audit Log**          | A permanent record of sensitive/admin actions. Includes who did it, what they did, when, and related context metadata.                                                                                                                |
+| **Broadcast**          | A one-time email sent to newsletter subscribers. Can be sent immediately or scheduled for later.                                                                                                                                      |
+| **CSRF**               | Cross-Site Request Forgery -- a type of attack where a malicious website tricks your browser into performing actions. The admin panel has built-in protection against this.                                                           |
+| **DEK**                | Data Encryption Key -- a unique encryption key assigned to each Ultaura account. Used to encrypt sensitive data (call content, memories, reminders) so that even database access alone can't read the data.                           |
+| **Do Not Call**        | A line setting that prevents Ultaura from making any outbound calls to that phone number. The senior can still call Ultaura inbound if inbound is allowed.                                                                            |
+| **DTMF**               | Dual-Tone Multi-Frequency -- the technical term for phone keypad tones. When a senior presses a number key during a call, it's logged as a DTMF event.                                                                                |
+| **E.164**              | The international standard format for phone numbers (e.g., +15551234567). Includes the country code prefix.                                                                                                                           |
+| **Impersonation**      | Logging in as another user to see exactly what they see. Used for debugging user-reported issues. Always audit-logged.                                                                                                                |
+| **KEK**                | Key Encryption Key -- the master encryption key used to encrypt/decrypt individual DEKs. Stored as an environment variable, never in the database.                                                                                    |
+| **Line**               | A phone line in Ultaura -- represents the connection to one senior. Each line has its own phone number, call schedule, quiet hours, and AI personality.                                                                               |
+| **MFA**                | Multi-Factor Authentication -- requiring two or more forms of identity verification (typically password + authenticator app code).                                                                                                    |
+| **MRR**                | Monthly Recurring Revenue -- the total amount of revenue generated by all active subscriptions per month. The most common SaaS metric for tracking business health.                                                                   |
+| **Organization**       | A family group in Ultaura. Contains members (family/caregivers), accounts (billing relationships), and lines (connections to seniors).                                                                                                |
+| **Overage**            | Minutes used beyond what's included in a subscription plan. Billed at $0.15 per minute.                                                                                                                                               |
+| **Overage Cap**        | The maximum dollar amount of overage charges allowed per billing cycle (default: $100). Protects users from unexpectedly large bills.                                                                                                 |
+| **PAYG**               | Pay As You Go -- a pricing plan with no base fee and no included minutes. Every minute is billed at the overage rate ($0.15/min).                                                                                                     |
+| **Quiet Hours**        | A time window (e.g., 9 PM - 8 AM) when Ultaura will not make outbound calls to a line. Respects the line's timezone.                                                                                                                  |
+| **Redaction**          | Hiding or removing sensitive details from data displays. The Timeline has three redaction modes: Admin Full (see everything), Payer View (see what the family sees), Recipient View (see what the senior sees).                       |
+| **Redaction Mode**     | The privacy filter applied to Timeline data. "Admin Full" shows all data. "Payer View" shows what a paying family member would see (some details hidden). "Recipient View" shows what the senior would see (most details hidden).     |
+| **RLS**                | Row-Level Security -- a database feature that restricts which rows a user can see based on their identity. Prevents users from accessing other users' data. Admin operations bypass RLS using a special service key.                  |
+| **Safety Event**       | An event triggered when the AI detects something potentially concerning during a call -- signs of distress, confusion, dangerous situations, or other safety-relevant signals. Categorized by severity (`low`, `medium`, `high`).     |
+| **Safety Severity**    | The severity level of a safety event. `low`: informational/lower concern. `medium`: moderate concern, may trigger notifications. `high`: urgent concern and can trigger immediate caregiver alerts.                                   |
+| **Session ID**         | A unique identifier for a single phone call. Used to look up all events, tool calls, and logs associated with that call.                                                                                                              |
+| **Stripe**             | The payment processing service Ultaura uses for subscriptions, charges, and invoices.                                                                                                                                                 |
+| **Super Admin**        | The highest privilege level in Ultaura. Only super-admins can access the admin panel. The role is stored in the user's authentication metadata.                                                                                       |
+| **Topic**              | A newsletter subscription category. Ultaura has three: Blog Digest, Elder Care Tips, and Product Updates. Subscribers choose which topics they want to receive.                                                                       |
+| **UUID**               | Universally Unique Identifier -- a long string of letters and numbers (e.g., "550e8400-e29b-41d4-a716-446655440000") used as a unique ID for users, organizations, accounts, and lines.                                               |
+| **Voicemail Behavior** | What Ultaura does when an outbound call goes to the senior's voicemail -- options include leaving a message, hanging up, or trying again later.                                                                                       |
 
 ---
 
-*This guide covers the Ultaura admin panel as of February 2026. If you encounter features or screens not documented here, they may have been added after this guide was written.*
+_This guide covers the Ultaura admin panel as of February 27, 2026. If you encounter features or screens not documented here, they may have been added after this guide was written._

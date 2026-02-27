@@ -17,7 +17,7 @@ function StatRow({ label, value, delta }: { label: string; value: React.ReactNod
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">
+      <span className="font-semibold text-primary">
         {value}
         {delta && <span className="text-muted-foreground ml-2">({delta})</span>}
       </span>

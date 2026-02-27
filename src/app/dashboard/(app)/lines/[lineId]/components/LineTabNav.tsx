@@ -16,7 +16,7 @@ const LINE_TABS = [
   { key: 'call-controls', label: 'Call Controls', pathSuffix: '/settings?tab=call-controls' },
   { key: 'topics', label: 'Topics', pathSuffix: '/topics' },
   { key: 'milestones', label: 'Milestones', pathSuffix: '/milestones' },
-  { key: 'contacts', label: 'Contacts', pathSuffix: '/contacts' },
+  { key: 'contacts', label: 'Trusted Contacts', pathSuffix: '/contacts' },
 ] as const;
 
 export function LineTabNav({ lineShortId }: LineTabNavProps) {
