@@ -16,6 +16,12 @@ const SEVERITY_STYLES: Record<WellnessAlert['severity'], string> = {
   urgent: 'bg-destructive/10 text-destructive',
 };
 
+const SEVERITY_BORDER_COLORS: Record<WellnessAlert['severity'], string> = {
+  info: 'var(--primary)',
+  warning: 'var(--warning)',
+  urgent: 'var(--destructive)',
+};
+
 const SEVERITY_ICONS: Record<WellnessAlert['severity'], ElementType> = {
   info: Info,
   warning: AlertTriangle,
@@ -52,7 +58,8 @@ export function WellnessAlertsList({ alerts }: WellnessAlertsListProps) {
             return (
               <div
                 key={alert.id}
-                className="rounded-lg border border-border/60 bg-muted/20 p-4"
+                className="rounded-lg border border-border/60 border-l-4 bg-muted/20 p-4"
+                style={{ borderLeftColor: SEVERITY_BORDER_COLORS[alert.severity] }}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="w-full space-y-2">

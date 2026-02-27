@@ -12,17 +12,6 @@ interface ConversationHighlightsProps {
   showMilestones?: boolean;
 }
 
-const POSITIVE_MOODS = ['happy', 'good', 'positive', 'great', 'excellent', 'joyful', 'cheerful'];
-const NEGATIVE_MOODS = ['sad', 'negative', 'anxious', 'worried', 'upset', 'stressed', 'depressed', 'frustrated'];
-
-function getMoodBorderColor(mood: string | null | undefined): string {
-  if (!mood) return 'var(--muted)';
-  const lowerMood = mood.toLowerCase();
-  if (POSITIVE_MOODS.includes(lowerMood)) return 'var(--success)';
-  if (NEGATIVE_MOODS.includes(lowerMood)) return 'var(--warning)';
-  return 'var(--info)';
-}
-
 export function ConversationHighlights({
   data,
   timezone,
@@ -45,12 +34,11 @@ export function ConversationHighlights({
         <div className="mt-4 space-y-4">
           {data.highlights.map((highlight) => {
             const dateLabel = DateTime.fromISO(highlight.occurredAt).setZone(timezone).toFormat('MMM d, yyyy');
-            const borderColor = getMoodBorderColor(highlight.mood);
             return (
               <div
                 key={highlight.callSessionId}
                 className="min-h-12 rounded-xl border border-border/60 border-l-4 px-4 py-3.5"
-                style={{ borderLeftColor: borderColor }}
+                style={{ borderLeftColor: 'var(--primary)' }}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-foreground">{dateLabel}</p>

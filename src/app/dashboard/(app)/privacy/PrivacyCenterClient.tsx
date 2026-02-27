@@ -1111,6 +1111,7 @@ export function PrivacyCenterClient({
                   <Button
                     type="button"
                     variant="destructive"
+                    className="w-full sm:w-auto"
                     onClick={() => setDeleteDialogOpen(true)}
                   >
                     Delete privacy data
@@ -1156,6 +1157,7 @@ export function PrivacyCenterClient({
                   <Button
                     type="button"
                     variant="default"
+                    className="w-full sm:w-auto"
                     onClick={handleExportRequest}
                     disabled={isExporting || exportInProgress}
                     loading={isExporting}
@@ -1447,14 +1449,15 @@ export function PrivacyCenterClient({
                   description="Invite up to 5 family members to receive summaries and alerts."
                 />
                 <SectionBody className="gap-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     {recipients.length >= 5 ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="inline-block">
+                          <span className="inline-block w-full sm:w-auto">
                             <Button
                               type="button"
                               variant="default"
+                              className="w-full"
                               disabled
                             >
                               <Plus className="w-4 h-4" />
@@ -1468,6 +1471,7 @@ export function PrivacyCenterClient({
                       <Button
                         type="button"
                         variant="default"
+                        className="w-full sm:w-auto"
                         onClick={() => {
                           setInviteError(null);
                           setShowInviteModal(true);

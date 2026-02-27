@@ -145,9 +145,6 @@ export function CreateScheduleForm({
                 </div>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Select the days of the week for regular calls
-            </p>
           </div>
 
           {/* Time Selection */}
