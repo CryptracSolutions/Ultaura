@@ -29,6 +29,7 @@ export interface SafetyEvent {
   severity: 'low' | 'medium' | 'high';
   actionTaken: string | null;
   eventType: string | null;
+  category: string | null;
 }
 
 export function computeTierAccess(

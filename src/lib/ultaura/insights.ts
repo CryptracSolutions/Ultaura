@@ -1494,7 +1494,14 @@ export async function getMoodCalendar(
 export async function getSafetyEvents(
   lineId: string,
   options?: { limit?: number; includeAllTiers?: boolean }
-): Promise<Array<{ id: string; occurredAt: string; severity: 'low' | 'medium' | 'high'; actionTaken: string | null; eventType: string | null }>> {
+): Promise<Array<{
+  id: string;
+  occurredAt: string;
+  severity: 'low' | 'medium' | 'high';
+  actionTaken: string | null;
+  eventType: string | null;
+  category: string | null;
+}>> {
   const line = await getAuthorizedLine(lineId);
   if (!line) {
     return [];
@@ -1504,7 +1511,7 @@ export async function getSafetyEvents(
   const limit = options?.limit ?? 10;
   let query = client
     .from('ultaura_safety_events')
-    .select('id, tier, action_taken, created_at, signals')
+    .select('id, tier, action_taken, created_at, signals, category')
     .eq('line_id', lineId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -1530,6 +1537,7 @@ export async function getSafetyEvents(
       severity: row.tier as 'low' | 'medium' | 'high',
       actionTaken: row.action_taken ?? null,
       eventType,
+      category: row.category ?? null,
     };
   });
 }

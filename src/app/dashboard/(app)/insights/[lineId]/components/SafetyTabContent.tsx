@@ -2,7 +2,13 @@
 
 import type { InsightsDashboard } from '~/lib/ultaura/types';
 import { ConcernsList } from '../../components/ConcernsList';
-import { SafetyAlertsCard, TierGateNotice, type SafetyEvent, type TierAccess } from './shared';
+import {
+  SHARING_TIER_LABELS,
+  SafetyAlertsCard,
+  TierGateNotice,
+  type SafetyEvent,
+  type TierAccess,
+} from './shared';
 
 interface SafetyTabContentProps {
   dashboard: InsightsDashboard | null;
@@ -17,28 +23,52 @@ export function SafetyTabContent({
   timezone,
   tierAccess,
 }: SafetyTabContentProps) {
-  const { isFamilyManaged, allowConcerns, lineName } = tierAccess;
+  const { isFamilyManaged, allowConcerns, effectiveTier, lineName } = tierAccess;
+  const sharedTierLabel =
+    (effectiveTier && SHARING_TIER_LABELS[effectiveTier]) || 'Shared tier (redacted)';
+  const concernsPrivacyLabel = isFamilyManaged
+    ? `Privacy: ${sharedTierLabel}`
+    : 'Privacy: Self view';
+  const safetyPrivacyLabel = isFamilyManaged
+    ? 'Privacy: Shared view'
+    : 'Privacy: Self view';
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         Safety incidents and conversation concerns from recent calls.
       </p>
-      {/* Safety Alerts - always visible */}
-      <SafetyAlertsCard
-        events={safetyEvents}
-        timezone={timezone}
-        highTierOnly={isFamilyManaged}
-      />
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Concerns List - tier 4 only */}
+        {dashboard && (
+          <div className="order-1 md:order-1">
+            {allowConcerns ? (
+              <ConcernsList
+                concerns={dashboard.concerns}
+                privacyLabel={concernsPrivacyLabel}
+                isSharedView={isFamilyManaged}
+              />
+            ) : (
+              <TierGateNotice
+                title="Conversation Concerns"
+                requiredTier="tier_4"
+                lineName={lineName}
+                privacyLabel={concernsPrivacyLabel}
+              />
+            )}
+          </div>
+        )}
 
-      {/* Concerns List - tier 4 only */}
-      {dashboard && (
-        allowConcerns ? (
-          <ConcernsList concerns={dashboard.concerns} />
-        ) : (
-          <TierGateNotice title="Conversation Concerns" requiredTier="tier_4" lineName={lineName} />
-        )
-      )}
+        {/* Safety Alerts - always visible */}
+        <div className="order-2 md:order-2">
+          <SafetyAlertsCard
+            events={safetyEvents}
+            timezone={timezone}
+            highTierOnly={isFamilyManaged}
+            privacyLabel={safetyPrivacyLabel}
+          />
+        </div>
+      </div>
 
       {/* Fallback when no dashboard */}
       {!dashboard && !safetyEvents.length && (
