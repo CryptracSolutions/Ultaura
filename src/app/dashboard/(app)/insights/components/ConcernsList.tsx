@@ -1,7 +1,7 @@
 'use client';
 
 import type { InsightsDashboard } from '~/lib/ultaura/types';
-import { Check } from 'lucide-react';
+import { Check, TriangleAlert } from 'lucide-react';
 import { InfoTip } from '~/core/ui/InfoTip';
 
 interface ConcernsListProps {
@@ -16,16 +16,16 @@ const NOVELTY_CHIP_STYLES: Record<string, string> = {
   resolved: 'border-success/50 bg-success/15 text-foreground',
 };
 
-const NOVELTY_CARD_STYLES: Record<string, string> = {
-  new: 'border-l-4 border-l-warning bg-warning/5',
-  recurring: 'border-l-4 border-l-info bg-muted/20',
-  resolved: 'border-l-4 border-l-success bg-muted/20',
-};
-
 const NOVELTY_STAT_STYLES: Record<string, string> = {
   new: 'border-warning/40 bg-warning/10',
   recurring: 'border-info/40 bg-info/10',
   resolved: 'border-success/40 bg-success/10',
+};
+
+const NOVELTY_BORDER_COLORS: Record<string, string> = {
+  new: 'var(--warning)',
+  recurring: 'var(--info)',
+  resolved: 'var(--success)',
 };
 
 function titleCase(value: string): string {
@@ -52,9 +52,10 @@ export function ConcernsList({ concerns, privacyLabel, isSharedView }: ConcernsL
 
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-7">
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-base font-semibold text-foreground">Conversation Concerns</h3>
+      <div className="space-y-2 mb-5">
+        <div className="flex items-center gap-2">
+          <TriangleAlert className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Concerns</h3>
           <InfoTip content="Extracted from conversation tone at the end of each call. Tracks weekly patterns like loneliness, sleep, or pain. Not related to Wellness Alerts or Safety Incidents." />
         </div>
         <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
@@ -90,10 +91,12 @@ export function ConcernsList({ concerns, privacyLabel, isSharedView }: ConcernsL
               concern.novelty === 'resolved'
                 ? `Previous severity: ${titleCase(concern.severity)}`
                 : `Severity: ${titleCase(concern.severity)}`;
+            const borderColor = NOVELTY_BORDER_COLORS[concern.novelty] || 'var(--muted)';
             return (
               <div
                 key={`${concern.code}-${concern.novelty}`}
-                className={`min-h-12 rounded-xl border border-border/60 px-4 py-3.5 ${NOVELTY_CARD_STYLES[concern.novelty]}`}
+                className="min-h-12 rounded-xl border border-border/60 border-l-4 px-4 py-3.5"
+                style={{ borderLeftColor: borderColor }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="text-sm font-semibold leading-5 text-foreground">{concern.label}</p>

@@ -2,8 +2,8 @@
 
 import type { InsightsDashboard } from '~/lib/ultaura/types';
 import type { StoryArc, SegmentStats, CallPreview } from '~/lib/ultaura/types/retention';
-import { RetentionInsightsCard } from '../../components/RetentionInsightsCard';
-import { EngagementFeatures } from '../../components/EngagementFeatures';
+import { EngagementHighlightsCard } from '../../components/RetentionInsightsCard';
+import { ActivityOverviewCard, UpcomingTopicsCard, StoryProgressCard } from '../../components/EngagementFeatures';
 import { TierGateNotice, type TierAccess } from './shared';
 
 interface EngagementTabContentProps {
@@ -37,32 +37,47 @@ export function EngagementTabContent({
     );
   }
 
+  const hasSegmentData = segmentStats && segmentStats.totalSegments > 0;
+  const hasCallPreviews = callPreviews.length > 0;
+  const hasStoryArcs = storyArcs.length > 0;
+  const hasRetention = !!dashboard?.retention;
+  const hasAnyData = hasSegmentData || hasCallPreviews || hasStoryArcs || hasRetention;
+
+  if (!hasAnyData) {
+    return (
+      <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">
+          Engagement features, story arcs, and retention insights.
+        </p>
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h3 className="text-sm font-semibold text-foreground">Engagement Features</h3>
+          <p className="mt-3 text-sm text-muted-foreground">
+            No engagement data available yet. Features like story arcs, learning journeys, and activity insights will appear here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         Engagement features, story arcs, and retention insights.
       </p>
-      {/* Engagement Features */}
-      {segmentStats && (
-        <EngagementFeatures
-          storyArcs={storyArcs}
-          segmentStats={segmentStats}
-          timezone={timezone}
-          callPreviews={callPreviews}
-        />
-      )}
 
-      {!segmentStats && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="text-sm font-semibold text-foreground">Engagement Features</h3>
-          <p className="mt-3 text-sm text-muted-foreground">
-            No engagement data available yet. Features like story arcs and learning journeys will appear here.
-          </p>
+      {/* Row 1: Activity Overview + Engagement Highlights (side-by-side) */}
+      {(hasSegmentData || hasRetention) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {segmentStats && <ActivityOverviewCard segmentStats={segmentStats} />}
+          {dashboard && <EngagementHighlightsCard retention={dashboard.retention} />}
         </div>
       )}
 
-      {/* Retention Highlights */}
-      {dashboard && <RetentionInsightsCard retention={dashboard.retention} />}
+      {/* Row 2: Upcoming Topics (full width) */}
+      <UpcomingTopicsCard callPreviews={callPreviews} timezone={timezone} />
+
+      {/* Row 3: Story Progress (full width) */}
+      <StoryProgressCard storyArcs={storyArcs} timezone={timezone} />
     </div>
   );
 }

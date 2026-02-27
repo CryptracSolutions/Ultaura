@@ -11,6 +11,7 @@ import {
   Flame,
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '~/core/ui/Tooltip';
 import { InfoTip } from '~/core/ui/InfoTip';
@@ -114,9 +115,10 @@ export function MoodCalendar({ data, timezone }: MoodCalendarProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       {/* Title row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-sm font-semibold text-foreground">Mood calendar</h3>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Mood Calendar</h3>
           <InfoTip content="Shows the dominant mood logged each day of the month. Tap or hover any day to see details. Use the arrows to browse previous months." />
         </div>
         {/* Month nav — desktop only */}

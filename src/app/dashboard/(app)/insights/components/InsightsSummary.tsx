@@ -1,4 +1,5 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CalendarCheck } from 'lucide-react';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { InsightsDashboard } from '~/lib/ultaura/types';
 
 interface InsightsSummaryProps {
@@ -30,8 +31,12 @@ export function InsightsSummary({ summary, showMood = true }: InsightsSummaryPro
 
   return (
     <div className="rounded-xl bg-card p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">This Week Summary</h3>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <CalendarCheck className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">This Week Summary</h3>
+          <InfoTip content="A summary of call activity over the past 7 days — answered and missed calls, average call duration, and your loved one's overall mood." />
+        </div>
         <span className="text-xs text-muted-foreground">Past 7 days</span>
       </div>
 

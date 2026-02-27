@@ -122,10 +122,9 @@ export function EmotionalTrends({ data }: EmotionalTrendsProps) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center gap-1.5">
-        <h3 className="text-sm font-semibold text-foreground">
-          Emotional trends
-        </h3>
+      <div className="flex items-center gap-2 mb-5">
+        <TrendingUp className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">Emotional Trends</h3>
         <InfoTip content="Tracks mood at the start, middle, and end of each call over the last 14 days — showing how mood shifts within and across conversations, not just daily snapshots." />
       </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Info } from 'lucide-react';
+import { Info, Share2 } from 'lucide-react';
 import type { InsightsDashboard, CallSessionRow } from '~/lib/ultaura/types';
 import { InfoTip } from '~/core/ui/InfoTip';
 import { InsightsSummary } from '../../components/InsightsSummary';
@@ -70,8 +70,9 @@ export function OverviewTabContent({ dashboard, tierAccess }: OverviewTabContent
 
           {/* Sharing Level - always shown */}
           <div className="rounded-xl bg-card p-6">
-            <div className="flex items-center gap-1.5">
-              <h3 className="text-sm font-medium text-foreground">Sharing level</h3>
+            <div className="flex items-center gap-2 mb-5">
+              <Share2 className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Sharing Level</h3>
               <InfoTip
                 content={
                   isFamilyManaged

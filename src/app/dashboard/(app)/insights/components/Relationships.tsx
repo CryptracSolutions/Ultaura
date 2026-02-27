@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { Users } from 'lucide-react';
 import { InfoTip } from '~/core/ui/InfoTip';
 import type { RelationshipRow } from '~/lib/ultaura/types';
 
@@ -16,7 +17,8 @@ function formatLastMentioned(value: string | null, timezone: string): string {
 export function Relationships({ relationships, timezone }: RelationshipsProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2 mb-5">
+        <Users className="w-4 h-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">Relationships</h3>
         <InfoTip content="Tracks people your loved one mentions during calls — built automatically from conversation over time." />
       </div>

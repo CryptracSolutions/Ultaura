@@ -1,3 +1,5 @@
+import { Phone } from 'lucide-react';
+import { InfoTip } from '~/core/ui/InfoTip';
 import type { InsightsDashboard } from '~/lib/ultaura/types';
 
 interface CallMetricsProps {
@@ -18,8 +20,12 @@ export function CallMetrics({ activity }: CallMetricsProps) {
 
   return (
     <div className="rounded-xl bg-card p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Call Activity</h3>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <Phone className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Call Activity</h3>
+          <InfoTip content="A breakdown of all calls over the last 30 days — scheduled outbound calls, reminder calls, and inbound calls from your loved one." />
+        </div>
         <span className="text-xs text-muted-foreground">Last 30 days</span>
       </div>
 

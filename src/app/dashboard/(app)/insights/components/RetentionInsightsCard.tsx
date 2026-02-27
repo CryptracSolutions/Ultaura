@@ -1,56 +1,64 @@
+import { BarChart3, CheckSquare, Star, Timer, Phone, BookOpen } from 'lucide-react';
 import { InfoTip } from '~/core/ui/InfoTip';
 import type { InsightsDashboard } from '~/lib/ultaura/types';
 
-interface RetentionInsightsCardProps {
+interface EngagementHighlightsCardProps {
   retention: InsightsDashboard['retention'];
 }
 
-function formatTrend(trend: 'increasing' | 'stable' | 'decreasing'): string {
-  if (trend === 'increasing') return 'Up';
-  if (trend === 'decreasing') return 'Down';
-  return 'Stable';
-}
 
-export function RetentionInsightsCard({ retention }: RetentionInsightsCardProps) {
+export function EngagementHighlightsCard({ retention }: EngagementHighlightsCardProps) {
   if (!retention) {
     return null;
   }
 
   const { retentionFeatures, engagementMetrics, inboundMetrics } = retention;
-  const favoriteSegments = retentionFeatures.favoriteSegments.length
-    ? retentionFeatures.favoriteSegments.map((segment) => segment.replace(/_/g, ' ')).join(', ')
-    : 'None yet';
   const preferredSegment = engagementMetrics.preferredSegmentType
     ? engagementMetrics.preferredSegmentType.replace(/_/g, ' ')
     : 'None yet';
 
+  const activeStoryCount = retentionFeatures.activeStoryArcs.length;
+
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center gap-1.5">
-        <h3 className="text-sm font-semibold text-foreground">Retention Highlights</h3>
-        <InfoTip content="Shows engagement patterns over the last 30 days — including story arc progress, preferred conversation topics, and how often call previews lead to full discussions." />
+      <div className="flex items-center gap-2 mb-5">
+        <BarChart3 className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">Engagement Highlights</h3>
+        <InfoTip content="Key engagement patterns over the last 30 days — including how often topics lead to full discussions, activity completion rates, and calling habits." />
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-          <div className="text-xs text-muted-foreground">Preview follow-through</div>
-          <div className="text-lg font-semibold text-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CheckSquare className="w-3.5 h-3.5" />
+            <span>Topic Follow-Up Rate</span>
+          </div>
+          <div className="text-lg font-semibold text-primary mt-1">
             {engagementMetrics.callPreviewFollowThrough}%
           </div>
         </div>
         <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-          <div className="text-xs text-muted-foreground">Segment completion</div>
-          <div className="text-lg font-semibold text-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Timer className="w-3.5 h-3.5" />
+            <span>Activity Completion</span>
+          </div>
+          <div className="text-lg font-semibold text-primary mt-1">
             {engagementMetrics.segmentCompletionRate}%
           </div>
         </div>
         <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-          <div className="text-xs text-muted-foreground">Preferred segment</div>
-          <div className="text-sm font-semibold text-foreground capitalize">{preferredSegment}</div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Star className="w-3.5 h-3.5" />
+            <span>Favorite Activity Type</span>
+          </div>
+          <div className="text-lg font-semibold text-primary capitalize mt-1">{preferredSegment}</div>
         </div>
         <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-          <div className="text-xs text-muted-foreground">Avg segment duration</div>
-          <div className="text-sm font-semibold text-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Timer className="w-3.5 h-3.5" />
+            <span>Avg Activity Length</span>
+          </div>
+          <div className="text-lg font-semibold text-primary mt-1">
             {engagementMetrics.averageSegmentDuration
               ? `${engagementMetrics.averageSegmentDuration}s`
               : 'N/A'}
@@ -59,42 +67,24 @@ export function RetentionInsightsCard({ retention }: RetentionInsightsCardProps)
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div>
-          <div className="text-xs text-muted-foreground">Favorite segments</div>
-          <div className="text-sm font-medium text-foreground mt-1 capitalize">
-            {favoriteSegments}
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Phone className="w-3.5 h-3.5" />
+            <span>Inbound Calls</span>
+          </div>
+          <div className="text-lg font-semibold text-primary mt-1">
+            {inboundMetrics.inboundCallCount}
           </div>
         </div>
-        <div>
-          <div className="text-xs text-muted-foreground">Inbound calls</div>
-          <div className="text-sm font-medium text-foreground mt-1">
-            {inboundMetrics.inboundCallCount} ({formatTrend(inboundMetrics.inboundCallTrend)})
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Active Stories</span>
+          </div>
+          <div className="text-lg font-semibold text-primary mt-1">
+            {activeStoryCount}
           </div>
         </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="text-xs text-muted-foreground">Active story arcs</div>
-        {retentionFeatures.activeStoryArcs.length ? (
-          <div className="mt-2 space-y-2">
-            {retentionFeatures.activeStoryArcs.map((arc) => (
-              <div key={arc.id} className="rounded-lg border border-border/60 bg-muted/20 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium text-foreground">{arc.title}</div>
-                  <div className="text-xs text-muted-foreground">{arc.progress}%</div>
-                </div>
-                <div className="mt-2 h-2 w-full rounded-full bg-muted">
-                  <div
-                    className="h-2 rounded-full bg-primary/70"
-                    style={{ width: `${Math.min(100, Math.max(0, arc.progress))}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground mt-1">No active story arcs</div>
-        )}
       </div>
     </div>
   );

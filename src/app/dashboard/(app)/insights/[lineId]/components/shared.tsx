@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, Lock } from 'lucide-react';
+import Link from 'next/link';
+import { Check, Lock, ShieldAlert } from 'lucide-react';
 import { InfoTip } from '~/core/ui/InfoTip';
 
 // Re-export types and constants from tier-utils for client components
@@ -43,7 +44,13 @@ export function TierGateNotice({
         </span>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">
-        Available at {TIER_REQUIREMENTS[requiredTier]} {lineName} controls sharing preferences.
+        Available at {TIER_REQUIREMENTS[requiredTier]} {lineName} controls sharing preferences. Request a change{' '}
+        <Link
+          href="/dashboard/privacy?tab=consent&section=consent-status"
+          className="text-primary hover:underline"
+        >
+          here -&gt;
+        </Link>
       </p>
     </div>
   );
@@ -107,16 +114,16 @@ const SEVERITY_CHIP_STYLES: Record<'low' | 'medium' | 'high', string> = {
   high: 'border-destructive/50 bg-destructive/10 text-foreground',
 };
 
-const SEVERITY_CARD_STYLES: Record<'low' | 'medium' | 'high', string> = {
-  low: 'border-l-4 border-l-success',
-  medium: 'border-l-4 border-l-warning',
-  high: 'border-l-4 border-l-destructive',
-};
-
 const SEVERITY_STAT_STYLES: Record<'low' | 'medium' | 'high', string> = {
   low: 'border-success/40 bg-success/10',
   medium: 'border-warning/40 bg-warning/10',
   high: 'border-destructive/40 bg-destructive/10',
+};
+
+const SEVERITY_BORDER_COLORS: Record<'low' | 'medium' | 'high', string> = {
+  low: 'var(--success)',
+  medium: 'var(--warning)',
+  high: 'var(--destructive)',
 };
 
 export function SafetyAlertsCard({
@@ -163,14 +170,15 @@ export function SafetyAlertsCard({
 
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-7">
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-base font-semibold text-foreground">Safety Incidents</h3>
+      <div className="space-y-2 mb-5">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Safety Incidents</h3>
           <InfoTip content="Detected in real time during calls when distress keywords or safety concerns are identified. Not related to Wellness Alerts." />
         </div>
         <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
           {highTierOnly
-            ? 'Shared mode: timing and details are minimized to reduce personal data exposure.'
+            ? 'Exact timing and details are minimized to reduce personal data exposure.'
             : 'Review incidents to decide whether proactive outreach or care changes are needed.'}
         </p>
         <span className="inline-flex min-h-8 items-center rounded-full border border-border/70 bg-muted/30 px-3 text-[11px] font-semibold uppercase tracking-wide text-foreground">
@@ -203,11 +211,6 @@ export function SafetyAlertsCard({
         </p>
       ) : (
         <div className="mt-5 space-y-3">
-          {highTierOnly && (
-            <p className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              Sensitive incident details are redacted in shared mode.
-            </p>
-          )}
           <div className="relative">
             <div className="max-h-[400px] space-y-3 overflow-y-auto pr-1 pb-7">
               {events.map((event) => {
@@ -216,10 +219,12 @@ export function SafetyAlertsCard({
                 const actionLabel = formatSafetyAction(event.actionTaken);
                 const severityLabel = titleCase(event.severity);
                 const incidentLabel = getIncidentLabel(event);
+                const borderColor = SEVERITY_BORDER_COLORS[event.severity];
                 return (
                   <div
                     key={event.id}
-                    className={`min-h-12 rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5 text-sm ${SEVERITY_CARD_STYLES[event.severity]}`}
+                    className="min-h-12 rounded-xl border border-border/60 border-l-4 bg-muted/20 px-4 py-3.5 text-sm"
+                    style={{ borderLeftColor: borderColor }}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold leading-5 text-foreground">{incidentLabel}</p>
