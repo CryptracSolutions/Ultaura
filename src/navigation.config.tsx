@@ -72,15 +72,6 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
             isLineRouteActive(currentPath),
         },
         {
-          label: 'Reminders',
-          path: getPath('reminders'),
-          Icon: ({ className }: { className: string }) => {
-            return <BellIcon className={className} />;
-          },
-          activeMatch: (currentPath: string) =>
-            isRemindersRouteActive(currentPath),
-        },
-        {
           label: 'Calls',
           path: getPath('calls'),
           Icon: ({ className }: { className: string }) => {
@@ -88,6 +79,15 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
           },
           activeMatch: (currentPath: string) =>
             isCallsRouteActive(currentPath),
+        },
+        {
+          label: 'Reminders',
+          path: getPath('reminders'),
+          Icon: ({ className }: { className: string }) => {
+            return <BellIcon className={className} />;
+          },
+          activeMatch: (currentPath: string) =>
+            isRemindersRouteActive(currentPath),
         },
       ],
     },

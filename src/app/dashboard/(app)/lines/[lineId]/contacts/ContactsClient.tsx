@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '~/components/ui/input';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { Card, CardContent } from '~/components/ui/card';
@@ -38,6 +39,9 @@ interface ContactsClientProps {
 }
 
 export function ContactsClient({ line, disabled = false }: ContactsClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [contactToRemove, setContactToRemove] = useState<TrustedContact | null>(null);
@@ -64,6 +68,19 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
       setConsentAcknowledged(false);
     }
   }, [isAdding]);
+
+  useEffect(() => {
+    if (disabled) return;
+    const shouldOpenAddContact = searchParams.get('openAddContact') === '1';
+    if (!shouldOpenAddContact) return;
+
+    setIsAdding(true);
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete('openAddContact');
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }, [disabled, pathname, router, searchParams]);
 
   const resetAddForm = () => {
     setNewContact({ name: '', phone: '', relationship: '' });

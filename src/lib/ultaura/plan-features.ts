@@ -6,12 +6,12 @@ type PlanLimitDetails = {
 };
 
 export const SHARED_FEATURES = [
-  'Daily scheduled calls',
+  'Schedule calls + SMS reminders',
   'Mood and wellness insights',
   'Safety alerts and monitoring',
   'Family dashboard with call summaries',
   'Activity and interest suggestions',
-  'Notes and memories from each call',
+  'Engagement and memories from each call',
   'Wellness and cognitive tracking',
 ] as const;
 

@@ -8,7 +8,6 @@ import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
 import { TELEPHONY } from '~/lib/ultaura/constants';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
-import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
 import Modal from '~/core/ui/Modal';
 import Button from '~/core/ui/Button';
@@ -18,7 +17,6 @@ interface LineHeaderActionsProps {
   usage: UsageSummary | null;
   isReadOnly?: boolean;
   isTrialActive?: boolean;
-  isFamilyManaged?: boolean;
 }
 
 export function LineHeaderActions({
@@ -26,9 +24,7 @@ export function LineHeaderActions({
   usage,
   isReadOnly = false,
   isTrialActive = false,
-  isFamilyManaged = false,
 }: LineHeaderActionsProps) {
-  const { openManualCall } = useManualCall();
   const [isTestCalling, setIsTestCalling] = useState(false);
   const [isTestCallModalOpen, setIsTestCallModalOpen] = useState(false);
   const [testCallTarget, setTestCallTarget] = useState<'line' | 'alternate'>('line');
@@ -194,17 +190,6 @@ export function LineHeaderActions({
   return (
     <>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
-        {isFamilyManaged && (
-          <Button
-            onClick={() => openManualCall({ preselectedLineId: line.id })}
-            disabled={isReadOnly}
-            variant="default"
-            size="small"
-            className="w-full sm:w-auto"
-          >
-            Place Call
-          </Button>
-        )}
         <Button
           onClick={() => {
             setIsTestCallModalOpen(true);

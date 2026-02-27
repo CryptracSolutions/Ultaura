@@ -385,7 +385,7 @@ export default function ManualCallModal({
         {step === 1 && (
           <>
             <p className="text-muted-foreground">
-              Select a line to call. Quiet hours are bypassed, but DNC settings are still respected.
+              Select a line to call.
             </p>
             {isLoading ? (
               <div className="rounded-lg border border-border p-4 text-muted-foreground">
@@ -475,7 +475,11 @@ export default function ManualCallModal({
                           variant="outline"
                           size="small"
                           className="w-full"
-                          href={`/dashboard/lines/${selectedLine.id}/contacts`}
+                          href={`/dashboard/lines/${selectedLine.id}/contacts?openAddContact=1`}
+                          onClick={() => {
+                            resetState();
+                            onOpenChange(false);
+                          }}
                         >
                           Add trusted contact
                         </Button>

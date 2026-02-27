@@ -17,9 +17,10 @@ export const metadata: Metadata = {
 
 interface PageProps {
   params: { lineId: string };
+  searchParams?: Record<string, string | string[] | undefined>;
 }
 
-export default async function TrustedContactsPage({ params }: PageProps) {
+export default async function TrustedContactsPage({ params, searchParams }: PageProps) {
   const line = await getLine(params.lineId);
 
   if (!line) {
@@ -27,7 +28,22 @@ export default async function TrustedContactsPage({ params }: PageProps) {
   }
 
   if (isUUID(params.lineId)) {
-    redirect(`/dashboard/lines/${line.short_id}/contacts`);
+    const preservedSearchParams = new URLSearchParams();
+    Object.entries(searchParams ?? {}).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => {
+          if (entry != null) preservedSearchParams.append(key, entry);
+        });
+        return;
+      }
+
+      if (value != null) {
+        preservedSearchParams.set(key, value);
+      }
+    });
+
+    const query = preservedSearchParams.toString();
+    redirect(`/dashboard/lines/${line.short_id}/contacts${query ? `?${query}` : ''}`);
   }
 
   // If not verified, redirect to verification

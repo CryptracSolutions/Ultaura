@@ -134,7 +134,6 @@ export function LineDetailClient({
             usage={usage}
             isReadOnly={isReadOnly}
             isTrialActive={isTrialActive}
-            isFamilyManaged={isFamilyManaged}
           />
         )}
       />

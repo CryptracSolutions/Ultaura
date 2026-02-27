@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { CalendarDays, Clock, Plus } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule, updateSchedule } from '~/lib/ultaura/schedules';
+import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { AddScheduleModal } from '~/components/ultaura/AddScheduleModal';
 import Button from '~/core/ui/Button';
@@ -39,6 +40,7 @@ interface CallsPageClientProps {
 export function CallsPageClient({ lines, schedules, disabled = false }: CallsPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { openManualCall } = useManualCall();
 
   const selectedLineShortId = searchParams.get('line') ?? null;
   const editScheduleIdParam = searchParams.get('edit') ?? null;
@@ -211,6 +213,16 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
             >
               <Plus className="w-4 h-4" />
               Add Schedule
+            </Button>
+          )}
+          {!disabled && (
+            <Button
+              variant="default"
+              size="small"
+              onClick={() => openManualCall({ preselectedLineId: selectedLine?.id })}
+              className="w-full sm:w-auto"
+            >
+              Place Call
             </Button>
           )}
           {!disabled && selectedLine && recurringSchedules.length > 0 && (
