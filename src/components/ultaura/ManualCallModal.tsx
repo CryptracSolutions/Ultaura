@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { Phone, AlertTriangle, UserRound } from 'lucide-react';
+import { Phone, AlertTriangle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from '~/core/ui/Modal';
 import useSupabase from '~/core/hooks/use-supabase';
@@ -17,6 +17,7 @@ import type { ActionError } from '@ultaura/schemas';
 import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
 import Textarea from '~/core/ui/Textarea';
+import { InfoTip } from '~/core/ui/InfoTip';
 import {
   Accordion,
   AccordionContent,
@@ -343,7 +344,7 @@ export default function ManualCallModal({
 
       setLinkedContactId(selfLinkContactId);
       setContactLinkStatus('linked');
-      toast.success('You are now linked to this trusted contact.');
+      toast.success('You are now linked to this Life Note');
     } catch {
       toast.error('Unable to link your contact right now.');
     } finally {
@@ -376,7 +377,7 @@ export default function ManualCallModal({
   return (
     <Modal
       heading="Place a call"
-      description="Start a one-time check-in call right now."
+      description="Start a one-time call now."
       isOpen={isOpen}
       setIsOpen={onOpenChange}
     >
@@ -384,7 +385,7 @@ export default function ManualCallModal({
         {step === 1 && (
           <>
             <p className="text-muted-foreground">
-              Choose which line to call. Manual calls bypass quiet hours but still respect DNC settings.
+              Select a line to call. Quiet hours are bypassed, but DNC settings are still respected.
             </p>
             {isLoading ? (
               <div className="rounded-lg border border-border p-4 text-muted-foreground">
@@ -439,18 +440,21 @@ export default function ManualCallModal({
               <div className="text-xs text-muted-foreground">{formatPhone(selectedLine.phone_e164)}</div>
             </div>
             <p className="text-muted-foreground">
-              Ultaura will place a check-in call now. Quiet hours are bypassed for this manual call.
+              Ultaura will place this call immediately. Quiet hours are bypassed.
             </p>
 
             <Accordion className="space-y-0">
               <AccordionItem value="life-note">
                 <AccordionTrigger className="px-4 py-3 text-sm">
                   <div className="flex items-center gap-2">
-                    <UserRound className="h-4 w-4 text-primary" aria-hidden="true" />
+                    <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
                     <div>
-                      <div className="text-sm font-medium text-foreground">Life Note (optional)</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-sm font-medium text-foreground">Life Note</div>
+                        <InfoTip content="Life Notes are screened before the call starts." />
+                      </div>
                       <div className="text-xs font-normal text-muted-foreground">
-                        Add a short note Ultaura can use during this call
+                        Add a short note for this call
                       </div>
                     </div>
                   </div>
@@ -464,7 +468,7 @@ export default function ManualCallModal({
                     ) : contactLinkStatus === 'no_contacts' ? (
                       <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
                         <p className="text-xs text-muted-foreground">
-                          Add a trusted contact first so you can link yourself and include a Life Note.
+                          Add a trusted contact first, then link yourself to use a Life Note.
                         </p>
                         <Button
                           type="button"
@@ -479,7 +483,7 @@ export default function ManualCallModal({
                     ) : contactLinkStatus === 'unlinked' ? (
                       <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                         <p className="text-xs text-muted-foreground">
-                          Link yourself to one trusted contact before adding a Life Note.
+                          Who is this Life Note coming from?
                         </p>
                         <TextField className="space-y-2">
                           <TextField.Label>Choose your contact</TextField.Label>
@@ -509,17 +513,33 @@ export default function ManualCallModal({
                         </Button>
                       </div>
                     ) : (
-                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        Linked to{' '}
-                        <span className="font-medium text-foreground">
-                          {linkedContact?.name || 'trusted contact'}
-                        </span>
-                        . Your Life Note will be screened before the call starts.
+                      <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                        <div className="text-xs text-muted-foreground">
+                          Linked to{' '}
+                          <span className="font-medium text-foreground">
+                            {linkedContact?.name || 'trusted contact'}
+                          </span>
+                          .
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="small"
+                          className="w-full"
+                          onClick={() => {
+                            setLinkedContactId(null);
+                            setSelfLinkContactId(linkedContact?.id || trustedContacts[0]?.id || '');
+                            setContactLinkStatus('unlinked');
+                          }}
+                          disabled={isBusy || isLinkingSelfContact}
+                        >
+                          Change linked contact
+                        </Button>
                       </div>
                     )}
 
                     <TextField className="space-y-2">
-                      <TextField.Label>Life Note</TextField.Label>
+                      <TextField.Label>Note, message, or topic</TextField.Label>
                       <Textarea
                         value={lifeNote}
                         onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -534,14 +554,14 @@ export default function ManualCallModal({
                         placeholder={
                           contactLinkStatus === 'linked'
                             ? 'Example: Please mention the grandkids are visiting this weekend.'
-                            : 'Link yourself to a trusted contact to add a Life Note.'
+                            : ''
                         }
                       />
                       <div className="flex items-center justify-between px-1 text-xs">
                         <span className="text-muted-foreground">
                           {contactLinkStatus === 'linked'
-                            ? 'Optional. Keep it brief and specific.'
-                            : 'Life Notes are available after self-linking.'}
+                            ? 'Keep it brief and specific.'
+                            : 'Life Notes are available after you link yourself.'}
                         </span>
                         <span
                           className={
@@ -576,6 +596,18 @@ export default function ManualCallModal({
         )}
 
         <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            size="small"
+            className="w-full"
+            onClick={() => {
+              resetState();
+              onOpenChange(false);
+            }}
+          >
+            Cancel
+          </Button>
           {step === 2 && (
             <Button
               type="button"
@@ -590,18 +622,6 @@ export default function ManualCallModal({
               Change line
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="small"
-            className="w-full"
-            onClick={() => {
-              resetState();
-              onOpenChange(false);
-            }}
-          >
-            Cancel
-          </Button>
           <Button
             type="button"
             variant="default"

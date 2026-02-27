@@ -160,7 +160,7 @@ function RouteShellWithSidebar(
 
 function getClassNameBuilder() {
   return cva(
-    ['ml-0 mr-0 overflow-x-hidden transition-[margin] duration-300 ease-in-out motion-reduce:transition-none'],
+    ['flex min-w-0 flex-col h-screen overflow-y-auto ml-0 mr-0 overflow-x-clip transition-[margin] duration-300 ease-in-out motion-reduce:transition-none'],
     {
       variants: {
         collapsed: {

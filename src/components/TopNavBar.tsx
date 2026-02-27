@@ -19,7 +19,7 @@ interface TopNavBarProps {
 
 const TopNavBar: React.FC<TopNavBarProps> = ({ onHelpToggle }) => {
   return (
-    <div className="hidden lg:flex items-center justify-between gap-4 px-container py-2 bg-background sticky top-0 z-10 border-l border-border">
+    <div className="hidden lg:sticky lg:top-0 lg:z-30 lg:flex shrink-0 items-center justify-between gap-4 px-container py-2 bg-background border-l border-border">
       <SearchTrigger />
 
       <div className="flex items-center gap-2">

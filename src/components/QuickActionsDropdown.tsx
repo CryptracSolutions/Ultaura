@@ -33,7 +33,7 @@ const QuickActionsDropdown: React.FC = () => {
   const isFamilyManaged = account?.user_type === 'family_managed';
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
