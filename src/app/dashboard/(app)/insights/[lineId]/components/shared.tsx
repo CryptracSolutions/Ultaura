@@ -183,7 +183,7 @@ export function SafetyAlertsCard({
             key={stat.key}
             className={`rounded-xl border px-3 py-2.5 text-center ${
               stat.key === 'high' && stat.count === 0
-                ? 'border-success/40 bg-success/10'
+                ? 'border-success/60 bg-success/20'
                 : SEVERITY_STAT_STYLES[stat.key as 'low' | 'medium' | 'high']
             }`}
           >
@@ -224,7 +224,7 @@ export function SafetyAlertsCard({
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold leading-5 text-foreground">{incidentLabel}</p>
                       <span
-                        className={`inline-flex min-h-7 items-center rounded-full border px-2.5 text-xs font-semibold ${
+                        className={`hidden min-h-7 items-center rounded-full border px-2.5 text-xs font-semibold lg:inline-flex ${
                           SEVERITY_CHIP_STYLES[event.severity]
                         }`}
                       >
@@ -246,6 +246,13 @@ export function SafetyAlertsCard({
                         )}
                       </>
                     )}
+                    <span
+                      className={`mt-2 inline-flex min-h-7 items-center rounded-full border px-2.5 text-xs font-semibold lg:hidden ${
+                        SEVERITY_CHIP_STYLES[event.severity]
+                      }`}
+                    >
+                      Severity: {severityLabel}
+                    </span>
                   </div>
                 );
               })}
