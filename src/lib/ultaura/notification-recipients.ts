@@ -11,13 +11,59 @@ import type { NotificationRecipient } from './types';
 import sendEmail from '~/core/email/send-email';
 import renderNotificationInviteEmail from '~/lib/emails/notification-invite';
 import { getUserDataById } from '~/lib/server/queries';
-import { buildNotificationRecipientToken, hashNotificationToken } from './notification-tokens';
+import requireSession from '~/lib/user/require-session';
+import {
+  generateNotificationConfirmationToken,
+  generateNotificationUnsubscribeToken,
+  hashNotificationToken,
+} from './notification-tokens';
 
 const logger = getLogger();
 const MAX_NOTIFICATION_RECIPIENTS = 5;
 const MAX_RECIPIENTS_ERROR_MESSAGE =
   'Maximum of 5 recipients reached. Remove one before inviting another.';
 const RECIPIENT_LIMIT_TRIGGER_ERROR = 'Maximum of 5 notification recipients';
+const TOKEN_INVALID_ERROR_MESSAGE = 'Invalid or expired token';
+const TOKEN_ALREADY_USED_ERROR_MESSAGE = 'This link has already been used';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UNSUBSCRIBE_INVALID_ERROR_MESSAGE = 'This unsubscribe link is invalid or has expired.';
+
+type InviteRollbackSnapshot = Pick<
+  Database['public']['Tables']['ultaura_notification_recipients']['Row'],
+  | 'name'
+  | 'email'
+  | 'phone_e164'
+  | 'relationship'
+  | 'is_trusted_contact'
+  | 'confirmation_token_hash'
+  | 'confirmation_token_expires_at'
+  | 'unsubscribe_token_hash'
+  | 'unsubscribe_token_expires_at'
+  | 'confirmed_at'
+  | 'unsubscribed_at'
+  | 'updated_at'
+>;
+
+type InviteMutationContext = {
+  accountId: string;
+  recipientId: string;
+  mutationType: 'insert' | 'update';
+  rollbackSnapshot?: InviteRollbackSnapshot;
+};
+
+export class NotificationInviteSendError extends Error {
+  readonly context: InviteMutationContext;
+
+  constructor(message: string, context: InviteMutationContext) {
+    super(message);
+    this.name = 'NotificationInviteSendError';
+    this.context = context;
+  }
+}
+
+function isRecipientLimitError(error: { message?: string } | null | undefined): boolean {
+  return Boolean(error?.message?.includes(RECIPIENT_LIMIT_TRIGGER_ERROR));
+}
 
 function getSiteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -45,7 +91,7 @@ async function resolveAccountContext(
     .order('created_at', { ascending: true });
 
   const accountName = account?.name || 'Ultaura';
-  const lineName = lines && lines.length === 1 ? lines[0].display_name : 'your loved one';
+  const lineName = lines?.length === 1 ? lines[0].display_name : 'your loved one';
 
   const { data: user } = await clientInstance.auth.getUser();
   const userId = user.user?.id;
@@ -59,7 +105,41 @@ async function resolveAccountContext(
   return { accountName, lineName, inviterName };
 }
 
-function mapRecipient(row: any): NotificationRecipient {
+type NotificationRecipientRow =
+  Database['public']['Tables']['ultaura_notification_recipients']['Row'];
+
+function normalizeRecipientName(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function requireAccountOwner(
+  client: SupabaseClient<Database>,
+  accountId: string
+): Promise<ActionResult<{ userId: string }>> {
+  const session = await requireSession(client).catch(() => null);
+  const userId = session?.user?.id;
+  if (!userId) {
+    return { success: false, error: createError(ErrorCodes.UNAUTHORIZED, 'Unauthorized') };
+  }
+
+  const { data: account, error: accountError } = await client
+    .from('ultaura_accounts')
+    .select('id')
+    .eq('id', accountId)
+    .eq('created_by_user_id', userId)
+    .maybeSingle();
+
+  if (accountError || !account) {
+    return { success: false, error: createError(ErrorCodes.FORBIDDEN, 'Access denied') };
+  }
+
+  return { success: true, data: { userId } };
+}
+
+function mapRecipient(row: NotificationRecipientRow): NotificationRecipient {
   return {
     id: row.id,
     accountId: row.account_id,
@@ -127,10 +207,33 @@ export async function inviteNotificationRecipient(
     client?: SupabaseClient<Database>;
   } = {}
 ): Promise<ActionResult<NotificationRecipient>> {
-  const client = options.client ?? getSupabaseServerComponentClient();
+  const client = options.client ?? getSupabaseServerActionClient();
+  const auth = await requireAccountOwner(client, accountId);
+  if (!auth.success) {
+    return { success: false, error: auth.error };
+  }
+
+  const name = normalizeRecipientName(input.name);
   const email = input.email.trim().toLowerCase();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  if (!name || name.length > 120) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.INVALID_INPUT,
+        'Name is required and must be 120 characters or fewer'
+      ),
+    };
+  }
+  if (!email || email.length > 254 || !EMAIL_REGEX.test(email)) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.INVALID_INPUT,
+        'Enter a valid email address'
+      ),
+    };
+  }
+  const nowIso = new Date().toISOString();
 
   const { data: existing, error: existingError } = await client
     .from('ultaura_notification_recipients')
@@ -143,6 +246,8 @@ export async function inviteNotificationRecipient(
     logger.error({ existingError, accountId }, 'Failed to check existing recipient');
     return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
   }
+
+  let inviteContext: InviteMutationContext | null = null;
 
   if (existing) {
     if (existing.confirmed_at && !existing.unsubscribed_at) {
@@ -180,39 +285,77 @@ export async function inviteNotificationRecipient(
       }
     }
 
-    const token = buildNotificationRecipientToken(existing.id);
-    const tokenHash = hashNotificationToken(token);
+    const tokenState = generateNotificationConfirmationToken({ ttlDays: 7 });
+
+    const rollbackSnapshot: InviteRollbackSnapshot = {
+      name: existing.name,
+      email: existing.email,
+      phone_e164: existing.phone_e164,
+      relationship: existing.relationship,
+      is_trusted_contact: existing.is_trusted_contact,
+      confirmation_token_hash: existing.confirmation_token_hash,
+      confirmation_token_expires_at: existing.confirmation_token_expires_at,
+      unsubscribe_token_hash: existing.unsubscribe_token_hash,
+      unsubscribe_token_expires_at: existing.unsubscribe_token_expires_at,
+      confirmed_at: existing.confirmed_at,
+      unsubscribed_at: existing.unsubscribed_at,
+      updated_at: existing.updated_at,
+    };
 
     const { data: updated, error: updateError } = await client
       .from('ultaura_notification_recipients')
       .update({
-        name: input.name,
+        name,
         email,
         phone_e164: input.phoneE164 ?? null,
         relationship: input.relationship ?? null,
         is_trusted_contact: input.addAsTrustedContact ?? false,
-        confirmation_token_hash: tokenHash,
-        confirmation_token_expires_at: expiresAt,
+        confirmation_token_hash: tokenState.tokenHash,
+        confirmation_token_expires_at: tokenState.expiresAt,
+        unsubscribe_token_hash: input.allowReinvite ? null : existing.unsubscribe_token_hash,
+        unsubscribe_token_expires_at: input.allowReinvite
+          ? null
+          : existing.unsubscribe_token_expires_at,
         confirmed_at: null,
         unsubscribed_at: input.allowReinvite ? null : existing.unsubscribed_at,
-        updated_at: now.toISOString(),
+        updated_at: nowIso,
       })
       .eq('id', existing.id)
       .select('*')
       .single();
 
     if (updateError || !updated) {
+      if (isRecipientLimitError(updateError)) {
+        return {
+          success: false,
+          error: createError(
+            ErrorCodes.INVALID_INPUT,
+            MAX_RECIPIENTS_ERROR_MESSAGE
+          ),
+        };
+      }
       logger.error({ updateError, accountId }, 'Failed to update notification recipient');
       return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
     }
 
-    await sendInviteEmail({
-      recipientName: updated.name,
-      recipientEmail: updated.email,
+    inviteContext = {
       accountId,
-      token,
-      client,
-    });
+      recipientId: updated.id,
+      mutationType: 'update',
+      rollbackSnapshot,
+    };
+
+    try {
+      await sendInviteEmail({
+        recipientName: updated.name,
+        recipientEmail: updated.email,
+        accountId,
+        token: tokenState.token,
+        client,
+      });
+    } catch (error) {
+      throw new NotificationInviteSendError('Failed to send invite email', inviteContext);
+    }
 
     revalidatePath('/dashboard/privacy', 'page');
     return { success: true, data: mapRecipient(updated) };
@@ -237,7 +380,7 @@ export async function inviteNotificationRecipient(
     .from('ultaura_notification_recipients')
     .insert({
       account_id: accountId,
-      name: input.name,
+      name,
       email,
       phone_e164: input.phoneE164 ?? null,
       relationship: input.relationship ?? null,
@@ -247,7 +390,7 @@ export async function inviteNotificationRecipient(
     .single();
 
   if (insertError || !inserted) {
-    if (insertError?.message?.includes(RECIPIENT_LIMIT_TRIGGER_ERROR)) {
+    if (isRecipientLimitError(insertError)) {
       return {
         success: false,
         error: createError(
@@ -260,15 +403,14 @@ export async function inviteNotificationRecipient(
     return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
   }
 
-  const token = buildNotificationRecipientToken(inserted.id);
-  const tokenHash = hashNotificationToken(token);
+  const tokenState = generateNotificationConfirmationToken({ ttlDays: 7 });
 
   const { data: updated, error: tokenError } = await client
     .from('ultaura_notification_recipients')
     .update({
-      confirmation_token_hash: tokenHash,
-      confirmation_token_expires_at: expiresAt,
-      updated_at: now.toISOString(),
+      confirmation_token_hash: tokenState.tokenHash,
+      confirmation_token_expires_at: tokenState.expiresAt,
+      updated_at: nowIso,
     })
     .eq('id', inserted.id)
     .select('*')
@@ -279,22 +421,82 @@ export async function inviteNotificationRecipient(
     return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
   }
 
-  await sendInviteEmail({
-    recipientName: updated.name,
-    recipientEmail: updated.email,
+  inviteContext = {
     accountId,
-    token,
-    client,
-  });
+    recipientId: updated.id,
+    mutationType: 'insert',
+  };
+
+  try {
+    await sendInviteEmail({
+      recipientName: updated.name,
+      recipientEmail: updated.email,
+      accountId,
+      token: tokenState.token,
+      client,
+    });
+  } catch (error) {
+    throw new NotificationInviteSendError('Failed to send invite email', inviteContext);
+  }
 
   revalidatePath('/dashboard/privacy', 'page');
   return { success: true, data: mapRecipient(updated) };
 }
 
+export async function rollbackNotificationInviteMutation(
+  context: InviteMutationContext,
+  options: {
+    client?: SupabaseClient<Database>;
+  } = {}
+): Promise<ActionResult<void>> {
+  const client = options.client ?? getSupabaseServerActionClient({ admin: true });
+
+  if (context.mutationType === 'insert') {
+    const { error } = await client
+      .from('ultaura_notification_recipients')
+      .delete()
+      .eq('id', context.recipientId)
+      .eq('account_id', context.accountId);
+
+    if (error) {
+      logger.error({ error, context }, 'Failed to rollback inserted notification recipient');
+      return {
+        success: false,
+        error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to rollback invite state'),
+      };
+    }
+
+    return { success: true, data: undefined };
+  }
+
+  if (!context.rollbackSnapshot) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Missing rollback snapshot'),
+    };
+  }
+
+  const { error } = await client
+    .from('ultaura_notification_recipients')
+    .update(context.rollbackSnapshot)
+    .eq('id', context.recipientId)
+    .eq('account_id', context.accountId);
+
+  if (error) {
+    logger.error({ error, context }, 'Failed to rollback updated notification recipient');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to rollback invite state'),
+    };
+  }
+
+  return { success: true, data: undefined };
+}
+
 export async function removeNotificationRecipient(
   recipientId: string
 ): Promise<ActionResult<void>> {
-  const client = getSupabaseServerComponentClient();
+  const client = getSupabaseServerActionClient();
   const { data: recipient, error: lookupError } = await client
     .from('ultaura_notification_recipients')
     .select('id, account_id')
@@ -310,19 +512,9 @@ export async function removeNotificationRecipient(
     return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Recipient not found') };
   }
 
-  const { data: account, error: accountError } = await client
-    .from('ultaura_accounts')
-    .select('id')
-    .eq('id', recipient.account_id)
-    .maybeSingle();
-
-  if (accountError) {
-    logger.error({ accountError, recipientId }, 'Failed to verify account ownership for recipient removal');
-    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to remove recipient') };
-  }
-
-  if (!account) {
-    return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Recipient not found') };
+  const auth = await requireAccountOwner(client, recipient.account_id);
+  if (!auth.success) {
+    return { success: false, error: createError(ErrorCodes.FORBIDDEN, 'Failed to remove recipient') };
   }
 
   const { error } = await client
@@ -345,10 +537,43 @@ export async function confirmNotificationRecipient(
 ): Promise<ActionResult<{ accountName: string }>> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const tokenHash = hashNotificationToken(token);
+  const unsubscribeTokenState = generateNotificationUnsubscribeToken({ ttlDays: 14 });
+
+  const { data: existing, error: existingError } = await adminClient
+    .from('ultaura_notification_recipients')
+    .select('*')
+    .eq('confirmation_token_hash', tokenHash)
+    .maybeSingle();
+
+  if (existingError || !existing) {
+    return { success: false, error: createError(ErrorCodes.INVALID_INPUT, TOKEN_INVALID_ERROR_MESSAGE) };
+  }
+
+  if (
+    !existing.confirmation_token_expires_at ||
+    new Date(existing.confirmation_token_expires_at).getTime() <= Date.now()
+  ) {
+    return { success: false, error: createError(ErrorCodes.INVALID_INPUT, TOKEN_INVALID_ERROR_MESSAGE) };
+  }
+
+  if (existing.confirmed_at) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.ALREADY_EXISTS, TOKEN_ALREADY_USED_ERROR_MESSAGE),
+    };
+  }
 
   const { data: recipient, error } = await adminClient
     .from('ultaura_notification_recipients')
-    .update({ confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      confirmed_at: new Date().toISOString(),
+      confirmation_token_hash: null,
+      confirmation_token_expires_at: null,
+      unsubscribe_token_hash: unsubscribeTokenState.tokenHash,
+      unsubscribe_token_expires_at: unsubscribeTokenState.expiresAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', existing.id)
     .eq('confirmation_token_hash', tokenHash)
     .gt('confirmation_token_expires_at', new Date().toISOString())
     .is('confirmed_at', null)
@@ -378,16 +603,119 @@ export async function unsubscribeNotificationRecipient(
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const tokenHash = hashNotificationToken(token);
 
-  const { error } = await adminClient
+  const { data: existing, error: existingError } = await adminClient
     .from('ultaura_notification_recipients')
-    .update({ unsubscribed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq('confirmation_token_hash', tokenHash);
+    .select('id, unsubscribe_token_expires_at, unsubscribed_at')
+    .eq('unsubscribe_token_hash', tokenHash)
+    .maybeSingle();
+
+  if (existingError || !existing) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, UNSUBSCRIBE_INVALID_ERROR_MESSAGE),
+    };
+  }
+
+  if (
+    !existing.unsubscribe_token_expires_at ||
+    new Date(existing.unsubscribe_token_expires_at).getTime() <= Date.now()
+  ) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, UNSUBSCRIBE_INVALID_ERROR_MESSAGE),
+    };
+  }
+
+  if (existing.unsubscribed_at) {
+    return { success: true, data: undefined };
+  }
+
+  const { data: updated, error } = await adminClient
+    .from('ultaura_notification_recipients')
+    .update({
+      unsubscribed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', existing.id)
+    .eq('unsubscribe_token_hash', tokenHash)
+    .is('unsubscribed_at', null)
+    .gt('unsubscribe_token_expires_at', new Date().toISOString())
+    .select('id')
+    .maybeSingle();
 
   if (error) {
     return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to unsubscribe') };
   }
 
+  if (!updated) {
+    const { data: retryExisting, error: retryError } = await adminClient
+      .from('ultaura_notification_recipients')
+      .select('id, unsubscribed_at')
+      .eq('unsubscribe_token_hash', tokenHash)
+      .maybeSingle();
+
+    if (!retryError && retryExisting?.unsubscribed_at) {
+      return { success: true, data: undefined };
+    }
+
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, UNSUBSCRIBE_INVALID_ERROR_MESSAGE),
+    };
+  }
+
   return { success: true, data: undefined };
+}
+
+export async function issueNotificationRecipientUnsubscribeToken(
+  recipientId: string,
+  options: {
+    client?: SupabaseClient<Database>;
+    ttlDays?: number;
+  } = {}
+): Promise<ActionResult<{ token: string; expiresAt: string }>> {
+  const client = options.client ?? getSupabaseServerActionClient({ admin: true });
+  const tokenState = generateNotificationUnsubscribeToken({
+    ttlDays: options.ttlDays ?? 14,
+  });
+
+  const { data: updated, error } = await client
+    .from('ultaura_notification_recipients')
+    .update({
+      unsubscribe_token_hash: tokenState.tokenHash,
+      unsubscribe_token_expires_at: tokenState.expiresAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', recipientId)
+    .is('unsubscribed_at', null)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    logger.error({ error, recipientId }, 'Failed to persist unsubscribe token');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to issue unsubscribe token'),
+    };
+  }
+
+  if (!updated) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.INVALID_INPUT,
+        'Recipient not found or already unsubscribed'
+      ),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      token: tokenState.token,
+      expiresAt: tokenState.expiresAt,
+    },
+  };
 }
 
 async function sendInviteEmail(options: {
@@ -428,8 +756,13 @@ async function sendInviteEmail(options: {
 
 async function createTrustedContactFromRecipient(
   adminClient: ReturnType<typeof getSupabaseServerActionClient>,
-  recipient: any
+  recipient: NotificationRecipientRow
 ): Promise<void> {
+  const phoneE164 = recipient.phone_e164;
+  if (!phoneE164) {
+    return;
+  }
+
   const { data: lines } = await adminClient
     .from('ultaura_lines')
     .select('id, phone_verified_at, created_at')
@@ -448,7 +781,7 @@ async function createTrustedContactFromRecipient(
       account_id: recipient.account_id,
       line_id: targetLine.id,
       name: recipient.name,
-      phone_e164: recipient.phone_e164,
+      phone_e164: phoneE164,
       relationship: recipient.relationship ?? null,
       notify_on: ['medium', 'high'],
       enabled: true,
