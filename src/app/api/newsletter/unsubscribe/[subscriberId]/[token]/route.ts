@@ -5,14 +5,16 @@ import { buildHtmlRouteHeaders } from '~/lib/server/route-html';
 import { unsubscribeNewsletterSubscriber } from '~/lib/ultaura/newsletter';
 import { renderNewsletterActionPage } from '~/lib/ultaura/newsletter-html';
 
-const siteUrl = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-).replace(/\/$/, '');
+const DEFAULT_SITE_URL = 'http://localhost:3000';
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL).replace(
+  /\/$/,
+  '',
+);
 const siteOrigin = (() => {
   try {
     return new URL(siteUrl).origin;
   } catch {
-    return 'http://localhost:3000';
+    return DEFAULT_SITE_URL;
   }
 })();
 const HTML_HEADERS = buildHtmlRouteHeaders({
@@ -29,22 +31,27 @@ const HTML_HEADERS = buildHtmlRouteHeaders({
   contentType: 'text/html',
 });
 
+function htmlResponse(
+  options: Parameters<typeof renderNewsletterActionPage>[0],
+  status = 200,
+) {
+  return new NextResponse(renderNewsletterActionPage(options), {
+    headers: HTML_HEADERS,
+    status,
+  });
+}
+
 export async function GET(
   _: Request,
   context: { params: { subscriberId: string; token: string } },
 ) {
   const { subscriberId, token } = context.params;
-  const actionUrl = `/api/newsletter/unsubscribe/${encodeURIComponent(subscriberId)}/${encodeURIComponent(token)}`;
 
-  const html = renderNewsletterActionPage({
+  return htmlResponse({
     title: 'Unsubscribe from newsletter',
     body: 'Click the button below to stop receiving Ultaura newsletter emails.',
     actionLabel: 'Unsubscribe',
-    actionUrl,
-  });
-
-  return new NextResponse(html, {
-    headers: HTML_HEADERS,
+    actionUrl: `/api/newsletter/unsubscribe/${encodeURIComponent(subscriberId)}/${encodeURIComponent(token)}`,
   });
 }
 
@@ -57,36 +64,22 @@ export async function POST(
     const result = await unsubscribeNewsletterSubscriber(subscriberId, token);
 
     if (!result.success) {
-      const html = renderNewsletterActionPage({
+      return htmlResponse({
         title: 'Unsubscribe failed',
         body: result.message || 'We could not process your request.',
         isError: true,
-      });
-
-      return new NextResponse(html, {
-        headers: HTML_HEADERS,
-        status: 400,
-      });
+      }, 400);
     }
 
-    const html = renderNewsletterActionPage({
+    return htmlResponse({
       title: 'You are unsubscribed',
       body: 'You will no longer receive the Ultaura newsletter at this email address.',
     });
-
-    return new NextResponse(html, {
-      headers: HTML_HEADERS,
-    });
   } catch {
-    const html = renderNewsletterActionPage({
+    return htmlResponse({
       title: 'Something went wrong',
       body: 'Please try again later.',
       isError: true,
-    });
-
-    return new NextResponse(html, {
-      headers: HTML_HEADERS,
-      status: 500,
-    });
+    }, 500);
   }
 }

@@ -9,6 +9,8 @@ import { inviteNotificationRecipient, removeNotificationRecipient } from '~/lib/
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
 
+const REMOVE_RECIPIENT_ERROR = 'Failed to remove recipient';
+
 type InvitePayload = {
   name: string;
   email: string;
@@ -121,9 +123,7 @@ export function useInviteFlow({
   }, [resetInviteForm]);
 
   const attemptCloseInvite = useCallback(() => {
-    if (isInviting) {
-      return;
-    }
+    if (isInviting) return;
 
     if (hasInviteChanges) {
       setShowDiscardConfirm(true);
@@ -239,7 +239,7 @@ export function useInviteFlow({
     try {
       const result = await removeNotificationRecipient(recipientId);
       if (!result.success) {
-        const errorMessage = result.error.message || 'Failed to remove recipient';
+        const errorMessage = result.error.message || REMOVE_RECIPIENT_ERROR;
         toast.error(errorMessage);
         didShowErrorToast = true;
         throw new Error(errorMessage);
@@ -251,12 +251,12 @@ export function useInviteFlow({
       toast.success('Recipient removed');
     } catch (error) {
       if (!didShowErrorToast) {
-        toast.error('Failed to remove recipient');
+        toast.error(REMOVE_RECIPIENT_ERROR);
       }
       if (error instanceof Error && error.message) {
         throw error;
       }
-      throw new Error('Failed to remove recipient');
+      throw new Error(REMOVE_RECIPIENT_ERROR);
     }
   }, []);
 
@@ -274,14 +274,6 @@ export function useInviteFlow({
   const handleSetInvitePhone = useCallback((value: string) => {
     setInvitePhone(value);
     setInvitePhoneError(undefined);
-  }, []);
-
-  const handleSetInvitePhoneError = useCallback((value?: string) => {
-    setInvitePhoneError(value);
-  }, []);
-
-  const handleSetInviteError = useCallback((value: string | null) => {
-    setInviteError(value);
   }, []);
 
   useEffect(() => {
@@ -304,9 +296,9 @@ export function useInviteFlow({
     inviteAsTrusted,
     setInviteAsTrusted,
     invitePhoneError,
-    setInvitePhoneError: handleSetInvitePhoneError,
+    setInvitePhoneError,
     inviteError,
-    setInviteError: handleSetInviteError,
+    setInviteError,
     isInviting,
     showInviteModal,
     setShowInviteModal,

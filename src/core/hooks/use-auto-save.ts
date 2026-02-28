@@ -16,12 +16,18 @@ interface UseAutoSaveReturn<T> {
   flush: () => Promise<void>;
   cancel: () => void;
   isSaving: boolean;
+  hasPending: boolean;
 }
+
+const DEFAULT_DELAY_MS = 1300;
+const MAX_RETRY_ATTEMPTS = 3;
+const DEFAULT_SAVE_ERROR = 'Failed to save';
 
 export function useAutoSave<T>(
   options: UseAutoSaveOptions<T>,
 ): UseAutoSaveReturn<T> {
   const [isSaving, setIsSaving] = useState(false);
+  const [hasPending, setHasPending] = useState(false);
 
   const optionsRef = useRef(options);
   optionsRef.current = options;
@@ -30,7 +36,9 @@ export function useAutoSave<T>(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
   const retryRef = useRef<{ value: T } | null>(null);
+  const retryCountRef = useRef(0);
   const unmountedRef = useRef(false);
+  const savePromiseRef = useRef<Promise<void> | null>(null);
 
   const doSave = useCallback(async (value: T) => {
     const { saveFn, toastSuccess, onSuccess, disabled } = optionsRef.current;
@@ -47,12 +55,12 @@ export function useAutoSave<T>(
           if (toastSuccess) toast.success(toastSuccess);
           onSuccess?.();
         } else {
-          toast.error(result.error || 'Failed to save');
+          toast.error(result.error || DEFAULT_SAVE_ERROR);
         }
       }
     } catch {
       if (!unmountedRef.current) {
-        toast.error('Failed to save');
+        toast.error(DEFAULT_SAVE_ERROR);
       }
     } finally {
       savingRef.current = false;
@@ -60,12 +68,37 @@ export function useAutoSave<T>(
 
       // If a new value arrived while saving, retry with the latest
       if (retryRef.current) {
+        if (retryCountRef.current >= MAX_RETRY_ATTEMPTS) {
+          retryRef.current = null;
+          if (!unmountedRef.current) {
+            setHasPending(false);
+            toast.error('Failed to save after multiple attempts');
+          }
+          return;
+        }
+        retryCountRef.current += 1;
         const next = retryRef.current;
         retryRef.current = null;
-        doSave(next.value);
+        await doSave(next.value);
+      } else if (!unmountedRef.current) {
+        retryCountRef.current = 0;
+        setHasPending(false);
       }
     }
   }, []);
+
+  const runSave = useCallback(
+    (value: T) => {
+      const savePromise = doSave(value).finally(() => {
+        if (savePromiseRef.current === savePromise) {
+          savePromiseRef.current = null;
+        }
+      });
+      savePromiseRef.current = savePromise;
+      return savePromise;
+    },
+    [doSave],
+  );
 
   const flush = useCallback(async () => {
     if (timerRef.current) {
@@ -76,9 +109,13 @@ export function useAutoSave<T>(
     if (pendingValueRef.current) {
       const pending = pendingValueRef.current;
       pendingValueRef.current = null;
-      await doSave(pending.value);
+      await runSave(pending.value);
+    } else if (savePromiseRef.current) {
+      await savePromiseRef.current;
+    } else {
+      setHasPending(false);
     }
-  }, [doSave]);
+  }, [runSave]);
 
   const cancel = useCallback(() => {
     if (timerRef.current) {
@@ -87,6 +124,8 @@ export function useAutoSave<T>(
     }
     pendingValueRef.current = null;
     retryRef.current = null;
+    retryCountRef.current = 0;
+    setHasPending(false);
   }, []);
 
   const triggerSave = useCallback(
@@ -94,6 +133,7 @@ export function useAutoSave<T>(
       if (optionsRef.current.disabled) return;
 
       pendingValueRef.current = { value };
+      setHasPending(true);
 
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -105,17 +145,17 @@ export function useAutoSave<T>(
         return;
       }
 
-      const delay = optionsRef.current.delay ?? 1300;
+      const delay = optionsRef.current.delay ?? DEFAULT_DELAY_MS;
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         const pending = pendingValueRef.current;
         pendingValueRef.current = null;
         if (pending) {
-          doSave(pending.value);
+          void runSave(pending.value);
         }
       }, delay);
     },
-    [doSave],
+    [runSave],
   );
 
   // Flush on unmount
@@ -139,5 +179,5 @@ export function useAutoSave<T>(
     };
   }, []);
 
-  return { triggerSave, flush, cancel, isSaving };
+  return { triggerSave, flush, cancel, isSaving, hasPending };
 }

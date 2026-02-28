@@ -17,17 +17,24 @@ const HTML_HEADERS = buildHtmlRouteHeaders({
   },
 });
 
+function htmlResponse(
+  options: Parameters<typeof renderSimpleActionPage>[0],
+  status = 200,
+) {
+  return new NextResponse(renderSimpleActionPage(options), {
+    headers: HTML_HEADERS,
+    status,
+  });
+}
+
 export async function GET(_: Request, context: { params: { token: string } }) {
   const { token } = context.params;
-  const actionUrl = `/api/ultaura/confirm/${encodeURIComponent(token)}`;
-  const html = renderSimpleActionPage({
+  return htmlResponse({
     title: 'Confirm family updates',
     body: 'Confirm that you want to receive weekly summaries and alerts from Ultaura.',
     actionLabel: 'Confirm updates',
-    actionUrl,
+    actionUrl: `/api/ultaura/confirm/${encodeURIComponent(token)}`,
   });
-
-  return new NextResponse(html, { headers: HTML_HEADERS });
 }
 
 export async function POST(_: Request, context: { params: { token: string } }) {
@@ -36,26 +43,22 @@ export async function POST(_: Request, context: { params: { token: string } }) {
     const result = await confirmNotificationRecipient(token);
 
     if (!result.success) {
-      const html = renderSimpleActionPage({
+      return htmlResponse({
         title: 'Confirmation failed',
         body: result.error.message || 'This confirmation link is invalid or expired.',
         isError: true,
-      });
-      return new NextResponse(html, { headers: HTML_HEADERS, status: 400 });
+      }, 400);
     }
 
-    const html = renderSimpleActionPage({
+    return htmlResponse({
       title: 'You are confirmed',
       body: `You will now receive updates from ${result.data.accountName}. You can close this page.`,
     });
-
-    return new NextResponse(html, { headers: HTML_HEADERS });
   } catch {
-    const html = renderSimpleActionPage({
+    return htmlResponse({
       title: 'Something went wrong',
       body: 'Please try again later.',
       isError: true,
-    });
-    return new NextResponse(html, { headers: HTML_HEADERS, status: 500 });
+    }, 500);
   }
 }

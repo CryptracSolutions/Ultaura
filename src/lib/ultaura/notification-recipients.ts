@@ -23,6 +23,7 @@ const MAX_NOTIFICATION_RECIPIENTS = 5;
 const MAX_RECIPIENTS_ERROR_MESSAGE =
   'Maximum of 5 recipients reached. Remove one before inviting another.';
 const RECIPIENT_LIMIT_TRIGGER_ERROR = 'Maximum of 5 notification recipients';
+const INVITE_FAILED_ERROR_MESSAGE = 'Failed to invite recipient';
 const TOKEN_INVALID_ERROR_MESSAGE = 'Invalid or expired token';
 const TOKEN_ALREADY_USED_ERROR_MESSAGE = 'This link has already been used';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -66,6 +67,14 @@ function createInviteSendError(context: InviteMutationContext): InviteSendError 
 
 function isRecipientLimitError(error: { message?: string } | null | undefined): boolean {
   return Boolean(error?.message?.includes(RECIPIENT_LIMIT_TRIGGER_ERROR));
+}
+
+function createMaxRecipientsError() {
+  return createError(ErrorCodes.INVALID_INPUT, MAX_RECIPIENTS_ERROR_MESSAGE);
+}
+
+function createInviteFailedError() {
+  return createError(ErrorCodes.DATABASE_ERROR, INVITE_FAILED_ERROR_MESSAGE);
 }
 
 function getSiteUrl(): string {
@@ -247,7 +256,7 @@ export async function inviteNotificationRecipient(
 
   if (existingError) {
     logger.error({ existingError, accountId }, 'Failed to check existing recipient');
-    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+    return { success: false, error: createInviteFailedError() };
   }
 
   let inviteContext: InviteMutationContext | null = null;
@@ -275,15 +284,12 @@ export async function inviteNotificationRecipient(
         client
       );
       if (countError) {
-        return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+        return { success: false, error: createInviteFailedError() };
       }
       if ((count ?? 0) >= MAX_NOTIFICATION_RECIPIENTS) {
         return {
           success: false,
-          error: createError(
-            ErrorCodes.INVALID_INPUT,
-            MAX_RECIPIENTS_ERROR_MESSAGE
-          ),
+          error: createMaxRecipientsError(),
         };
       }
     }
@@ -331,14 +337,11 @@ export async function inviteNotificationRecipient(
       if (isRecipientLimitError(updateError)) {
         return {
           success: false,
-          error: createError(
-            ErrorCodes.INVALID_INPUT,
-            MAX_RECIPIENTS_ERROR_MESSAGE
-          ),
+          error: createMaxRecipientsError(),
         };
       }
       logger.error({ updateError, accountId }, 'Failed to update notification recipient');
-      return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+      return { success: false, error: createInviteFailedError() };
     }
 
     inviteContext = {
@@ -367,15 +370,12 @@ export async function inviteNotificationRecipient(
   const { count: activeRecipientCount, error: countError } =
     await getActiveRecipientCount(accountId, client);
   if (countError) {
-    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+    return { success: false, error: createInviteFailedError() };
   }
   if ((activeRecipientCount ?? 0) >= MAX_NOTIFICATION_RECIPIENTS) {
     return {
       success: false,
-      error: createError(
-        ErrorCodes.INVALID_INPUT,
-        MAX_RECIPIENTS_ERROR_MESSAGE
-      ),
+      error: createMaxRecipientsError(),
     };
   }
 
@@ -396,14 +396,11 @@ export async function inviteNotificationRecipient(
     if (isRecipientLimitError(insertError)) {
       return {
         success: false,
-        error: createError(
-          ErrorCodes.INVALID_INPUT,
-          MAX_RECIPIENTS_ERROR_MESSAGE
-        ),
+        error: createMaxRecipientsError(),
       };
     }
     logger.error({ insertError, accountId }, 'Failed to create notification recipient');
-    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+    return { success: false, error: createInviteFailedError() };
   }
 
   const tokenState = generateNotificationConfirmationToken({ ttlDays: 7 });
@@ -421,7 +418,7 @@ export async function inviteNotificationRecipient(
 
   if (tokenError || !updated) {
     logger.error({ tokenError, accountId }, 'Failed to assign notification token');
-    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+    return { success: false, error: createInviteFailedError() };
   }
 
   inviteContext = {
@@ -683,13 +680,14 @@ export async function issueNotificationRecipientUnsubscribeToken(
   const tokenState = generateNotificationUnsubscribeToken({
     ttlDays: options.ttlDays ?? 14,
   });
+  const nowIso = new Date().toISOString();
 
   const { data: updated, error } = await client
     .from('ultaura_notification_recipients')
     .update({
       unsubscribe_token_hash: tokenState.tokenHash,
       unsubscribe_token_expires_at: tokenState.expiresAt,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     })
     .eq('id', recipientId)
     .is('unsubscribed_at', null)

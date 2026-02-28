@@ -49,14 +49,25 @@ export function ConfirmationDialog({
   }, [onConfirm, onOpenChange]);
 
   const handleCancel = useCallback(() => {
-    if (!isLoading) {
-      onCancel?.();
-      onOpenChange(false);
+    if (isLoading) {
+      return;
     }
+    onCancel?.();
+    onOpenChange(false);
   }, [isLoading, onCancel, onOpenChange]);
 
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (isLoading) {
+        return;
+      }
+      onOpenChange(nextOpen);
+    },
+    [isLoading, onOpenChange],
+  );
+
   return (
-    <Dialog open={open} onOpenChange={isLoading ? undefined : onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
         overlayClassName="bg-black/50 backdrop-blur-none"

@@ -137,4 +137,62 @@ describe('unsubscribeNotificationRecipient token flow', () => {
       'This unsubscribe link is invalid or has expired.',
     );
   });
+
+  it('issues unsubscribe token with ISO timestamps and persists updated_at', async () => {
+    const maybeSingle = vi.fn(async () => ({
+      data: { id: 'recipient-1' },
+      error: null,
+    }));
+    const update = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        is: vi.fn(() => ({
+          select: vi.fn(() => ({
+            maybeSingle,
+          })),
+        })),
+      })),
+    }));
+    const adminClient = {
+      from: vi.fn(() => ({
+        update,
+      })),
+    };
+
+    vi.doMock('~/core/supabase/action-client', () => ({
+      default: vi.fn(() => adminClient),
+    }));
+    vi.doMock('~/core/supabase/server-component-client', () => ({
+      default: vi.fn(() => adminClient),
+    }));
+    vi.doMock('~/core/email/send-email', () => ({
+      default: vi.fn(async () => undefined),
+    }));
+    vi.doMock('~/lib/emails/notification-invite', () => ({
+      default: vi.fn(() => ({ html: '', text: '' })),
+    }));
+    vi.doMock('~/lib/server/queries', () => ({
+      getUserDataById: vi.fn(async () => null),
+    }));
+
+    const { issueNotificationRecipientUnsubscribeToken } = await import(
+      '~/lib/ultaura/notification-recipients'
+    );
+
+    const result = await issueNotificationRecipientUnsubscribeToken('recipient-1');
+
+    expect(result.success).toBe(true);
+    const updatePayload = (update.mock.calls[0] as Array<any>)[0];
+    expect(updatePayload.updated_at).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+    );
+    expect(updatePayload.unsubscribe_token_expires_at).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+    );
+    if (!result.success) {
+      throw new Error('Expected successful unsubscribe token issuance');
+    }
+    expect(result.data.expiresAt).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+    );
+  });
 });

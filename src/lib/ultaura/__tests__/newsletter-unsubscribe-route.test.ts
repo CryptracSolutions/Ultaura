@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const CSP_HEADER = 'content-security-policy';
+const UNSUBSCRIBE_ROUTE =
+  '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route';
+
 describe('newsletter unsubscribe route', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -17,9 +21,7 @@ describe('newsletter unsubscribe route', () => {
       unsubscribeNewsletterSubscriber,
     }));
 
-    const { GET } = await import(
-      '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route'
-    );
+    const { GET } = await import(UNSUBSCRIBE_ROUTE);
 
     const response = await GET(
       new Request(
@@ -30,10 +32,10 @@ describe('newsletter unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "style-src 'unsafe-inline' https://fonts.googleapis.com",
     );
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "img-src 'self' http://localhost:3000",
     );
     expect(html).toContain('Unsubscribe from newsletter');
@@ -52,9 +54,7 @@ describe('newsletter unsubscribe route', () => {
       unsubscribeNewsletterSubscriber,
     }));
 
-    const { POST } = await import(
-      '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route'
-    );
+    const { POST } = await import(UNSUBSCRIBE_ROUTE);
 
     const response = await POST(
       new Request(
@@ -66,7 +66,7 @@ describe('newsletter unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       'font-src https://fonts.gstatic.com',
     );
     expect(html).toContain('You are unsubscribed');
@@ -85,9 +85,7 @@ describe('newsletter unsubscribe route', () => {
       unsubscribeNewsletterSubscriber,
     }));
 
-    const { POST } = await import(
-      '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route'
-    );
+    const { POST } = await import(UNSUBSCRIBE_ROUTE);
 
     const response = await POST(
       new Request(
@@ -99,7 +97,7 @@ describe('newsletter unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(400);
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "style-src 'unsafe-inline' https://fonts.googleapis.com",
     );
     expect(html).toContain('Unsubscribe failed');
@@ -118,9 +116,7 @@ describe('newsletter unsubscribe route', () => {
       unsubscribeNewsletterSubscriber,
     }));
 
-    const { POST } = await import(
-      '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route'
-    );
+    const { POST } = await import(UNSUBSCRIBE_ROUTE);
 
     const response = await POST(
       new Request(
@@ -132,7 +128,7 @@ describe('newsletter unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(500);
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "style-src 'unsafe-inline' https://fonts.googleapis.com",
     );
     expect(html).toContain('Something went wrong');
@@ -146,9 +142,7 @@ describe('newsletter unsubscribe route', () => {
       unsubscribeNewsletterSubscriber,
     }));
 
-    const { GET } = await import(
-      '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route'
-    );
+    const { GET } = await import(UNSUBSCRIBE_ROUTE);
 
     const response = await GET(
       new Request('http://localhost/api/newsletter/unsubscribe/subscriber-1/token-1'),

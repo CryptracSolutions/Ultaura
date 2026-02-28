@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
 import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
@@ -25,16 +26,21 @@ function getStatus(recipient: NotificationRecipient): { label: string; className
 }
 
 export function InvitedFamilyList({ recipients, onRemove, disabled = false }: InvitedFamilyListProps) {
-  const sorted = useMemo(() => {
-    return [...recipients].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  }, [recipients]);
+  const [pendingRemove, setPendingRemove] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const sorted = useMemo(
+    () => [...recipients].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [recipients],
+  );
 
   if (sorted.length === 0) {
     return <p className="text-sm text-muted-foreground">No invited family members yet.</p>;
   }
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="rounded-lg border border-border overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -68,7 +74,11 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
                       {
                         label: 'Remove',
                         icon: <Trash2 className="w-5 h-5" />,
-                        onClick: () => onRemove(recipient.id),
+                        onClick: () =>
+                          setPendingRemove({
+                            id: recipient.id,
+                            name: recipient.name,
+                          }),
                         variant: 'destructive',
                       },
                     ]}
@@ -80,6 +90,23 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
           })}
         </TableBody>
       </Table>
+      <ConfirmationDialog
+        open={pendingRemove !== null}
+        onOpenChange={(open) => !open && setPendingRemove(null)}
+        title="Remove recipient?"
+        description={
+          pendingRemove
+            ? `Remove ${pendingRemove.name} from family notifications?`
+            : 'Remove this recipient from family notifications?'
+        }
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!pendingRemove) return;
+          await onRemove(pendingRemove.id);
+          setPendingRemove(null);
+        }}
+      />
     </div>
   );
 }

@@ -1,13 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 vi.mock('~/core/email/send-email', () => ({
   default: vi.fn().mockResolvedValue({}),
 }));
+vi.mock('server-only', () => ({}));
+vi.mock('react', async () => {
+  const actual = await vi.importActual<typeof import('react')>('react');
+  return { ...actual, cache: (fn: (...args: any[]) => any) => fn };
+});
 
 import sendEmail from '~/core/email/send-email';
 import { inviteNotificationRecipient, confirmNotificationRecipient } from '../notification-recipients';
-import { buildNotificationRecipientToken, hashNotificationToken } from '../notification-tokens';
 import { upgradeSelfToFamilyMode } from '../accounts';
 import {
   cleanupTestData,
@@ -15,6 +19,10 @@ import {
   createTestLine,
   testServiceRoleClient,
 } from './setup';
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 describe('workflow fit actions', () => {
   let accountId: string;
@@ -34,7 +42,7 @@ describe('workflow fit actions', () => {
     await cleanupTestData({ accountId, organizationId, userId });
   });
 
-  it('generates a deterministic token hash on invite', async () => {
+  it('stores a confirmation token hash that matches the invite link token', async () => {
     const result = await inviteNotificationRecipient(accountId, {
       name: 'Jane Doe',
       email: `jane-${Date.now()}@example.com`,
@@ -54,8 +62,12 @@ describe('workflow fit actions', () => {
 
     expect(recipient).toBeDefined();
 
-    const token = buildNotificationRecipientToken(recipient!.id);
-    const expectedHash = hashNotificationToken(token);
+    const sendEmailCalls = vi.mocked(sendEmail).mock.calls;
+    const latestEmailCall = sendEmailCalls[sendEmailCalls.length - 1]?.[0];
+    const confirmLink = latestEmailCall?.html?.match(/\/api\/ultaura\/confirm\/([a-f0-9]+)/i)?.[1];
+    expect(confirmLink).toBeDefined();
+
+    const expectedHash = hashToken(confirmLink!);
 
     expect(recipient!.confirmation_token_hash).toBe(expectedHash);
     expect(recipient!.confirmation_token_expires_at).not.toBeNull();
@@ -64,8 +76,8 @@ describe('workflow fit actions', () => {
 
   it('confirms an invite and creates a trusted contact', async () => {
     const recipientId = randomUUID();
-    const token = buildNotificationRecipientToken(recipientId);
-    const tokenHash = hashNotificationToken(token);
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
 
     const { data: inserted } = await testServiceRoleClient
       .from('ultaura_notification_recipients')

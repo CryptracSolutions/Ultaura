@@ -191,14 +191,14 @@ describe('privacy required audit + deletion behavior', () => {
 
     const buildDeleteChain = (table: string) => ({
       eq: vi.fn(async () => {
-        deleteTables.push(table);
+        deleteTables.push(`${table}:eq`);
         if (table === 'ultaura_grief_interactions') {
           return { error: { message: 'failed' } };
         }
         return { error: null };
       }),
       in: vi.fn(async () => {
-        deleteTables.push(table);
+        deleteTables.push(`${table}:in`);
         if (table === 'ultaura_grief_interactions') {
           return { error: { message: 'failed' } };
         }
@@ -282,8 +282,8 @@ describe('privacy required audit + deletion behavior', () => {
     const result = await requestAccountDataDeletion('acct-1', 'user_request');
 
     expect(result).toEqual({ success: false, error: 'Failed to delete account data' });
-    expect(deleteTables).toContain('ultaura_grief_interactions');
-    expect(deleteTables).not.toContain('ultaura_call_sessions');
+    expect(deleteTables).toContain('ultaura_grief_interactions:in');
+    expect(deleteTables).not.toContain('ultaura_call_sessions:eq');
     expect(auditInsert).toHaveBeenCalled();
   });
 
@@ -484,11 +484,11 @@ describe('privacy required audit + deletion behavior', () => {
 
     const buildDeleteChain = (table: string) => ({
       eq: vi.fn(async () => {
-        deleteTables.push(table);
+        deleteTables.push(`${table}:eq`);
         return { error: null };
       }),
       in: vi.fn(async () => {
-        deleteTables.push(table);
+        deleteTables.push(`${table}:in`);
         return { error: null };
       }),
     });
@@ -510,7 +510,7 @@ describe('privacy required audit + deletion behavior', () => {
         if (table === 'ultaura_lines') {
           return {
             select: vi.fn(() => ({
-              eq: vi.fn(async () => ({ data: [], error: null })),
+              eq: vi.fn(async () => ({ data: [{ id: 'line-1' }], error: null })),
             })),
           };
         }
@@ -578,14 +578,16 @@ describe('privacy required audit + deletion behavior', () => {
       'ultaura_topic_exclusions',
       'ultaura_line_crypto_keys',
       'ultaura_phone_verifications',
+      'ultaura_pending_recording_deletions',
       'ultaura_telephony_event_log',
     ];
 
-    const callSessionsIndex = deleteTables.indexOf('ultaura_call_sessions');
+    const callSessionsIndex = deleteTables.indexOf('ultaura_call_sessions:eq');
     expect(callSessionsIndex).toBeGreaterThan(-1);
     for (const table of expectedRoundFiveDeletes) {
-      expect(deleteTables).toContain(table);
-      expect(deleteTables.indexOf(table)).toBeLessThan(callSessionsIndex);
+      const lookup = table === 'ultaura_phone_verifications' ? `${table}:in` : `${table}:eq`;
+      expect(deleteTables).toContain(lookup);
+      expect(deleteTables.indexOf(lookup)).toBeLessThan(callSessionsIndex);
     }
     expect(auditInsert).toHaveBeenCalled();
   });

@@ -146,17 +146,18 @@ export function usePrivacyAutosaveState({
     privacyAutoSaveIsSaving,
   ]);
 
-  const getCurrentPayload = useCallback((): PrivacyAutosavePayload => {
-    return buildPrivacyAutosavePayload({
+  const getCurrentPayload = useCallback(
+    (): PrivacyAutosavePayload => buildPrivacyAutosavePayload({
       recordingEnabled: recordingEnabledRef.current,
       aiSummarizationEnabled: aiSummarizationEnabledRef.current,
       retentionPeriod: retentionPeriodRef.current,
-    });
-  }, []);
+    }),
+    [],
+  );
 
   const triggerPrivacySave = useCallback(
     (payload: PrivacyAutosavePayload) => {
-      triggerPrivacyAutoSave(buildPrivacyAutosavePayload(payload));
+      triggerPrivacyAutoSave(payload);
     },
     [triggerPrivacyAutoSave],
   );
@@ -167,13 +168,9 @@ export function usePrivacyAutosaveState({
 
       recordingEnabledRef.current = checked;
       setRecordingEnabled(checked);
-      triggerPrivacySave({
-        recordingEnabled: checked,
-        aiSummarizationEnabled: aiSummarizationEnabledRef.current,
-        retentionPeriod: retentionPeriodRef.current,
-      });
+      triggerPrivacySave(getCurrentPayload());
     },
-    [isPrivacySettingsUnavailable, triggerPrivacySave],
+    [getCurrentPayload, isPrivacySettingsUnavailable, triggerPrivacySave],
   );
 
   const onSummarizationToggle = useCallback(
@@ -182,13 +179,9 @@ export function usePrivacyAutosaveState({
 
       aiSummarizationEnabledRef.current = checked;
       setAiSummarizationEnabled(checked);
-      triggerPrivacySave({
-        recordingEnabled: recordingEnabledRef.current,
-        aiSummarizationEnabled: checked,
-        retentionPeriod: retentionPeriodRef.current,
-      });
+      triggerPrivacySave(getCurrentPayload());
     },
-    [isPrivacySettingsUnavailable, triggerPrivacySave],
+    [getCurrentPayload, isPrivacySettingsUnavailable, triggerPrivacySave],
   );
 
   const onRetentionSelect = useCallback(
@@ -216,15 +209,11 @@ export function usePrivacyAutosaveState({
     retentionPeriodRef.current = pendingRetentionPeriod;
     setRetentionPeriod(pendingRetentionPeriod);
 
-    triggerPrivacySave({
-      recordingEnabled: recordingEnabledRef.current,
-      aiSummarizationEnabled: aiSummarizationEnabledRef.current,
-      retentionPeriod: pendingRetentionPeriod,
-    });
+    triggerPrivacySave(getCurrentPayload());
 
     setRetentionConfirmOpen(false);
     setPendingRetentionPeriod(null);
-  }, [pendingRetentionPeriod, triggerPrivacySave]);
+  }, [getCurrentPayload, pendingRetentionPeriod, triggerPrivacySave]);
 
   const handleSetRetentionConfirmOpen = useCallback((open: boolean) => {
     setRetentionConfirmOpen(open);

@@ -7,15 +7,16 @@ import { renderNewsletterActionPage } from '~/lib/ultaura/newsletter-html';
 import getLogger from '~/core/logger';
 
 const logger = getLogger();
-
-const siteUrl = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-).replace(/\/$/, '');
+const DEFAULT_SITE_URL = 'http://localhost:3000';
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL).replace(
+  /\/$/,
+  '',
+);
 const siteOrigin = (() => {
   try {
     return new URL(siteUrl).origin;
   } catch {
-    return 'http://localhost:3000';
+    return DEFAULT_SITE_URL;
   }
 })();
 
@@ -37,25 +38,38 @@ const HTML_HEADERS = buildHtmlRouteHeaders({
   extraHeaders: { Sunset: SUNSET_HEADER },
 });
 
+function htmlResponse(
+  options: Parameters<typeof renderNewsletterActionPage>[0],
+  status = 200,
+) {
+  return new NextResponse(renderNewsletterActionPage(options), {
+    headers: HTML_HEADERS,
+    status,
+  });
+}
+
+function getRequestIp(request: Request): string | null {
+  return (
+    request.headers.get('x-real-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    null
+  );
+}
+
 export async function GET(
   _: Request,
   context: { params: { token: string } },
 ) {
-  const token = context.params.token;
-  const actionUrl = `/api/newsletter/confirm/${encodeURIComponent(token)}`;
+  const { token } = context.params;
 
   logger.info({ route: 'newsletter-confirm-compat' }, 'Serving legacy newsletter confirm compatibility route');
 
-  const html = renderNewsletterActionPage({
+  return htmlResponse({
     title: 'Confirm your subscription',
     body: 'Click the button below to confirm your Ultaura newsletter subscription.',
     actionLabel: 'Confirm Subscription',
-    actionUrl,
+    actionUrl: `/api/newsletter/confirm/${encodeURIComponent(token)}`,
     compatibilityNotice: COMPATIBILITY_NOTICE,
-  });
-
-  return new NextResponse(html, {
-    headers: HTML_HEADERS,
   });
 }
 
@@ -64,41 +78,28 @@ export async function POST(
   context: { params: { token: string } },
 ) {
   try {
-    const token = context.params.token;
-    const ip =
-      request.headers.get('x-real-ip') ||
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      null;
+    const { token } = context.params;
+    const ip = getRequestIp(request);
     const userAgent = request.headers.get('user-agent');
 
     const result = await confirmSubscription(token, ip, userAgent);
 
     if (!result.success) {
-      const html = renderNewsletterActionPage({
+      return htmlResponse({
         title: 'Confirmation failed',
         body: result.message || 'This confirmation link is invalid or expired.',
         isError: true,
         compatibilityNotice: COMPATIBILITY_NOTICE,
-      });
-
-      return new NextResponse(html, {
-        headers: HTML_HEADERS,
-        status: 400,
-      });
+      }, 400);
     }
 
     return NextResponse.redirect(`${siteUrl}/newsletter/confirmed`);
   } catch {
-    const html = renderNewsletterActionPage({
+    return htmlResponse({
       title: 'Something went wrong',
       body: 'Please try again later.',
       isError: true,
       compatibilityNotice: COMPATIBILITY_NOTICE,
-    });
-
-    return new NextResponse(html, {
-      headers: HTML_HEADERS,
-      status: 500,
-    });
+    }, 500);
   }
 }

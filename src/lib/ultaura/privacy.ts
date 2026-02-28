@@ -56,6 +56,15 @@ function getInternalApiSecret(): string {
   return secret;
 }
 
+function getRequestMetadata(
+  headersList: Awaited<ReturnType<typeof headers>>
+): { ipAddress: string | null; userAgent: string | null } {
+  return {
+    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
+    userAgent: headersList.get('user-agent') || null,
+  };
+}
+
 async function getAuthenticatedUserId(
   clientOverride?: ReturnType<typeof getSupabaseServerActionClient>
 ): Promise<string | null> {
@@ -216,8 +225,9 @@ export async function updatePrivacySettings(
     return { success: false, error: 'Privacy settings not found' };
   }
 
+  const nowIso = new Date().toISOString();
   const dbUpdates: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
+    updated_at: nowIso,
   };
 
   if (updates.recordingEnabled !== undefined) {
@@ -240,8 +250,7 @@ export async function updatePrivacySettings(
     return { success: false, error: 'Failed to update settings' };
   }
 
-  const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || null;
-  const userAgent = headersList.get('user-agent') || null;
+  const { ipAddress, userAgent } = getRequestMetadata(headersList);
 
   const logChange = async (
     entry: Omit<
@@ -281,7 +290,7 @@ export async function updatePrivacySettings(
           memory_consent: 'pending',
           memory_consent_at: null,
           last_consent_prompt_at: null,
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
         })
         .eq('account_id', accountId)
         .eq('memory_consent', 'denied')
@@ -370,13 +379,13 @@ export async function acknowledgeVendorDisclosure(
     return { success: true, alreadyAcknowledged: true };
   }
 
+  const requestMetadata = getRequestMetadata(headersList);
   const logged = await logRequiredConsentAudit({
     accountId,
     actorUserId,
     actorType: 'payer',
     action: 'vendor_acknowledged',
-    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
-    userAgent: headersList.get('user-agent') || null,
+    ...requestMetadata,
   }, adminClient);
   if (!logged) {
     return { success: false, error: 'Failed to record required audit entry' };
@@ -535,6 +544,7 @@ export async function requestRecordingReenable(
     return { success: false, error: 'Failed to update recording consent' };
   }
 
+  const requestMetadata = getRequestMetadata(headersList);
   const logged = await logRequiredConsentAudit({
     accountId,
     lineId,
@@ -551,8 +561,7 @@ export async function requestRecordingReenable(
       permanent: consent.recording_preference_permanent,
       recording_reenable_requested_at: now,
     },
-    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
-    userAgent: headersList.get('user-agent') || null,
+    ...requestMetadata,
   }, adminClient);
   if (!logged) {
     return { success: false, error: 'Failed to record required audit entry' };
@@ -636,6 +645,7 @@ export async function requestSharingRePrompt(
     return { success: false, error: 'Failed to update sharing consent' };
   }
 
+  const requestMetadata = getRequestMetadata(headersList);
   const logged = await logRequiredConsentAudit({
     accountId,
     lineId,
@@ -652,8 +662,7 @@ export async function requestSharingRePrompt(
       tier: consent.sharing_tier,
       sharing_reprompt_requested_at: now,
     },
-    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
-    userAgent: headersList.get('user-agent') || null,
+    ...requestMetadata,
   }, adminClient);
   if (!logged) {
     return { success: false, error: 'Failed to record sharing re-prompt audit entry' };
@@ -736,6 +745,7 @@ export async function requestInsightsRePrompt(
     return { success: false, error: 'Insights change already requested' };
   }
 
+  const requestMetadata = getRequestMetadata(headersList);
   const logged = await logRequiredConsentAudit({
     accountId,
     lineId,
@@ -749,8 +759,7 @@ export async function requestInsightsRePrompt(
     newValue: {
       insights_reprompt_requested_at: now,
     },
-    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
-    userAgent: headersList.get('user-agent') || null,
+    ...requestMetadata,
   }, adminClient);
   if (!logged) {
     return { success: false, error: 'Failed to record insights re-prompt audit entry' };
@@ -796,7 +805,7 @@ export async function logConsentAudit(
   return true;
 }
 
-async function logRequiredConsentAudit(
+export async function logRequiredConsentAudit(
   entry: ConsentAuditLogInput,
   clientOverride?: ReturnType<typeof getSupabaseServerActionClient>
 ): Promise<boolean> {
@@ -869,6 +878,7 @@ export async function requestDataExport(
 
   const { userClient, adminClient, actorUserId } = auth.context;
   const headersList = await headers();
+  const nowIso = new Date().toISOString();
 
   const { data, error } = await userClient
     .from('ultaura_data_export_requests')
@@ -894,20 +904,20 @@ export async function requestDataExport(
     return { success: false, error: 'Failed to create export request' };
   }
 
+  const requestMetadata = getRequestMetadata(headersList);
   const logged = await logRequiredConsentAudit({
     accountId,
     actorUserId,
     actorType: 'payer',
     action: 'data_export_requested',
-    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
-    userAgent: headersList.get('user-agent') || null,
+    ...requestMetadata,
   }, adminClient);
   if (!logged) {
     await adminClient
       .from('ultaura_data_export_requests')
       .update({
         status: 'failed',
-        processed_at: new Date().toISOString(),
+        processed_at: nowIso,
         error_message: 'Failed to record required audit entry',
       })
       .eq('id', data.id);
@@ -934,7 +944,7 @@ export async function requestDataExport(
         .from('ultaura_data_export_requests')
         .update({
           status: 'failed',
-          processed_at: new Date().toISOString(),
+          processed_at: nowIso,
           error_message: message,
         })
         .eq('id', data.id);
@@ -948,7 +958,7 @@ export async function requestDataExport(
       .from('ultaura_data_export_requests')
       .update({
         status: 'failed',
-        processed_at: new Date().toISOString(),
+        processed_at: nowIso,
         error_message: 'Failed to trigger export job',
       })
       .eq('id', data.id);
@@ -1012,8 +1022,7 @@ export async function requestAccountDataDeletion(
   const { userClient, adminClient, actorUserId } = auth.context;
   const headersList = await headers();
   const requestId = randomUUID();
-  const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || null;
-  const userAgent = headersList.get('user-agent') || null;
+  const { ipAddress, userAgent } = getRequestMetadata(headersList);
   const auditBase = {
     accountId,
     actorUserId,
@@ -1542,13 +1551,24 @@ export async function requestAccountDataDeletion(
     return failDeletion('delete_line_crypto_keys', 'Failed to delete account data');
   }
 
-  const { error: phoneVerificationsError } = await adminClient
-    .from('ultaura_phone_verifications')
+  if (lineIds.length > 0) {
+    const { error: phoneVerificationsError } = await adminClient
+      .from('ultaura_phone_verifications')
+      .delete()
+      .in('line_id', lineIds);
+    if (phoneVerificationsError) {
+      logger.error({ error: phoneVerificationsError, accountId }, 'Failed to delete phone verifications');
+      return failDeletion('delete_phone_verifications', 'Failed to delete account data');
+    }
+  }
+
+  const { error: pendingRecordingDeletionsError } = await adminClient
+    .from('ultaura_pending_recording_deletions')
     .delete()
     .eq('account_id', accountId);
-  if (phoneVerificationsError) {
-    logger.error({ error: phoneVerificationsError, accountId }, 'Failed to delete phone verifications');
-    return failDeletion('delete_phone_verifications', 'Failed to delete account data');
+  if (pendingRecordingDeletionsError) {
+    logger.error({ error: pendingRecordingDeletionsError, accountId }, 'Failed to delete pending recording deletions');
+    return failDeletion('delete_pending_recording_deletions', 'Failed to delete account data');
   }
 
   const { error: telephonyEventLogError } = await adminClient
@@ -1582,8 +1602,8 @@ export async function requestAccountDataDeletion(
     return { success: false, error: 'Failed to record required deletion audit entry' };
   }
 
-  // Explicitly deleted in this workflow:
-  // - ultaura_call_sessions plus direct dependents without ON DELETE CASCADE coverage
+  // Explicitly deleted in this workflow (non-exhaustive notable list; see delete stages above for full coverage):
+  // - ultaura_call_sessions and additional line/account-scoped privacy tables deleted in ordered stages
   // - ultaura_schedules
   // - ultaura_subscriptions
   // - ultaura_minute_ledger
@@ -1592,11 +1612,13 @@ export async function requestAccountDataDeletion(
   // - ultaura_topic_exclusions
   // - ultaura_line_crypto_keys
   // - ultaura_phone_verifications
+  // - ultaura_pending_recording_deletions
   // - ultaura_telephony_event_log
   // Cascade-covered via ultaura_call_sessions FK cleanup:
   // - ultaura_call_events
   // - ultaura_trial_daily_cap_reservations
   // Intentionally retained for compliance/audit trace:
+  // - ultaura_rate_limit_events (operational abuse/security telemetry)
   // - ultaura_accounts (skeleton row preserved)
   // - ultaura_lines (skeleton rows preserved)
   // - ultaura_memory_deactivation_log

@@ -23,6 +23,8 @@ import PhoneInput from '~/components/ultaura/PhoneInput';
 import { InvitedFamilyList } from '../InvitedFamilyList';
 import { PrivacyInfoBanner } from '../PrivacyInfoBanner';
 
+const MAX_RECIPIENTS = 5;
+
 export interface FamilyRecipientsSectionProps {
   activeRecipientCount: number;
   recipients: NotificationRecipient[];
@@ -82,6 +84,8 @@ export function FamilyRecipientsSection({
   setShowDiscardConfirm,
   closeInviteModal,
 }: FamilyRecipientsSectionProps) {
+  const hasReachedRecipientLimit = activeRecipientCount >= MAX_RECIPIENTS;
+
   return (
     <>
       <PrivacyInfoBanner>
@@ -108,7 +112,7 @@ export function FamilyRecipientsSection({
         />
         <SectionBody className="gap-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {activeRecipientCount >= 5 ? (
+            {hasReachedRecipientLimit ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-block w-full sm:w-auto">
@@ -136,7 +140,9 @@ export function FamilyRecipientsSection({
               </Button>
             )}
 
-            <p className="text-sm text-muted-foreground">{activeRecipientCount}/5 active recipients</p>
+            <p className="text-sm text-muted-foreground">
+              {activeRecipientCount}/{MAX_RECIPIENTS} active recipients
+            </p>
           </div>
 
           <InvitedFamilyList
@@ -148,10 +154,8 @@ export function FamilyRecipientsSection({
           <Dialog
             open={showInviteModal}
             onOpenChange={(open) => {
-              if (!open) {
-                if (isInviting) return;
-                attemptCloseInvite();
-              }
+              if (open || isInviting) return;
+              attemptCloseInvite();
             }}
           >
             <DialogContent

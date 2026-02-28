@@ -344,8 +344,8 @@ export function PrivacyCenterClient({
       const refreshed = await refreshExports();
       setExports(refreshed);
       toast.success('Export requested. We will prepare your file shortly.');
-    } catch {
-      toast.error('Failed to start export');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start export');
     } finally {
       setIsExporting(false);
     }

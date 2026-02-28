@@ -1,7 +1,8 @@
 import { escapeHtml, escapeHtmlAttr } from '~/lib/server/html-escape';
 
+const DEFAULT_SITE_URL = 'http://localhost:3000';
 const SITE_URL = escapeHtmlAttr(
-  (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  (process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL).replace(/\/$/, ''),
 );
 
 function buildActionForm(actionLabel: string, actionUrl: string): string {

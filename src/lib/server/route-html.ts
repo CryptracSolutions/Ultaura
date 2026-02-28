@@ -1,6 +1,7 @@
 import { escapeHtml, escapeHtmlAttr } from '~/lib/server/html-escape';
 
 type CspDirectives = Record<string, readonly string[]>;
+const HEX_COLOR_RE = /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
 export function buildContentSecurityPolicy(directives: CspDirectives): string {
   return Object.entries(directives)
@@ -17,8 +18,12 @@ export function buildHtmlRouteHeaders(options: {
   return {
     'content-type': options.contentType ?? 'text/html; charset=utf-8',
     'content-security-policy': buildContentSecurityPolicy(options.cspDirectives),
-    ...(options.extraHeaders || {}),
+    ...(options.extraHeaders ?? {}),
   };
+}
+
+function buildActionForm(actionLabel: string, actionUrl: string): string {
+  return `<form method="post" action="${escapeHtmlAttr(actionUrl)}"><button type="submit">${escapeHtml(actionLabel)}</button></form>`;
 }
 
 export function renderSimpleActionPage(options: {
@@ -29,20 +34,15 @@ export function renderSimpleActionPage(options: {
   isError?: boolean;
   buttonColor?: string;
 }) {
-  const HEX_COLOR_RE = /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
   const safeTitle = escapeHtml(options.title);
   const safeBody = escapeHtml(options.body);
-  const safeActionLabel = options.actionLabel ? escapeHtml(options.actionLabel) : '';
-  const safeActionUrl = options.actionUrl ? escapeHtmlAttr(options.actionUrl) : '';
   const safeButtonColor =
     options.buttonColor && HEX_COLOR_RE.test(options.buttonColor)
       ? options.buttonColor
       : '#14b8a6';
   const button =
-    safeActionLabel && safeActionUrl
-      ? `<form method="post" action="${safeActionUrl}">
-        <button type="submit">${safeActionLabel}</button>
-      </form>`
+    options.actionLabel && options.actionUrl
+      ? buildActionForm(options.actionLabel, options.actionUrl)
       : '';
 
   return `<!doctype html>

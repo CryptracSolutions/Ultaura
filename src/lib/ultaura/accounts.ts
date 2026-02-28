@@ -16,7 +16,7 @@ import {
 import { BILLING, PLANS } from './constants';
 import type { PlanId, UltauraAccountRow } from './types';
 import { getUltauraAccountById, getTrialStatus } from './helpers';
-import { logConsentAudit } from './privacy';
+import { logRequiredConsentAudit } from './privacy';
 
 const logger = getLogger();
 
@@ -29,7 +29,7 @@ async function logRequiredAccountSharingAudit(input: {
   const headersList = await headers();
   const adminClient = getSupabaseServerActionClient({ admin: true });
 
-  return logConsentAudit({
+  return logRequiredConsentAudit({
     accountId: input.accountId,
     actorUserId: input.actorUserId,
     actorType: 'payer',

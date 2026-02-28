@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
+const CSP_HEADER = 'content-security-policy';
+
 describe('newsletter confirm route', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -21,13 +23,13 @@ describe('newsletter confirm route', () => {
     const html = await response.text();
 
     expect(response.headers.get('Sunset')).toBe('Sat, 11 Apr 2026 00:00:00 GMT');
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "style-src 'unsafe-inline' https://fonts.googleapis.com",
     );
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       'font-src https://fonts.gstatic.com',
     );
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "img-src 'self' http://localhost:3000",
     );
     expect(html).toContain('/api/newsletter/confirm/abc%22%20onclick%3D%22alert(1)');
@@ -50,7 +52,7 @@ describe('newsletter confirm route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(400);
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "style-src 'unsafe-inline' https://fonts.googleapis.com",
     );
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
@@ -72,7 +74,7 @@ describe('newsletter confirm route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(500);
-    expect(response.headers.get('content-security-policy')).toContain(
+    expect(response.headers.get(CSP_HEADER)).toContain(
       "style-src 'unsafe-inline' https://fonts.googleapis.com",
     );
     expect(html).toContain('Something went wrong');

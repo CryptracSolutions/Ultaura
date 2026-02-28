@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const CSP_HEADER = 'content-security-policy';
+
 describe('ultaura confirm route', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -22,9 +24,7 @@ describe('ultaura confirm route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-security-policy')).toContain(
-      "default-src 'none'",
-    );
+    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
     expect(html).toContain('/api/ultaura/confirm/abc%22%20onclick%3D%22alert(1)');
     expect(html).not.toContain('onclick="alert(1)"');
   });
@@ -45,9 +45,7 @@ describe('ultaura confirm route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-security-policy')).toContain(
-      "default-src 'none'",
-    );
+    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
     expect(html).toContain('You are confirmed');
     expect(confirmNotificationRecipient).toHaveBeenCalledWith('token-123');
   });
@@ -67,9 +65,7 @@ describe('ultaura confirm route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(500);
-    expect(response.headers.get('content-security-policy')).toContain(
-      "default-src 'none'",
-    );
+    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
     expect(html).toContain('Something went wrong');
     expect(html).toContain('Please try again later.');
     expect(html).not.toContain('boom');
@@ -98,9 +94,7 @@ describe('ultaura unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-security-policy')).toContain(
-      "default-src 'none'",
-    );
+    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
     expect(html).toContain(
       '/api/ultaura/unsubscribe/bad%22%20onclick%3D%22alert(1)',
     );
@@ -123,9 +117,7 @@ describe('ultaura unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-security-policy')).toContain(
-      "default-src 'none'",
-    );
+    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
     expect(html).toContain('You are unsubscribed');
     expect(unsubscribeNotificationRecipient).toHaveBeenCalledWith(
       'unsubscribe-token-1',
@@ -147,9 +139,7 @@ describe('ultaura unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(500);
-    expect(response.headers.get('content-security-policy')).toContain(
-      "default-src 'none'",
-    );
+    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
     expect(html).toContain('Something went wrong');
     expect(html).toContain('Please try again later.');
     expect(html).not.toContain('boom');

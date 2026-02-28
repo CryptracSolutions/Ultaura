@@ -47,6 +47,8 @@ export function OverviewSection({
 }: OverviewSectionProps) {
   const enabledTextClass = 'text-success font-medium';
   const disabledTextClass = 'text-muted-foreground';
+  const getStatusClass = (isEnabled: boolean) =>
+    (isEnabled ? enabledTextClass : disabledTextClass);
 
   return (
     <>
@@ -110,37 +112,19 @@ export function OverviewSection({
               <div className="mt-3 space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Call recording</span>
-                  <span
-                    className={
-                      recordingEnabled
-                        ? enabledTextClass
-                        : disabledTextClass
-                    }
-                  >
+                  <span className={getStatusClass(recordingEnabled)}>
                     {recordingEnabled ? 'On' : 'Off'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">AI memory</span>
-                  <span
-                    className={
-                      aiSummarizationEnabled
-                        ? enabledTextClass
-                        : disabledTextClass
-                    }
-                  >
+                  <span className={getStatusClass(aiSummarizationEnabled)}>
                     {aiSummarizationEnabled ? 'On' : 'Off'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Family sharing</span>
-                  <span
-                    className={
-                      sharingEnabled
-                        ? enabledTextClass
-                        : disabledTextClass
-                    }
-                  >
+                  <span className={getStatusClass(sharingEnabled)}>
                     {sharingEnabled ? 'On' : 'Off'}
                   </span>
                 </div>

@@ -6,7 +6,7 @@ import sendEmail from '~/core/email/send-email';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import renderWeeklySummaryEmail from '~/lib/emails/weekly-summary';
 import type { WeeklySummaryData } from '~/lib/ultaura/types';
-import { buildNotificationRecipientToken } from '~/lib/ultaura/notification-tokens';
+import { issueNotificationRecipientUnsubscribeToken } from '~/lib/ultaura/notification-recipients';
 
 function validateWebhookSecret(request: Request): NextResponse | null {
   const expectedSecret = process.env.ULTAURA_INTERNAL_API_SECRET;
@@ -119,15 +119,16 @@ export async function POST(request: Request) {
     | 'tier_4';
   const isPaused = privacy?.is_paused ?? false;
   const insightsEnabled = privacy?.insights_enabled ?? true;
+  const hasGrantedSharingConsent = sharingConsent === 'granted' && !isPaused;
   const sharingPayload = normalizedSharingSummary ?? { ...normalizedSummary, sharingTier };
 
   try {
     const recipients = new Map<string, { isPrimary: boolean; token?: string }>();
 
     const canSendToBillingEmail = insightsEnabled && (
-      isSelfUser || (sharingConsent === 'granted' && !isPaused)
+      isSelfUser || hasGrantedSharingConsent
     );
-    const canSendToRecipients = insightsEnabled && sharingConsent === 'granted' && !isPaused && (
+    const canSendToRecipients = insightsEnabled && hasGrantedSharingConsent && (
       !isSelfUser || account.sharing_enabled
     );
 
@@ -153,9 +154,21 @@ export async function POST(request: Request) {
 
       for (const recipient of recipientRows || []) {
         if (!recipients.has(recipient.email)) {
+          const tokenResult = await issueNotificationRecipientUnsubscribeToken(
+            recipient.id,
+            { client: supabase }
+          );
+
+          if (!tokenResult.success) {
+            return NextResponse.json(
+              { error: 'Failed to issue unsubscribe tokens' },
+              { status: 500 }
+            );
+          }
+
           recipients.set(recipient.email, {
             isPrimary: false,
-            token: buildNotificationRecipientToken(recipient.id),
+            token: tokenResult.data.token,
           });
         }
       }
@@ -196,7 +209,7 @@ export async function POST(request: Request) {
         headers,
       });
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to send weekly summary email' }, { status: 500 });
   }
 

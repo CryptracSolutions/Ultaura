@@ -2689,6 +2689,8 @@ export type Database = {
           phone_e164: string | null
           relationship: string | null
           trusted_contact_id: string | null
+          unsubscribe_token_expires_at: string | null
+          unsubscribe_token_hash: string | null
           unsubscribed_at: string | null
           updated_at: string
         }
@@ -2705,6 +2707,8 @@ export type Database = {
           phone_e164?: string | null
           relationship?: string | null
           trusted_contact_id?: string | null
+          unsubscribe_token_expires_at?: string | null
+          unsubscribe_token_hash?: string | null
           unsubscribed_at?: string | null
           updated_at?: string
         }
@@ -2721,6 +2725,8 @@ export type Database = {
           phone_e164?: string | null
           relationship?: string | null
           trusted_contact_id?: string | null
+          unsubscribe_token_expires_at?: string | null
+          unsubscribe_token_hash?: string | null
           unsubscribed_at?: string | null
           updated_at?: string
         }
@@ -5595,4 +5601,3 @@ export const Constants = {
     },
   },
 } as const
-

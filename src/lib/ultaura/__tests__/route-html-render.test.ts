@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { renderSimpleActionPage } from '~/lib/server/route-html';
 import { renderNewsletterActionPage } from '~/lib/ultaura/newsletter-html';
 
+const UNSAFE_ACTION_PATH = '/api/test/" onclick="alert(1)`';
+const UNSAFE_NEWSLETTER_ACTION_PATH =
+  '/api/newsletter/unsubscribe/abc/" onclick="alert(1)`';
+
 describe('route html renderers', () => {
   it('escapes action URL for attribute context', () => {
     const html = renderSimpleActionPage({
       title: 'Title',
       body: 'Body',
       actionLabel: 'Continue',
-      actionUrl: '/api/test/" onclick="alert(1)`',
+      actionUrl: UNSAFE_ACTION_PATH,
     });
 
     expect(html).toContain(
@@ -39,7 +43,7 @@ describe('route html renderers', () => {
       title: 'Title',
       body: 'Body',
       actionLabel: 'Unsubscribe',
-      actionUrl: '/api/newsletter/unsubscribe/abc/" onclick="alert(1)`',
+      actionUrl: UNSAFE_NEWSLETTER_ACTION_PATH,
     });
 
     expect(html).toContain(

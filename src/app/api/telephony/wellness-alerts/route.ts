@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import sendEmail from '~/core/email/send-email';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import renderWellnessAlertEmail from '~/lib/emails/wellness-alert';
-import { buildNotificationRecipientToken } from '~/lib/ultaura/notification-tokens';
+import { issueNotificationRecipientUnsubscribeToken } from '~/lib/ultaura/notification-recipients';
 
 interface WellnessAlertPayload {
   alertId: string;
@@ -117,11 +117,12 @@ export async function POST(request: Request) {
     | 'tier_4';
   const isPaused = privacy?.is_paused ?? false;
   const insightsEnabled = privacy?.insights_enabled ?? true;
+  const hasGrantedSharingConsent = sharingConsent === 'granted' && !isPaused;
 
   const canSendToBillingEmail = insightsEnabled && (
-    isSelfUser || (sharingConsent === 'granted' && !isPaused)
+    isSelfUser || hasGrantedSharingConsent
   );
-  const canSendToRecipients = insightsEnabled && sharingConsent === 'granted' && !isPaused && (
+  const canSendToRecipients = insightsEnabled && hasGrantedSharingConsent && (
     !isSelfUser || account.sharing_enabled
   );
 
@@ -167,9 +168,21 @@ export async function POST(request: Request) {
 
       for (const recipient of recipientRows || []) {
         if (!recipients.has(recipient.email)) {
+          const tokenResult = await issueNotificationRecipientUnsubscribeToken(
+            recipient.id,
+            { client: supabase }
+          );
+
+          if (!tokenResult.success) {
+            return NextResponse.json(
+              { error: 'Failed to issue unsubscribe tokens' },
+              { status: 500 }
+            );
+          }
+
           recipients.set(recipient.email, {
             isPrimary: false,
-            token: buildNotificationRecipientToken(recipient.id),
+            token: tokenResult.data.token,
           });
         }
       }
@@ -206,7 +219,7 @@ export async function POST(request: Request) {
         headers,
       });
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to send wellness alert email' }, { status: 500 });
   }
 
