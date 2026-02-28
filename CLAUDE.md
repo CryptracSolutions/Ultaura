@@ -382,13 +382,11 @@ After all implementation is complete and TypeScript/visual verification passes, 
 
 **How to deploy:**
 - Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "sonnet"`
+- The subagent MUST invoke the `/simplify` skill — this is the single source of truth for simplification logic
 - This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
 - It is **blocking** — wait for its result before proceeding to shutdown
 
-**Prompt template:**
-> Review all files modified during this task for clarity, consistency, and maintainability. Simplify where possible without changing behavior or functionality. Focus on: variable/function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
-
-**Pass it:** A list of all files modified during the task (gathered from `git diff --name-only` or tracked during implementation).
+**Prompt:** Tell the subagent to invoke `/simplify` and pass it the list of modified files (gathered from `git diff --name-only` or tracked during implementation).
 
 **What to do with results:**
 - If the agent made changes, include a brief "Code cleanup" summary in your final response
