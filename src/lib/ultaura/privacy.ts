@@ -249,23 +249,26 @@ export async function updatePrivacySettings(
       'accountId' | 'actorType' | 'actorUserId' | 'ipAddress' | 'userAgent'
     >,
   ) => {
-    await logConsentAudit({
+    return logRequiredConsentAudit({
       accountId,
       actorUserId,
       actorType: 'payer',
       ipAddress,
       userAgent,
       ...entry,
-    });
+    }, adminClient);
   };
 
   if (updates.recordingEnabled !== undefined && updates.recordingEnabled !== current.recordingEnabled) {
-    await logChange({
+    const logged = await logChange({
       action: 'recording_toggled',
       consentType: 'recording',
       oldValue: current.recordingEnabled,
       newValue: updates.recordingEnabled,
     });
+    if (!logged) {
+      return { success: false, error: 'Failed to record required audit entry' };
+    }
   }
 
   if (updates.aiSummarizationEnabled !== undefined && updates.aiSummarizationEnabled !== current.aiSummarizationEnabled) {
@@ -291,22 +294,28 @@ export async function updatePrivacySettings(
       }
     }
 
-    await logChange({
+    const logged = await logChange({
       action: 'summarization_toggled',
       consentType: 'audio_processing',
       oldValue: current.aiSummarizationEnabled,
       newValue: updates.aiSummarizationEnabled,
       metadata: updates.aiSummarizationEnabled === true ? { lines_reset: linesReset } : null,
     });
+    if (!logged) {
+      return { success: false, error: 'Failed to record required audit entry' };
+    }
   }
 
   if (updates.retentionPeriod !== undefined && updates.retentionPeriod !== current.retentionPeriod) {
-    await logChange({
+    const logged = await logChange({
       action: 'retention_changed',
       consentType: 'data_retention',
       oldValue: current.retentionPeriod,
       newValue: updates.retentionPeriod,
     });
+    if (!logged) {
+      return { success: false, error: 'Failed to record required audit entry' };
+    }
   }
 
   revalidatePath('/dashboard/privacy', 'page');
@@ -360,7 +369,7 @@ export async function acknowledgeVendorDisclosure(
     return { success: true, alreadyAcknowledged: true };
   }
 
-  await logConsentAudit({
+  const logged = await logRequiredConsentAudit({
     accountId,
     actorUserId,
     actorType: 'payer',
@@ -368,6 +377,9 @@ export async function acknowledgeVendorDisclosure(
     ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
     userAgent: headersList.get('user-agent') || null,
   }, adminClient);
+  if (!logged) {
+    return { success: false, error: 'Failed to record required audit entry' };
+  }
 
   revalidatePath('/dashboard/privacy', 'page');
 
@@ -1386,6 +1398,15 @@ export async function requestAccountDataDeletion(
       logger.error({ error: cognitiveObsError, accountId }, 'Failed to delete cognitive observations');
       return failDeletion('delete_cognitive_observations', 'Failed to delete account data');
     }
+
+    const { error: griefInteractionsError } = await adminClient
+      .from('ultaura_grief_interactions')
+      .delete()
+      .in('line_id', lineIds);
+    if (griefInteractionsError) {
+      logger.error({ error: griefInteractionsError, accountId }, 'Failed to delete grief interactions');
+      return failDeletion('delete_grief_interactions', 'Failed to delete account data');
+    }
   }
 
   const { error: accountPrivacySettingsError } = await adminClient
@@ -1465,6 +1486,8 @@ export async function requestAccountDataDeletion(
   }
 
   // Intentionally retained for compliance/audit trace:
+  // - ultaura_accounts (skeleton row preserved)
+  // - ultaura_lines (skeleton rows preserved)
   // - ultaura_memory_deactivation_log
   // - ultaura_consent_audit_log
 

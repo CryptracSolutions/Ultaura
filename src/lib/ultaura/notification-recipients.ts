@@ -541,6 +541,7 @@ export async function confirmNotificationRecipient(
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const tokenHash = hashNotificationToken(token);
   const unsubscribeTokenState = generateNotificationUnsubscribeToken({ ttlDays: 14 });
+  const nowIso = new Date().toISOString();
 
   const { data: existing, error: existingError } = await adminClient
     .from('ultaura_notification_recipients')
@@ -569,12 +570,12 @@ export async function confirmNotificationRecipient(
   const { data: recipient, error } = await adminClient
     .from('ultaura_notification_recipients')
     .update({
-      confirmed_at: new Date().toISOString(),
+      confirmed_at: nowIso,
       confirmation_token_hash: null,
       confirmation_token_expires_at: null,
       unsubscribe_token_hash: unsubscribeTokenState.tokenHash,
       unsubscribe_token_expires_at: unsubscribeTokenState.expiresAt,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     })
     .eq('id', existing.id)
     .eq('confirmation_token_hash', tokenHash)

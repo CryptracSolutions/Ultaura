@@ -97,7 +97,15 @@ describe('confirmNotificationRecipient', () => {
         confirmation_token_expires_at: null,
         unsubscribe_token_hash: expect.any(String),
         unsubscribe_token_expires_at: expect.any(String),
+        updated_at: expect.any(String),
       }),
     );
+    const updateCalls = update.mock.calls as unknown as Array<[{
+      confirmed_at: string;
+      updated_at: string;
+    }]>;
+    const updatePayload = updateCalls[0]?.[0];
+    expect(updatePayload).toBeDefined();
+    expect(updatePayload.confirmed_at).toBe(updatePayload.updated_at);
   });
 });
