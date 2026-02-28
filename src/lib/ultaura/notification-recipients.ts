@@ -579,7 +579,7 @@ export async function confirmNotificationRecipient(
     })
     .eq('id', existing.id)
     .eq('confirmation_token_hash', tokenHash)
-    .gt('confirmation_token_expires_at', new Date().toISOString())
+    .gt('confirmation_token_expires_at', nowIso)
     .is('confirmed_at', null)
     .select('*')
     .single();
@@ -606,6 +606,7 @@ export async function unsubscribeNotificationRecipient(
 ): Promise<ActionResult<void>> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const tokenHash = hashNotificationToken(token);
+  const nowIso = new Date().toISOString();
 
   const { data: existing, error: existingError } = await adminClient
     .from('ultaura_notification_recipients')
@@ -637,13 +638,13 @@ export async function unsubscribeNotificationRecipient(
   const { data: updated, error } = await adminClient
     .from('ultaura_notification_recipients')
     .update({
-      unsubscribed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      unsubscribed_at: nowIso,
+      updated_at: nowIso,
     })
     .eq('id', existing.id)
     .eq('unsubscribe_token_hash', tokenHash)
     .is('unsubscribed_at', null)
-    .gt('unsubscribe_token_expires_at', new Date().toISOString())
+    .gt('unsubscribe_token_expires_at', nowIso)
     .select('id')
     .maybeSingle();
 
@@ -798,12 +799,22 @@ async function createTrustedContactFromRecipient(
     return;
   }
 
-  await adminClient
+  const nowIso = new Date().toISOString();
+
+  const { error: linkBackError } = await adminClient
     .from('ultaura_notification_recipients')
-    .update({ trusted_contact_id: trustedContact.id, updated_at: new Date().toISOString() })
+    .update({ trusted_contact_id: trustedContact.id, updated_at: nowIso })
     .eq('id', recipient.id);
 
-  const { data: existingConsent } = await adminClient
+  if (linkBackError) {
+    logger.error(
+      { error: linkBackError, recipientId: recipient.id, trustedContactId: trustedContact.id },
+      'Failed to link recipient to trusted contact'
+    );
+    return;
+  }
+
+  const { data: existingConsent, error: existingConsentError } = await adminClient
     .from('ultaura_consents')
     .select('id')
     .eq('line_id', targetLine.id)
@@ -812,8 +823,16 @@ async function createTrustedContactFromRecipient(
     .is('revoked_at', null)
     .maybeSingle();
 
+  if (existingConsentError) {
+    logger.error(
+      { error: existingConsentError, recipientId: recipient.id, lineId: targetLine.id },
+      'Failed to verify existing trusted contact consent'
+    );
+    return;
+  }
+
   if (!existingConsent) {
-    await adminClient.from('ultaura_consents').insert({
+    const { error: consentInsertError } = await adminClient.from('ultaura_consents').insert({
       account_id: recipient.account_id,
       line_id: targetLine.id,
       type: 'trusted_contact_notify',
@@ -821,9 +840,17 @@ async function createTrustedContactFromRecipient(
       granted_by: 'payer_ack',
       evidence: {
         source: 'notification_invite',
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso,
         contactName: recipient.name,
       },
     });
+
+    if (consentInsertError) {
+      logger.error(
+        { error: consentInsertError, recipientId: recipient.id, lineId: targetLine.id },
+        'Failed to grant trusted contact consent from recipient confirmation'
+      );
+      return;
+    }
   }
 }

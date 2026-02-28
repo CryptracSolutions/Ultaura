@@ -13,6 +13,15 @@ describe('unsubscribeNotificationRecipient token flow', () => {
   });
 
   it('accepts a valid token, hashes it for lookup, and clears token fields', async () => {
+    const updateMaybeSingle = vi.fn(async () => ({
+      data: { id: 'recipient-1' },
+      error: null,
+    }));
+    const gt = vi.fn(() => ({
+      select: vi.fn(() => ({
+        maybeSingle: updateMaybeSingle,
+      })),
+    }));
     const selectEq = vi.fn(() => ({
       maybeSingle: vi.fn(async () => ({
         data: {
@@ -25,21 +34,13 @@ describe('unsubscribeNotificationRecipient token flow', () => {
         error: null,
       })),
     }));
-    const updateMaybeSingle = vi.fn(async () => ({
-      data: { id: 'recipient-1' },
-      error: null,
-    }));
     const table = {
       select: vi.fn(() => ({ eq: selectEq })),
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
           eq: vi.fn(() => ({
             is: vi.fn(() => ({
-              gt: vi.fn(() => ({
-                select: vi.fn(() => ({
-                  maybeSingle: updateMaybeSingle,
-                })),
-              })),
+              gt,
             })),
           })),
         })),
@@ -83,8 +84,17 @@ describe('unsubscribeNotificationRecipient token flow', () => {
     expect(table.update).toHaveBeenCalledWith(
       expect.objectContaining({
         unsubscribed_at: expect.any(String),
+        updated_at: expect.any(String),
       }),
     );
+    const updateCalls = table.update.mock.calls as unknown as Array<[{
+      unsubscribed_at: string;
+      updated_at: string;
+    }]>;
+    const updatePayload = updateCalls[0]?.[0];
+    expect(updatePayload).toBeDefined();
+    expect(updatePayload.unsubscribed_at).toBe(updatePayload.updated_at);
+    expect(gt).toHaveBeenCalledWith('unsubscribe_token_expires_at', updatePayload.updated_at);
   });
 
   it('rejects invalid tokens', async () => {
