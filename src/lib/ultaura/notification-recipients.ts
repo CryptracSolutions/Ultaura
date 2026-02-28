@@ -14,6 +14,10 @@ import { getUserDataById } from '~/lib/server/queries';
 import { buildNotificationRecipientToken, hashNotificationToken } from './notification-tokens';
 
 const logger = getLogger();
+const MAX_NOTIFICATION_RECIPIENTS = 5;
+const MAX_RECIPIENTS_ERROR_MESSAGE =
+  'Maximum of 5 recipients reached. Remove one before inviting another.';
+const RECIPIENT_LIMIT_TRIGGER_ERROR = 'Maximum of 5 notification recipients';
 
 function getSiteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -70,6 +74,24 @@ function mapRecipient(row: any): NotificationRecipient {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+async function getActiveRecipientCount(
+  accountId: string,
+  client: SupabaseClient<Database>
+): Promise<{ count: number | null; error: boolean }> {
+  const { count, error } = await client
+    .from('ultaura_notification_recipients')
+    .select('id', { head: true, count: 'exact' })
+    .eq('account_id', accountId)
+    .is('unsubscribed_at', null);
+
+  if (error) {
+    logger.error({ error, accountId }, 'Failed to count active recipients');
+    return { count: null, error: true };
+  }
+
+  return { count: count ?? 0, error: false };
 }
 
 export async function getNotificationRecipients(
@@ -139,6 +161,25 @@ export async function inviteNotificationRecipient(
       };
     }
 
+    if (existing.unsubscribed_at && input.allowReinvite) {
+      const { count, error: countError } = await getActiveRecipientCount(
+        accountId,
+        client
+      );
+      if (countError) {
+        return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+      }
+      if ((count ?? 0) >= MAX_NOTIFICATION_RECIPIENTS) {
+        return {
+          success: false,
+          error: createError(
+            ErrorCodes.INVALID_INPUT,
+            MAX_RECIPIENTS_ERROR_MESSAGE
+          ),
+        };
+      }
+    }
+
     const token = buildNotificationRecipientToken(existing.id);
     const tokenHash = hashNotificationToken(token);
 
@@ -177,6 +218,21 @@ export async function inviteNotificationRecipient(
     return { success: true, data: mapRecipient(updated) };
   }
 
+  const { count: activeRecipientCount, error: countError } =
+    await getActiveRecipientCount(accountId, client);
+  if (countError) {
+    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
+  }
+  if ((activeRecipientCount ?? 0) >= MAX_NOTIFICATION_RECIPIENTS) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.INVALID_INPUT,
+        MAX_RECIPIENTS_ERROR_MESSAGE
+      ),
+    };
+  }
+
   const { data: inserted, error: insertError } = await client
     .from('ultaura_notification_recipients')
     .insert({
@@ -191,6 +247,15 @@ export async function inviteNotificationRecipient(
     .single();
 
   if (insertError || !inserted) {
+    if (insertError?.message?.includes(RECIPIENT_LIMIT_TRIGGER_ERROR)) {
+      return {
+        success: false,
+        error: createError(
+          ErrorCodes.INVALID_INPUT,
+          MAX_RECIPIENTS_ERROR_MESSAGE
+        ),
+      };
+    }
     logger.error({ insertError, accountId }, 'Failed to create notification recipient');
     return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to invite recipient') };
   }
@@ -230,11 +295,41 @@ export async function removeNotificationRecipient(
   recipientId: string
 ): Promise<ActionResult<void>> {
   const client = getSupabaseServerComponentClient();
+  const { data: recipient, error: lookupError } = await client
+    .from('ultaura_notification_recipients')
+    .select('id, account_id')
+    .eq('id', recipientId)
+    .maybeSingle();
+
+  if (lookupError) {
+    logger.error({ lookupError, recipientId }, 'Failed to verify recipient ownership');
+    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to remove recipient') };
+  }
+
+  if (!recipient) {
+    return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Recipient not found') };
+  }
+
+  const { data: account, error: accountError } = await client
+    .from('ultaura_accounts')
+    .select('id')
+    .eq('id', recipient.account_id)
+    .maybeSingle();
+
+  if (accountError) {
+    logger.error({ accountError, recipientId }, 'Failed to verify account ownership for recipient removal');
+    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to remove recipient') };
+  }
+
+  if (!account) {
+    return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Recipient not found') };
+  }
 
   const { error } = await client
     .from('ultaura_notification_recipients')
     .delete()
-    .eq('id', recipientId);
+    .eq('id', recipientId)
+    .eq('account_id', recipient.account_id);
 
   if (error) {
     logger.error({ error, recipientId }, 'Failed to delete notification recipient');

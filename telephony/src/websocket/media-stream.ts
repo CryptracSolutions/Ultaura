@@ -330,7 +330,13 @@ export async function handleMediaStreamConnection(
               getLineVoiceConsent(line.id),
             ]);
 
-            const aiSummarizationEnabled = privacySettings?.aiSummarizationEnabled ?? true;
+            if (!privacySettings) {
+              logger.warn(
+                { accountId: account.id, lineId: line.id, callSessionId },
+                'Privacy settings unavailable during call bootstrap; defaulting AI memory off for safety'
+              );
+            }
+            const aiSummarizationEnabled = privacySettings?.aiSummarizationEnabled ?? false;
             const memoryConsent = voiceConsent?.memoryConsent ?? 'pending';
             const lastPromptAt = voiceConsent?.lastConsentPromptAt;
             const consentCooldownMs = 30 * 24 * 60 * 60 * 1000;

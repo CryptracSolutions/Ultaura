@@ -176,6 +176,7 @@ const SHARING_TIER_FEATURES: Record<
 };
 
 const SHARING_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+const RECORDING_REENABLE_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 
 const AUDIT_PAGE_SIZE = 10;
 
@@ -240,6 +241,30 @@ function formatShortDate(value?: string | null): string | null {
   });
 }
 
+const AUDIT_ACTION_LABELS: Record<ConsentAuditEntry['action'], string> = {
+  granted: 'Consent granted',
+  revoked: 'Consent revoked',
+  updated: 'Consent updated',
+  voice_consent_given: 'Voice consent granted',
+  voice_consent_denied: 'Voice consent declined',
+  recording_consent_updated: 'Recording preference updated',
+  recording_reenable_requested: 'Recording re-enable requested',
+  sharing_consent_updated: 'Sharing preference updated',
+  sharing_enabled_by_self_user: 'Family sharing enabled by account owner',
+  insights_enabled_changed: 'Insights sharing setting changed',
+  pause_mode_changed: 'Pause mode changed',
+  insights_reprompt_requested: 'Insights preference re-prompt requested',
+  onboarding_completed: 'Consent onboarding completed',
+  consent_incomplete_retry: 'Consent follow-up requested',
+  memory_hard_deleted: 'Stored memory deleted',
+  retention_changed: 'Retention setting changed',
+  recording_toggled: 'Call recording setting changed',
+  summarization_toggled: 'AI memory setting changed',
+  vendor_acknowledged: 'Vendor disclosure acknowledged',
+  data_export_requested: 'Data export requested',
+  data_deletion_requested: 'Privacy data deletion requested',
+};
+
 export function PrivacyCenterClient({
   account,
   privacySettings,
@@ -257,6 +282,7 @@ export function PrivacyCenterClient({
   const initialRetentionPeriod =
     privacySettings?.retentionPeriod ?? DEFAULT_RETENTION;
   const initialSharingEnabled = account.sharing_enabled ?? true;
+  const isPrivacySettingsUnavailable = privacySettings === null;
 
   const [recordingEnabled, setRecordingEnabled] = useState(
     initialRecordingEnabled,
@@ -267,6 +293,9 @@ export function PrivacyCenterClient({
   const [retentionPeriod, setRetentionPeriod] = useState<RetentionPeriod>(
     initialRetentionPeriod,
   );
+  const recordingEnabledRef = useRef(initialRecordingEnabled);
+  const aiSummarizationEnabledRef = useRef(initialAiSummarizationEnabled);
+  const retentionPeriodRef = useRef<RetentionPeriod>(initialRetentionPeriod);
 
   const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
   const [includeMemories, setIncludeMemories] = useState(true);
@@ -279,6 +308,10 @@ export function PrivacyCenterClient({
 
   const [isExporting, setIsExporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [upgradeConfirmOpen, setUpgradeConfirmOpen] = useState(false);
+  const [retentionConfirmOpen, setRetentionConfirmOpen] = useState(false);
+  const [pendingRetentionPeriod, setPendingRetentionPeriod] =
+    useState<RetentionPeriod | null>(null);
   const [isSharingUpdating, setIsSharingUpdating] = useState(false);
   const [sharingEnabled, setSharingEnabled] = useState(initialSharingEnabled);
   const [inviteName, setInviteName] = useState('');
@@ -320,6 +353,9 @@ export function PrivacyCenterClient({
     setAiSummarizationEnabled(initialAiSummarizationEnabled);
     setRetentionPeriod(initialRetentionPeriod);
     setSharingEnabled(initialSharingEnabled);
+    recordingEnabledRef.current = initialRecordingEnabled;
+    aiSummarizationEnabledRef.current = initialAiSummarizationEnabled;
+    retentionPeriodRef.current = initialRetentionPeriod;
   }, [
     initialRecordingEnabled,
     initialAiSummarizationEnabled,
@@ -361,6 +397,12 @@ export function PrivacyCenterClient({
     retentionPeriod: RetentionPeriod;
   }>({
     saveFn: async (value) => {
+      if (isPrivacySettingsUnavailable) {
+        return {
+          success: false,
+          error: 'Privacy settings are temporarily unavailable',
+        };
+      }
       const result = await updatePrivacySettings(account.id, value);
       if (result.success) return { success: true };
       return { success: false, error: result.error || 'Failed to save' };
@@ -387,12 +429,35 @@ export function PrivacyCenterClient({
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      privacyAutoSave.flush();
+      if (!isPrivacySettingsUnavailable) {
+        privacyAutoSave.flush();
+      }
       sharingAutoSave.flush();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [privacyAutoSave.flush, sharingAutoSave.flush]);
+  }, [isPrivacySettingsUnavailable, privacyAutoSave.flush, sharingAutoSave.flush]);
+
+  useEffect(() => {
+    if (!exportInProgress) return;
+
+    let cancelled = false;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const refreshed = await getDataExportRequests(account.id);
+        if (!cancelled) {
+          setExports(refreshed);
+        }
+      } catch {
+        // Keep current export state and retry on next interval.
+      }
+    }, 10_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [account.id, exportInProgress]);
 
   const retentionOption = useMemo(() => {
     return RETENTION_OPTIONS.find((option) => option.value === retentionPeriod);
@@ -417,6 +482,23 @@ export function PrivacyCenterClient({
   }, [recipients]);
   const showSharingSummary =
     account.user_type === 'family_managed' || sharingEnabled;
+  const latestRecordingRequestByLine = useMemo(() => {
+    const latest = new Map<string, string>();
+    for (const entry of auditLog) {
+      if (
+        entry.action !== 'recording_reenable_requested' ||
+        !entry.lineId ||
+        !entry.createdAt
+      ) {
+        continue;
+      }
+      const existing = latest.get(entry.lineId);
+      if (!existing || new Date(entry.createdAt) > new Date(existing)) {
+        latest.set(entry.lineId, entry.createdAt);
+      }
+    }
+    return latest;
+  }, [auditLog]);
 
   const consentTypeOptions = useMemo(() => {
     const types = new Set(
@@ -491,30 +573,51 @@ export function PrivacyCenterClient({
   }, [auditPage, auditTotalPages]);
 
   const handleRecordingToggle = (checked: boolean) => {
+    if (isPrivacySettingsUnavailable) return;
+    recordingEnabledRef.current = checked;
     setRecordingEnabled(checked);
     privacyAutoSave.triggerSave({
       recordingEnabled: checked,
-      aiSummarizationEnabled,
-      retentionPeriod,
+      aiSummarizationEnabled: aiSummarizationEnabledRef.current,
+      retentionPeriod: retentionPeriodRef.current,
     });
   };
 
   const handleSummarizationToggle = (checked: boolean) => {
+    if (isPrivacySettingsUnavailable) return;
+    aiSummarizationEnabledRef.current = checked;
     setAiSummarizationEnabled(checked);
     privacyAutoSave.triggerSave({
-      recordingEnabled,
+      recordingEnabled: recordingEnabledRef.current,
       aiSummarizationEnabled: checked,
-      retentionPeriod,
+      retentionPeriod: retentionPeriodRef.current,
     });
   };
 
   const handleRetentionChange = (value: RetentionPeriod) => {
-    setRetentionPeriod(value);
+    if (isPrivacySettingsUnavailable || value === retentionPeriod) return;
+    setPendingRetentionPeriod(value);
+    setRetentionConfirmOpen(true);
+  };
+
+  const handleConfirmRetentionChange = () => {
+    if (!pendingRetentionPeriod) return;
+    retentionPeriodRef.current = pendingRetentionPeriod;
+    setRetentionPeriod(pendingRetentionPeriod);
     privacyAutoSave.triggerSave({
-      recordingEnabled,
-      aiSummarizationEnabled,
-      retentionPeriod: value,
+      recordingEnabled: recordingEnabledRef.current,
+      aiSummarizationEnabled: aiSummarizationEnabledRef.current,
+      retentionPeriod: pendingRetentionPeriod,
     });
+    setRetentionConfirmOpen(false);
+    setPendingRetentionPeriod(null);
+  };
+
+  const handleRetentionConfirmChange = (open: boolean) => {
+    setRetentionConfirmOpen(open);
+    if (!open) {
+      setPendingRetentionPeriod(null);
+    }
   };
 
   const handleExportRequest = async () => {
@@ -773,6 +876,10 @@ export function PrivacyCenterClient({
     }
   };
 
+  const handleUpgradeRequest = () => {
+    setUpgradeConfirmOpen(true);
+  };
+
   const activeContent = (() => {
     switch (activeTab.value) {
       case 'overview': {
@@ -782,9 +889,11 @@ export function PrivacyCenterClient({
               <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
               <p className="text-xs text-primary leading-snug">
                 All data stays in your control. Ultaura stores call insights and
-                memories securely. Recording and sharing consent is given by
-                your loved one during their calls—not from this dashboard. You
-                can export or delete all data at any time.{' '}
+                memories securely.{' '}
+                {isSelfUser
+                  ? 'Your recording and sharing preferences are set during your calls—not from this dashboard.'
+                  : 'Recording and sharing consent is given by your loved one during their calls—not from this dashboard.'}{' '}
+                You can export or delete all data at any time.{' '}
                 <Link
                   href="/docs/privacy"
                   className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -896,17 +1005,19 @@ export function PrivacyCenterClient({
                     </p>
                   </div>
 
-                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Family recipients
+                  {showFamilyTab && showSharingSummary ? (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Family recipients
+                      </div>
+                      <div className="mt-3 text-lg font-semibold text-foreground">
+                        {confirmedRecipients}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Confirmed · {recipients.length} total invites
+                      </p>
                     </div>
-                    <div className="mt-3 text-lg font-semibold text-foreground">
-                      {confirmedRecipients}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Confirmed · {recipients.length} total invites
-                    </p>
-                  </div>
+                  ) : null}
                 </div>
               </SectionBody>
             </Section>
@@ -956,6 +1067,13 @@ export function PrivacyCenterClient({
                 description="Review recording consent for each line."
               />
               <SectionBody className="gap-4">
+                {!recordingEnabled ? (
+                  <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                    Account recording is currently off. Even if a line shows
+                    approved consent, new calls will not be recorded until you
+                    turn recording back on.
+                  </div>
+                ) : null}
                 {lines.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Add a line to view consent status.
@@ -967,11 +1085,37 @@ export function PrivacyCenterClient({
                       consent?.recordingConsent ?? 'pending';
                     const recordingPreferencePermanent =
                       consent?.recordingPreferencePermanent ?? false;
-                    const recordingReenableRequestedAt =
+                    const recordingReenableRequestedAtRaw =
                       consent?.recordingReenableRequestedAt ?? null;
+                    const recordingReenableDeclineCount =
+                      consent?.recordingReenableDeclineCount ?? 0;
+                    const recordingReenableBlockedAt =
+                      consent?.recordingReenableBlockedAt ?? null;
+                    const latestRecordingReenableRequestedAt =
+                      latestRecordingRequestByLine.get(line.id) ?? null;
+                    const recordingReenableRequestedAt =
+                      recordingReenableRequestedAtRaw ??
+                      latestRecordingReenableRequestedAt;
+                    const isRecordingReenablePending =
+                      recordingReenableRequestedAtRaw !== null;
                     const recordingConsentAt = formatShortDate(
                       consent?.recordingConsentAt,
                     );
+                    const recordingCooldownExpiresAt =
+                      recordingReenableRequestedAt !== null
+                        ? new Date(
+                            new Date(recordingReenableRequestedAt).getTime() +
+                              RECORDING_REENABLE_COOLDOWN_MS,
+                          )
+                        : null;
+                    const isRecordingOnCooldown =
+                      recordingCooldownExpiresAt !== null &&
+                      recordingCooldownExpiresAt.getTime() > Date.now();
+                    const isRecordingReenableBlocked =
+                      recordingConsent === 'denied' &&
+                      recordingPreferencePermanent &&
+                      (recordingReenableBlockedAt !== null ||
+                        recordingReenableDeclineCount >= 1);
                     const recordingStatus =
                       recordingConsent === 'granted'
                         ? 'Approved'
@@ -980,17 +1124,28 @@ export function PrivacyCenterClient({
                             ? `Declined by ${line.display_name}`
                             : 'Ask each call'
                           : 'Awaiting consent';
-                    const recordingNote = recordingReenableRequestedAt
-                      ? `Re-enable requested on ${
-                          formatShortDate(recordingReenableRequestedAt) ??
-                          'recently'
-                        }`
-                      : recordingConsentAt
-                        ? `Set on ${recordingConsentAt}`
-                        : null;
+                    const recordingNote = isRecordingReenableBlocked
+                      ? 'Recording re-enable is unavailable after a declined request.'
+                      : isRecordingReenablePending
+                        ? `Re-enable requested on ${
+                            formatShortDate(recordingReenableRequestedAt) ??
+                            'recently'
+                          }. ${line.display_name} will be asked on their next call.`
+                        : isRecordingOnCooldown
+                          ? `Available again on ${
+                              formatShortDate(
+                                recordingCooldownExpiresAt?.toISOString(),
+                              ) ?? 'a later date'
+                            }`
+                          : recordingConsentAt
+                            ? `Set on ${recordingConsentAt}`
+                            : null;
                     const canRequestRecording =
                       recordingConsent === 'denied' &&
-                      recordingPreferencePermanent;
+                      recordingPreferencePermanent &&
+                      !isRecordingReenableBlocked &&
+                      !isRecordingOnCooldown &&
+                      !isRecordingReenablePending;
 
                     return (
                       <div
@@ -1028,18 +1183,16 @@ export function PrivacyCenterClient({
                               type="button"
                               onClick={() => handleRecordingReenable(line.id)}
                               disabled={
-                                recordingReenableRequestedAt !== null ||
                                 recordingRequestLineId === line.id
                               }
                               className={
-                                recordingReenableRequestedAt !== null ||
                                 recordingRequestLineId === line.id
                                   ? 'text-sm text-muted-foreground'
                                   : 'text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity'
                               }
                             >
-                              {recordingReenableRequestedAt
-                                ? 'Re-enable requested'
+                              {recordingRequestLineId === line.id
+                                ? 'Requesting...'
                                 : 'Re-enable recording'}
                             </button>
                           </div>
@@ -1062,7 +1215,7 @@ export function PrivacyCenterClient({
                   Privacy controls
                 </div>
               }
-              description="Manage recording and AI memory settings for this account."
+              description="These are account-level permissions. Seniors still give voice consent during calls."
             />
             <SectionBody className="gap-6">
               <div className="flex items-start justify-between gap-4">
@@ -1072,14 +1225,16 @@ export function PrivacyCenterClient({
                     Call recording
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    When enabled, calls may be recorded. Disclosure is always
-                    announced at call start.
+                    Allows recording when a senior grants consent on their call.
+                    Disclosure is always announced at call start.
                   </p>
                 </div>
                 <Switch
                   checked={recordingEnabled}
                   onCheckedChange={handleRecordingToggle}
-                  disabled={privacyAutoSave.isSaving}
+                  disabled={
+                    privacyAutoSave.isSaving || isPrivacySettingsUnavailable
+                  }
                 />
               </div>
 
@@ -1090,14 +1245,18 @@ export function PrivacyCenterClient({
                     AI memory & personalization
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Controls memory storage, retrieval, and post-call summaries
-                    across all lines.
+                    Controls memory storage and post-call summaries for lines
+                    that grant memory consent. This can stay on even if call
+                    recording is off. Turning this back on may re-ask memory
+                    consent for lines that previously declined.
                   </p>
                 </div>
                 <Switch
                   checked={aiSummarizationEnabled}
                   onCheckedChange={handleSummarizationToggle}
-                  disabled={privacyAutoSave.isSaving}
+                  disabled={
+                    privacyAutoSave.isSaving || isPrivacySettingsUnavailable
+                  }
                 />
               </div>
             </SectionBody>
@@ -1142,7 +1301,9 @@ export function PrivacyCenterClient({
                           handleRetentionChange(value as RetentionPeriod)
                         }
                         className="gap-3"
-                        disabled={privacyAutoSave.isSaving}
+                        disabled={
+                          privacyAutoSave.isSaving || isPrivacySettingsUnavailable
+                        }
                       >
                         {RETENTION_OPTIONS.map((option) => (
                           <RadioGroupItemLabel key={option.value}>
@@ -1241,6 +1402,11 @@ export function PrivacyCenterClient({
                     line
                     {lineCount === 1 ? '' : 's'}.
                   </p>
+                  {exportInProgress ? (
+                    <p className="text-xs text-muted-foreground">
+                      Updating automatically every 10 seconds.
+                    </p>
+                  ) : null}
                 </div>
 
                 <Accordion>
@@ -2031,7 +2197,7 @@ export function PrivacyCenterClient({
                     <Button
                       type="button"
                       variant="default"
-                      onClick={handleUpgrade}
+                      onClick={handleUpgradeRequest}
                       disabled={isSharingUpdating}
                       loading={isSharingUpdating}
                     >
@@ -2054,6 +2220,22 @@ export function PrivacyCenterClient({
   return (
     <div className="flex flex-col gap-6 pb-24">
       <div className="flex flex-col gap-6">
+        {isPrivacySettingsUnavailable ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-warning">
+              Privacy settings could not be loaded. Editing is temporarily
+              disabled to avoid overwriting your saved preferences.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.refresh()}
+            >
+              Retry
+            </Button>
+          </div>
+        ) : null}
+
         <NavigationMenu bordered scrollable>
           {privacyTabs.map((tab) => (
             <NavigationItem
@@ -2105,6 +2287,24 @@ export function PrivacyCenterClient({
         confirmLabel="Delete data"
         variant="destructive"
         onConfirm={handleDataDeletion}
+      />
+
+      <ConfirmationDialog
+        open={upgradeConfirmOpen}
+        onOpenChange={setUpgradeConfirmOpen}
+        title="Upgrade to Family Mode?"
+        description="This change is permanent and cannot be undone. Your account will switch to family-managed mode."
+        confirmLabel="Upgrade now"
+        onConfirm={handleUpgrade}
+      />
+
+      <ConfirmationDialog
+        open={retentionConfirmOpen}
+        onOpenChange={handleRetentionConfirmChange}
+        title="Change data retention?"
+        description="Updating retention can affect how long historical memories and insights are kept."
+        confirmLabel="Save retention"
+        onConfirm={handleConfirmRetentionChange}
       />
     </div>
   );
@@ -2184,9 +2384,12 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function formatAction(value: string): string {
-  return value
+  return (
+    AUDIT_ACTION_LABELS[value as ConsentAuditEntry['action']] ??
+    value
     .replace(/_/g, ' ')
-    .replace(/\b\w/g, (match) => match.toUpperCase());
+      .replace(/\b\w/g, (match) => match.toUpperCase())
+  );
 }
 
 function formatActor(value: ConsentAuditEntry['actorType']): string {
