@@ -52,28 +52,41 @@ export async function POST(
   _: Request,
   context: { params: { subscriberId: string; token: string } },
 ) {
-  const { subscriberId, token } = context.params;
-  const result = await unsubscribeNewsletterSubscriber(subscriberId, token);
+  try {
+    const { subscriberId, token } = context.params;
+    const result = await unsubscribeNewsletterSubscriber(subscriberId, token);
 
-  if (!result.success) {
+    if (!result.success) {
+      const html = renderNewsletterActionPage({
+        title: 'Unsubscribe failed',
+        body: result.message || 'We could not process your request.',
+        isError: true,
+      });
+
+      return new NextResponse(html, {
+        headers: HTML_HEADERS,
+        status: 400,
+      });
+    }
+
     const html = renderNewsletterActionPage({
-      title: 'Unsubscribe failed',
-      body: result.message || 'We could not process your request.',
+      title: 'You are unsubscribed',
+      body: 'You will no longer receive the Ultaura newsletter at this email address.',
+    });
+
+    return new NextResponse(html, {
+      headers: HTML_HEADERS,
+    });
+  } catch {
+    const html = renderNewsletterActionPage({
+      title: 'Something went wrong',
+      body: 'Please try again later.',
       isError: true,
     });
 
     return new NextResponse(html, {
       headers: HTML_HEADERS,
-      status: 400,
+      status: 500,
     });
   }
-
-  const html = renderNewsletterActionPage({
-    title: 'You are unsubscribed',
-    body: 'You will no longer receive the Ultaura newsletter at this email address.',
-  });
-
-  return new NextResponse(html, {
-    headers: HTML_HEADERS,
-  });
 }

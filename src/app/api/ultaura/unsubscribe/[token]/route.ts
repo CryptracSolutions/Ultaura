@@ -32,24 +32,34 @@ export async function GET(_: Request, context: { params: { token: string } }) {
 }
 
 export async function POST(_: Request, context: { params: { token: string } }) {
-  const { token } = context.params;
-  const result = await unsubscribeNotificationRecipient(token);
+  try {
+    const { token } = context.params;
+    const result = await unsubscribeNotificationRecipient(token);
 
-  if (!result.success) {
+    if (!result.success) {
+      const html = renderSimpleActionPage({
+        title: 'Unsubscribe failed',
+        body: result.error.message || 'We could not process your request.',
+        isError: true,
+        buttonColor: '#0f172a',
+      });
+      return new NextResponse(html, { headers: HTML_HEADERS, status: 400 });
+    }
+
     const html = renderSimpleActionPage({
-      title: 'Unsubscribe failed',
-      body: result.error.message || 'We could not process your request.',
+      title: 'You are unsubscribed',
+      body: 'You will no longer receive Ultaura updates at this email address.',
+      buttonColor: '#0f172a',
+    });
+
+    return new NextResponse(html, { headers: HTML_HEADERS });
+  } catch {
+    const html = renderSimpleActionPage({
+      title: 'Something went wrong',
+      body: 'Please try again later.',
       isError: true,
       buttonColor: '#0f172a',
     });
-    return new NextResponse(html, { headers: HTML_HEADERS, status: 400 });
+    return new NextResponse(html, { headers: HTML_HEADERS, status: 500 });
   }
-
-  const html = renderSimpleActionPage({
-    title: 'You are unsubscribed',
-    body: 'You will no longer receive Ultaura updates at this email address.',
-    buttonColor: '#0f172a',
-  });
-
-  return new NextResponse(html, { headers: HTML_HEADERS });
 }

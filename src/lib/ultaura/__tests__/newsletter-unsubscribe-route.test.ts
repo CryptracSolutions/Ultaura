@@ -110,6 +110,36 @@ describe('newsletter unsubscribe route', () => {
     );
   });
 
+  it('POST returns generic 500 page when service throws', async () => {
+    const unsubscribeNewsletterSubscriber = vi.fn(async () => {
+      throw new Error('db-down');
+    });
+    vi.doMock('~/lib/ultaura/newsletter', () => ({
+      unsubscribeNewsletterSubscriber,
+    }));
+
+    const { POST } = await import(
+      '~/app/api/newsletter/unsubscribe/[subscriberId]/[token]/route'
+    );
+
+    const response = await POST(
+      new Request(
+        'http://localhost/api/newsletter/unsubscribe/subscriber-1/token-1',
+        { method: 'POST' },
+      ),
+      { params: { subscriberId: 'subscriber-1', token: 'token-1' } },
+    );
+    const html = await response.text();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get('content-security-policy')).toContain(
+      "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    );
+    expect(html).toContain('Something went wrong');
+    expect(html).toContain('Please try again later.');
+    expect(html).not.toContain('db-down');
+  });
+
   it('GET escapes unsafe token segments in action URL', async () => {
     const unsubscribeNewsletterSubscriber = vi.fn();
     vi.doMock('~/lib/ultaura/newsletter', () => ({

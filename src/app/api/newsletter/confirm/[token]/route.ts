@@ -63,28 +63,42 @@ export async function POST(
   request: Request,
   context: { params: { token: string } },
 ) {
-  const token = context.params.token;
-  const ip =
-    request.headers.get('x-real-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    null;
-  const userAgent = request.headers.get('user-agent');
+  try {
+    const token = context.params.token;
+    const ip =
+      request.headers.get('x-real-ip') ||
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      null;
+    const userAgent = request.headers.get('user-agent');
 
-  const result = await confirmSubscription(token, ip, userAgent);
+    const result = await confirmSubscription(token, ip, userAgent);
 
-  if (!result.success) {
+    if (!result.success) {
+      const html = renderNewsletterActionPage({
+        title: 'Confirmation failed',
+        body: result.message || 'This confirmation link is invalid or expired.',
+        isError: true,
+        compatibilityNotice: COMPATIBILITY_NOTICE,
+      });
+
+      return new NextResponse(html, {
+        headers: HTML_HEADERS,
+        status: 400,
+      });
+    }
+
+    return NextResponse.redirect(`${siteUrl}/newsletter/confirmed`);
+  } catch {
     const html = renderNewsletterActionPage({
-      title: 'Confirmation failed',
-      body: result.message || 'This confirmation link is invalid or expired.',
+      title: 'Something went wrong',
+      body: 'Please try again later.',
       isError: true,
       compatibilityNotice: COMPATIBILITY_NOTICE,
     });
 
     return new NextResponse(html, {
       headers: HTML_HEADERS,
-      status: 400,
+      status: 500,
     });
   }
-
-  return NextResponse.redirect(`${siteUrl}/newsletter/confirmed`);
 }

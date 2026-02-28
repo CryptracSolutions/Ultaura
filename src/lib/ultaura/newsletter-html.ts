@@ -5,7 +5,7 @@ const SITE_URL = escapeHtmlAttr(
 );
 
 function buildActionForm(actionLabel: string, actionUrl: string): string {
-  return `<form method="post" action="${escapeHtml(actionUrl)}"><button type="submit">${escapeHtml(actionLabel)}</button></form>`;
+  return `<form method="post" action="${escapeHtmlAttr(actionUrl)}"><button type="submit">${escapeHtml(actionLabel)}</button></form>`;
 }
 
 export function renderNewsletterActionPage(options: {

@@ -56,4 +56,27 @@ describe('newsletter confirm route', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).not.toContain('<script>alert(1)</script>');
   });
+
+  it('POST returns generic 500 page when service throws', async () => {
+    vi.doMock('~/lib/ultaura/newsletter', () => ({
+      confirmSubscription: vi.fn(async () => {
+        throw new Error('db-down');
+      }),
+    }));
+
+    const { POST } = await import('~/app/api/newsletter/confirm/[token]/route');
+
+    const response = await POST(new Request('http://localhost', { method: 'POST' }), {
+      params: { token: 'abc' },
+    });
+    const html = await response.text();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get('content-security-policy')).toContain(
+      "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    );
+    expect(html).toContain('Something went wrong');
+    expect(html).toContain('Please try again later.');
+    expect(html).not.toContain('db-down');
+  });
 });
