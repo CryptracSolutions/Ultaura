@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
-  Phone,
   PhoneCall,
   MoreVertical,
   Clock,
@@ -16,6 +15,7 @@ import {
   CheckCircle,
   Eye,
   Settings,
+  User,
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
@@ -149,7 +149,7 @@ export function LineCard({
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className={`w-12 h-12 rounded-full ${getIconBgClass()} flex items-center justify-center`}>
-              <Phone className={`w-6 h-6 ${getIconColorClass()}`} />
+              <User className={`w-6 h-6 ${getIconColorClass()}`} />
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2 min-w-0">

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { Bell, Plus } from 'lucide-react';
+import { Bell, Plus, User } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import {
   cancelReminder,
@@ -280,7 +280,10 @@ export function RemindersPageClient({
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
                 {/* Line header */}
                 <div className="px-6 py-4 border-b border-border bg-muted/30">
-                  <h3 className="font-semibold text-primary">{line.display_name}</h3>
+                  <h3 className="font-semibold text-foreground flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    {line.display_name}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
                     {activeCount} active reminders
                   </p>

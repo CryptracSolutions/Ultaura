@@ -35,6 +35,18 @@ interface ScheduleCardProps {
   onDelete?: () => void;
 }
 
+const STATUS_BORDER_COLORS = {
+  active: 'var(--primary)',
+  paused: 'var(--warning)',
+  oneTime: 'var(--info)',
+};
+
+function getBorderColor(schedule: ScheduleCardProps['schedule']): string {
+  if (schedule.isOneTime) return STATUS_BORDER_COLORS.oneTime;
+  if (!schedule.enabled) return STATUS_BORDER_COLORS.paused;
+  return STATUS_BORDER_COLORS.active;
+}
+
 export function ScheduleCard({
   schedule,
   showLineName,
@@ -46,6 +58,7 @@ export function ScheduleCard({
 }: ScheduleCardProps) {
   const isOneTime = schedule.isOneTime;
   const nextCallLabel = formatNextRunAt(schedule.nextRunAt, schedule.lineTimezone);
+  const borderColor = getBorderColor(schedule);
 
   let StatusIcon = CheckCircle;
   let iconBg = 'bg-primary/10';
@@ -98,9 +111,10 @@ export function ScheduleCard({
 
   return (
     <div
-      className={`px-6 py-4 flex items-center justify-between gap-4 ${
+      className={`border-l-4 px-6 py-4 flex items-center justify-between gap-4 ${
         !schedule.enabled ? 'opacity-60' : ''
       }`}
+      style={{ borderLeftColor: borderColor }}
     >
       <div className="flex items-center gap-4 min-w-0">
         <div
@@ -124,18 +138,22 @@ export function ScheduleCard({
               </span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground truncate">
-            {isOneTime ? (
-              <>Scheduled: {nextCallLabel || 'TBD'}</>
-            ) : (
-              <>
+          {isOneTime ? (
+            <p className="text-sm text-muted-foreground truncate">
+              Scheduled: {nextCallLabel || 'TBD'}
+            </p>
+          ) : (
+            <div className="space-y-0.5">
+              <p className="text-sm text-muted-foreground">
                 {formatDaySummary(schedule.daysOfWeek)}
-                {schedule.enabled && nextCallLabel && (
-                  <span className="ml-2">&middot; Next: {nextCallLabel}</span>
-                )}
-              </>
-            )}
-          </p>
+              </p>
+              {schedule.enabled && nextCallLabel && (
+                <p className="text-sm text-muted-foreground">
+                  Next: {nextCallLabel}
+                </p>
+              )}
+            </div>
+          )}
           {isOneTime && schedule.rescheduledFrom && (
             <p className="text-xs text-muted-foreground">{schedule.rescheduledFrom}</p>
           )}

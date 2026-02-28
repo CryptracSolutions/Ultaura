@@ -77,8 +77,15 @@ export function ScheduleExceptions({
     reschedule: 'Reschedule',
   };
 
+  const EXCEPTION_BORDER_COLORS: Record<string, string> = {
+    skip: 'var(--warning)',
+    snooze: 'var(--primary)',
+    reschedule: 'var(--info)',
+  };
+
   const getExceptionTypeLabel = (type: string) => exceptionTypeLabels[type] ?? type;
   const getExceptionIcon = (type: string) => (type === 'snooze' ? AlarmClock : Calendar);
+  const getExceptionBorderColor = (type: string) => EXCEPTION_BORDER_COLORS[type] || 'var(--muted)';
 
   const formatExceptionDate = (dateString: string) => {
     return DateTime.fromISO(dateString, { zone: lineTimezone })
@@ -115,6 +122,7 @@ export function ScheduleExceptions({
           <div className="divide-y divide-border">
             {exceptions.map((exception) => {
               const Icon = getExceptionIcon(exception.exception_type);
+              const borderColor = getExceptionBorderColor(exception.exception_type);
               const newTime = exception.new_datetime
                 ? DateTime.fromISO(exception.new_datetime)
                     .setZone(lineTimezone)
@@ -133,7 +141,8 @@ export function ScheduleExceptions({
               return (
                 <div
                   key={exception.id}
-                  className="px-6 py-4 flex items-center justify-between gap-4"
+                  className="border-l-4 px-6 py-4 flex items-center justify-between gap-4"
+                  style={{ borderLeftColor: borderColor }}
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/10">

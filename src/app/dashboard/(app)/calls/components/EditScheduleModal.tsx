@@ -203,14 +203,14 @@ export function EditScheduleModal({
             <label className="block text-sm font-medium text-foreground mb-2">
               Days
             </label>
-            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+            <div className="grid grid-cols-7 gap-2">
               {DAYS_OF_WEEK.map((day) => (
                 <button
                   key={day.value}
                   type="button"
                   onClick={() => toggleDay(day.value)}
                   disabled={disabled || isLoading || isSaving}
-                  className={`px-3 py-3 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`px-2 py-3 rounded-lg border text-sm font-medium transition-colors min-w-[44px] ${
                     selectedDays.includes(day.value)
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-background text-foreground border-input hover:bg-muted'

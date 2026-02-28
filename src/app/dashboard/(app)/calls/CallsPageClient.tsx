@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { CalendarDays, Clock, Plus } from 'lucide-react';
+import { CalendarDays, Clock, Plus, User } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
@@ -259,7 +259,10 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
                 <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground">{line.display_name}</h3>
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary" />
+                      {line.display_name}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
                       {lineSchedules.length === 0
                         ? 'No schedules'
