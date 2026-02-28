@@ -51,14 +51,17 @@ type InviteMutationContext = {
   rollbackSnapshot?: InviteRollbackSnapshot;
 };
 
-export class NotificationInviteSendError extends Error {
-  readonly context: InviteMutationContext;
+type InviteSendError = Error & {
+  code: 'INVITE_SEND_FAILED';
+  context: InviteMutationContext;
+};
 
-  constructor(message: string, context: InviteMutationContext) {
-    super(message);
-    this.name = 'NotificationInviteSendError';
-    this.context = context;
-  }
+function createInviteSendError(context: InviteMutationContext): InviteSendError {
+  const error = new Error('Failed to send invite email') as InviteSendError;
+  error.name = 'NotificationInviteSendError';
+  error.code = 'INVITE_SEND_FAILED';
+  error.context = context;
+  return error;
 }
 
 function isRecipientLimitError(error: { message?: string } | null | undefined): boolean {
@@ -354,7 +357,7 @@ export async function inviteNotificationRecipient(
         client,
       });
     } catch (error) {
-      throw new NotificationInviteSendError('Failed to send invite email', inviteContext);
+      throw createInviteSendError(inviteContext);
     }
 
     revalidatePath('/dashboard/privacy', 'page');
@@ -436,7 +439,7 @@ export async function inviteNotificationRecipient(
       client,
     });
   } catch (error) {
-    throw new NotificationInviteSendError('Failed to send invite email', inviteContext);
+    throw createInviteSendError(inviteContext);
   }
 
   revalidatePath('/dashboard/privacy', 'page');

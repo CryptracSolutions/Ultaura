@@ -6,12 +6,33 @@ import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client'
 import getLogger from '~/core/logger';
 import {
   inviteNotificationRecipient,
-  NotificationInviteSendError,
   rollbackNotificationInviteMutation,
 } from '~/lib/ultaura/notification-recipients';
 
 const E164_PHONE_REGEX = /^\+[1-9]\d{1,14}$/;
 const logger = getLogger();
+
+type InviteFailureContext = Parameters<typeof rollbackNotificationInviteMutation>[0];
+type InviteSendFailureError = Error & {
+  code?: string;
+  context: InviteFailureContext;
+};
+
+function isInviteSendFailure(
+  error: unknown
+): error is InviteSendFailureError {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const inviteError = error as Partial<InviteSendFailureError>;
+  const hasContext = Boolean(inviteError.context);
+
+  return (
+    hasContext &&
+    (inviteError.code === 'INVITE_SEND_FAILED' || error.name === 'NotificationInviteSendError')
+  );
+}
 
 const InviteSchema = z.object({
   accountId: z.string().uuid(),
@@ -73,7 +94,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: result.data });
   } catch (error) {
-    if (error instanceof NotificationInviteSendError) {
+    if (isInviteSendFailure(error)) {
       const rollbackResult = await rollbackNotificationInviteMutation(error.context, {
         client: supabase,
       });
