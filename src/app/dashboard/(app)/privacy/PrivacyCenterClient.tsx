@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Archive,
+  Check,
   ClipboardList,
   Download,
   LayoutDashboard,
@@ -25,11 +26,33 @@ import classNames from 'clsx';
 import { Switch } from '~/core/ui/Switch';
 import { Checkbox } from '~/core/ui/Checkbox';
 import TextField from '~/core/ui/TextField';
-import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
+import {
+  RadioGroup,
+  RadioGroupItem,
+  RadioGroupItemLabel,
+} from '~/core/ui/RadioGroup';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/core/ui/Select';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '~/core/ui/Accordion';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '~/core/ui/Accordion';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '~/core/ui/Table';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useAutoSave } from '~/core/hooks/use-auto-save';
 import {
@@ -55,7 +78,10 @@ import type {
   RetentionPeriod,
   UltauraAccountRow,
 } from '~/lib/ultaura/types';
-import { updateAccountSharing, upgradeSelfToFamilyMode } from '~/lib/ultaura/accounts';
+import {
+  updateAccountSharing,
+  upgradeSelfToFamilyMode,
+} from '~/lib/ultaura/accounts';
 import {
   getDataExportRequests,
   requestAccountDataDeletion,
@@ -119,6 +145,38 @@ const SHARING_TIER_LABELS: Record<string, string> = {
   tier_4: 'Complete Visibility',
 };
 
+const SHARING_TIER_FEATURES: Record<
+  string,
+  Array<{ text: string; included: boolean }>
+> = {
+  tier_1: [
+    { text: 'Safety alerts', included: true },
+    { text: 'Mood & sentiment', included: false },
+    { text: 'Conversation topics', included: false },
+    { text: 'Specific concerns', included: false },
+  ],
+  tier_2: [
+    { text: 'Safety alerts', included: true },
+    { text: 'Mood & sentiment', included: true },
+    { text: 'Conversation topics', included: false },
+    { text: 'Specific concerns', included: false },
+  ],
+  tier_3: [
+    { text: 'Safety alerts', included: true },
+    { text: 'Mood & sentiment', included: true },
+    { text: 'Conversation topics', included: true },
+    { text: 'Specific concerns', included: false },
+  ],
+  tier_4: [
+    { text: 'Safety alerts', included: true },
+    { text: 'Mood & sentiment', included: true },
+    { text: 'Conversation topics', included: true },
+    { text: 'Specific concerns', included: true },
+  ],
+};
+
+const SHARING_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+
 const AUDIT_PAGE_SIZE = 10;
 
 type PrivacyTabValue = 'overview' | 'consent' | 'data' | 'family';
@@ -175,7 +233,11 @@ function formatShortDate(value?: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function PrivacyCenterClient({
@@ -197,13 +259,13 @@ export function PrivacyCenterClient({
   const initialSharingEnabled = account.sharing_enabled ?? true;
 
   const [recordingEnabled, setRecordingEnabled] = useState(
-    initialRecordingEnabled
+    initialRecordingEnabled,
   );
   const [aiSummarizationEnabled, setAiSummarizationEnabled] = useState(
-    initialAiSummarizationEnabled
+    initialAiSummarizationEnabled,
   );
   const [retentionPeriod, setRetentionPeriod] = useState<RetentionPeriod>(
-    initialRetentionPeriod
+    initialRetentionPeriod,
   );
 
   const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
@@ -212,7 +274,7 @@ export function PrivacyCenterClient({
   const [includeReminders, setIncludeReminders] = useState(true);
   const [exports, setExports] = useState<DataExportRequest[]>(exportRequests);
   const [recipients, setRecipients] = useState<NotificationRecipient[]>(
-    notificationRecipients
+    notificationRecipients,
   );
 
   const [isExporting, setIsExporting] = useState(false);
@@ -224,7 +286,9 @@ export function PrivacyCenterClient({
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRelationship, setInviteRelationship] = useState('');
   const [inviteAsTrusted, setInviteAsTrusted] = useState(false);
-  const [invitePhoneError, setInvitePhoneError] = useState<string | undefined>();
+  const [invitePhoneError, setInvitePhoneError] = useState<
+    string | undefined
+  >();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
@@ -238,10 +302,16 @@ export function PrivacyCenterClient({
     relationship?: string;
     addAsTrustedContact: boolean;
   } | null>(null);
-  const [recordingRequestLineId, setRecordingRequestLineId] = useState<string | null>(null);
-  const [sharingRequestLineId, setSharingRequestLineId] = useState<string | null>(null);
+  const [recordingRequestLineId, setRecordingRequestLineId] = useState<
+    string | null
+  >(null);
+  const [sharingRequestLineId, setSharingRequestLineId] = useState<
+    string | null
+  >(null);
   const [auditConsentFilter, setAuditConsentFilter] = useState<string>('all');
-  const [auditActorFilter, setAuditActorFilter] = useState<'all' | ConsentAuditEntry['actorType']>('all');
+  const [auditActorFilter, setAuditActorFilter] = useState<
+    'all' | ConsentAuditEntry['actorType']
+  >('all');
   const [auditSearch, setAuditSearch] = useState('');
   const [auditPage, setAuditPage] = useState(1);
 
@@ -259,11 +329,13 @@ export function PrivacyCenterClient({
 
   const lineCount = lines.length;
   const exportInProgress = exports.some(
-    (request) => request.status === 'pending' || request.status === 'processing'
+    (request) =>
+      request.status === 'pending' || request.status === 'processing',
   );
   const lineConsentById = useMemo(
-    () => new Map(lineVoiceConsents.map((consent) => [consent.lineId, consent])),
-    [lineVoiceConsents]
+    () =>
+      new Map(lineVoiceConsents.map((consent) => [consent.lineId, consent])),
+    [lineVoiceConsents],
   );
   const isSelfUser = account.user_type === 'self';
   const canManageRecipients =
@@ -275,7 +347,9 @@ export function PrivacyCenterClient({
   const tabParam = searchParams.get('tab') as PrivacyTabValue | null;
   const activeTab =
     privacyTabs.find((tab) => tab.value === tabParam) ?? privacyTabs[0];
-  const sectionParam = searchParams.get('section') as PrivacySectionValue | null;
+  const sectionParam = searchParams.get(
+    'section',
+  ) as PrivacySectionValue | null;
   const sectionsForTab = PRIVACY_SECTIONS[activeTab.value];
   const activeSection =
     sectionsForTab.find((section) => section.value === sectionParam) ??
@@ -297,9 +371,15 @@ export function PrivacyCenterClient({
 
   const sharingAutoSave = useAutoSave<{ sharingEnabled: boolean }>({
     saveFn: async (value) => {
-      const result = await updateAccountSharing(account.id, value.sharingEnabled);
+      const result = await updateAccountSharing(
+        account.id,
+        value.sharingEnabled,
+      );
       if (result.success) return { success: true };
-      return { success: false, error: result.error?.message || 'Failed to save' };
+      return {
+        success: false,
+        error: result.error?.message || 'Failed to save',
+      };
     },
     toastSuccess: 'Sharing updated',
     onSuccess: () => router.refresh(),
@@ -321,10 +401,10 @@ export function PrivacyCenterClient({
   const retentionLabel = retentionOption?.label ?? 'Not set';
   const consentSummary = useMemo(() => {
     const recordingSet = lineVoiceConsents.filter(
-      (consent) => consent.recordingConsent !== 'pending'
+      (consent) => consent.recordingConsent !== 'pending',
     ).length;
     const sharingSet = lineVoiceConsents.filter(
-      (consent) => consent.sharingConsent !== 'pending'
+      (consent) => consent.sharingConsent !== 'pending',
     ).length;
 
     return {
@@ -340,7 +420,9 @@ export function PrivacyCenterClient({
 
   const consentTypeOptions = useMemo(() => {
     const types = new Set(
-      auditLog.map((entry) => entry.consentType).filter((value): value is string => !!value)
+      auditLog
+        .map((entry) => entry.consentType)
+        .filter((value): value is string => !!value),
     );
     return Array.from(types);
   }, [auditLog]);
@@ -354,7 +436,10 @@ export function PrivacyCenterClient({
     const searchValue = auditSearch.trim().toLowerCase();
 
     return auditLog.filter((entry) => {
-      if (auditConsentFilter !== 'all' && entry.consentType !== auditConsentFilter) {
+      if (
+        auditConsentFilter !== 'all' &&
+        entry.consentType !== auditConsentFilter
+      ) {
         return false;
       }
       if (auditActorFilter !== 'all' && entry.actorType !== auditActorFilter) {
@@ -379,7 +464,7 @@ export function PrivacyCenterClient({
 
   const auditTotalPages = Math.max(
     1,
-    Math.ceil(filteredAuditLog.length / AUDIT_PAGE_SIZE)
+    Math.ceil(filteredAuditLog.length / AUDIT_PAGE_SIZE),
   );
   const auditPageSafe = Math.min(auditPage, auditTotalPages);
   const auditStartIndex =
@@ -388,11 +473,11 @@ export function PrivacyCenterClient({
       : (auditPageSafe - 1) * AUDIT_PAGE_SIZE + 1;
   const auditEndIndex = Math.min(
     auditPageSafe * AUDIT_PAGE_SIZE,
-    filteredAuditLog.length
+    filteredAuditLog.length,
   );
   const pagedAuditLog = filteredAuditLog.slice(
     (auditPageSafe - 1) * AUDIT_PAGE_SIZE,
-    auditPageSafe * AUDIT_PAGE_SIZE
+    auditPageSafe * AUDIT_PAGE_SIZE,
   );
 
   useEffect(() => {
@@ -553,8 +638,12 @@ export function PrivacyCenterClient({
     const trimmedName = (override?.name ?? inviteName).trim();
     const trimmedEmail = (override?.email ?? inviteEmail).trim().toLowerCase();
     const trimmedPhone = invitePhone.trim();
-    const trimmedRelationship = (override?.relationship ?? inviteRelationship).trim();
-    const phoneE164 = override?.phoneE164 ?? (trimmedPhone ? formatToE164(trimmedPhone) : undefined);
+    const trimmedRelationship = (
+      override?.relationship ?? inviteRelationship
+    ).trim();
+    const phoneE164 =
+      override?.phoneE164 ??
+      (trimmedPhone ? formatToE164(trimmedPhone) : undefined);
 
     return {
       name: trimmedName,
@@ -573,7 +662,7 @@ export function PrivacyCenterClient({
       phoneE164?: string;
       relationship?: string;
       addAsTrustedContact?: boolean;
-    }
+    },
   ) => {
     setInviteError(null);
     setInvitePhoneError(undefined);
@@ -584,7 +673,9 @@ export function PrivacyCenterClient({
       return;
     }
 
-    const phoneValidationError = getUsPhoneValidationError(invitePhone, { required: inviteAsTrusted });
+    const phoneValidationError = getUsPhoneValidationError(invitePhone, {
+      required: inviteAsTrusted,
+    });
     if (phoneValidationError) {
       setInvitePhoneError(phoneValidationError);
       return;
@@ -624,7 +715,9 @@ export function PrivacyCenterClient({
         return;
       }
 
-      const nextRecipients = recipients.filter((item) => item.id !== result.data.id);
+      const nextRecipients = recipients.filter(
+        (item) => item.id !== result.data.id,
+      );
       setRecipients([result.data, ...nextRecipients]);
       closeInviteModal();
       toast.success('Invite sent');
@@ -654,7 +747,9 @@ export function PrivacyCenterClient({
         toast.error(result.error.message || 'Failed to remove recipient');
         return;
       }
-      setRecipients((prev) => prev.filter((recipient) => recipient.id !== recipientId));
+      setRecipients((prev) =>
+        prev.filter((recipient) => recipient.id !== recipientId),
+      );
       toast.success('Recipient removed');
     } catch {
       toast.error('Failed to remove recipient');
@@ -686,10 +781,10 @@ export function PrivacyCenterClient({
             <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
               <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
               <p className="text-xs text-primary leading-snug">
-                All data stays in your control. Ultaura stores call insights and memories
-                securely. Recording and sharing consent is given by your loved one during
-                their calls—not from this dashboard. You can export or delete all data at
-                any time.{' '}
+                All data stays in your control. Ultaura stores call insights and
+                memories securely. Recording and sharing consent is given by
+                your loved one during their calls—not from this dashboard. You
+                can export or delete all data at any time.{' '}
                 <Link
                   href="/docs/privacy"
                   className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -717,7 +812,9 @@ export function PrivacyCenterClient({
                     </div>
                     <div className="mt-3 space-y-2 text-sm">
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Recording consent set</span>
+                        <span className="text-muted-foreground">
+                          Recording consent set
+                        </span>
                         <span className="font-medium text-foreground">
                           {lineCount === 0
                             ? 'No lines'
@@ -726,7 +823,9 @@ export function PrivacyCenterClient({
                       </div>
                       {showSharingSummary ? (
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Sharing preferences set</span>
+                          <span className="text-muted-foreground">
+                            Sharing preferences set
+                          </span>
                           <span className="font-medium text-foreground">
                             {lineCount === 0
                               ? 'No lines'
@@ -743,9 +842,15 @@ export function PrivacyCenterClient({
                     </div>
                     <div className="mt-3 space-y-2 text-sm">
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Call recording</span>
+                        <span className="text-muted-foreground">
+                          Call recording
+                        </span>
                         <span
-                          className={recordingEnabled ? 'text-success font-medium' : 'text-muted-foreground'}
+                          className={
+                            recordingEnabled
+                              ? 'text-success font-medium'
+                              : 'text-muted-foreground'
+                          }
                         >
                           {recordingEnabled ? 'On' : 'Off'}
                         </span>
@@ -753,15 +858,25 @@ export function PrivacyCenterClient({
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">AI memory</span>
                         <span
-                          className={aiSummarizationEnabled ? 'text-success font-medium' : 'text-muted-foreground'}
+                          className={
+                            aiSummarizationEnabled
+                              ? 'text-success font-medium'
+                              : 'text-muted-foreground'
+                          }
                         >
                           {aiSummarizationEnabled ? 'On' : 'Off'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Family sharing</span>
+                        <span className="text-muted-foreground">
+                          Family sharing
+                        </span>
                         <span
-                          className={sharingEnabled ? 'text-success font-medium' : 'text-muted-foreground'}
+                          className={
+                            sharingEnabled
+                              ? 'text-success font-medium'
+                              : 'text-muted-foreground'
+                          }
                         >
                           {sharingEnabled ? 'On' : 'Off'}
                         </span>
@@ -776,7 +891,9 @@ export function PrivacyCenterClient({
                     <div className="mt-3 text-lg font-semibold text-foreground">
                       {retentionLabel}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{retentionDescription}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {retentionDescription}
+                    </p>
                   </div>
 
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
@@ -807,8 +924,9 @@ export function PrivacyCenterClient({
                 />
                 <SectionBody className="gap-4">
                   <p className="text-sm text-muted-foreground">
-                    When enabled, you can invite family members to receive weekly summaries and
-                    wellness alerts. Only data after you enable sharing will be shared.
+                    When enabled, you can invite family members to receive
+                    weekly summaries and wellness alerts. Only data after you
+                    enable sharing will be shared.
                   </p>
                   <Button
                     type="button"
@@ -835,7 +953,7 @@ export function PrivacyCenterClient({
                     Consent Status
                   </div>
                 }
-                description="Review recording and family sharing preferences for each line."
+                description="Review recording consent for each line."
               />
               <SectionBody className="gap-4">
                 {lines.length === 0 ? (
@@ -845,12 +963,15 @@ export function PrivacyCenterClient({
                 ) : (
                   lines.map((line) => {
                     const consent = lineConsentById.get(line.id);
-                    const recordingConsent = consent?.recordingConsent ?? 'pending';
+                    const recordingConsent =
+                      consent?.recordingConsent ?? 'pending';
                     const recordingPreferencePermanent =
                       consent?.recordingPreferencePermanent ?? false;
                     const recordingReenableRequestedAt =
                       consent?.recordingReenableRequestedAt ?? null;
-                    const recordingConsentAt = formatShortDate(consent?.recordingConsentAt);
+                    const recordingConsentAt = formatShortDate(
+                      consent?.recordingConsentAt,
+                    );
                     const recordingStatus =
                       recordingConsent === 'granted'
                         ? 'Approved'
@@ -861,47 +982,21 @@ export function PrivacyCenterClient({
                           : 'Awaiting consent';
                     const recordingNote = recordingReenableRequestedAt
                       ? `Re-enable requested on ${
-                          formatShortDate(recordingReenableRequestedAt) ?? 'recently'
+                          formatShortDate(recordingReenableRequestedAt) ??
+                          'recently'
                         }`
                       : recordingConsentAt
                         ? `Set on ${recordingConsentAt}`
                         : null;
                     const canRequestRecording =
-                      recordingConsent === 'denied' && recordingPreferencePermanent;
-
-                    const sharingConsent = consent?.sharingConsent ?? 'pending';
-                    const sharingTier = consent?.sharingTier ?? 'tier_1';
-                    const sharingConsentAt = formatShortDate(consent?.sharingConsentAt);
-                    const sharingRePromptRequestedAt =
-                      consent?.sharingRePromptRequestedAt ?? null;
-                    const sharingStatus =
-                      sharingConsent === 'granted'
-                        ? SHARING_TIER_LABELS[sharingTier]
-                        : sharingConsent === 'denied'
-                          ? `${SHARING_TIER_LABELS.tier_1} (declined)`
-                          : 'Awaiting preference';
-                    const sharingNote = sharingRePromptRequestedAt
-                      ? `Change requested on ${
-                          formatShortDate(sharingRePromptRequestedAt) ?? 'recently'
-                        }`
-                      : sharingConsentAt
-                        ? `Set by ${line.display_name} on ${sharingConsentAt}`
-                        : null;
-                    const canRequestSharing =
-                      account.user_type === 'family_managed' && sharingConsent !== 'pending';
+                      recordingConsent === 'denied' &&
+                      recordingPreferencePermanent;
 
                     return (
                       <div
                         key={line.id}
                         className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3"
                       >
-                        {account.user_type === 'family_managed' ? (
-                          <p className="text-xs text-muted-foreground">
-                            {line.display_name} controls sharing preferences during calls.
-                            Requesting a change will prompt them on the next call.
-                          </p>
-                        ) : null}
-
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <div className="text-sm font-medium text-foreground">
@@ -913,77 +1008,40 @@ export function PrivacyCenterClient({
                           </div>
                         </div>
 
-                        <div
-                          className={`grid gap-4 ${
-                            account.user_type === 'family_managed' ? 'md:grid-cols-2' : ''
-                          }`}
-                        >
-                          <div>
-                            <div className="text-xs text-muted-foreground">Recording</div>
-                            <div className="text-sm text-foreground">{recordingStatus}</div>
-                            {recordingNote ? (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {recordingNote}
-                              </div>
-                            ) : null}
+                        <div>
+                          <div className="text-xs text-muted-foreground">
+                            Recording
                           </div>
-                          {account.user_type === 'family_managed' ? (
-                            <div>
-                              <div className="text-xs text-muted-foreground">
-                                Family Sharing Level
-                              </div>
-                              <div className="text-sm text-foreground">{sharingStatus}</div>
-                              {sharingNote ? (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {sharingNote}
-                                </div>
-                              ) : null}
+                          <div className="text-sm text-foreground">
+                            {recordingStatus}
+                          </div>
+                          {recordingNote ? (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {recordingNote}
                             </div>
                           ) : null}
                         </div>
 
-                        {(canRequestRecording || canRequestSharing) ? (
+                        {canRequestRecording ? (
                           <div className="flex flex-wrap gap-3 pt-3">
-                            {canRequestRecording ? (
-                              <button
-                                type="button"
-                                onClick={() => handleRecordingReenable(line.id)}
-                                disabled={
-                                  recordingReenableRequestedAt !== null ||
-                                  recordingRequestLineId === line.id
-                                }
-                                className={
-                                  recordingReenableRequestedAt !== null ||
-                                  recordingRequestLineId === line.id
-                                    ? 'text-sm text-muted-foreground'
-                                    : 'text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity'
-                                }
-                              >
-                                {recordingReenableRequestedAt
-                                  ? 'Re-enable requested'
-                                  : 'Re-enable recording'}
-                              </button>
-                            ) : null}
-                            {canRequestSharing ? (
-                              <button
-                                type="button"
-                                onClick={() => handleSharingRePrompt(line.id)}
-                                disabled={
-                                  sharingRePromptRequestedAt !== null ||
-                                  sharingRequestLineId === line.id
-                                }
-                                className={
-                                  sharingRePromptRequestedAt !== null ||
-                                  sharingRequestLineId === line.id
-                                    ? 'text-sm text-muted-foreground'
-                                    : 'text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity'
-                                }
-                              >
-                                {sharingRePromptRequestedAt
-                                  ? 'Requested'
-                                  : 'Request Change'}
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => handleRecordingReenable(line.id)}
+                              disabled={
+                                recordingReenableRequestedAt !== null ||
+                                recordingRequestLineId === line.id
+                              }
+                              className={
+                                recordingReenableRequestedAt !== null ||
+                                recordingRequestLineId === line.id
+                                  ? 'text-sm text-muted-foreground'
+                                  : 'text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity'
+                              }
+                            >
+                              {recordingReenableRequestedAt
+                                ? 'Re-enable requested'
+                                : 'Re-enable recording'}
+                            </button>
                           </div>
                         ) : null}
                       </div>
@@ -1014,8 +1072,8 @@ export function PrivacyCenterClient({
                     Call recording
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    When enabled, calls may be recorded. Disclosure is always announced at call
-                    start.
+                    When enabled, calls may be recorded. Disclosure is always
+                    announced at call start.
                   </p>
                 </div>
                 <Switch
@@ -1032,7 +1090,8 @@ export function PrivacyCenterClient({
                     AI memory & personalization
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Controls memory storage, retrieval, and post-call summaries across all lines.
+                    Controls memory storage, retrieval, and post-call summaries
+                    across all lines.
                   </p>
                 </div>
                 <Switch
@@ -1073,11 +1132,15 @@ export function PrivacyCenterClient({
 
                 <Accordion>
                   <AccordionItem value="retention-advanced">
-                    <AccordionTrigger>Advanced retention settings</AccordionTrigger>
+                    <AccordionTrigger>
+                      Advanced retention settings
+                    </AccordionTrigger>
                     <AccordionContent>
                       <RadioGroup
                         value={retentionPeriod}
-                        onValueChange={(value) => handleRetentionChange(value as RetentionPeriod)}
+                        onValueChange={(value) =>
+                          handleRetentionChange(value as RetentionPeriod)
+                        }
                         className="gap-3"
                         disabled={privacyAutoSave.isSaving}
                       >
@@ -1105,8 +1168,9 @@ export function PrivacyCenterClient({
                     Delete privacy data
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Permanently delete AI-generated memories, call insights, and recorded audio.
-                    Call session metadata and user-created reminders are preserved.
+                    Permanently delete AI-generated memories, call insights, and
+                    recorded audio. Call session metadata and user-created
+                    reminders are preserved.
                   </p>
                   <Button
                     type="button"
@@ -1137,10 +1201,14 @@ export function PrivacyCenterClient({
               <SectionBody className="gap-6">
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Format</p>
+                    <p className="text-sm font-medium text-foreground">
+                      Format
+                    </p>
                     <Select
                       value={exportFormat}
-                      onValueChange={(value) => setExportFormat(value as 'json' | 'csv')}
+                      onValueChange={(value) =>
+                        setExportFormat(value as 'json' | 'csv')
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select format" />
@@ -1169,7 +1237,8 @@ export function PrivacyCenterClient({
                         : 'Request export'}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Exports are available for 48 hours and include {lineCount} line
+                    Exports are available for 48 hours and include {lineCount}{' '}
+                    line
                     {lineCount === 1 ? '' : 's'}.
                   </p>
                 </div>
@@ -1234,7 +1303,9 @@ export function PrivacyCenterClient({
                             request.status === 'ready' && request.downloadUrl;
                           return (
                             <TableRow key={request.id}>
-                              <TableCell>{formatDate(request.createdAt)}</TableCell>
+                              <TableCell>
+                                {formatDate(request.createdAt)}
+                              </TableCell>
                               <TableCell className="uppercase text-xs text-muted-foreground">
                                 {request.format}
                               </TableCell>
@@ -1246,7 +1317,9 @@ export function PrivacyCenterClient({
                                 </span>
                               </TableCell>
                               <TableCell>
-                                {request.expiresAt ? formatDate(request.expiresAt) : '--'}
+                                {request.expiresAt
+                                  ? formatDate(request.expiresAt)
+                                  : '--'}
                               </TableCell>
                               <TableCell className="text-right">
                                 {isReady ? (
@@ -1259,7 +1332,9 @@ export function PrivacyCenterClient({
                                     Download
                                   </a>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground">--</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    --
+                                  </span>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -1269,7 +1344,9 @@ export function PrivacyCenterClient({
                     </Table>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No export requests yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No export requests yet.
+                  </p>
                 )}
               </SectionBody>
             </Section>
@@ -1291,7 +1368,9 @@ export function PrivacyCenterClient({
               <SectionBody className="gap-6">
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Consent type</p>
+                    <p className="text-sm font-medium text-foreground">
+                      Consent type
+                    </p>
                     <Select
                       value={auditConsentFilter}
                       onValueChange={(value) => setAuditConsentFilter(value)}
@@ -1315,7 +1394,9 @@ export function PrivacyCenterClient({
                     <Select
                       value={auditActorFilter}
                       onValueChange={(value) =>
-                        setAuditActorFilter(value as ConsentAuditEntry['actorType'] | 'all')
+                        setAuditActorFilter(
+                          value as ConsentAuditEntry['actorType'] | 'all',
+                        )
                       }
                     >
                       <SelectTrigger>
@@ -1362,9 +1443,12 @@ export function PrivacyCenterClient({
                             <TableCell>{formatDate(entry.createdAt)}</TableCell>
                             <TableCell>{formatAction(entry.action)}</TableCell>
                             <TableCell>{entry.consentType ?? '--'}</TableCell>
-                            <TableCell>{formatActor(entry.actorType)}</TableCell>
                             <TableCell>
-                              {entry.oldValue !== null || entry.newValue !== null
+                              {formatActor(entry.actorType)}
+                            </TableCell>
+                            <TableCell>
+                              {entry.oldValue !== null ||
+                              entry.newValue !== null
                                 ? `${formatAuditValue(entry.oldValue)} -> ${formatAuditValue(entry.newValue)}`
                                 : '--'}
                             </TableCell>
@@ -1384,13 +1468,16 @@ export function PrivacyCenterClient({
                 {filteredAuditLog.length > 0 ? (
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs text-muted-foreground">
-                      Showing {auditStartIndex}-{auditEndIndex} of {filteredAuditLog.length}
+                      Showing {auditStartIndex}-{auditEndIndex} of{' '}
+                      {filteredAuditLog.length}
                     </p>
                     <div className="flex items-center gap-2">
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setAuditPage(Math.max(1, auditPageSafe - 1))}
+                        onClick={() =>
+                          setAuditPage(Math.max(1, auditPageSafe - 1))
+                        }
                         disabled={auditPageSafe <= 1}
                       >
                         Previous
@@ -1401,7 +1488,11 @@ export function PrivacyCenterClient({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setAuditPage(Math.min(auditTotalPages, auditPageSafe + 1))}
+                        onClick={() =>
+                          setAuditPage(
+                            Math.min(auditTotalPages, auditPageSafe + 1),
+                          )
+                        }
                         disabled={auditPageSafe >= auditTotalPages}
                       >
                         Next
@@ -1421,9 +1512,9 @@ export function PrivacyCenterClient({
           <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
             <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
             <p className="text-xs text-primary leading-snug">
-              Family sharing lets you invite family members to receive weekly summaries and
-              wellness alerts. What is shared follows your loved one&apos;s sharing preferences
-              during calls.{' '}
+              Family sharing lets you invite family members to receive weekly
+              summaries and wellness alerts. What is shared follows your loved
+              one&apos;s sharing preferences during calls.{' '}
               <Link
                 href="/docs/insights-and-reports/sharing-with-family"
                 className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -1465,7 +1556,9 @@ export function PrivacyCenterClient({
                             </Button>
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent>Maximum 5 recipients reached</TooltipContent>
+                        <TooltipContent>
+                          Maximum 5 recipients reached
+                        </TooltipContent>
                       </Tooltip>
                     ) : (
                       <Button
@@ -1527,9 +1620,12 @@ export function PrivacyCenterClient({
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <DialogTitle className="truncate">Invite family recipient</DialogTitle>
+                          <DialogTitle className="truncate">
+                            Invite family recipient
+                          </DialogTitle>
                           <DialogDescription className="text-sm text-muted-foreground">
-                            This person will receive weekly summaries and wellness alerts.
+                            This person will receive weekly summaries and
+                            wellness alerts.
                           </DialogDescription>
                         </div>
                         <Button
@@ -1561,7 +1657,9 @@ export function PrivacyCenterClient({
                               <TextField.Input
                                 ref={firstInputRef}
                                 value={inviteName}
-                                onChange={(event) => setInviteName(event.target.value)}
+                                onChange={(event) =>
+                                  setInviteName(event.target.value)
+                                }
                                 placeholder="e.g., Sarah Johnson"
                                 required
                               />
@@ -1573,7 +1671,9 @@ export function PrivacyCenterClient({
                               <TextField.Input
                                 type="email"
                                 value={inviteEmail}
-                                onChange={(event) => setInviteEmail(event.target.value)}
+                                onChange={(event) =>
+                                  setInviteEmail(event.target.value)
+                                }
                                 placeholder="sarah@example.com"
                                 required
                               />
@@ -1597,8 +1697,10 @@ export function PrivacyCenterClient({
                                 }}
                                 onBlur={(event) => {
                                   setInvitePhoneError(
-                                    getUsPhoneValidationError(event.target.value, { required: inviteAsTrusted }) ??
-                                      undefined
+                                    getUsPhoneValidationError(
+                                      event.target.value,
+                                      { required: inviteAsTrusted },
+                                    ) ?? undefined,
                                   );
                                 }}
                                 placeholder="(555) 123-4567"
@@ -1612,7 +1714,9 @@ export function PrivacyCenterClient({
                               Relationship (optional)
                               <TextField.Input
                                 value={inviteRelationship}
-                                onChange={(event) => setInviteRelationship(event.target.value)}
+                                onChange={(event) =>
+                                  setInviteRelationship(event.target.value)
+                                }
                                 placeholder="e.g., Daughter"
                               />
                             </TextField.Label>
@@ -1622,7 +1726,9 @@ export function PrivacyCenterClient({
                         <label className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Checkbox
                             checked={inviteAsTrusted}
-                            onCheckedChange={(checked) => setInviteAsTrusted(Boolean(checked))}
+                            onCheckedChange={(checked) =>
+                              setInviteAsTrusted(Boolean(checked))
+                            }
                           />
                           Also add as emergency contact (requires phone number)
                         </label>
@@ -1681,23 +1787,31 @@ export function PrivacyCenterClient({
                       Sharing preferences
                     </div>
                   }
-                  description="Control how family members receive updates."
+                  description={
+                    isSelfUser
+                      ? 'Control how family members receive updates.'
+                      : 'View and manage what is shared with family for each line.'
+                  }
                 />
                 <SectionBody className="gap-4">
                   {isSelfUser ? (
                     <>
                       <p className="text-sm text-muted-foreground">
-                        When enabled, you can invite family members to receive weekly summaries and
-                        wellness alerts.
+                        When enabled, you can invite family members to receive
+                        weekly summaries and wellness alerts.
                       </p>
                       <div className="flex items-start justify-between gap-4">
                         <div className="text-sm text-muted-foreground">
-                          {sharingEnabled ? 'Sharing is currently enabled.' : 'Sharing is currently disabled.'}
+                          {sharingEnabled
+                            ? 'Sharing is currently enabled.'
+                            : 'Sharing is currently disabled.'}
                         </div>
                         <Switch
                           checked={sharingEnabled}
                           onCheckedChange={handleSharingToggle}
-                          disabled={sharingAutoSave.isSaving || isSharingUpdating}
+                          disabled={
+                            sharingAutoSave.isSaving || isSharingUpdating
+                          }
                         />
                       </div>
                       {sharingEnabled ? (
@@ -1707,10 +1821,185 @@ export function PrivacyCenterClient({
                       ) : null}
                     </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Sharing preferences are captured from call recipients during check-ins. Use
-                      the Consent Status section to request changes.
-                    </p>
+                    <>
+                      {lines.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Add a line to view sharing preferences.
+                        </p>
+                      ) : (
+                        lines.map((line) => {
+                          const consent = lineConsentById.get(line.id);
+                          const sharingConsent =
+                            consent?.sharingConsent ?? 'pending';
+                          const sharingTier = consent?.sharingTier ?? 'tier_1';
+                          const sharingConsentAt =
+                            consent?.sharingConsentAt ?? null;
+                          const sharingRePromptRequestedAt =
+                            consent?.sharingRePromptRequestedAt ?? null;
+                          const sharingLastPromptAt =
+                            consent?.sharingLastPromptAt ?? null;
+
+                          const tierLabel =
+                            SHARING_TIER_LABELS[sharingTier] ?? 'Unknown';
+                          const tierFeatures =
+                            SHARING_TIER_FEATURES[sharingTier] ?? [];
+
+                          const consentBadge =
+                            sharingConsent === 'granted'
+                              ? {
+                                  text: 'Granted',
+                                  color: 'bg-success/10 text-success',
+                                }
+                              : sharingConsent === 'denied'
+                                ? {
+                                    text: 'Declined',
+                                    color: 'bg-destructive/10 text-destructive',
+                                  }
+                                : {
+                                    text: 'Pending',
+                                    color: 'bg-warning/10 text-warning',
+                                  };
+
+                          const isRepromptPending =
+                            sharingRePromptRequestedAt !== null;
+                          const cooldownExpiresAt = sharingLastPromptAt
+                            ? new Date(
+                                new Date(sharingLastPromptAt).getTime() +
+                                  SHARING_COOLDOWN_MS,
+                              )
+                            : null;
+                          const isOnCooldown =
+                            cooldownExpiresAt !== null &&
+                            cooldownExpiresAt.getTime() > Date.now();
+                          const canRequestChange =
+                            sharingConsent !== 'pending' &&
+                            !isRepromptPending &&
+                            !isOnCooldown;
+
+                          return (
+                            <div
+                              key={line.id}
+                              className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-4"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <div className="text-sm font-medium text-foreground">
+                                    {line.display_name}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {line.phone_e164}
+                                  </div>
+                                </div>
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${consentBadge.color}`}
+                                >
+                                  {consentBadge.text}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                                  Current level
+                                </div>
+                                <div className="text-sm font-medium text-foreground">
+                                  {sharingConsent === 'pending'
+                                    ? 'Not set yet'
+                                    : sharingConsent === 'denied'
+                                      ? `${tierLabel} (declined)`
+                                      : tierLabel}
+                                </div>
+                                {sharingConsent !== 'pending' && (
+                                  <ul className="space-y-1.5 pt-1">
+                                    {tierFeatures.map((feature) => (
+                                      <li
+                                        key={feature.text}
+                                        className="flex items-center gap-2 text-sm"
+                                      >
+                                        {feature.included ? (
+                                          <Check className="h-3.5 w-3.5 text-success flex-shrink-0" />
+                                        ) : (
+                                          <X className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
+                                        )}
+                                        <span
+                                          className={
+                                            feature.included
+                                              ? 'text-foreground'
+                                              : 'text-muted-foreground/60'
+                                          }
+                                        >
+                                          {feature.text}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+
+                              <div className="text-xs text-muted-foreground">
+                                {sharingConsent === 'pending'
+                                  ? `${line.display_name} will be asked during their next call.`
+                                  : sharingConsentAt
+                                    ? `Set by ${line.display_name} on ${formatShortDate(sharingConsentAt) ?? 'unknown date'}`
+                                    : `Set by ${line.display_name}`}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-border/40">
+                                {sharingConsent === 'pending' ? (
+                                  <span className="text-sm text-muted-foreground">
+                                    Awaiting first preference
+                                  </span>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleSharingRePrompt(line.id)
+                                      }
+                                      disabled={
+                                        !canRequestChange ||
+                                        sharingRequestLineId === line.id
+                                      }
+                                      className={
+                                        canRequestChange &&
+                                        sharingRequestLineId !== line.id
+                                          ? 'text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition-opacity'
+                                          : 'text-sm text-muted-foreground'
+                                      }
+                                    >
+                                      {isRepromptPending
+                                        ? 'Change requested'
+                                        : sharingRequestLineId === line.id
+                                          ? 'Requesting...'
+                                          : 'Request Change'}
+                                    </button>
+                                    {isRepromptPending && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Requested on{' '}
+                                        {formatShortDate(
+                                          sharingRePromptRequestedAt,
+                                        ) ?? 'recently'}
+                                        . {line.display_name} will be asked on
+                                        their next call.
+                                      </span>
+                                    )}
+                                    {!isRepromptPending &&
+                                      isOnCooldown &&
+                                      cooldownExpiresAt && (
+                                        <span className="text-xs text-muted-foreground">
+                                          Available again on{' '}
+                                          {formatShortDate(
+                                            cooldownExpiresAt.toISOString(),
+                                          )}
+                                        </span>
+                                      )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </>
                   )}
                 </SectionBody>
               </Section>
@@ -1726,23 +2015,28 @@ export function PrivacyCenterClient({
                       Upgrading to family mode will:
                     </p>
                     <ul className="text-sm text-muted-foreground list-disc ml-4">
-                      <li>Show the Insights page with conversation analytics</li>
+                      <li>
+                        Show the Insights page with conversation analytics
+                      </li>
                       <li>Show the Alerts page for wellness monitoring</li>
-                      <li>Allow adding additional phone lines (if your plan supports it)</li>
+                      <li>
+                        Allow adding additional phone lines (if your plan
+                        supports it)
+                      </li>
                       <li>Enable inviting family members for notifications</li>
                     </ul>
                     <p className="text-sm text-muted-foreground">
                       Your existing settings and data will be preserved.
                     </p>
-                      <Button
-                        type="button"
-                        variant="default"
-                        onClick={handleUpgrade}
-                        disabled={isSharingUpdating}
-                        loading={isSharingUpdating}
-                      >
-                        Upgrade to Family Mode
-                      </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      onClick={handleUpgrade}
+                      disabled={isSharingUpdating}
+                      loading={isSharingUpdating}
+                    >
+                      Upgrade to Family Mode
+                    </Button>
                   </SectionBody>
                 </Section>
               )}
@@ -1769,7 +2063,10 @@ export function PrivacyCenterClient({
               link={{
                 path:
                   PRIVACY_SECTIONS[tab.value].length > 0
-                    ? buildPrivacyUrl(tab.value, PRIVACY_SECTIONS[tab.value][0].value)
+                    ? buildPrivacyUrl(
+                        tab.value,
+                        PRIVACY_SECTIONS[tab.value][0].value,
+                      )
                     : buildPrivacyUrl(tab.value),
                 label: tab.label,
               }}
@@ -1789,7 +2086,6 @@ export function PrivacyCenterClient({
             {activeContent}
           </div>
         </div>
-
       </div>
 
       <ConfirmationDialog
@@ -1810,7 +2106,6 @@ export function PrivacyCenterClient({
         variant="destructive"
         onConfirm={handleDataDeletion}
       />
-
     </div>
   );
 }
@@ -1846,7 +2141,7 @@ function PrivacySidebarNav({
                       'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       isActive
                         ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-primary',
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >
@@ -1855,7 +2150,7 @@ function PrivacySidebarNav({
                         'h-4 w-4',
                         isActive
                           ? 'text-primary'
-                          : 'text-muted-foreground group-hover:text-primary'
+                          : 'text-muted-foreground group-hover:text-primary',
                       )}
                     />
                     <span>{section.label}</span>
@@ -1868,7 +2163,10 @@ function PrivacySidebarNav({
       </div>
 
       <div className="block w-full lg:hidden">
-        <MobileNavigationDropdown links={links} currentLabel={activeSection.label} />
+        <MobileNavigationDropdown
+          links={links}
+          currentLabel={activeSection.label}
+        />
       </div>
     </>
   );
@@ -1886,7 +2184,9 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function formatAction(value: string): string {
-  return value.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
 function formatActor(value: ConsentAuditEntry['actorType']): string {
@@ -1905,7 +2205,8 @@ function formatActor(value: ConsentAuditEntry['actorType']): string {
 function formatAuditValue(value: unknown): string {
   if (value === null || value === undefined) return '--';
   if (typeof value === 'boolean') return value ? 'Enabled' : 'Disabled';
-  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (typeof value === 'string' || typeof value === 'number')
+    return String(value);
   return JSON.stringify(value);
 }
 

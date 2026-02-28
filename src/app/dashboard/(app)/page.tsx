@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Repeat, Phone, Clock, Zap } from 'lucide-react';
+import { Phone, Clock, Zap, User, Calendar, Bell, History } from 'lucide-react';
 
 import AppHeader from './components/AppHeader';
 import { DashboardUpcomingTabs } from './components/DashboardUpcomingTabs';
@@ -30,6 +30,15 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const RATE_CENTS = BILLING.OVERAGE_RATE_CENTS;
+
+// Format timeOfDay from "08:00:00" to "8:00 AM"
+function formatTimeOfDay(timeOfDay: string): string {
+  const [hours, minutes] = timeOfDay.split(':');
+  const hour = parseInt(hours!, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minutes} ${ampm}`;
+}
 
 function formatCurrency(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -335,9 +344,17 @@ async function DashboardPage() {
 
             <div className="relative overflow-hidden rounded-xl bg-card p-5 card-border-accent">
               <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
-              <div className="relative flex items-center gap-2 mb-1">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <div className="text-base font-medium text-foreground">Minutes</div>
+              <div className="relative flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div className="text-base font-medium text-foreground">Minutes</div>
+                </div>
+                <Link
+                  href="/dashboard/usage"
+                  className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+                >
+                  View usage →
+                </Link>
               </div>
               <div className="relative text-3xl font-bold text-foreground">
                 {minutesValue}
@@ -380,56 +397,8 @@ async function DashboardPage() {
                   <span>{usageSummary}</span>
                   {usageSummaryRight && <span>{usageSummaryRight}</span>}
                 </div>
-                <Link
-                  href="/dashboard/usage"
-                  className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-                >
-                  View usage →
-                </Link>
               </div>
             </div>
-          </div>
-
-          {/* Recent calls */}
-          <div className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-base font-semibold text-foreground">
-                Recent call activity
-              </h2>
-            </div>
-
-            {recent.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                No calls yet. Once calls start, you&apos;ll see timestamps and durations here — not transcripts.
-              </p>
-            ) : (
-              <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-background">
-                {recent.map((item) => (
-                  <div
-                    key={item.lineId}
-                    className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <div className="font-medium text-foreground">
-                        {item.displayName}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateTime(item.lastCallAt!)}
-                        {typeof item.lastCallDuration === 'number'
-                          ? ` • ${formatDuration(item.lastCallDuration)}`
-                          : ''}
-                      </div>
-                    </div>
-                    <Link
-                      href={`/dashboard/lines/${item.lineShortId}`}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      View details
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6">
@@ -437,7 +406,8 @@ async function DashboardPage() {
               callsContent={
                 <>
                   <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-base font-semibold text-foreground">
+                    <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
                       Upcoming calls
                     </h2>
                     <Link
@@ -478,31 +448,48 @@ async function DashboardPage() {
                   ) : (
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {upcoming.map((item) => (
-                        <div
+                        <Link
                           key={item.scheduleId}
-                          className="rounded-lg border border-border bg-background p-4"
+                          href={`/dashboard/calls?line=${item.lineShortId}`}
+                          className="rounded-lg border border-border border-l-4 bg-background p-4 block hover:bg-muted/30 transition-colors"
+                          style={{
+                            borderLeftColor: item.isOneTime
+                              ? 'var(--info)'
+                              : 'var(--primary)'
+                          }}
                         >
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="font-medium text-foreground">
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="h-4 w-4 text-primary shrink-0" />
+                            <div className="font-semibold text-foreground">
                               {item.displayName}
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground ml-auto">
                               {formatDateTime(item.nextRunAt, item.lineTimezone)}
                             </div>
                           </div>
+                          <p className="text-sm text-muted-foreground">
+                            {formatTimeOfDay(item.timeOfDay)}
+                            {item.daysOfWeek && item.daysOfWeek.length > 0 && (
+                              <span className="ml-1">
+                                • {item.daysOfWeek.map((d: number) => DAY_NAMES[d]).join(', ')}
+                              </span>
+                            )}
+                          </p>
                           {(item.isOneTime || item.rescheduledFrom) && (
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
                               {item.isOneTime && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-medium">
                                   One-time
                                 </span>
                               )}
                               {item.rescheduledFrom && (
-                                <span>{item.rescheduledFrom}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {item.rescheduledFrom}
+                                </span>
                               )}
                             </div>
                           )}
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -511,7 +498,8 @@ async function DashboardPage() {
               remindersContent={
                 <>
                   <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-base font-semibold text-foreground">
+                    <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-primary" />
                       Upcoming reminders
                     </h2>
                     <Link
@@ -539,12 +527,6 @@ async function DashboardPage() {
                           <span className="text-primary">
                             {row.activeReminderCount} active
                           </span>
-                          {row.subtext ? (
-                            <>
-                              <span aria-hidden="true">•</span>
-                              <span>{row.subtext}</span>
-                            </>
-                          ) : null}
                         </div>
                       ))}
                       </div>
@@ -562,36 +544,73 @@ async function DashboardPage() {
                   ) : (
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {upcomingReminders.slice(0, 4).map((reminder) => (
-                        <div
+                        <Link
                           key={reminder.reminderId}
-                          className="rounded-lg border border-border bg-background p-4"
+                          href={`/dashboard/reminders?line=${reminder.lineShortId}`}
+                          className="rounded-lg border border-border border-l-4 bg-background p-4 block hover:bg-muted/30 transition-colors"
+                          style={{ borderLeftColor: 'var(--primary)' }}
                         >
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="font-medium text-foreground">
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="h-4 w-4 text-primary shrink-0" />
+                            <div className="font-semibold text-foreground">
                               {reminder.displayName}
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground ml-auto">
                               {formatDateTime(reminder.dueAt, reminder.lineTimezone)}
                             </div>
                           </div>
-                          <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+                          <p className="text-sm text-foreground font-medium line-clamp-2">
                             {reminder.message}
                           </p>
-                          {reminder.isRecurring && (
-                            <div className="mt-2 flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-                              <span className="inline-flex max-w-full items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
-                                <Repeat className="w-3 h-3" />
-                                {formatRecurrence(reminder)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   )}
                 </>
               }
             />
+          </div>
+
+          {/* Recent calls */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" />
+                Recent call activity
+              </h2>
+            </div>
+
+            {recent.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No calls yet. Once calls start, you&apos;ll see timestamps and durations here — not transcripts.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                {recent.map((item) => (
+                  <Link
+                    key={item.lineId}
+                    href={`/dashboard/lines/${item.lineShortId}`}
+                    className="rounded-lg border border-border border-l-4 bg-background p-4 block hover:bg-muted/30 transition-colors"
+                    style={{ borderLeftColor: 'var(--primary)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary shrink-0" />
+                      <div className="font-semibold text-foreground">
+                        {item.displayName}
+                      </div>
+                      <div className="text-xs text-muted-foreground ml-auto">
+                        {formatDateTime(item.lastCallAt!)}
+                      </div>
+                    </div>
+                    {item.lastCallDuration != null && item.lastCallDuration > 0 && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Duration: {formatDuration(item.lastCallDuration)}
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
@@ -638,6 +657,7 @@ function formatDateTime(iso: string, timezone?: string | null) {
     day: '2-digit',
     hour: 'numeric',
     minute: '2-digit',
+    timeZoneName: 'short',
   };
 
   if (timezone) {
@@ -652,6 +672,7 @@ function formatDateTime(iso: string, timezone?: string | null) {
       day: '2-digit',
       hour: 'numeric',
       minute: '2-digit',
+      timeZoneName: 'short',
     }).format(date);
   }
 }

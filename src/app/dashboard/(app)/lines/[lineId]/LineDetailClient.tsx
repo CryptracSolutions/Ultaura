@@ -145,7 +145,7 @@ export function LineDetailClient({
           At-a-glance summary of call activity and key metrics for this line.
         </p>
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             icon={<Calendar className="w-4 h-4" />}
             label="Next Call"
@@ -162,11 +162,6 @@ export function LineDetailClient({
             label="Minutes Used"
             value={String(cycleMinutes)}
             subtext={`${totalMinutesLine} min all-time`}
-          />
-          <StatCard
-            icon={<Phone className="w-4 h-4" />}
-            label="Total Calls"
-            value={String(callSessions.length)}
           />
           <StatCard
             icon={<Bell className="w-4 h-4" />}

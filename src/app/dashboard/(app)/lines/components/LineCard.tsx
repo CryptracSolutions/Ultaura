@@ -16,6 +16,7 @@ import {
   Eye,
   Settings,
   User,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { LineRow } from '~/lib/ultaura/types';
 import { deleteLine } from '~/lib/ultaura/lines';
@@ -228,6 +229,15 @@ export function LineCard({
                     Settings
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/dashboard/lines/${shortId}/settings?tab=call-controls`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <SlidersHorizontal className="w-5 h-5 mr-2" />
+                    Call Controls
+                  </Link>
+                </DropdownMenuItem>
                 {!disabled && (
                   <>
                     <DropdownMenuSeparator />
@@ -311,6 +321,14 @@ export function LineCard({
             >
               <Settings className="h-[22px] w-[22px] text-primary" />
               <span className="text-[14.5px] text-foreground">Settings</span>
+            </Link>
+            <Link
+              href={`/dashboard/lines/${shortId}/settings?tab=call-controls`}
+              onClick={() => setIsSheetOpen(false)}
+              className="flex w-full items-center space-x-[14px] h-[50px] px-[14px] hover:bg-muted transition-colors touch-manipulation"
+            >
+              <SlidersHorizontal className="h-[22px] w-[22px] text-primary" />
+              <span className="text-[14.5px] text-foreground">Call Controls</span>
             </Link>
             {!disabled && (
               <button

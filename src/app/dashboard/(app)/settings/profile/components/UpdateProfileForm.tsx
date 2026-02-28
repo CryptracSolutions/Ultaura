@@ -112,7 +112,7 @@ function UpdateProfileForm({
             <TextField.Input disabled value={email} />
           </TextField.Label>
 
-          <p className={'text-xs text-muted-foreground'}>
+          <p className={'mt-2 text-xs text-muted-foreground'}>
             <Trans i18nKey={'profile:updateEmailFromEmailTabHintPrefix'} />{' '}
             <Link
               href={'../' + configuration.paths.settings.email}
