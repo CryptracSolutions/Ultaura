@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
+import getLogger from '~/core/logger';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
@@ -17,21 +18,28 @@ import { getNotificationRecipients } from '~/lib/ultaura/notification-recipients
 export const metadata: Metadata = {
   title: 'Privacy Center - Ultaura',
 };
+const logger = getLogger();
 
 export default async function PrivacyCenterPage() {
+  const pageHeader = (
+    <AppHeader
+      title="Privacy Center"
+      description="Manage consent, sharing, recording, and data exports"
+    />
+  );
   const appData = await loadAppDataForUser();
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {
     return (
       <>
-        <AppHeader
-          title="Privacy Center"
-          description="Manage consent, sharing, recording, and data exports"
-        />
+        {pageHeader}
         <PageBody>
           <div className="py-8">
-            <p className="text-muted-foreground">Organization not found.</p>
+            <p className="text-muted-foreground">
+              We could not load your account right now. Please refresh and try
+              again.
+            </p>
           </div>
         </PageBody>
       </>
@@ -43,10 +51,7 @@ export default async function PrivacyCenterPage() {
   if (!account) {
     return (
       <>
-        <AppHeader
-          title="Privacy Center"
-          description="Manage consent, sharing, recording, and data exports"
-        />
+        {pageHeader}
         <PageBody>
           <div className="py-8">
             <div className="max-w-lg rounded-xl border border-border bg-card p-6">
@@ -69,7 +74,7 @@ export default async function PrivacyCenterPage() {
     );
   }
 
-  const [privacySettings, lines, auditLog, exportRequests, notificationRecipients, lineVoiceConsents] = await Promise.all([
+  const results = await Promise.allSettled([
     getAccountPrivacySettings(account.id),
     getLines(account.id),
     getConsentAuditLog(account.id, { limit: 50 }),
@@ -77,13 +82,34 @@ export default async function PrivacyCenterPage() {
     getNotificationRecipients(account.id),
     getLineVoiceConsents(account.id),
   ]);
+  const sourceLabels = [
+    'getAccountPrivacySettings',
+    'getLines',
+    'getConsentAuditLog',
+    'getDataExportRequests',
+    'getNotificationRecipients',
+    'getLineVoiceConsents',
+  ] as const;
+
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      logger.error(
+        { accountId: account.id, source: sourceLabels[index], reason: result.reason },
+        'Privacy page loader Promise.allSettled operation rejected',
+      );
+    }
+  });
+
+  const privacySettings = results[0].status === 'fulfilled' ? results[0].value : null;
+  const lines = results[1].status === 'fulfilled' ? results[1].value : [];
+  const auditLog = results[2].status === 'fulfilled' ? results[2].value : [];
+  const exportRequests = results[3].status === 'fulfilled' ? results[3].value : [];
+  const notificationRecipients = results[4].status === 'fulfilled' ? results[4].value : [];
+  const lineVoiceConsents = results[5].status === 'fulfilled' ? results[5].value : [];
 
   return (
     <>
-      <AppHeader
-        title="Privacy Center"
-        description="Manage consent, sharing, recording, and data exports"
-      />
+      {pageHeader}
       <PageBody>
         <PrivacyCenterClient
           account={account}

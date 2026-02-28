@@ -19,6 +19,22 @@ import type {
 const logger = getLogger();
 const DEV_TELEPHONY_BACKEND_URL = 'http://localhost:3001';
 
+type ConsentAuditLogInput = {
+  accountId: string;
+  action: ConsentAuditEntry['action'];
+  actorType: ConsentAuditEntry['actorType'];
+  lineId?: string | null;
+  actorUserId?: string | null;
+  consentType?: string | null;
+  oldValue?: unknown;
+  newValue?: unknown;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  callSessionId?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+type RecordingDeletionReason = 'retention_policy' | 'user_request' | 'account_deletion';
+
 function getTelephonyBackendUrl(): string {
   const backendUrl = process.env.ULTAURA_BACKEND_URL ||
     (process.env.NODE_ENV === 'production' ? '' : DEV_TELEPHONY_BACKEND_URL);
@@ -40,8 +56,10 @@ function getInternalApiSecret(): string {
   return secret;
 }
 
-async function getAuthenticatedUserId(): Promise<string | null> {
-  const client = getSupabaseServerComponentClient();
+async function getAuthenticatedUserId(
+  clientOverride?: ReturnType<typeof getSupabaseServerActionClient>
+): Promise<string | null> {
+  const client = clientOverride ?? getSupabaseServerComponentClient();
   const { data, error } = await client.auth.getUser();
 
   if (error || !data.user) {
@@ -49,6 +67,99 @@ async function getAuthenticatedUserId(): Promise<string | null> {
   }
 
   return data.user.id;
+}
+
+type AuthorizedOwnerContext = {
+  userClient: ReturnType<typeof getSupabaseServerActionClient>;
+  adminClient: ReturnType<typeof getSupabaseServerActionClient>;
+  actorUserId: string;
+};
+
+async function requireAccountOwnerContext(
+  accountId: string
+): Promise<{ ok: true; context: AuthorizedOwnerContext } | { ok: false; error: string }> {
+  const userClient = getSupabaseServerActionClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+  await requireSession(userClient);
+
+  const actorUserId = await getAuthenticatedUserId(userClient);
+  if (!actorUserId) {
+    return { ok: false, error: 'User not authenticated' };
+  }
+
+  const { data: account, error: accountError } = await userClient
+    .from('ultaura_accounts')
+    .select('id, created_by_user_id')
+    .eq('id', accountId)
+    .single();
+
+  if (accountError || !account) {
+    return { ok: false, error: 'Account not found' };
+  }
+
+  if (account.created_by_user_id !== actorUserId) {
+    return { ok: false, error: 'Access denied' };
+  }
+
+  return {
+    ok: true,
+    context: {
+      userClient,
+      adminClient,
+      actorUserId,
+    },
+  };
+}
+
+async function requireLineOwnerContext(
+  lineId: string
+): Promise<
+  | { ok: true; context: AuthorizedOwnerContext & { accountId: string; accountUserType: string } }
+  | { ok: false; error: string }
+> {
+  const userClient = getSupabaseServerActionClient();
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+  await requireSession(userClient);
+
+  const actorUserId = await getAuthenticatedUserId(userClient);
+  if (!actorUserId) {
+    return { ok: false, error: 'User not authenticated' };
+  }
+
+  const { data: line, error: lineError } = await userClient
+    .from('ultaura_lines')
+    .select('id, account_id')
+    .eq('id', lineId)
+    .single();
+
+  if (lineError || !line) {
+    return { ok: false, error: 'Line not found' };
+  }
+
+  const { data: account, error: accountError } = await userClient
+    .from('ultaura_accounts')
+    .select('id, created_by_user_id, user_type')
+    .eq('id', line.account_id)
+    .single();
+
+  if (accountError || !account) {
+    return { ok: false, error: 'Account not found' };
+  }
+
+  if (account.created_by_user_id !== actorUserId) {
+    return { ok: false, error: 'Access denied' };
+  }
+
+  return {
+    ok: true,
+    context: {
+      userClient,
+      adminClient,
+      actorUserId,
+      accountId: line.account_id,
+      accountUserType: account.user_type,
+    },
+  };
 }
 
 // ============================================
@@ -92,8 +203,12 @@ export async function updatePrivacySettings(
     retentionPeriod?: RetentionPeriod;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const client = getSupabaseServerComponentClient();
-  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const auth = await requireAccountOwnerContext(accountId);
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
+  }
+
+  const { userClient, adminClient, actorUserId } = auth.context;
   const headersList = await headers();
 
   const current = await getAccountPrivacySettings(accountId);
@@ -115,7 +230,7 @@ export async function updatePrivacySettings(
     dbUpdates.retention_period = updates.retentionPeriod;
   }
 
-  const { error } = await client
+  const { error } = await userClient
     .from('ultaura_account_privacy_settings')
     .update(dbUpdates)
     .eq('account_id', accountId);
@@ -125,11 +240,15 @@ export async function updatePrivacySettings(
     return { success: false, error: 'Failed to update settings' };
   }
 
-  const actorUserId = await getAuthenticatedUserId();
   const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || null;
   const userAgent = headersList.get('user-agent') || null;
 
-  const logChange = async (entry: Partial<ConsentAuditEntry>) => {
+  const logChange = async (
+    entry: Omit<
+      ConsentAuditLogInput,
+      'accountId' | 'actorType' | 'actorUserId' | 'ipAddress' | 'userAgent'
+    >,
+  ) => {
     await logConsentAudit({
       accountId,
       actorUserId,
@@ -198,16 +317,15 @@ export async function updatePrivacySettings(
 export async function acknowledgeVendorDisclosure(
   accountId: string
 ): Promise<{ success: boolean; error?: string; alreadyAcknowledged?: boolean }> {
-  const client = getSupabaseServerComponentClient();
-  const adminClient = getSupabaseServerActionClient({ admin: true });
-  const headersList = await headers();
-
-  const actorUserId = await getAuthenticatedUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'User not authenticated' };
+  const auth = await requireAccountOwnerContext(accountId);
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
 
-  const { data: existing, error: existingError } = await client
+  const { userClient, adminClient, actorUserId } = auth.context;
+  const headersList = await headers();
+
+  const { data: existing, error: existingError } = await userClient
     .from('ultaura_account_privacy_settings')
     .select('vendor_disclosure_acknowledged_at')
     .eq('account_id', accountId)
@@ -222,7 +340,7 @@ export async function acknowledgeVendorDisclosure(
     return { success: true, alreadyAcknowledged: true };
   }
 
-  const { error } = await client
+  const { error, data: updatedRows } = await userClient
     .from('ultaura_account_privacy_settings')
     .update({
       vendor_disclosure_acknowledged_at: new Date().toISOString(),
@@ -230,11 +348,16 @@ export async function acknowledgeVendorDisclosure(
       updated_at: new Date().toISOString(),
     })
     .eq('account_id', accountId)
-    .is('vendor_disclosure_acknowledged_at', null);
+    .is('vendor_disclosure_acknowledged_at', null)
+    .select('account_id');
 
   if (error) {
     logger.error({ error, accountId }, 'Failed to acknowledge vendor disclosure');
     return { success: false, error: 'Failed to acknowledge disclosure' };
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    return { success: true, alreadyAcknowledged: true };
   }
 
   await logConsentAudit({
@@ -326,36 +449,15 @@ function mapLineVoiceConsentRow(
 export async function requestRecordingReenable(
   lineId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const client = getSupabaseServerComponentClient();
-  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const auth = await requireLineOwnerContext(lineId);
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
+  }
+
+  const { adminClient, actorUserId, accountId, accountUserType } = auth.context;
   const headersList = await headers();
 
-  const actorUserId = await getAuthenticatedUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'User not authenticated' };
-  }
-
-  const { data: line, error: lineError } = await client
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
-
-  if (lineError || !line) {
-    return { success: false, error: 'Line not found' };
-  }
-
-  const { data: account, error: accountError } = await client
-    .from('ultaura_accounts')
-    .select('user_type')
-    .eq('id', line.account_id)
-    .single();
-
-  if (accountError || !account) {
-    return { success: false, error: 'Account not found' };
-  }
-
-  if (account.user_type !== 'family_managed') {
+  if (accountUserType !== 'family_managed') {
     return { success: false, error: 'Recording changes are managed by the senior' };
   }
 
@@ -389,7 +491,10 @@ export async function requestRecordingReenable(
 
   if (lastRequestError) {
     logger.error({ error: lastRequestError, lineId }, 'Failed to check recording re-enable cooldown');
-  } else if (lastRequest?.created_at) {
+    return { success: false, error: 'Failed to verify recording re-enable cooldown' };
+  }
+
+  if (lastRequest?.created_at) {
     const lastRequestMs = new Date(lastRequest.created_at).getTime();
     const cooldownMs = 30 * 24 * 60 * 60 * 1000;
     if (Date.now() - lastRequestMs < cooldownMs) {
@@ -398,21 +503,27 @@ export async function requestRecordingReenable(
   }
 
   const now = new Date().toISOString();
-  const { error } = await adminClient
+  const { error, data: updatedRows } = await adminClient
     .from('ultaura_line_voice_consent')
     .update({
       recording_reenable_requested_at: now,
       updated_at: now,
     })
-    .eq('line_id', lineId);
+    .eq('line_id', lineId)
+    .eq('recording_consent', 'denied')
+    .eq('recording_preference_permanent', true)
+    .is('recording_reenable_requested_at', null)
+    .is('recording_reenable_blocked_at', null)
+    .lt('recording_reenable_decline_count', 1)
+    .select('line_id');
 
-  if (error) {
+  if (error || !updatedRows || updatedRows.length === 0) {
     logger.error({ error, lineId }, 'Failed to request recording re-enable');
     return { success: false, error: 'Failed to update recording consent' };
   }
 
   await logConsentAudit({
-    accountId: line.account_id,
+    accountId,
     lineId,
     actorUserId,
     actorType: 'payer',
@@ -439,42 +550,21 @@ export async function requestRecordingReenable(
 export async function requestSharingRePrompt(
   lineId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const client = getSupabaseServerComponentClient();
-  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const auth = await requireLineOwnerContext(lineId);
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
+  }
+
+  const { adminClient, actorUserId, accountId, accountUserType } = auth.context;
   const headersList = await headers();
 
-  const actorUserId = await getAuthenticatedUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'User not authenticated' };
-  }
-
-  const { data: line, error: lineError } = await client
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
-
-  if (lineError || !line) {
-    return { success: false, error: 'Line not found' };
-  }
-
-  const { data: account, error: accountError } = await adminClient
-    .from('ultaura_accounts')
-    .select('user_type')
-    .eq('id', line.account_id)
-    .single();
-
-  if (accountError || !account) {
-    return { success: false, error: 'Account not found' };
-  }
-
-  if (account.user_type !== 'family_managed') {
+  if (accountUserType !== 'family_managed') {
     return { success: false, error: 'Sharing changes are managed directly for self accounts' };
   }
 
   const { data: consent, error: consentError } = await adminClient
     .from('ultaura_line_voice_consent')
-    .select('sharing_consent, sharing_tier, sharing_last_prompt_at, sharing_reprompt_requested_at')
+    .select('sharing_consent, sharing_tier, sharing_reprompt_requested_at')
     .eq('line_id', lineId)
     .single();
 
@@ -483,15 +573,30 @@ export async function requestSharingRePrompt(
     return { success: false, error: 'Consent record not found' };
   }
 
-  const lastPromptAt = consent.sharing_last_prompt_at;
   if (consent.sharing_reprompt_requested_at) {
     return { success: false, error: 'Sharing change already requested' };
   }
   if (consent.sharing_consent === 'pending') {
     return { success: false, error: 'Sharing preference has not been set yet' };
   }
-  if (lastPromptAt) {
-    const lastPromptMs = new Date(lastPromptAt).getTime();
+
+  const { data: lastRequest, error: lastRequestError } = await adminClient
+    .from('ultaura_consent_audit_log')
+    .select('created_at')
+    .eq('line_id', lineId)
+    .eq('actor_type', 'payer')
+    .eq('action', 'sharing_reprompt_requested')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastRequestError) {
+    logger.error({ error: lastRequestError, lineId }, 'Failed to check sharing re-prompt cooldown');
+    return { success: false, error: 'Failed to verify sharing re-prompt cooldown' };
+  }
+
+  if (lastRequest?.created_at) {
+    const lastPromptMs = new Date(lastRequest.created_at).getTime();
     const cooldownMs = 30 * 24 * 60 * 60 * 1000;
     if (Date.now() - lastPromptMs < cooldownMs) {
       return { success: false, error: 'Sharing re-prompt is limited to once every 30 days' };
@@ -499,25 +604,28 @@ export async function requestSharingRePrompt(
   }
 
   const now = new Date().toISOString();
-  const { error } = await adminClient
+  const { error, data: updatedRows } = await adminClient
     .from('ultaura_line_voice_consent')
     .update({
       sharing_reprompt_requested_at: now,
       updated_at: now,
     })
-    .eq('line_id', lineId);
+    .eq('line_id', lineId)
+    .is('sharing_reprompt_requested_at', null)
+    .neq('sharing_consent', 'pending')
+    .select('line_id');
 
-  if (error) {
+  if (error || !updatedRows || updatedRows.length === 0) {
     logger.error({ error, lineId }, 'Failed to request sharing re-prompt');
     return { success: false, error: 'Failed to update sharing consent' };
   }
 
-  await logConsentAudit({
-    accountId: line.account_id,
+  const logged = await logRequiredConsentAudit({
+    accountId,
     lineId,
     actorUserId,
     actorType: 'payer',
-    action: 'sharing_consent_updated',
+    action: 'sharing_reprompt_requested',
     consentType: 'data_sharing',
     oldValue: {
       consent: consent.sharing_consent,
@@ -531,6 +639,9 @@ export async function requestSharingRePrompt(
     ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
     userAgent: headersList.get('user-agent') || null,
   }, adminClient);
+  if (!logged) {
+    return { success: false, error: 'Failed to record sharing re-prompt audit entry' };
+  }
 
   revalidatePath('/dashboard/privacy', 'page');
 
@@ -540,36 +651,15 @@ export async function requestSharingRePrompt(
 export async function requestInsightsRePrompt(
   lineId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const client = getSupabaseServerComponentClient();
-  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const auth = await requireLineOwnerContext(lineId);
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
+  }
+
+  const { adminClient, actorUserId, accountId, accountUserType } = auth.context;
   const headersList = await headers();
 
-  const actorUserId = await getAuthenticatedUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'User not authenticated' };
-  }
-
-  const { data: line, error: lineError } = await client
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
-
-  if (lineError || !line) {
-    return { success: false, error: 'Line not found' };
-  }
-
-  const { data: account, error: accountError } = await adminClient
-    .from('ultaura_accounts')
-    .select('user_type')
-    .eq('id', line.account_id)
-    .single();
-
-  if (accountError || !account) {
-    return { success: false, error: 'Account not found' };
-  }
-
-  if (account.user_type !== 'family_managed') {
+  if (accountUserType !== 'family_managed') {
     return { success: false, error: 'Insights changes are managed directly for self accounts' };
   }
 
@@ -599,7 +689,10 @@ export async function requestInsightsRePrompt(
 
   if (lastRequestError) {
     logger.error({ error: lastRequestError, lineId }, 'Failed to check insights re-prompt cooldown');
-  } else if (lastRequest?.created_at) {
+    return { success: false, error: 'Failed to verify insights re-prompt cooldown' };
+  }
+
+  if (lastRequest?.created_at) {
     const lastRequestMs = new Date(lastRequest.created_at).getTime();
     const cooldownMs = 30 * 24 * 60 * 60 * 1000;
     if (Date.now() - lastRequestMs < cooldownMs) {
@@ -608,21 +701,27 @@ export async function requestInsightsRePrompt(
   }
 
   const now = new Date().toISOString();
-  const { error } = await adminClient
+  const { error, data: updatedRows } = await adminClient
     .from('ultaura_line_voice_consent')
     .update({
       insights_reprompt_requested_at: now,
       updated_at: now,
     })
-    .eq('line_id', lineId);
+    .eq('line_id', lineId)
+    .is('insights_reprompt_requested_at', null)
+    .select('line_id');
 
   if (error) {
     logger.error({ error, lineId }, 'Failed to request insights re-prompt');
     return { success: false, error: 'Failed to update insights preference' };
   }
 
-  await logConsentAudit({
-    accountId: line.account_id,
+  if (!updatedRows || updatedRows.length === 0) {
+    return { success: false, error: 'Insights change already requested' };
+  }
+
+  const logged = await logRequiredConsentAudit({
+    accountId,
     lineId,
     actorUserId,
     actorType: 'payer',
@@ -637,6 +736,9 @@ export async function requestInsightsRePrompt(
     ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
     userAgent: headersList.get('user-agent') || null,
   }, adminClient);
+  if (!logged) {
+    return { success: false, error: 'Failed to record insights re-prompt audit entry' };
+  }
 
   revalidatePath('/dashboard/privacy', 'page');
 
@@ -648,19 +750,19 @@ export async function requestInsightsRePrompt(
 // ============================================
 
 export async function logConsentAudit(
-  entry: Partial<ConsentAuditEntry>,
+  entry: ConsentAuditLogInput,
   clientOverride?: ReturnType<typeof getSupabaseServerActionClient>
-): Promise<void> {
+): Promise<boolean> {
   const client = clientOverride || getSupabaseServerActionClient({ admin: true });
 
   const { error } = await client
     .from('ultaura_consent_audit_log')
     .insert({
-      account_id: entry.accountId!,
+      account_id: entry.accountId,
       line_id: entry.lineId || null,
       actor_user_id: entry.actorUserId || null,
       actor_type: entry.actorType || 'system',
-      action: entry.action!,
+      action: entry.action,
       consent_type: entry.consentType || null,
       old_value: entry.oldValue || null,
       new_value: entry.newValue || null,
@@ -672,7 +774,17 @@ export async function logConsentAudit(
 
   if (error) {
     logger.error({ error, entry }, 'Failed to log consent audit');
+    return false;
   }
+
+  return true;
+}
+
+async function logRequiredConsentAudit(
+  entry: ConsentAuditLogInput,
+  clientOverride?: ReturnType<typeof getSupabaseServerActionClient>
+): Promise<boolean> {
+  return logConsentAudit(entry, clientOverride);
 }
 
 export async function getConsentAuditLog(
@@ -680,20 +792,20 @@ export async function getConsentAuditLog(
   options?: { limit?: number; offset?: number }
 ): Promise<ConsentAuditEntry[]> {
   const client = getSupabaseServerComponentClient();
+  const normalizedLimit = Math.max(0, Math.trunc(options?.limit ?? 50));
+  const normalizedOffset = Math.max(0, Math.trunc(options?.offset ?? 0));
 
-  let query = client
+  if (normalizedLimit === 0) {
+    return [];
+  }
+
+  const query = client
     .from('ultaura_consent_audit_log')
     .select('*')
     .eq('account_id', accountId)
-    .order('created_at', { ascending: false });
-
-  if (options?.limit) {
-    query = query.limit(options.limit);
-  }
-  if (options?.offset !== undefined) {
-    const limit = options.limit || 50;
-    query = query.range(options.offset, options.offset + limit - 1);
-  }
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .range(normalizedOffset, normalizedOffset + normalizedLimit - 1);
 
   const { data, error } = await query;
 
@@ -713,6 +825,7 @@ export async function getConsentAuditLog(
     consentType: row.consent_type,
     oldValue: row.old_value,
     newValue: row.new_value,
+    // Intentional privacy redaction: dashboard views never expose stored IP/user-agent values.
     ipAddress: null,
     userAgent: null,
     callSessionId: row.call_session_id,
@@ -733,28 +846,15 @@ export async function requestDataExport(
     includeReminders?: boolean;
   }
 ): Promise<{ success: boolean; requestId?: string; error?: string }> {
-  const client = getSupabaseServerComponentClient();
-  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const auth = await requireAccountOwnerContext(accountId);
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
+  }
+
+  const { userClient, adminClient, actorUserId } = auth.context;
   const headersList = await headers();
 
-  const actorUserId = await getAuthenticatedUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'User not authenticated' };
-  }
-
-  const { data: pending } = await client
-    .from('ultaura_data_export_requests')
-    .select('id')
-    .eq('account_id', accountId)
-    .in('status', ['pending', 'processing'])
-    .limit(1)
-    .maybeSingle();
-
-  if (pending?.id) {
-    return { success: false, error: 'An export is already in progress' };
-  }
-
-  const { data, error } = await client
+  const { data, error } = await userClient
     .from('ultaura_data_export_requests')
     .insert({
       account_id: accountId,
@@ -768,6 +868,12 @@ export async function requestDataExport(
     .single();
 
   if (error || !data?.id) {
+    const uniqueViolation =
+      error?.code === '23505' ||
+      error?.message?.toLowerCase().includes('unique');
+    if (uniqueViolation) {
+      return { success: false, error: 'An export is already in progress' };
+    }
     logger.error({ error, accountId }, 'Failed to create export request');
     return { success: false, error: 'Failed to create export request' };
   }
@@ -794,8 +900,7 @@ export async function requestDataExport(
     });
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      const message = payload?.error || 'Failed to start export job';
+      const message = 'Failed to start export job';
 
       await adminClient
         .from('ultaura_data_export_requests')
@@ -871,40 +976,76 @@ export async function requestAccountDataDeletion(
   accountId: string,
   reason: 'user_request' | 'consent_revoked'
 ): Promise<{ success: boolean; error?: string }> {
-  const userClient = getSupabaseServerActionClient();
-  const adminClient = getSupabaseServerActionClient({ admin: true });
+  const auth = await requireAccountOwnerContext(accountId);
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
+  }
+
+  const { userClient, adminClient, actorUserId } = auth.context;
   const headersList = await headers();
   const requestId = randomUUID();
+  const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || null;
+  const userAgent = headersList.get('user-agent') || null;
+  const auditBase = {
+    accountId,
+    actorUserId,
+    actorType: 'payer' as const,
+    action: 'data_deletion_requested' as const,
+    ipAddress,
+    userAgent,
+  };
 
-  const actorUserId = await getAuthenticatedUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'User not authenticated' };
+  const failDeletion = async (
+    stage: string,
+    userError: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<{ success: false; error: string }> => {
+    const logged = await logRequiredConsentAudit({
+      ...auditBase,
+      metadata: {
+        phase: 'failed',
+        requestId,
+        reason,
+        stage,
+        ...metadata,
+      },
+    }, adminClient);
+    if (!logged) {
+      return { success: false, error: 'Failed to record required deletion audit entry' };
+    }
+    return { success: false, error: userError };
+  };
+
+  const attemptLogged = await logRequiredConsentAudit({
+    ...auditBase,
+    metadata: {
+      phase: 'attempt',
+      requestId,
+      reason,
+    },
+  }, adminClient);
+  if (!attemptLogged) {
+    return { success: false, error: 'Failed to record required deletion audit entry' };
   }
 
-  await requireSession(userClient);
-
-  const { data: account, error: accountError } = await userClient
-    .from('ultaura_accounts')
-    .select('id, created_by_user_id')
-    .eq('id', accountId)
-    .single();
-
-  if (accountError || !account) {
-    return { success: false, error: 'Account not found' };
-  }
-
-  if (account.created_by_user_id !== actorUserId) {
-    return { success: false, error: 'Access denied' };
-  }
-
-  const { data: recordings } = await adminClient
+  const { data: recordings, error: recordingsError } = await adminClient
     .from('ultaura_call_sessions')
     .select('id, recording_sid')
     .eq('account_id', accountId)
     .not('recording_sid', 'is', null)
     .is('recording_deleted_at', null);
 
-  const deletionReason = reason === 'consent_revoked' ? 'user_request' : reason;
+  if (recordingsError) {
+    logger.error({ error: recordingsError, accountId }, 'Failed to load recordings for deletion');
+    return failDeletion('load_recordings', 'Failed to delete account data');
+  }
+
+  // Telephony recording deletion endpoint accepts:
+  // retention_policy | user_request | account_deletion
+  // Map consent-revoked account deletions to account_deletion so recording cleanup
+  // does not fail with a 400.
+  const deletionReason: RecordingDeletionReason =
+    reason === 'consent_revoked' ? 'account_deletion' : 'user_request';
 
   if (recordings && recordings.length > 0) {
     const recordingSids = recordings
@@ -915,7 +1056,7 @@ export async function requestAccountDataDeletion(
       const telephonyUrl = getTelephonyBackendUrl();
 
       try {
-        await fetch(`${telephonyUrl}/internal/recordings/delete`, {
+        const response = await fetch(`${telephonyUrl}/internal/recordings/delete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -926,8 +1067,18 @@ export async function requestAccountDataDeletion(
             reason: deletionReason,
           }),
         });
+        if (!response.ok) {
+          logger.error(
+            { accountId, status: response.status },
+            'Recording deletion backend returned non-OK status',
+          );
+          return failDeletion('delete_recordings_backend_non_ok', 'Failed to delete recordings', {
+            status: response.status,
+          });
+        }
       } catch (error) {
         logger.error({ error, accountId }, 'Failed to trigger recording deletion');
+        return failDeletion('delete_recordings_trigger', 'Failed to delete recordings');
       }
     }
   }
@@ -939,6 +1090,7 @@ export async function requestAccountDataDeletion(
 
   if (memoryFetchError) {
     logger.error({ error: memoryFetchError, accountId }, 'Failed to load memories for deletion log');
+    return failDeletion('load_memories', 'Failed to delete account data');
   } else if (memories && memories.length > 0) {
     const deactivationReason: Database['public']['Enums']['ultaura_deactivation_reason'] = 'payer_deletion';
     const rows: Database['public']['Tables']['ultaura_memory_deactivation_log']['Insert'][] = memories.map((memory) => ({
@@ -957,31 +1109,364 @@ export async function requestAccountDataDeletion(
 
     if (logError) {
       logger.error({ error: logError, accountId }, 'Failed to log payer memory deletions');
+      return failDeletion('log_memory_deactivation', 'Failed to delete account data');
     }
   }
 
-  await adminClient
-    .from('ultaura_memories')
-    .delete()
+  const { data: accountLines, error: lineFetchError } = await userClient
+    .from('ultaura_lines')
+    .select('id')
     .eq('account_id', accountId);
 
-  await adminClient
+  if (lineFetchError) {
+    logger.error({ error: lineFetchError, accountId }, 'Failed to load lines for deletion');
+    return failDeletion('load_lines', 'Failed to delete account data');
+  }
+
+  const lineIds = (accountLines || []).map((line) => line.id);
+
+  const { error: remindersError } = await adminClient
+    .from('ultaura_reminders')
+    .delete()
+    .eq('account_id', accountId);
+  if (remindersError) {
+    logger.error({ error: remindersError, accountId }, 'Failed to delete reminders');
+    return failDeletion('delete_reminders', 'Failed to delete account data');
+  }
+
+  const { error: reminderEventsError } = await adminClient
+    .from('ultaura_reminder_events')
+    .delete()
+    .eq('account_id', accountId);
+  if (reminderEventsError) {
+    logger.error({ error: reminderEventsError, accountId }, 'Failed to delete reminder events');
+    return failDeletion('delete_reminder_events', 'Failed to delete account data');
+  }
+
+  const { error: moodError } = await adminClient
+    .from('ultaura_mood_snapshots')
+    .delete()
+    .eq('account_id', accountId);
+  if (moodError) {
+    logger.error({ error: moodError, accountId }, 'Failed to delete mood snapshots');
+    return failDeletion('delete_mood_snapshots', 'Failed to delete account data');
+  }
+
+  const { error: healthError } = await adminClient
+    .from('ultaura_health_mentions')
+    .delete()
+    .eq('account_id', accountId);
+  if (healthError) {
+    logger.error({ error: healthError, accountId }, 'Failed to delete health mentions');
+    return failDeletion('delete_health_mentions', 'Failed to delete account data');
+  }
+
+  const { error: milestonesError } = await adminClient
+    .from('ultaura_milestones')
+    .delete()
+    .eq('account_id', accountId);
+  if (milestonesError) {
+    logger.error({ error: milestonesError, accountId }, 'Failed to delete milestones');
+    return failDeletion('delete_milestones', 'Failed to delete account data');
+  }
+
+  const { error: relationshipsError } = await adminClient
+    .from('ultaura_relationships')
+    .delete()
+    .eq('account_id', accountId);
+  if (relationshipsError) {
+    logger.error({ error: relationshipsError, accountId }, 'Failed to delete relationships');
+    return failDeletion('delete_relationships', 'Failed to delete account data');
+  }
+
+  const { error: weeklySummariesError } = await adminClient
+    .from('ultaura_weekly_summaries')
+    .delete()
+    .eq('account_id', accountId);
+  if (weeklySummariesError) {
+    logger.error({ error: weeklySummariesError, accountId }, 'Failed to delete weekly summaries');
+    return failDeletion('delete_weekly_summaries', 'Failed to delete account data');
+  }
+
+  const { error: memoryEmbeddingsError } = await adminClient
+    .from('ultaura_memory_embeddings')
+    .delete()
+    .eq('account_id', accountId);
+  if (memoryEmbeddingsError) {
+    logger.error({ error: memoryEmbeddingsError, accountId }, 'Failed to delete memory embeddings');
+    return failDeletion('delete_memory_embeddings', 'Failed to delete account data');
+  }
+
+  const { error: trustedContactsError } = await adminClient
+    .from('ultaura_trusted_contacts')
+    .delete()
+    .eq('account_id', accountId);
+  if (trustedContactsError) {
+    logger.error({ error: trustedContactsError, accountId }, 'Failed to delete trusted contacts');
+    return failDeletion('delete_trusted_contacts', 'Failed to delete account data');
+  }
+
+  const { error: recipientsError } = await adminClient
+    .from('ultaura_notification_recipients')
+    .delete()
+    .eq('account_id', accountId);
+  if (recipientsError) {
+    logger.error({ error: recipientsError, accountId }, 'Failed to delete notification recipients');
+    return failDeletion('delete_notification_recipients', 'Failed to delete account data');
+  }
+
+  const { error: accountNotificationPreferencesError } = await adminClient
+    .from('ultaura_notification_preferences')
+    .delete()
+    .eq('account_id', accountId);
+  if (accountNotificationPreferencesError) {
+    logger.error({ error: accountNotificationPreferencesError, accountId }, 'Failed to delete notification preferences');
+    return failDeletion('delete_notification_preferences', 'Failed to delete account data');
+  }
+
+  const { error: storyArcsError } = await adminClient
+    .from('ultaura_story_arcs')
+    .delete()
+    .eq('account_id', accountId);
+  if (storyArcsError) {
+    logger.error({ error: storyArcsError, accountId }, 'Failed to delete story arcs');
+    return failDeletion('delete_story_arcs', 'Failed to delete account data');
+  }
+
+  const { error: segmentEngagementError } = await adminClient
+    .from('ultaura_segment_engagement')
+    .delete()
+    .eq('account_id', accountId);
+  if (segmentEngagementError) {
+    logger.error({ error: segmentEngagementError, accountId }, 'Failed to delete segment engagement');
+    return failDeletion('delete_segment_engagement', 'Failed to delete account data');
+  }
+
+  const { error: callPreviewsError } = await adminClient
+    .from('ultaura_call_previews')
+    .delete()
+    .eq('account_id', accountId);
+  if (callPreviewsError) {
+    logger.error({ error: callPreviewsError, accountId }, 'Failed to delete call previews');
+    return failDeletion('delete_call_previews', 'Failed to delete account data');
+  }
+
+  const { error: scheduleEventsError } = await adminClient
+    .from('ultaura_schedule_events')
+    .delete()
+    .eq('account_id', accountId);
+  if (scheduleEventsError) {
+    logger.error({ error: scheduleEventsError, accountId }, 'Failed to delete schedule events');
+    return failDeletion('delete_schedule_events', 'Failed to delete account data');
+  }
+
+  const { error: scheduleExceptionsError } = await adminClient
+    .from('ultaura_schedule_exceptions')
+    .delete()
+    .eq('account_id', accountId);
+  if (scheduleExceptionsError) {
+    logger.error({ error: scheduleExceptionsError, accountId }, 'Failed to delete schedule exceptions');
+    return failDeletion('delete_schedule_exceptions', 'Failed to delete account data');
+  }
+
+  const { error: voiceConsentError } = await adminClient
+    .from('ultaura_line_voice_consent')
+    .delete()
+    .eq('account_id', accountId);
+  if (voiceConsentError) {
+    logger.error({ error: voiceConsentError, accountId }, 'Failed to delete line voice consent');
+    return failDeletion('delete_line_voice_consent', 'Failed to delete account data');
+  }
+
+  const { error: consentsError } = await adminClient
+    .from('ultaura_consents')
+    .delete()
+    .eq('account_id', accountId);
+  if (consentsError) {
+    logger.error({ error: consentsError, accountId }, 'Failed to delete consents');
+    return failDeletion('delete_consents', 'Failed to delete account data');
+  }
+
+  const { error: exportRequestsError } = await adminClient
+    .from('ultaura_data_export_requests')
+    .delete()
+    .eq('account_id', accountId);
+  if (exportRequestsError) {
+    logger.error({ error: exportRequestsError, accountId }, 'Failed to delete export requests');
+    return failDeletion('delete_export_requests', 'Failed to delete account data');
+  }
+
+  const { error: lifeChaptersError } = await adminClient
+    .from('ultaura_life_chapters')
+    .delete()
+    .eq('account_id', accountId);
+  if (lifeChaptersError) {
+    logger.error({ error: lifeChaptersError, accountId }, 'Failed to delete life chapters');
+    return failDeletion('delete_life_chapters', 'Failed to delete account data');
+  }
+
+  if (lineIds.length > 0) {
+    const { error: emotionalPatternsError } = await adminClient
+      .from('ultaura_emotional_patterns')
+      .delete()
+      .in('line_id', lineIds);
+    if (emotionalPatternsError) {
+      logger.error({ error: emotionalPatternsError, accountId }, 'Failed to delete emotional patterns');
+      return failDeletion('delete_emotional_patterns', 'Failed to delete account data');
+    }
+
+    const { error: contentPreferencesError } = await adminClient
+      .from('ultaura_content_preferences')
+      .delete()
+      .in('line_id', lineIds);
+    if (contentPreferencesError) {
+      logger.error({ error: contentPreferencesError, accountId }, 'Failed to delete content preferences');
+      return failDeletion('delete_content_preferences', 'Failed to delete account data');
+    }
+
+    const { error: dailyRhythmsError } = await adminClient
+      .from('ultaura_daily_rhythms')
+      .delete()
+      .in('line_id', lineIds);
+    if (dailyRhythmsError) {
+      logger.error({ error: dailyRhythmsError, accountId }, 'Failed to delete daily rhythms');
+      return failDeletion('delete_daily_rhythms', 'Failed to delete account data');
+    }
+
+    const { error: accessibilitySettingsError } = await adminClient
+      .from('ultaura_accessibility_settings')
+      .delete()
+      .in('line_id', lineIds);
+    if (accessibilitySettingsError) {
+      logger.error({ error: accessibilitySettingsError, accountId }, 'Failed to delete accessibility settings');
+      return failDeletion('delete_accessibility_settings', 'Failed to delete account data');
+    }
+
+    const { error: lineBaselinesError } = await adminClient
+      .from('ultaura_line_baselines')
+      .delete()
+      .in('line_id', lineIds);
+    if (lineBaselinesError) {
+      logger.error({ error: lineBaselinesError, accountId }, 'Failed to delete line baselines');
+      return failDeletion('delete_line_baselines', 'Failed to delete account data');
+    }
+
+    const { error: personaError } = await adminClient
+      .from('ultaura_persona_adaptations')
+      .delete()
+      .in('line_id', lineIds);
+    if (personaError) {
+      logger.error({ error: personaError, accountId }, 'Failed to delete persona adaptations');
+      return failDeletion('delete_persona_adaptations', 'Failed to delete account data');
+    }
+
+    const { error: insightsPrivacyError } = await adminClient
+      .from('ultaura_insight_privacy')
+      .delete()
+      .in('line_id', lineIds);
+    if (insightsPrivacyError) {
+      logger.error({ error: insightsPrivacyError, accountId }, 'Failed to delete insight privacy rows');
+      return failDeletion('delete_insight_privacy', 'Failed to delete account data');
+    }
+
+    const { error: cognitiveFlagsError } = await adminClient
+      .from('ultaura_cognitive_flags')
+      .delete()
+      .in('line_id', lineIds);
+    if (cognitiveFlagsError) {
+      logger.error({ error: cognitiveFlagsError, accountId }, 'Failed to delete cognitive flags');
+      return failDeletion('delete_cognitive_flags', 'Failed to delete account data');
+    }
+
+    const { error: cognitiveObsError } = await adminClient
+      .from('ultaura_cognitive_observations')
+      .delete()
+      .in('line_id', lineIds);
+    if (cognitiveObsError) {
+      logger.error({ error: cognitiveObsError, accountId }, 'Failed to delete cognitive observations');
+      return failDeletion('delete_cognitive_observations', 'Failed to delete account data');
+    }
+  }
+
+  const { error: accountPrivacySettingsError } = await adminClient
+    .from('ultaura_account_privacy_settings')
+    .delete()
+    .eq('account_id', accountId);
+  if (accountPrivacySettingsError) {
+    logger.error({ error: accountPrivacySettingsError, accountId }, 'Failed to delete account privacy settings');
+    return failDeletion('delete_account_privacy_settings', 'Failed to delete account data');
+  }
+
+  const { error: accountCryptoKeysError } = await adminClient
+    .from('ultaura_account_crypto_keys')
+    .delete()
+    .eq('account_id', accountId);
+  if (accountCryptoKeysError) {
+    logger.error({ error: accountCryptoKeysError, accountId }, 'Failed to delete account crypto keys');
+    return failDeletion('delete_account_crypto_keys', 'Failed to delete account data');
+  }
+
+  const { error: safetyEventsError } = await adminClient
+    .from('ultaura_safety_events')
+    .delete()
+    .eq('account_id', accountId);
+  if (safetyEventsError) {
+    logger.error({ error: safetyEventsError, accountId }, 'Failed to delete safety events');
+    return failDeletion('delete_safety_events', 'Failed to delete account data');
+  }
+
+  const { error: wellnessAlertsError } = await adminClient
+    .from('ultaura_wellness_alerts')
+    .delete()
+    .eq('account_id', accountId);
+  if (wellnessAlertsError) {
+    logger.error({ error: wellnessAlertsError, accountId }, 'Failed to delete wellness alerts');
+    return failDeletion('delete_wellness_alerts', 'Failed to delete account data');
+  }
+
+  const { error: insightsError } = await adminClient
     .from('ultaura_call_insights')
     .delete()
     .eq('account_id', accountId);
+  if (insightsError) {
+    logger.error({ error: insightsError, accountId }, 'Failed to delete call insights');
+    return failDeletion('delete_call_insights', 'Failed to delete account data');
+  }
 
-  await logConsentAudit({
-    accountId,
-    actorUserId,
-    actorType: 'payer',
-    action: 'data_deletion_requested',
+  const { error: memoriesError } = await adminClient
+    .from('ultaura_memories')
+    .delete()
+    .eq('account_id', accountId);
+  if (memoriesError) {
+    logger.error({ error: memoriesError, accountId }, 'Failed to delete memories');
+    return failDeletion('delete_memories', 'Failed to delete account data');
+  }
+
+  const { error: sessionsError } = await adminClient
+    .from('ultaura_call_sessions')
+    .delete()
+    .eq('account_id', accountId);
+  if (sessionsError) {
+    logger.error({ error: sessionsError, accountId }, 'Failed to delete call sessions');
+    return failDeletion('delete_call_sessions', 'Failed to delete account data');
+  }
+
+  const completedLogged = await logRequiredConsentAudit({
+    ...auditBase,
     metadata: {
+      phase: 'completed',
+      requestId,
       reason,
       recordingsToDelete: recordings?.length || 0,
     },
-    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
-    userAgent: headersList.get('user-agent') || null,
   }, adminClient);
+  if (!completedLogged) {
+    return { success: false, error: 'Failed to record required deletion audit entry' };
+  }
+
+  // Intentionally retained for compliance/audit trace:
+  // - ultaura_memory_deactivation_log
+  // - ultaura_consent_audit_log
 
   revalidatePath('/dashboard/privacy', 'page');
 

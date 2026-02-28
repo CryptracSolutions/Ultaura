@@ -18,17 +18,23 @@ interface InternalSharingGateContext {
   sharingTier: SharingTier;
   isPaused: boolean;
   insightsEnabled: boolean;
-  privateTopicCodes: string[];
 }
 
 export async function validateAccountOwnership(
   userClient: SupabaseClient,
   accountId: string
 ): Promise<boolean> {
+  const { data: authData, error: authError } = await userClient.auth.getUser();
+  const ownerUserId = authData.user?.id;
+  if (authError || !ownerUserId) {
+    return false;
+  }
+
   const { data } = await userClient
     .from('ultaura_accounts')
     .select('id')
     .eq('id', accountId)
+    .eq('created_by_user_id', ownerUserId)
     .maybeSingle();
 
   return data !== null;
@@ -110,7 +116,7 @@ async function fetchInternalContext(
     .eq('line_id', lineId)
     .maybeSingle();
 
-  const { data: privacy } = await client
+  const { data: privacy, error: privacyError } = await client
     .from('ultaura_insight_privacy')
     .select('is_paused, insights_enabled')
     .eq('line_id', lineId)
@@ -121,7 +127,6 @@ async function fetchInternalContext(
     sharingConsent: (voiceConsent?.sharing_consent ?? 'pending') as VoiceConsentStatus,
     sharingTier: (voiceConsent?.sharing_tier ?? 'tier_1') as SharingTier,
     isPaused: privacy?.is_paused ?? false,
-    insightsEnabled: privacy?.insights_enabled ?? true,
-    privateTopicCodes: [],
+    insightsEnabled: privacyError ? false : (privacy?.insights_enabled ?? false),
   };
 }

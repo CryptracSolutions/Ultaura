@@ -10,6 +10,7 @@ export type ConsentAuditAction =
   | 'recording_consent_updated'
   | 'recording_reenable_requested'
   | 'sharing_consent_updated'
+  | 'sharing_reprompt_requested'
   | 'sharing_enabled_by_self_user'
   | 'insights_enabled_changed'
   | 'pause_mode_changed'

@@ -1,8 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
+import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
+import requireSession from '~/lib/user/require-session';
 import {
   GetOrCreateAccountInputSchema,
   OrganizationIdSchema,
@@ -13,8 +16,31 @@ import {
 import { BILLING, PLANS } from './constants';
 import type { PlanId, UltauraAccountRow } from './types';
 import { getUltauraAccountById, getTrialStatus } from './helpers';
+import { logConsentAudit } from './privacy';
 
 const logger = getLogger();
+
+async function logRequiredAccountSharingAudit(input: {
+  accountId: string;
+  actorUserId: string;
+  oldValue: Record<string, unknown>;
+  newValue: Record<string, unknown>;
+}): Promise<boolean> {
+  const headersList = await headers();
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+
+  return logConsentAudit({
+    accountId: input.accountId,
+    actorUserId: input.actorUserId,
+    actorType: 'payer',
+    action: 'sharing_consent_updated',
+    consentType: 'data_sharing',
+    oldValue: input.oldValue,
+    newValue: input.newValue,
+    ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
+    userAgent: headersList.get('user-agent') || null,
+  }, adminClient);
+}
 
 export async function getOrCreateUltauraAccount(
   organizationId: number,
@@ -92,30 +118,97 @@ export async function updateAccountSharing(
   accountId: string,
   sharingEnabled: boolean
 ): Promise<ActionResult<void>> {
-  const account = await getUltauraAccountById(accountId);
-  if (!account) {
+  const client = getSupabaseServerActionClient();
+  const session = await requireSession(client);
+
+  const { data: account, error: accountError } = await client
+    .from('ultaura_accounts')
+    .select('id, created_by_user_id, user_type, sharing_enabled, sharing_enabled_at')
+    .eq('id', accountId)
+    .single();
+
+  if (accountError || !account) {
     return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Account not found') };
   }
 
+  if (account.created_by_user_id !== session.user.id) {
+    return { success: false, error: createError(ErrorCodes.FORBIDDEN, 'Access denied') };
+  }
+
+  if (account.user_type !== 'family_managed') {
+    return {
+      success: false,
+      error: createError(ErrorCodes.FORBIDDEN, 'Sharing toggle is only available for family-managed accounts'),
+    };
+  }
+
+  if (account.sharing_enabled === sharingEnabled) {
+    return { success: true, data: undefined };
+  }
+
+  const updateTimestamp = new Date().toISOString();
   const updates: Record<string, unknown> = {
     sharing_enabled: sharingEnabled,
   };
 
   if (sharingEnabled && !account.sharing_enabled_at) {
-    updates.sharing_enabled_at = new Date().toISOString();
+    updates.sharing_enabled_at = updateTimestamp;
   }
 
-  const client = getSupabaseServerComponentClient();
-  const { error } = await client
-    .from('ultaura_accounts')
-    .update(updates)
-    .eq('id', accountId);
+  const casResult = await (account.sharing_enabled_at === null
+    ? client
+      .from('ultaura_accounts')
+      .update(updates)
+      .eq('id', accountId)
+      .eq('created_by_user_id', session.user.id)
+      .eq('user_type', 'family_managed')
+      .eq('sharing_enabled', account.sharing_enabled)
+      .is('sharing_enabled_at', null)
+      .select('id, sharing_enabled')
+    : client
+      .from('ultaura_accounts')
+      .update(updates)
+      .eq('id', accountId)
+      .eq('created_by_user_id', session.user.id)
+      .eq('user_type', 'family_managed')
+      .eq('sharing_enabled', account.sharing_enabled)
+      .eq('sharing_enabled_at', account.sharing_enabled_at)
+      .select('id, sharing_enabled'));
 
-  if (error) {
-    logger.error({ error, accountId }, 'Failed to update account sharing');
+  if (casResult.error || !casResult.data || casResult.data.length === 0) {
+    logger.error({ error: casResult.error, accountId }, 'Failed to update account sharing');
     return {
       success: false,
-      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to update sharing settings'),
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Sharing settings changed. Refresh and try again.'),
+    };
+  }
+
+  const logged = await logRequiredAccountSharingAudit({
+    accountId,
+    actorUserId: session.user.id,
+    oldValue: {
+      sharing_enabled: account.sharing_enabled,
+      sharing_enabled_at: account.sharing_enabled_at,
+    },
+    newValue: {
+      sharing_enabled: sharingEnabled,
+      sharing_enabled_at: updates.sharing_enabled_at ?? account.sharing_enabled_at,
+    },
+  });
+  if (!logged) {
+    logger.error({ accountId }, 'Required sharing audit log failed; rolling back update');
+    await client
+      .from('ultaura_accounts')
+      .update({
+        sharing_enabled: account.sharing_enabled,
+        sharing_enabled_at: account.sharing_enabled_at,
+      })
+      .eq('id', accountId)
+      .eq('created_by_user_id', session.user.id)
+      .eq('sharing_enabled', sharingEnabled);
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to record sharing audit event'),
     };
   }
 
@@ -128,9 +221,21 @@ export async function updateAccountSharing(
 export async function upgradeSelfToFamilyMode(
   accountId: string
 ): Promise<ActionResult<void>> {
-  const account = await getUltauraAccountById(accountId);
-  if (!account) {
+  const client = getSupabaseServerActionClient();
+  const session = await requireSession(client);
+
+  const { data: account, error: accountError } = await client
+    .from('ultaura_accounts')
+    .select('id, created_by_user_id, user_type, sharing_enabled_at')
+    .eq('id', accountId)
+    .single();
+
+  if (accountError || !account) {
     return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Account not found') };
+  }
+
+  if (account.created_by_user_id !== session.user.id) {
+    return { success: false, error: createError(ErrorCodes.FORBIDDEN, 'Access denied') };
   }
 
   if (account.user_type !== 'self') {
@@ -146,11 +251,11 @@ export async function upgradeSelfToFamilyMode(
     updates.sharing_enabled_at = new Date().toISOString();
   }
 
-  const client = getSupabaseServerComponentClient();
   const { error } = await client
     .from('ultaura_accounts')
     .update(updates)
     .eq('id', accountId)
+    .eq('created_by_user_id', session.user.id)
     .eq('user_type', 'self');
 
   if (error) {
@@ -158,6 +263,27 @@ export async function upgradeSelfToFamilyMode(
     return {
       success: false,
       error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to upgrade account'),
+    };
+  }
+
+  const logged = await logRequiredAccountSharingAudit({
+    accountId,
+    actorUserId: session.user.id,
+    oldValue: {
+      user_type: account.user_type,
+      sharing_enabled: false,
+      sharing_enabled_at: account.sharing_enabled_at,
+    },
+    newValue: {
+      user_type: 'family_managed',
+      sharing_enabled: true,
+      sharing_enabled_at: updates.sharing_enabled_at ?? account.sharing_enabled_at,
+    },
+  });
+  if (!logged) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to record sharing audit event'),
     };
   }
 
