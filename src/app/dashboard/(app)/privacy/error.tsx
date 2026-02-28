@@ -16,13 +16,17 @@ export default function PrivacyError({
   useEffect(() => {
     console.error('Privacy Center failed to load', error);
     void (async () => {
-      await initializeBrowserSentry();
-      const Sentry = await import('@sentry/react');
-      Sentry.captureException(error, {
-        tags: {
-          area: 'privacy-center',
-        },
-      });
+      try {
+        await initializeBrowserSentry();
+        const Sentry = await import('@sentry/react');
+        Sentry.captureException(error, {
+          tags: {
+            area: 'privacy-center',
+          },
+        });
+      } catch (sentryError) {
+        console.error('Failed to report Privacy Center error to Sentry', sentryError);
+      }
     })();
   }, [error]);
 

@@ -120,9 +120,16 @@ export function usePrivacyAutosaveState({
     toastSuccess: 'Privacy settings saved',
     onSuccess: onSaveSuccess,
   });
+  const {
+    triggerSave: triggerPrivacyAutoSave,
+    flush: flushPrivacyAutoSave,
+    cancel: cancelPrivacyAutoSave,
+    isSaving: privacyAutoSaveIsSaving,
+    hasPending: privacyAutoSaveHasPending,
+  } = privacyAutoSave;
 
   useEffect(() => {
-    if (privacyAutoSave.isSaving || externalSaving) return;
+    if (privacyAutoSaveIsSaving || externalSaving) return;
 
     setRecordingEnabled(initialRecordingEnabled);
     setAiSummarizationEnabled(initialAiSummarizationEnabled);
@@ -136,7 +143,7 @@ export function usePrivacyAutosaveState({
     initialAiSummarizationEnabled,
     initialRecordingEnabled,
     initialRetentionPeriod,
-    privacyAutoSave.isSaving,
+    privacyAutoSaveIsSaving,
   ]);
 
   const getCurrentPayload = useCallback((): PrivacyAutosavePayload => {
@@ -149,9 +156,9 @@ export function usePrivacyAutosaveState({
 
   const triggerPrivacySave = useCallback(
     (payload: PrivacyAutosavePayload) => {
-      privacyAutoSave.triggerSave(buildPrivacyAutosavePayload(payload));
+      triggerPrivacyAutoSave(buildPrivacyAutosavePayload(payload));
     },
-    [privacyAutoSave.triggerSave],
+    [triggerPrivacyAutoSave],
   );
 
   const onRecordingToggle = useCallback(
@@ -235,7 +242,13 @@ export function usePrivacyAutosaveState({
       pendingRetentionPeriod,
       retentionConfirmOpen,
       setRetentionConfirmOpen: handleSetRetentionConfirmOpen,
-      privacyAutoSave,
+      privacyAutoSave: {
+        triggerSave: triggerPrivacyAutoSave,
+        flush: flushPrivacyAutoSave,
+        cancel: cancelPrivacyAutoSave,
+        isSaving: privacyAutoSaveIsSaving,
+        hasPending: privacyAutoSaveHasPending,
+      },
       onRecordingToggle,
       onSummarizationToggle,
       onRetentionSelect,
@@ -254,7 +267,11 @@ export function usePrivacyAutosaveState({
       onRetentionSelect,
       onSummarizationToggle,
       pendingRetentionPeriod,
-      privacyAutoSave,
+      triggerPrivacyAutoSave,
+      flushPrivacyAutoSave,
+      cancelPrivacyAutoSave,
+      privacyAutoSaveIsSaving,
+      privacyAutoSaveHasPending,
       recordingEnabled,
       retentionConfirmOpen,
       retentionPeriod,

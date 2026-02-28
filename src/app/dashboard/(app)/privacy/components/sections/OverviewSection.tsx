@@ -152,7 +152,7 @@ export function OverviewSection({
                 Data retention
               </div>
               <div className="mt-3 text-lg font-semibold text-foreground">{retentionLabel}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{retentionDescription}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{retentionDescription}</p>
             </div>
 
             {showFamilyTab && showSharingSummary ? (
@@ -163,7 +163,7 @@ export function OverviewSection({
                 <div className="mt-3 text-lg font-semibold text-foreground">
                   {confirmedRecipients}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Confirmed · {activeRecipientCount} active recipients
                 </p>
               </div>

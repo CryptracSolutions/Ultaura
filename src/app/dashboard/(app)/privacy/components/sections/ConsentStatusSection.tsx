@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Mic } from 'lucide-react';
 
 import Button from '~/core/ui/Button';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import type { LineRow, LineVoiceConsent } from '~/lib/ultaura/types';
+import { useCurrentTimeMs } from '../../hooks/useCurrentTimeMs';
 
 export interface ConsentStatusSectionProps {
   recordingEnabled: boolean;
@@ -28,17 +28,7 @@ export function ConsentStatusSection({
   onRecordingReenable,
   formatShortDate,
 }: ConsentStatusSectionProps) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNowMs(Date.now());
-    }, 60_000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, []);
+  const nowMs = useCurrentTimeMs();
 
   return (
     <Section>

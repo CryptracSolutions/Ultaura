@@ -136,7 +136,7 @@ export function FamilyRecipientsSection({
               </Button>
             )}
 
-            <p className="text-xs text-muted-foreground">{activeRecipientCount}/5 active recipients</p>
+            <p className="text-sm text-muted-foreground">{activeRecipientCount}/5 active recipients</p>
           </div>
 
           <InvitedFamilyList

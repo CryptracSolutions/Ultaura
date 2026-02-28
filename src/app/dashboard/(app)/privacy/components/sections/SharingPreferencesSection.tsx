@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Check, Share2, X } from 'lucide-react';
 
@@ -8,6 +7,7 @@ import Button from '~/core/ui/Button';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import { Switch } from '~/core/ui/Switch';
 import type { LineRow, LineVoiceConsent } from '~/lib/ultaura/types';
+import { useCurrentTimeMs } from '../../hooks/useCurrentTimeMs';
 import { PrivacyInfoBanner } from '../PrivacyInfoBanner';
 
 export interface SharingFeature {
@@ -69,17 +69,7 @@ export function SharingPreferencesSection({
   formatShortDate,
   onUpgradeRequest,
 }: SharingPreferencesSectionProps) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNowMs(Date.now());
-    }, 60_000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, []);
+  const nowMs = useCurrentTimeMs();
 
   return (
     <>
@@ -309,8 +299,8 @@ export function SharingPreferencesSection({
               type="button"
               variant="default"
               onClick={onUpgradeRequest}
-              disabled={isSharingUpdating}
-              loading={isSharingUpdating}
+              disabled={sharingAutoSaveIsSaving || isSharingUpdating}
+              loading={sharingAutoSaveIsSaving || isSharingUpdating}
             >
               Upgrade to Family Mode
             </Button>
