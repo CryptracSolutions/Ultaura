@@ -349,12 +349,13 @@ export async function acknowledgeVendorDisclosure(
     return { success: true, alreadyAcknowledged: true };
   }
 
+  const nowIso = new Date().toISOString();
   const { error, data: updatedRows } = await userClient
     .from('ultaura_account_privacy_settings')
     .update({
-      vendor_disclosure_acknowledged_at: new Date().toISOString(),
+      vendor_disclosure_acknowledged_at: nowIso,
       vendor_disclosure_acknowledged_by: actorUserId,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     })
     .eq('account_id', accountId)
     .is('vendor_disclosure_acknowledged_at', null)
@@ -534,7 +535,7 @@ export async function requestRecordingReenable(
     return { success: false, error: 'Failed to update recording consent' };
   }
 
-  await logConsentAudit({
+  const logged = await logRequiredConsentAudit({
     accountId,
     lineId,
     actorUserId,
@@ -553,6 +554,9 @@ export async function requestRecordingReenable(
     ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
     userAgent: headersList.get('user-agent') || null,
   }, adminClient);
+  if (!logged) {
+    return { success: false, error: 'Failed to record required audit entry' };
+  }
 
   revalidatePath('/dashboard/privacy', 'page');
 
@@ -890,7 +894,7 @@ export async function requestDataExport(
     return { success: false, error: 'Failed to create export request' };
   }
 
-  await logConsentAudit({
+  const logged = await logRequiredConsentAudit({
     accountId,
     actorUserId,
     actorType: 'payer',
@@ -898,6 +902,18 @@ export async function requestDataExport(
     ipAddress: headersList.get('x-forwarded-for')?.split(',')[0] || null,
     userAgent: headersList.get('user-agent') || null,
   }, adminClient);
+  if (!logged) {
+    await adminClient
+      .from('ultaura_data_export_requests')
+      .update({
+        status: 'failed',
+        processed_at: new Date().toISOString(),
+        error_message: 'Failed to record required audit entry',
+      })
+      .eq('id', data.id);
+
+    return { success: false, error: 'Failed to record required audit entry' };
+  }
 
   const telephonyUrl = getTelephonyBackendUrl();
 
@@ -1463,6 +1479,87 @@ export async function requestAccountDataDeletion(
     return failDeletion('delete_memories', 'Failed to delete account data');
   }
 
+  const { error: schedulesError } = await adminClient
+    .from('ultaura_schedules')
+    .delete()
+    .eq('account_id', accountId);
+  if (schedulesError) {
+    logger.error({ error: schedulesError, accountId }, 'Failed to delete schedules');
+    return failDeletion('delete_schedules', 'Failed to delete account data');
+  }
+
+  const { error: subscriptionsError } = await adminClient
+    .from('ultaura_subscriptions')
+    .delete()
+    .eq('account_id', accountId);
+  if (subscriptionsError) {
+    logger.error({ error: subscriptionsError, accountId }, 'Failed to delete subscriptions');
+    return failDeletion('delete_subscriptions', 'Failed to delete account data');
+  }
+
+  const { error: minuteLedgerError } = await adminClient
+    .from('ultaura_minute_ledger')
+    .delete()
+    .eq('account_id', accountId);
+  if (minuteLedgerError) {
+    logger.error({ error: minuteLedgerError, accountId }, 'Failed to delete minute ledger rows');
+    return failDeletion('delete_minute_ledger', 'Failed to delete account data');
+  }
+
+  const { error: optOutsError } = await adminClient
+    .from('ultaura_opt_outs')
+    .delete()
+    .eq('account_id', accountId);
+  if (optOutsError) {
+    logger.error({ error: optOutsError, accountId }, 'Failed to delete opt-outs');
+    return failDeletion('delete_opt_outs', 'Failed to delete account data');
+  }
+
+  const { error: debugLogsError } = await adminClient
+    .from('ultaura_debug_logs')
+    .delete()
+    .eq('account_id', accountId);
+  if (debugLogsError) {
+    logger.error({ error: debugLogsError, accountId }, 'Failed to delete debug logs');
+    return failDeletion('delete_debug_logs', 'Failed to delete account data');
+  }
+
+  const { error: topicExclusionsError } = await adminClient
+    .from('ultaura_topic_exclusions')
+    .delete()
+    .eq('account_id', accountId);
+  if (topicExclusionsError) {
+    logger.error({ error: topicExclusionsError, accountId }, 'Failed to delete topic exclusions');
+    return failDeletion('delete_topic_exclusions', 'Failed to delete account data');
+  }
+
+  const { error: lineCryptoKeysError } = await adminClient
+    .from('ultaura_line_crypto_keys')
+    .delete()
+    .eq('account_id', accountId);
+  if (lineCryptoKeysError) {
+    logger.error({ error: lineCryptoKeysError, accountId }, 'Failed to delete line crypto keys');
+    return failDeletion('delete_line_crypto_keys', 'Failed to delete account data');
+  }
+
+  const { error: phoneVerificationsError } = await adminClient
+    .from('ultaura_phone_verifications')
+    .delete()
+    .eq('account_id', accountId);
+  if (phoneVerificationsError) {
+    logger.error({ error: phoneVerificationsError, accountId }, 'Failed to delete phone verifications');
+    return failDeletion('delete_phone_verifications', 'Failed to delete account data');
+  }
+
+  const { error: telephonyEventLogError } = await adminClient
+    .from('ultaura_telephony_event_log')
+    .delete()
+    .eq('account_id', accountId);
+  if (telephonyEventLogError) {
+    logger.error({ error: telephonyEventLogError, accountId }, 'Failed to delete telephony event log');
+    return failDeletion('delete_telephony_event_log', 'Failed to delete account data');
+  }
+
   const { error: sessionsError } = await adminClient
     .from('ultaura_call_sessions')
     .delete()
@@ -1485,6 +1582,20 @@ export async function requestAccountDataDeletion(
     return { success: false, error: 'Failed to record required deletion audit entry' };
   }
 
+  // Explicitly deleted in this workflow:
+  // - ultaura_call_sessions plus direct dependents without ON DELETE CASCADE coverage
+  // - ultaura_schedules
+  // - ultaura_subscriptions
+  // - ultaura_minute_ledger
+  // - ultaura_opt_outs
+  // - ultaura_debug_logs
+  // - ultaura_topic_exclusions
+  // - ultaura_line_crypto_keys
+  // - ultaura_phone_verifications
+  // - ultaura_telephony_event_log
+  // Cascade-covered via ultaura_call_sessions FK cleanup:
+  // - ultaura_call_events
+  // - ultaura_trial_daily_cap_reservations
   // Intentionally retained for compliance/audit trace:
   // - ultaura_accounts (skeleton row preserved)
   // - ultaura_lines (skeleton rows preserved)
