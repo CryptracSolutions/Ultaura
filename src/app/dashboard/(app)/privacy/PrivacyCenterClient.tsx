@@ -55,6 +55,7 @@ import {
   PRIVACY_SECTIONS,
   PRIVACY_TABS,
 } from './lib/privacy-navigation';
+import { assertActionSucceeded } from './lib/action-result';
 import { formatShortDate } from './lib/privacy-formatters';
 import type {
   PrivacySectionConfig,
@@ -174,6 +175,7 @@ export function PrivacyCenterClient({
   const [sharingRequestLineId, setSharingRequestLineId] = useState<
     string | null
   >(null);
+  const [isLineRequestPending, setIsLineRequestPending] = useState(false);
 
   const initialSharingEnabled = account.sharing_enabled ?? true;
   const [sharingEnabled, setSharingEnabled] = useState(initialSharingEnabled);
@@ -350,15 +352,24 @@ export function PrivacyCenterClient({
   };
 
   const handleDataDeletion = async () => {
+    let hasShownErrorToast = false;
     try {
       const result = await requestAccountDataDeletion(account.id, 'user_request');
-      if (!result.success) {
-        toast.error(result.error || 'Failed to delete data');
-        return;
+      try {
+        assertActionSucceeded(result, 'Failed to delete data');
+      } catch (error) {
+        hasShownErrorToast = true;
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to delete data';
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
       }
       toast.success('Deletion requested. Privacy data will be removed shortly.');
-    } catch {
-      toast.error('Failed to delete data');
+    } catch (error) {
+      if (!hasShownErrorToast) {
+        toast.error('Failed to delete data');
+      }
+      throw error instanceof Error ? error : new Error('Failed to delete data');
     }
   };
 
@@ -368,6 +379,10 @@ export function PrivacyCenterClient({
   };
 
   const handleRecordingReenable = async (lineId: string) => {
+    if (isLineRequestPending) {
+      return;
+    }
+    setIsLineRequestPending(true);
     setRecordingRequestLineId(lineId);
     try {
       const result = await requestRecordingReenable(lineId);
@@ -380,11 +395,16 @@ export function PrivacyCenterClient({
     } catch {
       toast.error('Failed to request recording re-enable');
     } finally {
+      setIsLineRequestPending(false);
       setRecordingRequestLineId(null);
     }
   };
 
   const handleSharingRePrompt = async (lineId: string) => {
+    if (isLineRequestPending) {
+      return;
+    }
+    setIsLineRequestPending(true);
     setSharingRequestLineId(lineId);
     try {
       const result = await requestSharingRePrompt(lineId);
@@ -397,22 +417,32 @@ export function PrivacyCenterClient({
     } catch {
       toast.error('Failed to request sharing change');
     } finally {
+      setIsLineRequestPending(false);
       setSharingRequestLineId(null);
     }
   };
 
   const handleUpgrade = async () => {
     setIsSharingUpdating(true);
+    let hasShownErrorToast = false;
     try {
       const result = await upgradeSelfToFamilyMode(account.id);
-      if (!result.success) {
-        toast.error(result.error?.message || 'Failed to upgrade');
-      } else {
-        toast.success('Upgraded to family mode');
-        router.refresh();
+      try {
+        assertActionSucceeded(result, 'Failed to upgrade');
+      } catch (error) {
+        hasShownErrorToast = true;
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to upgrade';
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
       }
-    } catch {
-      toast.error('Failed to upgrade');
+      toast.success('Upgraded to family mode');
+      router.refresh();
+    } catch (error) {
+      if (!hasShownErrorToast) {
+        toast.error('Failed to upgrade');
+      }
+      throw error instanceof Error ? error : new Error('Failed to upgrade');
     } finally {
       setIsSharingUpdating(false);
     }
@@ -472,6 +502,7 @@ export function PrivacyCenterClient({
               lineConsentById={lineConsentById}
               latestRecordingRequestByLine={latestRecordingRequestByLine}
               recordingRequestLineId={recordingRequestLineId}
+              isAnyLineRequestPending={isLineRequestPending}
               recordingReenableCooldownMs={RECORDING_REENABLE_COOLDOWN_MS}
               onRecordingReenable={handleRecordingReenable}
               formatShortDate={formatShortDate}
@@ -612,6 +643,7 @@ export function PrivacyCenterClient({
               sharingTierFeatures={SHARING_TIER_FEATURES}
               sharingCooldownMs={SHARING_COOLDOWN_MS}
               sharingRequestLineId={sharingRequestLineId}
+              isAnyLineRequestPending={isLineRequestPending}
               onSharingRePrompt={handleSharingRePrompt}
               formatShortDate={formatShortDate}
               onUpgradeRequest={() => setUpgradeConfirmOpen(true)}
@@ -737,6 +769,7 @@ function PrivacySidebarNav({
         <MobileNavigationDropdown
           links={links}
           currentLabel={activeSection.label}
+          ariaLabel="Select privacy section"
         />
       </div>
     </>

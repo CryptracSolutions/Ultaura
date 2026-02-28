@@ -59,6 +59,7 @@ export function PrivacyDialogs({
         title="Upgrade to Family Mode?"
         description="This change is permanent and cannot be undone. Your account will switch to family-managed mode."
         confirmLabel="Upgrade now"
+        variant="default"
         onConfirm={onConfirmUpgrade}
       />
 
@@ -68,6 +69,7 @@ export function PrivacyDialogs({
         title="Change data retention?"
         description="Updating retention can affect how long historical memories and insights are kept."
         confirmLabel="Save retention"
+        variant="default"
         onConfirm={onConfirmRetentionChange}
       />
     </>

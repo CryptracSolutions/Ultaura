@@ -13,6 +13,7 @@ export interface ConsentStatusSectionProps {
   lineConsentById: Map<string, LineVoiceConsent>;
   latestRecordingRequestByLine: Map<string, string>;
   recordingRequestLineId: string | null;
+  isAnyLineRequestPending: boolean;
   recordingReenableCooldownMs: number;
   onRecordingReenable: (lineId: string) => void;
   formatShortDate: (value?: string | null) => string | null;
@@ -24,6 +25,7 @@ export function ConsentStatusSection({
   lineConsentById,
   latestRecordingRequestByLine,
   recordingRequestLineId,
+  isAnyLineRequestPending,
   recordingReenableCooldownMs,
   onRecordingReenable,
   formatShortDate,
@@ -148,7 +150,7 @@ export function ConsentStatusSection({
                       variant="link"
                       size="custom"
                       onClick={() => onRecordingReenable(line.id)}
-                      disabled={recordingRequestLineId === line.id}
+                      disabled={isAnyLineRequestPending}
                       className="h-auto min-h-0 min-w-0 p-0 text-sm"
                     >
                       {recordingRequestLineId === line.id

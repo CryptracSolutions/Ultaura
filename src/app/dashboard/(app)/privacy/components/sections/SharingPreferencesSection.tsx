@@ -27,6 +27,7 @@ export interface SharingPreferencesSectionProps {
   sharingTierFeatures: Record<string, SharingFeature[]>;
   sharingCooldownMs: number;
   sharingRequestLineId: string | null;
+  isAnyLineRequestPending: boolean;
   onSharingRePrompt: (lineId: string) => void;
   formatShortDate: (value?: string | null) => string | null;
   onUpgradeRequest: () => void;
@@ -65,24 +66,26 @@ export function SharingPreferencesSection({
   sharingTierFeatures,
   sharingCooldownMs,
   sharingRequestLineId,
+  isAnyLineRequestPending,
   onSharingRePrompt,
   formatShortDate,
   onUpgradeRequest,
 }: SharingPreferencesSectionProps) {
   const nowMs = useCurrentTimeMs();
+  const isSharingBusy = sharingAutoSaveIsSaving || isSharingUpdating;
 
   return (
     <>
       <PrivacyInfoBanner>
-          Family sharing lets you invite family members to receive weekly
+        Family sharing lets you invite family members to receive weekly
           summaries and wellness alerts. What is shared follows your loved
           one&apos;s sharing preferences during calls.{' '}
-          <Link
-            href="/docs/insights-and-reports/sharing-with-family"
-            className="text-primary font-medium underline underline-offset-2 hover:no-underline"
-          >
-            Learn more →
-          </Link>
+        <Link
+          href="/docs/insights-and-reports/sharing-with-family"
+          className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+        >
+          Learn more →
+        </Link>
       </PrivacyInfoBanner>
 
       <Section>
@@ -116,7 +119,7 @@ export function SharingPreferencesSection({
                   aria-label="Family sharing"
                   checked={sharingEnabled}
                   onCheckedChange={onSharingToggle}
-                  disabled={sharingAutoSaveIsSaving || isSharingUpdating}
+                  disabled={isSharingBusy}
                 />
               </div>
               {sharingEnabled ? (
@@ -237,7 +240,7 @@ export function SharingPreferencesSection({
                               size="custom"
                               onClick={() => onSharingRePrompt(line.id)}
                               disabled={
-                                !canRequestChange || sharingRequestLineId === line.id
+                                !canRequestChange || isAnyLineRequestPending
                               }
                               className="h-auto min-h-0 min-w-0 p-0 text-sm"
                             >
@@ -299,8 +302,8 @@ export function SharingPreferencesSection({
               type="button"
               variant="default"
               onClick={onUpgradeRequest}
-              disabled={sharingAutoSaveIsSaving || isSharingUpdating}
-              loading={sharingAutoSaveIsSaving || isSharingUpdating}
+              disabled={isSharingBusy}
+              loading={isSharingBusy}
             >
               Upgrade to Family Mode
             </Button>

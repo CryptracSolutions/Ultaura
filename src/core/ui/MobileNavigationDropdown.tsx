@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 import {
@@ -22,11 +22,12 @@ const MobileNavigationDropdown: React.FC<{
     label: string;
 }>;
   currentLabel?: string;
+  ariaLabel?: string;
   onNavigate?: (
     event: React.MouseEvent<HTMLAnchorElement>,
     link: { path: string; label: string }
   ) => void;
-}> = ({ links, currentLabel, onNavigate }) => {
+}> = ({ links, currentLabel, ariaLabel, onNavigate }) => {
   const path = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -49,6 +50,7 @@ const MobileNavigationDropdown: React.FC<{
           size="custom"
           block
           type="button"
+          aria-label={ariaLabel}
           className={
             'select-none rounded-xl border border-border bg-card/70 px-3 py-2 ' +
             'text-sm font-medium text-foreground shadow-sm backdrop-blur ' +
