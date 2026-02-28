@@ -1,13 +1,8 @@
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+import { escapeHtml, escapeHtmlAttr } from '~/lib/server/html-escape';
 
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
+const SITE_URL = escapeHtmlAttr(
+  (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, ''),
+);
 
 function buildActionForm(actionLabel: string, actionUrl: string): string {
   return `<form method="post" action="${escapeHtml(actionUrl)}"><button type="submit">${escapeHtml(actionLabel)}</button></form>`;
@@ -56,7 +51,7 @@ export function renderNewsletterActionPage(options: {
   <body>
     <div class="card">
       <div class="logo">
-        <img src="${siteUrl}/logos/logo-email.png" width="36" height="36" alt="Ultaura" />
+        <img src="${SITE_URL}/logos/logo-email.png" width="36" height="36" alt="Ultaura" />
         <span>Ultaura</span>
       </div>
       <h1 class="${options.isError ? 'error' : ''}">${safeTitle}</h1>

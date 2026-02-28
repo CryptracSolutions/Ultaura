@@ -21,6 +21,15 @@ describe('newsletter confirm route', () => {
     const html = await response.text();
 
     expect(response.headers.get('Sunset')).toBe('Sat, 11 Apr 2026 00:00:00 GMT');
+    expect(response.headers.get('content-security-policy')).toContain(
+      "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    );
+    expect(response.headers.get('content-security-policy')).toContain(
+      'font-src https://fonts.gstatic.com',
+    );
+    expect(response.headers.get('content-security-policy')).toContain(
+      "img-src 'self' http://localhost:3000",
+    );
     expect(html).toContain('/api/newsletter/confirm/abc%22%20onclick%3D%22alert(1)');
     expect(html).not.toContain('onclick="alert(1)"');
   });
@@ -41,6 +50,9 @@ describe('newsletter confirm route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(400);
+    expect(response.headers.get('content-security-policy')).toContain(
+      "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    );
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).not.toContain('<script>alert(1)</script>');
   });

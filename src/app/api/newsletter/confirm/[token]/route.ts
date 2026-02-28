@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { buildHtmlRouteHeaders } from '~/lib/server/route-html';
 import { confirmSubscription } from '~/lib/ultaura/newsletter';
 import { renderNewsletterActionPage } from '~/lib/ultaura/newsletter-html';
 import getLogger from '~/core/logger';
@@ -10,10 +11,31 @@ const logger = getLogger();
 const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 ).replace(/\/$/, '');
+const siteOrigin = (() => {
+  try {
+    return new URL(siteUrl).origin;
+  } catch {
+    return 'http://localhost:3000';
+  }
+})();
 
 const COMPATIBILITY_NOTICE =
   'This legacy confirmation endpoint remains available for compatibility and will be removed on April 11, 2026.';
 const SUNSET_HEADER = 'Sat, 11 Apr 2026 00:00:00 GMT';
+const HTML_HEADERS = buildHtmlRouteHeaders({
+  cspDirectives: {
+    'default-src': ["'none'"],
+    'style-src': ["'unsafe-inline'", 'https://fonts.googleapis.com'],
+    'font-src': ['https://fonts.gstatic.com'],
+    'img-src': ["'self'", siteOrigin],
+    'connect-src': ["'self'", 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'],
+    'form-action': ["'self'"],
+    'base-uri': ["'none'"],
+    'frame-ancestors': ["'none'"],
+  },
+  contentType: 'text/html',
+  extraHeaders: { Sunset: SUNSET_HEADER },
+});
 
 export async function GET(
   _: Request,
@@ -33,7 +55,7 @@ export async function GET(
   });
 
   return new NextResponse(html, {
-    headers: { 'content-type': 'text/html', Sunset: SUNSET_HEADER },
+    headers: HTML_HEADERS,
   });
 }
 
@@ -59,7 +81,7 @@ export async function POST(
     });
 
     return new NextResponse(html, {
-      headers: { 'content-type': 'text/html', Sunset: SUNSET_HEADER },
+      headers: HTML_HEADERS,
       status: 400,
     });
   }

@@ -1,0 +1,66 @@
+import { escapeHtml } from '~/lib/server/html-escape';
+
+type CspDirectives = Record<string, readonly string[]>;
+
+export function buildContentSecurityPolicy(directives: CspDirectives): string {
+  return Object.entries(directives)
+    .filter(([, values]) => values.length > 0)
+    .map(([key, values]) => `${key} ${values.join(' ')}`)
+    .join('; ');
+}
+
+export function buildHtmlRouteHeaders(options: {
+  cspDirectives: CspDirectives;
+  contentType?: string;
+  extraHeaders?: Record<string, string>;
+}): Record<string, string> {
+  return {
+    'content-type': options.contentType ?? 'text/html; charset=utf-8',
+    'content-security-policy': buildContentSecurityPolicy(options.cspDirectives),
+    ...(options.extraHeaders || {}),
+  };
+}
+
+export function renderSimpleActionPage(options: {
+  title: string;
+  body: string;
+  actionLabel?: string;
+  actionUrl?: string;
+  isError?: boolean;
+  buttonColor?: string;
+}) {
+  const safeTitle = escapeHtml(options.title);
+  const safeBody = escapeHtml(options.body);
+  const safeActionLabel = options.actionLabel ? escapeHtml(options.actionLabel) : '';
+  const safeActionUrl = options.actionUrl ? escapeHtml(options.actionUrl) : '';
+  const button =
+    safeActionLabel && safeActionUrl
+      ? `<form method="post" action="${safeActionUrl}">
+        <button type="submit">${safeActionLabel}</button>
+      </form>`
+      : '';
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+      .card { max-width: 520px; margin: 48px auto; background: #fff; border-radius: 12px; padding: 28px; border: 1px solid #e2e8f0; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      p { font-size: 14px; color: #475569; line-height: 1.5; }
+      button { margin-top: 18px; background: ${options.buttonColor || '#14b8a6'}; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+      .error { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1 class="${options.isError ? 'error' : ''}">${safeTitle}</h1>
+      <p>${safeBody}</p>
+      ${button}
+    </div>
+  </body>
+</html>`;
+}

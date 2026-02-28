@@ -30,6 +30,12 @@ describe('newsletter unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get('content-security-policy')).toContain(
+      "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    );
+    expect(response.headers.get('content-security-policy')).toContain(
+      "img-src 'self' http://localhost:3000",
+    );
     expect(html).toContain('Unsubscribe from newsletter');
     expect(html).toContain(
       '<form method="post" action="/api/newsletter/unsubscribe/subscriber-1/token-1">',
@@ -60,6 +66,9 @@ describe('newsletter unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get('content-security-policy')).toContain(
+      'font-src https://fonts.gstatic.com',
+    );
     expect(html).toContain('You are unsubscribed');
     expect(unsubscribeNewsletterSubscriber).toHaveBeenCalledWith(
       'subscriber-1',
@@ -90,6 +99,9 @@ describe('newsletter unsubscribe route', () => {
     const html = await response.text();
 
     expect(response.status).toBe(400);
+    expect(response.headers.get('content-security-policy')).toContain(
+      "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    );
     expect(html).toContain('Unsubscribe failed');
     expect(html).toContain('This unsubscribe link is invalid or has expired.');
     expect(unsubscribeNewsletterSubscriber).toHaveBeenCalledWith(

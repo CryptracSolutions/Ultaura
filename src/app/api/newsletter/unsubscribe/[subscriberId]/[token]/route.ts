@@ -1,12 +1,33 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { buildHtmlRouteHeaders } from '~/lib/server/route-html';
 import { unsubscribeNewsletterSubscriber } from '~/lib/ultaura/newsletter';
 import { renderNewsletterActionPage } from '~/lib/ultaura/newsletter-html';
 
 const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 ).replace(/\/$/, '');
+const siteOrigin = (() => {
+  try {
+    return new URL(siteUrl).origin;
+  } catch {
+    return 'http://localhost:3000';
+  }
+})();
+const HTML_HEADERS = buildHtmlRouteHeaders({
+  cspDirectives: {
+    'default-src': ["'none'"],
+    'style-src': ["'unsafe-inline'", 'https://fonts.googleapis.com'],
+    'font-src': ['https://fonts.gstatic.com'],
+    'img-src': ["'self'", siteOrigin],
+    'connect-src': ["'self'", 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'],
+    'form-action': ["'self'"],
+    'base-uri': ["'none'"],
+    'frame-ancestors': ["'none'"],
+  },
+  contentType: 'text/html',
+});
 
 export async function GET(
   _: Request,
@@ -23,7 +44,7 @@ export async function GET(
   });
 
   return new NextResponse(html, {
-    headers: { 'content-type': 'text/html' },
+    headers: HTML_HEADERS,
   });
 }
 
@@ -42,7 +63,7 @@ export async function POST(
     });
 
     return new NextResponse(html, {
-      headers: { 'content-type': 'text/html' },
+      headers: HTML_HEADERS,
       status: 400,
     });
   }
@@ -53,6 +74,6 @@ export async function POST(
   });
 
   return new NextResponse(html, {
-    headers: { 'content-type': 'text/html' },
+    headers: HTML_HEADERS,
   });
 }
