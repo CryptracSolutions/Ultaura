@@ -28,13 +28,22 @@ type Centered = {
   centered?: boolean;
 };
 
-export type NavigationMenuProps = Vertical & (Bordered | Pill) & Scrollable & Subtle & Centered;
+type AriaLabel = {
+  ariaLabel?: string;
+};
+
+export type NavigationMenuProps = Vertical &
+  (Bordered | Pill) &
+  Scrollable &
+  Subtle &
+  Centered &
+  AriaLabel;
 
 function NavigationMenu(props: PropsWithChildren<NavigationMenuProps>) {
   const className = getNavigationMenuClassBuilder()(props);
 
   return (
-    <ul className={className}>
+    <ul className={className} aria-label={props.ariaLabel}>
       <NavigationMenuContext.Provider value={props}>
         {props.children}
       </NavigationMenuContext.Provider>
