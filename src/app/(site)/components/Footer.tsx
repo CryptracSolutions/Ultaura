@@ -23,15 +23,15 @@ function Footer() {
     <footer>
       {/* Newsletter Banner — unchanged */}
       {!isBlogPostPage && (
-        <div className="bg-surface-subtle/50 py-6 lg:py-8">
+        <div className="bg-zinc-950 text-zinc-300 py-6 lg:py-8">
           <Container>
             <FadeInWhenVisible>
-              <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-start sm:gap-6">
-                <div className="text-left">
-                  <p className="text-sm font-medium text-muted-foreground">
+              <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8 lg:gap-12">
+                <div className="text-left space-y-1">
+                  <p className="text-sm font-medium text-primary">
                     Subscribe to our newsletter
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-zinc-400">
                     Elder care tips and product updates, delivered weekly.
                   </p>
                 </div>
@@ -47,14 +47,34 @@ function Footer() {
       {/* Dark Footer */}
       <div className="bg-zinc-950 text-zinc-300">
         {/* Navigation Section */}
-        <div className="pt-12 pb-8 lg:pt-16 lg:pb-10">
+        <div className="pt-10 pb-8 lg:pt-12 lg:pb-10">
           <Container>
-            <p className="mb-8 text-xl font-semibold text-white">Ultaura</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-6 lg:gap-y-8">
+              <div className="flex flex-col space-y-2.5">
+                <FooterGroupHeading>Get started</FooterGroupHeading>
+                <ul className="flex flex-col space-y-2">
+                  <FooterLink>
+                    <Link
+                      href="/demo"
+                      className="inline-flex items-center gap-2"
+                    >
+                      <PlayCircleIcon className="h-4 w-4" />
+                      Sample call
+                    </Link>
+                  </FooterLink>
+                  <FooterLink>
+                    <Link href="/onboarding?type=family">
+                      Setting up for a loved one?
+                      <br />
+                      Start here &rarr;
+                    </Link>
+                  </FooterLink>
+                </ul>
+              </div>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4">
-              <div className="flex flex-col space-y-3">
+              <div className="flex flex-col space-y-2.5">
                 <FooterGroupHeading>Product</FooterGroupHeading>
-                <ul className="flex flex-col space-y-2.5">
+                <ul className="flex flex-col space-y-2">
                   <FooterLink>
                     <Link href="/pricing">Pricing</Link>
                   </FooterLink>
@@ -67,9 +87,21 @@ function Footer() {
                 </ul>
               </div>
 
-              <div className="flex flex-col space-y-3">
+              <div className="flex flex-col space-y-2.5">
+                <FooterGroupHeading>Support</FooterGroupHeading>
+                <ul className="flex flex-col space-y-2">
+                  <FooterLink>
+                    <Link href="/docs">Help Center</Link>
+                  </FooterLink>
+                  <FooterLink>
+                    <Link href="/contact">Contact</Link>
+                  </FooterLink>
+                </ul>
+              </div>
+
+              <div className="flex flex-col space-y-2.5">
                 <FooterGroupHeading>Company</FooterGroupHeading>
-                <ul className="flex flex-col space-y-2.5">
+                <ul className="flex flex-col space-y-2">
                   <FooterLink>
                     <Link href="/vision">Our Vision</Link>
                   </FooterLink>
@@ -82,34 +114,17 @@ function Footer() {
                 </ul>
               </div>
 
-              <div className="flex flex-col space-y-3">
-                <FooterGroupHeading>Support</FooterGroupHeading>
-                <ul className="flex flex-col space-y-2.5">
+              <div className="flex flex-col space-y-2.5">
+                <FooterGroupHeading>Legal</FooterGroupHeading>
+                <ul className="flex flex-col space-y-2">
                   <FooterLink>
-                    <Link href="/docs">Help Center</Link>
+                    <Link href="/terms">Terms of Service</Link>
                   </FooterLink>
                   <FooterLink>
-                    <a href="mailto:support@ultaura.com">support@ultaura.com</a>
-                  </FooterLink>
-                </ul>
-              </div>
-
-              <div className="flex flex-col space-y-3">
-                <FooterGroupHeading>Get started</FooterGroupHeading>
-                <ul className="flex flex-col space-y-2.5">
-                  <FooterLink>
-                    <Link
-                      href="/demo"
-                      className="inline-flex items-center gap-2"
-                    >
-                      <PlayCircleIcon className="h-4 w-4" />
-                      Hear a sample call &rarr;
-                    </Link>
+                    <Link href="/privacy">Privacy Policy</Link>
                   </FooterLink>
                   <FooterLink>
-                    <Link href="/onboarding?type=family">
-                      Setting up for a parent? Start here &rarr;
-                    </Link>
+                    <Link href="/accessibility">Accessibility</Link>
                   </FooterLink>
                 </ul>
               </div>
@@ -124,41 +139,51 @@ function Footer() {
 
         {/* Utilities Section — Social Media */}
         {/* TODO: Update hrefs when social media accounts are created */}
-        <div className="py-6">
+        <div className="py-6 lg:py-8">
           <Container>
-            <div className="flex items-center gap-5">
-              <a
-                href="#"
-                title="Ultaura on Facebook"
-                aria-label="Ultaura on Facebook"
-                className="text-zinc-400 transition-colors hover:text-white"
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={scrollToTop}
+                className="flex items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-white"
               >
-                <FacebookIcon className="h-5 w-5" />
-              </a>
-              <a
-                href="#"
-                title="Ultaura on X"
-                aria-label="Ultaura on X"
-                className="text-zinc-400 transition-colors hover:text-white"
-              >
-                <XIcon className="h-5 w-5" />
-              </a>
-              <a
-                href="#"
-                title="Ultaura on Instagram"
-                aria-label="Ultaura on Instagram"
-                className="text-zinc-400 transition-colors hover:text-white"
-              >
-                <InstagramIcon className="h-5 w-5" />
-              </a>
-              <a
-                href="#"
-                title="Ultaura on LinkedIn"
-                aria-label="Ultaura on LinkedIn"
-                className="text-zinc-400 transition-colors hover:text-white"
-              >
-                <LinkedInIcon className="h-5 w-5" />
-              </a>
+                Back to top
+                <ChevronUpIcon className="h-4 w-4" />
+              </button>
+              <div className="flex items-center gap-5">
+                <a
+                  href="#"
+                  title="Ultaura on Facebook"
+                  aria-label="Ultaura on Facebook"
+                  className="text-zinc-400 transition-colors hover:text-white"
+                >
+                  <FacebookIcon className="h-5 w-5" />
+                </a>
+                <a
+                  href="#"
+                  title="Ultaura on X"
+                  aria-label="Ultaura on X"
+                  className="text-zinc-400 transition-colors hover:text-white"
+                >
+                  <XIcon className="h-5 w-5" />
+                </a>
+                <a
+                  href="#"
+                  title="Ultaura on Instagram"
+                  aria-label="Ultaura on Instagram"
+                  className="text-zinc-400 transition-colors hover:text-white"
+                >
+                  <InstagramIcon className="h-5 w-5" />
+                </a>
+                <a
+                  href="#"
+                  title="Ultaura on LinkedIn"
+                  aria-label="Ultaura on LinkedIn"
+                  className="text-zinc-400 transition-colors hover:text-white"
+                >
+                  <LinkedInIcon className="h-5 w-5" />
+                </a>
+              </div>
             </div>
           </Container>
         </div>
@@ -169,14 +194,14 @@ function Footer() {
         </Container>
 
         {/* Base Section */}
-        <div className="py-8 lg:py-10">
+        <div className="pt-6 pb-8 lg:pt-8 lg:pb-10">
           <Container>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <Logo
-                  className="h-8 brightness-0 invert"
+                  className="h-8"
                   showWordmark
-                  wordmarkClassName="text-white text-lg"
+                  wordmarkClassName="text-primary text-lg"
                 />
 
                 <p className="text-sm text-zinc-400">
@@ -186,39 +211,7 @@ function Footer() {
                 <p className="text-xs text-zinc-500">
                   &copy; {YEAR} Ultaura. All Rights Reserved.
                 </p>
-
-                <div className="flex flex-wrap items-center gap-1 text-sm text-zinc-400">
-                  <Link
-                    href="/terms"
-                    className="transition-colors hover:text-white"
-                  >
-                    Terms of Service
-                  </Link>
-                  <span className="mx-1.5">|</span>
-                  <Link
-                    href="/privacy"
-                    className="transition-colors hover:text-white"
-                  >
-                    Privacy Policy
-                  </Link>
-                  <span className="mx-1.5">|</span>
-                  <Link
-                    href="/accessibility"
-                    className="transition-colors hover:text-white"
-                  >
-                    Accessibility
-                  </Link>
-                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={scrollToTop}
-                className="flex items-center gap-1.5 self-start text-sm text-zinc-400 transition-colors hover:text-white lg:self-auto"
-              >
-                Back to top
-                <ChevronUpIcon className="h-4 w-4" />
-              </button>
             </div>
           </Container>
         </div>
@@ -229,7 +222,7 @@ function Footer() {
 
 function FooterGroupHeading({ children }: React.PropsWithChildren) {
   return (
-    <p className="text-sm font-semibold uppercase tracking-wider text-white">
+    <p className="text-xs font-semibold uppercase tracking-wider text-primary">
       {children}
     </p>
   );
@@ -237,7 +230,7 @@ function FooterGroupHeading({ children }: React.PropsWithChildren) {
 
 function FooterLink({ children }: React.PropsWithChildren) {
   return (
-    <li className="text-sm text-zinc-300 [&>a]:transition-colors [&>a]:duration-200 [&>a]:hover:text-white">
+    <li className="text-xs text-zinc-300 [&>a]:transition-colors [&>a]:duration-200 [&>a]:hover:text-primary">
       {children}
     </li>
   );

@@ -260,6 +260,17 @@ export function HeroDashboardPreview() {
 
   return (
     <div ref={containerRef} className="relative min-w-0 w-full">
+      <div className="mt-3 mb-3 flex justify-center">
+        <button
+          type="button"
+          title="Coming soon"
+          className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium cursor-not-allowed ring-1 ring-primary"
+        >
+          <SpeakerWaveIcon className="h-4 w-4 text-foreground shrink-0" />
+          <span><span className="text-foreground">Listen to </span><span className="text-primary">Ultaura</span></span>
+        </button>
+      </div>
+
       <div
         ref={shellRef}
         className="w-full overflow-hidden rounded-3xl border border-border/60 bg-sidebar p-6 shadow-xl"
@@ -276,11 +287,13 @@ export function HeroDashboardPreview() {
           </span>
 
           {/* Toggle switch */}
-          <div
-            role="radiogroup"
-            aria-label="View mode"
-            className="flex items-center rounded-full border border-border/60 bg-background/70 p-0.5"
-          >
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">View:</span>
+            <div
+              role="radiogroup"
+              aria-label="View mode"
+              className="flex items-center rounded-full border border-border/60 bg-background/70 p-0.5"
+            >
             <button
               type="button"
               role="radio"
@@ -311,6 +324,7 @@ export function HeroDashboardPreview() {
             >
               Live
             </button>
+            </div>
           </div>
         </div>
 
@@ -783,16 +797,6 @@ export function HeroDashboardPreview() {
         </div>
       </div>
 
-      <div className="mt-3 mb-3 flex justify-center">
-        <button
-          type="button"
-          title="Coming soon"
-          className="inline-flex items-center gap-2 rounded-full bg-primary/30 px-4 py-2 text-sm font-medium text-black dark:text-white cursor-not-allowed opacity-90"
-        >
-          <SpeakerWaveIcon className="h-4 w-4" />
-          Listen to Ultaura
-        </button>
-      </div>
     </div>
   );
 }

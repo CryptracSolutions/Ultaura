@@ -69,7 +69,7 @@ export default function NewsletterForm({
               placeholder="Your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-9"
+              className="w-full pl-9 bg-primary/10 border-primary/20 placeholder:text-zinc-400"
               aria-label="Email address"
             />
           </div>
