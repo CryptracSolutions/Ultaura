@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Brain, Activity, Mail, AlertTriangle } from 'lucide-react';
+import { Bell, Brain, Activity, Mail, PhoneMissed, User } from 'lucide-react';
 import { Switch } from '~/core/ui/Switch';
 import {
   Select,
@@ -62,6 +62,59 @@ type AlertPrefs = {
   alert_missed_calls_threshold?: number;
 };
 
+/* ------------------------------------------------------------------ */
+/*  Reusable toggle row                                               */
+/* ------------------------------------------------------------------ */
+
+function ToggleRow({
+  icon: Icon,
+  label,
+  description,
+  checked,
+  onCheckedChange,
+  disabled,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start gap-2.5 min-w-0">
+        <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+        </div>
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Group heading                                                     */
+/* ------------------------------------------------------------------ */
+
+function GroupHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+      {children}
+    </p>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Per-line settings section                                         */
+/* ------------------------------------------------------------------ */
+
 function AlertSettingsSection({
   line,
   preferences,
@@ -101,11 +154,6 @@ function AlertSettingsSection({
     defaults.alert_missed_calls_threshold,
   );
 
-  const weeklySummaryDeliveryLabel =
-    defaults.weekly_summary_format === 'email'
-      ? 'Email'
-      : 'Email (SMS coming soon)';
-
   const alertAutoSave = useAutoSave<AlertPrefs>({
     saveFn: async (value) => {
       try {
@@ -140,12 +188,14 @@ function AlertSettingsSection({
     alertAutoSave.triggerSave(getAllFields(overrides));
   };
 
+  const isSaving = alertAutoSave.isSaving;
+
   return (
     <Section>
       <SectionHeader
         title={
           <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-muted-foreground" />
+            <User className="h-4 w-4 text-muted-foreground" />
             {line.display_name}
           </div>
         }
@@ -153,98 +203,66 @@ function AlertSettingsSection({
       />
       <SectionBody className="gap-0">
         {/* ── Wellness Alerts ── */}
-        <div className="space-y-4 pb-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Wellness Alerts
-          </p>
+        <div className="space-y-5 pb-6">
+          <GroupHeading>Wellness Alerts</GroupHeading>
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Bell className="h-3.5 w-3.5 text-muted-foreground" />
-                Health mentions
-              </p>
-              <p className="text-xs text-muted-foreground pl-[22px]">
-                Alert when health concerns are mentioned during calls.
-              </p>
-            </div>
-            <Switch
-              checked={healthMentionAlerts}
-              onCheckedChange={(checked) => {
-                setHealthMentionAlerts(checked);
-                triggerSave({ health_mention_alerts: checked });
-              }}
-              disabled={disabled || alertAutoSave.isSaving}
-            />
-          </div>
+          <ToggleRow
+            icon={Bell}
+            label="Health mentions"
+            description="Alert when health concerns are mentioned during calls."
+            checked={healthMentionAlerts}
+            onCheckedChange={(checked) => {
+              setHealthMentionAlerts(checked);
+              triggerSave({ health_mention_alerts: checked });
+            }}
+            disabled={disabled || isSaving}
+          />
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                Mood drops
-              </p>
-              <p className="text-xs text-muted-foreground pl-[22px]">
-                Triggered by sudden or sustained mood drops.
-              </p>
-            </div>
-            <Switch
-              checked={moodDropAlerts}
-              onCheckedChange={(checked) => {
-                setMoodDropAlerts(checked);
-                triggerSave({ mood_drop_alerts: checked });
-              }}
-              disabled={disabled || alertAutoSave.isSaving}
-            />
-          </div>
+          <ToggleRow
+            icon={Activity}
+            label="Mood drops"
+            description="Triggered by sudden or sustained mood drops."
+            checked={moodDropAlerts}
+            onCheckedChange={(checked) => {
+              setMoodDropAlerts(checked);
+              triggerSave({ mood_drop_alerts: checked });
+            }}
+            disabled={disabled || isSaving}
+          />
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Brain className="h-3.5 w-3.5 text-muted-foreground" />
-                Cognitive concerns
-              </p>
-              <p className="text-xs text-muted-foreground pl-[22px]">
-                Notifies after repeated observations over multiple calls.
-              </p>
-            </div>
-            <Switch
-              checked={cognitiveConcernAlerts}
-              onCheckedChange={(checked) => {
-                setCognitiveConcernAlerts(checked);
-                triggerSave({ cognitive_concern_alerts: checked });
-              }}
-              disabled={disabled || alertAutoSave.isSaving}
-            />
-          </div>
+          <ToggleRow
+            icon={Brain}
+            label="Cognitive concerns"
+            description="Notifies after repeated observations over multiple calls."
+            checked={cognitiveConcernAlerts}
+            onCheckedChange={(checked) => {
+              setCognitiveConcernAlerts(checked);
+              triggerSave({ cognitive_concern_alerts: checked });
+            }}
+            disabled={disabled || isSaving}
+          />
         </div>
 
         <hr className="border-border" />
 
         {/* ── Weekly Summary ── */}
-        <div className="space-y-4 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Weekly Summary
-              </p>
-              <p className="text-xs text-muted-foreground">
-                A recap of calls, mood, and wellbeing notes delivered to{' '}
-                {deliveryEmail}.
-              </p>
-            </div>
-            <Switch
-              checked={weeklySummaryEnabled}
-              onCheckedChange={(checked) => {
-                setWeeklySummaryEnabled(checked);
-                triggerSave({ weekly_summary_enabled: checked });
-              }}
-              disabled={disabled}
-            />
-          </div>
+        <div className="space-y-5 py-6">
+          <GroupHeading>Weekly Summary</GroupHeading>
+
+          <ToggleRow
+            icon={Mail}
+            label="Weekly email recap"
+            description={`Calls, mood, and wellbeing notes delivered to ${deliveryEmail}.`}
+            checked={weeklySummaryEnabled}
+            onCheckedChange={(checked) => {
+              setWeeklySummaryEnabled(checked);
+              triggerSave({ weekly_summary_enabled: checked });
+            }}
+            disabled={disabled}
+          />
 
           {weeklySummaryEnabled && (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="pl-[26px] grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">
                   Day
@@ -257,7 +275,7 @@ function AlertSettingsSection({
                   }}
                   disabled={disabled}
                 >
-                  <SelectTrigger className="w-full py-3">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -281,7 +299,7 @@ function AlertSettingsSection({
                   }}
                   disabled={disabled}
                 >
-                  <SelectTrigger className="w-full py-3">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -295,41 +313,29 @@ function AlertSettingsSection({
               </div>
             </div>
           )}
-
-          {weeklySummaryEnabled && (
-            <p className="text-xs text-muted-foreground">
-              Delivery: {weeklySummaryDeliveryLabel}.
-            </p>
-          )}
         </div>
 
         <hr className="border-border" />
 
         {/* ── Missed Call Alerts ── */}
-        <div className="space-y-4 pt-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Missed Call Alerts
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Get notified when consecutive scheduled calls go unanswered.
-              </p>
-            </div>
-            <Switch
-              checked={missedCallsEnabled}
-              onCheckedChange={(checked) => {
-                setMissedCallsEnabled(checked);
-                triggerSave({ alert_missed_calls_enabled: checked });
-              }}
-              disabled={disabled}
-            />
-          </div>
+        <div className="space-y-5 pt-6">
+          <GroupHeading>Missed Call Alerts</GroupHeading>
+
+          <ToggleRow
+            icon={PhoneMissed}
+            label="Alert on missed calls"
+            description="Get notified when consecutive scheduled calls go unanswered."
+            checked={missedCallsEnabled}
+            onCheckedChange={(checked) => {
+              setMissedCallsEnabled(checked);
+              triggerSave({ alert_missed_calls_enabled: checked });
+            }}
+            disabled={disabled}
+          />
 
           {missedCallsEnabled && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-muted-foreground whitespace-nowrap">
+            <div className="pl-[26px]">
+              <label className="text-xs text-muted-foreground block mb-1">
                 Alert after
               </label>
               <Select
@@ -341,13 +347,13 @@ function AlertSettingsSection({
                 }}
                 disabled={disabled}
               >
-                <SelectTrigger className="w-[10rem] py-3 shrink-0">
+                <SelectTrigger className="w-full sm:w-1/2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {[2, 3, 4, 5].map((threshold) => (
                     <SelectItem key={threshold} value={String(threshold)}>
-                      {threshold} missed calls
+                      {threshold} calls
                     </SelectItem>
                   ))}
                 </SelectContent>

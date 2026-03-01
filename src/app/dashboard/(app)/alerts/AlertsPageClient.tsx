@@ -29,6 +29,28 @@ const ALERTS_INFO_TIP = (
   </div>
 );
 
+const NOTIFICATIONS_INFO_TIP = (
+  <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
+    <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
+    <div className="text-xs text-primary leading-snug space-y-1.5">
+      <p>
+        All notifications are sent to your billing email and any confirmed{' '}
+        <Link
+          href="/dashboard/privacy?tab=family&section=recipients"
+          className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+        >
+          family recipients
+        </Link>
+        .
+      </p>
+      <ul className="list-disc pl-4 space-y-0.5">
+        <li>Weekly summaries and missed call alerts are delivered in full.</li>
+        <li>Wellness alerts follow the sharing tier set by your loved one.</li>
+      </ul>
+    </div>
+  </div>
+);
+
 type AlertsTabValue = 'wellness-alerts' | 'alert-settings';
 
 const ALERTS_TABS: Array<{
@@ -121,6 +143,7 @@ export function AlertsPageClient({
         )}
         {activeTab === 'alert-settings' && (
           <div className="flex min-w-0 flex-1 flex-col gap-6">
+            {NOTIFICATIONS_INFO_TIP}
             <AlertSettings
               settings={filteredSettings}
               deliveryEmail={deliveryEmail}
