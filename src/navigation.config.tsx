@@ -68,8 +68,7 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
           Icon: ({ className }: { className: string }) => {
             return <PhoneIcon className={className} />;
           },
-          activeMatch: (currentPath: string) =>
-            isLineRouteActive(currentPath),
+          activeMatch: (currentPath: string) => isLineRouteActive(currentPath),
         },
         {
           label: 'Calls',
@@ -77,8 +76,7 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
           Icon: ({ className }: { className: string }) => {
             return <CalendarDaysIcon className={className} />;
           },
-          activeMatch: (currentPath: string) =>
-            isCallsRouteActive(currentPath),
+          activeMatch: (currentPath: string) => isCallsRouteActive(currentPath),
         },
         {
           label: 'Reminders',
@@ -152,9 +150,7 @@ function getPath(path: string) {
   return [appPrefix, path].filter(Boolean).join('/');
 }
 
-const remindersRoutePattern = createRoutePattern(
-  getPath('reminders'),
-);
+const remindersRoutePattern = createRoutePattern(getPath('reminders'));
 const callsRoutePattern = createRoutePattern(getPath('calls'));
 const insightsRoutePattern = createRoutePattern(getPath('insights'));
 const alertsRoutePattern = createRoutePattern(getPath('alerts'));
@@ -172,7 +168,10 @@ function isCallsRouteActive(currentPath: string) {
 }
 
 function isInsightsRouteActive(currentPath: string) {
-  return insightsRoutePattern.test(currentPath) || lineInsightsRoutePattern.test(currentPath);
+  return (
+    insightsRoutePattern.test(currentPath) ||
+    lineInsightsRoutePattern.test(currentPath)
+  );
 }
 
 function isAlertsRouteActive(currentPath: string) {

@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLine, getLines } from '~/lib/ultaura/lines';
-import { getInsightPrivacy, getNotificationPreferences } from '~/lib/ultaura/insights';
+import { getInsightPrivacy } from '~/lib/ultaura/insights';
 import { getAccessibilitySettings } from '~/lib/ultaura/accessibility';
 import { getLineVoiceConsent } from '~/lib/ultaura/privacy';
 import { getUltauraAccountById } from '~/lib/ultaura/helpers';
@@ -42,7 +42,6 @@ export default async function LineSettingsPage({ params }: PageProps) {
   const [
     trialInfo,
     insightPrivacy,
-    notificationPreferences,
     accessibilitySettings,
     voiceConsent,
     account,
@@ -50,7 +49,6 @@ export default async function LineSettingsPage({ params }: PageProps) {
   ] = await Promise.all([
     getTrialInfo(line.account_id),
     getInsightPrivacy(line.id),
-    getNotificationPreferences(line.account_id, line.id),
     getAccessibilitySettings(line.id),
     getLineVoiceConsent(line.id),
     getUltauraAccountById(line.account_id),
@@ -66,18 +64,20 @@ export default async function LineSettingsPage({ params }: PageProps) {
       <AppHeader title="Lines" description="Manage settings for this line" />
       <PageBody>
         <div className="space-y-6">
-          <LinePageHeader
-            lines={lines}
-            currentLineShortId={line.short_id}
-          />
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+          <LinePageHeader lines={lines} currentLineShortId={line.short_id} />
+          {isTrialExpired ? (
+            <TrialExpiredBanner trialPlanName={trialPlanName} />
+          ) : null}
           <SettingsClient
             line={line}
             insightPrivacy={insightPrivacy}
-            notificationPreferences={notificationPreferences}
             accessibilitySettings={accessibilitySettings}
             voiceConsent={voiceConsent}
-            userType={(account?.user_type ?? 'family_managed') as 'self' | 'family_managed'}
+            userType={
+              (account?.user_type ?? 'family_managed') as
+                | 'self'
+                | 'family_managed'
+            }
             disabled={isTrialExpired}
           />
         </div>

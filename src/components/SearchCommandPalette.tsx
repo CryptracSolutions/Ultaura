@@ -1,6 +1,14 @@
 'use client';
 
-import { type ComponentType, type SVGProps, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentType,
+  type SVGProps,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -18,17 +26,31 @@ import {
 import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '~/core/ui/Dialog';
 import { cn } from '~/core/generic/shadcn-utils';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { getNavigationItems } from '~/lib/search/navigation-registry';
 import { buildLineNavigationItems } from '~/lib/search/line-navigation';
-import type { SearchCategory, SearchItem, SearchResponse } from '~/lib/search/types';
+import type {
+  SearchCategory,
+  SearchItem,
+  SearchResponse,
+} from '~/lib/search/types';
 import { SEARCH_CATEGORIES } from '~/lib/search/types';
 import { buildIntentBoostMap, getIntentBoost } from '~/lib/search/intent';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import useSupabase from '~/core/hooks/use-supabase';
-import { highlightText, normalizeText, scoreMatch, tokenizeText } from '~/lib/search/match';
+import {
+  highlightText,
+  normalizeText,
+  scoreMatch,
+  tokenizeText,
+} from '~/lib/search/match';
 
 const DEBOUNCE_MS = 150;
 const RESULTS_PER_CATEGORY = 3;
@@ -87,7 +109,8 @@ export const SearchPanel = ({
   onQueryChange?: (query: string) => void;
   listId?: string;
 }) => {
-  const { docsIndex, close, prefillQuery, clearPrefillQuery, openMode } = useSearch();
+  const { docsIndex, close, prefillQuery, clearPrefillQuery, openMode } =
+    useSearch();
   const { data: account } = useUltauraAccount();
   const { t } = useTranslation();
   const router = useRouter();
@@ -101,11 +124,12 @@ export const SearchPanel = ({
   const onQueryChange = externalOnQueryChange ?? setInternalQuery;
 
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [results, setResults] = useState<SearchResponse['results']>(
-    buildEmptyResults,
-  );
+  const [results, setResults] =
+    useState<SearchResponse['results']>(buildEmptyResults);
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Set<SearchCategory>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<
+    Set<SearchCategory>
+  >(new Set());
 
   const supabase = useSupabase();
   const { data: userLines } = useSWR(
@@ -119,7 +143,7 @@ export const SearchPanel = ({
         .limit(10);
       return data ?? [];
     },
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
+    { revalidateOnFocus: false, dedupingInterval: 60000 },
   );
 
   const dynamicSuggestions = useMemo(() => {
@@ -193,7 +217,9 @@ export const SearchPanel = ({
         setResults(payload.results ?? buildEmptyResults());
         const completedAt = performance.now();
         const latencyMs = Math.max(0, Math.round(completedAt - startedAt));
-        const totalResults = countTotalResultItems(payload.results ?? buildEmptyResults());
+        const totalResults = countTotalResultItems(
+          payload.results ?? buildEmptyResults(),
+        );
 
         lastSearchSessionRef.current = {
           searchId: payload.searchId ?? null,
@@ -211,7 +237,9 @@ export const SearchPanel = ({
           latencyMs,
           resultCount: totalResults,
           zeroResults: totalResults === 0,
-          categoryCounts: summarizeCategoryCounts(payload.results ?? buildEmptyResults()),
+          categoryCounts: summarizeCategoryCounts(
+            payload.results ?? buildEmptyResults(),
+          ),
         });
       })
       .catch((error) => {
@@ -232,7 +260,7 @@ export const SearchPanel = ({
 
   const lineNavigationItems = useMemo(
     () => buildLineNavigationItems(results.lines),
-    [results.lines]
+    [results.lines],
   );
 
   const navigationItems = useMemo(() => {
@@ -249,17 +277,29 @@ export const SearchPanel = ({
   }, [account, t, userType, lineNavigationItems]);
 
   const normalizedQuery = normalizeText(query);
-  const queryTokens = useMemo(() => tokenizeText(normalizedQuery), [normalizedQuery]);
-  const intentBoosts = useMemo(() => buildIntentBoostMap(normalizedQuery), [normalizedQuery]);
+  const queryTokens = useMemo(
+    () => tokenizeText(normalizedQuery),
+    [normalizedQuery],
+  );
+  const intentBoosts = useMemo(
+    () => buildIntentBoostMap(normalizedQuery),
+    [normalizedQuery],
+  );
   const hasQuery = normalizedQuery.length > 0;
 
-  const scoredNavigation = useMemo<Scored<ReturnType<typeof getNavigationItems>[number]>[]>(() => {
+  const scoredNavigation = useMemo<
+    Scored<ReturnType<typeof getNavigationItems>[number]>[]
+  >(() => {
     if (!hasQuery) return [];
     const intentBoost = getIntentBoost(intentBoosts, 'navigation');
     return navigationItems
       .map((item) => ({
         item,
-        score: scoreMatch(normalizedQuery, [item.label, ...item.keywords].join(' ')) + intentBoost,
+        score:
+          scoreMatch(
+            normalizedQuery,
+            [item.label, ...item.keywords].join(' '),
+          ) + intentBoost,
       }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score);
@@ -271,10 +311,11 @@ export const SearchPanel = ({
     return docsIndex
       .map((doc) => ({
         item: doc,
-        score: scoreMatch(
-          normalizedQuery,
-          [doc.title, doc.label, doc.section, ...doc.keywords].join(' ')
-        ) + intentBoost,
+        score:
+          scoreMatch(
+            normalizedQuery,
+            [doc.title, doc.label, doc.section, ...doc.keywords].join(' '),
+          ) + intentBoost,
       }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score)
@@ -425,7 +466,15 @@ export const SearchPanel = ({
   const shouldShowResults = externalQuery !== undefined || isOpen;
 
   const handleSelect = (
-    item: SearchItem | { href: string; label?: string; subtitle?: string; category?: string; id?: string }
+    item:
+      | SearchItem
+      | {
+          href: string;
+          label?: string;
+          subtitle?: string;
+          category?: string;
+          id?: string;
+        },
   ) => {
     const nowMs = performance.now();
     const activeSession = lastSearchSessionRef.current;
@@ -456,7 +505,9 @@ export const SearchPanel = ({
       href,
       searchId: activeSession?.searchId ?? undefined,
       resultCount: activeSession?.resultCount,
-      timeToClickMs: activeSession ? Math.max(0, Math.round(nowMs - activeSession.startedAtMs)) : undefined,
+      timeToClickMs: activeSession
+        ? Math.max(0, Math.round(nowMs - activeSession.startedAtMs))
+        : undefined,
     });
 
     close();
@@ -534,7 +585,9 @@ export const SearchPanel = ({
                         label: recent.label,
                         subtitle: recent.subtitle,
                         href: recent.href ?? '/dashboard',
-                        category: (recent.category as SearchItem['category']) ?? 'navigation',
+                        category:
+                          (recent.category as SearchItem['category']) ??
+                          'navigation',
                       }}
                       Icon={getCategoryIcon(recent.category)}
                       onSelect={handleSelect}
@@ -560,9 +613,14 @@ export const SearchPanel = ({
                     className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <Phone className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
+                      <Phone
+                        className="h-[18px] w-[18px] shrink-0 stroke-[1.9]"
+                        aria-hidden="true"
+                      />
                     </span>
-                    <span className="text-sm text-foreground">{suggestion.label}</span>
+                    <span className="text-sm text-foreground">
+                      {suggestion.label}
+                    </span>
                   </Command.Item>
                 ))}
                 {SUGGESTED_SEARCHES.map((suggestion) => (
@@ -573,9 +631,14 @@ export const SearchPanel = ({
                     className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <Search className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
+                      <Search
+                        className="h-[18px] w-[18px] shrink-0 stroke-[1.9]"
+                        aria-hidden="true"
+                      />
                     </span>
-                    <span className="text-sm text-foreground">{suggestion.label}</span>
+                    <span className="text-sm text-foreground">
+                      {suggestion.label}
+                    </span>
                   </Command.Item>
                 ))}
               </Command.Group>
@@ -596,10 +659,14 @@ export const SearchPanel = ({
                   <Command.Group
                     key={group.category}
                     heading={
-                      <div className={cn(
-                        'flex items-center gap-2 px-2 pb-1',
-                        groupIndex === 0 ? 'pt-1' : 'pt-3 border-t border-border/40 mt-2'
-                      )}>
+                      <div
+                        className={cn(
+                          'flex items-center gap-2 px-2 pb-1',
+                          groupIndex === 0
+                            ? 'pt-1'
+                            : 'pt-3 border-t border-border/40 mt-2',
+                        )}
+                      >
                         <Icon
                           className="h-3.5 w-3.5 text-muted-foreground"
                           aria-hidden="true"
@@ -635,7 +702,9 @@ export const SearchPanel = ({
                           toggleCategoryExpand(group.category);
                         }}
                       >
-                        {isExpanded ? 'Show fewer' : `See all ${group.totalCount} results`}
+                        {isExpanded
+                          ? 'Show fewer'
+                          : `See all ${group.totalCount} results`}
                       </button>
                     ) : null}
                   </Command.Group>
@@ -664,9 +733,14 @@ export const SearchPanel = ({
                     className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <Search className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
+                      <Search
+                        className="h-[18px] w-[18px] shrink-0 stroke-[1.9]"
+                        aria-hidden="true"
+                      />
                     </span>
-                    <span className="text-sm text-foreground">{suggestion.label}</span>
+                    <span className="text-sm text-foreground">
+                      {suggestion.label}
+                    </span>
                   </Command.Item>
                 ))}
               </Command.Group>
@@ -689,7 +763,8 @@ const SearchBottomSheet = () => {
       >
         <DialogTitle className="sr-only">Search</DialogTitle>
         <DialogDescription className="sr-only">
-          Search across navigation, reminders, schedules, contacts, calls, and documentation.
+          Search across navigation, reminders, schedules, contacts, calls, and
+          documentation.
         </DialogDescription>
         <SearchPanel isOpen={isMobileOpen} />
       </DialogContent>
@@ -719,13 +794,15 @@ function HighlightedText({
           </span>
         ) : (
           <span key={`${part.text}-${index}`}>{part.text}</span>
-        )
+        ),
       )}
     </span>
   );
 }
 
-function getCategoryIcon(category?: string): ComponentType<SVGProps<SVGSVGElement>> {
+function getCategoryIcon(
+  category?: string,
+): ComponentType<SVGProps<SVGSVGElement>> {
   switch (category) {
     case 'lines':
       return Phone;
@@ -765,7 +842,10 @@ function SearchResultItem({
       className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm aria-selected:bg-muted data-[selected=true]:bg-muted touch-manipulation"
     >
       <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-        <Icon className="h-[18px] w-[18px] shrink-0 stroke-[1.9]" aria-hidden="true" />
+        <Icon
+          className="h-[18px] w-[18px] shrink-0 stroke-[1.9]"
+          aria-hidden="true"
+        />
       </span>
       <div className="flex min-w-0 flex-col">
         <HighlightedText
@@ -854,31 +934,49 @@ function trackSearchEvent(payload: {
 }
 
 function countTotalResultItems(results: SearchResponse['results']): number {
-  return SEARCH_CATEGORIES.reduce((total, category) => total + (results[category]?.length ?? 0), 0);
+  return SEARCH_CATEGORIES.reduce(
+    (total, category) => total + (results[category]?.length ?? 0),
+    0,
+  );
 }
 
-function summarizeCategoryCounts(results: SearchResponse['results']): Record<string, number> {
-  return SEARCH_CATEGORIES.reduce((acc, category) => {
-    acc[category] = results[category]?.length ?? 0;
-    return acc;
-  }, {} as Record<string, number>);
+function summarizeCategoryCounts(
+  results: SearchResponse['results'],
+): Record<string, number> {
+  return SEARCH_CATEGORIES.reduce(
+    (acc, category) => {
+      acc[category] = results[category]?.length ?? 0;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 }
 
 function getSearchItemScore(item: SearchItem, normalizedQuery: string): number {
-  return item.matchScore ?? scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`);
+  return (
+    item.matchScore ??
+    scoreMatch(normalizedQuery, `${item.label} ${item.subtitle ?? ''}`)
+  );
 }
 
 function isStrongSearchMatch(score: number, normalizedQuery: string): boolean {
-  const tokenCount = tokenizeText(normalizedQuery, { minLength: 2, maxTokens: 12 }).length;
-  const minScore = normalizedQuery.length <= 2 ? 6 : tokenCount <= 1 ? 4.5 : 3.5;
+  const tokenCount = tokenizeText(normalizedQuery, {
+    minLength: 2,
+    maxTokens: 12,
+  }).length;
+  const minScore =
+    normalizedQuery.length <= 2 ? 6 : tokenCount <= 1 ? 4.5 : 3.5;
   return score >= minScore;
 }
 
 function buildEmptyResults(): SearchResponse['results'] {
-  return SEARCH_CATEGORIES.reduce((acc, category) => {
-    acc[category] = [];
-    return acc;
-  }, {} as SearchResponse['results']);
+  return SEARCH_CATEGORIES.reduce(
+    (acc, category) => {
+      acc[category] = [];
+      return acc;
+    },
+    {} as SearchResponse['results'],
+  );
 }
 
 export default SearchBottomSheet;

@@ -26,7 +26,7 @@ export default async function AlertsPage() {
       <>
         <AppHeader
           title="Alerts"
-          description="Stay on top of wellness alerts"
+          description="Stay on top of wellness alerts and notifications"
         />
         <PageBody>
           <div className="py-8">
@@ -44,11 +44,13 @@ export default async function AlertsPage() {
       <>
         <AppHeader
           title="Alerts"
-          description="Stay on top of wellness alerts"
+          description="Stay on top of wellness alerts and notifications"
         />
         <PageBody>
           <div className="max-w-lg rounded-xl border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-foreground">Enable alerts</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              Enable alerts
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Start a trial to unlock wellness alerts and notification settings.
             </p>
@@ -66,8 +68,8 @@ export default async function AlertsPage() {
 
   const isSelfUser = account.user_type === 'self';
   const headerDescription = isSelfUser
-    ? 'Stay on top of wellness alerts for your line'
-    : 'Stay on top of wellness alerts for your loved ones';
+    ? 'Manage notifications and wellness alerts for your line'
+    : 'Manage notifications and wellness alerts for your loved ones';
 
   const [lines, alerts, trialInfo] = await Promise.all([
     getLines(account.id),
@@ -79,7 +81,7 @@ export default async function AlertsPage() {
     lines.map(async (line) => ({
       line,
       preferences: await getNotificationPreferences(account.id, line.id),
-    }))
+    })),
   );
 
   const isTrialExpired = trialInfo?.isExpired ?? false;
@@ -89,10 +91,7 @@ export default async function AlertsPage() {
 
   return (
     <>
-      <AppHeader
-        title="Alerts"
-        description={headerDescription}
-      >
+      <AppHeader title="Alerts" description={headerDescription}>
         {isTrialActive && trialInfo ? (
           <TrialStatusBadge
             daysRemaining={trialInfo.daysRemaining}
@@ -102,14 +101,14 @@ export default async function AlertsPage() {
       </AppHeader>
       <PageBody>
         <div className="space-y-6">
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+          {isTrialExpired ? (
+            <TrialExpiredBanner trialPlanName={trialPlanName} />
+          ) : null}
           <AlertsPageClient
             alerts={alerts}
             lines={lines}
             settings={settings}
-            deliveryEmail={
-              appData.auth?.user?.email ?? account.billing_email
-            }
+            deliveryEmail={appData.auth?.user?.email ?? account.billing_email}
             disabled={isTrialExpired}
           />
         </div>
