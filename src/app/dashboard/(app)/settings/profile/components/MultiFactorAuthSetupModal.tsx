@@ -32,7 +32,7 @@ function MultiFactorAuthSetupModal(
 
   return (
     <Modal
-      heading="Setup a new factor"
+      heading="New authentication method"
       description="Scan the QR code and confirm your authenticator app."
       isOpen={props.isOpen}
       setIsOpen={props.setIsOpen}
@@ -315,7 +315,7 @@ function FactorNameForm(
             size="small"
             className="w-full"
           >
-            Set factor
+            Confirm
           </Button>
         </div>
       </div>

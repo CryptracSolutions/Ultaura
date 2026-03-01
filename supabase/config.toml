@@ -78,6 +78,19 @@ content_path = "./supabase/templates/email-change.html"
 subject = "Reset your Ultaura password"
 content_path = "./supabase/templates/recovery.html"
 
+# Multi-Factor Authentication (MFA / TOTP)
+# Required for two-step verification in the dashboard.
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin`, `notion`, `twitch`,
 # `twitter`, `slack`, `spotify`, `workos`, `zoom`.

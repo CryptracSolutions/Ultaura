@@ -99,9 +99,6 @@ function MultiFactorAuthFactorsList({
           <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="text-xs text-primary leading-snug">
-              <Trans i18nKey={'profile:multiFactorAuthHeading'} />
-            </p>
-            <p className="text-xs text-primary leading-snug">
               <Trans i18nKey={'profile:multiFactorAuthDescription'} />
             </p>
           </div>
