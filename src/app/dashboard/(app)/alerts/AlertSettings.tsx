@@ -252,7 +252,7 @@ function AlertSettingsSection({
           <ToggleRow
             icon={Mail}
             label="Weekly email recap"
-            description={`Calls, mood, and wellbeing notes delivered to ${deliveryEmail}.`}
+            description="A weekly recap of call activity, mood, and wellbeing notes."
             checked={weeklySummaryEnabled}
             onCheckedChange={(checked) => {
               setWeeklySummaryEnabled(checked);
