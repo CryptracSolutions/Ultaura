@@ -20,7 +20,7 @@ function Footer() {
   };
 
   return (
-    <footer>
+    <footer className="border-t border-zinc-800">
       {/* Newsletter Banner — unchanged */}
       {!isBlogPostPage && (
         <div className="bg-zinc-950 text-zinc-300 py-6 lg:py-8">
@@ -49,7 +49,7 @@ function Footer() {
         {/* Navigation Section */}
         <div className="pt-10 pb-8 lg:pt-12 lg:pb-10">
           <Container>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-6 lg:gap-y-8">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-6 lg:gap-y-8">
               <div className="flex flex-col space-y-2.5">
                 <FooterGroupHeading>Get started</FooterGroupHeading>
                 <ul className="flex flex-col space-y-2">
