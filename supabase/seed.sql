@@ -212,6 +212,13 @@ OVERRIDING SYSTEM VALUE
 VALUES (1, 'Johnson Family', NOW() - INTERVAL '30 days')
 ON CONFLICT (id) DO NOTHING;
 
+-- Sync the identity sequence past any seed-inserted ids so test helpers
+-- (which rely on auto-generated ids) never collide with seed data.
+SELECT setval(
+  pg_get_serial_sequence('organizations', 'id'),
+  COALESCE((SELECT MAX(id) FROM organizations), 1)
+);
+
 -- payer = role 2 (owner)
 INSERT INTO public.memberships (user_id, organization_id, role, created_at) VALUES
 ('aaaaaaaa-0000-4000-a000-000000000001', 1, 2, NOW() - INTERVAL '30 days')

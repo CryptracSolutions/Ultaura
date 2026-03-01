@@ -46,7 +46,7 @@ export function TierGateNotice({
       <p className="mt-3 text-sm text-muted-foreground">
         Available at {TIER_REQUIREMENTS[requiredTier]} {lineName} controls sharing preferences. Request a change{' '}
         <Link
-          href="/dashboard/privacy?tab=consent&section=consent-status"
+          href="/dashboard/privacy?tab=family&section=sharing"
           className="text-primary hover:underline"
         >
           here -&gt;

@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
+let mockSessionUserId = 'placeholder';
+
 vi.mock('~/core/email/send-email', () => ({
   default: vi.fn().mockResolvedValue({}),
 }));
@@ -9,9 +11,27 @@ vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
   return { ...actual, cache: (fn: (...args: any[]) => any) => fn };
 });
+vi.mock('~/lib/user/require-session', () => ({
+  default: vi.fn(async () => ({ user: { id: mockSessionUserId } })),
+}));
+vi.mock('next/navigation', () => ({
+  redirect: vi.fn(),
+}));
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Map([['x-forwarded-for', '127.0.0.1']])),
+}));
+vi.mock('~/lib/emails/notification-invite', () => ({
+  default: vi.fn((props: { confirmLink: string }) => ({
+    html: `<a href="${props.confirmLink}">Confirm</a>`,
+    text: `Confirm: ${props.confirmLink}`,
+  })),
+}));
 
 import sendEmail from '~/core/email/send-email';
-import { inviteNotificationRecipient, confirmNotificationRecipient } from '../notification-recipients';
+import {
+  inviteNotificationRecipient,
+  confirmNotificationRecipient,
+} from '../notification-recipients';
 import { upgradeSelfToFamilyMode } from '../accounts';
 import {
   cleanupTestData,
@@ -34,6 +54,7 @@ describe('workflow fit actions', () => {
     accountId = context.account.id;
     organizationId = context.organization.id;
     userId = context.user.id;
+    mockSessionUserId = userId;
     await createTestLine(accountId);
     process.env.EMAIL_SENDER ||= 'test@ultaura.local';
   });
@@ -64,7 +85,9 @@ describe('workflow fit actions', () => {
 
     const sendEmailCalls = vi.mocked(sendEmail).mock.calls;
     const latestEmailCall = sendEmailCalls[sendEmailCalls.length - 1]?.[0];
-    const confirmLink = latestEmailCall?.html?.match(/\/api\/ultaura\/confirm\/([a-f0-9]+)/i)?.[1];
+    const confirmLink = latestEmailCall?.html?.match(
+      /\/api\/ultaura\/confirm\/([a-f0-9]+)/i,
+    )?.[1];
     expect(confirmLink).toBeDefined();
 
     const expectedHash = hashToken(confirmLink!);
@@ -90,7 +113,9 @@ describe('workflow fit actions', () => {
         relationship: 'Daughter',
         is_trusted_contact: true,
         confirmation_token_hash: tokenHash,
-        confirmation_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        confirmation_token_expires_at: new Date(
+          Date.now() + 24 * 60 * 60 * 1000,
+        ).toISOString(),
       })
       .select('*')
       .single();
@@ -122,33 +147,38 @@ describe('workflow fit actions', () => {
   it('upgrades self accounts to family mode', async () => {
     const context = await createTestAccount();
     const upgradeAccountId = context.account.id;
+    const prevSessionUserId = mockSessionUserId;
+    mockSessionUserId = context.user.id;
 
-    await testServiceRoleClient
-      .from('ultaura_accounts')
-      .update({
-        user_type: 'self',
-        sharing_enabled: false,
-        sharing_enabled_at: null,
-      })
-      .eq('id', upgradeAccountId);
+    try {
+      await testServiceRoleClient
+        .from('ultaura_accounts')
+        .update({
+          user_type: 'self',
+          sharing_enabled: false,
+          sharing_enabled_at: null,
+        })
+        .eq('id', upgradeAccountId);
 
-    const result = await upgradeSelfToFamilyMode(upgradeAccountId);
-    expect(result.success).toBe(true);
+      const result = await upgradeSelfToFamilyMode(upgradeAccountId);
+      expect(result.success).toBe(true);
 
-    const { data: updated } = await testServiceRoleClient
-      .from('ultaura_accounts')
-      .select('user_type, sharing_enabled, sharing_enabled_at')
-      .eq('id', upgradeAccountId)
-      .single();
+      const { data: updated } = await testServiceRoleClient
+        .from('ultaura_accounts')
+        .select('user_type, sharing_enabled, sharing_enabled_at')
+        .eq('id', upgradeAccountId)
+        .single();
 
-    expect(updated?.user_type).toBe('family_managed');
-    expect(updated?.sharing_enabled).toBe(true);
-    expect(updated?.sharing_enabled_at).not.toBeNull();
-
-    await cleanupTestData({
-      accountId: upgradeAccountId,
-      organizationId: context.organization.id,
-      userId: context.user.id,
-    });
+      expect(updated?.user_type).toBe('family_managed');
+      expect(updated?.sharing_enabled).toBe(true);
+      expect(updated?.sharing_enabled_at).not.toBeNull();
+    } finally {
+      mockSessionUserId = prevSessionUserId;
+      await cleanupTestData({
+        accountId: upgradeAccountId,
+        organizationId: context.organization.id,
+        userId: context.user.id,
+      });
+    }
   });
 });
