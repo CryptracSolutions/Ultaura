@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 
@@ -22,13 +23,22 @@ const getPageBySlug = cache((slug: string) => {
 });
 
 interface PageParams {
-  params: {
+  params: Promise<{
     slug: string[];
-  };
+  }>;
 }
 
-export const generateMetadata = ({ params }: PageParams) => {
-  const page = getPageBySlug(params.slug.join('/'));
+export async function generateStaticParams() {
+  return documentationPages.map((page) => ({
+    slug: page.resolvedPath.split('/'),
+  }));
+}
+
+export const generateMetadata = async ({
+  params,
+}: PageParams): Promise<Metadata> => {
+  const { slug } = await params;
+  const page = getPageBySlug(slug.join('/'));
 
   if (!page) {
     notFound();
@@ -39,11 +49,15 @@ export const generateMetadata = ({ params }: PageParams) => {
   return {
     title,
     description,
+    alternates: {
+      canonical: `/docs/${slug.join('/')}`,
+    },
   };
 };
 
-function DocumentationPage({ params }: PageParams) {
-  const page = getPageBySlug(params.slug.join('/'));
+async function DocumentationPage({ params }: PageParams) {
+  const { slug } = await params;
+  const page = getPageBySlug(slug.join('/'));
 
   if (!page) {
     notFound();
@@ -54,14 +68,17 @@ function DocumentationPage({ params }: PageParams) {
 
   const description = 'description' in page ? (page.description as string) : '';
 
-  const breadcrumbs = params.slug.reduce<{ label: string; href: string }[]>(
+  const breadcrumbs = slug.reduce<{ label: string; href: string }[]>(
     (acc, segment, index) => {
-      const path = params.slug.slice(0, index + 1).join('/');
-      const page = documentationPages.find((p) => p.resolvedPath === path);
+      const path = slug.slice(0, index + 1).join('/');
+      const matchedPage = documentationPages.find(
+        (p) => p.resolvedPath === path,
+      );
 
       acc.push({
         label:
-          page?.title ?? segment.charAt(0).toUpperCase() + segment.slice(1),
+          matchedPage?.title ??
+          segment.charAt(0).toUpperCase() + segment.slice(1),
         href: `/docs/${path}`,
       });
 
@@ -72,6 +89,15 @@ function DocumentationPage({ params }: PageParams) {
 
   return (
     <Container>
+      {page.structuredData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(page.structuredData),
+          }}
+        />
+      )}
+
       <div className={'py-10 flex flex-col space-y-8 lg:px-16 grow relative'}>
         <Breadcrumbs items={breadcrumbs} />
 

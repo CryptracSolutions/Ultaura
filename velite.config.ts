@@ -38,7 +38,10 @@ const posts = defineCollection({
       while ((match = headingRegex.exec(rawContent)) !== null) {
         const level = match[1].length;
         const text = match[2].trim();
-        const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+        const id = text
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-');
         headings.push({ level, text, id });
       }
 
@@ -60,7 +63,7 @@ const posts = defineCollection({
           url: [siteUrl, 'blog', getFlattenedPath(filePath)].join('/'),
           author: {
             '@type': 'Organization',
-            name: 'JP3',
+            name: 'Ultaura',
           },
         },
       };
@@ -112,7 +115,7 @@ const documentationPages = defineCollection({
           url: [siteUrl, url.replace(/^\//, '')].join('/'),
           author: {
             '@type': 'Organization',
-            name: 'JP3',
+            name: 'Ultaura',
           },
         },
         path,

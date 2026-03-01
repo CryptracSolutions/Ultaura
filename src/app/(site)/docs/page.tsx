@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { documentationPages } from '@/.velite';
 
 import Heading from '~/core/ui/Heading';
@@ -9,8 +10,13 @@ import { buildDocumentationTree } from './utils/build-documentation-tree';
 import configuration from '~/configuration';
 import { withI18n } from '~/i18n/with-i18n';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: `Documentation - ${configuration.site.siteName}`,
+  description:
+    'Get started with Ultaura. Guides and tutorials for setting up lines, managing schedules, understanding insights, and configuring privacy settings.',
+  alternates: {
+    canonical: '/docs',
+  },
 };
 
 function DocsPage() {

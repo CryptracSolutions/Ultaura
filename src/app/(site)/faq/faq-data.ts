@@ -21,7 +21,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'what-is-ultaura',
         question: 'What is Ultaura?',
         answer:
-          'Ultaura is an AI-powered voice companion that makes friendly check-in calls to seniors. It provides conversation, reminders, activity suggestions, and companionship while keeping family members informed about their loved one\'s wellbeing.',
+          "Ultaura is an AI-powered voice companion that makes friendly check-in calls to seniors. It provides conversation, reminders, activity suggestions, and companionship while keeping family members informed about their loved one's wellbeing.",
       },
       {
         id: 'what-is-line',
@@ -52,7 +52,8 @@ export const FAQ_DATA: FAQCategory[] = [
   {
     id: 'getting-started',
     title: 'Getting Started',
-    description: 'Everything you need to know to set up Ultaura for your loved one.',
+    description:
+      'Everything you need to know to set up Ultaura for your loved one.',
     items: [
       {
         id: 'setup-line',
@@ -70,13 +71,13 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'first-call',
         question: 'What happens on the first call?',
         answer:
-          'On the first call, Ultaura introduces itself, explains how it works, and asks about your loved one\'s interests and preferences. This helps personalize future conversations and build a comfortable rapport.',
+          "On the first call, Ultaura introduces itself, explains how it works, and asks about your loved one's interests and preferences. This helps personalize future conversations and build a comfortable rapport.",
       },
       {
         id: 'use-without-help',
         question: 'Can my loved one use Ultaura without help?',
         answer:
-          'Absolutely. Your loved one simply answers the phone when Ultaura calls, or they can call Ultaura whenever they\'d like. There\'s nothing to install, no buttons to press, and no technology to learn. They just have a conversation.',
+          "Absolutely. Your loved one simply answers the phone when Ultaura calls, or they can call Ultaura whenever they'd like. There's nothing to install, no buttons to press, and no technology to learn. They just have a conversation.",
       },
     ],
   },
@@ -101,7 +102,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'quiet-hours',
         question: 'What are quiet hours?',
         answer:
-          'Quiet hours are times when Ultaura won\'t call, even if a call is scheduled. Set quiet hours during sleep times or regular activities. You can also enable vacation mode to pause all calls temporarily.',
+          "Quiet hours are times when Ultaura won't call, even if a call is scheduled. Set quiet hours during sleep times or regular activities. You can also enable vacation mode to pause all calls temporarily.",
       },
       {
         id: 'missed-call',
@@ -113,7 +114,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'call-length',
         question: 'How long are the calls?',
         answer:
-          'Check-in calls typically last 5-20 minutes, but your loved one controls the conversation. Reminder calls are less than a minute unless your loved one decides to continue the conversation. They can chat as long as they like or end the call whenever they\'re ready. Longer conversations simply use more of your plan\'s minutes.',
+          "Check-in calls typically last 5-20 minutes, but your loved one controls the conversation. Reminder calls are less than a minute unless your loved one decides to continue the conversation. They can chat as long as they like or end the call whenever they're ready. Longer conversations simply use more of your plan's minutes.",
       },
     ],
   },
@@ -126,7 +127,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'memory-works',
         question: 'How does Ultaura remember previous conversations?',
         answer:
-          'Ultaura securely stores conversation summaries and key details, building a memory of your loved one\'s life, interests, and preferences. This allows for continuous, meaningful conversations that pick up where they left off.',
+          "Ultaura securely stores conversation summaries and key details, building a memory of your loved one's life, interests, and preferences. This allows for continuous, meaningful conversations that pick up where they left off.",
       },
       {
         id: 'reminders',
@@ -138,7 +139,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'insights',
         question: 'What are insights?',
         answer:
-          'Insights are observations from conversations, including mood trends, conversation highlights, and topics discussed. Family members can view these in the dashboard to stay connected to their loved one\'s daily life.',
+          "Insights are observations from conversations, including mood trends, conversation highlights, and topics discussed. Family members can view these in the dashboard to stay connected to their loved one's daily life.",
       },
       {
         id: 'milestones',
@@ -150,7 +151,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'activities',
         question: 'Can Ultaura play games or suggest activities?',
         answer:
-          'Yes, Ultaura can play word games, trivia, tell jokes, share stories, and suggest activities based on your loved one\'s interests and abilities. These help keep conversations engaging and mentally stimulating.',
+          "Yes, Ultaura can play word games, trivia, tell jokes, share stories, and suggest activities based on your loved one's interests and abilities. These help keep conversations engaging and mentally stimulating.",
       },
     ],
   },
@@ -163,7 +164,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'emergency',
         question: 'What happens in an emergency?',
         answer:
-          'If Ultaura detects signs of distress or an emergency, it can suggest calling 988 (mental health crisis) or 911, and notify trusted contacts you\'ve designated. We take safety seriously and have multiple tiers of response.',
+          "If Ultaura detects signs of distress or an emergency, it can suggest calling 988 (mental health crisis) or 911, and notify trusted contacts you've designated. We take safety seriously and have multiple tiers of response.",
       },
       {
         id: 'transcripts',
@@ -173,7 +174,7 @@ export const FAQ_DATA: FAQCategory[] = [
       },
       {
         id: 'encryption',
-        question: 'How is my loved one\'s data protected?',
+        question: "How is my loved one's data protected?",
         answer:
           'All sensitive data is encrypted using AES-256-GCM encryption with envelope encryption. Each account has unique encryption keys, and we follow strict security practices to protect personal information.',
       },
@@ -181,7 +182,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'topic-exclusions',
         question: 'Can certain topics be excluded from conversations?',
         answer:
-          'Yes, you can set topic exclusions in the Privacy Center. If there are sensitive subjects you\'d prefer Ultaura not discuss, simply add them and Ultaura will steer conversations away from those areas.',
+          "Yes, you can set topic exclusions in the Privacy Center. If there are sensitive subjects you'd prefer Ultaura not discuss, simply add them and Ultaura will steer conversations away from those areas.",
       },
       {
         id: 'opt-out',
@@ -200,7 +201,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'trusted-contacts',
         question: 'What are trusted contacts?',
         answer:
-          'Trusted contacts are people you designate to be notified in certain situations, such as safety events or wellness concerns. They can receive alerts and weekly summaries about your loved one\'s wellbeing.',
+          "Trusted contacts are people you designate to be notified in certain situations, such as safety events or wellness concerns. They can receive alerts and weekly summaries about your loved one's wellbeing.",
       },
       {
         id: 'wellness-alerts',
@@ -218,7 +219,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'multiple-access',
         question: 'Can multiple family members access the account?',
         answer:
-          'Currently, each account has one primary login. However, trusted contacts can receive alerts and summaries via email or SMS. Multi-user account access is on our roadmap for a future update.',
+          'Each account has one primary login. Trusted contacts can receive alerts and summaries via email or SMS. You can also invite additional family members to access the dashboard and manage lines together.',
       },
     ],
   },
@@ -243,13 +244,13 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'usage-counting',
         question: 'What counts as usage?',
         answer:
-          'Usage is counted in minutes of actual call time. Minutes are pooled across all lines on your account. Only connected call time counts; there\'s no charge for calls that go unanswered or reach voicemail. Most reminder calls use about 1 minute.',
+          "Usage is counted in minutes of actual call time. Minutes are pooled across all lines on your account. Only connected call time counts; there's no charge for calls that go unanswered or reach voicemail. Most reminder calls use about 1 minute.",
       },
       {
         id: 'overage',
         question: 'What happens if I go over my included minutes?',
         answer:
-          'If you exceed your plan\'s included minutes, additional usage is billed at $0.15 per minute. You\'ll receive notifications as you approach your limit.',
+          "If you exceed your plan's included minutes, additional usage is billed at $0.15 per minute. You'll receive notifications as you approach your limit.",
       },
       {
         id: 'cancel',
@@ -268,7 +269,7 @@ export const FAQ_DATA: FAQCategory[] = [
         id: 'call-didnt-come',
         question: "The scheduled call didn't come through",
         answer:
-          'Check that the line is active, not paused, and that the scheduled time hasn\'t fallen within quiet hours or vacation mode. Also verify the phone number is correct and can receive calls. Contact support if the issue persists.',
+          "Check that the line is active, not paused, and that the scheduled time hasn't fallen within quiet hours or vacation mode. Also verify the phone number is correct and can receive calls. Contact support if the issue persists.",
       },
       {
         id: 'not-understood',

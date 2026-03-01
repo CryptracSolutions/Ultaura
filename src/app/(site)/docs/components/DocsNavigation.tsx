@@ -1,6 +1,11 @@
 'use client';
 
-import { ChevronDownIcon, Bars3Icon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  ChevronDownIcon,
+  Bars3Icon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import classNames from 'clsx';
 
 import Link from 'next/link';
@@ -143,7 +148,8 @@ export default function DocsNavigation({
     const results: ProcessedDocumentationPage[] = [];
     const visit = (nodes: ProcessedDocumentationPage[]) => {
       nodes.forEach((node) => {
-        const haystack = `${node.title} ${node.label}`.toLowerCase();
+        const haystack =
+          `${node.title} ${node.label} ${node.description ?? ''}`.toLowerCase();
         if (haystack.includes(term)) {
           results.push(node);
         }
@@ -283,7 +289,8 @@ function FloatingDocumentationNavigation({
     const results: ProcessedDocumentationPage[] = [];
     const visit = (nodes: ProcessedDocumentationPage[]) => {
       nodes.forEach((node) => {
-        const haystack = `${node.title} ${node.label}`.toLowerCase();
+        const haystack =
+          `${node.title} ${node.label} ${node.description ?? ''}`.toLowerCase();
         if (haystack.includes(term)) {
           results.push(node);
         }

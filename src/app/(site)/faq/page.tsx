@@ -1,17 +1,20 @@
+import type { Metadata } from 'next';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
 import Button from '~/core/ui/Button';
-import { withI18n } from '~/i18n/with-i18n';
 import { PageHero, GradientText } from '~/app/(site)/components/PageHero';
 import { FAQ_DATA } from './faq-data';
 import { FAQLayout } from './components/FAQLayout';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'FAQ - Ultaura',
   description:
     'Everything you need to know about Ultaura — how calls work, privacy, safety monitoring, pricing, and setup. Answers to 30+ common questions.',
+  alternates: {
+    canonical: '/faq',
+  },
 };
 
 function FAQPage() {
@@ -92,4 +95,4 @@ function FAQPage() {
   );
 }
 
-export default withI18n(FAQPage);
+export default FAQPage;

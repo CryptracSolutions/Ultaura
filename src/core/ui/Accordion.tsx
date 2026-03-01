@@ -12,6 +12,8 @@ const AccordionContext = createContext<{
   setOpenItem: () => {},
 });
 
+const AccordionItemContext = createContext<string>('');
+
 export function Accordion({
   children,
   className,
@@ -20,9 +22,7 @@ export function Accordion({
 
   return (
     <AccordionContext.Provider value={{ openItem, setOpenItem }}>
-      <div className={cn('flex flex-col space-y-2', className)}>
-        {children}
-      </div>
+      <div className={cn('flex flex-col space-y-2', className)}>{children}</div>
     </AccordionContext.Provider>
   );
 }
@@ -33,45 +33,49 @@ export function AccordionItem({
   className,
 }: React.PropsWithChildren<{ value: string; className?: string }>) {
   return (
-    <div
-      className={cn(
-        'border border-border rounded-xl overflow-hidden bg-card',
-        className
-      )}
-    >
-      {React.Children.map(children, (child) => {
-        if (React.isValidElement(child)) {
-          // @ts-ignore
-          return React.cloneElement(child, { value });
-        }
-        return child;
-      })}
-    </div>
+    <AccordionItemContext.Provider value={value}>
+      <div
+        className={cn(
+          'border border-border rounded-xl overflow-hidden bg-card',
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </AccordionItemContext.Provider>
   );
 }
 
 export function AccordionTrigger({
   children,
-  value,
   className,
-}: React.PropsWithChildren<{ value?: string; className?: string }>) {
+}: React.PropsWithChildren<{ className?: string }>) {
+  const value = useContext(AccordionItemContext);
   const { openItem, setOpenItem } = useContext(AccordionContext);
   const isOpen = openItem === value;
+
+  const triggerId = `accordion-trigger-${value}`;
+  const contentId = `accordion-content-${value}`;
 
   return (
     <button
       type="button"
-      onClick={() => setOpenItem(isOpen ? null : value!)}
+      id={triggerId}
+      aria-expanded={isOpen}
+      aria-controls={contentId}
+      onClick={() => setOpenItem(isOpen ? null : value)}
       className={cn(
         'flex w-full items-center justify-between p-6 text-left font-semibold text-foreground transition-all hover:bg-muted/50',
-        className
+        className,
       )}
     >
       {children}
       <ChevronDownIcon
-        className={cn('h-5 w-5 text-primary transition-transform duration-200', {
-          'rotate-180': isOpen,
-        })}
+        className={cn(
+          'h-5 w-5 shrink-0 text-primary transition-transform duration-200',
+          { 'rotate-180': isOpen },
+        )}
+        aria-hidden="true"
       />
     </button>
   );
@@ -79,23 +83,35 @@ export function AccordionTrigger({
 
 export function AccordionContent({
   children,
-  value,
   className,
-}: React.PropsWithChildren<{ value?: string; className?: string }>) {
+}: React.PropsWithChildren<{ className?: string }>) {
+  const value = useContext(AccordionItemContext);
   const { openItem } = useContext(AccordionContext);
   const isOpen = openItem === value;
 
-  if (!isOpen) return null;
+  const triggerId = `accordion-trigger-${value}`;
+  const contentId = `accordion-content-${value}`;
 
   return (
     <div
+      id={contentId}
+      role="region"
+      aria-labelledby={triggerId}
       className={cn(
-        'px-6 pb-6 pt-3 text-muted-foreground text-sm animate-in fade-in zoom-in-95 duration-200',
-        className
+        'grid transition-[grid-template-rows] duration-200 ease-out',
+        isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
       )}
     >
-      {children}
+      <div className="overflow-hidden">
+        <div
+          className={cn(
+            'px-6 pb-6 pt-3 text-sm text-muted-foreground',
+            className,
+          )}
+        >
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
-

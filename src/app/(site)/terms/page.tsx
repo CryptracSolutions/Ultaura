@@ -1,19 +1,25 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
 import { withI18n } from '~/i18n/with-i18n';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Terms of Service - Ultaura',
   description:
     'Ultaura terms of service. Clear terms for our AI voice companion, including billing, cancellation, and data handling policies.',
+  alternates: {
+    canonical: '/terms',
+  },
 };
 
 const LAST_UPDATED = 'February 5, 2026';
 
 function TermsPage() {
   return (
-    <div className="flex flex-col space-y-16 pb-24">
+    <div id="top" className="flex flex-col space-y-16 pb-24">
       <div className="bg-primary/10 py-24">
         <Container>
           <div className="flex flex-col items-center text-center space-y-6">
@@ -99,15 +105,15 @@ function TermsPage() {
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
                 You must be at least 18 years old and capable of entering a
-                binding agreement. If you create or pay for an account on
-                behalf of someone else, you represent that you have the legal
-                authority to do so.
+                binding agreement. If you create or pay for an account on behalf
+                of someone else, you represent that you have the legal authority
+                to do so.
               </p>
               <p>
                 You are responsible for all activity under your account, all
-                phone numbers you add, and any information provided to us.
-                Keep your login credentials secure and notify us promptly of
-                any unauthorized access.
+                phone numbers you add, and any information provided to us. Keep
+                your login credentials secure and notify us promptly of any
+                unauthorized access.
               </p>
             </div>
           </section>
@@ -129,10 +135,10 @@ function TermsPage() {
                 <li>
                   Do not use Ultaura to harass, deceive, or exploit anyone.
                 </li>
-                <li>No use for harassment, fraud, or illegal activity.</li>
+                <li>No use for fraud or illegal activity.</li>
                 <li>
-                  No attempts to reverse engineer, scrape, or misuse the
-                  service or its AI models.
+                  No attempts to reverse engineer, scrape, or misuse the service
+                  or its AI models.
                 </li>
                 <li>
                   No use for emergency response or medical decision-making.
@@ -144,7 +150,38 @@ function TermsPage() {
               </ul>
               <p>
                 You are responsible for complying with all applicable laws,
-                including call recording, consent, and telephony regulations.
+                including consent and telephony regulations.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>
+              Voice Recordings & Call Recording Consent
+            </Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                Ultaura calls are AI-generated conversations. Calls are not
+                recorded by default. If a line&apos;s recording feature is
+                enabled by the account owner, Ultaura will request explicit
+                verbal consent from the call recipient before any recording
+                begins. Recording does not start until consent is confirmed.
+              </p>
+              <p>
+                The call recipient can revoke recording consent at any time
+                during the call. If consent is denied or revoked, the call
+                continues without recording.
+              </p>
+              <p>
+                Some jurisdictions (including California, Illinois, Florida, and
+                other U.S. states) require all-party consent before a call may
+                be recorded. Ultaura complies by always seeking explicit consent
+                from the recipient regardless of location.
+              </p>
+              <p>
+                You, as the account owner, remain responsible for informing line
+                recipients that recording is enabled and for ensuring your use
+                of recordings complies with all applicable laws.
               </p>
             </div>
           </section>
@@ -199,8 +236,8 @@ function TermsPage() {
                   lines based on your plan.
                 </li>
                 <li>
-                  Usage-based overages are billed at the rate shown at
-                  checkout, currently $0.15 per minute for paid plans.
+                  Usage-based overages are billed at the rate shown at checkout,
+                  currently $0.15 per minute for paid plans.
                 </li>
                 <li>
                   The Usage Based plan has no monthly fee and charges per minute
@@ -211,8 +248,8 @@ function TermsPage() {
                   where required by law.
                 </li>
                 <li>
-                  If you cancel, service continues until the end of the
-                  current billing period unless otherwise required by law.
+                  If you cancel, service continues until the end of the current
+                  billing period unless otherwise required by law.
                 </li>
               </ul>
               <p>
@@ -234,7 +271,11 @@ function TermsPage() {
               <p>
                 If you delete lines or reduce plan levels, changes take effect
                 on the next billing cycle. We may retain certain records as
-                described in the Privacy Policy and required by law.
+                described in the{' '}
+                <Link className="underline" href="/privacy">
+                  Privacy Policy
+                </Link>{' '}
+                and required by law.
               </p>
             </div>
           </section>
@@ -249,9 +290,8 @@ function TermsPage() {
               </p>
               <p>
                 Service is currently available for U.S. phone numbers only.
-                Delivery of calls depends on carrier networks, device
-                settings, call screening tools, and other factors outside our
-                control.
+                Delivery of calls depends on carrier networks, device settings,
+                call screening tools, and other factors outside our control.
               </p>
             </div>
           </section>
@@ -266,10 +306,10 @@ function TermsPage() {
                 may be subject to them.
               </p>
               <p>
-                We are not responsible for outages, delays, or errors caused
-                by third-party services or carrier networks. If a provider
-                changes its terms or availability, we may need to adjust the
-                service accordingly.
+                We are not responsible for outages, delays, or errors caused by
+                third-party services or carrier networks. If a provider changes
+                its terms or availability, we may need to adjust the service
+                accordingly.
               </p>
             </div>
           </section>
@@ -300,9 +340,9 @@ function TermsPage() {
                 your subscription is active and you comply with these terms.
               </p>
               <p>
-                You may not copy, modify, distribute, sell, or create
-                derivative works from the service or its AI models unless we
-                explicitly allow it in writing.
+                You may not copy, modify, distribute, sell, or create derivative
+                works from the service or its AI models unless we explicitly
+                allow it in writing.
               </p>
             </div>
           </section>
@@ -311,8 +351,11 @@ function TermsPage() {
             <Heading type={2}>Privacy</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
-                Your use of Ultaura is also governed by our Privacy Policy,
-                which explains how we collect, use, and protect your
+                Your use of Ultaura is also governed by our{' '}
+                <Link className="underline" href="/privacy">
+                  Privacy Policy
+                </Link>
+                , which explains how we collect, use, and protect your
                 information, including call data, reminders, and wellness
                 insights.
               </p>
@@ -328,15 +371,14 @@ function TermsPage() {
             <Heading type={2}>Disclaimers</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
-                We provide the service on an &quot;as is&quot; and &quot;as available&quot;
-                basis. We do our best to be reliable, but we don&apos;t guarantee
-                uninterrupted service, specific outcomes, or that AI responses
-                will always be accurate or appropriate.
+                We provide the service on an &quot;as is&quot; and &quot;as
+                available&quot; basis. We do our best to be reliable, but we
+                don&apos;t guarantee uninterrupted service, specific outcomes,
+                or that AI responses will always be accurate or appropriate.
               </p>
               <p>
                 You are responsible for how you use the service and for
-                verifying any information or recommendations provided by the
-                AI.
+                verifying any information or recommendations provided by the AI.
               </p>
             </div>
           </section>
@@ -351,9 +393,36 @@ function TermsPage() {
               </p>
               <p>
                 Our total liability for any claim is limited to the amount you
-                paid to Ultaura in the three months before the event giving
-                rise to the claim, unless a different limit is required by law.
+                paid to Ultaura in the three months before the event giving rise
+                to the claim, unless a different limit is required by law.
               </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Indemnification</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                You agree to indemnify, defend, and hold harmless Ultaura, its
+                officers, directors, employees, and agents from and against any
+                claims, damages, losses, liabilities, costs, or expenses
+                (including reasonable legal fees) arising from:
+              </p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>Your use of the service in violation of these terms.</li>
+                <li>
+                  Your failure to obtain required consent from line recipients
+                  or trusted contacts.
+                </li>
+                <li>
+                  Content or information you provide that infringes third-party
+                  rights.
+                </li>
+                <li>
+                  Your violation of applicable laws or regulations, including
+                  call recording, privacy, and telephony laws.
+                </li>
+              </ul>
             </div>
           </section>
 
@@ -362,27 +431,27 @@ function TermsPage() {
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
                 Except as noted below, any dispute, claim, or controversy
-                arising out of or relating to these terms or the service will
-                be resolved by binding individual arbitration under the Federal
+                arising out of or relating to these terms or the service will be
+                resolved by binding individual arbitration under the Federal
                 Arbitration Act. Arbitration will be administered by a
-                recognized provider and may take place by phone, video, or in
-                a location reasonably convenient to you.
+                recognized provider and may take place by phone, video, or in a
+                location reasonably convenient to you.
               </p>
               <p>
                 You may opt out of arbitration by emailing{' '}
                 <a className="underline" href="mailto:support@ultaura.com">
                   support@ultaura.com
                 </a>{' '}
-                within 30 days of first accepting these terms (or within 30
-                days of any material update). Your request must include your
-                name, the account email, and a clear statement that you want to
-                opt out of arbitration.
+                within 30 days of first accepting these terms (or within 30 days
+                of any material update). Your request must include your name,
+                the account email, and a clear statement that you want to opt
+                out of arbitration.
               </p>
               <p>
                 Exceptions: Either party may bring an individual claim in small
                 claims court, and either party may seek injunctive or equitable
-                relief to protect intellectual property or prevent misuse of
-                the service.
+                relief to protect intellectual property or prevent misuse of the
+                service.
               </p>
             </div>
           </section>
@@ -392,8 +461,8 @@ function TermsPage() {
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
                 To the maximum extent permitted by law, you and Ultaura agree
-                that disputes will be brought only in an individual capacity
-                and not as a plaintiff or class member in any purported class,
+                that disputes will be brought only in an individual capacity and
+                not as a plaintiff or class member in any purported class,
                 collective, consolidated, or representative action.
               </p>
             </div>
@@ -403,11 +472,11 @@ function TermsPage() {
             <Heading type={2}>Governing Law & Venue</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
-                These terms are governed by the laws of the State of New
-                Jersey, excluding its conflict of law rules. If a dispute is
-                not subject to arbitration or you opt out, you and Ultaura
-                agree to the exclusive jurisdiction and venue of the state or
-                federal courts located in New Jersey.
+                These terms are governed by the laws of the State of New Jersey,
+                excluding its conflict of law rules. If a dispute is not subject
+                to arbitration or you opt out, you and Ultaura agree to the
+                exclusive jurisdiction and venue of the state or federal courts
+                located in New Jersey.
               </p>
             </div>
           </section>
@@ -431,6 +500,48 @@ function TermsPage() {
           </section>
 
           <section className="space-y-4">
+            <Heading type={2}>Severability</Heading>
+            <p className="text-lg text-muted-foreground">
+              If any provision of these terms is found to be unenforceable or
+              invalid by a court of competent jurisdiction, the remaining
+              provisions will continue in full force and effect.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Entire Agreement</Heading>
+            <p className="text-lg text-muted-foreground">
+              These terms, together with the{' '}
+              <Link className="underline" href="/privacy">
+                Privacy Policy
+              </Link>
+              , constitute the entire agreement between you and Ultaura
+              regarding your use of the service and supersede any prior
+              agreements, communications, or understandings on the same subject.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Force Majeure</Heading>
+            <p className="text-lg text-muted-foreground">
+              Ultaura is not liable for any failure or delay in performance
+              caused by events beyond our reasonable control, including natural
+              disasters, pandemics, government actions, internet or
+              telecommunications outages, third-party service provider failures,
+              power outages, or acts of war or terrorism.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Waiver</Heading>
+            <p className="text-lg text-muted-foreground">
+              Our failure to enforce any provision of these terms at any time
+              does not waive our right to enforce that provision or any other
+              provision in the future.
+            </p>
+          </section>
+
+          <section className="space-y-4">
             <Heading type={2}>Changes to These Terms</Heading>
             <p className="text-lg text-muted-foreground">
               We may update these terms as the service evolves. If changes are
@@ -443,7 +554,11 @@ function TermsPage() {
             <Heading type={2}>Contact Us</Heading>
             <p className="text-lg text-muted-foreground">
               Questions about these terms? Email{' '}
-              <a className="underline" href="mailto:support@ultaura.com">
+              <a
+                className="underline"
+                href="mailto:support@ultaura.com"
+                aria-label="Email Ultaura support"
+              >
                 support@ultaura.com
               </a>
               .
@@ -452,6 +567,15 @@ function TermsPage() {
               Ultaura, 725 Joralemon St Unit 127, Belleville, NJ 07109.
             </p>
           </section>
+
+          <div className="pt-8 text-center">
+            <a
+              href="#top"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Back to top
+            </a>
+          </div>
         </div>
       </Container>
     </div>

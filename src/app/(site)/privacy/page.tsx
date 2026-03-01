@@ -1,19 +1,25 @@
+import type { Metadata } from 'next';
+
 import Container from '~/core/ui/Container';
 import Heading from '~/core/ui/Heading';
 import SubHeading from '~/core/ui/SubHeading';
 import { withI18n } from '~/i18n/with-i18n';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Privacy Policy - Ultaura',
   description:
-    "How Ultaura protects your family's data. AES-256 encryption, no recordings stored, HIPAA-compliant practices. Full privacy policy.",
+    "How Ultaura protects your family's data. AES-256 encryption, granular consent controls, and full transparency. Read our complete privacy policy.",
+  alternates: {
+    canonical: '/privacy',
+  },
 };
 
 const LAST_UPDATED = 'February 5, 2026';
+const EFFECTIVE_DATE = 'February 5, 2026';
 
 function PrivacyPage() {
   return (
-    <div className="flex flex-col space-y-16 pb-24">
+    <div id="top" className="flex flex-col space-y-16 pb-24">
       <div className="bg-primary/10 py-24">
         <Container>
           <div className="flex flex-col items-center text-center space-y-6">
@@ -23,7 +29,7 @@ function PrivacyPage() {
               collect, how we use it, and the controls you have.
             </SubHeading>
             <p className="text-sm text-muted-foreground">
-              Last updated: {LAST_UPDATED}
+              Effective: {EFFECTIVE_DATE} | Last updated: {LAST_UPDATED}
             </p>
           </div>
         </Container>
@@ -56,11 +62,22 @@ function PrivacyPage() {
               </li>
               <li>
                 You choose retention periods (30, 90, 365 days, or indefinite)
-                and can export or delete data in the Privacy Center.
+                and can export or delete data in the{' '}
+                <a className="underline" href="/dashboard/privacy">
+                  Privacy Center
+                </a>
+                .
               </li>
               <li>
-                Sensitive data is encrypted, access is restricted, and we do
-                not sell personal information.
+                Sensitive data is encrypted, access is restricted, and we do not
+                sell personal information.
+              </li>
+              <li>
+                We use essential cookies and limited analytics. We do not use
+                tracking cookies for advertising.
+              </li>
+              <li>
+                Your call data is never used to train third-party AI models.
               </li>
             </ul>
             <p className="text-sm text-muted-foreground">
@@ -73,10 +90,10 @@ function PrivacyPage() {
             <Heading type={2}>Scope</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
-                This policy applies to Ultaura&apos;s website, dashboard, and voice
-                companion service. It covers data collected from account owners
-                (payers), line recipients (the person receiving calls), and
-                trusted contacts.
+                This policy applies to Ultaura&apos;s website, dashboard, and
+                voice companion service. It covers data collected from account
+                owners (payers), line recipients (the person receiving calls),
+                and trusted contacts.
               </p>
               <p>
                 Account owners manage the service. Line recipients control
@@ -91,8 +108,8 @@ function PrivacyPage() {
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
                 Ultaura places scheduled check-in calls using telephony
-                providers and connects the call to our AI voice companion.
-                Audio is processed in real time so the conversation can happen.
+                providers and connects the call to our AI voice companion. Audio
+                is processed in real time so the conversation can happen.
               </p>
               <p>
                 After a call, we store call metadata and optional encrypted
@@ -101,8 +118,8 @@ function PrivacyPage() {
               </p>
               <p>
                 Safety monitoring may flag concerning content. When enabled, it
-                can trigger wellness alerts to trusted contacts with the
-                minimal details needed to act.
+                can trigger wellness alerts to trusted contacts with the minimal
+                details needed to act.
               </p>
             </div>
           </section>
@@ -178,7 +195,42 @@ function PrivacyPage() {
                 <li>Deliver safety monitoring and wellness alerts.</li>
                 <li>Manage billing, minutes, and subscriptions.</li>
                 <li>Respond to support requests and user feedback.</li>
-                <li>Maintain reliability, prevent abuse, and secure accounts.</li>
+                <li>
+                  Maintain reliability, prevent abuse, and secure accounts.
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Legal Bases for Processing (GDPR)</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                If you are located in the European Economic Area (EEA) or United
+                Kingdom, we process your personal data under one or more of the
+                following legal bases:
+              </p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>
+                  <strong>Consent:</strong> For optional features such as call
+                  recordings, sharing preferences, and non-essential cookies.
+                  You can withdraw consent at any time.
+                </li>
+                <li>
+                  <strong>Contractual necessity:</strong> To deliver the service
+                  you signed up for, including making scheduled calls, storing
+                  memory notes, processing payments, and managing your account.
+                </li>
+                <li>
+                  <strong>Legitimate interest:</strong> To maintain service
+                  reliability, detect abuse, improve safety monitoring, and
+                  perform basic analytics, balanced against your rights and
+                  expectations.
+                </li>
+                <li>
+                  <strong>Legal obligation:</strong> To comply with tax,
+                  billing, fraud prevention, and regulatory requirements.
+                </li>
               </ul>
             </div>
           </section>
@@ -208,15 +260,18 @@ function PrivacyPage() {
                   summaries and insights.
                 </li>
                 <li>
-                  Retention controls and deletion requests are available in the
-                  Privacy Center.
+                  Retention controls and deletion requests are available in the{' '}
+                  <a className="underline" href="/dashboard/privacy">
+                    Privacy Center
+                  </a>
+                  .
                 </li>
               </ul>
             </div>
           </section>
 
           <section className="space-y-4">
-            <Heading type={2}>Recordings</Heading>
+            <Heading type={2}>Recordings & Jurisdiction Compliance</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
                 Recordings are optional. If enabled, we request clear consent
@@ -227,6 +282,14 @@ function PrivacyPage() {
                 Recordings, if stored, are encrypted and subject to retention
                 settings. If recording is disabled or consent is revoked, we do
                 not record the call.
+              </p>
+              <p>
+                <strong>Recording laws vary by jurisdiction.</strong> Some U.S.
+                states (including California, Illinois, Florida, and others)
+                require all-party consent before a call may be recorded. Ultaura
+                always requests explicit verbal consent from the call recipient
+                before any recording begins, regardless of the jurisdiction. We
+                do not record any portion of a call without confirmed consent.
               </p>
             </div>
           </section>
@@ -279,7 +342,7 @@ function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <Heading type={2}>AI Processing & Automation</Heading>
+            <Heading type={2}>AI Processing & Model Training</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
                 Ultaura uses AI to power conversations, summarize calls, and
@@ -289,6 +352,18 @@ function PrivacyPage() {
               <p>
                 Automated outputs are filtered to honor sharing tiers, topic
                 exclusions, and consent settings.
+              </p>
+              <p>
+                <strong>
+                  Your call data is never used to train AI models.
+                </strong>{' '}
+                We do not share call audio, transcripts, memory notes, or
+                personal information with any AI provider for the purpose of
+                model training or improvement. Our AI providers process data
+                solely to deliver real-time conversation and are contractually
+                prohibited from using your data for training. If this policy
+                ever changes, we will notify you in advance and provide a clear
+                opt-out.
               </p>
             </div>
           </section>
@@ -310,6 +385,50 @@ function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
+            <Heading type={2}>Cookies & Tracking Technologies</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                We use cookies and similar technologies to operate the service
+                and understand how it is used.
+              </p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>
+                  <strong>Essential cookies:</strong> Required for
+                  authentication, session management, and security. These cannot
+                  be disabled without breaking core functionality.
+                </li>
+                <li>
+                  <strong>Preference cookies:</strong> Store your language,
+                  theme, and display settings so you do not need to reconfigure
+                  them on each visit.
+                </li>
+                <li>
+                  <strong>Analytics cookies:</strong> Help us understand usage
+                  patterns, page performance, and error rates. Analytics data is
+                  aggregated and is not used to build advertising profiles.
+                </li>
+              </ul>
+              <p>
+                <strong>
+                  We do not use third-party advertising or tracking cookies.
+                </strong>{' '}
+                We do not serve ads, participate in ad networks, or allow
+                third-party trackers that follow you across other websites.
+              </p>
+              <p>
+                We also use browser local storage to persist dashboard
+                preferences and session tokens. This data stays on your device
+                and is not transmitted to third parties.
+              </p>
+              <p>
+                You can manage cookie preferences through our cookie consent
+                banner or through your browser settings. Blocking essential
+                cookies may prevent you from using the dashboard.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <Heading type={2}>Retention & Deletion</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
@@ -321,7 +440,11 @@ function PrivacyPage() {
               <ul className="list-disc space-y-2 pl-5">
                 <li>
                   You can delete privacy data (memories, insights, recordings)
-                  from the Privacy Center.
+                  from the{' '}
+                  <a className="underline" href="/dashboard/privacy">
+                    Privacy Center
+                  </a>
+                  .
                 </li>
                 <li>
                   Call metadata, billing records, and user-created schedules are
@@ -352,16 +475,54 @@ function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <Heading type={2}>Service Providers</Heading>
+            <Heading type={2}>Service Providers & Sub-Processors</Heading>
             <div className="space-y-3 text-lg text-muted-foreground">
               <p>
-                We use trusted providers for telephony, AI processing, cloud
-                infrastructure, data storage, payments, and email delivery.
-                These providers may process data on our behalf under
-                confidentiality and security obligations.
+                We use trusted providers to deliver the service. These providers
+                process data on our behalf under confidentiality and security
+                obligations. We share only what is needed for them to perform
+                their function.
               </p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>
+                  <strong>Twilio</strong> &mdash; Telephony infrastructure for
+                  placing and receiving calls, phone number verification, and
+                  SMS delivery.
+                </li>
+                <li>
+                  <strong>xAI</strong> &mdash; AI voice processing for real-time
+                  conversation during calls.
+                </li>
+                <li>
+                  <strong>OpenAI</strong> &mdash; Safety classification for
+                  detecting concerning content during calls.
+                </li>
+                <li>
+                  <strong>Supabase</strong> &mdash; Cloud database
+                  infrastructure and authentication.
+                </li>
+                <li>
+                  <strong>Stripe</strong> &mdash; Payment processing,
+                  subscription management, and billing.
+                </li>
+                <li>
+                  <strong>Resend</strong> &mdash; Transactional and notification
+                  email delivery.
+                </li>
+                <li>
+                  <strong>Sentry</strong> &mdash; Error monitoring and
+                  performance diagnostics (no personal content is sent).
+                </li>
+                <li>
+                  <strong>Vercel</strong> &mdash; Web application hosting and
+                  edge delivery.
+                </li>
+              </ul>
               <p>
-                We share only what is needed for them to deliver the service.
+                Each provider is contractually required to protect your data and
+                use it only for the purposes we specify. We review our
+                sub-processors periodically and will update this list if
+                material changes occur.
               </p>
             </div>
           </section>
@@ -408,12 +569,15 @@ function PrivacyPage() {
                 <li>
                   Opting out of the sale or sharing of personal information,
                   targeted advertising, and profiling in furtherance of
-                  decisions that produce legal or similarly significant
-                  effects.
+                  decisions that produce legal or similarly significant effects.
                 </li>
               </ul>
               <p>
-                To exercise these rights, use the Privacy Center or email{' '}
+                To exercise these rights, use the{' '}
+                <a className="underline" href="/dashboard/privacy">
+                  Privacy Center
+                </a>{' '}
+                or email{' '}
                 <a className="underline" href="mailto:support@ultaura.com">
                   support@ultaura.com
                 </a>
@@ -453,12 +617,88 @@ function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <Heading type={2}>International Processing</Heading>
-            <p className="text-lg text-muted-foreground">
-              Ultaura is a U.S.-based service. Your information may be processed
-              in the United States and other locations where our service
-              providers operate.
-            </p>
+            <Heading type={2}>
+              European & International Privacy Rights (GDPR)
+            </Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                If you are located in the EEA, United Kingdom, or Switzerland,
+                you have the following additional rights under the General Data
+                Protection Regulation (GDPR) and equivalent local laws:
+              </p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>
+                  <strong>Right of access:</strong> Request a copy of the
+                  personal data we hold about you.
+                </li>
+                <li>
+                  <strong>Right to rectification:</strong> Ask us to correct
+                  inaccurate or incomplete data.
+                </li>
+                <li>
+                  <strong>Right to erasure:</strong> Request deletion of your
+                  personal data, subject to legal retention requirements.
+                </li>
+                <li>
+                  <strong>Right to restrict processing:</strong> Ask us to limit
+                  how we use your data while a dispute or request is being
+                  resolved.
+                </li>
+                <li>
+                  <strong>Right to data portability:</strong> Receive your data
+                  in a structured, commonly used, machine-readable format.
+                </li>
+                <li>
+                  <strong>Right to object:</strong> Object to processing based
+                  on legitimate interest or for direct marketing purposes.
+                </li>
+                <li>
+                  <strong>Right to withdraw consent:</strong> Withdraw consent
+                  at any time for processing based on consent, without affecting
+                  the lawfulness of prior processing.
+                </li>
+                <li>
+                  <strong>Right to lodge a complaint:</strong> File a complaint
+                  with your local data protection supervisory authority if you
+                  believe your rights have been violated.
+                </li>
+              </ul>
+              <p>
+                To exercise any of these rights, email{' '}
+                <a
+                  className="underline"
+                  href="mailto:support@ultaura.com"
+                  aria-label="Email Ultaura support"
+                >
+                  support@ultaura.com
+                </a>{' '}
+                with the subject line &quot;GDPR Request.&quot; We will respond
+                within 30 days (or sooner if required by applicable law).
+              </p>
+              <p>
+                Ultaura does not currently appoint a Data Protection Officer.
+                For privacy inquiries, contact us at the email or mailing
+                address listed in the Contact section below.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>International Processing & Transfers</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                Ultaura is a U.S.-based service. Your information may be
+                processed in the United States and other locations where our
+                service providers operate.
+              </p>
+              <p>
+                If your data is transferred outside of the EEA, UK, or
+                Switzerland, we rely on appropriate safeguards such as Standard
+                Contractual Clauses (SCCs) approved by the European Commission,
+                or equivalent mechanisms recognized by applicable law, to
+                protect your data during transfer.
+              </p>
+            </div>
           </section>
 
           <section className="space-y-4">
@@ -470,19 +710,86 @@ function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
+            <Heading type={2}>
+              Protections for Seniors & Vulnerable Users
+            </Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                Ultaura is designed for older adults, and we take extra care to
+                protect this population.
+              </p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>
+                  <strong>Cognitive accessibility:</strong> Consent mechanisms
+                  are designed to be simple and direct. During calls, consent
+                  requests use clear, plain language and are confirmed verbally.
+                </li>
+                <li>
+                  <strong>Guardian and power of attorney access:</strong> If a
+                  legal guardian, conservator, or holder of power of attorney
+                  needs to manage an account or exercise privacy rights on
+                  behalf of a line recipient, they can contact support with
+                  documentation of their legal authority. We will verify the
+                  documentation and provide access or act on the request
+                  accordingly.
+                </li>
+                <li>
+                  <strong>Safety-first design:</strong> The safety monitoring
+                  system is calibrated to detect signs of distress, confusion,
+                  or declining wellbeing. When concerns arise, we prioritize the
+                  safety of the individual over feature functionality.
+                </li>
+                <li>
+                  <strong>Minimal data exposure:</strong> Sharing tiers,
+                  redaction, and topic exclusions ensure that sensitive personal
+                  details shared during calls are not unnecessarily exposed to
+                  family members or contacts.
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <Heading type={2}>Data Breach Notification</Heading>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                In the event of a data breach that affects your personal
+                information, we will notify affected users without undue delay
+                and within the timeframes required by applicable law (including
+                72 hours where required under GDPR and as specified by U.S.
+                state breach notification laws).
+              </p>
+              <p>
+                Notifications will include a description of the breach, the
+                types of data involved, the steps we are taking to address it,
+                and recommendations for protecting yourself. We will also notify
+                relevant regulatory authorities as required.
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <Heading type={2}>Changes to This Policy</Heading>
-            <p className="text-lg text-muted-foreground">
-              We may update this policy from time to time. If changes are
-              material, we will provide notice on this page or in your
-              dashboard.
-            </p>
+            <div className="space-y-3 text-lg text-muted-foreground">
+              <p>
+                We may update this policy from time to time. If changes are
+                material, we will provide notice on this page or in your
+                dashboard. The &quot;Last updated&quot; and
+                &quot;Effective&quot; dates at the top of this page reflect when
+                the most recent version took effect.
+              </p>
+            </div>
           </section>
 
           <section className="space-y-4">
             <Heading type={2}>Contact Us</Heading>
             <p className="text-lg text-muted-foreground">
               Questions about privacy? Email{' '}
-              <a className="underline" href="mailto:support@ultaura.com">
+              <a
+                className="underline"
+                href="mailto:support@ultaura.com"
+                aria-label="Email Ultaura support"
+              >
                 support@ultaura.com
               </a>
               .
@@ -491,6 +798,15 @@ function PrivacyPage() {
               Ultaura, 725 Joralemon St Unit 127, Belleville, NJ 07109.
             </p>
           </section>
+
+          <div className="pt-8 text-center">
+            <a
+              href="#top"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Back to top
+            </a>
+          </div>
         </div>
       </Container>
     </div>
