@@ -266,8 +266,8 @@ export function HeroDashboardPreview() {
           title="Coming soon"
           className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium cursor-not-allowed ring-1 ring-primary"
         >
-          <SpeakerWaveIcon className="h-4 w-4 text-foreground shrink-0" />
-          <span><span className="text-foreground">Listen to </span><span className="font-semibold text-primary">Ultaura</span></span>
+          <SpeakerWaveIcon className="h-4 w-4 text-primary shrink-0" />
+          <span><span className="text-foreground">Listen to </span><span className="text-foreground">Ultaura</span></span>
         </button>
       </div>
 
