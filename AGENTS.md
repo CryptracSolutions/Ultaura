@@ -44,7 +44,7 @@ You MUST:
    - **Medium**: 4-6 files, multiple concerns/issues/bugs, 5+ steps -> MUST delegate
    - **Large**: 7+ files, architectural changes, 10+ steps -> MUST delegate
 
-2. **Confirm with user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
+2. **Confirm to the user**: "This looks like a [size] task involving [X files/areas]. Proceeding with [delegation/direct] workflow."
 
 ## For Medium/Large Tasks: Mandatory Delegation via Codex Sub-Agents
 
@@ -54,11 +54,11 @@ You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Use `/agent` to launch up to 4 `explorer` agents | **ALWAYS** |
+| 1 | Understand current state of codebase | Use `/agent` to launch up to 5 `explorer` agents | **ALWAYS** |
 | 2 | Enter plan mode | `update_plan` | **ALWAYS** |
 | 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarifications needed |
 | 4 | Create shared task list | `update_plan` with explicit step breakdown | If 5+ steps | **ALWAYS** |
-| 5 | Spawn `worker` agents for implementation | Use `/agent` to launch up to 4 `worker` agents in parallel | **ALWAYS** |
+| 5 | Spawn `worker` agents for implementation | Use `/agent` to launch up to 5 `worker` agents in parallel | **ALWAYS** |
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
 | 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
@@ -69,8 +69,8 @@ You MUST follow these steps IN ORDER:
 
 - Spawn agents using `/agent` and assign a clear role (`explorer`/`worker`/`monitor`/`reviewer`/`planner`/`simplifier`).
 - **Always use `model: gpt-5.3-codex`** for ALL agent types
-- **Max 4 explorer agents** in parallel
-- **Max 4 worker agents** in parallel (to avoid file conflicts)
+- **Max 5 explorer agents** in parallel
+- **Max 5 worker agents** in parallel (to avoid file conflicts)
 - **Use explicit coordinator messages** for task handoffs and blockers
 - **Use `update_plan`** as the shared coordination board
 - **Shutdown gracefully** after all delegated tasks and verification complete
