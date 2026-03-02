@@ -32,8 +32,8 @@ function MultiFactorAuthSetupModal(
 
   return (
     <Modal
-      heading="New authentication method"
-      description="Scan the QR code and confirm your authenticator app."
+      heading={<Trans i18nKey={'profile:setupTotpModalHeading'} />}
+      description={<Trans i18nKey={'profile:setupTotpModalDescription'} />}
       isOpen={props.isOpen}
       setIsOpen={props.setIsOpen}
     >
@@ -229,12 +229,7 @@ function FactorQrCode({
           <Trans i18nKey={'profile:qrCodeError'} />
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="small"
-          onClick={onCancel}
-        >
+        <Button type="button" variant="outline" size="small" onClick={onCancel}>
           <Trans i18nKey={'common:cancel'} />
         </Button>
       </div>

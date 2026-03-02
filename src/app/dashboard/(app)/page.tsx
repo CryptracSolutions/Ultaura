@@ -27,6 +27,7 @@ import { getLineActivity, getUsageSummary } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import Button from '~/core/ui/Button';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
+import { MfaNudgeBanner } from '~/components/ultaura/MfaNudgeBanner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const RATE_CENTS = BILLING.OVERAGE_RATE_CENTS;
@@ -265,6 +266,7 @@ async function DashboardPage() {
       <PageBody>
         <div className="flex flex-col space-y-6 pb-24">
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+          <MfaNudgeBanner />
 
           {/* Alerts */}
           {(unverifiedCount > 0 || (usage && !isPayg && !isOnTrial && usage.minutesRemaining <= 5)) && (

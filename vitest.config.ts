@@ -11,6 +11,10 @@ export default defineConfig({
     include: [
       'src/lib/ultaura/__tests__/**/*.test.ts',
       'src/lib/emails/__tests__/**/*.test.ts',
+      'src/lib/server/__tests__/**/*.test.ts',
+      'src/lib/server/cookies/__tests__/**/*.test.ts',
+      'src/app/auth/components/__tests__/**/*.test.ts',
+      'src/components/ultaura/__tests__/**/*.test.ts',
     ],
     environment: 'node',
     setupFiles: ['src/lib/ultaura/__tests__/setup.ts'],

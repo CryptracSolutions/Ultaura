@@ -1,18 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { isTrustedDevice } from '~/lib/server/cookies/trusted-device.cookie';
+
 const ASSURANCE_LEVEL_2 = 'aal2';
 
-/**
- * @name checkSessionRequiresMultiFactorAuthentication
- * @description Checks if the current session requires multi-factor authentication.
- * We do it by checking that the next assurance level is AAL2 and that the current assurance level is not AAL2.
- * @param client
- */
 async function checkSessionRequiresMultiFactorAuthentication(
   client: SupabaseClient,
+  options?: { userId?: string; factorIds?: string[] },
 ) {
-  // Suppress the getSession warning. Remove when the issue is fixed.
-  // https://github.com/supabase/auth-js/issues/873
   // @ts-expect-error: suppressGetSessionWarning is not part of the public API
   client.auth.suppressGetSessionWarning = true;
 
@@ -26,8 +21,43 @@ async function checkSessionRequiresMultiFactorAuthentication(
   }
 
   const { nextLevel, currentLevel } = assuranceLevel.data;
+  const mfaRequired =
+    nextLevel === ASSURANCE_LEVEL_2 && nextLevel !== currentLevel;
 
-  return nextLevel === ASSURANCE_LEVEL_2 && nextLevel !== currentLevel;
+  if (!mfaRequired) {
+    return false;
+  }
+
+  let userId = options?.userId;
+  let factorIds = options?.factorIds;
+
+  if (!userId || !factorIds) {
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+
+    userId = user?.id;
+
+    if (userId && !factorIds) {
+      const { data: factors } = await client.auth.mfa.listFactors();
+
+      factorIds = [...(factors?.totp ?? []), ...(factors?.phone ?? [])].map(
+        (f) => f.id,
+      );
+    }
+  }
+
+  if (userId && factorIds?.length) {
+    try {
+      const trusted = isTrustedDevice(userId, factorIds);
+
+      if (trusted) return false;
+    } catch {
+      // If trusted device check fails, fall through to require normal MFA.
+    }
+  }
+
+  return true;
 }
 
 export default checkSessionRequiresMultiFactorAuthentication;

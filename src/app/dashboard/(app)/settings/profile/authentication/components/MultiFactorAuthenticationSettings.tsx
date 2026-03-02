@@ -6,7 +6,7 @@ import { Factor } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { Info } from 'lucide-react';
+import { Info, Shield, Smartphone } from 'lucide-react';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 
@@ -24,6 +24,8 @@ import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
 
 import SettingsTile from '../../../components/SettingsTile';
 import MultiFactorAuthSetupModal from '../../components/MultiFactorAuthSetupModal';
+import PhoneMfaSetupModal from '../../components/PhoneMfaSetupModal';
+import { clearTrustedDeviceAction } from '~/lib/ultaura/trusted-device-actions';
 
 import {
   Table,
@@ -38,6 +40,7 @@ const MAX_FACTOR_COUNT = 10;
 
 function MultiFactorAuthenticationSettings() {
   const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
+  const [isPhoneMfaModalOpen, setIsPhoneMfaModalOpen] = useState(false);
 
   return (
     <div className="pb-12">
@@ -46,13 +49,19 @@ function MultiFactorAuthenticationSettings() {
         subHeading={<Trans i18nKey={'profile:multiFactorAuthSubheading'} />}
       >
         <MultiFactorAuthFactorsList
-          onEnrollRequested={() => setIsMfaModalOpen(true)}
+          setIsModalOpen={setIsMfaModalOpen}
+          setIsPhoneModalOpen={setIsPhoneMfaModalOpen}
         />
       </SettingsTile>
 
       <MultiFactorAuthSetupModal
         isOpen={isMfaModalOpen}
         setIsOpen={setIsMfaModalOpen}
+      />
+
+      <PhoneMfaSetupModal
+        isOpen={isPhoneMfaModalOpen}
+        setIsOpen={setIsPhoneMfaModalOpen}
       />
     </div>
   );
@@ -61,10 +70,12 @@ function MultiFactorAuthenticationSettings() {
 export default MultiFactorAuthenticationSettings;
 
 function MultiFactorAuthFactorsList({
-  onEnrollRequested,
-}: React.PropsWithChildren<{
-  onEnrollRequested: () => void;
-}>) {
+  setIsModalOpen,
+  setIsPhoneModalOpen,
+}: {
+  setIsModalOpen: (isOpen: boolean) => void;
+  setIsPhoneModalOpen: (isOpen: boolean) => void;
+}) {
   const { data: factors, isLoading, error } = useFetchAuthFactors();
   const [unEnrolling, setUnenrolling] = useState<string>();
 
@@ -104,7 +115,23 @@ function MultiFactorAuthFactorsList({
           </div>
         </div>
 
-        <SetupMfaButton onClick={onEnrollRequested} />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            <Trans i18nKey={'profile:setupTotpButtonLabel'} />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsPhoneModalOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Smartphone className="h-4 w-4 mr-2" />
+            <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />
+          </Button>
+        </div>
       </div>
     );
   }
@@ -115,8 +142,31 @@ function MultiFactorAuthFactorsList({
     <div className={'flex flex-col space-y-4'}>
       <FactorsTable factors={allFactors} setUnenrolling={setUnenrolling} />
 
-      <If condition={canAddNewFactors}>
-        <SetupMfaButton onClick={onEnrollRequested} />
+      <If
+        condition={canAddNewFactors}
+        fallback={
+          <p className="text-sm text-muted-foreground">
+            <Trans i18nKey={'profile:maxFactorsReached'} />
+          </p>
+        }
+      >
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            <Trans i18nKey={'profile:setupTotpButtonLabel'} />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsPhoneModalOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Smartphone className="h-4 w-4 mr-2" />
+            <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />
+          </Button>
+        </div>
       </If>
 
       <If condition={unEnrolling}>
@@ -127,20 +177,6 @@ function MultiFactorAuthFactorsList({
           />
         )}
       </If>
-    </div>
-  );
-}
-
-function SetupMfaButton(
-  props: React.PropsWithChildren<{
-    onClick: () => void;
-  }>,
-) {
-  return (
-    <div>
-      <Button variant="default" onClick={props.onClick} className="w-full sm:w-auto">
-        <Trans i18nKey={'profile:setupMfaButtonLabel'} />
-      </Button>
     </div>
   );
 }
@@ -158,8 +194,15 @@ function ConfirmUnenrollFactorModal(
     async (factorId: string) => {
       if (unEnroll.isMutating) return;
 
-      const promise = unEnroll.trigger(factorId).then(() => {
+      const promise = unEnroll.trigger(factorId).then(async () => {
         props.setIsModalOpen(false);
+
+        // After the unenroll succeeds, also clear trusted device
+        try {
+          await clearTrustedDeviceAction();
+        } catch {
+          // Silently ignore — trusted device cleanup is best-effort
+        }
       });
 
       toast.promise(promise, {
@@ -241,7 +284,11 @@ function FactorsTable({
 
             <TableCell>
               <Badge size={'small'} className={'inline-flex uppercase'}>
-                {factor.factor_type}
+                {factor.factor_type === 'phone' ? (
+                  <Trans i18nKey={'profile:factorTypeSms'} />
+                ) : (
+                  <Trans i18nKey={'profile:factorTypeTotp'} />
+                )}
               </Badge>
             </TableCell>
 
