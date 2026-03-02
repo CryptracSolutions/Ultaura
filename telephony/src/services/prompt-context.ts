@@ -18,7 +18,10 @@ const TOPIC_LABELS: Record<string, string> = {
   requests: 'Requests',
 };
 
-export function sanitizePromptValue(value: string, maxLength: number = 140): string {
+export function sanitizePromptValue(
+  value: string,
+  maxLength: number = 140,
+): string {
   return value
     .replace(/[\r\n\t]+/g, ' ')
     .replace(/\s{2,}/g, ' ')
@@ -29,7 +32,10 @@ export function sanitizePromptValue(value: string, maxLength: number = 140): str
     .slice(0, maxLength);
 }
 
-function formatList(items: string[] | null | undefined, fallback: string): string {
+function formatList(
+  items: string[] | null | undefined,
+  fallback: string,
+): string {
   const cleaned = (items ?? [])
     .map((item) => sanitizePromptValue(item))
     .filter(Boolean);
@@ -55,6 +61,25 @@ function formatTimeOfDay(now: DateTime): 'morning' | 'afternoon' | 'evening' {
   return 'evening';
 }
 
+function pickTimeOfDayValue(options: {
+  timeOfDay: 'morning' | 'afternoon' | 'evening';
+  morningValue?: string | null;
+  afternoonValue?: string | null;
+  eveningValue?: string | null;
+  fallback: string;
+}): string {
+  if (options.timeOfDay === 'morning' && options.morningValue) {
+    return options.morningValue;
+  }
+  if (options.timeOfDay === 'afternoon' && options.afternoonValue) {
+    return options.afternoonValue;
+  }
+  if (options.timeOfDay === 'evening' && options.eveningValue) {
+    return options.eveningValue;
+  }
+  return options.fallback;
+}
+
 function formatRelationshipLine(options: {
   name: string;
   role: string;
@@ -71,7 +96,10 @@ function formatRelationshipLine(options: {
   ].filter(Boolean);
 
   const activity = options.sharedActivities?.length
-    ? `Shared: ${options.sharedActivities.slice(0, 2).map((item) => sanitizePromptValue(item)).join(', ')}`
+    ? `Shared: ${options.sharedActivities
+        .slice(0, 2)
+        .map((item) => sanitizePromptValue(item))
+        .join(', ')}`
     : null;
 
   const description = parts.length ? ` (${parts.join(', ')})` : '';
@@ -79,7 +107,11 @@ function formatRelationshipLine(options: {
   return `- ${sanitizePromptValue(options.name)}${description}${activityNote}`;
 }
 
-function formatMilestoneLine(title: string, type: string, person?: string | null): string {
+function formatMilestoneLine(
+  title: string,
+  type: string,
+  person?: string | null,
+): string {
   const cleanTitle = sanitizePromptValue(title);
   const cleanType = sanitizePromptValue(type);
   const personNote = person ? ` for ${sanitizePromptValue(person)}` : '';
@@ -93,9 +125,54 @@ function formatCallSummary(options: {
   engagement: string;
 }): string {
   const dateLabel = DateTime.fromISO(options.occurredAt).toFormat('MMM d');
-  const topicsLabel = options.topics.length ? options.topics.join(', ') : 'General chat';
+  const topicsLabel = options.topics.length
+    ? options.topics.join(', ')
+    : 'General chat';
   const moodLabel = options.mood ? `Mood: ${options.mood}` : 'Mood: unknown';
   return `- ${dateLabel}: Topics: ${topicsLabel}. ${moodLabel}. Engagement: ${options.engagement}.`;
+}
+
+function deriveThirdPersonReferences(line: LineRow): {
+  subjectPronoun: string;
+  objectPronoun: string;
+  possessivePronoun: string;
+  thirdPersonReferenceGuidance: string;
+} {
+  const displayName =
+    sanitizePromptValue(line.display_name || 'the senior', 80) || 'the senior';
+
+  switch (line.gender) {
+    case 'male':
+      return {
+        subjectPronoun: 'he',
+        objectPronoun: 'him',
+        possessivePronoun: 'his',
+        thirdPersonReferenceGuidance: `For third-person references to ${displayName}, use only he/him/his.`,
+      };
+    case 'female':
+      return {
+        subjectPronoun: 'she',
+        objectPronoun: 'her',
+        possessivePronoun: 'her',
+        thirdPersonReferenceGuidance: `For third-person references to ${displayName}, use only she/her/her.`,
+      };
+    case 'non_binary':
+      return {
+        subjectPronoun: 'they',
+        objectPronoun: 'them',
+        possessivePronoun: 'their',
+        thirdPersonReferenceGuidance: `For third-person references to ${displayName}, use only they/them/their.`,
+      };
+    case 'prefer_not_to_say':
+    case null:
+    default:
+      return {
+        subjectPronoun: displayName,
+        objectPronoun: displayName,
+        possessivePronoun: `${displayName}'s`,
+        thirdPersonReferenceGuidance: `For third-person references, use ${displayName}'s name and do not infer pronouns.`,
+      };
+  }
 }
 
 export async function buildPromptPlaceholders(options: {
@@ -120,13 +197,17 @@ export async function buildPromptPlaceholders(options: {
   ] = await Promise.all([
     supabase
       .from('ultaura_life_chapters')
-      .select('id, title, chapter_type, era_start_year, era_end_year, location, narrative_ciphertext, narrative_iv, narrative_tag, key_people, emotional_tone, updated_at')
+      .select(
+        'id, title, chapter_type, era_start_year, era_end_year, location, narrative_ciphertext, narrative_iv, narrative_tag, key_people, emotional_tone, updated_at',
+      )
       .eq('line_id', options.line.id)
       .order('updated_at', { ascending: false })
       .limit(6),
     supabase
       .from('ultaura_relationships')
-      .select('name, relation_type, relation_role, contact_frequency, sentiment, location, shared_activities, is_deceased, passed_at, grief_sensitivity, updated_at, times_mentioned')
+      .select(
+        'name, relation_type, relation_role, contact_frequency, sentiment, location, shared_activities, is_deceased, passed_at, grief_sensitivity, updated_at, times_mentioned',
+      )
       .eq('line_id', options.line.id)
       .order('times_mentioned', { ascending: false })
       .limit(20),
@@ -152,11 +233,15 @@ export async function buildPromptPlaceholders(options: {
       .maybeSingle(),
     supabase
       .from('ultaura_milestones')
-      .select('title, milestone_type, date_month, date_day, date_year, is_recurring, related_person_name')
+      .select(
+        'title, milestone_type, date_month, date_day, date_year, is_recurring, related_person_name',
+      )
       .eq('line_id', options.line.id),
     supabase
       .from('ultaura_call_insights')
-      .select('call_session_id, created_at, insights_ciphertext, insights_iv, insights_tag')
+      .select(
+        'call_session_id, created_at, insights_ciphertext, insights_iv, insights_tag',
+      )
       .eq('line_id', options.line.id)
       .order('created_at', { ascending: false })
       .limit(10),
@@ -181,13 +266,15 @@ export async function buildPromptPlaceholders(options: {
           ciphertext: row.narrative_ciphertext,
           iv: row.narrative_iv,
           tag: row.narrative_tag,
-        }
+        },
       );
 
       const eraLabel = [
         row.era_start_year ? `${row.era_start_year}` : null,
         row.era_end_year ? `${row.era_end_year}` : null,
-      ].filter(Boolean).join('-');
+      ]
+        .filter(Boolean)
+        .join('-');
 
       lifeChapters.push({
         title: row.title,
@@ -198,108 +285,129 @@ export async function buildPromptPlaceholders(options: {
         keyPeople: row.key_people ?? [],
       });
     } catch (error) {
-      logger.warn({ error, chapterId: row.id }, 'Failed to decrypt life chapter narrative');
+      logger.warn(
+        { error, chapterId: row.id },
+        'Failed to decrypt life chapter narrative',
+      );
     }
   }
 
   const lifeChaptersFormatted = lifeChapters.length
-    ? lifeChapters.map((chapter) => {
-        const parts = [
-          chapter.eraLabel ? `Era: ${chapter.eraLabel}` : null,
-          chapter.location ? `Location: ${sanitizePromptValue(chapter.location)}` : null,
-        ].filter(Boolean);
-        const narrative = chapter.narrative ? sanitizePromptValue(chapter.narrative, 160) : 'Story shared.';
-        const keyPeople = chapter.keyPeople.length
-          ? `Key people: ${chapter.keyPeople.slice(0, 3).map((person) => sanitizePromptValue(person)).join(', ')}`
-          : null;
-        return `- ${sanitizePromptValue(chapter.title)}${parts.length ? ` (${parts.join(', ')})` : ''}: ${narrative}${keyPeople ? ` ${keyPeople}` : ''}`;
-      }).join('\n')
+    ? lifeChapters
+        .map((chapter) => {
+          const parts = [
+            chapter.eraLabel ? `Era: ${chapter.eraLabel}` : null,
+            chapter.location
+              ? `Location: ${sanitizePromptValue(chapter.location)}`
+              : null,
+          ].filter(Boolean);
+          const narrative = chapter.narrative
+            ? sanitizePromptValue(chapter.narrative, 160)
+            : 'Story shared.';
+          const keyPeople = chapter.keyPeople.length
+            ? `Key people: ${chapter.keyPeople
+                .slice(0, 3)
+                .map((person) => sanitizePromptValue(person))
+                .join(', ')}`
+            : null;
+          return `- ${sanitizePromptValue(chapter.title)}${parts.length ? ` (${parts.join(', ')})` : ''}: ${narrative}${keyPeople ? ` ${keyPeople}` : ''}`;
+        })
+        .join('\n')
     : '- No life chapters recorded yet.';
 
   const lifeChaptersCompressed = lifeChapters.length
-    ? lifeChapters.map((chapter) => sanitizePromptValue(chapter.title)).join(', ')
+    ? lifeChapters
+        .map((chapter) => sanitizePromptValue(chapter.title))
+        .join(', ')
     : 'None yet.';
 
   const relationships = relationshipsRows.data ?? [];
+  const formatRelationshipGroup = (
+    group: typeof relationships,
+    fallback: string,
+  ): string =>
+    group.length
+      ? group
+          .map((rel) =>
+            formatRelationshipLine({
+              name: rel.name,
+              role: rel.relation_role,
+              sentiment: rel.sentiment,
+              contactFrequency: rel.contact_frequency,
+              location: rel.location,
+              sharedActivities: rel.shared_activities,
+            }),
+          )
+          .join('\n')
+      : fallback;
+  const compressRelationshipNames = (group: typeof relationships): string =>
+    group.length
+      ? group.map((rel) => sanitizePromptValue(rel.name)).join(', ')
+      : 'None.';
+
   const familyRelationships = relationships.filter(
-    (rel) => !rel.is_deceased && rel.relation_type === 'family'
+    (rel) => !rel.is_deceased && rel.relation_type === 'family',
   );
   const friendRelationships = relationships.filter(
-    (rel) => !rel.is_deceased && rel.relation_type !== 'family'
+    (rel) => !rel.is_deceased && rel.relation_type !== 'family',
   );
   const deceasedRelationships = relationships.filter((rel) => rel.is_deceased);
 
-  const familyRelationshipsFormatted = familyRelationships.length
-    ? familyRelationships.map((rel) => formatRelationshipLine({
-        name: rel.name,
-        role: rel.relation_role,
-        sentiment: rel.sentiment,
-        contactFrequency: rel.contact_frequency,
-        location: rel.location,
-        sharedActivities: rel.shared_activities,
-      })).join('\n')
-    : '- No family relationships recorded yet.';
+  const familyRelationshipsFormatted = formatRelationshipGroup(
+    familyRelationships,
+    '- No family relationships recorded yet.',
+  );
 
-  const friendRelationshipsFormatted = friendRelationships.length
-    ? friendRelationships.map((rel) => formatRelationshipLine({
-        name: rel.name,
-        role: rel.relation_role,
-        sentiment: rel.sentiment,
-        contactFrequency: rel.contact_frequency,
-        location: rel.location,
-        sharedActivities: rel.shared_activities,
-      })).join('\n')
-    : '- No friends or community relationships recorded yet.';
+  const friendRelationshipsFormatted = formatRelationshipGroup(
+    friendRelationships,
+    '- No friends or community relationships recorded yet.',
+  );
 
-  const deceasedRelationshipsFormatted = deceasedRelationships.length
-    ? deceasedRelationships.map((rel) => formatRelationshipLine({
-        name: rel.name,
-        role: rel.relation_role,
-        sentiment: rel.sentiment,
-        contactFrequency: rel.contact_frequency,
-        location: rel.location,
-        sharedActivities: rel.shared_activities,
-      })).join('\n')
-    : '- None noted.';
+  const deceasedRelationshipsFormatted = formatRelationshipGroup(
+    deceasedRelationships,
+    '- None noted.',
+  );
 
   const deceasedRelationshipsWithContext = deceasedRelationships.length
-    ? deceasedRelationships.map((rel) => {
-        const parts = [
-          rel.passed_at ? `passed ${DateTime.fromISO(rel.passed_at).year}` : null,
-          rel.grief_sensitivity ? `sensitivity ${rel.grief_sensitivity}` : null,
-        ].filter(Boolean);
-        return `- ${sanitizePromptValue(rel.name)} (${sanitizePromptValue(rel.relation_role)})${parts.length ? ` - ${parts.join(', ')}` : ''}`;
-      }).join('\n')
+    ? deceasedRelationships
+        .map((rel) => {
+          const parts = [
+            rel.passed_at
+              ? `passed ${DateTime.fromISO(rel.passed_at).year}`
+              : null,
+            rel.grief_sensitivity
+              ? `sensitivity ${rel.grief_sensitivity}`
+              : null,
+          ].filter(Boolean);
+          return `- ${sanitizePromptValue(rel.name)} (${sanitizePromptValue(rel.relation_role)})${parts.length ? ` - ${parts.join(', ')}` : ''}`;
+        })
+        .join('\n')
     : '- None noted.';
 
-  const familyCompressed = familyRelationships.length
-    ? familyRelationships.map((rel) => sanitizePromptValue(rel.name)).join(', ')
-    : 'None.';
-  const friendsCompressed = friendRelationships.length
-    ? friendRelationships.map((rel) => sanitizePromptValue(rel.name)).join(', ')
-    : 'None.';
-  const deceasedCompressed = deceasedRelationships.length
-    ? deceasedRelationships.map((rel) => sanitizePromptValue(rel.name)).join(', ')
-    : 'None.';
+  const familyCompressed = compressRelationshipNames(familyRelationships);
+  const friendsCompressed = compressRelationshipNames(friendRelationships);
+  const deceasedCompressed = compressRelationshipNames(deceasedRelationships);
 
   const contentPrefs = contentPrefsRow.data;
   const favoriteTriviaDomains = formatList(
     contentPrefs?.favorite_trivia_domains ?? options.line.seed_interests ?? [],
-    'general interests'
+    'general interests',
   );
   const favoriteStoryGenres = formatList(
     contentPrefs?.favorite_story_genres ?? [],
-    'classic, heartwarming'
+    'classic, heartwarming',
   );
   const favoriteMemoryTopics = formatList(
     contentPrefs?.favorite_memory_topics ?? options.line.seed_interests ?? [],
-    'family, hometown, hobbies'
+    'family, hometown, hobbies',
   );
   const favoriteEras = formatList(
     contentPrefs?.favorite_eras ?? [],
-    `${formatDecade(options.line.birth_decade)}s, ${formatDecade(options.line.formative_decade)}s`
+    `${formatDecade(options.line.birth_decade)}s, ${formatDecade(options.line.formative_decade)}s`,
   );
-  const triviaDifficulty = sanitizePromptValue(contentPrefs?.trivia_difficulty ?? 'medium');
+  const triviaDifficulty = sanitizePromptValue(
+    contentPrefs?.trivia_difficulty ?? 'medium',
+  );
 
   const eraSetting = contentPrefs?.favorite_eras?.length
     ? formatList(contentPrefs.favorite_eras, 'their formative years')
@@ -307,86 +415,133 @@ export async function buildPromptPlaceholders(options: {
 
   const activeStoryArcsFormatted = options.activeStoryArcs?.length
     ? options.activeStoryArcs
-        .map((arc) => `- "${sanitizePromptValue(arc.title)}" (${arc.storyType}): Chapter ${arc.currentChapter}/${arc.totalChapters}`)
+        .map(
+          (arc) =>
+            `- "${sanitizePromptValue(arc.title)}" (${arc.storyType}): Chapter ${arc.currentChapter}/${arc.totalChapters}`,
+        )
         .join('\n')
     : '- No active story arcs.';
 
   const accessibility = accessibilityRow.data;
-  const hearingMode = sanitizePromptValue(accessibility?.hearing_mode ?? 'normal');
+  const hearingMode = sanitizePromptValue(
+    accessibility?.hearing_mode ?? 'normal',
+  );
   const speechRate = String(accessibility?.speech_rate ?? 1.0);
-  const cognitiveMode = sanitizePromptValue(accessibility?.cognitive_mode ?? 'normal');
+  const cognitiveMode = sanitizePromptValue(
+    accessibility?.cognitive_mode ?? 'normal',
+  );
   const contextWindowCalls = String(accessibility?.context_window_calls ?? 10);
 
   const persona = personaRow.data;
-  const formalityLevel = sanitizePromptValue(persona?.formality_level ?? 'warm');
+  const formalityLevel = sanitizePromptValue(
+    persona?.formality_level ?? 'warm',
+  );
   const humorLevel = sanitizePromptValue(persona?.humor_level ?? 'light');
-  const directnessLevel = sanitizePromptValue(persona?.directness_level ?? 'balanced');
-  const vocabularyComplexity = sanitizePromptValue(persona?.vocabulary_complexity ?? 'standard');
-  const preferredPhrases = formatList(persona?.preferred_phrases ?? [], 'None noted');
-  const avoidedPhrases = formatList(persona?.avoided_phrases ?? [], 'None noted');
-  const regionalExpressions = formatList(persona?.regional_expressions ?? [], 'None noted');
-  const typicalEnergy = sanitizePromptValue(persona?.typical_energy ?? 'moderate');
+  const directnessLevel = sanitizePromptValue(
+    persona?.directness_level ?? 'balanced',
+  );
+  const vocabularyComplexity = sanitizePromptValue(
+    persona?.vocabulary_complexity ?? 'standard',
+  );
+  const preferredPhrases = formatList(
+    persona?.preferred_phrases ?? [],
+    'None noted',
+  );
+  const avoidedPhrases = formatList(
+    persona?.avoided_phrases ?? [],
+    'None noted',
+  );
+  const regionalExpressions = formatList(
+    persona?.regional_expressions ?? [],
+    'None noted',
+  );
+  const typicalEnergy = sanitizePromptValue(
+    persona?.typical_energy ?? 'moderate',
+  );
 
-  const timeSpecificEnergy = (() => {
-    if (!persona) return typicalEnergy;
-    if (currentTimeOfDay === 'morning' && persona.morning_energy) return persona.morning_energy;
-    if (currentTimeOfDay === 'afternoon' && persona.afternoon_energy) return persona.afternoon_energy;
-    if (currentTimeOfDay === 'evening' && persona.evening_energy) return persona.evening_energy;
-    return persona.typical_energy ?? typicalEnergy;
-  })();
+  const timeSpecificEnergy = pickTimeOfDayValue({
+    timeOfDay: currentTimeOfDay,
+    morningValue: persona?.morning_energy,
+    afternoonValue: persona?.afternoon_energy,
+    eveningValue: persona?.evening_energy,
+    fallback: persona?.typical_energy ?? typicalEnergy,
+  });
 
   const dailyRhythm = dailyRhythmRow.data;
-  const morningRoutineSummary = sanitizePromptValue(dailyRhythm?.morning_routine_summary ?? 'No routine noted yet');
-  const afternoonRoutineSummary = sanitizePromptValue(dailyRhythm?.afternoon_routine_summary ?? 'No routine noted yet');
-  const eveningRoutineSummary = sanitizePromptValue(dailyRhythm?.evening_routine_summary ?? 'No routine noted yet');
-  const expectedEnergyNow = (() => {
-    if (!dailyRhythm) return typicalEnergy;
-    if (currentTimeOfDay === 'morning' && dailyRhythm.morning_energy) return dailyRhythm.morning_energy;
-    if (currentTimeOfDay === 'afternoon' && dailyRhythm.afternoon_energy) return dailyRhythm.afternoon_energy;
-    if (currentTimeOfDay === 'evening' && dailyRhythm.evening_energy) return dailyRhythm.evening_energy;
-    return typicalEnergy;
-  })();
+  const morningRoutineSummary = sanitizePromptValue(
+    dailyRhythm?.morning_routine_summary ?? 'No routine noted yet',
+  );
+  const afternoonRoutineSummary = sanitizePromptValue(
+    dailyRhythm?.afternoon_routine_summary ?? 'No routine noted yet',
+  );
+  const eveningRoutineSummary = sanitizePromptValue(
+    dailyRhythm?.evening_routine_summary ?? 'No routine noted yet',
+  );
+  const expectedEnergyNow = pickTimeOfDayValue({
+    timeOfDay: currentTimeOfDay,
+    morningValue: dailyRhythm?.morning_energy,
+    afternoonValue: dailyRhythm?.afternoon_energy,
+    eveningValue: dailyRhythm?.evening_energy,
+    fallback: typicalEnergy,
+  });
 
   const milestones = milestonesRows.data ?? [];
   const todayMilestones = milestones.filter(
-    (milestone) => milestone.date_month === now.month && milestone.date_day === now.day
+    (milestone) =>
+      milestone.date_month === now.month && milestone.date_day === now.day,
   );
 
   const todayMilestonesFormatted = todayMilestones.length
     ? todayMilestones
         .map((milestone) =>
-          formatMilestoneLine(milestone.title, milestone.milestone_type, milestone.related_person_name)
+          formatMilestoneLine(
+            milestone.title,
+            milestone.milestone_type,
+            milestone.related_person_name,
+          ),
         )
         .join('\n')
     : '- None today.';
 
   const upcomingMilestones = milestones
     .map((milestone) => {
-      if (!milestone.is_recurring && milestone.date_year && milestone.date_year < now.year) {
+      if (
+        !milestone.is_recurring &&
+        milestone.date_year &&
+        milestone.date_year < now.year
+      ) {
         return null;
       }
-      const baseYear = milestone.is_recurring ? now.year : (milestone.date_year ?? now.year);
+      const baseYear = milestone.is_recurring
+        ? now.year
+        : milestone.date_year ?? now.year;
       let date = DateTime.fromObject(
-      {
-        year: baseYear,
-        month: milestone.date_month,
-        day: milestone.date_day,
-      },
-      { zone: options.line.timezone }
-    );
+        {
+          year: baseYear,
+          month: milestone.date_month,
+          day: milestone.date_day,
+        },
+        { zone: options.line.timezone },
+      );
       if (date < now.startOf('day')) {
         date = date.plus({ years: 1 });
       }
       return { milestone, date };
     })
-    .filter((entry): entry is { milestone: typeof milestones[number]; date: DateTime } => Boolean(entry))
+    .filter(
+      (
+        entry,
+      ): entry is { milestone: (typeof milestones)[number]; date: DateTime } =>
+        Boolean(entry),
+    )
     .sort((a, b) => a.date.toMillis() - b.date.toMillis())
     .slice(0, 3);
 
   const upcomingMilestonesFormatted = upcomingMilestones.length
     ? upcomingMilestones
-        .map(({ milestone, date }) =>
-          `${formatMilestoneLine(milestone.title, milestone.milestone_type, milestone.related_person_name)} on ${date.toFormat('MMM d')}`
+        .map(
+          ({ milestone, date }) =>
+            `${formatMilestoneLine(milestone.title, milestone.milestone_type, milestone.related_person_name)} on ${date.toFormat('MMM d')}`,
         )
         .join('\n')
     : '- No upcoming milestones yet.';
@@ -409,7 +564,7 @@ export async function buildPromptPlaceholders(options: {
           ciphertext: row.insights_ciphertext,
           iv: row.insights_iv,
           tag: row.insights_tag,
-        }
+        },
       );
 
       const topics = (insights.topics ?? [])
@@ -424,19 +579,26 @@ export async function buildPromptPlaceholders(options: {
         engagement: formatEngagement(insights.engagement_score ?? 0),
       });
     } catch (error) {
-      logger.warn({ error, callSessionId: row.call_session_id }, 'Failed to decrypt call insights');
+      logger.warn(
+        { error, callSessionId: row.call_session_id },
+        'Failed to decrypt call insights',
+      );
     }
   }
 
   const recentCallsFormatted = recentCallSummaries.length
-    ? recentCallSummaries.map((summary) => formatCallSummary(summary)).join('\n')
+    ? recentCallSummaries
+        .map((summary) => formatCallSummary(summary))
+        .join('\n')
     : '- No recent call summaries yet.';
 
   const recentCallsCompressed = recentCallSummaries.length
     ? recentCallSummaries
         .slice(0, 3)
         .map((summary) => {
-          const dateLabel = DateTime.fromISO(summary.occurredAt).toFormat('MMM d');
+          const dateLabel = DateTime.fromISO(summary.occurredAt).toFormat(
+            'MMM d',
+          );
           const topic = summary.topics[0] ?? 'General';
           return `${dateLabel} ${topic}/${summary.engagement}`;
         })
@@ -446,12 +608,15 @@ export async function buildPromptPlaceholders(options: {
   const lastCallTopicsSummary = recentCallSummaries.length
     ? recentCallSummaries[0].topics.join(', ') || 'general conversation'
     : 'general conversation';
+  const thirdPersonReferences = deriveThirdPersonReferences(options.line);
 
   return {
     birthDecade: formatDecade(options.line.birth_decade),
     formativeDecade: formatDecade(options.line.formative_decade),
     hometown: sanitizePromptValue(options.line.hometown ?? 'Unknown'),
-    currentLocation: sanitizePromptValue(options.line.current_location ?? 'Unknown'),
+    currentLocation: sanitizePromptValue(
+      options.line.current_location ?? 'Unknown',
+    ),
     lifeChaptersFormatted,
     lifeChaptersCompressed,
     favoriteTriviaDomains,
@@ -490,12 +655,23 @@ export async function buildPromptPlaceholders(options: {
     eveningRoutineSummary,
     todayMilestonesFormatted,
     upcomingMilestonesFormatted,
-    interruptionTolerance: sanitizePromptValue(options.line.interruption_tolerance ?? 'normal'),
-    fillerWordPatience: sanitizePromptValue(options.line.filler_word_patience ?? 'normal'),
+    interruptionTolerance: sanitizePromptValue(
+      options.line.interruption_tolerance ?? 'normal',
+    ),
+    fillerWordPatience: sanitizePromptValue(
+      options.line.filler_word_patience ?? 'normal',
+    ),
     silenceToleranceMs: String(options.line.silence_tolerance_ms ?? 2000),
-    crosstalkRecoveryMode: sanitizePromptValue(options.line.crosstalk_recovery_mode ?? 'patient'),
+    crosstalkRecoveryMode: sanitizePromptValue(
+      options.line.crosstalk_recovery_mode ?? 'patient',
+    ),
     recentCallCount: String(recentCallSummaries.length),
     recentCallsFormatted,
     recentCallsCompressed,
+    subjectPronoun: thirdPersonReferences.subjectPronoun,
+    objectPronoun: thirdPersonReferences.objectPronoun,
+    possessivePronoun: thirdPersonReferences.possessivePronoun,
+    thirdPersonReferenceGuidance:
+      thirdPersonReferences.thirdPersonReferenceGuidance,
   };
 }
