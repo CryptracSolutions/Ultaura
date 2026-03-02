@@ -1,4 +1,4 @@
-# User Preferences for Codex
+# User Preferences
 
 - **The user is *NOT* a developer and has minimal experience**
 - Think in first principles, be direct, and adapt to context. Skip "great question" fluff. Verifiable facts over platitudes.
@@ -20,7 +20,7 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 
 ## Codex Multi-Agent Roles (Ultaura)
 
-When this doc says “delegate”, it means: use Codex multi-agent roles and spawn/switch agents via the `/agent` command.
+When this doc says “delegate”, it means: use multi-agent roles and spawn/switch agents via the `/agent` command.
 
 **Role glossary (use these names consistently):**
 - `default` — The coordinator/general helper (this chat) that assigns work and integrates final changes.
@@ -30,10 +30,6 @@ When this doc says “delegate”, it means: use Codex multi-agent roles and spa
 - `reviewer` — Reviews diffs for correctness/security/test risks (read-only).
 - `planner` — Produces a decision-complete plan/spec (read-only).
 - `simplifier` — One-shot cleanup pass after verification (edits allowed, **no behavior changes**).
-
-**Where this is configured (repo-scoped):**
-- `.codex/config.toml`
-- `.codex/agents/*.toml`
 
 ## Before ANY Task
 
@@ -48,17 +44,17 @@ You MUST:
 
 ## For Medium/Large Tasks: Mandatory Delegation via Codex Sub-Agents
 
-You MUST use Codex multi-agent roles for medium and large tasks by spawning agents via `/agent` (explorer/worker/monitor/reviewer/planner/simplifier) and **always use `model: gpt-5.3-codex`**. Shared coordination and explicit ownership produce correct implementations over cheap ones.
+You MUST use Codex multi-agent roles for medium and large tasks by spawning agents via `/agent` (explorer/worker/monitor/reviewer/planner/simplifier) and **always use parent model for all tasks**. Shared coordination and explicit ownership produce correct implementations over cheap ones.
 
 You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Understand current state of codebase | Use `/agent` to launch up to 5 `explorer` agents | **ALWAYS** |
+| 1 | Understand current state of codebase | Use `/agent` to launch up to 6 `explorer` agents | **ALWAYS** |
 | 2 | Enter plan mode | `update_plan` | **ALWAYS** |
 | 3 | Clarify requirements and interview user | `request_user_input` (or chat fallback) | **ALWAYS** if **ANY** ambiguity or clarifications needed |
 | 4 | Create shared task list | `update_plan` with explicit step breakdown | If 5+ steps | **ALWAYS** |
-| 5 | Spawn `worker` agents for implementation | Use `/agent` to launch up to 5 `worker` agents in parallel | **ALWAYS** |
+| 5 | Spawn `worker` agents for implementation | Use `/agent` to launch up to 4 `worker` agents in parallel | **ALWAYS** |
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
 | 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
@@ -68,9 +64,9 @@ You MUST follow these steps IN ORDER:
 ### Sub-Agent Coordination Guidelines
 
 - Spawn agents using `/agent` and assign a clear role (`explorer`/`worker`/`monitor`/`reviewer`/`planner`/`simplifier`).
-- **Always use `model: gpt-5.3-codex`** for ALL agent types
-- **Max 5 explorer agents** in parallel
-- **Max 5 worker agents** in parallel (to avoid file conflicts)
+- **Always use current parent/orchestrator model** for ALL agent types
+- **Max 6 explorer agents** in parallel
+- **Max 4 worker agents** in parallel (to avoid file conflicts)
 - **Use explicit coordinator messages** for task handoffs and blockers
 - **Use `update_plan`** as the shared coordination board
 - **Shutdown gracefully** after all delegated tasks and verification complete
