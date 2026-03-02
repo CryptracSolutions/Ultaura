@@ -1959,6 +1959,7 @@ export type Database = {
           do_not_call: boolean
           filler_word_patience: string | null
           formative_decade: number | null
+          gender: string | null
           hometown: string | null
           id: string
           inbound_allowed: boolean
@@ -2001,6 +2002,7 @@ export type Database = {
           do_not_call?: boolean
           filler_word_patience?: string | null
           formative_decade?: number | null
+          gender?: string | null
           hometown?: string | null
           id?: string
           inbound_allowed?: boolean
@@ -2043,6 +2045,7 @@ export type Database = {
           do_not_call?: boolean
           filler_word_patience?: string | null
           formative_decade?: number | null
+          gender?: string | null
           hometown?: string | null
           id?: string
           inbound_allowed?: boolean

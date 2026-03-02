@@ -17,6 +17,7 @@ import {
   PhoneIncoming,
   Palmtree,
   Mic,
+  User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import classNames from 'clsx';
@@ -53,6 +54,7 @@ import type {
 import { updateLine } from '~/lib/ultaura/lines';
 import {
   LANGUAGE_OPTIONS,
+  GENDER_OPTIONS,
   US_TIMEZONES,
   TIME_OPTIONS,
 } from '~/lib/ultaura/constants';
@@ -80,6 +82,7 @@ interface SettingsClientProps {
 }
 
 type LineSettingsSectionValue =
+  | 'personal-info'
   | 'language'
   | 'voice-preference'
   | 'timezone'
@@ -107,6 +110,12 @@ const buildLineSettingsSections = (
 > => ({
   settings: {
     groups: [
+      {
+        label: 'Personal Info',
+        sections: [
+          { value: 'personal-info', label: 'Personal Info', icon: User },
+        ],
+      },
       {
         label: 'Time & Location',
         sections: [{ value: 'timezone', label: 'Timezone', icon: Globe }],
@@ -219,6 +228,11 @@ export function SettingsClient({
   const [preferredLanguage, setPreferredLanguage] = useState<string | null>(
     canonicalLinePreferredLanguage,
   );
+  const [settingsBirthYear, setSettingsBirthYear] = useState(
+    line.birth_year ? String(line.birth_year) : '',
+  );
+  const [settingsGender, setSettingsGender] = useState(line.gender ?? '');
+  const [birthYearError, setBirthYearError] = useState<string | null>(null);
   const [allowVoiceReminderControl, setAllowVoiceReminderControl] = useState(
     line.allow_voice_reminder_control ?? true,
   );
@@ -345,6 +359,26 @@ export function SettingsClient({
     disabled,
   });
 
+  const personalInfoAutoSave = useAutoSave<{
+    birthYear: number | null;
+    gender: string | null;
+  }>({
+    saveFn: async (value) => {
+      const result = await updateLine(line.id, {
+        birthYear: value.birthYear,
+        gender: value.gender,
+      });
+      if (result.success) return { success: true };
+      return {
+        success: false,
+        error: result.error.message || 'Failed to save',
+      };
+    },
+    toastSuccess: 'Personal info updated',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
+
   const voiceAutoSave = useAutoSave<GrokVoice>({
     saveFn: async (value) => {
       const result = await updateLine(line.id, { preferredGrokVoice: value });
@@ -415,6 +449,7 @@ export function SettingsClient({
   useEffect(() => {
     const handleBeforeUnload = () => {
       lineAutoSave.flush();
+      personalInfoAutoSave.flush();
       voiceAutoSave.flush();
       insightAutoSave.flush();
       pauseAutoSave.flush();
@@ -463,6 +498,31 @@ export function SettingsClient({
     cognitiveMode: overrides.cognitiveMode ?? cognitiveMode,
     contextWindowCalls: overrides.contextWindowCalls ?? contextWindowCalls,
   });
+
+  const getPersonalInfoFields = (
+    overrides: Partial<{
+      birthYear: number | null;
+      gender: string | null;
+    }> = {},
+  ) => {
+    const trimmedBirthYear = settingsBirthYear.trim();
+    const parsedBirthYear = trimmedBirthYear
+      ? Number.parseInt(trimmedBirthYear, 10)
+      : null;
+
+    return {
+      birthYear:
+        overrides.birthYear !== undefined
+          ? overrides.birthYear
+          : parsedBirthYear !== null && Number.isNaN(parsedBirthYear)
+            ? null
+            : parsedBirthYear,
+      gender:
+        overrides.gender !== undefined
+          ? overrides.gender
+          : settingsGender || null,
+    };
+  };
 
   const tabParam = searchParams.get('tab') as LineSettingsTabValue | null;
   const activeTab = tabParam ?? 'settings';
@@ -788,6 +848,102 @@ export function SettingsClient({
       }
       case 'settings': {
         switch (activeSection.value) {
+          case 'personal-info': {
+            const currentYear = new Date().getFullYear();
+
+            return (
+              <Section>
+                <SectionHeader
+                  title={
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      Personal Info
+                    </div>
+                  }
+                  description={`Birth year and gender help personalize conversations for ${line.display_name}.`}
+                />
+                <SectionBody className="gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground block mb-1">
+                      Birth year
+                    </label>
+                    <TextField.Input
+                      type="number"
+                      min={1900}
+                      max={currentYear}
+                      step={1}
+                      inputMode="numeric"
+                      value={settingsBirthYear}
+                      placeholder="e.g., 1945"
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setSettingsBirthYear(value);
+
+                        const trimmed = value.trim();
+                        if (!trimmed) {
+                          setBirthYearError(null);
+                          personalInfoAutoSave.triggerSave(
+                            getPersonalInfoFields({ birthYear: null }),
+                          );
+                          return;
+                        }
+
+                        const parsed = Number.parseInt(trimmed, 10);
+                        if (
+                          Number.isNaN(parsed) ||
+                          parsed < 1900 ||
+                          parsed > currentYear
+                        ) {
+                          setBirthYearError(
+                            `Enter a year between 1900 and ${currentYear}.`,
+                          );
+                          return;
+                        }
+
+                        setBirthYearError(null);
+                        personalInfoAutoSave.triggerSave(
+                          getPersonalInfoFields({ birthYear: parsed }),
+                        );
+                      }}
+                      disabled={disabled}
+                    />
+                    {birthYearError ? (
+                      <p className="text-xs text-destructive">
+                        {birthYearError}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground block mb-1">
+                      Gender
+                    </label>
+                    <Select
+                      value={settingsGender}
+                      onValueChange={(value) => {
+                        setSettingsGender(value);
+                        personalInfoAutoSave.triggerSave(
+                          getPersonalInfoFields({ gender: value }),
+                        );
+                      }}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="w-full py-3">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENDER_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </SectionBody>
+              </Section>
+            );
+          }
           case 'timezone':
             return (
               <Section>

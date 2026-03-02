@@ -23,7 +23,7 @@ const enableTeamAccounts = configuration.features.enableTeamAccounts;
 const SELF_USER_STEPS = [
   'onboarding:userType',
   'onboarding:phoneCollection',
-  'onboarding:birthday',
+  'onboarding:personal',
   'onboarding:voiceSelection',
   'onboarding:plan',
 ] as const;
@@ -49,7 +49,9 @@ export function getStepsForUserType(userType: UserType | null) {
   }
 
   if (userType === 'family_managed') {
-    return enableTeamAccounts ? FAMILY_STEPS_WITH_INVITES : FAMILY_STEPS_NO_INVITES;
+    return enableTeamAccounts
+      ? FAMILY_STEPS_WITH_INVITES
+      : FAMILY_STEPS_NO_INVITES;
   }
 
   return SELF_USER_STEPS;
@@ -85,7 +87,8 @@ export function resolveCheckoutReturnResolution(params: {
     const nextStepIndex = planStepIndex + 1;
     return {
       kind: 'success',
-      nextStepIndex: nextStepIndex >= restoredSteps.length ? null : nextStepIndex,
+      nextStepIndex:
+        nextStepIndex >= restoredSteps.length ? null : nextStepIndex,
       stripeSessionId: params.stripeSessionId,
     };
   }

@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { X, Phone, Clock, Info } from 'lucide-react';
+import { X, Info } from 'lucide-react';
 import { createLine } from '~/lib/ultaura/lines';
-import { LANGUAGE_OPTIONS, US_TIMEZONES } from '~/lib/ultaura/constants';
+import {
+  GENDER_OPTIONS,
+  LANGUAGE_OPTIONS,
+  US_TIMEZONES,
+} from '~/lib/ultaura/constants';
 import { acknowledgeVendorDisclosure } from '~/lib/ultaura/privacy';
 import type { SharingTier, UserType } from '~/lib/ultaura/types';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -25,7 +29,11 @@ import {
   SelectContent,
   SelectItem,
 } from '~/core/ui/Select';
-import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
+import {
+  RadioGroup,
+  RadioGroupItem,
+  RadioGroupItemLabel,
+} from '~/core/ui/RadioGroup';
 import {
   TopicPreferencesForm,
   MAX_INTEREST_TOPICS,
@@ -58,14 +66,21 @@ export function AddLineModal({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [timezone, setTimezone] = useState('America/Los_Angeles');
-  const [preferredLanguage, setPreferredLanguage] = useState<string | null>(null);
+  const [preferredLanguage, setPreferredLanguage] = useState<string | null>(
+    null,
+  );
+  const [birthYear, setBirthYear] = useState('');
+  const [selectedGender, setSelectedGender] = useState('');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [customTopics, setCustomTopics] = useState('');
   const [avoidTopics, setAvoidTopics] = useState('');
   const [disclosure, setDisclosure] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [vendorAcknowledged, setVendorAcknowledged] = useState(vendorAlreadyAcknowledged);
-  const [defaultSharingTier, setDefaultSharingTier] = useState<SharingTier>('tier_2');
+  const [vendorAcknowledged, setVendorAcknowledged] = useState(
+    vendorAlreadyAcknowledged,
+  );
+  const [defaultSharingTier, setDefaultSharingTier] =
+    useState<SharingTier>('tier_2');
 
   const resetFormState = useCallback(() => {
     setStep(1);
@@ -74,6 +89,8 @@ export function AddLineModal({
     setPhoneError(null);
     setTimezone('America/Los_Angeles');
     setPreferredLanguage(null);
+    setBirthYear('');
+    setSelectedGender('');
     setSelectedTopics([]);
     setCustomTopics('');
     setAvoidTopics('');
@@ -95,6 +112,8 @@ export function AddLineModal({
     phoneNumber.trim() !== '' ||
     timezone !== 'America/Los_Angeles' ||
     preferredLanguage !== null ||
+    birthYear !== '' ||
+    selectedGender !== '' ||
     selectedTopics.length > 0 ||
     customTopics.trim() !== '' ||
     avoidTopics.trim() !== '' ||
@@ -122,16 +141,15 @@ export function AddLineModal({
   const normalizeTopic = (topic: string) => topic.trim();
 
   const parseCustomTopics = (raw: string) =>
-    raw
-      .split(',')
-      .map(normalizeTopic)
-      .filter(Boolean);
+    raw.split(',').map(normalizeTopic).filter(Boolean);
 
   const customTopicList = parseCustomTopics(customTopics);
 
   const combinedTopics = Array.from(
     new Set(
-      [...selectedTopics, ...customTopicList].map((topic) => normalizeTopic(topic)),
+      [...selectedTopics, ...customTopicList].map((topic) =>
+        normalizeTopic(topic),
+      ),
     ),
   ).slice(0, MAX_INTEREST_TOPICS);
 
@@ -146,7 +164,9 @@ export function AddLineModal({
       return;
     }
 
-    const phoneValidationError = getUsPhoneValidationError(phoneNumber, { required: true });
+    const phoneValidationError = getUsPhoneValidationError(phoneNumber, {
+      required: true,
+    });
     if (phoneValidationError) {
       setPhoneError(phoneValidationError);
       setStep(1);
@@ -166,9 +186,18 @@ export function AddLineModal({
         phoneE164,
         timezone,
         preferredLanguageIso: preferredLanguage,
+        birthYear: birthYear ? Number.parseInt(birthYear, 10) : undefined,
+        gender: selectedGender || undefined,
         seedInterests: combinedTopics.length ? combinedTopics : undefined,
         seedAvoidTopics: avoidTopics
-          ? Array.from(new Set(avoidTopics.split(',').map((s) => s.trim()).filter(Boolean)))
+          ? Array.from(
+              new Set(
+                avoidTopics
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              ),
+            )
           : undefined,
         defaultSharingTier: isSelfUser ? undefined : defaultSharingTier,
       });
@@ -187,7 +216,7 @@ export function AddLineModal({
       } else {
         setError('Failed to create line');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -238,75 +267,86 @@ export function AddLineModal({
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {step === 1 && (
-                <>
-                  {/* Display Name */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">
-                      Display Name
-                    </label>
-                    <TextField.Input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder={isSelfUser ? 'e.g., My phone' : 'e.g., Mom, Dad, Carmen'}
+              <>
+                {/* Display Name */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground">
+                    Display Name
+                  </label>
+                  <TextField.Input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder={
+                      isSelfUser ? 'e.g., My phone' : 'e.g., Mom, Dad, Carmen'
+                    }
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {isSelfUser
+                      ? 'This is how Ultaura will greet you on calls'
+                      : 'This is how Ultaura will greet them on calls'}
+                  </p>
+                </div>
+
+                {/* Phone Number */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <PhoneInput
+                      value={phoneNumber}
+                      onValueChange={(value) => {
+                        setPhoneNumber(value);
+                        if (phoneError) {
+                          setPhoneError(null);
+                        }
+                      }}
+                      onBlur={(event) => {
+                        setPhoneError(
+                          getUsPhoneValidationError(event.target.value, {
+                            required: true,
+                          }),
+                        );
+                      }}
+                      placeholder="(555) 123-4567"
+                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
                       required
                     />
-                    <p className="text-xs text-muted-foreground">
-                      {isSelfUser
-                        ? 'This is how Ultaura will greet you on calls'
-                        : 'This is how Ultaura will greet them on calls'}
-                    </p>
+                    {phoneError ? (
+                      <p className="text-xs text-destructive">{phoneError}</p>
+                    ) : null}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    US phone numbers only. We&apos;ll verify this number in the
+                    next step.
+                  </p>
+                </div>
 
-                  {/* Phone Number */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">
-                      Phone Number
-                    </label>
-                    <div className="relative">
-                      <PhoneInput
-                        value={phoneNumber}
-                        onValueChange={(value) => {
-                          setPhoneNumber(value);
-                          if (phoneError) {
-                            setPhoneError(null);
-                          }
-                        }}
-                        onBlur={(event) => {
-                          setPhoneError(getUsPhoneValidationError(event.target.value, { required: true }));
-                        }}
-                        placeholder="(555) 123-4567"
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
-                        required
-                      />
-                      {phoneError ? (
-                        <p className="text-xs text-destructive">{phoneError}</p>
-                      ) : null}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      US phone numbers only. We&apos;ll verify this number in the next step.
-                    </p>
-                  </div>
-
-                  {/* Timezone */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground">
-                      Timezone
-                    </label>
-                  <Select value={timezone} onValueChange={(value) => setTimezone(value)}>
+                {/* Timezone */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground">
+                    Timezone
+                  </label>
+                  <Select
+                    value={timezone}
+                    onValueChange={(value) => setTimezone(value)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {US_TIMEZONES.map((tz) => (
-                          <SelectItem key={tz.value} value={tz.value}>
-                            {tz.label}
-                          </SelectItem>
-                        ))}
+                      {US_TIMEZONES.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Used to schedule calls at appropriate times for the recipient.
+                    Used to schedule calls at appropriate times for the
+                    recipient.
                   </p>
                 </div>
 
@@ -317,7 +357,9 @@ export function AddLineModal({
                   </label>
                   <Select
                     value={preferredLanguage ?? 'auto'}
-                    onValueChange={(value) => setPreferredLanguage(value === 'auto' ? null : value)}
+                    onValueChange={(value) =>
+                      setPreferredLanguage(value === 'auto' ? null : value)
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Auto-detect" />
@@ -339,112 +381,178 @@ export function AddLineModal({
                       : `Ultaura will start conversations in ${LANGUAGE_OPTIONS.find((option) => option.value === preferredLanguage)?.label}.`}
                   </p>
                 </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground">
+                      Birth year (optional)
+                    </label>
+                    <TextField.Input
+                      type="number"
+                      min={1900}
+                      max={new Date().getFullYear()}
+                      step={1}
+                      inputMode="numeric"
+                      value={birthYear}
+                      onChange={(e) => setBirthYear(e.target.value)}
+                      placeholder="e.g., 1945"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground">
+                      Gender (optional)
+                    </label>
+                    <Select
+                      value={selectedGender}
+                      onValueChange={setSelectedGender}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENDER_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </>
             )}
 
             {step === 2 && (
-                <>
-                  {/* Topics Preferences */}
-                  <TopicPreferencesForm
-                    selectedTopics={selectedTopics}
-                    customTopics={customTopics}
-                    avoidTopics={avoidTopics}
-                    onSelectedTopicsChange={setSelectedTopics}
-                    onCustomTopicsChange={setCustomTopics}
-                    onAvoidTopicsChange={setAvoidTopics}
-                  />
+              <>
+                {/* Topics Preferences */}
+                <TopicPreferencesForm
+                  selectedTopics={selectedTopics}
+                  customTopics={customTopics}
+                  avoidTopics={avoidTopics}
+                  onSelectedTopicsChange={setSelectedTopics}
+                  onCustomTopicsChange={setCustomTopics}
+                  onAvoidTopicsChange={setAvoidTopics}
+                />
 
-                  {userType === 'family_managed' ? (
-                    <div className="space-y-2 pt-4 border-t border-border">
-                      <label className="block text-sm font-medium text-foreground">
-                        Default Family Sharing Level
-                      </label>
-                      <p className="text-xs text-muted-foreground">
-                        {displayName || 'They'} can change this during their first call.
-                      </p>
-                      <RadioGroup
-                        value={defaultSharingTier}
-                        onValueChange={(value) => setDefaultSharingTier(value as SharingTier)}
-                      >
-                        <RadioGroupItemLabel>
-                          <RadioGroupItem value="tier_1" />
-                          <div>
-                            <div className="font-medium text-foreground text-sm">Tier 1: Basic Updates & Safety</div>
-                            <div className="text-xs text-muted-foreground">Share call statistics, safety alerts, and usage data with your family.</div>
-                          </div>
-                        </RadioGroupItemLabel>
-                        <RadioGroupItemLabel>
-                          <RadioGroupItem value="tier_2" />
-                          <div>
-                            <div className="font-medium text-foreground text-sm">Tier 2: Wellness Insights</div>
-                            <div className="text-xs text-muted-foreground">Includes everything from Tier 1, plus mood tracking and engagement patterns.</div>
-                          </div>
-                        </RadioGroupItemLabel>
-                        <RadioGroupItemLabel>
-                          <RadioGroupItem value="tier_3" />
-                          <div>
-                            <div className="font-medium text-foreground text-sm">Tier 3: Conversation Topics</div>
-                            <div className="text-xs text-muted-foreground">Includes everything from Tier 2, plus categories of topics discussed during calls.</div>
-                          </div>
-                        </RadioGroupItemLabel>
-                        <RadioGroupItemLabel>
-                          <RadioGroupItem value="tier_4" />
-                          <div>
-                            <div className="font-medium text-foreground text-sm">Tier 4: Full Visibility</div>
-                            <div className="text-xs text-muted-foreground">Includes everything from Tier 3, plus wellness concerns and follow-up recommendations.</div>
-                          </div>
-                        </RadioGroupItemLabel>
-                      </RadioGroup>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground pt-4 border-t border-border">
-                      You can enable family sharing later from the Privacy Center if you want to share updates.
-                    </div>
-                  )}
-
-                  {/* Disclosures */}
-                  <div className="space-y-4 pt-4 border-t border-border">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={disclosure}
-                        onChange={(e) => setDisclosure(e.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                      <span className="text-sm text-foreground">
-                        I understand Ultaura is an AI voice companion and is not a medical or mental health service.
-                      </span>
+                {userType === 'family_managed' ? (
+                  <div className="space-y-2 pt-4 border-t border-border">
+                    <label className="block text-sm font-medium text-foreground">
+                      Default Family Sharing Level
                     </label>
-
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={consent}
-                        onChange={(e) => setConsent(e.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                      <span className="text-sm text-foreground">
-                        I understand Ultaura may call this phone number on the schedule I set. The recipient can stop calls anytime by pressing 9.
-                      </span>
-                    </label>
-                  </div>
-
-                  <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
-                    <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-primary leading-snug">
-                      After each call, Ultaura captures a brief summary of topics discussed
-                      and overall mood—never transcripts or quotes. You can disable
-                      insights anytime in line settings.{' '}
-                      <Link
-                        href="/docs/insights-and-reports"
-                        className="text-primary font-medium underline underline-offset-2 hover:no-underline"
-                      >
-                        Learn more →
-                      </Link>
+                    <p className="text-xs text-muted-foreground">
+                      {displayName || 'They'} can change this during their first
+                      call.
                     </p>
+                    <RadioGroup
+                      value={defaultSharingTier}
+                      onValueChange={(value) =>
+                        setDefaultSharingTier(value as SharingTier)
+                      }
+                    >
+                      <RadioGroupItemLabel>
+                        <RadioGroupItem value="tier_1" />
+                        <div>
+                          <div className="font-medium text-foreground text-sm">
+                            Tier 1: Basic Updates & Safety
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Share call statistics, safety alerts, and usage data
+                            with your family.
+                          </div>
+                        </div>
+                      </RadioGroupItemLabel>
+                      <RadioGroupItemLabel>
+                        <RadioGroupItem value="tier_2" />
+                        <div>
+                          <div className="font-medium text-foreground text-sm">
+                            Tier 2: Wellness Insights
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Includes everything from Tier 1, plus mood tracking
+                            and engagement patterns.
+                          </div>
+                        </div>
+                      </RadioGroupItemLabel>
+                      <RadioGroupItemLabel>
+                        <RadioGroupItem value="tier_3" />
+                        <div>
+                          <div className="font-medium text-foreground text-sm">
+                            Tier 3: Conversation Topics
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Includes everything from Tier 2, plus categories of
+                            topics discussed during calls.
+                          </div>
+                        </div>
+                      </RadioGroupItemLabel>
+                      <RadioGroupItemLabel>
+                        <RadioGroupItem value="tier_4" />
+                        <div>
+                          <div className="font-medium text-foreground text-sm">
+                            Tier 4: Full Visibility
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Includes everything from Tier 3, plus wellness
+                            concerns and follow-up recommendations.
+                          </div>
+                        </div>
+                      </RadioGroupItemLabel>
+                    </RadioGroup>
                   </div>
-                </>
-              )}
+                ) : (
+                  <div className="text-xs text-muted-foreground pt-4 border-t border-border">
+                    You can enable family sharing later from the Privacy Center
+                    if you want to share updates.
+                  </div>
+                )}
+
+                {/* Disclosures */}
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={disclosure}
+                      onChange={(e) => setDisclosure(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <span className="text-sm text-foreground">
+                      I understand Ultaura is an AI voice companion and is not a
+                      medical or mental health service.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={consent}
+                      onChange={(e) => setConsent(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <span className="text-sm text-foreground">
+                      I understand Ultaura may call this phone number on the
+                      schedule I set. The recipient can stop calls anytime by
+                      pressing 9.
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
+                  <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-primary leading-snug">
+                    After each call, Ultaura captures a brief summary of topics
+                    discussed and overall mood—never transcripts or quotes. You
+                    can disable insights anytime in line settings.{' '}
+                    <Link
+                      href="/docs/insights-and-reports"
+                      className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+                    >
+                      Learn more →
+                    </Link>
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
               {step === 1 ? (
@@ -462,7 +570,10 @@ export function AddLineModal({
                     variant="default"
                     className="w-full"
                     onClick={() => {
-                      const phoneValidationError = getUsPhoneValidationError(phoneNumber, { required: true });
+                      const phoneValidationError = getUsPhoneValidationError(
+                        phoneNumber,
+                        { required: true },
+                      );
                       if (phoneValidationError) {
                         setPhoneError(phoneValidationError);
                         return;
@@ -488,7 +599,12 @@ export function AddLineModal({
                     type="submit"
                     variant="default"
                     className="w-full"
-                    disabled={isLoading || !disclosure || !consent || !isVendorAcknowledged}
+                    disabled={
+                      isLoading ||
+                      !disclosure ||
+                      !consent ||
+                      !isVendorAcknowledged
+                    }
                     loading={isLoading}
                   >
                     {isLoading ? 'Creating' : 'Add Line'}

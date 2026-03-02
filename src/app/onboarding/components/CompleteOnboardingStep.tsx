@@ -24,9 +24,13 @@ interface CompleteOnboardingStepData {
   selfPhoneE164: string;
   selfTimezone: string;
   selfBirthday: { month: number; day: number } | null;
+  selfBirthYear: number | null;
+  selfGender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   lovedOneName: string;
   lovedOnePhoneE164: string;
   lovedOneTimezone: string;
+  lovedOneBirthYear: number | null;
+  lovedOneGender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   preferredGrokVoice: GrokVoice;
 }
 

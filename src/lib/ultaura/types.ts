@@ -48,7 +48,13 @@ export * from './types/retention';
 // ENUMS
 // ============================================
 export type LineStatus = 'active' | 'paused' | 'disabled';
-export type CallStatus = 'created' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'canceled';
+export type CallStatus =
+  | 'created'
+  | 'ringing'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'canceled';
 export type CallDirection = 'inbound' | 'outbound';
 export type BillableType = 'trial' | 'included' | 'overage' | 'payg';
 export type ScheduleResult =
@@ -92,7 +98,13 @@ export type ConsentType =
   | 'audio_processing'
   | 'recording';
 export type OptOutChannel = 'outbound_calls' | 'sms' | 'all';
-export type CallEndReason = 'hangup' | 'no_answer' | 'busy' | 'trial_cap' | 'minutes_cap' | 'error';
+export type CallEndReason =
+  | 'hangup'
+  | 'no_answer'
+  | 'busy'
+  | 'trial_cap'
+  | 'minutes_cap'
+  | 'error';
 export type CallAnsweredBy =
   | 'human'
   | 'machine_start'
@@ -134,7 +146,11 @@ export type SupportedLanguageIso =
   | 'ro'
   | 'hu';
 export type VerificationChannel = 'sms' | 'call';
-export type VerificationStatus = 'pending' | 'approved' | 'canceled' | 'expired';
+export type VerificationStatus =
+  | 'pending'
+  | 'approved'
+  | 'canceled'
+  | 'expired';
 export type UserType = 'self' | 'family_managed';
 
 // ============================================
@@ -229,6 +245,7 @@ export interface Line {
   vacationRanges?: Array<{ start: string; end: string }>;
   birthYear?: number | null;
   birthDecade?: number | null;
+  gender?: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   formativeDecade?: number | null;
   hometown?: string | null;
   currentLocation?: string | null;
@@ -248,6 +265,8 @@ export interface CreateLineInput {
   timezone?: string;
   preferredGrokVoice?: GrokVoice;
   preferredLanguageIso?: SupportedLanguageIso | null;
+  birthYear?: number | null;
+  gender?: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   seedInterests?: string[];
   seedAvoidTopics?: string[];
 }
@@ -266,6 +285,7 @@ export interface UpdateLineInput {
   allowVoiceReminderControl?: boolean;
   voicemailBehavior?: VoicemailBehavior;
   birthYear?: number | null;
+  gender?: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   formativeDecade?: number | null;
   hometown?: string | null;
   currentLocation?: string | null;
@@ -571,7 +591,13 @@ export interface SafetyEvent {
   tier: SafetyTier;
   confidence: number | null;
   signals: Record<string, unknown> | null;
-  actionTaken: 'none' | 'suggested_988' | 'suggested_911' | 'notified_contact' | 'transferred_call' | null;
+  actionTaken:
+    | 'none'
+    | 'suggested_988'
+    | 'suggested_911'
+    | 'notified_contact'
+    | 'transferred_call'
+    | null;
 }
 
 // ============================================
@@ -841,7 +867,13 @@ export interface InsightsDashboard {
   >;
 }
 
-export type MoodSnapshotMood = 'positive' | 'neutral' | 'low' | 'anxious' | 'sad' | 'frustrated';
+export type MoodSnapshotMood =
+  | 'positive'
+  | 'neutral'
+  | 'low'
+  | 'anxious'
+  | 'sad'
+  | 'frustrated';
 export type MoodEnergyLevel = 'high' | 'normal' | 'low' | 'very_low';
 export type MoodTrajectory = 'improved' | 'declined' | 'stable';
 
@@ -926,22 +958,37 @@ export interface WellnessAlert {
 // DATABASE ROW TYPES (snake_case for direct DB mapping)
 // ============================================
 
-export type UltauraAccountRow = Database['public']['Tables']['ultaura_accounts']['Row'];
+export type UltauraAccountRow =
+  Database['public']['Tables']['ultaura_accounts']['Row'];
 export type LineRow = Database['public']['Tables']['ultaura_lines']['Row'];
-export type ScheduleRow = Database['public']['Tables']['ultaura_schedules']['Row'];
-export type ScheduleExceptionRow = Database['public']['Tables']['ultaura_schedule_exceptions']['Row'];
-export type ScheduleEventRow = Database['public']['Tables']['ultaura_schedule_events']['Row'];
-export type CallSessionRow = Database['public']['Tables']['ultaura_call_sessions']['Row'];
-export type ReminderRow = Database['public']['Tables']['ultaura_reminders']['Row'];
-export type ReminderEventRow = Database['public']['Tables']['ultaura_reminder_events']['Row'] & {
-  reminder_message?: string;
-};
-export type CallPreviewRow = Database['public']['Tables']['ultaura_call_previews']['Row'];
-export type SegmentEngagementRow = Database['public']['Tables']['ultaura_segment_engagement']['Row'];
-export type StoryArcRow = Database['public']['Tables']['ultaura_story_arcs']['Row'];
-export type InsightPrivacyRow = Database['public']['Tables']['ultaura_insight_privacy']['Row'];
-export type InsightPrivacySettings = Omit<InsightPrivacyRow, 'private_topic_codes'>;
-export type LineBaselineRow = Database['public']['Tables']['ultaura_line_baselines']['Row'];
+export type ScheduleRow =
+  Database['public']['Tables']['ultaura_schedules']['Row'];
+export type ScheduleExceptionRow =
+  Database['public']['Tables']['ultaura_schedule_exceptions']['Row'];
+export type ScheduleEventRow =
+  Database['public']['Tables']['ultaura_schedule_events']['Row'];
+export type CallSessionRow =
+  Database['public']['Tables']['ultaura_call_sessions']['Row'];
+export type ReminderRow =
+  Database['public']['Tables']['ultaura_reminders']['Row'];
+export type ReminderEventRow =
+  Database['public']['Tables']['ultaura_reminder_events']['Row'] & {
+    reminder_message?: string;
+  };
+export type CallPreviewRow =
+  Database['public']['Tables']['ultaura_call_previews']['Row'];
+export type SegmentEngagementRow =
+  Database['public']['Tables']['ultaura_segment_engagement']['Row'];
+export type StoryArcRow =
+  Database['public']['Tables']['ultaura_story_arcs']['Row'];
+export type InsightPrivacyRow =
+  Database['public']['Tables']['ultaura_insight_privacy']['Row'];
+export type InsightPrivacySettings = Omit<
+  InsightPrivacyRow,
+  'private_topic_codes'
+>;
+export type LineBaselineRow =
+  Database['public']['Tables']['ultaura_line_baselines']['Row'];
 export type NotificationPreferencesRow =
   Database['public']['Tables']['ultaura_notification_preferences']['Row'];
 export type AccessibilitySettingsRow =
@@ -972,12 +1019,16 @@ export type HealthMentionRow =
   Database['public']['Tables']['ultaura_health_mentions']['Row'];
 export type WellnessAlertRow =
   Database['public']['Tables']['ultaura_wellness_alerts']['Row'];
-export type WeeklySummaryRow = Database['public']['Tables']['ultaura_weekly_summaries']['Row'];
+export type WeeklySummaryRow =
+  Database['public']['Tables']['ultaura_weekly_summaries']['Row'];
 export type AccountPrivacySettingsRow =
   Database['public']['Tables']['ultaura_account_privacy_settings']['Row'];
-export type LineVoiceConsentRow = Database['public']['Tables']['ultaura_line_voice_consent']['Row'];
-export type ConsentAuditRow = Database['public']['Tables']['ultaura_consent_audit_log']['Row'];
-export type DataExportRequestRow = Database['public']['Tables']['ultaura_data_export_requests']['Row'];
+export type LineVoiceConsentRow =
+  Database['public']['Tables']['ultaura_line_voice_consent']['Row'];
+export type ConsentAuditRow =
+  Database['public']['Tables']['ultaura_consent_audit_log']['Row'];
+export type DataExportRequestRow =
+  Database['public']['Tables']['ultaura_data_export_requests']['Row'];
 export type PendingRecordingDeletionRow =
   Database['public']['Tables']['ultaura_pending_recording_deletions']['Row'];
 

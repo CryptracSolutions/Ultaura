@@ -22,10 +22,14 @@ import OrganizationInvitesStep from '~/app/onboarding/components/OrganizationInv
 import MembershipRole from '~/lib/organizations/types/membership-role';
 import type { PlanId, UserType } from '~/lib/ultaura/types';
 import UserTypeStep, { UserTypeStepData } from './UserTypeStep';
-import PhoneCollectionStep, { PhoneCollectionStepData } from './PhoneCollectionStep';
+import PhoneCollectionStep, {
+  PhoneCollectionStepData,
+} from './PhoneCollectionStep';
 import BirthdayStep, { BirthdayStepData } from './BirthdayStep';
 import LovedOneSetupStep, { LovedOneSetupStepData } from './LovedOneSetupStep';
-import VoiceSelectionStep, { VoiceSelectionStepData } from './VoiceSelectionStep';
+import VoiceSelectionStep, {
+  VoiceSelectionStepData,
+} from './VoiceSelectionStep';
 import { DEFAULT_GROK_VOICE, type GrokVoice } from '~/lib/ultaura/voices';
 import { createOnboardingCheckout } from '~/lib/ultaura/checkout';
 import {
@@ -52,9 +56,13 @@ type OnboardingFormData = {
   selfPhoneE164: string;
   selfTimezone: string;
   selfBirthday: { month: number; day: number } | null;
+  selfBirthYear: number | null;
+  selfGender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   lovedOneName: string;
   lovedOnePhoneE164: string;
   lovedOneTimezone: string;
+  lovedOneBirthYear: number | null;
+  lovedOneGender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   preferredGrokVoice: GrokVoice;
   stripeSessionId: string | null;
 };
@@ -72,7 +80,7 @@ export type StoredOnboardingState = {
   stripeSessionId?: string;
 };
 
-const SESSION_STORAGE_KEY = 'ultaura:onboarding-state:v1';
+const SESSION_STORAGE_KEY = 'ultaura:onboarding-state:v2';
 const DEFAULT_BILLING_INTERVAL: BillingInterval = 'monthly';
 
 const DEFAULT_DATA: OnboardingFormData = {
@@ -83,9 +91,13 @@ const DEFAULT_DATA: OnboardingFormData = {
   selfPhoneE164: '',
   selfTimezone: 'America/Los_Angeles',
   selfBirthday: null,
+  selfBirthYear: null,
+  selfGender: null,
   lovedOneName: '',
   lovedOnePhoneE164: '',
   lovedOneTimezone: 'America/Los_Angeles',
+  lovedOneBirthYear: null,
+  lovedOneGender: null,
   preferredGrokVoice: DEFAULT_GROK_VOICE,
   stripeSessionId: null,
 };
@@ -109,7 +121,10 @@ function sanitizeLoadedState(value: unknown): StoredOnboardingState | null {
     return null;
   }
 
-  if (typeof state.currentStep !== 'number' || Number.isNaN(state.currentStep)) {
+  if (
+    typeof state.currentStep !== 'number' ||
+    Number.isNaN(state.currentStep)
+  ) {
     return null;
   }
 
@@ -167,7 +182,11 @@ function clearCheckoutQueryParams() {
   url.searchParams.delete('state');
   url.searchParams.delete('canceled');
 
-  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  window.history.replaceState(
+    {},
+    '',
+    `${url.pathname}${url.search}${url.hash}`,
+  );
 }
 
 function OnboardingContainer(
@@ -200,18 +219,23 @@ function OnboardingContainer(
     }
   }, [form]);
 
-  const applyRestoredState = useCallback((state: StoredOnboardingState) => {
-    form.reset({
-      currentStep: state.currentStep,
-      data: {
-        ...DEFAULT_DATA,
-        ...state.data,
-        selectedPlanId:
-          (state.selectedPlanId as PlanId | undefined) ?? state.data.selectedPlanId,
-        stripeSessionId: state.stripeSessionId ?? state.data.stripeSessionId ?? null,
-      },
-    });
-  }, [form]);
+  const applyRestoredState = useCallback(
+    (state: StoredOnboardingState) => {
+      form.reset({
+        currentStep: state.currentStep,
+        data: {
+          ...DEFAULT_DATA,
+          ...state.data,
+          selectedPlanId:
+            (state.selectedPlanId as PlanId | undefined) ??
+            state.data.selectedPlanId,
+          stripeSessionId:
+            state.stripeSessionId ?? state.data.stripeSessionId ?? null,
+        },
+      });
+    },
+    [form],
+  );
 
   const onInfoStepSubmitted = useCallback(
     (organizationInfo: OrganizationInfoStepData) => {
@@ -243,6 +267,8 @@ function OnboardingContainer(
   const onBirthdayStepSubmitted = useCallback(
     (data: BirthdayStepData) => {
       form.setValue('data.selfBirthday', data.birthday);
+      form.setValue('data.selfBirthYear', data.birthYear);
+      form.setValue('data.selfGender', data.gender);
       nextStep();
     },
     [form, nextStep],
@@ -253,6 +279,8 @@ function OnboardingContainer(
       form.setValue('data.lovedOneName', data.lovedOneName);
       form.setValue('data.lovedOnePhoneE164', data.lovedOnePhoneE164);
       form.setValue('data.lovedOneTimezone', data.lovedOneTimezone);
+      form.setValue('data.lovedOneBirthYear', data.lovedOneBirthYear);
+      form.setValue('data.lovedOneGender', data.lovedOneGender);
       nextStep();
     },
     [form, nextStep],
@@ -291,7 +319,9 @@ function OnboardingContainer(
       const persistedState = await persistOnboardingState(stateToPersist);
 
       if (!persistedState.success || !persistedState.stateToken) {
-        setCheckoutError(persistedState.error ?? 'Failed to save onboarding state');
+        setCheckoutError(
+          persistedState.error ?? 'Failed to save onboarding state',
+        );
         setIsStartingCheckout(false);
         return;
       }
@@ -303,7 +333,9 @@ function OnboardingContainer(
       );
 
       if (!checkoutResult.success || !checkoutResult.checkoutUrl) {
-        setCheckoutError(checkoutResult.error ?? 'Failed to create checkout session');
+        setCheckoutError(
+          checkoutResult.error ?? 'Failed to create checkout session',
+        );
         setIsStartingCheckout(false);
         return;
       }
@@ -487,7 +519,8 @@ function OnboardingContainer(
         <div className="mx-auto max-w-lg space-y-4 py-8">
           <Alert type={'warn'}>
             <Alert.Heading>Your checkout session expired</Alert.Heading>
-            We could not recover your onboarding details. Restart onboarding to continue.
+            We could not recover your onboarding details. Restart onboarding to
+            continue.
           </Alert>
 
           <Button type={'button'} onClick={restartOnboarding}>
@@ -516,31 +549,44 @@ function OnboardingContainer(
   return (
     <CsrfTokenContext.Provider value={props.csrfToken}>
       {!isCompleting && currentStep > 0 && (
-        <Stepper variant={'default'} currentStep={currentStep - 1} steps={steps.slice(1)} />
+        <Stepper
+          variant={'default'}
+          currentStep={currentStep - 1}
+          steps={steps.slice(1)}
+        />
       )}
 
-      <div
-        key={stepId}
-        className="animate-fade-in-up"
-      >
+      <div key={stepId} className="animate-fade-in-up">
         <If condition={stepId === 'onboarding:userType'}>
           <UserTypeStep onSubmit={onUserTypeSubmitted} />
         </If>
 
         <If condition={stepId === 'onboarding:info'}>
-          <OrganizationInfoStep onSubmit={onInfoStepSubmitted} onGoBack={prevStep} />
+          <OrganizationInfoStep
+            onSubmit={onInfoStepSubmitted}
+            onGoBack={prevStep}
+          />
         </If>
 
         <If condition={stepId === 'onboarding:phoneCollection'}>
-          <PhoneCollectionStep onSubmit={onPhoneStepSubmitted} onGoBack={prevStep} />
+          <PhoneCollectionStep
+            onSubmit={onPhoneStepSubmitted}
+            onGoBack={prevStep}
+          />
         </If>
 
-        <If condition={stepId === 'onboarding:birthday'}>
-          <BirthdayStep onSubmit={onBirthdayStepSubmitted} onGoBack={prevStep} />
+        <If condition={stepId === 'onboarding:personal'}>
+          <BirthdayStep
+            onSubmit={onBirthdayStepSubmitted}
+            onGoBack={prevStep}
+          />
         </If>
 
         <If condition={stepId === 'onboarding:lovedOneSetup'}>
-          <LovedOneSetupStep onSubmit={onLovedOneStepSubmitted} onGoBack={prevStep} />
+          <LovedOneSetupStep
+            onSubmit={onLovedOneStepSubmitted}
+            onGoBack={prevStep}
+          />
         </If>
 
         <If condition={stepId === 'onboarding:voiceSelection'}>
@@ -563,7 +609,10 @@ function OnboardingContainer(
         </If>
 
         <If condition={stepId === 'onboarding:invites' && !isCompleting}>
-          <OrganizationInvitesStep onSubmit={onInvitesStepSubmitted} onGoBack={prevStep} />
+          <OrganizationInvitesStep
+            onSubmit={onInvitesStepSubmitted}
+            onGoBack={prevStep}
+          />
         </If>
 
         <If condition={isCompleting && formData}>

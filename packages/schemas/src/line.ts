@@ -5,6 +5,8 @@ export const LineStatusSchema = z.enum(['active', 'paused', 'disabled']);
 export const VoicemailBehaviorSchema = z.enum(['none', 'brief', 'detailed']);
 export const SharingTierSchema = z.enum(['tier_1', 'tier_2', 'tier_3', 'tier_4']);
 export const GrokVoiceSchema = z.enum(['Ara', 'Eve', 'Leo', 'Rex', 'Sal']);
+export const GenderSchema = z.enum(['male', 'female', 'non_binary', 'prefer_not_to_say']);
+export type Gender = z.infer<typeof GenderSchema>;
 const SupportedLanguageIsoSchema = z.enum([
   'en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh',
   'nl', 'ru', 'ar', 'hi', 'tr', 'pl', 'sv', 'da', 'no',
@@ -31,6 +33,8 @@ export const CreateLineInputSchema = z.object({
   seedInterests: z.array(z.string()).optional(),
   seedAvoidTopics: z.array(z.string()).optional(),
   defaultSharingTier: SharingTierSchema.optional(),
+  birthYear: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
+  gender: GenderSchema.optional(),
 });
 
 export type CreateLineInput = z.infer<typeof CreateLineInputSchema>;
@@ -50,7 +54,8 @@ export const UpdateLineInputSchema = z.object({
   preferredGrokVoice: GrokVoiceSchema.optional(),
   preferredLanguageIso: SupportedLanguageIsoSchema.nullable().optional(),
   status: LineStatusSchema.optional(),
-  birthYear: z.number().int().optional(),
+  birthYear: z.number().int().min(1900).max(new Date().getFullYear()).nullable(),
+  gender: GenderSchema.nullable(),
   formativeDecade: z.number().int().optional(),
   hometown: z.string().optional(),
   currentLocation: z.string().optional(),

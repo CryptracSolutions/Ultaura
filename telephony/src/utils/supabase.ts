@@ -82,6 +82,7 @@ export interface LineRow {
   birth_year: number | null;
   birth_decade: number | null;
   formative_decade: number | null;
+  gender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say' | null;
   hometown: string | null;
   current_location: string | null;
   optimal_call_time: string | null;

@@ -200,6 +200,13 @@ export const LANGUAGE_OPTIONS = [
   { value: 'zh', label: 'Chinese' },
 ] as const;
 
+export const GENDER_OPTIONS = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'non_binary', label: 'Non-binary' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+] as const;
+
 export type LanguageOption = typeof LANGUAGE_OPTIONS[number];
 
 // ============================================

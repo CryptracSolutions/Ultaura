@@ -73,7 +73,7 @@ export const POST = async (req: NextRequest) => {
     {
       userId,
     },
-    `Completing onboarding for user...`,
+    'Completing onboarding for user...',
   );
 
   // complete onboarding and get the organization id created
@@ -85,7 +85,7 @@ export const POST = async (req: NextRequest) => {
         error,
         userId,
       },
-      `Error completing onboarding for user`,
+      'Error completing onboarding for user',
     );
 
     return throwInternalServerErrorException();
@@ -269,11 +269,19 @@ export const POST = async (req: NextRequest) => {
   const lineTimezone =
     body.userType === 'self' ? body.selfTimezone : body.lovedOneTimezone;
 
+  const lineBirthYear =
+    body.userType === 'self' ? body.selfBirthYear : body.lovedOneBirthYear;
+
+  const lineGender =
+    body.userType === 'self' ? body.selfGender : body.lovedOneGender;
+
   const lineResult = await createLine({
     accountId,
     displayName: lineName,
     phoneE164: linePhone,
     timezone: lineTimezone,
+    birthYear: lineBirthYear ?? undefined,
+    gender: lineGender ?? undefined,
     preferredGrokVoice: body.preferredGrokVoice,
   });
 
@@ -297,6 +305,7 @@ export const POST = async (req: NextRequest) => {
         title: 'My Birthday',
         date_month: body.selfBirthday.month,
         date_day: body.selfBirthday.day,
+        date_year: lineBirthYear ?? null,
         is_recurring: true,
         source: 'family_input',
         privacy_scope: 'line_only',
@@ -315,7 +324,7 @@ export const POST = async (req: NextRequest) => {
       userId,
       organizationUid,
     },
-    `Onboarding successfully completed for user`,
+    'Onboarding successfully completed for user',
   );
 
   const returnUrl = `/dashboard/lines/${shortId}/verify`;
@@ -357,9 +366,31 @@ function getOnboardingBodySchema() {
         })
         .nullable()
         .optional(),
+      selfBirthYear: z
+        .number()
+        .int()
+        .min(1900)
+        .max(new Date().getFullYear())
+        .nullable()
+        .optional(),
+      selfGender: z
+        .enum(['male', 'female', 'non_binary', 'prefer_not_to_say'])
+        .nullable()
+        .optional(),
       lovedOneName: z.string().trim().optional(),
       lovedOnePhoneE164: optionalPhoneSchema.optional(),
       lovedOneTimezone: z.string().optional(),
+      lovedOneBirthYear: z
+        .number()
+        .int()
+        .min(1900)
+        .max(new Date().getFullYear())
+        .nullable()
+        .optional(),
+      lovedOneGender: z
+        .enum(['male', 'female', 'non_binary', 'prefer_not_to_say'])
+        .nullable()
+        .optional(),
       preferredGrokVoice: z
         .enum(GROK.VOICES)
         .optional()
