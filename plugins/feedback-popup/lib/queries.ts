@@ -41,13 +41,13 @@ export async function getFeedbackSubmissions(
     .range(startOffset, endOffset);
 
   if (params.query) {
-    query = query.textSearch('text', `${params.query}`);
+    query = query.textSearch('text', params.query);
   }
 
   return query;
 }
 
-export async function getFeedbackSubmission(client: Client, id: string) {
+export async function getFeedbackSubmission(client: Client, id: number) {
   return client
     .from(TABLE_NAME)
     .select<string, FeedbackSubmission>(QUERY)

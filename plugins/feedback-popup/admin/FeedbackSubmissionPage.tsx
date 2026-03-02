@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
+import { z } from 'zod';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
@@ -31,12 +32,14 @@ async function FeedbackSubmissionsPage({
 }: {
   params: FeedbackSubmissionsPageParams;
 }) {
+  const submissionId = z.coerce.number().int().positive().parse(id);
+
   const adminClient = getSupabaseServerComponentClient({
     admin: true,
   });
 
   const { submission, attachment, similarSubmissions } =
-    await loadFeedbackSubmission(adminClient, id);
+    await loadFeedbackSubmission(adminClient, submissionId);
 
   return (
     <div className={'flex flex-1 flex-col'}>
@@ -61,13 +64,13 @@ async function FeedbackSubmissionsPage({
                   {submission.userId}
                 </Link>
               ) : (
-                `Anonymous`
+                'Anonymous'
               )}
             </Badge>
 
             <Badge size={'small'}>
               <b>Screen</b>:{' '}
-              {submission.screenName ? `${submission.screenName}` : `Unknown`}
+              {submission.screenName ? submission.screenName : 'Unknown'}
             </Badge>
 
             <Badge size={'small'}>
@@ -120,7 +123,6 @@ async function FeedbackSubmissionsPage({
                   {similarSubmissions.map((submission) => (
                     <li key={submission.id}>
                       <Link
-                        key={submission.id}
                         className={'hover:underline'}
                         href={`/admin/feedback/${submission.id}`}
                       >
@@ -157,7 +159,7 @@ function getDate(date: Maybe<string>) {
 
 async function loadFeedbackSubmission(
   adminClient: SupabaseClient<Database>,
-  id: FeedbackSubmissionsPageParams['id'],
+  id: number,
 ) {
   const submissionsResponse = await getFeedbackSubmission(adminClient, id);
 
@@ -189,7 +191,7 @@ async function loadFeedbackSubmission(
     };
   }
 
-  const similarSubmissions = similarSubmissionsResponse.data.filter(
+  const similarSubmissions = (similarSubmissionsResponse.data ?? []).filter(
     (submission) => {
       return submission.id !== submissionsResponse.data.id;
     },
@@ -198,7 +200,7 @@ async function loadFeedbackSubmission(
   return {
     submission: submissionsResponse.data,
     attachment,
-    similarSubmissions: similarSubmissions ?? [],
+    similarSubmissions,
   };
 }
 
@@ -229,7 +231,5 @@ async function downloadAttachment(client: SupabaseClient, url: string) {
     console.warn(error);
   }
 
-  if (data) {
-    return data.signedUrl;
-  }
+  return data?.signedUrl;
 }

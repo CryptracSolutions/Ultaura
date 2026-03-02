@@ -119,11 +119,17 @@ async function checkStripe(): Promise<DiagnosticCheck> {
 
   try {
     const stripe = await getStripeInstance();
-    const account = await stripe.accounts.retrieve() as { charges_enabled?: boolean; livemode?: boolean };
+    const account = (await stripe.accounts.retrieve()) as {
+      charges_enabled?: boolean;
+      livemode?: boolean;
+    };
 
-    const mode = account.charges_enabled !== undefined
-      ? (account.livemode ? 'live' : 'test')
-      : 'unknown';
+    const mode =
+      account.charges_enabled !== undefined
+        ? account.livemode
+          ? 'live'
+          : 'test'
+        : 'unknown';
 
     return {
       name: 'Stripe API',
@@ -184,8 +190,7 @@ function checkEncryptionKeyHealth(): DiagnosticCheck {
     return {
       name: 'Encryption Key Health',
       status: 'fail',
-      details:
-        `ULTAURA_ENCRYPTION_KEY format is invalid (${rawKey.length} chars). Expected exactly 64 hexadecimal characters.`,
+      details: `ULTAURA_ENCRYPTION_KEY format is invalid (${rawKey.length} chars). Expected exactly 64 hexadecimal characters.`,
     };
   }
 
@@ -200,7 +205,7 @@ async function checkTelephonyEventLog(): Promise<DiagnosticCheck> {
   try {
     const client = getSupabaseServerComponentClient({ admin: true });
     const { data, error, count } = await client
-      .from('ultaura_telephony_event_log' as any)
+      .from('ultaura_telephony_event_log')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(10);
@@ -214,7 +219,7 @@ async function checkTelephonyEventLog(): Promise<DiagnosticCheck> {
       };
     }
 
-    const rows = (data ?? []) as Array<{ created_at: string }>;
+    const rows = data ?? [];
     const total = count ?? rows.length;
 
     if (rows.length === 0) {
@@ -316,8 +321,7 @@ async function DiagnosticsPage() {
     const result = await getRecentAuditLogs(20);
     auditLogs = (result.logs ?? []) as unknown as typeof auditLogs;
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err);
     auditError = message;
     logger.error({ error: err }, 'Diagnostics: failed to fetch audit logs');
   }
@@ -328,7 +332,9 @@ async function DiagnosticsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <AdminHeader description="System health and audit trail">Diagnostics</AdminHeader>
+      <AdminHeader description="System health and audit trail">
+        Diagnostics
+      </AdminHeader>
 
       <PageBody>
         <div className="flex flex-col gap-6 pb-12">

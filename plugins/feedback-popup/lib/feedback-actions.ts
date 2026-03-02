@@ -151,10 +151,7 @@ export const deleteFeedbackSubmissionAction = withAdminSession(
 
     logger.info({ id }, `Deleting feedback submission...`);
 
-    const { data: submission } = await getFeedbackSubmission(
-      adminClient,
-      id.toString(),
-    );
+    const { data: submission } = await getFeedbackSubmission(adminClient, id);
 
     const attachment = submission?.attachmentUrl;
 
@@ -192,7 +189,7 @@ export const deleteFeedbackSubmissionAction = withAdminSession(
       const { error } = await bucket.remove([attachment]);
 
       if (error) {
-        getLogger().warn(
+        logger.warn(
           {
             id,
             attachment,
@@ -216,7 +213,7 @@ export const deleteFeedbackSubmissionAction = withAdminSession(
 
 async function createEmbedding(text: string) {
   const { pipeline } = await import(
-    /* webpackIgnore: true */ '@xenova/transformers',
+    /* webpackIgnore: true */ '@xenova/transformers'
   );
 
   const generateEmbedding = await pipeline(

@@ -4990,6 +4990,7 @@ export type Database = {
         | "pause_mode_changed"
         | "insights_reprompt_requested"
         | "recording_reenable_requested"
+        | "sharing_reprompt_requested"
       ultaura_consent_type:
         | "outbound_calls"
         | "trusted_contact_notify"
@@ -5883,6 +5884,7 @@ export const Constants = {
         "pause_mode_changed",
         "insights_reprompt_requested",
         "recording_reenable_requested",
+        "sharing_reprompt_requested",
       ],
       ultaura_consent_type: [
         "outbound_calls",

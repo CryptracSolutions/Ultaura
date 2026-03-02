@@ -49,7 +49,7 @@ export async function getAllChangelogEntries() {
   const { adminClient, user } = await assertSuperAdmin();
 
   const { data, error } = await adminClient
-    .from(ULTAURA_CHANGELOG_TABLE as any)
+    .from(ULTAURA_CHANGELOG_TABLE)
     .select('*')
     .order('created_at', { ascending: false });
 
@@ -58,7 +58,7 @@ export async function getAllChangelogEntries() {
     throw new Error('Failed to load changelog entries');
   }
 
-  const entries = ((data as Array<Record<string, unknown>> | null) ?? []).map(mapChangelogRow);
+  const entries = (data ?? []).map(mapChangelogRow);
 
   await safeWriteChangelogAuditLog(user, {
     action: 'changelog.entries.list',
@@ -71,10 +71,15 @@ export async function getAllChangelogEntries() {
 
 export async function createChangelogEntry(data: unknown) {
   const { adminClient, user } = await assertSuperAdmin();
-  const parsed = changelogEntryInputSchema.safeParse(normalizeCreateInput(data));
+  const parsed = changelogEntryInputSchema.safeParse(
+    normalizeCreateInput(data),
+  );
 
   if (!parsed.success) {
-    return { success: false as const, error: parsed.error.issues[0]?.message ?? 'Invalid entry' };
+    return {
+      success: false as const,
+      error: parsed.error.issues[0]?.message ?? 'Invalid entry',
+    };
   }
 
   const now = new Date().toISOString();
@@ -91,17 +96,20 @@ export async function createChangelogEntry(data: unknown) {
   };
 
   const { data: inserted, error } = await adminClient
-    .from(ULTAURA_CHANGELOG_TABLE as any)
+    .from(ULTAURA_CHANGELOG_TABLE)
     .insert(payload)
     .select('*')
     .single();
 
   if (error || !inserted) {
     logger.error({ error }, 'Failed to create changelog entry');
-    return { success: false as const, error: 'Failed to create changelog entry' };
+    return {
+      success: false as const,
+      error: 'Failed to create changelog entry',
+    };
   }
 
-  const entry = mapChangelogRow(inserted as Record<string, unknown>);
+  const entry = mapChangelogRow(inserted);
 
   await safeWriteChangelogAuditLog(user, {
     action: 'changelog.entry.create',
@@ -121,13 +129,20 @@ export async function createChangelogEntry(data: unknown) {
 
 export async function updateChangelogEntry(id: string, data: unknown) {
   const { adminClient, user } = await assertSuperAdmin();
-  const parsed = changelogEntryUpdateSchema.safeParse(normalizeUpdateInput(data));
+  const parsed = changelogEntryUpdateSchema.safeParse(
+    normalizeUpdateInput(data),
+  );
 
   if (!parsed.success) {
-    return { success: false as const, error: parsed.error.issues[0]?.message ?? 'Invalid entry update' };
+    return {
+      success: false as const,
+      error: parsed.error.issues[0]?.message ?? 'Invalid entry update',
+    };
   }
 
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const payload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
 
   if (typeof parsed.data.title === 'string') {
     payload.title = parsed.data.title;
@@ -148,7 +163,7 @@ export async function updateChangelogEntry(id: string, data: unknown) {
   }
 
   const { data: updated, error } = await adminClient
-    .from(ULTAURA_CHANGELOG_TABLE as any)
+    .from(ULTAURA_CHANGELOG_TABLE)
     .update(payload)
     .eq('id', id)
     .select('*')
@@ -156,21 +171,24 @@ export async function updateChangelogEntry(id: string, data: unknown) {
 
   if (error || !updated) {
     logger.error({ error, id }, 'Failed to update changelog entry');
-    return { success: false as const, error: 'Failed to update changelog entry' };
+    return {
+      success: false as const,
+      error: 'Failed to update changelog entry',
+    };
   }
 
-  const entry = mapChangelogRow(updated as Record<string, unknown>);
+  const entry = mapChangelogRow(updated);
 
   await safeWriteChangelogAuditLog(user, {
     action: 'changelog.entry.update',
     targetType: 'changelog_entry',
     targetId: entry.id,
     metadata: {
-          title: entry.title,
-          category: entry.category,
-          changedFields: updatedColumns,
-        },
-      });
+      title: entry.title,
+      category: entry.category,
+      changedFields: updatedColumns,
+    },
+  });
 
   revalidateAppChangelogPaths();
 
@@ -181,7 +199,7 @@ export async function deleteChangelogEntry(id: string) {
   const { adminClient, user } = await assertSuperAdmin();
 
   const { data: deleted, error } = await adminClient
-    .from(ULTAURA_CHANGELOG_TABLE as any)
+    .from(ULTAURA_CHANGELOG_TABLE)
     .delete()
     .eq('id', id)
     .select('*')
@@ -189,10 +207,13 @@ export async function deleteChangelogEntry(id: string) {
 
   if (error) {
     logger.error({ error, id }, 'Failed to delete changelog entry');
-    return { success: false as const, error: 'Failed to delete changelog entry' };
+    return {
+      success: false as const,
+      error: 'Failed to delete changelog entry',
+    };
   }
 
-  const deletedEntry = deleted ? mapChangelogRow(deleted as Record<string, unknown>) : null;
+  const deletedEntry = deleted ? mapChangelogRow(deleted) : null;
 
   await safeWriteChangelogAuditLog(user, {
     action: 'changelog.entry.delete',
@@ -227,7 +248,7 @@ export async function publishAndSendChangelog(entryIds?: string[]) {
     });
   } else {
     const { data, error } = await adminClient
-      .from(ULTAURA_CHANGELOG_TABLE as any)
+      .from(ULTAURA_CHANGELOG_TABLE)
       .select('*')
       .eq('published', false)
       .order('created_at', { ascending: false });
@@ -243,7 +264,7 @@ export async function publishAndSendChangelog(entryIds?: string[]) {
       };
     }
 
-    drafts = ((data as Array<Record<string, unknown>> | null) ?? []).map(mapChangelogRow);
+    drafts = (data ?? []).map(mapChangelogRow);
   }
 
   const draftIds = drafts.map((entry) => entry.id).filter(Boolean);
@@ -268,7 +289,7 @@ export async function publishAndSendChangelog(entryIds?: string[]) {
   const now = new Date().toISOString();
 
   const { error: publishError } = await adminClient
-    .from(ULTAURA_CHANGELOG_TABLE as any)
+    .from(ULTAURA_CHANGELOG_TABLE)
     .update({
       published: true,
       published_at: now,
@@ -279,7 +300,10 @@ export async function publishAndSendChangelog(entryIds?: string[]) {
     .eq('published', false);
 
   if (publishError) {
-    logger.error({ error: publishError, draftIds, batchId }, 'Failed to publish changelog drafts');
+    logger.error(
+      { error: publishError, draftIds, batchId },
+      'Failed to publish changelog drafts',
+    );
 
     await safeWriteChangelogAuditLog(user, {
       action: 'changelog.publish',
@@ -301,24 +325,32 @@ export async function publishAndSendChangelog(entryIds?: string[]) {
     };
   }
 
-  const routeCall = await callInternalChangelogEmailRoute({ batchId, entryIds: draftIds });
+  const routeCall = await callInternalChangelogEmailRoute({
+    batchId,
+    entryIds: draftIds,
+  });
   const emailSummary = buildChangelogEmailSummary(routeCall.response);
 
   let emailMarkedSent = false;
   let finalError = routeCall.error;
 
-  const fullEmailSuccess = didChangelogEmailRouteFullySucceed(routeCall.response);
+  const fullEmailSuccess = didChangelogEmailRouteFullySucceed(
+    routeCall.response,
+  );
 
   if (fullEmailSuccess) {
     const { error: markError } = await adminClient
-      .from(ULTAURA_CHANGELOG_TABLE as any)
+      .from(ULTAURA_CHANGELOG_TABLE)
       .update({ email_sent: true, updated_at: new Date().toISOString() })
       .in('id', draftIds)
       .eq('publish_batch_id', batchId)
       .eq('published', true);
 
     if (markError) {
-      logger.error({ error: markError, batchId, draftIds }, 'Failed to mark changelog email_sent=true');
+      logger.error(
+        { error: markError, batchId, draftIds },
+        'Failed to mark changelog email_sent=true',
+      );
       finalError = 'Emails sent, but failed to mark entries as emailed';
     } else {
       emailMarkedSent = true;
@@ -353,7 +385,9 @@ export async function publishAndSendChangelog(entryIds?: string[]) {
   };
 }
 
-export async function resendChangelogEmails(options?: { batchId?: string | null }) {
+export async function resendChangelogEmails(options?: {
+  batchId?: string | null;
+}) {
   const { adminClient, user } = await assertSuperAdmin();
   const requestedBatchId = options?.batchId?.trim() || null;
 
@@ -367,7 +401,9 @@ export async function resendChangelogEmails(options?: { batchId?: string | null 
         publishBatchId: targetBatchId,
         limit: null,
       })
-    ).filter((entry) => !entry.emailSent && entry.publishBatchId === targetBatchId);
+    ).filter(
+      (entry) => !entry.emailSent && entry.publishBatchId === targetBatchId,
+    );
   } else {
     const publishedEntries = await listChangelogEntries(adminClient as any, {
       published: true,
@@ -375,17 +411,22 @@ export async function resendChangelogEmails(options?: { batchId?: string | null 
     });
 
     const unsentPublishedEntries = publishedEntries.filter(
-      (entry) => entry.published && !entry.emailSent && Boolean(entry.publishBatchId),
+      (entry) =>
+        entry.published && !entry.emailSent && Boolean(entry.publishBatchId),
     );
 
     targetBatchId = unsentPublishedEntries[0]?.publishBatchId ?? null;
     batchEntries = targetBatchId
-      ? unsentPublishedEntries.filter((entry) => entry.publishBatchId === targetBatchId)
+      ? unsentPublishedEntries.filter(
+          (entry) => entry.publishBatchId === targetBatchId,
+        )
       : [];
   }
 
   const batchId = targetBatchId;
-  const entryBatchIds = dedupeNonEmptyStrings(batchEntries.map((entry) => entry.id));
+  const entryBatchIds = dedupeNonEmptyStrings(
+    batchEntries.map((entry) => entry.id),
+  );
 
   if (!batchId || entryBatchIds.length === 0) {
     await safeWriteChangelogAuditLog(user, {
@@ -410,17 +451,22 @@ export async function resendChangelogEmails(options?: { batchId?: string | null 
     };
   }
 
-  const routeCall = await callInternalChangelogEmailRoute({ batchId, entryIds: entryBatchIds });
+  const routeCall = await callInternalChangelogEmailRoute({
+    batchId,
+    entryIds: entryBatchIds,
+  });
   const emailSummary = buildChangelogEmailSummary(routeCall.response);
 
   let emailMarkedSent = false;
   let finalError = routeCall.error;
 
-  const fullEmailSuccess = didChangelogEmailRouteFullySucceed(routeCall.response);
+  const fullEmailSuccess = didChangelogEmailRouteFullySucceed(
+    routeCall.response,
+  );
 
   if (fullEmailSuccess) {
     const { error: markError } = await adminClient
-      .from(ULTAURA_CHANGELOG_TABLE as any)
+      .from(ULTAURA_CHANGELOG_TABLE)
       .update({ email_sent: true, updated_at: new Date().toISOString() })
       .in('id', entryBatchIds)
       .eq('publish_batch_id', batchId)
@@ -530,7 +576,10 @@ async function assertSuperAdmin() {
   };
 }
 
-async function safeWriteChangelogAuditLog(user: AdminUser, entry: AdminAuditEntry) {
+async function safeWriteChangelogAuditLog(
+  user: AdminUser,
+  entry: AdminAuditEntry,
+) {
   try {
     await writeAdminAuditLog(
       {
@@ -551,7 +600,10 @@ async function safeWriteChangelogAuditLog(user: AdminUser, entry: AdminAuditEntr
   }
 }
 
-async function callInternalChangelogEmailRoute(payload: { batchId: string; entryIds: string[] }) {
+async function callInternalChangelogEmailRoute(payload: {
+  batchId: string;
+  entryIds: string[];
+}) {
   const secret = process.env.ULTAURA_INTERNAL_API_SECRET;
   if (!secret) {
     return {
@@ -564,15 +616,18 @@ async function callInternalChangelogEmailRoute(payload: { batchId: string; entry
   const requestBody = ChangelogEmailRouteRequestSchema.parse(payload);
 
   try {
-    const response = await fetch(`${getAppBaseUrl()}/api/internal/changelog-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [INTERNAL_SECRET_HEADER]: secret,
+    const response = await fetch(
+      `${getAppBaseUrl()}/api/internal/changelog-email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          [INTERNAL_SECRET_HEADER]: secret,
+        },
+        body: JSON.stringify(requestBody),
+        cache: 'no-store',
       },
-      body: JSON.stringify(requestBody),
-      cache: 'no-store',
-    });
+    );
 
     const parsed = await response.json().catch(() => null);
 
@@ -582,17 +637,24 @@ async function callInternalChangelogEmailRoute(payload: { batchId: string; entry
       return {
         status: response.status,
         response: null,
-        error: response.ok ? 'Invalid changelog email response' : 'Internal changelog email route failed',
+        error: response.ok
+          ? 'Invalid changelog email response'
+          : 'Internal changelog email route failed',
       };
     }
 
     return {
       status: response.status,
       response: routeResponse,
-      error: routeResponse.success ? null : routeResponse.error ?? 'Some changelog emails failed to send',
+      error: routeResponse.success
+        ? null
+        : routeResponse.error ?? 'Some changelog emails failed to send',
     };
   } catch (error) {
-    logger.error({ error, payload }, 'Failed to call internal changelog email route');
+    logger.error(
+      { error, payload },
+      'Failed to call internal changelog email route',
+    );
     return {
       status: null,
       response: null,
@@ -601,7 +663,9 @@ async function callInternalChangelogEmailRoute(payload: { batchId: string; entry
   }
 }
 
-function isChangelogEmailRouteResponse(value: unknown): value is ChangelogEmailRouteResponse {
+function isChangelogEmailRouteResponse(
+  value: unknown,
+): value is ChangelogEmailRouteResponse {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -610,7 +674,9 @@ function isChangelogEmailRouteResponse(value: unknown): value is ChangelogEmailR
   return typeof record.success === 'boolean';
 }
 
-function buildChangelogEmailSummary(response: ChangelogEmailRouteResponse | null) {
+function buildChangelogEmailSummary(
+  response: ChangelogEmailRouteResponse | null,
+) {
   if (!response) {
     return null;
   }
@@ -623,7 +689,9 @@ function buildChangelogEmailSummary(response: ChangelogEmailRouteResponse | null
   };
 }
 
-function didChangelogEmailRouteFullySucceed(response: ChangelogEmailRouteResponse | null) {
+function didChangelogEmailRouteFullySucceed(
+  response: ChangelogEmailRouteResponse | null,
+) {
   return response?.success === true && (response.recipientsFailed ?? 0) === 0;
 }
 
@@ -631,7 +699,8 @@ function normalizeCreateInput(input: unknown) {
   const record = asRecord(input);
   return {
     title: getString(record?.title) ?? '',
-    description: getString(record?.description) ?? getString(record?.summary) ?? '',
+    description:
+      getString(record?.description) ?? getString(record?.summary) ?? '',
     category: normalizeChangelogCategory(record?.category),
     sort_order: getNullableInteger(record?.sort_order ?? record?.sortOrder),
   };
@@ -650,7 +719,8 @@ function normalizeUpdateInput(input: unknown) {
   }
 
   if ('description' in record || 'summary' in record) {
-    result.description = getString(record.description) ?? getString(record.summary) ?? '';
+    result.description =
+      getString(record.description) ?? getString(record.summary) ?? '';
   }
 
   if ('category' in record) {
@@ -658,7 +728,9 @@ function normalizeUpdateInput(input: unknown) {
   }
 
   if ('sort_order' in record || 'sortOrder' in record) {
-    result.sort_order = getNullableInteger(record.sort_order ?? record.sortOrder);
+    result.sort_order = getNullableInteger(
+      record.sort_order ?? record.sortOrder,
+    );
   }
 
   return result;
