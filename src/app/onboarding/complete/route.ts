@@ -15,7 +15,12 @@ import inviteMembers from '~/lib/server/organizations/invite-members';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getStripeInstance from '~/core/stripe/get-stripe';
 
-import { BILLING, GROK, PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
+import {
+  BILLING,
+  GROK,
+  PLANS,
+  TRIAL_ELIGIBLE_PLANS,
+} from '~/lib/ultaura/constants';
 import { createLine } from '~/lib/ultaura/lines';
 import { syncUltauraSubscription } from '~/lib/ultaura/billing';
 import { getUserDataById } from '~/lib/server/queries';
@@ -34,8 +39,12 @@ export const POST = async (req: NextRequest) => {
     body = await getOnboardingBodySchema().parseAsync(json);
   } catch (error) {
     const errorName = error instanceof Error ? error.name : 'UnknownError';
-    const issueCount = error instanceof z.ZodError ? error.issues.length : undefined;
-    logger.warn({ userId, errorName, issueCount }, 'Invalid onboarding request body');
+    const issueCount =
+      error instanceof z.ZodError ? error.issues.length : undefined;
+    logger.warn(
+      { userId, errorName, issueCount },
+      'Invalid onboarding request body',
+    );
     return NextResponse.json(
       { success: false, error: 'Invalid request body' },
       { status: 400 },
@@ -89,7 +98,10 @@ export const POST = async (req: NextRequest) => {
     .eq('id', userId);
 
   if (onboardedError) {
-    logger.warn({ error: onboardedError, userId }, 'Failed to update onboarded flag');
+    logger.warn(
+      { error: onboardedError, userId },
+      'Failed to update onboarded flag',
+    );
   }
 
   if (body.userType === 'family_managed' && invites.length > 0) {
@@ -121,18 +133,25 @@ export const POST = async (req: NextRequest) => {
       .single();
 
     if (orgError || !orgRow) {
-      logger.error({ orgError, organizationUid }, 'Failed to fetch organization for Ultaura account creation');
+      logger.error(
+        { orgError, organizationUid },
+        'Failed to fetch organization for Ultaura account creation',
+      );
       return throwInternalServerErrorException();
     }
 
-    const { data: existingAccount, error: existingAccountError } = await adminClient
-      .from('ultaura_accounts')
-      .select('id')
-      .eq('organization_id', orgRow.id)
-      .maybeSingle();
+    const { data: existingAccount, error: existingAccountError } =
+      await adminClient
+        .from('ultaura_accounts')
+        .select('id')
+        .eq('organization_id', orgRow.id)
+        .maybeSingle();
 
     if (existingAccountError) {
-      logger.error({ existingAccountError, organizationUid }, 'Failed to check existing Ultaura account');
+      logger.error(
+        { existingAccountError, organizationUid },
+        'Failed to check existing Ultaura account',
+      );
       return throwInternalServerErrorException();
     }
 
@@ -167,7 +186,10 @@ export const POST = async (req: NextRequest) => {
         .single();
 
       if (accountError) {
-        logger.error({ accountError, organizationUid }, 'Failed to create Ultaura account during onboarding');
+        logger.error(
+          { accountError, organizationUid },
+          'Failed to create Ultaura account during onboarding',
+        );
         return throwInternalServerErrorException();
       }
 
@@ -176,13 +198,58 @@ export const POST = async (req: NextRequest) => {
       accountId = existingAccount.id;
     }
   } catch (error) {
-    logger.error({ error, organizationUid }, 'Failed to create Ultaura account during onboarding');
+    logger.error(
+      { error, organizationUid },
+      'Failed to create Ultaura account during onboarding',
+    );
     return throwInternalServerErrorException();
   }
 
   if (!accountId) {
-    logger.error({ organizationUid }, 'Missing Ultaura account ID after onboarding');
+    logger.error(
+      { organizationUid },
+      'Missing Ultaura account ID after onboarding',
+    );
     return throwInternalServerErrorException();
+  }
+
+  // Record implicit TOS acknowledgment
+  {
+    const ipAddress =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+    const userAgent = req.headers.get('user-agent') || null;
+
+    await adminClient
+      .from('ultaura_consent_audit_log')
+      .insert({
+        account_id: accountId,
+        actor_user_id: userId,
+        actor_type: 'payer',
+        action: 'granted',
+        consent_type: 'tos_acknowledgment',
+        new_value: {
+          tosVersion: 'March 1, 2026',
+          privacyPolicyVersion: 'March 1, 2026',
+          acknowledgedAt: new Date().toISOString(),
+          method: 'implicit_account_creation',
+          includesConversationAutonomyDisclosure: true,
+        },
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: {
+          source: 'onboarding',
+          planId: selectedPlanId,
+          userType: body.userType,
+        },
+      })
+      .then(({ error: auditError }) => {
+        if (auditError) {
+          logger.warn(
+            { auditError, accountId },
+            'Failed to log TOS acknowledgment audit entry',
+          );
+        }
+      });
   }
 
   if (body.stripeSessionId) {
@@ -193,17 +260,14 @@ export const POST = async (req: NextRequest) => {
     });
   }
 
-  const lineName = body.userType === 'self'
-    ? (displayName || 'My Account')
-    : body.lovedOneName;
+  const lineName =
+    body.userType === 'self' ? displayName || 'My Account' : body.lovedOneName;
 
-  const linePhone = body.userType === 'self'
-    ? body.selfPhoneE164
-    : body.lovedOnePhoneE164;
+  const linePhone =
+    body.userType === 'self' ? body.selfPhoneE164 : body.lovedOnePhoneE164;
 
-  const lineTimezone = body.userType === 'self'
-    ? body.selfTimezone
-    : body.lovedOneTimezone;
+  const lineTimezone =
+    body.userType === 'self' ? body.selfTimezone : body.lovedOneTimezone;
 
   const lineResult = await createLine({
     accountId,
@@ -214,7 +278,10 @@ export const POST = async (req: NextRequest) => {
   });
 
   if (!lineResult.success) {
-    logger.error({ error: lineResult.error, organizationUid }, 'Failed to create line during onboarding');
+    logger.error(
+      { error: lineResult.error, organizationUid },
+      'Failed to create line during onboarding',
+    );
     return throwInternalServerErrorException();
   }
 
@@ -236,7 +303,10 @@ export const POST = async (req: NextRequest) => {
       });
 
     if (milestoneError) {
-      logger.warn({ milestoneError, organizationUid }, 'Failed to create birthday milestone during onboarding');
+      logger.warn(
+        { milestoneError, organizationUid },
+        'Failed to create birthday milestone during onboarding',
+      );
     }
   }
 
@@ -290,7 +360,10 @@ function getOnboardingBodySchema() {
       lovedOneName: z.string().trim().optional(),
       lovedOnePhoneE164: optionalPhoneSchema.optional(),
       lovedOneTimezone: z.string().optional(),
-      preferredGrokVoice: z.enum(GROK.VOICES).optional().default(GROK.DEFAULT_VOICE),
+      preferredGrokVoice: z
+        .enum(GROK.VOICES)
+        .optional()
+        .default(GROK.DEFAULT_VOICE),
     })
     .superRefine((data, ctx) => {
       if (data.userType === 'self') {

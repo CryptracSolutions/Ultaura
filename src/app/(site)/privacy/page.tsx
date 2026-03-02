@@ -14,8 +14,8 @@ export const metadata: Metadata = {
   },
 };
 
-const LAST_UPDATED = 'February 5, 2026';
-const EFFECTIVE_DATE = 'February 5, 2026';
+const LAST_UPDATED = 'March 1, 2026';
+const EFFECTIVE_DATE = 'March 1, 2026';
 
 function PrivacyPage() {
   return (
@@ -258,6 +258,12 @@ function PrivacyPage() {
                 <li>
                   Topic exclusions let you keep sensitive subjects out of
                   summaries and insights.
+                </li>
+                <li>
+                  Conversation topics are not censored or filtered.
+                  Conversations are led by the person receiving calls. Safety
+                  monitoring for emergencies and distress operates independently
+                  and does not restrict what topics may be discussed.
                 </li>
                 <li>
                   Retention controls and deletion requests are available in the{' '}
@@ -744,6 +750,13 @@ function PrivacyPage() {
                   redaction, and topic exclusions ensure that sensitive personal
                   details shared during calls are not unnecessarily exposed to
                   family members or contacts.
+                </li>
+                <li>
+                  <strong>Conversation autonomy:</strong> Ultaura respects the
+                  senior&apos;s right to direct their own conversations. Topics
+                  are not censored or restricted. Safety systems monitor for
+                  emergencies and wellness concerns but do not limit what the
+                  senior chooses to talk about.
                 </li>
               </ul>
             </div>

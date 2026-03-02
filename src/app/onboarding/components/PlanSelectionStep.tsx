@@ -32,7 +32,14 @@ const PlanSelectionStep: React.FCC<{
   isLastStep?: boolean;
   isSubmitting?: boolean;
   errorMessage?: string | null;
-}> = ({ onSubmit, userType, onGoBack, isLastStep, isSubmitting = false, errorMessage }) => {
+}> = ({
+  onSubmit,
+  userType,
+  onGoBack,
+  isLastStep,
+  isSubmitting = false,
+  errorMessage,
+}) => {
   const defaultPlanId: PlanId = userType === 'self' ? 'care' : 'comfort';
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlanId);
 
@@ -74,8 +81,8 @@ const PlanSelectionStep: React.FCC<{
                 selected
                   ? 'border-primary ring-2 ring-primary shadow-xl shadow-primary/20'
                   : isPopular
-                  ? 'border-primary/50 ring-1 ring-primary/30 shadow-md shadow-primary/10'
-                  : 'border-border hover:border-primary/50 hover:shadow-md'
+                    ? 'border-primary/50 ring-1 ring-primary/30 shadow-md shadow-primary/10'
+                    : 'border-border hover:border-primary/50 hover:shadow-md'
               } disabled:cursor-not-allowed disabled:opacity-70`}
             >
               {isPopular && (
@@ -87,18 +94,24 @@ const PlanSelectionStep: React.FCC<{
               )}
 
               <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-lg ${isPopular ? 'bg-primary/10 text-primary' : 'bg-muted text-primary'}`}>
+                <div
+                  className={`p-2 rounded-lg ${isPopular ? 'bg-primary/10 text-primary' : 'bg-muted text-primary'}`}
+                >
                   {planIcons[planId]}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-primary">{plan.displayName}</h3>
+                  <h3 className="text-lg font-semibold text-primary">
+                    {plan.displayName}
+                  </h3>
                 </div>
               </div>
 
               <div className="mb-6">
                 {planId === 'payg' ? (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-foreground">$0.15</span>
+                    <span className="text-3xl font-bold text-foreground">
+                      $0.15
+                    </span>
                     <span className="text-muted-foreground">/minute</span>
                   </div>
                 ) : (
@@ -116,7 +129,9 @@ const PlanSelectionStep: React.FCC<{
                   {Object.values(limits).map((limit, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm font-medium text-foreground">{limit}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {limit}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -124,7 +139,9 @@ const PlanSelectionStep: React.FCC<{
 
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">All plans include:</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  All plans include:
+                </span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
@@ -132,7 +149,9 @@ const PlanSelectionStep: React.FCC<{
                 {SHARED_FEATURES.map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                    <span className="text-sm text-muted-foreground">{feature}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {feature}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -145,6 +164,29 @@ const PlanSelectionStep: React.FCC<{
         })}
       </div>
 
+      <p className="text-center text-sm text-muted-foreground">
+        By creating an account and using Ultaura&apos;s services, you agree to
+        our{' '}
+        <a
+          href="/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline hover:text-primary/80"
+        >
+          Terms of Service
+        </a>{' '}
+        and{' '}
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline hover:text-primary/80"
+        >
+          Privacy Policy
+        </a>
+        .
+      </p>
+
       <div className={'flex flex-col space-y-3'}>
         {errorMessage && (
           <Alert type={'error'}>
@@ -153,12 +195,18 @@ const PlanSelectionStep: React.FCC<{
           </Alert>
         )}
 
-        <Button type={'button'} onClick={handleContinue} disabled={isSubmitting}>
-          {isSubmitting
-            ? 'Redirecting to checkout...'
-            : isLastStep
-            ? 'Continue to checkout'
-            : <Trans i18nKey={'common:continue'} />}
+        <Button
+          type={'button'}
+          onClick={handleContinue}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            'Redirecting to checkout...'
+          ) : isLastStep ? (
+            'Continue to checkout'
+          ) : (
+            <Trans i18nKey={'common:continue'} />
+          )}
         </Button>
 
         {onGoBack && (

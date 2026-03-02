@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
 };
 
-const LAST_UPDATED = 'February 5, 2026';
+const LAST_UPDATED = 'March 1, 2026';
 
 function TermsPage() {
   return (
@@ -147,6 +147,12 @@ function TermsPage() {
                   Do not upload or share content that infringes IP rights or
                   violates privacy laws.
                 </li>
+                <li>
+                  You acknowledge that conversations between the line recipient
+                  and Ultaura are led by the recipient and are not
+                  content-filtered or topic-restricted, except for safety
+                  monitoring for emergencies and signs of distress.
+                </li>
               </ul>
               <p>
                 You are responsible for complying with all applicable laws,
@@ -215,6 +221,14 @@ function TermsPage() {
               <p>
                 You are responsible for reviewing important information and for
                 taking any action needed based on your own judgment.
+              </p>
+              <p>
+                Ultaura does not censor, filter, or restrict conversation topics
+                initiated by the person receiving calls. Conversations are
+                driven by the senior&apos;s preferences, interests, and choices.
+                While Ultaura includes safety monitoring for emergencies and
+                signs of distress, it does not moderate or limit the subjects a
+                senior chooses to discuss.
               </p>
             </div>
           </section>

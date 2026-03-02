@@ -185,6 +185,12 @@ export const FAQ_DATA: FAQCategory[] = [
           "Yes, you can set topic exclusions in the Privacy Center. If there are sensitive subjects you'd prefer Ultaura not discuss, simply add them and Ultaura will steer conversations away from those areas.",
       },
       {
+        id: 'conversation-autonomy',
+        question: 'Does Ultaura control what my loved one talks about?',
+        answer:
+          'No. Conversations are led entirely by your loved one. Ultaura follows their lead and does not censor, filter, or restrict conversation topics. Your loved one is free to talk about whatever interests them, share stories, ask questions, or bring up any subject they want. Ultaura has safety systems that monitor for signs of distress or emergencies and can suggest crisis resources when needed, but this does not limit what your loved one can talk about. If you prefer that certain topics not appear in dashboard summaries, you can set topic exclusions in the Privacy Center.',
+      },
+      {
         id: 'opt-out',
         question: 'How can my loved one opt out of calls?',
         answer:
