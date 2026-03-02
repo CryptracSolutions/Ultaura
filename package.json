@@ -1,6 +1,7 @@
 {
   "name": "ultaura",
   "version": "0.11.16",
+  "packageManager": "pnpm@10.28.0",
   "private": true,
   "sideEffects": false,
   "scripts": {

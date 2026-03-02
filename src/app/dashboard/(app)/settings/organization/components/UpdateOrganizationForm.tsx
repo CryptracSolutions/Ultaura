@@ -78,7 +78,7 @@ function UpdateOrganizationForm() {
       prevNameRef.current = watchedName;
       autoSave.triggerSave(watchedName);
     }
-  }, [watchedName, autoSave.triggerSave]);
+  }, [watchedName, autoSave]);
 
   useEffect(() => {
     reset({

@@ -72,7 +72,7 @@ function UpdateProfileForm({
       prevRef.current = watchedDisplayName;
       autoSave.triggerSave(watchedDisplayName);
     }
-  }, [watchedDisplayName, autoSave.triggerSave]);
+  }, [watchedDisplayName, autoSave]);
 
   useEffect(() => {
     prevRef.current = currentDisplayName;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
@@ -94,7 +94,7 @@ export function NewExceptionModal({
   const selectedScheduleLabel = selectedSchedule ? getScheduleLabel(selectedSchedule) : null;
   const [rescheduleDateValue, rescheduleTimeValue = ''] = rescheduleDateTime.split('T');
 
-  const getOccurrenceDateTime = (date: string, timeOfDay: string) => {
+  const getOccurrenceDateTime = useCallback((date: string, timeOfDay: string) => {
     const normalizedTime = normalizeTimeOfDay(timeOfDay);
     const parsedTime = parseTimeParts(normalizedTime);
 
@@ -108,12 +108,12 @@ export function NewExceptionModal({
     });
 
     return occurrence.isValid ? occurrence : null;
-  };
+  }, [lineTimezone]);
 
   const originalOccurrence = useMemo(() => {
     if (!selectedSchedule || !exceptionDate || exceptionType === 'snooze') return null;
     return getOccurrenceDateTime(exceptionDate, selectedSchedule.timeOfDay);
-  }, [exceptionDate, exceptionType, selectedSchedule]);
+  }, [exceptionDate, exceptionType, getOccurrenceDateTime, selectedSchedule]);
 
   useEffect(() => {
     if (!open) return;
