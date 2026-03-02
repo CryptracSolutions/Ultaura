@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 const CERTAINTY_ITEMS = [
-  'Your 14-day trial includes up to 20 minutes of calls per day. Billing starts when the trial ends.',
+  'Your 14-day trial includes up to 20 minutes of calls per day and reminders. Billing starts when the trial ends.',
   'If you go over your included minutes, we\'ll notify you first. Overage is $0.15 per minute — no hidden fees.',
   'Cancel anytime from your dashboard in one click. Service continues through the end of your billing period.',
   'Switch between monthly and annual billing anytime. Annual plans save 20%.',

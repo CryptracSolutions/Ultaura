@@ -50,15 +50,15 @@ type Client = SupabaseClient<Database>;
  * Currently, this is an experimental feature and is not recommended for production use.
  *
  * @param {SupabaseClient<Database>} client - The Supabase client instance.
- * @return {MakerkitSdk} - The JP3 SDK instance.
+ * @return {UltauraSdk} - The Ultaura SDK instance.
  */
 export default function experimental_getSdk(
   client: SupabaseClient<Database>,
-): MakerkitSdk {
-  return new MakerkitSdk(client);
+): UltauraSdk {
+  return new UltauraSdk(client);
 }
 
-class MakerkitSdk {
+class UltauraSdk {
   public organization: OrganizationSdk;
   public user: UserSdk;
   public subscriptions: SubscriptionsSdk;
