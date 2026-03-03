@@ -288,9 +288,9 @@ export function LineHeaderActions({
           </div>
 
           {(testCallStatus === 'calling' || isTestCalling) && (
-            <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary">
-              <Phone className="w-4 h-4" />
-              Ultaura is calling now.
+            <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
+              <Phone className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-primary leading-snug">Ultaura is calling now.</p>
             </div>
           )}
 

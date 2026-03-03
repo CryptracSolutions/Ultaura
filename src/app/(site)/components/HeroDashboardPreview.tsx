@@ -363,6 +363,24 @@ export function HeroDashboardPreview() {
                 </div>
               </div>
 
+              <div className="col-span-2 rounded-2xl border border-border/60 bg-background p-3 lg:col-span-1 lg:order-2">
+                <div className="text-xs text-muted-foreground">Actions</div>
+                <div className="mt-1.5 flex flex-row gap-1.5 lg:flex-col lg:gap-1">
+                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
+                    <CalendarIcon className="h-2.5 w-2.5" />
+                    Schedule call
+                  </button>
+                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
+                    <PlusCircleIcon className="h-2.5 w-2.5" />
+                    Create reminder
+                  </button>
+                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
+                    <PhoneIcon className="h-2.5 w-2.5" />
+                    Place call
+                  </button>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-border/60 bg-background p-3 lg:order-3">
                 <div className="text-xs text-muted-foreground">Mood</div>
                 <div className="mt-1 flex items-center gap-2">
@@ -379,24 +397,6 @@ export function HeroDashboardPreview() {
                   <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                </div>
-              </div>
-
-              <div className="col-span-2 rounded-2xl border border-border/60 bg-background p-3 lg:col-span-1 lg:order-2">
-                <div className="text-xs text-muted-foreground">Actions</div>
-                <div className="mt-1.5 flex flex-row gap-1.5 lg:flex-col lg:gap-1">
-                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
-                    <CalendarIcon className="h-2.5 w-2.5" />
-                    Schedule call
-                  </button>
-                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
-                    <PlusCircleIcon className="h-2.5 w-2.5" />
-                    Create reminder
-                  </button>
-                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
-                    <PhoneIcon className="h-2.5 w-2.5" />
-                    Place call
-                  </button>
                 </div>
               </div>
             </div>
@@ -590,7 +590,7 @@ export function HeroDashboardPreview() {
                   aria-hidden={activeTab !== 2}
                   className="w-full shrink-0"
                 >
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
                     <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                       <SparklesIcon className="h-4 w-4 text-primary" />
                       Recent Memories
