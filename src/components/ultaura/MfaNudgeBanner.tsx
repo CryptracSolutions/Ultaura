@@ -5,7 +5,8 @@ import getSupabaseServerComponentClient from '~/core/supabase/server-component-c
 import { MfaNudgeBannerClient } from './MfaNudgeBannerClient';
 
 export async function MfaNudgeBanner() {
-  const dismissedAt = cookies().get('mfa-nudge-dismissed')?.value;
+  const cookieStore = await cookies();
+  const dismissedAt = cookieStore.get('mfa-nudge-dismissed')?.value;
 
   if (dismissedAt) {
     const dismissedDate = new Date(dismissedAt);

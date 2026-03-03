@@ -1,12 +1,15 @@
 'use client';
 
 import type { FormEventHandler } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import If from '~/core/ui/If';
 import TextField from '~/core/ui/TextField';
 import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
+
+import PhoneInput from '~/components/ultaura/PhoneInput';
+import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 
 type ActionTypes = `link` | `signIn`;
 
@@ -15,34 +18,52 @@ const PhoneNumberCredentialForm: React.FC<{
   action: ActionTypes;
   loading?: boolean;
 }> = ({ onSubmit, action, loading }) => {
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneError, setPhoneError] = useState<string | undefined>(undefined);
+
   const onLinkPhoneNumberSubmit: FormEventHandler<HTMLFormElement> =
     useCallback(
       (event) => {
         event.preventDefault();
 
-        const data = new FormData(event.currentTarget);
-        const phoneNumber = data.get('phoneNumber') as string;
+        const validationError = getUsPhoneValidationError(phoneNumber, {
+          required: true,
+        });
 
-        onSubmit(phoneNumber);
+        if (validationError) {
+          setPhoneError(validationError);
+          return;
+        }
+
+        const e164 = formatToE164(phoneNumber);
+        onSubmit(e164);
       },
-      [onSubmit],
+      [onSubmit, phoneNumber],
     );
 
   return (
     <form className={'w-full'} onSubmit={onLinkPhoneNumberSubmit}>
       <div className={'flex flex-col space-y-2'}>
-        <TextField.Label>
-          <Trans i18nKey={'profile:phoneNumberLabel'} />
+        <TextField>
+          <TextField.Label>
+            <Trans i18nKey={'profile:phoneNumberLabel'} />
 
-          <TextField.Input
-            required
-            pattern={'^\\+?[1-9]\\d{1,14}$'}
-            name={'phoneNumber'}
-            type={'tel'}
-            placeholder={'+919367788755'}
-            disabled={loading}
-          />
-        </TextField.Label>
+            <PhoneInput
+              name={'phoneNumber'}
+              value={phoneNumber}
+              onValueChange={(value) => {
+                setPhoneNumber(value);
+                if (phoneError) {
+                  setPhoneError(undefined);
+                }
+              }}
+              placeholder={'(555) 123-4567'}
+              disabled={loading}
+              error={phoneError}
+            />
+            <TextField.Error error={phoneError} />
+          </TextField.Label>
+        </TextField>
 
         <Button loading={loading} block type={'submit'}>
           <If condition={action === 'link'}>

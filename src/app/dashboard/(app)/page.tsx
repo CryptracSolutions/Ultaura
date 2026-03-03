@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 
 import Link from 'next/link';
-import { Phone, Clock, Zap, User, Calendar, Bell, History } from 'lucide-react';
+import { Phone, Clock, User, Calendar, Bell, History } from 'lucide-react';
 
 import AppHeader from './components/AppHeader';
 import { DashboardUpcomingTabs } from './components/DashboardUpcomingTabs';
@@ -32,6 +32,7 @@ import { getLineActivity, getUsageSummary } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import Button from '~/core/ui/Button';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
+import { EmailNudgeBanner } from '~/components/ultaura/EmailNudgeBanner';
 import { MfaNudgeBanner } from '~/components/ultaura/MfaNudgeBanner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -48,50 +49,6 @@ function formatTimeOfDay(timeOfDay: string): string {
 
 function formatCurrency(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
-}
-
-function getOrdinalSuffix(n: number): string {
-  if (n > 3 && n < 21) return 'th';
-  switch (n % 10) {
-    case 1:
-      return 'st';
-    case 2:
-      return 'nd';
-    case 3:
-      return 'rd';
-    default:
-      return 'th';
-  }
-}
-
-function formatRecurrence(reminder: {
-  isRecurring: boolean;
-  rrule: string | null;
-  intervalDays: number | null;
-  daysOfWeek: number[] | null;
-  dayOfMonth: number | null;
-}): string {
-  if (!reminder.isRecurring || !reminder.rrule) return '';
-
-  if (reminder.rrule.includes('FREQ=DAILY')) {
-    const interval = reminder.intervalDays || 1;
-    return interval === 1 ? 'Daily' : `Every ${interval} days`;
-  }
-
-  if (reminder.rrule.includes('FREQ=WEEKLY')) {
-    if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
-      const days = reminder.daysOfWeek.map((d) => DAY_NAMES[d]).join(', ');
-      return `Weekly on ${days}`;
-    }
-    return 'Weekly';
-  }
-
-  if (reminder.rrule.includes('FREQ=MONTHLY')) {
-    const day = reminder.dayOfMonth || 1;
-    return `Monthly on the ${day}${getOrdinalSuffix(day)}`;
-  }
-
-  return 'Recurring';
 }
 
 export const metadata = {
@@ -295,6 +252,7 @@ async function DashboardPage() {
             <TrialExpiredBanner trialPlanName={trialPlanName} />
           ) : (
             <Suspense fallback={null}>
+              <EmailNudgeBanner />
               <MfaNudgeBanner />
             </Suspense>
           )}

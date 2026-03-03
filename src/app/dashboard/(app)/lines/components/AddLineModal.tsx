@@ -311,11 +311,18 @@ export function AddLineModal({
                         );
                       }}
                       placeholder="(555) 123-4567"
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
                       required
+                      error={phoneError ?? undefined}
+                      errorId="add-line-phone-error"
                     />
                     {phoneError ? (
-                      <p className="text-xs text-destructive">{phoneError}</p>
+                      <p
+                        id="add-line-phone-error"
+                        className="text-xs text-destructive"
+                        role="alert"
+                      >
+                        {phoneError}
+                      </p>
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">

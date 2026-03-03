@@ -62,13 +62,17 @@ function UpdatePhoneNumberForm({
         event.preventDefault();
         if (!hasChanges) return;
 
-        const validationError = getUsPhoneValidationError(phoneNumber, { required: false });
+        const validationError = getUsPhoneValidationError(phoneNumber, {
+          required: false,
+        });
         if (validationError) {
-          setPhoneError(validationError ?? undefined);
+          setPhoneError(validationError);
           return;
         }
 
-        const normalized = phoneNumber.trim() ? formatToE164(phoneNumber) : phoneNumber;
+        const normalized = phoneNumber.trim()
+          ? formatToE164(phoneNumber)
+          : phoneNumber;
 
         const promise = trigger(normalized).then(() => {
           onUpdate(normalized);
@@ -98,9 +102,12 @@ function UpdatePhoneNumberForm({
               }}
               onBlur={(event) => {
                 setPhoneError(
-                  getUsPhoneValidationError(event.target.value, { required: false }) ?? undefined
+                  getUsPhoneValidationError(event.target.value, {
+                    required: false,
+                  }) ?? undefined,
                 );
               }}
+              error={phoneError}
             />
             <TextField.Error error={phoneError} />
           </TextField.Label>

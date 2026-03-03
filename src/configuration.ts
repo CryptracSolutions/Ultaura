@@ -12,7 +12,8 @@ enum Themes {
 const configuration = {
   site: {
     name: 'Ultaura - AI Voice Companion for Seniors',
-    description: 'AI voice companion that calls your aging parent or grandparent daily for friendly conversation, medication reminders, and companionship. Works on any phone — no app needed. 14-day free trial.',
+    description:
+      'AI voice companion that calls your aging parent or grandparent daily for friendly conversation, medication reminders, and companionship. Works on any phone — no app needed. 14-day free trial.',
     themeColor: brandColors.primary,
     themeColorDark: brandColors.primaryDark,
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
@@ -29,7 +30,7 @@ const configuration = {
     // in your production project
     providers: {
       emailPassword: true,
-      phoneNumber: false,
+      phoneNumber: true,
       emailLink: false,
       emailOtp: false,
       oAuth: ['google'] as Provider[],
@@ -70,6 +71,7 @@ const configuration = {
       organization: 'settings/organization',
       subscription: 'settings/subscription',
       authentication: 'settings/profile/authentication',
+      phone: 'settings/profile/phone',
       email: 'settings/profile/email',
       password: 'settings/profile/password',
     },
@@ -96,12 +98,16 @@ const configuration = {
           {
             name: 'Monthly',
             price: '$19',
-            stripePriceId: process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID || 'price_care_monthly',
+            stripePriceId:
+              process.env.STRIPE_ULTAURA_CARE_MONTHLY_PRICE_ID ||
+              'price_care_monthly',
           },
           {
             name: 'Yearly',
             price: '$180',
-            stripePriceId: process.env.STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID || 'price_care_annual',
+            stripePriceId:
+              process.env.STRIPE_ULTAURA_CARE_ANNUAL_PRICE_ID ||
+              'price_care_annual',
           },
         ],
       },
@@ -121,12 +127,16 @@ const configuration = {
           {
             name: 'Monthly',
             price: '$49',
-            stripePriceId: process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID || 'price_comfort_monthly',
+            stripePriceId:
+              process.env.STRIPE_ULTAURA_COMFORT_MONTHLY_PRICE_ID ||
+              'price_comfort_monthly',
           },
           {
             name: 'Yearly',
             price: '$470',
-            stripePriceId: process.env.STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID || 'price_comfort_annual',
+            stripePriceId:
+              process.env.STRIPE_ULTAURA_COMFORT_ANNUAL_PRICE_ID ||
+              'price_comfort_annual',
           },
         ],
       },
@@ -147,12 +157,16 @@ const configuration = {
           {
             name: 'Monthly',
             price: '$99',
-            stripePriceId: process.env.STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID || 'price_family_monthly',
+            stripePriceId:
+              process.env.STRIPE_ULTAURA_FAMILY_MONTHLY_PRICE_ID ||
+              'price_family_monthly',
           },
           {
             name: 'Yearly',
             price: '$950',
-            stripePriceId: process.env.STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID || 'price_family_annual',
+            stripePriceId:
+              process.env.STRIPE_ULTAURA_FAMILY_ANNUAL_PRICE_ID ||
+              'price_family_annual',
           },
         ],
       },
@@ -172,7 +186,8 @@ const configuration = {
           {
             name: 'Per Minute',
             price: '$0.15',
-            stripePriceId: process.env.STRIPE_ULTAURA_PAYG_PRICE_ID || 'price_payg',
+            stripePriceId:
+              process.env.STRIPE_ULTAURA_PAYG_PRICE_ID || 'price_payg',
           },
         ],
       },

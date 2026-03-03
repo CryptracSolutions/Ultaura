@@ -32,6 +32,12 @@ function SignUpMethodsContainer() {
     router.replace(configuration.paths.onboarding);
   }, [router]);
 
+  // Phone sign-ups verify identity via OTP — email confirmation doesn't apply.
+  // Always redirect to onboarding after successful phone OTP verification.
+  const onPhoneSignUp = useCallback(() => {
+    router.replace(configuration.paths.onboarding);
+  }, [router]);
+
   return (
     <>
       <If condition={providers.oAuth.length}>
@@ -51,7 +57,7 @@ function SignUpMethodsContainer() {
       </If>
 
       <If condition={providers.phoneNumber}>
-        <PhoneNumberSignInContainer onSuccess={onSignUp} mode={'signUp'} />
+        <PhoneNumberSignInContainer onSuccess={onPhoneSignUp} mode={'signUp'} />
       </If>
 
       <If condition={providers.emailLink}>

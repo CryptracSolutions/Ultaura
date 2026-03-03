@@ -165,6 +165,8 @@ const LovedOneSetupStep: React.FCC<{
               }
             }}
             placeholder={t('phoneCollectionPlaceholder')}
+            error={error ?? undefined}
+            errorId="loved-one-phone-error"
           />
         </div>
 
@@ -219,7 +221,15 @@ const LovedOneSetupStep: React.FCC<{
           </Select>
         </div>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <p
+            id="loved-one-phone-error"
+            className="text-sm text-destructive"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
 
         <p className="text-xs text-muted-foreground">
           <Trans i18nKey={'onboarding:lovedOneHelper'} />

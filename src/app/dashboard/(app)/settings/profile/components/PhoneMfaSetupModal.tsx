@@ -11,9 +11,11 @@ import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
 import Alert from '~/core/ui/Alert';
 import Button from '~/core/ui/Button';
 import Modal from '~/core/ui/Modal';
-import PhoneNumberInput, { E164_REGEX } from '~/core/ui/PhoneNumberInput';
 import TextField from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
+
+import PhoneInput from '~/components/ultaura/PhoneInput';
+import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 
 import VerificationCodeInput from '~/app/auth/components/VerificationCodeInput';
 
@@ -55,7 +57,7 @@ function PhoneMfaSetupForm({
   onCancel: () => void;
 }) {
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
-  const [phone, setPhone] = useState('+1');
+  const [phone, setPhone] = useState('');
   const [friendlyName, setFriendlyName] = useState('');
   const [factorId, setFactorId] = useState('');
   const [challengeId, setChallengeId] = useState('');
@@ -69,7 +71,10 @@ function PhoneMfaSetupForm({
   const mutationKey = useFactorsMutationKey();
   const cooldownRef = useRef<ReturnType<typeof setInterval>>();
 
-  const maskedPhone = phone ? `${phone.slice(0, 3)}***${phone.slice(-4)}` : '';
+  const phoneE164 = phone ? formatToE164(phone) : '';
+  const maskedPhone = phoneE164
+    ? `${phoneE164.slice(0, 3)}***${phoneE164.slice(-4)}`
+    : '';
 
   const startCooldown = useCallback(() => {
     setResendCooldown(60);
@@ -96,20 +101,24 @@ function PhoneMfaSetupForm({
   const handleEnrollAndChallenge = useCallback(async () => {
     setError('');
 
-    if (!E164_REGEX.test(phone)) {
+    const validationError = getUsPhoneValidationError(phone, {
+      required: true,
+    });
+    if (validationError) {
       setError(t('profile:invalidPhoneNumber'));
       return;
     }
 
+    const enrollPhone = formatToE164(phone);
     setLoading(true);
 
     try {
-      const name = friendlyName.trim() || `Phone ***${phone.slice(-4)}`;
+      const name = friendlyName.trim() || `Phone ***${enrollPhone.slice(-4)}`;
 
       const { data: enrollData, error: enrollError } =
         await client.auth.mfa.enroll({
           factorType: 'phone',
-          phone,
+          phone: enrollPhone,
           friendlyName: name,
         });
 
@@ -306,14 +315,25 @@ function PhoneMfaSetupForm({
       <TextField>
         <TextField.Label>
           <Trans i18nKey={'profile:phoneNumberLabel'} />
-        </TextField.Label>
 
-        <PhoneNumberInput
-          value={phone}
-          onChange={setPhone}
-          disabled={loading}
-          error={error === t('profile:invalidPhoneNumber') ? error : undefined}
-        />
+          <PhoneInput
+            value={phone}
+            onValueChange={(value) => {
+              setPhone(value);
+              if (error) setError('');
+            }}
+            disabled={loading}
+            placeholder="(555) 123-4567"
+            error={
+              error === t('profile:invalidPhoneNumber') ? error : undefined
+            }
+          />
+          <TextField.Error
+            error={
+              error === t('profile:invalidPhoneNumber') ? error : undefined
+            }
+          />
+        </TextField.Label>
       </TextField>
 
       <div className="flex justify-end gap-2">

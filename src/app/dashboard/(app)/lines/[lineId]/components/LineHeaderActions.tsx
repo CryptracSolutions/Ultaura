@@ -8,7 +8,11 @@ import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
 import { TELEPHONY } from '~/lib/ultaura/constants';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
-import { RadioGroup, RadioGroupItem, RadioGroupItemLabel } from '~/core/ui/RadioGroup';
+import {
+  RadioGroup,
+  RadioGroupItem,
+  RadioGroupItemLabel,
+} from '~/core/ui/RadioGroup';
 import Modal from '~/core/ui/Modal';
 import Button from '~/core/ui/Button';
 
@@ -27,13 +31,21 @@ export function LineHeaderActions({
 }: LineHeaderActionsProps) {
   const [isTestCalling, setIsTestCalling] = useState(false);
   const [isTestCallModalOpen, setIsTestCallModalOpen] = useState(false);
-  const [testCallTarget, setTestCallTarget] = useState<'line' | 'alternate'>('line');
+  const [testCallTarget, setTestCallTarget] = useState<'line' | 'alternate'>(
+    'line',
+  );
   const [alternatePhone, setAlternatePhone] = useState('');
-  const [alternatePhoneError, setAlternatePhoneError] = useState<string | null>(null);
+  const [alternatePhoneError, setAlternatePhoneError] = useState<string | null>(
+    null,
+  );
   const [testCallError, setTestCallError] = useState<string | null>(null);
-  const [testCallStatus, setTestCallStatus] = useState<'idle' | 'calling' | 'error'>('idle');
+  const [testCallStatus, setTestCallStatus] = useState<
+    'idle' | 'calling' | 'error'
+  >('idle');
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [testCallSessionId, setTestCallSessionId] = useState<string | null>(null);
+  const [testCallSessionId, setTestCallSessionId] = useState<string | null>(
+    null,
+  );
   const [showVoicemailNotice, setShowVoicemailNotice] = useState(false);
   const [showCallFailedNotice, setShowCallFailedNotice] = useState(false);
 
@@ -49,7 +61,10 @@ export function LineHeaderActions({
     const telephonyCode = error.details?.telephonyCode as string | undefined;
     const normalizedCode = (telephonyCode || '').toLowerCase();
 
-    if (normalizedCode === 'do_not_call' || normalizedCode === 'line_opted_out') {
+    if (
+      normalizedCode === 'do_not_call' ||
+      normalizedCode === 'line_opted_out'
+    ) {
       return 'This line is opted out. Update DNC settings or choose a different number for the preview.';
     }
 
@@ -80,7 +95,10 @@ export function LineHeaderActions({
       return;
     }
 
-    if (!isTrialActive && (!usage || (usage.minutesRemaining <= 0 && usage.minutesIncluded > 0))) {
+    if (
+      !isTrialActive &&
+      (!usage || (usage.minutesRemaining <= 0 && usage.minutesIncluded > 0))
+    ) {
       setTestCallError('No minutes remaining. Please upgrade your plan.');
       setTestCallStatus('error');
       setTestCallSessionId(null);
@@ -162,15 +180,20 @@ export function LineHeaderActions({
       }
 
       const { status, endReason, answeredBy } = result.data;
-      if (status === 'completed' || status === 'failed' || status === 'canceled') {
+      if (
+        status === 'completed' ||
+        status === 'failed' ||
+        status === 'canceled'
+      ) {
         const answeredByMachine = answeredBy?.startsWith('machine') ?? false;
-        const shouldShowVoicemail = endReason === 'no_answer' || answeredByMachine;
-        const shouldShowFailed = !shouldShowVoicemail && (
-          status === 'failed' ||
-          status === 'canceled' ||
-          endReason === 'busy' ||
-          endReason === 'error'
-        );
+        const shouldShowVoicemail =
+          endReason === 'no_answer' || answeredByMachine;
+        const shouldShowFailed =
+          !shouldShowVoicemail &&
+          (status === 'failed' ||
+            status === 'canceled' ||
+            endReason === 'busy' ||
+            endReason === 'error');
         setShowVoicemailNotice(shouldShowVoicemail);
         setShowCallFailedNotice(shouldShowFailed);
         setTestCallSessionId(null);
@@ -225,7 +248,8 @@ export function LineHeaderActions({
       >
         <div className="space-y-4 text-sm">
           <p className="text-muted-foreground">
-            We&apos;ll place a short, guided preview call. You can hang up anytime.
+            We&apos;ll place a short, guided preview call. You can hang up
+            anytime.
           </p>
 
           <div className="space-y-3">
@@ -244,7 +268,9 @@ export function LineHeaderActions({
               <RadioGroupItemLabel className="items-start">
                 <RadioGroupItem value="line" />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-foreground">Call this line</div>
+                  <div className="text-sm font-medium text-foreground">
+                    Call this line
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {formatPhone(line.phone_e164)}
                   </div>
@@ -253,7 +279,9 @@ export function LineHeaderActions({
               <RadioGroupItemLabel className="items-start">
                 <RadioGroupItem value="alternate" />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-foreground">Call a different number</div>
+                  <div className="text-sm font-medium text-foreground">
+                    Call a different number
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     One-time number used only for this preview.
                   </div>
@@ -274,14 +302,23 @@ export function LineHeaderActions({
                   }}
                   onBlur={(event) => {
                     setAlternatePhoneError(
-                      getUsPhoneValidationError(event.target.value, { required: true })
+                      getUsPhoneValidationError(event.target.value, {
+                        required: true,
+                      }),
                     );
                   }}
                   placeholder="(555) 555-1234"
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground focus-visible:!outline-none focus-visible:!border-primary"
+                  error={alternatePhoneError ?? undefined}
+                  errorId="alternate-phone-error"
                 />
                 {alternatePhoneError && (
-                  <p className="text-xs text-destructive">{alternatePhoneError}</p>
+                  <p
+                    id="alternate-phone-error"
+                    className="text-xs text-destructive"
+                    role="alert"
+                  >
+                    {alternatePhoneError}
+                  </p>
                 )}
               </div>
             )}
@@ -290,13 +327,16 @@ export function LineHeaderActions({
           {(testCallStatus === 'calling' || isTestCalling) && (
             <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
               <Phone className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-primary leading-snug">Ultaura is calling now.</p>
+              <p className="text-xs text-primary leading-snug">
+                Ultaura is calling now.
+              </p>
             </div>
           )}
 
           {showVoicemailNotice && (
             <p className="text-xs text-muted-foreground">
-              It went to voicemail—no message was left. You can try again in a moment.
+              It went to voicemail—no message was left. You can try again in a
+              moment.
             </p>
           )}
 
@@ -340,7 +380,9 @@ export function LineHeaderActions({
             >
               {cooldownSeconds > 0
                 ? `Try again in ${cooldownSeconds}s`
-                : (isTestCalling ? 'Calling...' : 'Start test call')}
+                : isTestCalling
+                  ? 'Calling...'
+                  : 'Start test call'}
             </Button>
           </div>
         </div>

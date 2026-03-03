@@ -89,15 +89,15 @@ export function FamilyRecipientsSection({
   return (
     <>
       <PrivacyInfoBanner>
-          Family sharing lets you invite family members to receive weekly
-          summaries and wellness alerts. What is shared follows your loved
-          one&apos;s sharing preferences during calls.{' '}
-          <Link
-            href="/docs/insights-and-reports/sharing-with-family"
-            className="text-primary font-medium underline underline-offset-2 hover:no-underline"
-          >
-            Learn more →
-          </Link>
+        Family sharing lets you invite family members to receive weekly
+        summaries and wellness alerts. What is shared follows your loved
+        one&apos;s sharing preferences during calls.{' '}
+        <Link
+          href="/docs/insights-and-reports/sharing-with-family"
+          className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+        >
+          Learn more →
+        </Link>
       </PrivacyInfoBanner>
 
       <Section>
@@ -116,7 +116,12 @@ export function FamilyRecipientsSection({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-block w-full sm:w-auto">
-                    <Button type="button" variant="default" className="w-full" disabled>
+                    <Button
+                      type="button"
+                      variant="default"
+                      className="w-full"
+                      disabled
+                    >
                       <Plus className="w-4 h-4" />
                       Invite Recipient
                     </Button>
@@ -182,9 +187,12 @@ export function FamilyRecipientsSection({
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <DialogTitle className="truncate">Invite family recipient</DialogTitle>
+                  <DialogTitle className="truncate">
+                    Invite family recipient
+                  </DialogTitle>
                   <DialogDescription className="text-sm text-muted-foreground">
-                    This person will receive weekly summaries and wellness alerts.
+                    This person will receive weekly summaries and wellness
+                    alerts.
                   </DialogDescription>
                 </div>
                 <Button
@@ -259,6 +267,7 @@ export function FamilyRecipientsSection({
                         }}
                         placeholder="(555) 123-4567"
                         required={inviteAsTrusted}
+                        error={invitePhoneError}
                       />
                       <TextField.Error error={invitePhoneError} />
                     </TextField.Label>
@@ -268,7 +277,9 @@ export function FamilyRecipientsSection({
                       Relationship (optional)
                       <TextField.Input
                         value={inviteRelationship}
-                        onChange={(event) => setInviteRelationship(event.target.value)}
+                        onChange={(event) =>
+                          setInviteRelationship(event.target.value)
+                        }
                         placeholder="e.g., Daughter"
                       />
                     </TextField.Label>
@@ -278,7 +289,9 @@ export function FamilyRecipientsSection({
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Checkbox
                     checked={inviteAsTrusted}
-                    onCheckedChange={(checked) => setInviteAsTrusted(Boolean(checked))}
+                    onCheckedChange={(checked) =>
+                      setInviteAsTrusted(Boolean(checked))
+                    }
                   />
                   Also add as emergency contact (requires phone number)
                 </label>

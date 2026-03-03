@@ -9,7 +9,12 @@ import { Card, CardContent } from '~/components/ui/card';
 import { Checkbox } from '~/core/ui/Checkbox';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { useLeavePageGuard } from '~/core/hooks/use-leave-page-guard';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/core/ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '~/core/ui/Dialog';
 import Button from '~/core/ui/Button';
 import { Phone, Trash2, Plus, X } from 'lucide-react';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
@@ -38,13 +43,18 @@ interface ContactsClientProps {
   disabled?: boolean;
 }
 
-export function ContactsClient({ line, disabled = false }: ContactsClientProps) {
+export function ContactsClient({
+  line,
+  disabled = false,
+}: ContactsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [contactToRemove, setContactToRemove] = useState<TrustedContact | null>(null);
+  const [contactToRemove, setContactToRemove] = useState<TrustedContact | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -79,7 +89,9 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete('openAddContact');
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
   }, [disabled, pathname, router, searchParams]);
 
   const resetAddForm = () => {
@@ -104,7 +116,9 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
     e.preventDefault();
     if (disabled) return;
 
-    const validationError = getUsPhoneValidationError(newContact.phone, { required: true });
+    const validationError = getUsPhoneValidationError(newContact.phone, {
+      required: true,
+    });
     if (validationError) {
       setPhoneError(validationError);
       return;
@@ -156,7 +170,8 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
     <div className="space-y-6 pb-12">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Trusted contacts receive SMS alerts when Ultaura detects signs of distress during calls.{' '}
+          Trusted contacts receive SMS alerts when Ultaura detects signs of
+          distress during calls.{' '}
           <Link
             href="/docs/safety-and-contacts/trusted-contacts"
             className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -190,9 +205,12 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <DialogTitle className="truncate">Add trusted contact</DialogTitle>
+              <DialogTitle className="truncate">
+                Add trusted contact
+              </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Trusted contacts receive SMS alerts when Ultaura detects distress.
+                Trusted contacts receive SMS alerts when Ultaura detects
+                distress.
               </DialogDescription>
             </div>
             <Button
@@ -208,19 +226,27 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
 
           <form onSubmit={handleAddContact} className="space-y-4">
             <div>
-              <label htmlFor="contact-name" className="block text-sm font-medium text-foreground mb-1">
+              <label
+                htmlFor="contact-name"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
                 Name
               </label>
               <Input
                 id="contact-name"
                 placeholder="e.g., John Smith"
                 value={newContact.name}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewContact({ ...newContact, name: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setNewContact({ ...newContact, name: e.target.value })
+                }
                 required
               />
             </div>
             <div>
-              <label htmlFor="contact-phone" className="block text-sm font-medium text-foreground mb-1">
+              <label
+                htmlFor="contact-phone"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
                 Phone Number
               </label>
               <PhoneInput
@@ -234,17 +260,35 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                   }
                 }}
                 onBlur={(event) => {
-                  setPhoneError(getUsPhoneValidationError(event.target.value, { required: true }));
+                  setPhoneError(
+                    getUsPhoneValidationError(event.target.value, {
+                      required: true,
+                    }),
+                  );
                 }}
                 required
+                error={phoneError ?? undefined}
+                errorId="contact-phone-error"
               />
               {phoneError ? (
-                <p className="text-xs text-destructive">{phoneError}</p>
+                <p
+                  id="contact-phone-error"
+                  className="text-xs text-destructive"
+                  role="alert"
+                >
+                  {phoneError}
+                </p>
               ) : null}
             </div>
             <div>
-              <label htmlFor="contact-relationship" className="block text-sm font-medium text-foreground mb-1">
-                Relationship <span className="text-muted-foreground font-normal">(optional)</span>
+              <label
+                htmlFor="contact-relationship"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                Relationship{' '}
+                <span className="text-muted-foreground font-normal">
+                  (optional)
+                </span>
               </label>
               <Input
                 id="contact-relationship"
@@ -260,11 +304,17 @@ export function ContactsClient({ line, disabled = false }: ContactsClientProps) 
                 <Checkbox
                   id="consent-acknowledgment"
                   checked={consentAcknowledged}
-                  onCheckedChange={(checked) => setConsentAcknowledged(checked === true)}
+                  onCheckedChange={(checked) =>
+                    setConsentAcknowledged(checked === true)
+                  }
                 />
-                <label htmlFor="consent-acknowledgment" className="text-sm leading-tight">
-                  I understand that this contact will receive SMS notifications when Ultaura detects
-                  signs of distress during calls (such as expressions of hopelessness or self-harm).
+                <label
+                  htmlFor="consent-acknowledgment"
+                  className="text-sm leading-tight"
+                >
+                  I understand that this contact will receive SMS notifications
+                  when Ultaura detects signs of distress during calls (such as
+                  expressions of hopelessness or self-harm).
                 </label>
               </div>
             </div>

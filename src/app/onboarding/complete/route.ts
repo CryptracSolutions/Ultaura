@@ -54,7 +54,11 @@ export const POST = async (req: NextRequest) => {
   const userRecord = await getUserDataById(client, userId).catch(() => null);
   const displayName = userRecord?.displayName?.trim() || '';
   const emailPrefix = session.user.email?.split('@')[0] || '';
-  const fallbackName = emailPrefix || 'My Account';
+  const phoneSuffix = session.user.phone
+    ? `(${session.user.phone.slice(-4)})`
+    : '';
+  const fallbackName =
+    emailPrefix || (phoneSuffix ? `My Account ${phoneSuffix}` : 'My Account');
   const accountName = displayName || fallbackName;
 
   const organizationName =

@@ -7,6 +7,7 @@ import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 
 import useUser from '~/core/hooks/use-user';
+import configuration from '~/configuration';
 
 const profileTabLinks = {
   General: {
@@ -16,6 +17,10 @@ const profileTabLinks = {
   Authentication: {
     path: '/dashboard/settings/profile/authentication',
     label: 'profile:authenticationTab',
+  },
+  Phone: {
+    path: '/dashboard/settings/profile/phone',
+    label: 'profile:phoneTab',
   },
   Email: {
     path: '/dashboard/settings/profile/email',
@@ -47,6 +52,13 @@ const ProfileSettingsTabs: React.FC = () => {
             link={profileTabLinks.Authentication}
           />
 
+          {configuration.auth.providers.phoneNumber && (
+            <NavigationItem
+              className={itemClassName}
+              link={profileTabLinks.Phone}
+            />
+          )}
+
           <NavigationItem
             className={itemClassName}
             disabled={!canUpdatePasswordCredentials}
@@ -62,7 +74,13 @@ const ProfileSettingsTabs: React.FC = () => {
       </div>
 
       <div className={'block w-full lg:hidden'}>
-        <MobileNavigationDropdown links={Object.values(profileTabLinks)} />
+        <MobileNavigationDropdown
+          links={Object.values(profileTabLinks).filter(
+            (link) =>
+              link !== profileTabLinks.Phone ||
+              configuration.auth.providers.phoneNumber,
+          )}
+        />
       </div>
     </>
   );
