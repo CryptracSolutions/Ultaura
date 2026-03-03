@@ -1,4 +1,4 @@
-import { subDays } from 'date-fns';
+import { DateTime } from 'luxon';
 
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import { getSubmissionsSummary } from '~/plugins/feedback-popup/lib/queries';
@@ -12,7 +12,7 @@ export default async function createDailySubmissionsSummary() {
   });
 
   const today = new Date();
-  const yesterday = subDays(new Date(today), 1);
+  const yesterday = DateTime.now().minus({ days: 1 }).toJSDate();
 
   const { data: submissions, error } = await getSubmissionsSummary(client, {
     minDate: yesterday.toISOString(),

@@ -9,7 +9,10 @@ import {
   TableHead,
   TableCell,
 } from '~/core/ui/Table';
-import AdminPagination from '~/app/admin/components/AdminPagination';
+import TableContainer from '~/core/ui/TableContainer';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import TablePagination from '~/core/ui/TablePagination';
+import { formatDate } from '~/lib/utils/format-date';
 import type { SubscriberRow } from '~/lib/ultaura/newsletter-admin-actions';
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -50,78 +53,78 @@ export function SubscriberTable({
   pageCount: number;
 }) {
   return (
-    <div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Topics</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Confirmed</TableHead>
-            <TableHead>Created</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {subscribers.map((subscriber) => {
-            const subscribedKeys = new Set(
-              subscriber.topics
-                .filter((t) => t.subscribed)
-                .map((t) => t.topic_key),
-            );
+    <TableContainer>
+      {subscribers.length === 0 ? (
+        <TableEmptyState message="No subscribers found." />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Email</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Topics</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Confirmed</TableHead>
+              <TableHead>Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {subscribers.map((subscriber) => {
+              const subscribedKeys = new Set(
+                subscriber.topics
+                  .filter((t) => t.subscribed)
+                  .map((t) => t.topic_key),
+              );
 
-            return (
-              <TableRow key={subscriber.email}>
-                <TableCell>{subscriber.email}</TableCell>
-                <TableCell>
-                  {subscriber.first_name ? (
-                    subscriber.first_name
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    color={statusBadgeColor(subscriber.status)}
-                    size="small"
-                  >
-                    {subscriber.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    {ALL_TOPICS.map((key) => (
-                      <Badge
-                        key={key}
-                        color={subscribedKeys.has(key) ? 'success' : 'normal'}
-                        size="small"
-                      >
-                        {TOPIC_LABELS[key] || key}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>{subscriber.source}</TableCell>
-                <TableCell>
-                  {subscriber.confirmed_at ? (
-                    <span suppressHydrationWarning>
-                      {new Date(subscriber.confirmed_at).toLocaleDateString()}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </TableCell>
-                <TableCell suppressHydrationWarning>
-                  {new Date(subscriber.created_at).toLocaleDateString()}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+              return (
+                <TableRow key={subscriber.email}>
+                  <TableCell>{subscriber.email}</TableCell>
+                  <TableCell>
+                    {subscriber.first_name ? (
+                      subscriber.first_name
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      color={statusBadgeColor(subscriber.status)}
+                      size="small"
+                    >
+                      {subscriber.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {ALL_TOPICS.map((key) => (
+                        <Badge
+                          key={key}
+                          color={subscribedKeys.has(key) ? 'success' : 'normal'}
+                          size="small"
+                        >
+                          {TOPIC_LABELS[key] || key}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>{subscriber.source}</TableCell>
+                  <TableCell>
+                    {subscriber.confirmed_at ? (
+                      formatDate(subscriber.confirmed_at)
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>{formatDate(subscriber.created_at)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
 
-      <AdminPagination page={page} pageCount={pageCount} perPage={perPage} />
-    </div>
+      <TablePagination page={page} pageCount={pageCount} perPage={perPage} />
+    </TableContainer>
   );
 }

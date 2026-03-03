@@ -1,13 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 
-import { useMemo, useState } from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
+import { useState } from 'react';
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 
-import DataTable from '~/core/ui/DataTable';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '~/core/ui/Table';
+import TableContainer from '~/core/ui/TableContainer';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import TablePagination from '~/core/ui/TablePagination';
+import { formatDateTime } from '~/lib/utils/format-date';
+
 import FeedbackSubmission from '~/plugins/feedback-popup/lib/feedback-submission';
 
 import {
@@ -25,10 +35,6 @@ import FeedbackBadge from '~/plugins/feedback-popup/admin/FeedbackBadge';
 
 import { deleteFeedbackSubmissionAction } from '~/plugins/feedback-popup/lib/feedback-actions';
 
-// we set this to en-US because we want to display the date in the same format
-// between the client and the server
-const DATE_LOCALE = 'en-US';
-
 function FeedbackDataTable({
   submissions,
   page,
@@ -40,123 +46,85 @@ function FeedbackDataTable({
   page: number;
   perPage: number;
 }>) {
-  const columns: ColumnDef<FeedbackSubmission>[] = useMemo(
-    () => [
-      {
-        header: 'Type',
-        cell: ({ row }) => {
-          const original = row.original;
-          const type = original.type;
-
-          return <FeedbackBadge type={type} />;
-        },
-      },
-      {
-        header: 'Text',
-        size: 200,
-        cell: ({ row }) => {
-          const original = row.original;
-          let text = original.text;
-
-          if (text.length >= 35) {
-            text = text.slice(0, 35) + '...';
-          }
-
-          return (
-            <Link
-              className={'hover:underline w-full h-full'}
-              href={`/admin/feedback/${original.id}`}
-            >
-              {text}
-            </Link>
-          );
-        },
-      },
-      {
-        header: 'User',
-        cell: ({ row }) => {
-          const original = row.original;
-          const userId = original.userId;
-
-          if (userId) {
-            return (
-              <Link
-                className={'hover:underline w-full h-full'}
-                href={`/admin/users/${userId}`}
-              >
-                View User
-              </Link>
-            );
-          }
-
-          return '-';
-        },
-      },
-      {
-        header: 'Language',
-        accessorKey: 'deviceInfo.language',
-      },
-      {
-        header: 'Screen Size',
-        cell: ({ row }) => {
-          const original = row.original;
-          const size = original.deviceInfo?.screen_size;
-
-          if (!size) {
-            return '-';
-          }
-
-          return size.width + 'x' + size.height;
-        },
-      },
-      {
-        header: 'Date',
-        cell: ({ row }) => {
-          const original = row.original;
-          const date = original.createdAt;
-
-          if (!date) {
-            return '-';
-          }
-
-          const parsedDate = new Date(date);
-
-          return (
-            parsedDate.toLocaleDateString(DATE_LOCALE) +
-            ' ' +
-            parsedDate.toLocaleTimeString(DATE_LOCALE)
-          );
-        },
-      },
-      {
-        header: '',
-        id: 'actions',
-        cell: ({ row }) => {
-          return <FeedbackActions submission={row.original} />;
-        },
-      },
-    ],
-    [],
-  );
-
   const pageCount = Math.ceil(count / perPage);
-  const router = useRouter();
-  const pathname = usePathname();
 
   return (
-    <DataTable
-      onPaginationChange={({ pageIndex }) => {
-        const params = new URLSearchParams(location.search);
-        params.set('page', String(pageIndex + 1));
+    <TableContainer>
+      {submissions.length === 0 ? (
+        <TableEmptyState message="No feedback submissions found." />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Type</TableHead>
+              <TableHead className="w-[200px]">Text</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead>Language</TableHead>
+              <TableHead>Screen Size</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {submissions.map((submission) => {
+              let text = submission.text;
+              if (text.length >= 35) {
+                text = text.slice(0, 35) + '...';
+              }
 
-        router.push(`${pathname}?${params.toString()}`);
-      }}
-      pageIndex={page - 1}
-      pageSize={perPage}
-      pageCount={pageCount}
-      columns={columns}
-      data={submissions}
-    />
+              const screenSize = submission.deviceInfo?.screen_size;
+
+              return (
+                <TableRow key={submission.id}>
+                  <TableCell>
+                    <FeedbackBadge type={submission.type} />
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      className="hover:underline w-full h-full"
+                      href={`/admin/feedback/${submission.id}`}
+                    >
+                      {text}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    {submission.userId ? (
+                      <Link
+                        className="hover:underline w-full h-full"
+                        href={`/admin/users/${submission.userId}`}
+                      >
+                        View User
+                      </Link>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(submission as any).deviceInfo?.language ?? '-'}
+                  </TableCell>
+                  <TableCell>
+                    {screenSize
+                      ? `${screenSize.width}x${screenSize.height}`
+                      : '-'}
+                  </TableCell>
+                  <TableCell>{formatDateTime(submission.createdAt)}</TableCell>
+                  <TableCell>
+                    <FeedbackActions submission={submission} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
+
+      <TablePagination
+        page={page}
+        pageCount={pageCount}
+        perPage={perPage}
+        totalCount={count}
+      />
+    </TableContainer>
   );
 }
 
@@ -173,9 +141,9 @@ function FeedbackActions(
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={'ghost'}>
-          <span className={'flex space-x-2 items-center'}>
-            <EllipsisVerticalIcon className={'h-4'} />
+        <Button variant="ghost">
+          <span className="flex space-x-2 items-center">
+            <EllipsisVerticalIcon className="h-4" />
             <span>More</span>
           </span>
         </Button>
@@ -183,14 +151,14 @@ function FeedbackActions(
 
       <DropdownMenuContent>
         <DropdownMenuItem>
-          <Link className={'w-full h-full'} href={`feedback/${id}`}>
+          <Link className="w-full h-full" href={`feedback/${id}`}>
             View
           </Link>
         </DropdownMenuItem>
 
         <If condition={type === 'question'}>
           <DropdownMenuItem>
-            <Link className={'w-full h-full'} href={`mailto:${email}`}>
+            <Link className="w-full h-full" href={`mailto:${email}`}>
               Reply
             </Link>
           </DropdownMenuItem>
@@ -203,7 +171,7 @@ function FeedbackActions(
           Delete
         </DropdownMenuItem>
 
-        <Modal isOpen={modalOpen} heading={`Delete Feedback Submission`}>
+        <Modal isOpen={modalOpen} heading="Delete Feedback Submission">
           <form
             action={async (data) => {
               setModalOpen(false);
@@ -211,17 +179,17 @@ function FeedbackActions(
               await deleteFeedbackSubmissionAction(data);
             }}
           >
-            <input value={id} type={'hidden'} name={'id'} />
+            <input value={id} type="hidden" name="id" />
 
-            <div className={'flex flex-col space-y-4'}>
+            <div className="flex flex-col space-y-4">
               <div>
-                <p className={'text-sm'}>
+                <p className="text-sm">
                   Are you sure you want to delete this feedback submission?
                 </p>
               </div>
 
-              <div className={'flex justify-end'}>
-                <Button variant={'destructive'}>Yep, delete it</Button>
+              <div className="flex justify-end">
+                <Button variant="destructive">Yep, delete it</Button>
               </div>
             </div>
           </form>

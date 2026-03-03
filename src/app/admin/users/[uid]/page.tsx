@@ -43,15 +43,17 @@ async function AdminUserPage({ params }: Params) {
 
   const [data] = await Promise.all([
     loadData(uid),
-    getCurrentAdminContext().then((admin) =>
-      admin
-        ? writeAdminAuditLog(admin, {
-            action: 'admin.view.user',
-            targetType: 'user',
-            targetId: uid,
-          })
-        : undefined,
-    ).catch(() => {}),
+    getCurrentAdminContext()
+      .then((admin) =>
+        admin
+          ? writeAdminAuditLog(admin, {
+              action: 'admin.view.user',
+              targetType: 'user',
+              targetId: uid,
+            })
+          : undefined,
+      )
+      .catch(() => {}),
   ]);
   const { auth, user } = data;
   const displayName = user?.displayName;
@@ -66,7 +68,9 @@ async function AdminUserPage({ params }: Params) {
 
   return (
     <div className={'flex flex-col flex-1'}>
-      <AdminHeader description="View and manage user details">Manage User</AdminHeader>
+      <AdminHeader description="View and manage user details">
+        Manage User
+      </AdminHeader>
 
       <PageBody>
         <div className={'flex flex-col space-y-6'}>
@@ -83,8 +87,10 @@ async function AdminUserPage({ params }: Params) {
             </div>
           </div>
 
-          <div className="rounded-xl bg-card p-5 card-border-accent">
-            <h3 className="text-lg font-semibold text-foreground">User Details</h3>
+          <div className="rounded-xl bg-card p-5 border border-border">
+            <h3 className="text-lg font-semibold text-foreground">
+              User Details
+            </h3>
 
             <div className={'flex space-x-2 items-center mt-4'}>
               <div>
@@ -106,24 +112,34 @@ async function AdminUserPage({ params }: Params) {
 
             <div className="mt-4 flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Display name</span>
-                <span className="text-sm text-foreground">{displayName || '—'}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Display name
+                </span>
+                <span className="text-sm text-foreground">
+                  {displayName || '—'}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Email</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Email
+                </span>
                 <span className="text-sm text-foreground">{email || '—'}</span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Phone number</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Phone number
+                </span>
                 <span className="text-sm text-foreground">{phone || '—'}</span>
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl bg-card p-5 card-border-accent">
-            <h3 className="text-lg font-semibold text-foreground">Organizations</h3>
+          <div className="rounded-xl bg-card p-5 border border-border">
+            <h3 className="text-lg font-semibold text-foreground">
+              Organizations
+            </h3>
 
             <Table className="mt-4">
               <TableHeader>

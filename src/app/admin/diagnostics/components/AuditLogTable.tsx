@@ -6,6 +6,9 @@ import {
   TableHead,
   TableCell,
 } from '~/core/ui/Table';
+import TableContainer from '~/core/ui/TableContainer';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import { formatDateTime } from '~/lib/utils/format-date';
 
 interface AuditLogRow {
   id: string;
@@ -37,52 +40,44 @@ function truncateDetails(
   return raw.slice(0, maxLength) + '...';
 }
 
-function formatTimestamp(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
 function AuditLogTable({ logs }: AuditLogTableProps) {
-  if (logs.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No audit log entries.</p>
-    );
-  }
-
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Timestamp</TableHead>
-            <TableHead>Admin</TableHead>
-            <TableHead>Action</TableHead>
-            <TableHead>Target</TableHead>
-            <TableHead>Details</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {logs.map((log) => (
-            <TableRow key={log.id}>
-              <TableCell className="whitespace-nowrap text-muted-foreground">
-                {formatTimestamp(log.created_at)}
-              </TableCell>
-              <TableCell>{log.admin_email}</TableCell>
-              <TableCell className="font-mono text-xs">{log.action}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {formatTarget(log.target_type, log.target_id)}
-              </TableCell>
-              <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
-                {truncateDetails(log.metadata)}
-              </TableCell>
+    <TableContainer>
+      {logs.length === 0 ? (
+        <TableEmptyState message="No audit log entries." />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Timestamp</TableHead>
+              <TableHead>Admin</TableHead>
+              <TableHead>Action</TableHead>
+              <TableHead>Target</TableHead>
+              <TableHead>Details</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {logs.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell className="whitespace-nowrap text-muted-foreground">
+                  {formatDateTime(log.created_at)}
+                </TableCell>
+                <TableCell>{log.admin_email}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  {log.action}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {formatTarget(log.target_type, log.target_id)}
+                </TableCell>
+                <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
+                  {truncateDetails(log.metadata)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </TableContainer>
   );
 }
 

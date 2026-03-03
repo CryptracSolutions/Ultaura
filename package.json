@@ -71,7 +71,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cva": "npm:class-variance-authority@^0.7.0",
-    "date-fns": "^3.6.0",
     "edge-csrf": "^1.0.9",
     "framer-motion": "^12.34.3",
     "heroicons": "^2.1.3",

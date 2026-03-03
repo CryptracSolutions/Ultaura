@@ -12,6 +12,8 @@ import {
   TableHead,
   TableCell,
 } from '~/core/ui/Table';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import { formatDate } from '~/lib/utils/format-date';
 
 import type {
   SafeStripeCustomer,
@@ -65,12 +67,7 @@ function formatCurrency(amount: number, currency: string): string {
 }
 
 function formatTimestamp(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString();
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '--';
-  return new Date(iso).toLocaleDateString();
+  return formatDate(new Date(ts * 1000));
 }
 
 type BadgeColor = 'success' | 'warn' | 'error' | 'info' | 'normal';
@@ -115,7 +112,7 @@ function invoiceStatusColor(status: string | null): BadgeColor {
 
 function Card(props: React.PropsWithChildren<{ title: string }>) {
   return (
-    <div className="rounded-xl bg-card p-5 card-border-accent">
+    <div className="rounded-xl bg-card p-5 border border-border">
       <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         {props.title}
       </h3>
@@ -146,7 +143,8 @@ export default function BillingResults({
   stripeSubscriptionError,
   stripeInvoicesError,
 }: BillingResultsProps) {
-  const livemode = stripeCustomer?.livemode ?? stripeSubscription?.livemode ?? false;
+  const livemode =
+    stripeCustomer?.livemode ?? stripeSubscription?.livemode ?? false;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -156,10 +154,7 @@ export default function BillingResults({
         <Row label="Account ID">{dbSubscription.account_id}</Row>
         <Row label="Plan ID">{dbSubscription.plan_id ?? '--'}</Row>
         <Row label="Status">
-          <Badge
-            color={statusBadgeColor(dbSubscription.status)}
-            size="small"
-          >
+          <Badge color={statusBadgeColor(dbSubscription.status)} size="small">
             {dbSubscription.status ?? 'unknown'}
           </Badge>
         </Row>
@@ -207,7 +202,11 @@ export default function BillingResults({
             <Row label="Created">{formatTimestamp(stripeCustomer.created)}</Row>
             <div className="mt-3 pt-3 border-t border-border">
               <a
-                href={stripeUrl('customers', stripeCustomer.id, stripeCustomer.livemode)}
+                href={stripeUrl(
+                  'customers',
+                  stripeCustomer.id,
+                  stripeCustomer.livemode,
+                )}
                 target="_blank"
                 rel="noopener"
                 className="text-sm text-primary hover:underline"
@@ -230,9 +229,7 @@ export default function BillingResults({
         ) : stripeSubscription ? (
           <>
             <Row label="Subscription ID">
-              <span className="font-mono text-xs">
-                {stripeSubscription.id}
-              </span>
+              <span className="font-mono text-xs">{stripeSubscription.id}</span>
             </Row>
             <Row label="Status">
               <Badge
@@ -278,8 +275,7 @@ export default function BillingResults({
 
             <Row label="Current Period">
               {formatTimestamp(stripeSubscription.currentPeriodStart)}{' '}
-              {'\u2192'}{' '}
-              {formatTimestamp(stripeSubscription.currentPeriodEnd)}
+              {'\u2192'} {formatTimestamp(stripeSubscription.currentPeriodEnd)}
             </Row>
 
             {stripeSubscription.trialEnd && (
@@ -304,7 +300,9 @@ export default function BillingResults({
                 {stripeSubscription.defaultPaymentMethod.brand.toUpperCase()}{' '}
                 **** {stripeSubscription.defaultPaymentMethod.last4}
                 {' \u00B7 '}
-                {String(stripeSubscription.defaultPaymentMethod.expMonth).padStart(2, '0')}
+                {String(
+                  stripeSubscription.defaultPaymentMethod.expMonth,
+                ).padStart(2, '0')}
                 /{stripeSubscription.defaultPaymentMethod.expYear}
               </Row>
             )}
@@ -390,7 +388,7 @@ export default function BillingResults({
             </Table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No invoices found.</p>
+          <TableEmptyState message="No invoices found." />
         )}
       </Card>
     </div>

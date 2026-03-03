@@ -16,6 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '~/core/ui/Table';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import { formatDate, formatDateTime } from '~/lib/utils/format-date';
 
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import configuration from '~/configuration';
@@ -65,15 +67,17 @@ async function AdminAccountDetailPage({ params }: Params) {
         .from('ultaura_minute_ledger')
         .select('billable_minutes, billable_type, seconds_connected')
         .eq('account_id', accountId),
-      getCurrentAdminContext().then((admin) =>
-        admin
-          ? writeAdminAuditLog(admin, {
-              action: 'admin.view.account',
-              targetType: 'account',
-              targetId: accountId,
-            })
-          : undefined,
-      ).catch(() => {}),
+      getCurrentAdminContext()
+        .then((admin) =>
+          admin
+            ? writeAdminAuditLog(admin, {
+                action: 'admin.view.account',
+                targetType: 'account',
+                targetId: accountId,
+              })
+            : undefined,
+        )
+        .catch(() => {}),
     ]);
 
   const account = accountResult.data;
@@ -108,16 +112,20 @@ async function AdminAccountDetailPage({ params }: Params) {
 
   return (
     <div className="flex flex-col flex-1">
-      <AdminHeader description="Account details, usage, and subscription">Account Details</AdminHeader>
+      <AdminHeader description="Account details, usage, and subscription">
+        Account Details
+      </AdminHeader>
 
       <PageBody>
         <div className="flex flex-col space-y-6">
           <AdminBreadcrumbs items={[{ label: account.name }]} />
 
           {/* Account Info */}
-          <div className="rounded-xl bg-card p-5 card-border-accent">
+          <div className="rounded-xl bg-card p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Account Info</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                Account Info
+              </h3>
 
               <div className="inline-flex">
                 <AccountStatusBadge status={account.status} />
@@ -126,58 +134,96 @@ async function AdminAccountDetailPage({ params }: Params) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Account ID</span>
-                <span className="text-sm text-foreground">{account.id || '—'}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Account ID
+                </span>
+                <span className="text-sm text-foreground">
+                  {account.id || '—'}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Name</span>
-                <span className="text-sm text-foreground">{account.name || '—'}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Name
+                </span>
+                <span className="text-sm text-foreground">
+                  {account.name || '—'}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Billing Email</span>
-                <span className="text-sm text-foreground">{account.billing_email || '—'}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Billing Email
+                </span>
+                <span className="text-sm text-foreground">
+                  {account.billing_email || '—'}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Plan ID</span>
-                <span className="text-sm text-foreground">{account.plan_id ?? 'None'}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Plan ID
+                </span>
+                <span className="text-sm text-foreground">
+                  {account.plan_id ?? 'None'}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">User Type</span>
-                <span className="text-sm text-foreground">{account.user_type || '—'}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  User Type
+                </span>
+                <span className="text-sm text-foreground">
+                  {account.user_type || '—'}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Organization ID</span>
-                <span className="text-sm text-foreground">{account.organization_id ?? '—'}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Organization ID
+                </span>
+                <span className="text-sm text-foreground">
+                  {account.organization_id ?? '—'}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Created At</span>
-                <span className="text-sm text-foreground">{new Date(account.created_at).toLocaleString()}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Created At
+                </span>
+                <span className="text-sm text-foreground">
+                  {formatDateTime(account.created_at)}
+                </span>
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-muted-foreground">Overage Cap (cents)</span>
-                <span className="text-sm text-foreground">{String(account.overage_cents_cap)}</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Overage Cap (cents)
+                </span>
+                <span className="text-sm text-foreground">
+                  {String(account.overage_cents_cap)}
+                </span>
               </div>
             </div>
 
             {account.trial_starts_at && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Trial Starts</span>
-                  <span className="text-sm text-foreground">{new Date(account.trial_starts_at).toLocaleString()}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Trial Starts
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {formatDateTime(account.trial_starts_at)}
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Trial Ends</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Trial Ends
+                  </span>
                   <span className="text-sm text-foreground">
                     {account.trial_ends_at
-                      ? new Date(account.trial_ends_at).toLocaleString()
+                      ? formatDateTime(account.trial_ends_at)
                       : 'N/A'}
                   </span>
                 </div>
@@ -186,8 +232,10 @@ async function AdminAccountDetailPage({ params }: Params) {
           </div>
 
           {/* Minutes Usage */}
-          <div className="rounded-xl bg-card p-5 card-border-accent">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Minutes Usage</h3>
+          <div className="rounded-xl bg-card p-5 border border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Minutes Usage
+            </h3>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <AdminStatCard
@@ -200,10 +248,7 @@ async function AdminAccountDetailPage({ params }: Params) {
                 value={account.minutes_used}
               />
 
-              <AdminStatCard
-                label="Overage Minutes"
-                value={overageMinutes}
-              />
+              <AdminStatCard label="Overage Minutes" value={overageMinutes} />
 
               <AdminStatCard
                 label="Total Connected (min)"
@@ -214,27 +259,41 @@ async function AdminAccountDetailPage({ params }: Params) {
             {account.cycle_start && account.cycle_end && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Cycle Start</span>
-                  <span className="text-sm text-foreground">{new Date(account.cycle_start).toLocaleDateString()}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Cycle Start
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {formatDate(account.cycle_start)}
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Cycle End</span>
-                  <span className="text-sm text-foreground">{new Date(account.cycle_end).toLocaleDateString()}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Cycle End
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {formatDate(account.cycle_end)}
+                  </span>
                 </div>
               </div>
             )}
           </div>
 
           {/* Subscription Details */}
-          <div className="rounded-xl bg-card p-5 card-border-accent">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Subscription</h3>
+          <div className="rounded-xl bg-card p-5 border border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Subscription
+            </h3>
 
             {subscription ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Subscription ID</span>
-                  <span className="text-sm text-foreground">{subscription.id || '—'}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Subscription ID
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {subscription.id || '—'}
+                  </span>
                 </div>
 
                 <div className="flex flex-col space-y-1">
@@ -245,36 +304,60 @@ async function AdminAccountDetailPage({ params }: Params) {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Plan ID</span>
-                  <span className="text-sm text-foreground">{subscription.plan_id ?? 'None'}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Plan ID
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {subscription.plan_id ?? 'None'}
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Billing Interval</span>
-                  <span className="text-sm text-foreground">{subscription.billing_interval ?? 'N/A'}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Billing Interval
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {subscription.billing_interval ?? 'N/A'}
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Stripe Subscription ID</span>
-                  <span className="text-sm text-foreground">{subscription.stripe_subscription_id ?? 'None'}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Stripe Subscription ID
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {subscription.stripe_subscription_id ?? 'None'}
+                  </span>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-muted-foreground">Stripe Customer ID</span>
-                  <span className="text-sm text-foreground">{subscription.stripe_customer_id ?? 'None'}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Stripe Customer ID
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {subscription.stripe_customer_id ?? 'None'}
+                  </span>
                 </div>
 
                 {subscription.current_period_start &&
                   subscription.current_period_end && (
                     <>
                       <div className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-muted-foreground">Period Start</span>
-                        <span className="text-sm text-foreground">{new Date(subscription.current_period_start).toLocaleDateString()}</span>
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Period Start
+                        </span>
+                        <span className="text-sm text-foreground">
+                          {formatDate(subscription.current_period_start)}
+                        </span>
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-muted-foreground">Period End</span>
-                        <span className="text-sm text-foreground">{new Date(subscription.current_period_end).toLocaleDateString()}</span>
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Period End
+                        </span>
+                        <span className="text-sm text-foreground">
+                          {formatDate(subscription.current_period_end)}
+                        </span>
                       </div>
                     </>
                   )}
@@ -304,8 +387,10 @@ async function AdminAccountDetailPage({ params }: Params) {
           </div>
 
           {/* Lines */}
-          <div className="rounded-xl bg-card p-5 card-border-accent">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Lines ({lines.length})</h3>
+          <div className="rounded-xl bg-card p-5 border border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Lines ({lines.length})
+            </h3>
 
             {lines.length > 0 ? (
               <Table>
@@ -346,15 +431,15 @@ async function AdminAccountDetailPage({ params }: Params) {
                 </TableBody>
               </Table>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No lines configured for this account.
-              </p>
+              <TableEmptyState message="No lines configured for this account." />
             )}
           </div>
 
           {/* Quick Links */}
-          <div className="rounded-xl bg-card p-5 card-border-accent">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Quick Links</h3>
+          <div className="rounded-xl bg-card p-5 border border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Quick Links
+            </h3>
 
             <div className="flex space-x-3">
               <Button variant="outline" size="small">

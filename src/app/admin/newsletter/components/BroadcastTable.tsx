@@ -9,6 +9,9 @@ import {
   TableHead,
   TableCell,
 } from '~/core/ui/Table';
+import TableContainer from '~/core/ui/TableContainer';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import { formatDate } from '~/lib/utils/format-date';
 
 interface BroadcastTableProps {
   broadcasts: any[];
@@ -37,41 +40,43 @@ function statusBadgeColor(
 
 export default function BroadcastTable({ broadcasts }: BroadcastTableProps) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Subject</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {broadcasts.map((broadcast) => {
-          const status = broadcast.status || 'draft';
-          return (
-            <TableRow key={broadcast.id}>
-              <TableCell>
-                <a
-                  href={`/admin/newsletter/broadcasts/${broadcast.id}`}
-                  className="text-primary hover:underline"
-                >
-                  {broadcast.name || broadcast.subject || 'Untitled'}
-                </a>
-              </TableCell>
-              <TableCell>
-                <Badge color={statusBadgeColor(status)} size="small">
-                  {status}
-                </Badge>
-              </TableCell>
-              <TableCell suppressHydrationWarning>
-                {broadcast.created_at
-                  ? new Date(broadcast.created_at).toLocaleDateString()
-                  : '-'}
-              </TableCell>
+    <TableContainer>
+      {broadcasts.length === 0 ? (
+        <TableEmptyState message="No broadcasts found." />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Subject</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created</TableHead>
             </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+          </TableHeader>
+          <TableBody>
+            {broadcasts.map((broadcast) => {
+              const status = broadcast.status || 'draft';
+              return (
+                <TableRow key={broadcast.id}>
+                  <TableCell>
+                    <a
+                      href={`/admin/newsletter/broadcasts/${broadcast.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {broadcast.name || broadcast.subject || 'Untitled'}
+                    </a>
+                  </TableCell>
+                  <TableCell>
+                    <Badge color={statusBadgeColor(status)} size="small">
+                      {status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatDate(broadcast.created_at)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
+    </TableContainer>
   );
 }

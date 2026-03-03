@@ -2,7 +2,6 @@
 
 import { ClipboardList } from 'lucide-react';
 
-import Button from '~/core/ui/Button';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import {
   Select,
@@ -19,13 +18,15 @@ import {
   TableHeader,
   TableRow,
 } from '~/core/ui/Table';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import TablePagination from '~/core/ui/TablePagination';
 import TextField from '~/core/ui/TextField';
+import { formatDateTime } from '~/lib/utils/format-date';
 import type { ConsentAuditEntry } from '~/lib/ultaura/types';
 import {
   formatAction,
   formatActor,
   formatAuditValue,
-  formatDate,
 } from '../../lib/privacy-formatters';
 
 export interface AuditSectionProps {
@@ -42,8 +43,6 @@ export interface AuditSectionProps {
   filteredAuditLog: ConsentAuditEntry[];
   pagedAuditLog: ConsentAuditEntry[];
   auditLog: ConsentAuditEntry[];
-  auditStartIndex: number;
-  auditEndIndex: number;
   auditPageSafe: number;
   auditTotalPages: number;
   onAuditPrevPage: () => void;
@@ -62,8 +61,6 @@ export function AuditSection({
   filteredAuditLog,
   pagedAuditLog,
   auditLog,
-  auditStartIndex,
-  auditEndIndex,
   auditPageSafe,
   auditTotalPages,
   onAuditPrevPage,
@@ -153,7 +150,7 @@ export function AuditSection({
               <TableBody>
                 {pagedAuditLog.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell>{formatDate(entry.createdAt)}</TableCell>
+                    <TableCell>{formatDateTime(entry.createdAt)}</TableCell>
                     <TableCell>{formatAction(entry.action)}</TableCell>
                     <TableCell>{entry.consentType ?? '--'}</TableCell>
                     <TableCell>{formatActor(entry.actorType)}</TableCell>
@@ -168,42 +165,25 @@ export function AuditSection({
             </Table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            {auditLog.length === 0
-              ? 'No audit events yet.'
-              : 'No audit events match the current filters.'}
-          </p>
+          <TableEmptyState
+            message={
+              auditLog.length === 0
+                ? 'No audit events yet.'
+                : 'No audit events match the current filters.'
+            }
+          />
         )}
 
-        {filteredAuditLog.length > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Showing {auditStartIndex}-{auditEndIndex} of {filteredAuditLog.length}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                aria-label="Previous audit log page"
-                onClick={onAuditPrevPage}
-                disabled={auditPageSafe <= 1}
-              >
-                Previous
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                Page {auditPageSafe} of {auditTotalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                aria-label="Next audit log page"
-                onClick={onAuditNextPage}
-                disabled={auditPageSafe >= auditTotalPages}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+        {filteredAuditLog.length > 0 && auditTotalPages > 1 ? (
+          <TablePagination
+            page={auditPageSafe}
+            pageCount={auditTotalPages}
+            totalCount={filteredAuditLog.length}
+            onPageChange={(newPage) => {
+              if (newPage < auditPageSafe) onAuditPrevPage();
+              else if (newPage > auditPageSafe) onAuditNextPage();
+            }}
+          />
         ) : null}
       </SectionBody>
     </Section>

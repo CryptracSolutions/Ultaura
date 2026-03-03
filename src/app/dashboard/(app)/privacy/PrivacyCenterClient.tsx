@@ -56,11 +56,8 @@ import {
   PRIVACY_TABS,
 } from './lib/privacy-navigation';
 import { assertActionSucceeded } from './lib/action-result';
-import { formatShortDate } from './lib/privacy-formatters';
-import type {
-  PrivacySectionConfig,
-  PrivacyTabValue,
-} from './types';
+import { formatDate } from '~/lib/utils/format-date';
+import type { PrivacySectionConfig, PrivacyTabValue } from './types';
 
 interface PrivacyCenterClientProps {
   account: UltauraAccountRow;
@@ -182,7 +179,10 @@ export function PrivacyCenterClient({
 
   const sharingAutoSave = useAutoSave<{ sharingEnabled: boolean }>({
     saveFn: async (value) => {
-      const result = await updateAccountSharing(account.id, value.sharingEnabled);
+      const result = await updateAccountSharing(
+        account.id,
+        value.sharingEnabled,
+      );
       if (result.success) {
         return { success: true };
       }
@@ -241,8 +241,6 @@ export function PrivacyCenterClient({
     pagedAuditLog,
     auditTotalPages,
     auditPageSafe,
-    auditStartIndex,
-    auditEndIndex,
   } = useAuditFilters({
     auditLog,
     pageSize: AUDIT_PAGE_SIZE,
@@ -265,7 +263,8 @@ export function PrivacyCenterClient({
   ]);
 
   const lineConsentById = useMemo(
-    () => new Map(lineVoiceConsents.map((consent) => [consent.lineId, consent])),
+    () =>
+      new Map(lineVoiceConsents.map((consent) => [consent.lineId, consent])),
     [lineVoiceConsents],
   );
 
@@ -345,7 +344,9 @@ export function PrivacyCenterClient({
       setExports(refreshed);
       toast.success('Export requested. We will prepare your file shortly.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to start export');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to start export',
+      );
     } finally {
       setIsExporting(false);
     }
@@ -354,7 +355,10 @@ export function PrivacyCenterClient({
   const handleDataDeletion = async () => {
     let hasShownErrorToast = false;
     try {
-      const result = await requestAccountDataDeletion(account.id, 'user_request');
+      const result = await requestAccountDataDeletion(
+        account.id,
+        'user_request',
+      );
       try {
         assertActionSucceeded(result, 'Failed to delete data');
       } catch (error) {
@@ -364,7 +368,9 @@ export function PrivacyCenterClient({
         toast.error(errorMessage);
         throw new Error(errorMessage);
       }
-      toast.success('Deletion requested. Privacy data will be removed shortly.');
+      toast.success(
+        'Deletion requested. Privacy data will be removed shortly.',
+      );
     } catch (error) {
       if (!hasShownErrorToast) {
         toast.error('Failed to delete data');
@@ -453,9 +459,12 @@ export function PrivacyCenterClient({
     await inviteFlow.submitInvite();
   };
 
-  const isAnySaveInProgress = privacyAutoSave.isSaving || sharingAutoSave.isSaving;
+  const isAnySaveInProgress =
+    privacyAutoSave.isSaving || sharingAutoSave.isSaving;
   const showSavingState =
-    isAnySaveInProgress || privacyAutoSave.hasPending || sharingAutoSave.hasPending;
+    isAnySaveInProgress ||
+    privacyAutoSave.hasPending ||
+    sharingAutoSave.hasPending;
 
   const activeContent = (() => {
     if (activeTab.value !== 'overview' && !activeSection) {
@@ -505,7 +514,7 @@ export function PrivacyCenterClient({
               isAnyLineRequestPending={isLineRequestPending}
               recordingReenableCooldownMs={RECORDING_REENABLE_COOLDOWN_MS}
               onRecordingReenable={handleRecordingReenable}
-              formatShortDate={formatShortDate}
+              formatShortDate={formatDate}
             />
           );
         }
@@ -578,8 +587,6 @@ export function PrivacyCenterClient({
               filteredAuditLog={filteredAuditLog}
               pagedAuditLog={pagedAuditLog}
               auditLog={auditLog}
-              auditStartIndex={auditStartIndex}
-              auditEndIndex={auditEndIndex}
               auditPageSafe={auditPageSafe}
               auditTotalPages={auditTotalPages}
               onAuditPrevPage={() => setAuditPage(Math.max(1, auditPage - 1))}
@@ -645,7 +652,7 @@ export function PrivacyCenterClient({
               sharingRequestLineId={sharingRequestLineId}
               isAnyLineRequestPending={isLineRequestPending}
               onSharingRePrompt={handleSharingRePrompt}
-              formatShortDate={formatShortDate}
+              formatShortDate={formatDate}
               onUpgradeRequest={() => setUpgradeConfirmOpen(true)}
             />
           );
@@ -668,7 +675,11 @@ export function PrivacyCenterClient({
           onRetry={() => router.refresh()}
         />
 
-        <NavigationMenu bordered scrollable ariaLabel="Privacy center navigation tabs">
+        <NavigationMenu
+          bordered
+          scrollable
+          ariaLabel="Privacy center navigation tabs"
+        >
           {privacyTabs.map((tab) => (
             <NavigationItem
               key={tab.value}
@@ -690,7 +701,9 @@ export function PrivacyCenterClient({
               activeSection={activeSection || sectionsForTab[0]}
             />
           ) : null}
-          <div className="flex min-w-0 flex-1 flex-col gap-6">{activeContent}</div>
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            {activeContent}
+          </div>
         </div>
       </div>
 

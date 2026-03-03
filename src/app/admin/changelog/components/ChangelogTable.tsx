@@ -18,6 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from '~/core/ui/Table';
+import TableContainer from '~/core/ui/TableContainer';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import { formatDateTime } from '~/lib/utils/format-date';
 
 import type {
   ChangelogAdminEntry,
@@ -49,16 +52,14 @@ export default function ChangelogTable({
 
   if (entries.length === 0) {
     return (
-      <div className="flex min-h-[180px] items-center justify-center rounded-lg border border-dashed border-border">
-        <p className="px-4 text-center text-sm text-muted-foreground">
-          No changelog entries yet. Create your first draft entry to get started.
-        </p>
-      </div>
+      <TableContainer>
+        <TableEmptyState message="No changelog entries yet. Create your first draft entry to get started." />
+      </TableContainer>
     );
   }
 
   return (
-    <div className="w-full">
+    <TableContainer>
       <Table className="min-w-[760px]">
         <TableHeader>
           <TableRow>
@@ -102,7 +103,8 @@ export default function ChangelogTable({
 
                 <TableCell>
                   <Badge size="small" color="info">
-                    {categoryLabelMap.get(entry.category) ?? humanizeLabel(entry.category)}
+                    {categoryLabelMap.get(entry.category) ??
+                      humanizeLabel(entry.category)}
                   </Badge>
                 </TableCell>
 
@@ -117,7 +119,7 @@ export default function ChangelogTable({
 
                 <TableCell>
                   {entry.published_at ? (
-                    <span suppressHydrationWarning className="text-sm">
+                    <span className="text-sm">
                       {formatDateTime(entry.published_at)}
                     </span>
                   ) : (
@@ -135,10 +137,7 @@ export default function ChangelogTable({
                     </Badge>
 
                     {entry.email_sent_at ? (
-                      <span
-                        suppressHydrationWarning
-                        className="text-xs text-muted-foreground"
-                      >
+                      <span className="text-xs text-muted-foreground">
                         {formatDateTime(entry.email_sent_at)}
                       </span>
                     ) : null}
@@ -154,7 +153,9 @@ export default function ChangelogTable({
                           size="icon"
                           disabled={disabled || isSaving || isDeleting}
                         >
-                          <span className="sr-only">Open changelog actions</span>
+                          <span className="sr-only">
+                            Open changelog actions
+                          </span>
                           <EllipsisHorizontalIcon className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -182,7 +183,7 @@ export default function ChangelogTable({
           })}
         </TableBody>
       </Table>
-    </div>
+    </TableContainer>
   );
 }
 
@@ -193,10 +194,6 @@ function getEntryStatus(entry: ChangelogAdminEntry): 'draft' | 'published' {
   }
 
   return entry.published_at ? 'published' : 'draft';
-}
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString();
 }
 
 function humanizeLabel(value: string) {

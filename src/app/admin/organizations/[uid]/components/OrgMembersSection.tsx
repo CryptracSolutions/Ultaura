@@ -87,9 +87,11 @@ function OrgMembersSection({
   const [error, setError] = useState('');
 
   return (
-    <div className="rounded-xl bg-card p-6 card-border-accent">
+    <div className="rounded-xl bg-card p-6 border border-border">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-foreground">Members ({memberships.length})</h3>
+        <h3 className="text-lg font-semibold text-foreground">
+          Members ({memberships.length})
+        </h3>
 
         <AddMemberDialog orgUid={orgUid} />
       </div>

@@ -26,9 +26,10 @@ import {
   TableHeader,
   TableRow,
 } from '~/core/ui/Table';
+import TableEmptyState from '~/core/ui/TableEmptyState';
+import { formatDateTime } from '~/lib/utils/format-date';
 import type { DataExportRequest } from '~/lib/ultaura/types';
 import {
-  formatDate,
   formatStatusLabel,
   getSafeDownloadUrl,
   statusToColor,
@@ -86,7 +87,9 @@ export function ExportSection({
             <p className="text-sm font-medium text-foreground">Format</p>
             <Select
               value={exportFormat}
-              onValueChange={(value) => onExportFormatChange(value as 'json' | 'csv')}
+              onValueChange={(value) =>
+                onExportFormatChange(value as 'json' | 'csv')
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select format" />
@@ -138,7 +141,9 @@ export function ExportSection({
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Checkbox
                     checked={includeMemories}
-                    onCheckedChange={(checked) => onIncludeMemoriesChange(Boolean(checked))}
+                    onCheckedChange={(checked) =>
+                      onIncludeMemoriesChange(Boolean(checked))
+                    }
                   />
                   Memories
                 </label>
@@ -154,7 +159,9 @@ export function ExportSection({
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Checkbox
                     checked={includeReminders}
-                    onCheckedChange={(checked) => onIncludeRemindersChange(Boolean(checked))}
+                    onCheckedChange={(checked) =>
+                      onIncludeRemindersChange(Boolean(checked))
+                    }
                   />
                   Reminders
                 </label>
@@ -179,12 +186,14 @@ export function ExportSection({
                 {exports.map((request) => {
                   const statusLabel = formatStatusLabel(request.status);
                   const statusColor = statusToColor(request.status);
-                  const safeDownloadUrl = getSafeDownloadUrl(request.downloadUrl);
+                  const safeDownloadUrl = getSafeDownloadUrl(
+                    request.downloadUrl,
+                  );
                   const readyDownloadUrl =
                     request.status === 'ready' ? safeDownloadUrl : null;
                   return (
                     <TableRow key={request.id}>
-                      <TableCell>{formatDate(request.createdAt)}</TableCell>
+                      <TableCell>{formatDateTime(request.createdAt)}</TableCell>
                       <TableCell className="uppercase text-xs text-muted-foreground">
                         {request.format}
                       </TableCell>
@@ -196,7 +205,9 @@ export function ExportSection({
                         </span>
                       </TableCell>
                       <TableCell>
-                        {request.expiresAt ? formatDate(request.expiresAt) : '--'}
+                        {request.expiresAt
+                          ? formatDateTime(request.expiresAt)
+                          : '--'}
                       </TableCell>
                       <TableCell className="text-right">
                         {readyDownloadUrl ? (
@@ -209,7 +220,9 @@ export function ExportSection({
                             Download
                           </a>
                         ) : (
-                          <span className="text-xs text-muted-foreground">--</span>
+                          <span className="text-xs text-muted-foreground">
+                            --
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -219,7 +232,7 @@ export function ExportSection({
             </Table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No export requests yet.</p>
+          <TableEmptyState message="No export requests yet." />
         )}
       </SectionBody>
     </Section>

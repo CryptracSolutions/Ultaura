@@ -3,7 +3,16 @@
 import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/core/ui/Table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '~/core/ui/Table';
+import TableContainer from '~/core/ui/TableContainer';
+import TableEmptyState from '~/core/ui/TableEmptyState';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
 import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
@@ -15,7 +24,10 @@ interface InvitedFamilyListProps {
   disabled?: boolean;
 }
 
-function getStatus(recipient: NotificationRecipient): { label: string; className: string } {
+function getStatus(recipient: NotificationRecipient): {
+  label: string;
+  className: string;
+} {
   if (recipient.unsubscribedAt) {
     return { label: 'Unsubscribed', className: 'text-muted-foreground' };
   }
@@ -25,22 +37,31 @@ function getStatus(recipient: NotificationRecipient): { label: string; className
   return { label: 'Pending', className: 'text-warning' };
 }
 
-export function InvitedFamilyList({ recipients, onRemove, disabled = false }: InvitedFamilyListProps) {
+export function InvitedFamilyList({
+  recipients,
+  onRemove,
+  disabled = false,
+}: InvitedFamilyListProps) {
   const [pendingRemove, setPendingRemove] = useState<{
     id: string;
     name: string;
   } | null>(null);
   const sorted = useMemo(
-    () => [...recipients].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    () =>
+      [...recipients].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [recipients],
   );
 
   if (sorted.length === 0) {
-    return <p className="text-sm text-muted-foreground">No invited family members yet.</p>;
+    return (
+      <TableContainer>
+        <TableEmptyState message="No invited family members yet." />
+      </TableContainer>
+    );
   }
 
   return (
-    <div className="rounded-lg border border-border overflow-x-auto">
+    <TableContainer>
       <Table>
         <TableHeader>
           <TableRow>
@@ -60,13 +81,17 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
                 <TableCell>{recipient.email}</TableCell>
                 <TableCell>
                   {recipient.phoneE164 ? (
-                    <span className="text-sm">{formatUsPhoneForDisplay(recipient.phoneE164)}</span>
+                    <span className="text-sm">
+                      {formatUsPhoneForDisplay(recipient.phoneE164)}
+                    </span>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
                 <TableCell>
-                  <span className={`text-xs font-medium ${status.className}`}>{status.label}</span>
+                  <span className={`text-xs font-medium ${status.className}`}>
+                    {status.label}
+                  </span>
                 </TableCell>
                 <TableCell className="text-right">
                   <ResponsiveActionMenu
@@ -107,6 +132,6 @@ export function InvitedFamilyList({ recipients, onRemove, disabled = false }: In
           setPendingRemove(null);
         }}
       />
-    </div>
+    </TableContainer>
   );
 }
