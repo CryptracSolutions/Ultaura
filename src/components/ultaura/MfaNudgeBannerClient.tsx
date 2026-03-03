@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import Link from 'next/link';
-import { ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, ShieldCheck, X } from 'lucide-react';
 
 import { setCookie } from '~/core/generic/cookies';
 import Trans from '~/core/ui/Trans';
@@ -26,38 +26,49 @@ export function MfaNudgeBannerClient() {
   };
 
   return (
-    <div className="relative rounded-xl border border-primary/30 bg-primary/10 p-4">
-      <button
-        onClick={handleDismiss}
-        className="absolute right-3 top-3 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-        aria-label="Dismiss"
-      >
-        <X className="h-4 w-4" />
-      </button>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:pr-10">
-        <div className="flex items-start gap-3 pr-8 sm:pr-0">
-          <div className="mt-0.5 shrink-0 rounded-full bg-primary/20 p-2 text-primary">
+    <div className="rounded-xl border border-border bg-primary/10 py-2.5 px-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-3">
+          <div className="shrink-0 p-2 text-primary">
             <ShieldCheck className="h-4 w-4" />
           </div>
 
-          <div>
-            <div className="font-medium text-foreground">
+          <div className="min-w-0 flex-1">
+            <div className="font-medium text-foreground text-sm">
               <Trans i18nKey={'profile:mfaNudgeHeading'} />
             </div>
 
-            <div className="mt-1 text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               <Trans i18nKey={'profile:mfaNudgeDescription'} />
             </div>
           </div>
+
+          <button
+            onClick={handleDismiss}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
+            aria-label="Dismiss"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
 
-        <Link
-          href="/dashboard/settings/profile/authentication"
-          className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors sm:w-auto"
-        >
-          <Trans i18nKey={'profile:mfaNudgeCta'} />
-        </Link>
+        <div className="flex items-center gap-2 pl-10 sm:pl-0 sm:ml-auto">
+          <Link
+            href="/dashboard/settings/profile/authentication"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            <Trans i18nKey={'profile:mfaNudgeCta'} />
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+
+          <button
+            onClick={handleDismiss}
+            className="hidden sm:flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Dismiss"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );

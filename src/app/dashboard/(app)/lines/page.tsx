@@ -10,6 +10,7 @@ import { AlertBanner } from './components/AlertBanner';
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { PLANS } from '~/lib/ultaura/constants';
+import { getTrialStatus } from '~/lib/ultaura/helpers';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import Button from '~/core/ui/Button';
@@ -25,7 +26,10 @@ export default async function LinesPage() {
   if (!organizationId) {
     return (
       <>
-        <AppHeader title="Phone Lines" description="Manage phone numbers for your account" />
+        <AppHeader
+          title="Phone Lines"
+          description="Manage phone numbers for your account"
+        />
         <PageBody>
           <p className="text-muted-foreground">Organization not found.</p>
         </PageBody>
@@ -39,12 +43,18 @@ export default async function LinesPage() {
   if (!account) {
     return (
       <>
-        <AppHeader title="Phone Lines" description="Manage phone numbers for your account" />
+        <AppHeader
+          title="Phone Lines"
+          description="Manage phone numbers for your account"
+        />
         <PageBody>
           <div className="max-w-lg mx-auto text-center py-8">
-            <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
+            <h2 className="text-2xl font-semibold mb-4">
+              Get Started with Ultaura
+            </h2>
             <p className="text-muted-foreground mb-6">
-              Set up phone companionship with Ultaura. Start with a 14-day free trial.
+              Set up phone companionship with Ultaura. Start with a 14-day free
+              trial.
             </p>
             <Button variant="default" href="/dashboard/settings/subscription">
               Start 14-day free trial
@@ -72,35 +82,43 @@ export default async function LinesPage() {
     getAccountPrivacySettings(account.id),
   ]);
 
-  const isOnTrial = account.status === 'trial';
-  const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
-  const msRemaining = trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : 0;
-  const isTrialExpired = isOnTrial && !!trialEndsAt && msRemaining <= 0;
-  const trialDaysRemaining =
-    isOnTrial && trialEndsAt ? Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000))) : 0;
-
-  const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
+  const trialStatus = getTrialStatus(account);
+  const isOnTrial = trialStatus.isOnTrial;
+  const isTrialExpired = trialStatus.isExpired;
+  const trialDaysRemaining = trialStatus.daysRemaining;
+  const trialPlanId = (trialStatus.trialPlanId ??
+    account.plan_id) as keyof typeof PLANS;
   const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
   const effectivePlanId =
     account.status === 'trial'
-      ? (account.trial_plan_id ?? account.plan_id ?? 'free_trial')
-      : (account.plan_id ?? 'free_trial');
+      ? account.trial_plan_id ?? account.plan_id ?? 'free_trial'
+      : account.plan_id ?? 'free_trial';
 
   // Determine if we should show any alerts
   const isPayg = account.plan_id === 'payg';
-  const showLowMinutesAlert = !isPayg && account.status !== 'trial' && usage && usage.minutesRemaining <= 15;
-  const vendorAlreadyAcknowledged = !!privacySettings?.vendorDisclosureAcknowledgedAt;
+  const showLowMinutesAlert =
+    !isPayg &&
+    account.status !== 'trial' &&
+    usage &&
+    usage.minutesRemaining <= 15;
+  const vendorAlreadyAcknowledged =
+    !!privacySettings?.vendorDisclosureAcknowledgedAt;
 
   return (
     <>
       <AppHeader title={headerTitle} description={headerDescription}>
         {isOnTrial && !isTrialExpired ? (
-          <TrialStatusBadge daysRemaining={trialDaysRemaining} planName={trialPlanName} />
+          <TrialStatusBadge
+            daysRemaining={trialDaysRemaining}
+            planName={trialPlanName}
+          />
         ) : null}
       </AppHeader>
       <PageBody>
         <div className="space-y-6">
-          {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
+          {isTrialExpired && (
+            <TrialExpiredBanner trialPlanName={trialPlanName} />
+          )}
 
           {/* Alerts */}
           {showLowMinutesAlert && (

@@ -14,13 +14,20 @@ export async function MfaNudgeBanner() {
     if (dismissedDate > thirtyDaysAgo) return null;
   }
 
-  const client = getSupabaseServerComponentClient();
-  const { data: factors } = await client.auth.mfa.listFactors();
-  const verifiedCount =
-    (factors?.totp?.filter((f) => f.status === 'verified').length ?? 0) +
-    (factors?.phone?.filter((f) => f.status === 'verified').length ?? 0);
+  try {
+    const client = getSupabaseServerComponentClient();
+    const { data: factors, error } = await client.auth.mfa.listFactors();
 
-  if (verifiedCount > 0) return null;
+    if (error) return null;
 
-  return <MfaNudgeBannerClient />;
+    const verifiedCount =
+      (factors?.totp?.filter((f) => f.status === 'verified').length ?? 0) +
+      (factors?.phone?.filter((f) => f.status === 'verified').length ?? 0);
+
+    if (verifiedCount > 0) return null;
+
+    return <MfaNudgeBannerClient />;
+  } catch {
+    return null;
+  }
 }

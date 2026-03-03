@@ -32,7 +32,7 @@ export function setCookie(
   }
 
   if (options.expires) {
-    cookieText += ` Expires=${options.expires};`;
+    cookieText += ` Expires=${options.expires.toUTCString()};`;
   }
 
   if (options.sameSite) {

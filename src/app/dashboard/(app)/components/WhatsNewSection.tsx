@@ -1,9 +1,8 @@
 'use client';
 
-import { AlertTriangle, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Sparkles, X } from 'lucide-react';
 import { useState, useTransition } from 'react';
 
-import Button from '~/core/ui/Button';
 import {
   CHANGELOG_CATEGORY_META,
   type WhatsNewDashboardItem,
@@ -37,7 +36,8 @@ export default function WhatsNewSection({
 }: WhatsNewSectionProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [updates, setUpdates] = useState<ReadonlyArray<WhatsNewDashboardItem>>(initialUpdates);
+  const [updates, setUpdates] =
+    useState<ReadonlyArray<WhatsNewDashboardItem>>(initialUpdates);
   const [dismissError, setDismissError] = useState<string | null>(null);
   const [expandError, setExpandError] = useState<string | null>(null);
   const [isDismissing, startDismissTransition] = useTransition();
@@ -53,6 +53,10 @@ export default function WhatsNewSection({
 
   if (!isVisible || updates.length === 0) {
     return null;
+  }
+
+  function handleToggle() {
+    setIsExpanded((prev) => !prev);
   }
 
   function handleDismiss() {
@@ -75,125 +79,150 @@ export default function WhatsNewSection({
 
         setIsVisible(false);
       } catch {
-        setDismissError('Could not dismiss updates right now. Please try again.');
+        setDismissError(
+          'Could not dismiss updates right now. Please try again.',
+        );
       }
     });
   }
 
-  function handleToggleExpand() {
+  function handleLoadAll() {
+    if (!needsLazyLoad) return;
+
     setExpandError(null);
-
-    if (isExpanded) {
-      setIsExpanded(false);
-      return;
-    }
-
-    if (!needsLazyLoad) {
-      setIsExpanded(true);
-      return;
-    }
 
     startLoadAllTransition(async () => {
       const result = await loadAllPublishedChangelogDashboardItems();
 
       if (!result.success) {
-        setExpandError(result.error.message || 'Could not load all updates right now.');
+        setExpandError(
+          result.error.message || 'Could not load all updates right now.',
+        );
         return;
       }
 
       setUpdates(result.data);
-      setIsExpanded(true);
     });
   }
 
+  const updateCountLabel =
+    totalCount === 1 ? '1 update' : `${totalCount} updates`;
+
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-foreground">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">What&apos;s New</h2>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Recent updates and improvements across Ultaura.
-          </p>
+    <div className="flex flex-col gap-2">
+      <div className="overflow-hidden rounded-xl border border-border border-l-2 border-l-primary bg-card">
+        {/* Header — toggle button spans full width, dismiss is separate */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={handleToggle}
+            disabled={isLoadingAll}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-md py-3 pl-4 pr-2 text-left transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+            <span className="shrink-0 text-sm font-medium text-foreground">
+              What&apos;s New
+            </span>
+            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-primary" />
+            <span className="flex-1" />
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {updateCountLabel}
+            </span>
+            <ChevronDown
+              className={[
+                'h-3.5 w-3.5 shrink-0 text-primary transition-transform duration-200',
+                isExpanded ? 'rotate-180' : '',
+              ].join(' ')}
+            />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDismiss}
+            disabled={!canDismiss || isDismissing}
+            aria-label="Dismiss updates"
+            title="Dismiss updates"
+            className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDismiss}
-          disabled={!canDismiss || isDismissing}
-          aria-label="Dismiss What's New"
-          title="Dismiss What's New"
+        {/* Expandable content — CSS grid-rows slide */}
+        <div
+          className="grid transition-[grid-template-rows] duration-300 ease-in-out"
+          style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
         >
-          <X className="h-4 w-4" />
-        </Button>
+          <div className="min-h-0 overflow-hidden">
+            <div className="border-t border-border/50 px-4 pb-3 pt-2">
+              {/* Timeline */}
+              <ul className="space-y-0">
+                {visibleUpdates.map((update, index) => {
+                  const meta = CHANGELOG_CATEGORY_META[update.category];
+
+                  return (
+                    <li
+                      key={update.id}
+                      className="relative border-l-2 py-3 pl-4"
+                      style={{
+                        borderLeftColor: meta.dashboardItemBorderColor,
+                      }}
+                    >
+                      {/* Timeline dot */}
+                      <span
+                        className="absolute -left-[5px] h-2 w-2 rounded-full"
+                        style={{
+                          backgroundColor: meta.dashboardItemBorderColor,
+                          top: index === 0 ? '14px' : '18px',
+                        }}
+                      />
+
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {update.title}
+                          </p>
+
+                          {/* Description */}
+                          {update.description ? (
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                              {update.description}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        {/* Pill + date — pinned right, date below pill */}
+                        <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
+                          <span
+                            className={[
+                              'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                              meta.dashboardBadgeClassName,
+                            ].join(' ')}
+                          >
+                            {meta.label}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {formatPublishedDate(update.publishedAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* Dismiss error — outside the card */}
       {dismissError ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{dismissError}</span>
         </div>
       ) : null}
-
-      <ul className="mt-4 space-y-4">
-        {visibleUpdates.map((update) => {
-          const categoryMeta = CHANGELOG_CATEGORY_META[update.category];
-
-          return (
-            <li key={update.id} className="rounded-lg border border-border/70 bg-background/30 p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={[
-                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                    categoryMeta.dashboardBadgeClassName,
-                  ].join(' ')}
-                >
-                  {categoryMeta.label}
-                </span>
-
-                <span className="text-xs text-muted-foreground">
-                  {formatPublishedDate(update.publishedAt)}
-                </span>
-              </div>
-
-              <p className="mt-2 font-medium text-foreground">{update.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{update.description}</p>
-            </li>
-          );
-        })}
-      </ul>
-
-      {hasHiddenUpdates ? (
-        <div className="mt-4 flex flex-col gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleToggleExpand}
-            disabled={isLoadingAll}
-            className="w-fit"
-          >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="h-4 w-4" />
-                Show fewer
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-4 w-4" />
-                {isLoadingAll ? 'Loading updates...' : 'View all updates'}
-              </>
-            )}
-          </Button>
-
-          {expandError ? (
-            <p className="text-xs text-destructive">{expandError}</p>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
+    </div>
   );
 }
 

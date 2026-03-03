@@ -2,10 +2,16 @@ import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
-import { getUsageSummary, getTotalUsage, getPerLineUsage, getMonthlyUsage } from '~/lib/ultaura/usage';
+import {
+  getUsageSummary,
+  getTotalUsage,
+  getPerLineUsage,
+  getMonthlyUsage,
+} from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
+import { getTrialStatus } from '~/lib/ultaura/helpers';
 import UsageTabsClient from './components/UsageTabsClient';
 
 export const metadata = {
@@ -42,7 +48,10 @@ export default async function UsagePage() {
   if (!account) {
     return (
       <>
-        <AppHeader title="Usage" description="Track minutes, overages, and spending caps" />
+        <AppHeader
+          title="Usage"
+          description="Track minutes, overages, and spending caps"
+        />
         <PageBody>
           <div className="py-8">
             <div className="max-w-lg rounded-xl border border-border bg-card p-6">
@@ -50,7 +59,8 @@ export default async function UsagePage() {
                 Set up Ultaura to see usage
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a 14-day free trial to activate minute tracking and spending caps.
+                Start a 14-day free trial to activate minute tracking and
+                spending caps.
               </p>
             </div>
           </div>
@@ -70,15 +80,13 @@ export default async function UsagePage() {
   const isPayg = account.plan_id === 'payg';
   const planName = plan?.displayName ?? 'Plan';
 
-  const isOnTrial = account.status === 'trial';
-  const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
-  const msRemaining = isOnTrial && trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : 0;
-  const isTrialExpired = isOnTrial && !!trialEndsAt && msRemaining <= 0;
-  const isTrialActive = isOnTrial && !!trialEndsAt && msRemaining > 0;
-  const trialDaysRemaining = isTrialActive
-    ? Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)))
-    : 0;
-  const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
+  const trialStatus = getTrialStatus(account);
+  const isOnTrial = trialStatus.isOnTrial;
+  const isTrialExpired = trialStatus.isExpired;
+  const isTrialActive = isOnTrial && !isTrialExpired;
+  const trialDaysRemaining = trialStatus.daysRemaining;
+  const trialPlanId = (trialStatus.trialPlanId ??
+    account.plan_id) as keyof typeof PLANS;
   const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
 
   const minutesIncluded = usage?.minutesIncluded ?? 0;
@@ -96,65 +104,81 @@ export default async function UsagePage() {
 
   const capCents = account.overage_cents_cap ?? 0;
   const capReached = capCents > 0 && usageCostCents >= capCents;
-  const capPercent = capCents > 0 ? Math.min((usageCostCents / capCents) * 100, 100) : 0;
+  const capPercent =
+    capCents > 0 ? Math.min((usageCostCents / capCents) * 100, 100) : 0;
 
   const includedUsagePercent =
     !isOnTrial && minutesIncluded > 0
-      ? Math.min((Math.min(minutesUsed, minutesIncluded) / minutesIncluded) * 100, 100)
+      ? Math.min(
+          (Math.min(minutesUsed, minutesIncluded) / minutesIncluded) * 100,
+          100,
+        )
       : 0;
   const overagePercent =
-    !isOnTrial && minutesIncluded > 0 ? Math.min((overageMinutes / minutesIncluded) * 100, 100) : 0;
+    !isOnTrial && minutesIncluded > 0
+      ? Math.min((overageMinutes / minutesIncluded) * 100, 100)
+      : 0;
 
   const hasOverage = !isOnTrial && !isPayg && overageMinutes > 0;
 
   return (
     <>
-      <AppHeader title="Usage" description="Track minutes, overages, and spending caps">
+      <AppHeader
+        title="Usage"
+        description="Track minutes, overages, and spending caps"
+      >
         {isTrialActive ? (
-          <TrialStatusBadge daysRemaining={trialDaysRemaining} planName={trialPlanName} />
+          <TrialStatusBadge
+            daysRemaining={trialDaysRemaining}
+            planName={trialPlanName}
+          />
         ) : null}
       </AppHeader>
       <PageBody>
         <div className="flex flex-col gap-6 pb-24">
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
+          {isTrialExpired ? (
+            <TrialExpiredBanner trialPlanName={trialPlanName} />
+          ) : null}
 
           <div className="flex flex-col gap-2">
             {usage ? (
-            <UsageTabsClient
-              planName={planName}
-              isOnTrial={isOnTrial}
-              isTrialActive={isTrialActive}
-              isTrialExpired={isTrialExpired}
-              isPayg={isPayg}
-              trialPlanName={trialPlanName}
-              trialDaysRemaining={trialDaysRemaining}
-              minutesUsed={minutesUsed}
-              minutesIncluded={minutesIncluded}
-              minutesRemaining={minutesRemaining}
-              overageMinutes={overageMinutes}
-              overageCostCents={overageCostCents}
-              paygCostCents={paygCostCents}
-              usageCostCents={usageCostCents}
-              cycleEnd={cycleEnd}
-              hasOverage={hasOverage}
-              includedUsagePercent={includedUsagePercent}
-              overagePercent={overagePercent}
-              rateCents={RATE_CENTS}
-              totalMinutes={totalUsage.totalMinutes}
-              totalCostCents={totalUsage.totalCostCents}
-              accountId={account.id}
-              capCents={capCents}
-              capReached={capReached}
-              capPercent={capPercent}
-              perLineUsage={perLineUsage}
-              trialMinutes={totalUsage.trialMinutes}
-              includedMinutes={totalUsage.includedMinutes}
-              totalOverageMinutes={totalUsage.overageMinutes}
-              paygMinutes={totalUsage.paygMinutes}
-              monthlyUsage={monthlyUsage}
-            />
-          ) : (
-              <div className="text-sm text-muted-foreground">Usage not available yet.</div>
+              <UsageTabsClient
+                planName={planName}
+                isOnTrial={isOnTrial}
+                isTrialActive={isTrialActive}
+                isTrialExpired={isTrialExpired}
+                isPayg={isPayg}
+                trialPlanName={trialPlanName}
+                trialDaysRemaining={trialDaysRemaining}
+                minutesUsed={minutesUsed}
+                minutesIncluded={minutesIncluded}
+                minutesRemaining={minutesRemaining}
+                overageMinutes={overageMinutes}
+                overageCostCents={overageCostCents}
+                paygCostCents={paygCostCents}
+                usageCostCents={usageCostCents}
+                cycleEnd={cycleEnd}
+                hasOverage={hasOverage}
+                includedUsagePercent={includedUsagePercent}
+                overagePercent={overagePercent}
+                rateCents={RATE_CENTS}
+                totalMinutes={totalUsage.totalMinutes}
+                totalCostCents={totalUsage.totalCostCents}
+                accountId={account.id}
+                capCents={capCents}
+                capReached={capReached}
+                capPercent={capPercent}
+                perLineUsage={perLineUsage}
+                trialMinutes={totalUsage.trialMinutes}
+                includedMinutes={totalUsage.includedMinutes}
+                totalOverageMinutes={totalUsage.overageMinutes}
+                paygMinutes={totalUsage.paygMinutes}
+                monthlyUsage={monthlyUsage}
+              />
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Usage not available yet.
+              </div>
             )}
           </div>
         </div>

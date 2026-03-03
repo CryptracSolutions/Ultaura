@@ -1,34 +1,37 @@
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
 
-export function TrialExpiredBanner(props: { trialPlanName?: string }) {
-  const planLabel = props.trialPlanName ? `${props.trialPlanName} ` : '';
+import Trans from '~/core/ui/Trans';
 
+export function TrialExpiredBanner(_props?: { trialPlanName?: string }) {
   return (
-    <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-full bg-destructive/20 p-2 text-destructive">
+    <div className="rounded-xl border border-border bg-destructive/10 py-2.5 px-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-3">
+          <div className="shrink-0 p-2 text-destructive">
             <AlertTriangle className="h-4 w-4" />
           </div>
-          <div>
-            <div className="font-medium text-foreground">
-              Your {planLabel}trial has ended
+
+          <div className="min-w-0 flex-1">
+            <div className="font-medium text-foreground text-sm">
+              <Trans i18nKey={'profile:trialExpiredHeading'} />
             </div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              Subscribe to continue making calls and managing your lines.
+            <div className="text-xs text-muted-foreground">
+              <Trans i18nKey={'profile:trialExpiredDescription'} />
             </div>
           </div>
         </div>
 
-        <Link
-          href="/dashboard/settings/subscription"
-          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          Choose a Plan
-        </Link>
+        <div className="pl-10 sm:pl-0 sm:ml-auto">
+          <Link
+            href="/dashboard/settings/subscription"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-sm font-medium text-black transition-colors hover:text-black/80 dark:text-white dark:hover:text-white/80"
+          >
+            <Trans i18nKey={'profile:trialExpiredCta'} />
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
-

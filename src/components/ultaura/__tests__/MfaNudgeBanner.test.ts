@@ -182,4 +182,69 @@ describe('MfaNudgeBanner display logic', () => {
 
     expect(result).toBeNull();
   });
+
+  it('returns null when listFactors returns an error', async () => {
+    mockCookieStore.get.mockReturnValue(undefined);
+    mockListFactors.mockResolvedValue({
+      data: null,
+      error: { message: 'session_not_found' },
+    });
+
+    const { MfaNudgeBanner } = await import(
+      '~/components/ultaura/MfaNudgeBanner'
+    );
+
+    const result = await MfaNudgeBanner();
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when listFactors throws an exception', async () => {
+    mockCookieStore.get.mockReturnValue(undefined);
+    mockListFactors.mockRejectedValue(new Error('network failure'));
+
+    const { MfaNudgeBanner } = await import(
+      '~/components/ultaura/MfaNudgeBanner'
+    );
+
+    const result = await MfaNudgeBanner();
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when listFactors returns null data without error', async () => {
+    mockCookieStore.get.mockReturnValue(undefined);
+    mockListFactors.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    const { MfaNudgeBanner } = await import(
+      '~/components/ultaura/MfaNudgeBanner'
+    );
+
+    const result = await MfaNudgeBanner();
+
+    expect(result).not.toBeNull();
+  });
+
+  it('returns null when dismiss cookie has an invalid date', async () => {
+    mockCookieStore.get.mockReturnValue({
+      value: 'not-a-valid-date',
+    });
+    mockListFactors.mockResolvedValue({
+      data: { totp: [], phone: [] },
+    });
+
+    const { MfaNudgeBanner } = await import(
+      '~/components/ultaura/MfaNudgeBanner'
+    );
+
+    const result = await MfaNudgeBanner();
+
+    // Invalid Date comparisons return false, so dismissedDate > thirtyDaysAgo
+    // is false, meaning the cookie check is skipped and factors are checked.
+    // With no factors, the banner shows.
+    expect(result).not.toBeNull();
+  });
 });

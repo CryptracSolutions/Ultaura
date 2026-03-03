@@ -215,10 +215,34 @@ vi.mock('next/cache', () => ({
 vi.mock('~/lib/ultaura/changelog', () => ({
   CHANGELOG_CATEGORIES: ['new_feature', 'improvement', 'fix', 'announcement'] as const,
   CHANGELOG_CATEGORY_META: {
-    new_feature: { label: 'New Feature', description: 'd', dashboardBadgeClassName: '', emailTextColor: '#000' },
-    improvement: { label: 'Improvement', description: 'd', dashboardBadgeClassName: '', emailTextColor: '#000' },
-    fix: { label: 'Fix', description: 'd', dashboardBadgeClassName: '', emailTextColor: '#000' },
-    announcement: { label: 'Announcement', description: 'd', dashboardBadgeClassName: '', emailTextColor: '#000' },
+    new_feature: {
+      label: 'New Feature',
+      description: 'd',
+      dashboardBadgeClassName: '',
+      dashboardItemBorderColor: 'var(--success)',
+      emailTextColor: '#000',
+    },
+    improvement: {
+      label: 'Improvement',
+      description: 'd',
+      dashboardBadgeClassName: '',
+      dashboardItemBorderColor: 'var(--primary)',
+      emailTextColor: '#000',
+    },
+    fix: {
+      label: 'Fix',
+      description: 'd',
+      dashboardBadgeClassName: '',
+      dashboardItemBorderColor: 'var(--warning)',
+      emailTextColor: '#000',
+    },
+    announcement: {
+      label: 'Announcement',
+      description: 'd',
+      dashboardBadgeClassName: '',
+      dashboardItemBorderColor: 'var(--info)',
+      emailTextColor: '#000',
+    },
   },
   CHANGELOG_CATEGORY_OPTIONS: [
     { value: 'new_feature', label: 'New Feature', description: 'd' },

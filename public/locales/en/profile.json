@@ -148,6 +148,9 @@
   "factorTypeSms": "SMS",
   "factorTypeTotp": "Authenticator App",
   "mfaNudgeHeading": "Secure your account",
-  "mfaNudgeDescription": "Add two-factor authentication for extra security. It only takes a minute.",
-  "mfaNudgeCta": "Set up 2FA"
+  "mfaNudgeDescription": "Add two-factor authentication for extra security.",
+  "mfaNudgeCta": "Set up 2FA",
+  "trialExpiredHeading": "Your trial has ended",
+  "trialExpiredDescription": "Subscribe to continue using Ultaura.",
+  "trialExpiredCta": "Choose a Plan"
 }

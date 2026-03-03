@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import configuration from '~/configuration';
 
 import MultiFactorChallengeContainer from '~/app/auth/components/MultiFactorChallengeContainer';
+import { Checkbox } from '~/core/ui/Checkbox';
 import Trans from '~/core/ui/Trans';
 import { setTrustedDeviceAction } from '~/lib/ultaura/trusted-device-actions';
 
@@ -31,12 +32,14 @@ function VerifyFormContainer() {
       />
 
       <div>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-          <input
-            type="checkbox"
+        <label
+          htmlFor="trust-device"
+          className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
+        >
+          <Checkbox
             checked={trustDevice}
-            onChange={(e) => setTrustDevice(e.target.checked)}
-            className="rounded border-input"
+            onCheckedChange={(checked) => setTrustDevice(checked === true)}
+            id="trust-device"
           />
           <Trans i18nKey={'auth:trustDeviceLabel'} />
         </label>

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { brandColors } from '~/lib/brand-colors';
 
 export const ULTAURA_CHANGELOG_TABLE = 'ultaura_changelog_entries';
-export const ULTAURA_CHANGELOG_DISMISSALS_TABLE = 'ultaura_changelog_dismissals';
+export const ULTAURA_CHANGELOG_DISMISSALS_TABLE =
+  'ultaura_changelog_dismissals';
 const EPOCH_ISO_STRING = new Date(0).toISOString();
 
 export const CHANGELOG_CATEGORIES = [
@@ -19,32 +20,40 @@ export interface ChangelogCategoryMeta {
   label: string;
   description: string;
   dashboardBadgeClassName: string;
+  dashboardItemBorderColor: string;
   emailTextColor: string;
 }
 
-export const CHANGELOG_CATEGORY_META: Record<ChangelogCategory, ChangelogCategoryMeta> = {
+export const CHANGELOG_CATEGORY_META: Record<
+  ChangelogCategory,
+  ChangelogCategoryMeta
+> = {
   new_feature: {
     label: 'New Feature',
     description: 'New capabilities and launches',
-    dashboardBadgeClassName: 'border-green-200 bg-green-50 text-green-700',
+    dashboardBadgeClassName: 'bg-success/10 text-success',
+    dashboardItemBorderColor: 'var(--success)',
     emailTextColor: brandColors.changelog.newFeature,
   },
   improvement: {
     label: 'Improvement',
     description: 'Quality-of-life improvements and refinements',
-    dashboardBadgeClassName: 'border-blue-200 bg-blue-50 text-blue-700',
+    dashboardBadgeClassName: 'bg-primary/10 text-primary',
+    dashboardItemBorderColor: 'var(--primary)',
     emailTextColor: brandColors.changelog.improvement,
   },
   fix: {
     label: 'Fix',
     description: 'Bug fixes and reliability improvements',
-    dashboardBadgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+    dashboardBadgeClassName: 'bg-warning/10 text-warning',
+    dashboardItemBorderColor: 'var(--warning)',
     emailTextColor: brandColors.changelog.fix,
   },
   announcement: {
     label: 'Announcement',
     description: 'Product or operational announcements',
-    dashboardBadgeClassName: 'border-violet-200 bg-violet-50 text-violet-700',
+    dashboardBadgeClassName: 'bg-info/10 text-info',
+    dashboardItemBorderColor: 'var(--info)',
     emailTextColor: brandColors.changelog.announcement,
   },
 };
@@ -126,7 +135,9 @@ export const ChangelogEmailRouteRequestSchema = z.object({
   entryIds: z.array(z.string().uuid()).min(1).max(100),
 });
 
-export type ChangelogEmailRouteRequest = z.infer<typeof ChangelogEmailRouteRequestSchema>;
+export type ChangelogEmailRouteRequest = z.infer<
+  typeof ChangelogEmailRouteRequestSchema
+>;
 
 export interface ChangelogEmailRouteFailure {
   email: string;
@@ -155,8 +166,13 @@ export type ChangelogQueryClient = {
   };
 };
 
-export function isChangelogCategory(value: unknown): value is ChangelogCategory {
-  return typeof value === 'string' && (CHANGELOG_CATEGORIES as readonly string[]).includes(value);
+export function isChangelogCategory(
+  value: unknown,
+): value is ChangelogCategory {
+  return (
+    typeof value === 'string' &&
+    (CHANGELOG_CATEGORIES as readonly string[]).includes(value)
+  );
 }
 
 export function normalizeChangelogCategory(value: unknown): ChangelogCategory {
@@ -198,7 +214,14 @@ export function mapChangelogDismissalRow(
   const createdAt = readString(row, ['created_at']) ?? dismissedAt;
   const updatedAt = readString(row, ['updated_at']) ?? dismissedAt;
 
-  if (!id || !userId || !dismissedAt || !lastSeenPublishedAt || !createdAt || !updatedAt) {
+  if (
+    !id ||
+    !userId ||
+    !dismissedAt ||
+    !lastSeenPublishedAt ||
+    !createdAt ||
+    !updatedAt
+  ) {
     return null;
   }
 
@@ -213,7 +236,9 @@ export function mapChangelogDismissalRow(
   };
 }
 
-export function toChangelogEmailEntry(entry: ChangelogEntry): ChangelogEmailEntry {
+export function toChangelogEmailEntry(
+  entry: ChangelogEntry,
+): ChangelogEmailEntry {
   return {
     title: entry.title,
     description: entry.description,
@@ -221,7 +246,9 @@ export function toChangelogEmailEntry(entry: ChangelogEntry): ChangelogEmailEntr
   };
 }
 
-export function toWhatsNewDashboardItem(entry: ChangelogEntry): WhatsNewDashboardItem {
+export function toWhatsNewDashboardItem(
+  entry: ChangelogEntry,
+): WhatsNewDashboardItem {
   return {
     id: entry.id,
     category: entry.category,
@@ -231,7 +258,10 @@ export function toWhatsNewDashboardItem(entry: ChangelogEntry): WhatsNewDashboar
   };
 }
 
-function readString(row: Record<string, unknown>, keys: string[]): string | null {
+function readString(
+  row: Record<string, unknown>,
+  keys: string[],
+): string | null {
   for (const key of keys) {
     const value = row[key];
     if (typeof value === 'string') {
@@ -260,7 +290,10 @@ function readNullableString(
   return null;
 }
 
-function readBoolean(row: Record<string, unknown>, keys: string[]): boolean | null {
+function readBoolean(
+  row: Record<string, unknown>,
+  keys: string[],
+): boolean | null {
   for (const key of keys) {
     const value = row[key];
     if (typeof value === 'boolean') {
@@ -271,7 +304,10 @@ function readBoolean(row: Record<string, unknown>, keys: string[]): boolean | nu
   return null;
 }
 
-function readNumber(row: Record<string, unknown>, keys: string[]): number | null {
+function readNumber(
+  row: Record<string, unknown>,
+  keys: string[],
+): number | null {
   for (const key of keys) {
     const value = row[key];
     if (typeof value === 'number' && Number.isFinite(value)) {

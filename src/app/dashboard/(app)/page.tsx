@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import Link from 'next/link';
 import { Phone, Clock, Zap, User, Calendar, Bell, History } from 'lucide-react';
 
@@ -22,7 +24,10 @@ import {
   getScheduledReminderStatsByLine,
   getUpcomingReminders,
 } from '~/lib/ultaura/reminders';
-import { getEffectiveReminderLimit } from '~/lib/ultaura/helpers';
+import {
+  getEffectiveReminderLimit,
+  getTrialStatus,
+} from '~/lib/ultaura/helpers';
 import { getLineActivity, getUsageSummary } from '~/lib/ultaura/usage';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 import Button from '~/core/ui/Button';
@@ -48,10 +53,14 @@ function formatCurrency(cents: number) {
 function getOrdinalSuffix(n: number): string {
   if (n > 3 && n < 21) return 'th';
   switch (n % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
   }
 }
 
@@ -71,7 +80,7 @@ function formatRecurrence(reminder: {
 
   if (reminder.rrule.includes('FREQ=WEEKLY')) {
     if (reminder.daysOfWeek && reminder.daysOfWeek.length > 0) {
-      const days = reminder.daysOfWeek.map(d => DAY_NAMES[d]).join(', ');
+      const days = reminder.daysOfWeek.map((d) => DAY_NAMES[d]).join(', ');
       return `Weekly on ${days}`;
     }
     return 'Weekly';
@@ -121,11 +130,14 @@ async function DashboardPage() {
                 Set up Ultaura for your family
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a 14-day free trial to add a loved one, set schedules, and view
-                call activity in one place.
+                Start a 14-day free trial to add a loved one, set schedules, and
+                view call activity in one place.
               </p>
               <div className="mt-4">
-                <Button variant="default" href="/dashboard/settings/subscription">
+                <Button
+                  variant="default"
+                  href="/dashboard/settings/subscription"
+                >
                   Start 14-day free trial
                 </Button>
               </div>
@@ -137,9 +149,11 @@ async function DashboardPage() {
   }
 
   const isSelfUser = account.user_type === 'self';
-  const headerDescription = isSelfUser
-    ? 'Your home for call activity, schedules, and reminders.'
-    : <Trans i18nKey={'common:dashboardTabDescription'} />;
+  const headerDescription = isSelfUser ? (
+    'Your home for call activity, schedules, and reminders.'
+  ) : (
+    <Trans i18nKey={'common:dashboardTabDescription'} />
+  );
 
   const [
     lines,
@@ -167,54 +181,66 @@ async function DashboardPage() {
   const activeCount = lines.filter((l) => l.status === 'active').length;
   const pausedCount = lines.filter((l) => l.status === 'paused').length;
   const isPayg = account.plan_id === 'payg';
-  const isOnTrial = account.status === 'trial';
-  const trialEndsAt = account.trial_ends_at ?? account.cycle_end ?? null;
-  const msRemaining = isOnTrial && trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : 0;
-  const isTrialExpired = isOnTrial && !!trialEndsAt && msRemaining <= 0;
-  const trialPlanId = (account.trial_plan_id ?? account.plan_id) as keyof typeof PLANS;
+  const trialStatus = getTrialStatus(account);
+  const isOnTrial = trialStatus.isOnTrial;
+  const isTrialExpired = trialStatus.isExpired;
+  const trialPlanId = (trialStatus.trialPlanId ??
+    account.plan_id) as keyof typeof PLANS;
   const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
   const overageMinutes = usage?.overageMinutes ?? 0;
   const usageCostCents = usage
-    ? (isOnTrial ? 0 : isPayg ? usage.minutesUsed * RATE_CENTS : overageMinutes * RATE_CENTS)
+    ? isOnTrial
+      ? 0
+      : isPayg
+        ? usage.minutesUsed * RATE_CENTS
+        : overageMinutes * RATE_CENTS
     : 0;
   const capCents = account.overage_cents_cap ?? 0;
-  const capPercent = capCents > 0 && usage ? Math.min((usageCostCents / capCents) * 100, 100) : 0;
+  const capPercent =
+    capCents > 0 && usage
+      ? Math.min((usageCostCents / capCents) * 100, 100)
+      : 0;
   const capReached = capCents > 0 && usageCostCents >= capCents;
   const includedUsagePercent =
     usage && usage.minutesIncluded > 0
-      ? Math.min((Math.min(usage.minutesUsed, usage.minutesIncluded) / usage.minutesIncluded) * 100, 100)
+      ? Math.min(
+          (Math.min(usage.minutesUsed, usage.minutesIncluded) /
+            usage.minutesIncluded) *
+            100,
+          100,
+        )
       : 0;
   const overagePercent =
     usage && usage.minutesIncluded > 0
       ? Math.min((overageMinutes / usage.minutesIncluded) * 100, 100)
       : 0;
   const minutesValue = usage
-    ? (isOnTrial || isPayg
+    ? isOnTrial || isPayg
       ? usage.minutesUsed
       : overageMinutes > 0
-      ? overageMinutes
-      : usage.minutesRemaining)
+        ? overageMinutes
+        : usage.minutesRemaining
     : '—';
   const minutesLabel = usage
-    ? (isOnTrial || isPayg
+    ? isOnTrial || isPayg
       ? 'minutes used'
       : overageMinutes > 0
-      ? 'minutes over'
-      : 'minutes remaining')
+        ? 'minutes over'
+        : 'minutes remaining'
     : null;
   const usageSummary = usage
-    ? (isOnTrial
+    ? isOnTrial
       ? `${usage.minutesUsed} minutes`
       : isPayg
-      ? `${usage.minutesUsed} minutes`
-      : `${usage.minutesUsed} used${overageMinutes > 0 ? ` • ${overageMinutes} over` : ''}`)
+        ? `${usage.minutesUsed} minutes`
+        : `${usage.minutesUsed} used${overageMinutes > 0 ? ` • ${overageMinutes} over` : ''}`
     : 'Usage not available yet.';
   const usageSummaryRight = usage
-    ? (isOnTrial
+    ? isOnTrial
       ? `${formatCurrency(0)} during trial`
       : isPayg
-      ? `${formatCurrency(usageCostCents)} est.`
-      : `${usage.minutesIncluded} included`)
+        ? `${formatCurrency(usageCostCents)} est.`
+        : `${usage.minutesIncluded} included`
     : null;
   const effectiveReminderLimit = getEffectiveReminderLimit(account);
   const reminderAllowanceRows = lines.map((line) => {
@@ -265,11 +291,20 @@ async function DashboardPage() {
 
       <PageBody>
         <div className="flex flex-col space-y-6 pb-24">
-          {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <MfaNudgeBanner />
+          {isTrialExpired ? (
+            <TrialExpiredBanner trialPlanName={trialPlanName} />
+          ) : (
+            <Suspense fallback={null}>
+              <MfaNudgeBanner />
+            </Suspense>
+          )}
 
           {/* Alerts */}
-          {(unverifiedCount > 0 || (usage && !isPayg && !isOnTrial && usage.minutesRemaining <= 5)) && (
+          {(unverifiedCount > 0 ||
+            (usage &&
+              !isPayg &&
+              !isOnTrial &&
+              usage.minutesRemaining <= 5)) && (
             <div className="grid gap-3">
               {unverifiedCount > 0 && (
                 <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
@@ -289,23 +324,26 @@ async function DashboardPage() {
                 </div>
               )}
 
-              {usage && !isPayg && !isOnTrial && usage.minutesRemaining <= 5 && (
-                <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
-                  <div className="font-medium text-foreground">
-                    Minutes running low
+              {usage &&
+                !isPayg &&
+                !isOnTrial &&
+                usage.minutesRemaining <= 5 && (
+                  <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+                    <div className="font-medium text-foreground">
+                      Minutes running low
+                    </div>
+                    <div className="mt-1 text-muted-foreground">
+                      You have {usage.minutesRemaining} minute
+                      {usage.minutesRemaining === 1 ? '' : 's'} remaining.
+                    </div>
+                    <Link
+                      href="/dashboard/settings/subscription"
+                      className="mt-2 inline-flex text-primary hover:underline"
+                    >
+                      Manage subscription
+                    </Link>
                   </div>
-                  <div className="mt-1 text-muted-foreground">
-                    You have {usage.minutesRemaining} minute
-                    {usage.minutesRemaining === 1 ? '' : 's'} remaining.
-                  </div>
-                  <Link
-                    href="/dashboard/settings/subscription"
-                    className="mt-2 inline-flex text-primary hover:underline"
-                  >
-                    Manage subscription
-                  </Link>
-                </div>
-              )}
+                )}
             </div>
           )}
 
@@ -325,7 +363,9 @@ async function DashboardPage() {
               <div className="absolute -top-8 -right-8 w-16 h-16 bg-primary/5 rounded-full blur-2xl" />
               <div className="relative flex items-center gap-2 mb-1">
                 <Phone className="h-4 w-4 text-muted-foreground" />
-                <div className="text-base font-medium text-foreground">Lines</div>
+                <div className="text-base font-medium text-foreground">
+                  Lines
+                </div>
               </div>
               <div className="relative text-3xl font-bold text-foreground">
                 {lines.length}
@@ -333,7 +373,8 @@ async function DashboardPage() {
               <div className="relative flex-1" />
               <div className="relative mt-auto space-y-2">
                 <div className="text-xs text-muted-foreground">
-                  {activeCount} active{pausedCount > 0 ? ` • ${pausedCount} paused` : ''}
+                  {activeCount} active
+                  {pausedCount > 0 ? ` • ${pausedCount} paused` : ''}
                 </div>
                 <Link
                   href="/dashboard/lines"
@@ -349,7 +390,9 @@ async function DashboardPage() {
               <div className="relative flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div className="text-base font-medium text-foreground">Minutes</div>
+                  <div className="text-base font-medium text-foreground">
+                    Minutes
+                  </div>
                 </div>
                 <Link
                   href="/dashboard/usage"
@@ -428,7 +471,9 @@ async function DashboardPage() {
                             key={row.lineId}
                             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground"
                           >
-                            <span className="font-medium text-foreground">{row.lineName}</span>
+                            <span className="font-medium text-foreground">
+                              {row.lineName}
+                            </span>
                             <span aria-hidden="true">•</span>
                             <span className="text-primary">
                               {row.activeScheduleCount} active
@@ -442,7 +487,10 @@ async function DashboardPage() {
                   {upcoming.length === 0 ? (
                     <p className="mt-3 text-sm text-muted-foreground">
                       No scheduled calls yet.{' '}
-                      <Link href="/dashboard/calls" className="text-primary hover:underline">
+                      <Link
+                        href="/dashboard/calls"
+                        className="text-primary hover:underline"
+                      >
                         Add a schedule
                       </Link>{' '}
                       to start recurring check-ins.
@@ -457,7 +505,7 @@ async function DashboardPage() {
                           style={{
                             borderLeftColor: item.isOneTime
                               ? 'var(--info)'
-                              : 'var(--primary)'
+                              : 'var(--primary)',
                           }}
                         >
                           <div className="flex items-center gap-2 mb-2">
@@ -466,14 +514,20 @@ async function DashboardPage() {
                               {item.displayName}
                             </div>
                             <div className="text-xs text-muted-foreground ml-auto">
-                              {formatDateTime(item.nextRunAt, item.lineTimezone)}
+                              {formatDateTime(
+                                item.nextRunAt,
+                                item.lineTimezone,
+                              )}
                             </div>
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {formatTimeOfDay(item.timeOfDay)}
                             {item.daysOfWeek && item.daysOfWeek.length > 0 && (
                               <span className="ml-1">
-                                • {item.daysOfWeek.map((d: number) => DAY_NAMES[d]).join(', ')}
+                                •{' '}
+                                {item.daysOfWeek
+                                  .map((d: number) => DAY_NAMES[d])
+                                  .join(', ')}
                               </span>
                             )}
                           </p>
@@ -515,22 +569,24 @@ async function DashboardPage() {
                   {reminderAllowanceRows.length > 0 && (
                     <div className="mt-3">
                       <div className="flex flex-wrap gap-2">
-                      {reminderAllowanceRows.map((row) => (
-                        <div
-                          key={row.lineId}
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${
-                            row.atLimit
-                              ? 'border-warning/40 bg-warning/10 text-warning-foreground'
-                              : 'border-border bg-muted/30 text-muted-foreground'
-                          }`}
-                        >
-                          <span className="font-medium text-foreground">{row.lineName}</span>
-                          <span aria-hidden="true">•</span>
-                          <span className="text-primary">
-                            {row.activeReminderCount} active
-                          </span>
-                        </div>
-                      ))}
+                        {reminderAllowanceRows.map((row) => (
+                          <div
+                            key={row.lineId}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${
+                              row.atLimit
+                                ? 'border-warning/40 bg-warning/10 text-warning-foreground'
+                                : 'border-border bg-muted/30 text-muted-foreground'
+                            }`}
+                          >
+                            <span className="font-medium text-foreground">
+                              {row.lineName}
+                            </span>
+                            <span aria-hidden="true">•</span>
+                            <span className="text-primary">
+                              {row.activeReminderCount} active
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -538,7 +594,10 @@ async function DashboardPage() {
                   {upcomingReminders.length === 0 ? (
                     <p className="mt-3 text-sm text-muted-foreground">
                       No reminders scheduled.{' '}
-                      <Link href="/dashboard/reminders" className="text-primary hover:underline">
+                      <Link
+                        href="/dashboard/reminders"
+                        className="text-primary hover:underline"
+                      >
                         Set a reminder
                       </Link>{' '}
                       for medication, appointments, or important tasks.
@@ -558,7 +617,10 @@ async function DashboardPage() {
                               {reminder.displayName}
                             </div>
                             <div className="text-xs text-muted-foreground ml-auto">
-                              {formatDateTime(reminder.dueAt, reminder.lineTimezone)}
+                              {formatDateTime(
+                                reminder.dueAt,
+                                reminder.lineTimezone,
+                              )}
                             </div>
                           </div>
                           <p className="text-sm text-foreground font-medium line-clamp-2">
@@ -584,7 +646,8 @@ async function DashboardPage() {
 
             {recent.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                No calls yet. Once calls start, you&apos;ll see timestamps and durations here — not transcripts.
+                No calls yet. Once calls start, you&apos;ll see timestamps and
+                durations here — not transcripts.
               </p>
             ) : (
               <div className="mt-4 grid gap-3">
@@ -604,17 +667,17 @@ async function DashboardPage() {
                         {formatDateTime(item.lastCallAt!)}
                       </div>
                     </div>
-                    {item.lastCallDuration != null && item.lastCallDuration > 0 && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Duration: {formatDuration(item.lastCallDuration)}
-                      </p>
-                    )}
+                    {item.lastCallDuration != null &&
+                      item.lastCallDuration > 0 && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Duration: {formatDuration(item.lastCallDuration)}
+                        </p>
+                      )}
                   </Link>
                 ))}
               </div>
             )}
           </div>
-
         </div>
       </PageBody>
     </>

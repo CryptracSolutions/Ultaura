@@ -14,6 +14,9 @@ import {
 } from '~/lib/ultaura/privacy';
 import { PrivacyCenterClient } from './PrivacyCenterClient';
 import { getNotificationRecipients } from '~/lib/ultaura/notification-recipients';
+import { getTrialStatus } from '~/lib/ultaura/helpers';
+import { PLANS } from '~/lib/ultaura/constants';
+import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 
 export const metadata: Metadata = {
   title: 'Privacy Center - Ultaura',
@@ -59,7 +62,8 @@ export default async function PrivacyCenterPage() {
                 Set up Ultaura to manage privacy settings
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Start a trial to enable privacy controls, exports, and retention settings.
+                Start a trial to enable privacy controls, exports, and retention
+                settings.
               </p>
               <a
                 href="/dashboard/settings/subscription"
@@ -94,23 +98,39 @@ export default async function PrivacyCenterPage() {
   results.forEach((result, index) => {
     if (result.status === 'rejected') {
       logger.error(
-        { accountId: account.id, source: sourceLabels[index], reason: result.reason },
+        {
+          accountId: account.id,
+          source: sourceLabels[index],
+          reason: result.reason,
+        },
         'Privacy page loader Promise.allSettled operation rejected',
       );
     }
   });
 
-  const privacySettings = results[0].status === 'fulfilled' ? results[0].value : null;
+  const privacySettings =
+    results[0].status === 'fulfilled' ? results[0].value : null;
   const lines = results[1].status === 'fulfilled' ? results[1].value : [];
   const auditLog = results[2].status === 'fulfilled' ? results[2].value : [];
-  const exportRequests = results[3].status === 'fulfilled' ? results[3].value : [];
-  const notificationRecipients = results[4].status === 'fulfilled' ? results[4].value : [];
-  const lineVoiceConsents = results[5].status === 'fulfilled' ? results[5].value : [];
+  const exportRequests =
+    results[3].status === 'fulfilled' ? results[3].value : [];
+  const notificationRecipients =
+    results[4].status === 'fulfilled' ? results[4].value : [];
+  const lineVoiceConsents =
+    results[5].status === 'fulfilled' ? results[5].value : [];
+
+  const trialStatus = getTrialStatus(account);
+  const isTrialExpired = trialStatus.isExpired;
+  const trialPlanId = (trialStatus.trialPlanId ??
+    account.plan_id ??
+    'free_trial') as keyof typeof PLANS;
+  const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
 
   return (
     <>
       {pageHeader}
       <PageBody>
+        {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
         <PrivacyCenterClient
           account={account}
           privacySettings={privacySettings}
