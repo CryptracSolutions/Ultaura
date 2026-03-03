@@ -7,7 +7,6 @@ import { PlayCircleIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import Container from '~/core/ui/Container';
 import Logo from '~/core/ui/Logo';
 import NewsletterForm from './NewsletterForm';
-import { FadeInWhenVisible } from '~/app/(site)/components/MotionWrappers';
 
 const YEAR = new Date().getFullYear();
 
@@ -20,32 +19,30 @@ function Footer() {
   };
 
   return (
-    <footer className="border-t border-zinc-800">
+    <footer className="border-t border-zinc-200 dark:border-zinc-800">
       {/* Newsletter Banner — unchanged */}
       {!isBlogPostPage && (
-        <div className="bg-zinc-950 text-zinc-300 py-6 lg:py-8">
+        <div className="bg-white text-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 py-6 lg:py-8">
           <Container>
-            <FadeInWhenVisible>
-              <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8 lg:gap-12">
-                <div className="text-left space-y-1">
-                  <p className="text-sm font-medium text-primary">
-                    Subscribe to our newsletter
-                  </p>
-                  <p className="text-sm text-zinc-400">
-                    Elder care tips and product updates, delivered weekly.
-                  </p>
-                </div>
-                <div className="w-full sm:ml-auto sm:w-auto sm:min-w-[403px]">
-                  <NewsletterForm source="footer" compact />
-                </div>
+            <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8 lg:gap-12">
+              <div className="text-left space-y-1">
+                <p className="text-sm font-medium text-primary">
+                  Subscribe to our newsletter
+                </p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  Elder care tips and product updates, delivered weekly.
+                </p>
               </div>
-            </FadeInWhenVisible>
+              <div className="w-full sm:ml-auto sm:w-auto sm:min-w-[403px]">
+                <NewsletterForm source="footer" compact />
+              </div>
+            </div>
           </Container>
         </div>
       )}
 
-      {/* Dark Footer */}
-      <div className="bg-zinc-950 text-zinc-300">
+      {/* Footer */}
+      <div className="bg-white text-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
         {/* Navigation Section */}
         <div className="pt-10 pb-8 lg:pt-12 lg:pb-10">
           <Container>
@@ -134,7 +131,7 @@ function Footer() {
 
         {/* Separator */}
         <Container>
-          <hr className="border-zinc-800" />
+          <hr className="border-zinc-200 dark:border-zinc-800" />
         </Container>
 
         {/* Utilities Section — Social Media */}
@@ -145,7 +142,7 @@ function Footer() {
               <button
                 type="button"
                 onClick={scrollToTop}
-                className="flex items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-white"
+                className="flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
               >
                 Back to top
                 <ChevronUpIcon className="h-4 w-4" />
@@ -155,7 +152,7 @@ function Footer() {
                   href="#"
                   title="Ultaura on Facebook"
                   aria-label="Ultaura on Facebook"
-                  className="text-zinc-400 transition-colors hover:text-white"
+                  className="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                 >
                   <FacebookIcon className="h-5 w-5" />
                 </a>
@@ -163,7 +160,7 @@ function Footer() {
                   href="#"
                   title="Ultaura on X"
                   aria-label="Ultaura on X"
-                  className="text-zinc-400 transition-colors hover:text-white"
+                  className="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                 >
                   <XIcon className="h-5 w-5" />
                 </a>
@@ -171,7 +168,7 @@ function Footer() {
                   href="#"
                   title="Ultaura on Instagram"
                   aria-label="Ultaura on Instagram"
-                  className="text-zinc-400 transition-colors hover:text-white"
+                  className="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                 >
                   <InstagramIcon className="h-5 w-5" />
                 </a>
@@ -179,7 +176,7 @@ function Footer() {
                   href="#"
                   title="Ultaura on LinkedIn"
                   aria-label="Ultaura on LinkedIn"
-                  className="text-zinc-400 transition-colors hover:text-white"
+                  className="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                 >
                   <LinkedInIcon className="h-5 w-5" />
                 </a>
@@ -190,7 +187,7 @@ function Footer() {
 
         {/* Separator */}
         <Container>
-          <hr className="border-zinc-800" />
+          <hr className="border-zinc-200 dark:border-zinc-800" />
         </Container>
 
         {/* Base Section */}
@@ -204,11 +201,11 @@ function Footer() {
                   wordmarkClassName="text-primary text-lg"
                 />
 
-                <p className="text-sm text-zinc-400">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   Companionship, one call at a time.
                 </p>
 
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">
                   &copy; {YEAR} Ultaura. All Rights Reserved.
                 </p>
               </div>
@@ -230,7 +227,7 @@ function FooterGroupHeading({ children }: React.PropsWithChildren) {
 
 function FooterLink({ children }: React.PropsWithChildren) {
   return (
-    <li className="text-xs text-zinc-300 [&>a]:transition-colors [&>a]:duration-200 [&>a]:hover:text-primary">
+    <li className="text-xs text-zinc-600 dark:text-zinc-300 [&>a]:transition-colors [&>a]:duration-200 [&>a]:hover:text-primary">
       {children}
     </li>
   );

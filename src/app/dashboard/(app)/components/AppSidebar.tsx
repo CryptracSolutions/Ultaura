@@ -59,7 +59,7 @@ const AppSidebar: React.FC = () => {
               >
                 <div className="relative flex h-10 w-full items-center justify-center">
                   <LogoImage className="h-9 transition-opacity duration-200 group-hover:opacity-0" />
-                  <PanelLeft className="absolute text-white h-[1.1rem] w-[1.1rem] shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                  <PanelLeft className="absolute text-foreground dark:text-white h-[1.1rem] w-[1.1rem] shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                 </div>
               </button>
             </TooltipTrigger>

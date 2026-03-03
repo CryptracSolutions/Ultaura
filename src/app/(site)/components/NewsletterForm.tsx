@@ -38,7 +38,9 @@ export default function NewsletterForm({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message ?? 'Something went wrong. Please try again.');
+        throw new Error(
+          data.message ?? 'Something went wrong. Please try again.',
+        );
       }
 
       setSuccess(true);
@@ -69,7 +71,7 @@ export default function NewsletterForm({
               placeholder="Your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-9 bg-primary/10 border-primary/20 placeholder:text-zinc-400"
+              className="w-full pl-9 bg-primary/10 border-primary/20 placeholder:text-zinc-500 dark:placeholder:text-zinc-300"
               aria-label="Email address"
             />
           </div>
@@ -78,7 +80,9 @@ export default function NewsletterForm({
           </Button>
         </div>
         {error && (
-          <p className="mt-2 text-sm text-destructive" aria-live="polite">{error}</p>
+          <p className="mt-2 text-sm text-destructive" aria-live="polite">
+            {error}
+          </p>
         )}
       </form>
     );
@@ -88,7 +92,10 @@ export default function NewsletterForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <TextField>
         <TextField.Label>
-          Email {!hideRequiredIndicator && <span className="text-destructive">*</span>}
+          Email{' '}
+          {!hideRequiredIndicator && (
+            <span className="text-destructive">*</span>
+          )}
         </TextField.Label>
         <TextField.Input
           type="email"
@@ -101,7 +108,9 @@ export default function NewsletterForm({
       </TextField>
 
       {error && (
-        <p className="text-sm text-destructive" aria-live="polite">{error}</p>
+        <p className="text-sm text-destructive" aria-live="polite">
+          {error}
+        </p>
       )}
 
       <Button type="submit" loading={loading} block>
