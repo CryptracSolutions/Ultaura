@@ -27,7 +27,7 @@ const TABS = [
 const ACTIVITY_ENTRIES = [
   { time: '6:30 PM', name: 'Mom', duration: '18 min' },
   { time: '6:30 PM', name: 'Grandpa', duration: '22 min' },
-  { time: '5:00 PM', name: 'Margaret', duration: '14 min' },
+  { time: '5:00 PM', name: 'Diana', duration: '14 min' },
 ];
 
 const UPCOMING_REMINDERS = [
@@ -92,7 +92,11 @@ const CHAT_MESSAGES: Array<{ sender: 'ara' | 'senior'; text: string }> = [
 
 const WELLNESS_ALERTS = [
   { title: 'Mood change detected', severity: 'info' as const, time: 'Tue' },
-  { title: 'Missed medication reminder', severity: 'warning' as const, time: 'Mon' },
+  {
+    title: 'Missed medication reminder',
+    severity: 'warning' as const,
+    time: 'Mon',
+  },
 ];
 
 const MAX_BAR = Math.max(...WEEKLY_BARS.map((b) => b.value));
@@ -101,10 +105,30 @@ const BAR_HEIGHT = 64;
 function TypingIndicator({ isAra }: { isAra: boolean | undefined }) {
   return (
     <div className={cn('flex', isAra ? 'justify-start' : 'justify-end')}>
-      <div className={cn('flex items-center gap-1 rounded-2xl px-3 py-2', isAra ? 'bg-primary/10' : 'bg-primary')}>
-        <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full', isAra ? 'bg-primary' : 'bg-primary-foreground')} />
-        <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.2s]', isAra ? 'bg-primary' : 'bg-primary-foreground')} />
-        <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.4s]', isAra ? 'bg-primary' : 'bg-primary-foreground')} />
+      <div
+        className={cn(
+          'flex items-center gap-1 rounded-2xl px-3 py-2',
+          isAra ? 'bg-primary/10' : 'bg-primary',
+        )}
+      >
+        <span
+          className={cn(
+            'h-1.5 w-1.5 animate-pulse rounded-full',
+            isAra ? 'bg-primary' : 'bg-primary-foreground',
+          )}
+        />
+        <span
+          className={cn(
+            'h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.2s]',
+            isAra ? 'bg-primary' : 'bg-primary-foreground',
+          )}
+        />
+        <span
+          className={cn(
+            'h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:0.4s]',
+            isAra ? 'bg-primary' : 'bg-primary-foreground',
+          )}
+        />
       </div>
     </div>
   );
@@ -267,7 +291,10 @@ export function HeroDashboardPreview() {
           className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium cursor-not-allowed ring-1 ring-primary"
         >
           <SpeakerWaveIcon className="h-4 w-4 text-primary shrink-0" />
-          <span><span className="text-foreground">Listen to </span><span className="text-foreground">Ultaura</span></span>
+          <span>
+            <span className="text-foreground">Listen to </span>
+            <span className="text-foreground">Ultaura</span>
+          </span>
         </button>
       </div>
 
@@ -288,42 +315,42 @@ export function HeroDashboardPreview() {
 
           {/* Toggle switch */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">View:</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">View:</span>
             <div
               role="radiogroup"
               aria-label="View mode"
               className="flex items-center rounded-full border border-border/60 bg-background/70 p-0.5"
             >
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!isLiveCall}
-              onClick={() => setIsLiveCall(false)}
-              className={cn(
-                'rounded-full px-3 py-1 text-xs font-medium transition-all duration-200',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                !isLiveCall
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Dashboard
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={isLiveCall}
-              onClick={() => setIsLiveCall(true)}
-              className={cn(
-                'rounded-full px-3 py-1 text-xs font-medium transition-all duration-200',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                isLiveCall
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Live
-            </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!isLiveCall}
+                onClick={() => setIsLiveCall(false)}
+                className={cn(
+                  'rounded-full px-3 py-1 text-xs font-medium transition-all duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  !isLiveCall
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Dashboard
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isLiveCall}
+                onClick={() => setIsLiveCall(true)}
+                className={cn(
+                  'rounded-full px-3 py-1 text-xs font-medium transition-all duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isLiveCall
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Live
+              </button>
             </div>
           </div>
         </div>
@@ -344,59 +371,119 @@ export function HeroDashboardPreview() {
             )}
           >
             {/* Stat cards */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              <div className="rounded-2xl border border-border/60 bg-background p-3 lg:order-1">
-                <div className="text-xs text-muted-foreground">
-                  Next call
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-2">
+              {/* Next call */}
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-background p-3 text-center">
+                <div className="scale-110 origin-center">
+                {/* Mobile: stacked */}
+                <div className="lg:hidden">
+                  <div className="text-xs text-muted-foreground">Next call</div>
+                  <div className="mt-1 flex items-center justify-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      2h 14m
+                    </span>
+                  </div>
+                  <div className="mt-2 text-[10px] text-muted-foreground">
+                    Today at 2:30 PM · with{' '}
+                    <span className="text-primary">Ara</span>
+                  </div>
                 </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
-                  </span>
-                  <span className="text-sm font-semibold text-foreground">
-                    2h 14m
-                  </span>
+                {/* Desktop: two rows, compact */}
+                <div className="hidden lg:block">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Next call
+                    </span>
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      2h 14m
+                    </span>
+                  </div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">
+                    Today at 2:30 PM · with{' '}
+                    <span className="text-primary">Ara</span>
+                  </div>
                 </div>
-                <div className="mt-2 text-[10px] text-muted-foreground">
-                  Today at 2:30 PM · with <span className="text-primary">Ara</span>
                 </div>
               </div>
 
-              <div className="col-span-2 rounded-2xl border border-border/60 bg-background p-3 lg:col-span-1 lg:order-2">
-                <div className="text-xs text-muted-foreground">Actions</div>
-                <div className="mt-1.5 flex flex-row gap-1.5 lg:flex-col lg:gap-1">
-                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
-                    <CalendarIcon className="h-2.5 w-2.5" />
-                    Schedule call
-                  </button>
-                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
-                    <PlusCircleIcon className="h-2.5 w-2.5" />
-                    Create reminder
-                  </button>
-                  <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary lg:justify-start">
-                    <PhoneIcon className="h-2.5 w-2.5" />
-                    Place call
-                  </button>
+              {/* Mood */}
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-background p-3 text-center">
+                <div className="scale-110 origin-center">
+                {/* Mobile: stacked */}
+                <div className="lg:hidden">
+                  <div className="text-xs text-muted-foreground">Mood</div>
+                  <div className="mt-1 flex items-center justify-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                    <span className="text-sm font-semibold text-foreground">
+                      Calm
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">
+                      Last 5:
+                    </span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  </div>
+                </div>
+                {/* Desktop: two rows */}
+                <div className="hidden lg:block">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs text-muted-foreground">Mood</span>
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+                    <span className="text-sm font-semibold text-foreground">
+                      Calm
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">
+                      Last 5:
+                    </span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  </div>
+                </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background p-3 lg:order-3">
-                <div className="text-xs text-muted-foreground">Mood</div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                  <span className="text-sm font-semibold text-foreground">
-                    Calm
-                  </span>
-                  <span className="text-[10px] text-success">↑ Improving</span>
-                </div>
-                <div className="mt-2 flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground">Last 5:</span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              {/* Actions */}
+              <div className="col-span-2 rounded-2xl border border-border/60 bg-background p-3">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[36px] w-full min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[11px] font-medium sm:min-w-[44px] text-primary-foreground shadow-sm transition-all duration-200 ease-out hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] sm:px-4"
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                    Schedule Call
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[36px] w-full min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[11px] font-medium sm:min-w-[44px] text-primary-foreground shadow-sm transition-all duration-200 ease-out hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] sm:px-4"
+                  >
+                    <PlusCircleIcon className="h-3.5 w-3.5 shrink-0" />
+                    Create Reminder
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[36px] w-full min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[11px] font-medium sm:min-w-[44px] text-primary-foreground shadow-sm transition-all duration-200 ease-out hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.97] sm:px-4"
+                  >
+                    <PhoneIcon className="h-3.5 w-3.5 shrink-0" />
+                    Place Call
+                  </button>
                 </div>
               </div>
             </div>
@@ -406,8 +493,18 @@ export function HeroDashboardPreview() {
               <div
                 role="tablist"
                 aria-label="Dashboard tabs"
-                className="relative grid grid-cols-4 rounded-xl bg-background/70 p-1"
+                className="relative flex flex-nowrap rounded-2xl bg-background/70 p-1"
               >
+                {/* Sliding pill indicator - absolute, matches flex item widths */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-y-1 rounded-xl bg-primary/15 transition-all duration-200"
+                  style={{
+                    width: 'calc((100% - 8px) / 4)',
+                    left: `calc(4px + ${activeTab} * (100% - 8px) / 4)`,
+                  }}
+                />
+
                 {TABS.map((tab, i) => (
                   <button
                     key={tab.id}
@@ -418,26 +515,17 @@ export function HeroDashboardPreview() {
                     id={`hero-tab-${tab.id}`}
                     onClick={() => handleTabClick(i)}
                     className={cn(
-                      'relative z-10 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors duration-200',
+                      'relative z-10 flex min-h-[40px] min-w-0 flex-1 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:min-h-[44px] sm:px-4 sm:py-3 sm:text-sm',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       'hover:bg-primary/5',
                       activeTab === i
-                        ? 'text-primary'
-                        : 'text-muted-foreground',
+                        ? 'text-primary opacity-100'
+                        : 'text-muted-foreground opacity-60 hover:text-foreground',
                     )}
                   >
                     {tab.label}
                   </button>
                 ))}
-
-                {/* Sliding underline */}
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute bottom-0 left-0 h-0.5 w-1/4 bg-primary transition-transform duration-200"
-                  style={{
-                    transform: `translateX(${activeTab * 100}%)`,
-                  }}
-                />
               </div>
             </div>
 
@@ -445,7 +533,11 @@ export function HeroDashboardPreview() {
             <div
               ref={contentRef}
               className="mt-4 overflow-hidden transition-[height] duration-300 ease-in-out"
-              style={contentHeight !== undefined ? { height: contentHeight } : undefined}
+              style={
+                contentHeight !== undefined
+                  ? { height: contentHeight }
+                  : undefined
+              }
               onMouseEnter={() => setIsAutoPlaying(false)}
               onMouseLeave={() => setIsAutoPlaying(true)}
             >
@@ -457,7 +549,9 @@ export function HeroDashboardPreview() {
               >
                 {/* Activity Panel */}
                 <div
-                  ref={(el) => { panelRefs.current[0] = el; }}
+                  ref={(el) => {
+                    panelRefs.current[0] = el;
+                  }}
                   role="tabpanel"
                   id="hero-panel-activity"
                   aria-labelledby="hero-tab-activity"
@@ -520,7 +614,9 @@ export function HeroDashboardPreview() {
 
                 {/* Insights Panel */}
                 <div
-                  ref={(el) => { panelRefs.current[1] = el; }}
+                  ref={(el) => {
+                    panelRefs.current[1] = el;
+                  }}
                   role="tabpanel"
                   id="hero-panel-insights"
                   aria-labelledby="hero-tab-insights"
@@ -530,10 +626,15 @@ export function HeroDashboardPreview() {
                   <div className="space-y-4">
                     {/* Mood color bar */}
                     <div>
-                      <div className="mb-1.5 flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-primary" />
-                        <span className="text-xs text-muted-foreground">
-                          Weekly mood
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                          <span className="text-xs text-muted-foreground">
+                            Weekly mood
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-success">
+                          ↑ Improving
                         </span>
                       </div>
                       <div className="flex h-3 overflow-hidden rounded-full">
@@ -564,9 +665,7 @@ export function HeroDashboardPreview() {
                               <div
                                 className={cn(
                                   'w-full rounded-sm',
-                                  isTallest
-                                    ? 'bg-primary'
-                                    : 'bg-primary/40',
+                                  isTallest ? 'bg-primary' : 'bg-primary/40',
                                 )}
                                 style={{ height: h }}
                               />
@@ -583,7 +682,9 @@ export function HeroDashboardPreview() {
 
                 {/* Memory Panel */}
                 <div
-                  ref={(el) => { panelRefs.current[2] = el; }}
+                  ref={(el) => {
+                    panelRefs.current[2] = el;
+                  }}
                   role="tabpanel"
                   id="hero-panel-memory"
                   aria-labelledby="hero-tab-memory"
@@ -617,7 +718,9 @@ export function HeroDashboardPreview() {
 
                 {/* Safety Panel */}
                 <div
-                  ref={(el) => { panelRefs.current[3] = el; }}
+                  ref={(el) => {
+                    panelRefs.current[3] = el;
+                  }}
                   role="tabpanel"
                   id="hero-panel-safety"
                   aria-labelledby="hero-tab-safety"
@@ -780,7 +883,7 @@ export function HeroDashboardPreview() {
                       )}
                     >
                       {isAra && (
-                        <span className="mb-0.5 block text-[10px] font-semibold text-primary">
+                        <span className="mb-0.5 block text-[11px] font-semibold text-primary">
                           Ara
                         </span>
                       )}
@@ -790,13 +893,14 @@ export function HeroDashboardPreview() {
                 );
               })}
               {visibleMessages < CHAT_MESSAGES.length && (
-                <TypingIndicator isAra={CHAT_MESSAGES[visibleMessages]?.sender === 'ara'} />
+                <TypingIndicator
+                  isAra={CHAT_MESSAGES[visibleMessages]?.sender === 'ara'}
+                />
               )}
             </div>
           </div>
         </div>
       </div>
-
     </div>
   );
 }
