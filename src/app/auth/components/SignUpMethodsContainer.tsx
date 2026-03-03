@@ -40,20 +40,18 @@ function SignUpMethodsContainer() {
 
   return (
     <>
-      <If condition={providers.oAuth.length}>
-        <OAuthProviders />
-
-        <If condition={providers.emailPassword}>
-          <div>
-            <span className={'text-xs text-gray-400'}>
-              <Trans i18nKey={'auth:orContinueWithEmail'} />
-            </span>
-          </div>
-        </If>
-      </If>
-
       <If condition={providers.emailPassword}>
         <EmailPasswordSignUpContainer onSignUp={onSignUp} />
+      </If>
+
+      <If condition={providers.phoneNumber && providers.emailPassword}>
+        <div className={'flex w-full items-center gap-3'}>
+          <div className={'h-px flex-1 bg-border'} />
+          <span className={'text-xs uppercase text-muted-foreground'}>
+            <Trans i18nKey={'common:or'} />
+          </span>
+          <div className={'h-px flex-1 bg-border'} />
+        </div>
       </If>
 
       <If condition={providers.phoneNumber}>
@@ -66,6 +64,20 @@ function SignUpMethodsContainer() {
 
       <If condition={providers.emailOtp}>
         <EmailOtpContainer shouldCreateUser={true} />
+      </If>
+
+      <If condition={providers.oAuth.length}>
+        <If condition={providers.emailPassword || providers.phoneNumber}>
+          <div className={'flex w-full items-center gap-3'}>
+            <div className={'h-px flex-1 bg-border'} />
+            <span className={'text-xs uppercase text-muted-foreground'}>
+              <Trans i18nKey={'common:or'} />
+            </span>
+            <div className={'h-px flex-1 bg-border'} />
+          </div>
+        </If>
+
+        <OAuthProviders />
       </If>
     </>
   );

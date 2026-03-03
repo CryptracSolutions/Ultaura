@@ -24,6 +24,28 @@ function SignUpPage() {
 
       <SignUpMethodsContainer />
 
+      <p
+        className={'text-center text-xs text-muted-foreground leading-relaxed'}
+      >
+        <Trans
+          i18nKey={'auth:tosAgreement'}
+          components={{
+            termsLink: (
+              <Link
+                href={'/terms'}
+                className={'text-primary-800 hover:underline dark:text-primary'}
+              />
+            ),
+            privacyLink: (
+              <Link
+                href={'/privacy'}
+                className={'text-primary-800 hover:underline dark:text-primary'}
+              />
+            ),
+          }}
+        />
+      </p>
+
       <div className={'flex justify-center text-xs'}>
         <p className={'flex space-x-1'}>
           <span>
@@ -31,7 +53,9 @@ function SignUpPage() {
           </span>
 
           <Link
-            className={'text-primary-800 hover:underline dark:text-primary'}
+            className={
+              'text-primary hover:text-primary/70 hover:underline transition-colors'
+            }
             href={SIGN_IN_PATH}
           >
             <Trans i18nKey={'auth:signIn'} />

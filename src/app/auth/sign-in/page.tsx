@@ -27,14 +27,16 @@ function SignInPage() {
       <div className={'flex justify-center text-xs'}>
         <p className={'flex space-x-1'}>
           <span>
-            <Trans i18nKey={'auth:doNotHaveAccountYet'} />
+            <Trans i18nKey={'auth:newToUltaura'} />
           </span>
 
           <Link
-            className={'text-primary-800 hover:underline dark:text-primary'}
+            className={
+              'text-primary hover:text-primary/70 hover:underline transition-colors'
+            }
             href={SIGN_UP_PATH}
           >
-            <Trans i18nKey={'auth:signUp'} />
+            <Trans i18nKey={'auth:createAccount'} />
           </Link>
         </p>
       </div>

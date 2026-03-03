@@ -46,6 +46,12 @@ const PhoneNumberSignInContainer: React.FC<{
     [mode, signInWithOtp],
   );
 
+  const onGoBack = useCallback(() => {
+    setStep(Step.Phone);
+    setVerificationCode('');
+    verifyOtp.reset();
+  }, [verifyOtp]);
+
   const onOTPSubmit: FormEventHandler = useCallback(
     async (e) => {
       e.preventDefault();
@@ -61,9 +67,7 @@ const PhoneNumberSignInContainer: React.FC<{
         },
       });
 
-      if (onSuccess) {
-        onSuccess();
-      }
+      onSuccess();
     },
     [onSuccess, verificationCode, phone, verifyOtp],
   );
@@ -75,10 +79,9 @@ const PhoneNumberSignInContainer: React.FC<{
           <If condition={verifyOtp.error}>
             <Alert type={'error'}>
               <Alert.Heading>
-                Sorry, we were unable to log you in.
+                <Trans i18nKey={'auth:phoneOtpVerifyErrorHeading'} />
               </Alert.Heading>
-              We were unable to verify your phone number. Please try again
-              later.
+              <Trans i18nKey={'auth:phoneOtpVerifyErrorBody'} />
             </Alert>
           </If>
 
@@ -92,8 +95,20 @@ const PhoneNumberSignInContainer: React.FC<{
             loading={verifyOtp.isMutating}
             type={'submit'}
           >
-            <Trans i18nKey={'auth:signIn'} />
+            <Trans
+              i18nKey={mode === 'signUp' ? 'auth:signUp' : 'auth:signIn'}
+            />
           </Button>
+
+          <button
+            type={'button'}
+            onClick={onGoBack}
+            className={
+              'text-xs text-muted-foreground hover:text-foreground hover:underline transition-colors'
+            }
+          >
+            <Trans i18nKey={'auth:phoneOtpGoBack'} />
+          </button>
         </div>
       </form>
     );
@@ -103,13 +118,15 @@ const PhoneNumberSignInContainer: React.FC<{
     <div className={'flex w-full flex-col space-y-4'}>
       <If condition={signInWithOtp.error}>
         <Alert type={'error'}>
-          <Alert.Heading>Sorry, something went wrong.</Alert.Heading>
-          We were unable to send you an OTP. Please try again later.
+          <Alert.Heading>
+            <Trans i18nKey={'auth:phoneOtpSendErrorHeading'} />
+          </Alert.Heading>
+          <Trans i18nKey={'auth:phoneOtpSendErrorBody'} />
         </Alert>
       </If>
 
       <PhoneNumberCredentialForm
-        action={'signIn'}
+        action={mode}
         onSubmit={onPhoneNumberSubmit}
         loading={signInWithOtp.isMutating}
       />

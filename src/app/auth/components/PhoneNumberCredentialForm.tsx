@@ -11,7 +11,7 @@ import Trans from '~/core/ui/Trans';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 
-type ActionTypes = `link` | `signIn`;
+type ActionTypes = `link` | `signIn` | `signUp`;
 
 const PhoneNumberCredentialForm: React.FC<{
   onSubmit: (phoneNumber: string) => void;
@@ -21,28 +21,27 @@ const PhoneNumberCredentialForm: React.FC<{
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneError, setPhoneError] = useState<string | undefined>(undefined);
 
-  const onLinkPhoneNumberSubmit: FormEventHandler<HTMLFormElement> =
-    useCallback(
-      (event) => {
-        event.preventDefault();
+  const onFormSubmit: FormEventHandler<HTMLFormElement> = useCallback(
+    (event) => {
+      event.preventDefault();
 
-        const validationError = getUsPhoneValidationError(phoneNumber, {
-          required: true,
-        });
+      const validationError = getUsPhoneValidationError(phoneNumber, {
+        required: true,
+      });
 
-        if (validationError) {
-          setPhoneError(validationError);
-          return;
-        }
+      if (validationError) {
+        setPhoneError(validationError);
+        return;
+      }
 
-        const e164 = formatToE164(phoneNumber);
-        onSubmit(e164);
-      },
-      [onSubmit, phoneNumber],
-    );
+      const e164 = formatToE164(phoneNumber);
+      onSubmit(e164);
+    },
+    [onSubmit, phoneNumber],
+  );
 
   return (
-    <form className={'w-full'} onSubmit={onLinkPhoneNumberSubmit}>
+    <form className={'w-full'} onSubmit={onFormSubmit}>
       <div className={'flex flex-col space-y-2'}>
         <TextField>
           <TextField.Label>
@@ -72,6 +71,10 @@ const PhoneNumberCredentialForm: React.FC<{
 
           <If condition={action === 'signIn'}>
             <Trans i18nKey={'auth:signInWithPhoneNumber'} />
+          </If>
+
+          <If condition={action === 'signUp'}>
+            <Trans i18nKey={'auth:signUpWithPhoneNumber'} />
           </If>
         </Button>
       </div>
