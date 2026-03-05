@@ -28,7 +28,7 @@ export function LinePageHeader({
     <div className="-mt-2 mb-5 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
         {lines.length > 1 ? (
-          <div className="w-full sm:w-[16rem] rounded-xl ring-2 ring-primary shrink-0">
+          <div className="w-full sm:w-[16rem] rounded-xl ring-1 ring-primary shrink-0">
             <LineSelectorTabs
               lines={lines}
               currentLineShortId={currentLineShortId}

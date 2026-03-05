@@ -113,7 +113,7 @@ export function AlertsPageClient({
     <div className="space-y-6 pb-12">
       <div className="mb-6">
         {lines.length > 1 && (
-          <div className="mb-3 w-full sm:w-[16rem] rounded-xl ring-2 ring-primary">
+          <div className="mb-3 w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
             <AlertsLineFilter
               lines={lineFilterData}
               value={selectedLineId}

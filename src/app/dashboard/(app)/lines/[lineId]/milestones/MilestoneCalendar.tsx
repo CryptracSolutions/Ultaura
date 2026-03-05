@@ -39,34 +39,10 @@ function formatMilestoneDate(
   return date.toFormat('MMM d');
 }
 
-function getNextOccurrence(milestone: MilestoneRow, timezone: string): DateTime | null {
-  const now = DateTime.now().setZone(timezone).startOf('day');
-
-  if (!milestone.is_recurring && milestone.date_year) {
-    const date = DateTime.fromObject({
-      year: milestone.date_year,
-      month: milestone.date_month,
-      day: milestone.date_day,
-    }, { zone: timezone });
-    return date.isValid && date >= now ? date : null;
-  }
-
-  const baseYear = now.year;
-  let date = DateTime.fromObject({
-    year: baseYear,
-    month: milestone.date_month,
-    day: milestone.date_day,
-  }, { zone: timezone });
-
-  if (!date.isValid) {
-    return null;
-  }
-
-  if (date < now) {
-    date = date.plus({ years: 1 });
-  }
-
-  return date;
+function formatMilestoneTypeLabel(milestoneType: string): string {
+  return milestoneType
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function isMilestoneOnDate(milestone: MilestoneRow, date: DateTime): boolean {
@@ -113,15 +89,6 @@ export function MilestoneCalendar({
   const handleNextMonth = () => {
     if (canGoNext) setViewMonth((m) => m + 1);
   };
-
-  const upcoming = milestones
-    .map((milestone) => ({
-      milestone,
-      date: getNextOccurrence(milestone, line.timezone),
-    }))
-    .filter((entry): entry is { milestone: MilestoneRow; date: DateTime } => Boolean(entry.date))
-    .sort((a, b) => a.date.toMillis() - b.date.toMillis())
-    .slice(0, 5);
 
   const sortedMilestones = [...milestones].sort((a, b) => {
     if (a.date_month !== b.date_month) return a.date_month - b.date_month;
@@ -244,31 +211,6 @@ export function MilestoneCalendar({
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6">
-        <h3 className="text-sm font-semibold text-foreground">Upcoming milestones</h3>
-        {upcoming.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No upcoming milestones yet.</p>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {upcoming.map(({ milestone, date }) => (
-              <div key={milestone.id} className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{milestone.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {date.toFormat('MMM d')} - {milestone.milestone_type}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {milestone.is_recurring ? 'Recurring' : 'One-time'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-6">
         <h3 className="text-sm font-semibold text-foreground">All milestones</h3>
         {sortedMilestones.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">No milestones added yet.</p>
@@ -284,48 +226,55 @@ export function MilestoneCalendar({
                   key={milestone.id}
                   className="rounded-lg border border-border/60 bg-muted/20 p-4"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
+                  <div className="flex items-stretch justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <p className="text-sm font-medium text-foreground">{milestone.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatMilestoneDate(milestone, line.timezone)} - {milestone.milestone_type}
+                      <p className="text-xs text-primary">
+                        {formatMilestoneDate(milestone, line.timezone)} - {formatMilestoneTypeLabel(milestone.milestone_type)}
                       </p>
                       {milestone.related_person_name ? (
                         <p className="text-xs text-muted-foreground">
                           Related to {milestone.related_person_name}
                         </p>
                       ) : null}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5 text-primary" />
-                          Celebrated {milestone.times_celebrated ?? 0} times
-                        </span>
-                        {lastCelebrated ? (
-                          <span>Last celebrated {lastCelebrated}</span>
-                        ) : null}
+                      {lastCelebrated ? (
+                        <p className="text-xs text-muted-foreground">Last celebrated {lastCelebrated}</p>
+                      ) : null}
+                      <div className="flex w-full items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="inline-flex items-center gap-1">
+                            <Star className="h-3.5 w-3.5 text-primary" />
+                            Celebrated {milestone.times_celebrated ?? 0} {(milestone.times_celebrated ?? 0) === 1 ? 'time' : 'times'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {!readOnly ? (
-                      <ResponsiveActionMenu
-                        title={milestone.title}
-                        disabled={disabled}
-                        actions={[
-                          {
-                            label: 'Edit',
-                            icon: <Edit2 className="w-5 h-5" />,
-                            onClick: () => onEdit(milestone),
-                          },
-                          {
-                            label: 'Delete',
-                            icon: <Trash2 className="w-5 h-5" />,
-                            onClick: () => onDelete(milestone),
-                            variant: 'destructive' as const,
-                            separator: true,
-                          },
-                        ]}
-                      />
-                    ) : null}
+                    <div className="flex shrink-0 flex-col items-end gap-2 self-stretch">
+                      {!readOnly ? (
+                        <ResponsiveActionMenu
+                          title={milestone.title}
+                          disabled={disabled}
+                          actions={[
+                            {
+                              label: 'Edit',
+                              icon: <Edit2 className="w-5 h-5" />,
+                              onClick: () => onEdit(milestone),
+                            },
+                            {
+                              label: 'Delete',
+                              icon: <Trash2 className="w-5 h-5" />,
+                              onClick: () => onDelete(milestone),
+                              variant: 'destructive' as const,
+                              separator: true,
+                            },
+                          ]}
+                        />
+                      ) : null}
+                      <span className="mt-auto inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        {milestone.is_recurring ? 'Recurring' : 'One-time'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );

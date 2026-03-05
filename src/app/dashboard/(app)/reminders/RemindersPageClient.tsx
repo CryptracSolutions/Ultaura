@@ -234,6 +234,14 @@ export function RemindersPageClient({
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
+        {lines.length > 1 && (
+          <div className="w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
+            <ReminderLineFilter
+              lines={lineFilterData}
+              currentLineShortId={selectedLineShortId}
+            />
+          </div>
+        )}
         {!disabled && (
           <div className="space-y-1">
             <Button
@@ -249,14 +257,6 @@ export function RemindersPageClient({
             {isSelectedLineUnverified && (
               <p className="text-xs text-muted-foreground">Verify phone to add reminders</p>
             )}
-          </div>
-        )}
-        {lines.length > 1 && (
-          <div className="w-full sm:w-[16rem] rounded-xl ring-2 ring-primary">
-            <ReminderLineFilter
-              lines={lineFilterData}
-              currentLineShortId={selectedLineShortId}
-            />
           </div>
         )}
       </div>

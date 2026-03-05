@@ -11,7 +11,7 @@ import Spinner from '~/core/ui/Spinner';
 type Size = 'default' | 'small' | 'large' | 'custom' | 'sm' | 'lg';
 
 const large = `[&>*]:py-2.5 [&>*]:px-7 h-14 text-lg`;
-const small = `min-h-[44px] min-w-[44px] [&>*]:py-2 [&>*]:px-4 text-sm`;
+const small = `min-h-[32px] min-w-[32px] [&>*]:py-0.5 [&>*]:px-4 text-sm`;
 
 const buttonVariants = cva(
   `inline-flex items-center justify-center rounded-xl text-sm font-medium ring-offset-background transition-all duration-200 ease-out
@@ -73,10 +73,11 @@ const Button: React.FCC<ButtonProps> = forwardRef<
   { children, color, size, variant, block, loading, href, round, ...props },
   ref,
 ) {
+  const resolvedSize = size ?? defaultSize;
   const className = classNames(
     buttonVariants({
       variant: variant ?? defaultVariant,
-      size: size ?? defaultSize,
+      size: resolvedSize,
     }),
     block ? `w-full` : ``,
     loading ? `opacity-80` : ``,
@@ -90,6 +91,7 @@ const Button: React.FCC<ButtonProps> = forwardRef<
       tabIndex={href ? -1 : 0}
       ref={ref}
       className={className}
+      data-button-size={resolvedSize}
       disabled={loading || props.disabled}
     >
       <InnerButtonContainerElement href={href} disabled={props.disabled}>

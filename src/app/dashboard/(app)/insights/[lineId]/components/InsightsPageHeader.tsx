@@ -26,7 +26,7 @@ export function InsightsPageHeader({
     <div className="mb-6">
       {/* Line selector tabs (when multiple lines) */}
       {lines.length > 1 && (
-        <div className="mb-3 w-full sm:w-[16rem] rounded-xl ring-2 ring-primary">
+        <div className="mb-3 w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
           <LineSelectorTabs
             lines={lines}
             currentLineShortId={currentLineShortId}

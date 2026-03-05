@@ -128,22 +128,22 @@ export function LineDetailClient({
       <LinePageHeader
         lines={lines}
         currentLineShortId={line.short_id}
-        actions={(
+      />
+
+      {/* Overview Content */}
+      <div className="space-y-6 mt-6">
+        {/* Tab description note */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            At-a-glance summary of call activity and key metrics for this line.
+          </p>
           <LineHeaderActions
             line={line}
             usage={usage}
             isReadOnly={isReadOnly}
             isTrialActive={isTrialActive}
           />
-        )}
-      />
-
-      {/* Overview Content */}
-      <div className="space-y-6 mt-6">
-        {/* Tab description note */}
-        <p className="text-sm text-muted-foreground">
-          At-a-glance summary of call activity and key metrics for this line.
-        </p>
+        </div>
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard

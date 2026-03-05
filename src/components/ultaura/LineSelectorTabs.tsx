@@ -102,7 +102,7 @@ export function LineSelectorTabs({ lines, currentLineShortId, section }: LineSel
         aria-label="Select line"
         className={classNames(
           'flex w-full select-none items-center justify-between gap-3',
-          'rounded-xl border border-border bg-card/70 px-3 py-2',
+          'rounded-xl border border-border bg-card/70 px-3 py-1 min-h-[32px]',
           'text-sm font-medium text-foreground shadow-sm backdrop-blur',
           'transition-colors hover:bg-card/90',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
