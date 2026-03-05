@@ -20,12 +20,18 @@ const VIEWER_ROLE = MembershipRole.Viewer;
 type RecipientRow = Database['public']['Tables']['ultaura_notification_recipients']['Row'];
 type RecipientRowWithDashboardAccess = RecipientRow & {
   dashboard_access_granted_at?: string | null;
+  dashboard_access_membership_id?: number | null;
+  dashboard_access_user_id?: string | null;
+  dashboard_access_invited_email?: string | null;
 };
 type MembershipUpsertResult = {
   createdMembershipId: number | null;
   inviteCode: string | null;
   isExistingUser: boolean;
   existingRoleAccess: boolean;
+  linkedMembershipId: number | null;
+  linkedAuthUserId: string | null;
+  linkedInvitedEmail: string | null;
 };
 
 function getSiteUrl(): string {
@@ -207,6 +213,9 @@ async function createOrEnsureViewerMembership(params: {
         inviteCode: null,
         isExistingUser: true,
         existingRoleAccess: true,
+        linkedMembershipId: null,
+        linkedAuthUserId: null,
+        linkedInvitedEmail: null,
       };
     }
 
@@ -216,6 +225,9 @@ async function createOrEnsureViewerMembership(params: {
         inviteCode: null,
         isExistingUser: true,
         existingRoleAccess: false,
+        linkedMembershipId: membership.id,
+        linkedAuthUserId: params.authUserId,
+        linkedInvitedEmail: null,
       };
     }
 
@@ -238,6 +250,9 @@ async function createOrEnsureViewerMembership(params: {
       inviteCode: null,
       isExistingUser: true,
       existingRoleAccess: false,
+      linkedMembershipId: inserted?.id ?? null,
+      linkedAuthUserId: params.authUserId,
+      linkedInvitedEmail: null,
     };
   }
 
@@ -256,6 +271,9 @@ async function createOrEnsureViewerMembership(params: {
       inviteCode: existingPending.code,
       isExistingUser: false,
       existingRoleAccess: false,
+      linkedMembershipId: existingPending.id,
+      linkedAuthUserId: null,
+      linkedInvitedEmail: normalizedEmail,
     };
   }
 
@@ -280,6 +298,9 @@ async function createOrEnsureViewerMembership(params: {
     inviteCode: pendingMembership.code,
     isExistingUser: false,
     existingRoleAccess: false,
+    linkedMembershipId: pendingMembership.id,
+    linkedAuthUserId: null,
+    linkedInvitedEmail: normalizedEmail,
   };
 }
 
@@ -292,7 +313,12 @@ async function rollbackGrant(params: {
 }) {
   await params.adminClient
     .from('ultaura_notification_recipients')
-    .update({ dashboard_access_granted_at: null } as never)
+    .update({
+      dashboard_access_granted_at: null,
+      dashboard_access_membership_id: null,
+      dashboard_access_user_id: null,
+      dashboard_access_invited_email: null,
+    } as never)
     .eq('id', params.recipientId)
     .eq('account_id', params.accountId);
 
@@ -384,13 +410,33 @@ export async function grantDashboardAccess(
   }
 
   const nowIso = new Date().toISOString();
-  const { error: grantTimestampError } = await adminClient
+  const { data: grantedRow, error: grantTimestampError } = await adminClient
     .from('ultaura_notification_recipients')
     .update({ dashboard_access_granted_at: nowIso } as never)
     .eq('id', recipient.id)
-    .eq('account_id', accountId);
+    .eq('account_id', accountId)
+    .is('dashboard_access_granted_at', null)
+    .select('id')
+    .maybeSingle();
 
-  if (grantTimestampError) {
+  if (grantTimestampError || !grantedRow) {
+    if (!grantTimestampError) {
+      const { data: concurrentRecipient } = await adminClient
+        .from('ultaura_notification_recipients')
+        .select('*')
+        .eq('id', recipient.id)
+        .eq('account_id', accountId)
+        .maybeSingle();
+
+      const concurrentWithDashboard = concurrentRecipient as RecipientRowWithDashboardAccess | null;
+      if (concurrentWithDashboard?.dashboard_access_granted_at) {
+        const existingUser = Boolean(
+          await getAuthUserIdByEmail(adminClient, concurrentWithDashboard.email ?? recipient.email),
+        );
+        return grantSuccess(existingUser);
+      }
+    }
+
     logger.error({ grantTimestampError, accountId, recipientId }, 'Failed to set dashboard access timestamp');
     return {
       success: false,
@@ -417,6 +463,20 @@ export async function grantDashboardAccess(
     });
     rollbackMembershipId = membership.createdMembershipId;
     rollbackInviteCode = membership.createdMembershipId ? membership.inviteCode : null;
+
+    const { error: trackingError } = await adminClient
+      .from('ultaura_notification_recipients')
+      .update({
+        dashboard_access_membership_id: membership.linkedMembershipId,
+        dashboard_access_user_id: membership.linkedAuthUserId,
+        dashboard_access_invited_email: membership.linkedInvitedEmail,
+      } as never)
+      .eq('id', recipient.id)
+      .eq('account_id', accountId);
+
+    if (trackingError) {
+      throw trackingError;
+    }
 
     if (membership.existingRoleAccess) {
       revalidatePath('/dashboard/privacy', 'page');
@@ -503,13 +563,19 @@ export async function grantDashboardAccess(
 }
 
 export async function deleteViewerMembershipForRecipient(
-  accountId: string,
-  recipientEmail: string,
+  params: {
+    accountId: string;
+    recipientEmail: string;
+    linkedMembershipId?: number | null;
+    linkedAuthUserId?: string | null;
+    linkedInvitedEmail?: string | null;
+    allowLegacyFallback?: boolean;
+  },
 ): Promise<ActionResult<{ deletedCount: number }>> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
 
-  const organizationId = await getOrganizationIdForAccount(adminClient, accountId).catch((error) => {
-    logger.error({ error, accountId }, 'Failed to resolve organization for membership cleanup');
+  const organizationId = await getOrganizationIdForAccount(adminClient, params.accountId).catch((error) => {
+    logger.error({ error, accountId: params.accountId }, 'Failed to resolve organization for membership cleanup');
     return null;
   });
 
@@ -520,21 +586,68 @@ export async function deleteViewerMembershipForRecipient(
     };
   }
 
-  const normalizedEmail = recipientEmail.trim().toLowerCase();
-  const { data: authUserId, error: authLookupError } = await adminClient.rpc(
-    'get_auth_user_id_by_email' as never,
-    { lookup_email: normalizedEmail } as never,
-  );
+  let deletedCount = 0;
 
-  if (authLookupError) {
-    logger.error(
-      { error: authLookupError, accountId, recipientEmail: normalizedEmail },
-      'Failed auth user lookup during membership cleanup',
-    );
+  if (params.linkedMembershipId) {
+    const { data: membershipRows, error: membershipDeleteError } = await adminClient
+      .from('memberships')
+      .delete()
+      .eq('id', params.linkedMembershipId)
+      .eq('organization_id', organizationId)
+      .eq('role', VIEWER_ROLE)
+      .select('id');
+
+    if (membershipDeleteError) {
+      logger.error(
+        { error: membershipDeleteError, accountId: params.accountId, membershipId: params.linkedMembershipId },
+        'Failed membership cleanup for linked membership id',
+      );
+      return {
+        success: false,
+        error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to remove dashboard access membership'),
+      };
+    }
+
+    deletedCount += membershipRows?.length ?? 0;
+    if (deletedCount > 0 || params.allowLegacyFallback === false) {
+      return {
+        success: true,
+        data: {
+          deletedCount,
+        },
+      };
+    }
+  }
+
+  if (params.allowLegacyFallback === false) {
     return {
-      success: false,
-      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to resolve dashboard access membership'),
+      success: true,
+      data: { deletedCount },
     };
+  }
+
+  const normalizedEmail = (params.linkedInvitedEmail ?? params.recipientEmail).trim().toLowerCase();
+  const authUserId = params.linkedAuthUserId ?? null;
+
+  let resolvedAuthUserId = authUserId;
+  if (!resolvedAuthUserId) {
+    const { data, error: authLookupError } = await adminClient.rpc(
+      'get_auth_user_id_by_email' as never,
+      { lookup_email: normalizedEmail } as never,
+    );
+
+    if (authLookupError) {
+      logger.error(
+        { error: authLookupError, accountId: params.accountId, recipientEmail: normalizedEmail },
+        'Failed auth user lookup during membership cleanup',
+      );
+      return {
+        success: false,
+        error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to resolve dashboard access membership'),
+      };
+    }
+
+    resolvedAuthUserId = data ?? null;
   }
 
   const { data: emailDeletedRows, error: emailDeleteError } = await adminClient
@@ -547,7 +660,7 @@ export async function deleteViewerMembershipForRecipient(
 
   if (emailDeleteError) {
     logger.error(
-      { error: emailDeleteError, accountId, recipientEmail: normalizedEmail, organizationId },
+      { error: emailDeleteError, accountId: params.accountId, recipientEmail: normalizedEmail, organizationId },
       'Failed membership cleanup for invited_email',
     );
     return {
@@ -556,20 +669,27 @@ export async function deleteViewerMembershipForRecipient(
     };
   }
 
+  deletedCount += emailDeletedRows?.length ?? 0;
   let deletedByUserIdCount = 0;
 
-  if (authUserId) {
+  if (resolvedAuthUserId) {
     const { data: userDeletedRows, error: userDeleteError } = await adminClient
       .from('memberships')
       .delete()
       .eq('organization_id', organizationId)
       .eq('role', VIEWER_ROLE)
-      .eq('user_id', authUserId)
+      .eq('user_id', resolvedAuthUserId)
       .select('id');
 
     if (userDeleteError) {
       logger.error(
-        { error: userDeleteError, accountId, recipientEmail: normalizedEmail, organizationId, authUserId },
+        {
+          error: userDeleteError,
+          accountId: params.accountId,
+          recipientEmail: normalizedEmail,
+          organizationId,
+          authUserId: resolvedAuthUserId,
+        },
         'Failed membership cleanup for user_id',
       );
       return {
@@ -581,6 +701,8 @@ export async function deleteViewerMembershipForRecipient(
     deletedByUserIdCount = userDeletedRows?.length ?? 0;
   }
 
+  deletedCount += deletedByUserIdCount;
+
   const { data: remainingInvites, error: remainingInvitesError } = await adminClient
     .from('memberships')
     .select('id')
@@ -591,7 +713,7 @@ export async function deleteViewerMembershipForRecipient(
 
   if (remainingInvitesError) {
     logger.error(
-      { error: remainingInvitesError, accountId, recipientEmail: normalizedEmail, organizationId },
+      { error: remainingInvitesError, accountId: params.accountId, recipientEmail: normalizedEmail, organizationId },
       'Failed to verify invited_email membership cleanup',
     );
     return {
@@ -601,18 +723,24 @@ export async function deleteViewerMembershipForRecipient(
   }
 
   let remainingUserMemberships = 0;
-  if (authUserId) {
+  if (resolvedAuthUserId) {
     const { data: remainingByUser, error: remainingByUserError } = await adminClient
       .from('memberships')
       .select('id')
       .eq('organization_id', organizationId)
       .eq('role', VIEWER_ROLE)
-      .eq('user_id', authUserId)
+      .eq('user_id', resolvedAuthUserId)
       .limit(1);
 
     if (remainingByUserError) {
       logger.error(
-        { error: remainingByUserError, accountId, recipientEmail: normalizedEmail, organizationId, authUserId },
+        {
+          error: remainingByUserError,
+          accountId: params.accountId,
+          recipientEmail: normalizedEmail,
+          organizationId,
+          authUserId: resolvedAuthUserId,
+        },
         'Failed to verify user_id membership cleanup',
       );
       return {
@@ -634,7 +762,7 @@ export async function deleteViewerMembershipForRecipient(
   return {
     success: true,
     data: {
-      deletedCount: (emailDeletedRows?.length ?? 0) + deletedByUserIdCount,
+      deletedCount,
     },
   };
 }
@@ -664,9 +792,15 @@ export async function revokeDashboardAccess(
     };
   }
 
+  const recipientWithDashboardAccess = recipient as RecipientRowWithDashboardAccess;
   const { error } = await adminClient
     .from('ultaura_notification_recipients')
-    .update({ dashboard_access_granted_at: null } as never)
+    .update({
+      dashboard_access_granted_at: null,
+      dashboard_access_membership_id: null,
+      dashboard_access_user_id: null,
+      dashboard_access_invited_email: null,
+    } as never)
     .eq('id', recipientId)
     .eq('account_id', accountId);
 
@@ -678,7 +812,14 @@ export async function revokeDashboardAccess(
     };
   }
 
-  const membershipCleanup = await deleteViewerMembershipForRecipient(accountId, recipient.email);
+  const membershipCleanup = await deleteViewerMembershipForRecipient({
+    accountId,
+    recipientEmail: recipient.email,
+    linkedMembershipId: recipientWithDashboardAccess.dashboard_access_membership_id ?? null,
+    linkedAuthUserId: recipientWithDashboardAccess.dashboard_access_user_id ?? null,
+    linkedInvitedEmail: recipientWithDashboardAccess.dashboard_access_invited_email ?? null,
+    allowLegacyFallback: true,
+  });
 
   if (!membershipCleanup.success) {
     logger.error(
@@ -691,7 +832,12 @@ export async function revokeDashboardAccess(
     if (previousGrantedAt) {
       const { error: rollbackError } = await adminClient
         .from('ultaura_notification_recipients')
-        .update({ dashboard_access_granted_at: previousGrantedAt } as never)
+        .update({
+          dashboard_access_granted_at: previousGrantedAt,
+          dashboard_access_membership_id: recipientWithDashboardAccess.dashboard_access_membership_id ?? null,
+          dashboard_access_user_id: recipientWithDashboardAccess.dashboard_access_user_id ?? null,
+          dashboard_access_invited_email: recipientWithDashboardAccess.dashboard_access_invited_email ?? null,
+        } as never)
         .eq('id', recipientId)
         .eq('account_id', accountId);
 

@@ -21,7 +21,10 @@ import getLogger from '~/core/logger';
 import configuration from '~/configuration';
 import initializeServerI18n from '~/i18n/i18n.server';
 import getLanguageCookie from '~/i18n/get-language-cookie';
-import { parseOrganizationIdCookie } from '~/lib/server/cookies/organization.cookie';
+import {
+  hasManualOrganizationSelectionCookie,
+  parseOrganizationIdCookie,
+} from '~/lib/server/cookies/organization.cookie';
 import MembershipRole from '~/lib/organizations/types/membership-role';
 
 /**
@@ -193,22 +196,21 @@ export const loadAppDataForUser = async () => {
       return redirect('/dashboard/access-removed');
     }
 
-    const sortedOrganizations = [...organizationsData].sort((a, b) => {
-      return getRolePriority(b.role) - getRolePriority(a.role);
-    });
+    const sortedOrganizations = sortOrganizationsForSelection(organizationsData);
 
     const organizationCookie = await parseOrganizationIdCookie(userId);
-    const cookieSelection = organizationCookie
-      ? sortedOrganizations.find((item) => item.organization?.uuid === organizationCookie)
-      : undefined;
+    const hasManualSelection = await hasManualOrganizationSelectionCookie(userId);
+    const selectedMembership = selectOrganizationMembership({
+      organizations: sortedOrganizations,
+      organizationCookie,
+      hasManualSelection,
+    });
+    if (!selectedMembership) {
+      return redirectToOnboarding();
+    }
 
-    const defaultSelection = sortedOrganizations.find(
-      (item) => item.role !== MembershipRole.Viewer,
-    ) ?? sortedOrganizations[0];
-
-    const selectedMembership = cookieSelection ?? defaultSelection;
-    const organization = selectedMembership?.organization;
-    const role = selectedMembership?.role;
+    const organization = selectedMembership.organization;
+    const role = selectedMembership.role;
 
     if (!organization) {
       logger.info(
@@ -264,6 +266,51 @@ export const loadAppDataForUser = async () => {
     return redirectToHomePage();
   }
 };
+
+export function sortOrganizationsForSelection<T extends { role: number; organization?: { name?: string | null; uuid?: string | null } | null }>(
+  organizations: T[],
+): T[] {
+  return [...organizations].sort((a, b) => {
+    const roleDiff = getRolePriority(b.role) - getRolePriority(a.role);
+    if (roleDiff !== 0) {
+      return roleDiff;
+    }
+
+    const nameA = a.organization?.name ?? '';
+    const nameB = b.organization?.name ?? '';
+    const nameDiff = nameA.localeCompare(nameB);
+    if (nameDiff !== 0) {
+      return nameDiff;
+    }
+
+    const uuidA = a.organization?.uuid ?? '';
+    const uuidB = b.organization?.uuid ?? '';
+    return uuidA.localeCompare(uuidB);
+  });
+}
+
+export function selectOrganizationMembership<T extends { role: number; organization?: { uuid?: string | null } | null }>(params: {
+  organizations: T[];
+  organizationCookie?: string;
+  hasManualSelection: boolean;
+}): T | undefined {
+  const cookieSelection = params.organizationCookie
+    ? params.organizations.find((item) => item.organization?.uuid === params.organizationCookie)
+    : undefined;
+
+  const defaultSelection = params.organizations.find(
+    (item) => item.role !== MembershipRole.Viewer,
+  ) ?? params.organizations[0];
+
+  const shouldPreferDefaultOverViewerCookie =
+    !params.hasManualSelection &&
+    cookieSelection?.role === MembershipRole.Viewer &&
+    defaultSelection?.role !== MembershipRole.Viewer;
+
+  return shouldPreferDefaultOverViewerCookie
+    ? defaultSelection
+    : (cookieSelection ?? defaultSelection);
+}
 
 function redirectToOnboarding() {
   return redirect(configuration.paths.onboarding);

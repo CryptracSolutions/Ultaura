@@ -67,7 +67,11 @@ describe('dashboard sharing reliability', () => {
     }));
 
     const { deleteViewerMembershipForRecipient } = await import('~/lib/ultaura/dashboard-sharing');
-    const result = await deleteViewerMembershipForRecipient('acct-1', 'recipient@example.com');
+    const result = await deleteViewerMembershipForRecipient({
+      accountId: 'acct-1',
+      recipientEmail: 'recipient@example.com',
+      allowLegacyFallback: true,
+    });
 
     expect(result.success).toBe(false);
     if (result.success) {
@@ -76,10 +80,69 @@ describe('dashboard sharing reliability', () => {
     expect(result.error.message).toContain('still exists');
   });
 
-  it('does not delete recipient when membership cleanup fails', async () => {
+  it('uses linked membership id cleanup without legacy email lookup when disabled', async () => {
+    const membershipsDeleteSelect = vi.fn(async () => ({ data: [{ id: 99 }], error: null }));
+    const membershipsDeleteBuilder: any = {};
+    membershipsDeleteBuilder.eq = vi.fn(() => membershipsDeleteBuilder);
+    membershipsDeleteBuilder.select = membershipsDeleteSelect;
+    const membershipsDelete = vi.fn(() => membershipsDeleteBuilder);
+
+    const adminClient = {
+      rpc: vi.fn(async () => ({ data: 'user-1', error: null })),
+      from: vi.fn((table: string) => {
+        if (table === 'ultaura_accounts') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(async () => ({ data: { organization_id: 42 }, error: null })),
+              })),
+            })),
+          };
+        }
+
+        if (table === 'memberships') {
+          return {
+            delete: membershipsDelete,
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    vi.doMock('~/core/supabase/action-client', () => ({
+      default: vi.fn(() => adminClient),
+    }));
+
+    const { deleteViewerMembershipForRecipient } = await import('~/lib/ultaura/dashboard-sharing');
+    const result = await deleteViewerMembershipForRecipient({
+      accountId: 'acct-1',
+      recipientEmail: 'recipient@example.com',
+      linkedMembershipId: 99,
+      allowLegacyFallback: false,
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error('Expected linked cleanup to succeed');
+    }
+    expect(result.data.deletedCount).toBe(1);
+    expect(adminClient.rpc).not.toHaveBeenCalled();
+  });
+
+  it('does not delete recipient when revoke fails', async () => {
     const recipientsDelete = vi.fn(() => ({
       eq: vi.fn(() => ({
-        eq: vi.fn(async () => ({ error: null })),
+        eq: vi.fn(() => ({
+          is: vi.fn(() => ({
+            select: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({
+                data: { id: 'recipient-1' },
+                error: null,
+              })),
+            })),
+          })),
+        })),
       })),
     }));
 
@@ -94,6 +157,7 @@ describe('dashboard sharing reliability', () => {
                     id: 'recipient-1',
                     account_id: 'acct-1',
                     email: 'recipient@example.com',
+                    dashboard_access_granted_at: '2026-03-01T00:00:00.000Z',
                   },
                   error: null,
                 })),
@@ -131,7 +195,7 @@ describe('dashboard sharing reliability', () => {
       );
       return {
         ...actual,
-        deleteViewerMembershipForRecipient: vi.fn(async () => ({
+        revokeDashboardAccess: vi.fn(async () => ({
           success: false,
           error: { message: 'cleanup failed' },
         })),

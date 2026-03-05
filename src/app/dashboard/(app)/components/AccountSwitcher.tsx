@@ -30,7 +30,7 @@ const ROLE_LABELS: Record<number, string> = {
 };
 
 function getRoleLabel(role: number): string {
-  return ROLE_LABELS[role] ?? 'Member';
+  return ROLE_LABELS[role] ?? 'Unknown';
 }
 
 function AccountSwitcher(props: {
@@ -60,6 +60,8 @@ function AccountSwitcher(props: {
 
     const cookieName = `${userId}-organizationId`;
     setCookie(cookieName, organizationUuid);
+    const selectionModeCookieName = `${userId}-organizationSelectionMode`;
+    setCookie(selectionModeCookieName, 'manual');
 
     startTransition(() => {
       router.refresh();

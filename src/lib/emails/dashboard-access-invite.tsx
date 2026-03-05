@@ -30,7 +30,7 @@ export default function renderDashboardAccessInviteEmail(
       <Text className="text-[14px] text-stone-700 mt-[20px] mb-0">Hi {recipientName},</Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
-        {inviterName} has given you access to view {seniorName}'s care dashboard on Ultaura for{' '}
+        {inviterName} has given you access to view {seniorName}&apos;s care dashboard on Ultaura for{' '}
         {accountName}.
       </Text>
 

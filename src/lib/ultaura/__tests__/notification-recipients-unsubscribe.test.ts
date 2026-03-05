@@ -13,6 +13,10 @@ describe('unsubscribeNotificationRecipient token flow', () => {
   });
 
   it('accepts a valid token, hashes it for lookup, and clears token fields', async () => {
+    const deleteViewerMembershipForRecipient = vi.fn(async () => ({
+      success: true,
+      data: { deletedCount: 0 },
+    }));
     const updateMaybeSingle = vi.fn(async () => ({
       data: { id: 'recipient-1' },
       error: null,
@@ -65,6 +69,9 @@ describe('unsubscribeNotificationRecipient token flow', () => {
     vi.doMock('~/lib/server/queries', () => ({
       getUserDataById: vi.fn(async () => null),
     }));
+    vi.doMock('~/lib/ultaura/dashboard-sharing', () => ({
+      deleteViewerMembershipForRecipient,
+    }));
 
     const { unsubscribeNotificationRecipient } = await import(
       '~/lib/ultaura/notification-recipients'
@@ -95,6 +102,7 @@ describe('unsubscribeNotificationRecipient token flow', () => {
     expect(updatePayload).toBeDefined();
     expect(updatePayload.unsubscribed_at).toBe(updatePayload.updated_at);
     expect(gt).toHaveBeenCalledWith('unsubscribe_token_expires_at', updatePayload.updated_at);
+    expect(deleteViewerMembershipForRecipient).not.toHaveBeenCalled();
   });
 
   it('rejects invalid tokens', async () => {

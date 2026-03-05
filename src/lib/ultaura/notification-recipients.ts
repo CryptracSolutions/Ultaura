@@ -17,7 +17,7 @@ import {
   generateNotificationUnsubscribeToken,
   hashNotificationToken,
 } from './notification-tokens';
-import { deleteViewerMembershipForRecipient } from './dashboard-sharing';
+import { revokeDashboardAccess } from './dashboard-sharing';
 
 const logger = getLogger();
 const MAX_NOTIFICATION_RECIPIENTS = 5;
@@ -122,6 +122,9 @@ type NotificationRecipientRow =
   Database['public']['Tables']['ultaura_notification_recipients']['Row'];
 type NotificationRecipientRowWithDashboardAccess = NotificationRecipientRow & {
   dashboard_access_granted_at?: string | null;
+  dashboard_access_membership_id?: number | null;
+  dashboard_access_user_id?: string | null;
+  dashboard_access_invited_email?: string | null;
 };
 
 function normalizeRecipientName(value: string): string {
@@ -506,7 +509,7 @@ export async function removeNotificationRecipient(
   const client = getSupabaseServerActionClient();
   const { data: recipient, error: lookupError } = await client
     .from('ultaura_notification_recipients')
-    .select('id, account_id, email')
+    .select('*')
     .eq('id', recipientId)
     .maybeSingle();
 
@@ -524,21 +527,17 @@ export async function removeNotificationRecipient(
     return { success: false, error: createError(ErrorCodes.FORBIDDEN, 'Failed to remove recipient') };
   }
 
-  if (recipient.email) {
-    const membershipCleanup = await deleteViewerMembershipForRecipient(
-      recipient.account_id,
-      recipient.email
-    );
-
-    if (!membershipCleanup.success) {
+  const recipientWithSharing = recipient as NotificationRecipientRowWithDashboardAccess;
+  if (recipientWithSharing.dashboard_access_granted_at) {
+    const revokeResult = await revokeDashboardAccess(recipient.account_id, recipientId);
+    if (!revokeResult.success) {
       logger.error(
         {
           recipientId,
           accountId: recipient.account_id,
-          recipientEmail: recipient.email,
-          cleanupError: membershipCleanup.error,
+          cleanupError: revokeResult.error,
         },
-        'Failed membership cleanup while removing notification recipient'
+        'Failed to revoke dashboard access before removing notification recipient'
       );
       return {
         success: false,
@@ -547,14 +546,22 @@ export async function removeNotificationRecipient(
     }
   }
 
-  const { error } = await client
+  const { data: deletedRecipient, error } = await client
     .from('ultaura_notification_recipients')
     .delete()
     .eq('id', recipientId)
-    .eq('account_id', recipient.account_id);
+    .eq('account_id', recipient.account_id)
+    .is('dashboard_access_granted_at', null)
+    .select('id')
+    .maybeSingle();
 
   if (error) {
     logger.error({ error, recipientId }, 'Failed to delete notification recipient');
+    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to remove recipient') };
+  }
+
+  if (!deletedRecipient) {
+    logger.error({ recipientId, accountId: recipient.account_id }, 'Recipient removal lost delete race');
     return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to remove recipient') };
   }
 

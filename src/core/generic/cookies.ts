@@ -18,14 +18,16 @@ export function setCookie(
     expires?: Date;
     sameSite?: 'strict' | 'lax' | 'none';
     httpOnly?: boolean;
+    secure?: boolean;
   } = {
     path: '/',
     sameSite: 'lax',
     expires: undefined,
     httpOnly: false,
+    secure: typeof window !== 'undefined' ? window.location.protocol === 'https:' : false,
   },
 ) {
-  let cookieText = `${name}=${value};`;
+  let cookieText = `${name}=${encodeURIComponent(value)};`;
 
   if (options.path) {
     cookieText += ` Path=${options.path};`;
@@ -41,6 +43,10 @@ export function setCookie(
 
   if (options.httpOnly) {
     cookieText += ` HttpOnly;`;
+  }
+
+  if (options.secure) {
+    cookieText += ` Secure;`;
   }
 
   document.cookie = cookieText;
