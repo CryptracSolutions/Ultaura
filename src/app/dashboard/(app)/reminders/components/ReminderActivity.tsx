@@ -229,7 +229,7 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
               className="border-l-4 px-5 py-4 sm:px-6"
               style={{ borderLeftColor: config.borderColor }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
                 <div
                   className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${config.badgeClassName}`}
                 >
@@ -247,25 +247,33 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
                         </span>
                       ) : null}
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                    <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                       via <span className="font-medium text-primary">{getTriggerLabel(event.triggered_by)}</span>
                     </span>
                   </div>
 
                   {event.reminder_message ? (
-                    <div className="mt-1.5 flex items-start justify-between gap-3">
-                      <p className="min-w-0 flex-1 line-clamp-2 text-sm text-foreground">
+                    <div className="mt-1.5">
+                      <p className="min-w-0 line-clamp-2 text-sm text-foreground">
                         &ldquo;{event.reminder_message}&rdquo;
                       </p>
-                      <p className="shrink-0 pt-0.5 text-xs text-primary">
-                        {formatEventTimestamp(event.created_at, lineTimezone)}
-                      </p>
                     </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-primary">
+                  ) : null}
+
+                  <div className="mt-1.5 hidden items-center justify-between gap-3 sm:flex">
+                    <p className="shrink-0 text-xs text-primary">
                       {formatEventTimestamp(event.created_at, lineTimezone)}
                     </p>
-                  )}
+                  </div>
+                </div>
+
+                <div className="mt-1.5 flex basis-full items-center justify-between gap-3 text-xs sm:hidden">
+                  <p className="shrink-0 text-primary">
+                    {formatEventTimestamp(event.created_at, lineTimezone)}
+                  </p>
+                  <span className="shrink-0 text-muted-foreground">
+                    via <span className="font-medium text-primary">{getTriggerLabel(event.triggered_by)}</span>
+                  </span>
                 </div>
               </div>
             </div>
