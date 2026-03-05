@@ -42,39 +42,69 @@ export function ResponsiveActionMenu({
 }: ResponsiveActionMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const [suppressTooltip, setSuppressTooltip] = useState(false);
 
   const isDisabled = disabled || loading;
 
   const handleAction = (action: ActionItem) => {
     if (action.disabled || !action.onClick) return;
+    setIsTooltipOpen(false);
+    setSuppressTooltip(true);
     setIsMenuOpen(false);
     setIsSheetOpen(false);
     action.onClick();
   };
 
+  const handleMenuOpenChange = (open: boolean) => {
+    setIsTooltipOpen(false);
+
+    if (!open) {
+      setSuppressTooltip(true);
+    }
+
+    if (
+      open &&
+      typeof window !== 'undefined' &&
+      !window.matchMedia('(min-width: 640px)').matches
+    ) {
+      setIsSheetOpen(true);
+      return;
+    }
+
+    setIsMenuOpen(open);
+  };
+
   return (
     <>
-      <DropdownMenu
-        open={isMenuOpen}
-        onOpenChange={(open) => {
-          if (
-            open &&
-            typeof window !== 'undefined' &&
-            !window.matchMedia('(min-width: 640px)').matches
-          ) {
-            setIsSheetOpen(true);
-          } else {
-            setIsMenuOpen(open);
-          }
-        }}
-      >
-        <Tooltip>
+      <DropdownMenu open={isMenuOpen} onOpenChange={handleMenuOpenChange}>
+        <Tooltip
+          open={isTooltipOpen}
+          onOpenChange={(open: boolean) => {
+            if (!open) {
+              setIsTooltipOpen(false);
+              return;
+            }
+
+            if (suppressTooltip || isMenuOpen || isSheetOpen) {
+              return;
+            }
+
+            setIsTooltipOpen(true);
+          }}
+        >
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <button
                 disabled={isDisabled}
                 className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 aria-label="Actions"
+                onPointerDown={() => setIsTooltipOpen(false)}
+                onPointerLeave={() => {
+                  setIsTooltipOpen(false);
+                  setSuppressTooltip(false);
+                }}
+                onBlur={() => setSuppressTooltip(false)}
               >
                 {loading ? (
                   <span className="w-5 h-5 block animate-spin rounded-full border-2 border-current border-t-transparent" />

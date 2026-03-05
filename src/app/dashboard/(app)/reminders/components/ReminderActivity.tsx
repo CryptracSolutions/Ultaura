@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { DateTime } from 'luxon';
 import {
   Clock,
   Pause,
@@ -19,49 +20,101 @@ import {
 import type { ReminderEventRow } from '~/lib/ultaura/types';
 import { getLineReminderEvents } from '~/lib/ultaura/reminder-events';
 
-const EVENT_CONFIG: Record<string, { icon: typeof Clock; color: string; label: string }> = {
-  created: { icon: Plus, color: 'text-green-600', label: 'Created' },
-  edited: { icon: Edit2, color: 'text-blue-600', label: 'Edited' },
-  paused: { icon: Pause, color: 'text-yellow-600', label: 'Paused' },
-  resumed: { icon: Play, color: 'text-green-600', label: 'Resumed' },
-  snoozed: { icon: AlarmClock, color: 'text-blue-600', label: 'Snoozed' },
-  skipped: { icon: SkipForward, color: 'text-orange-600', label: 'Skipped' },
-  canceled: { icon: X, color: 'text-red-600', label: 'Canceled' },
-  delivered: { icon: CheckCircle, color: 'text-green-600', label: 'Delivered' },
-  no_answer: { icon: PhoneMissed, color: 'text-yellow-600', label: 'No Answer' },
-  failed: { icon: AlertTriangle, color: 'text-red-600', label: 'Failed' },
+const CARD_SHELL_CLASS = 'overflow-hidden rounded-xl border border-border bg-card';
+
+const EVENT_CONFIG: Record<
+  string,
+  {
+    icon: typeof Clock;
+    badgeClassName: string;
+    borderColor: string;
+    label: string;
+  }
+> = {
+  created: {
+    icon: Plus,
+    badgeClassName: 'bg-emerald-500/10 text-emerald-500',
+    borderColor: '#10b981',
+    label: 'Created',
+  },
+  edited: {
+    icon: Edit2,
+    badgeClassName: 'bg-blue-500/10 text-blue-500',
+    borderColor: '#3b82f6',
+    label: 'Edited',
+  },
+  paused: {
+    icon: Pause,
+    badgeClassName: 'bg-amber-500/10 text-amber-500',
+    borderColor: '#f59e0b',
+    label: 'Paused',
+  },
+  resumed: {
+    icon: Play,
+    badgeClassName: 'bg-emerald-500/10 text-emerald-500',
+    borderColor: '#10b981',
+    label: 'Resumed',
+  },
+  snoozed: {
+    icon: AlarmClock,
+    badgeClassName: 'bg-blue-500/10 text-blue-500',
+    borderColor: '#3b82f6',
+    label: 'Snoozed',
+  },
+  skipped: {
+    icon: SkipForward,
+    badgeClassName: 'bg-orange-500/10 text-orange-500',
+    borderColor: '#f97316',
+    label: 'Skipped',
+  },
+  canceled: {
+    icon: X,
+    badgeClassName: 'bg-red-500/10 text-red-500',
+    borderColor: '#ef4444',
+    label: 'Canceled',
+  },
+  delivered: {
+    icon: CheckCircle,
+    badgeClassName: 'bg-emerald-500/10 text-emerald-500',
+    borderColor: '#10b981',
+    label: 'Delivered',
+  },
+  no_answer: {
+    icon: PhoneMissed,
+    badgeClassName: 'bg-amber-500/10 text-amber-500',
+    borderColor: '#f59e0b',
+    label: 'No Answer',
+  },
+  failed: {
+    icon: AlertTriangle,
+    badgeClassName: 'bg-red-500/10 text-red-500',
+    borderColor: '#ef4444',
+    label: 'Failed',
+  },
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
-  dashboard: 'via Dashboard',
-  voice: 'via Phone',
-  system: 'by System',
+  dashboard: 'Dashboard',
+  voice: 'Ultaura',
+  system: 'System',
 };
 
 interface ReminderActivityProps {
   lineId: string;
+  lineTimezone: string;
   initialEvents?: ReminderEventRow[];
 }
 
-function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+function formatLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+function formatEventTimestamp(isoString: string, timezone: string): string {
+  return DateTime.fromISO(isoString)
+    .setZone(timezone)
+    .toFormat('MMM d, h:mm a');
 }
 
 function formatEventDetails(event: ReminderEventRow): string | null {
@@ -105,7 +158,11 @@ function formatEventDetails(event: ReminderEventRow): string | null {
   return null;
 }
 
-export function ReminderActivity({ lineId, initialEvents }: ReminderActivityProps) {
+function getTriggerLabel(triggeredBy: string): string {
+  return TRIGGER_LABELS[triggeredBy] ?? formatLabel(triggeredBy);
+}
+
+export function ReminderActivity({ lineId, lineTimezone, initialEvents }: ReminderActivityProps) {
   const [events, setEvents] = useState<ReminderEventRow[]>(initialEvents || []);
   const [isLoading, setIsLoading] = useState(!initialEvents);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -125,17 +182,27 @@ export function ReminderActivity({ lineId, initialEvents }: ReminderActivityProp
 
   if (isLoading) {
     return (
-      <div className="p-4 text-center text-muted-foreground">
-        <span className="inline-block w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-        Loading activity...
+      <div className={CARD_SHELL_CLASS}>
+        <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Loading activity...
+        </div>
       </div>
     );
   }
 
   if (events.length === 0) {
     return (
-      <div className="p-4 text-center text-muted-foreground text-sm">
-        No activity yet
+      <div className={CARD_SHELL_CLASS}>
+        <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Clock className="h-5 w-5" />
+          </div>
+          <p className="text-sm font-medium text-foreground">No activity yet</p>
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            Reminder history will appear here once reminders are created, delivered, edited, or updated.
+          </p>
+        </div>
       </div>
     );
   }
@@ -144,44 +211,62 @@ export function ReminderActivity({ lineId, initialEvents }: ReminderActivityProp
   const hasMore = events.length > 5;
 
   return (
-    <div className="border border-input rounded-lg bg-card">
-      <div className="px-4 py-3 border-b border-input">
-        <h3 className="font-medium text-sm">Recent Activity</h3>
-      </div>
-
-      <div className="divide-y divide-input">
+    <div className={CARD_SHELL_CLASS}>
+      <div className="divide-y divide-border">
         {displayedEvents.map((event) => {
           const config = EVENT_CONFIG[event.event_type] || {
             icon: Clock,
-            color: 'text-muted-foreground',
-            label: event.event_type,
+            badgeClassName: 'bg-muted text-muted-foreground',
+            borderColor: 'var(--primary)',
+            label: formatLabel(event.event_type),
           };
           const Icon = config.icon;
           const details = formatEventDetails(event);
 
           return (
-            <div key={event.id} className="px-4 py-3 flex items-start gap-3">
-              <div className={`mt-0.5 ${config.color}`}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{config.label}</span>
-                  {details && (
-                    <span className="text-xs text-muted-foreground">{details}</span>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {TRIGGER_LABELS[event.triggered_by]}
-                  </span>
+            <div
+              key={event.id}
+              className="border-l-4 px-5 py-4 sm:px-6"
+              style={{ borderLeftColor: config.borderColor }}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${config.badgeClassName}`}
+                >
+                  <Icon className="h-5 w-5" />
                 </div>
-                {event.reminder_message && (
-                  <p className="text-sm text-foreground mt-0.5 truncate">
-                    &ldquo;{event.reminder_message}&rdquo;
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {formatRelativeTime(event.created_at)}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {config.label}
+                      </span>
+                      {details ? (
+                        <span className="inline-flex items-center rounded-full border border-border/60 bg-background/40 px-2 py-0.5 text-xs text-muted-foreground">
+                          {details}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      via <span className="font-medium text-primary">{getTriggerLabel(event.triggered_by)}</span>
+                    </span>
+                  </div>
+
+                  {event.reminder_message ? (
+                    <div className="mt-1.5 flex items-start justify-between gap-3">
+                      <p className="min-w-0 flex-1 line-clamp-2 text-sm text-foreground">
+                        &ldquo;{event.reminder_message}&rdquo;
+                      </p>
+                      <p className="shrink-0 pt-0.5 text-xs text-primary">
+                        {formatEventTimestamp(event.created_at, lineTimezone)}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-primary">
+                      {formatEventTimestamp(event.created_at, lineTimezone)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -191,7 +276,7 @@ export function ReminderActivity({ lineId, initialEvents }: ReminderActivityProp
       {hasMore && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t border-input"
+          className="flex w-full items-center justify-center gap-1 border-t border-border px-6 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
         >
           {isExpanded ? (
             <>
@@ -199,7 +284,7 @@ export function ReminderActivity({ lineId, initialEvents }: ReminderActivityProp
             </>
           ) : (
             <>
-              Show {events.length - 5} more <ChevronDown className="w-4 h-4" />
+              View {events.length - 5} more events <ChevronDown className="w-4 h-4" />
             </>
           )}
         </button>

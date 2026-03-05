@@ -406,7 +406,7 @@ export function RemindersPageClient({
           {filteredReminders.length > 0 && (
             <div>
               <h2 className="font-semibold text-lg mb-4">Reminder Activity</h2>
-              <ReminderActivity lineId={selectedLine.id} />
+              <ReminderActivity lineId={selectedLine.id} lineTimezone={selectedLine.timezone} />
             </div>
           )}
         </div>

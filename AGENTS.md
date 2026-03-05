@@ -57,7 +57,7 @@ You MUST follow these steps IN ORDER:
 | 5 | Spawn `worker` agents for implementation | Use `/agent` to launch up to 4 `worker` agents in parallel | **ALWAYS** |
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
-| 8 | Verify | TypeScript check, visual check if UI (`mcp__playwright__*`) | **ALWAYS** |
+| 8 | Verify | TypeScript check | **ALWAYS** |
 | 9 | Code simplification pass | Use `/agent` to launch a one-shot `simplifier` agent | **ALWAYS for medium/large** |
 | 10 | Shutdown & cleanup | Explicitly wait for completion and close all agents | **ALWAYS** |
 
@@ -216,17 +216,6 @@ Before finalizing the plan and proceeding to delegation:
 
 ---
 
-### Playwright Visual Verification
-
-For **any UI/UX changes**, use Playwright MCP for visual verification (when made available by the user):
-- **Before/after awareness**: Note current state before changes
-- **Interactive states**: Verify hover, focus, loading, error states
-
-Skip visual checks for:
-- Backend-only changes
-- Non-visual config changes
-- Database migrations
-
 ### Workflow Exceptions
 
 > **See "Exceptions" in the [MANDATORY: Delegation-First Workflow](#mandatory-delegation-first-workflow) section for the complete list.**
@@ -234,7 +223,6 @@ Skip visual checks for:
 Even when skipping delegation, you MUST still:
 - Auto-invoke relevant skills from the table below
 - Verify TypeScript compiles (`pnpm tsc --noEmit`)
-- Use Playwright MCP if it's a visible UI change
 ---
 
 # What is Ultaura?

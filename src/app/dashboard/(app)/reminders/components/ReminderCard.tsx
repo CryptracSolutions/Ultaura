@@ -99,14 +99,14 @@ const SNOOZED_CONFIG = {
 };
 
 const STATUS_BORDER_COLORS: Record<string, string> = {
-  scheduled: 'var(--primary)',
-  sent: 'var(--success)',
-  missed: 'var(--warning)',
-  canceled: 'var(--muted)',
+  scheduled: '#3b82f6',
+  sent: '#10b981',
+  missed: '#ef4444',
+  canceled: '#9ca3af',
 };
 
-const PAUSED_BORDER_COLOR = 'var(--warning)';
-const SNOOZED_BORDER_COLOR = 'var(--primary)';
+const PAUSED_BORDER_COLOR = '#f59e0b';
+const SNOOZED_BORDER_COLOR = '#3b82f6';
 
 function getBorderColor(reminder: ReminderCardReminder): string {
   if (reminder.isPaused) return PAUSED_BORDER_COLOR;
@@ -293,6 +293,9 @@ export function ReminderCard({
   onCancel,
 }: ReminderCardProps) {
   const isPast = reminder.status !== 'scheduled';
+  const showActionMenu = !isPast && !disabled;
+  const showPinnedBadge =
+    reminder.isPaused || (!!reminder.snoozedUntil && reminder.status === 'scheduled') || isPast;
   const statusConfig = STATUS_CONFIG[reminder.status];
   const effective = getEffectiveIcon(reminder);
   const EffectiveIcon = effective.icon;
@@ -337,7 +340,7 @@ export function ReminderCard({
             )}
           </div>
 
-          {/* Collapsible details section - always available since delivery method exists */}
+          {/* Collapsible details section */}
           <div className="mt-2">
             <button
               onClick={() => setDetailsExpanded(!detailsExpanded)}
@@ -351,30 +354,48 @@ export function ReminderCard({
             {detailsExpanded && (
               <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-border/60">
                 <DeliveryBadge reminder={reminder} />
-                <StatusBadge reminder={reminder} statusConfig={statusConfig} />
+                {!isPast && <StatusBadge reminder={reminder} statusConfig={statusConfig} />}
                 <RecurrenceBadge reminder={reminder} />
-                <SnoozeBadge reminder={reminder} />
+                {!reminder.isPaused && !(reminder.snoozedUntil && reminder.status === 'scheduled') && (
+                  <SnoozeBadge reminder={reminder} />
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Action menu for scheduled (active) reminders only */}
-      {!isPast && !disabled && (
-        <div className="shrink-0">
-          <ResponsiveActionMenu
-            title={reminder.message}
-            loading={loading}
-            actions={buildActions(reminder, {
-              onEdit,
-              onPause,
-              onResume,
-              onSnooze,
-              onSkip,
-              onCancel,
-            })}
-          />
+      {(showActionMenu || showPinnedBadge) && (
+        <div className="flex shrink-0 flex-col items-end gap-2 self-stretch">
+          {showActionMenu && (
+            <ResponsiveActionMenu
+              title={reminder.message}
+              loading={loading}
+              actions={buildActions(reminder, {
+                onEdit,
+                onPause,
+                onResume,
+                onSnooze,
+                onSkip,
+                onCancel,
+              })}
+            />
+          )}
+
+          {showPinnedBadge && (
+            <div className={showActionMenu ? '' : 'mt-auto'}>
+              {reminder.isPaused ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs font-medium">
+                  <Pause className="w-3 h-3" />
+                  Paused
+                </span>
+              ) : reminder.snoozedUntil && reminder.status === 'scheduled' ? (
+                <SnoozeBadge reminder={reminder} />
+              ) : isPast ? (
+                <StatusBadge reminder={reminder} statusConfig={statusConfig} />
+              ) : null}
+            </div>
+          )}
         </div>
       )}
     </div>

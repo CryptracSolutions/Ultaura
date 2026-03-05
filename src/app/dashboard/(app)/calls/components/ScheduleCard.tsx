@@ -36,9 +36,9 @@ interface ScheduleCardProps {
 }
 
 const STATUS_BORDER_COLORS = {
-  active: 'var(--primary)',
-  paused: 'var(--warning)',
-  oneTime: 'var(--info)',
+  active: '#3b82f6',
+  paused: '#f59e0b',
+  oneTime: '#6366f1',
 };
 
 function getBorderColor(schedule: ScheduleCardProps['schedule']): string {

@@ -45,6 +45,8 @@ export function LineCard({
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const [suppressTooltip, setSuppressTooltip] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => DateTime.now());
 
@@ -66,13 +68,32 @@ export function LineCard({
   };
 
   const openDeleteDialog = () => {
+    setIsTooltipOpen(false);
+    setSuppressTooltip(true);
     setIsMenuOpen(false);
     setDeleteDialogOpen(true);
   };
 
   const openDeleteFromSheet = () => {
+    setIsTooltipOpen(false);
+    setSuppressTooltip(true);
     setIsSheetOpen(false);
     setDeleteDialogOpen(true);
+  };
+
+  const handleMenuOpenChange = (open: boolean) => {
+    setIsTooltipOpen(false);
+
+    if (!open) {
+      setSuppressTooltip(true);
+    }
+
+    if (open && typeof window !== 'undefined' && !window.matchMedia('(min-width: 640px)').matches) {
+      setIsSheetOpen(true);
+      return;
+    }
+
+    setIsMenuOpen(open);
   };
 
   const isVerified = !!line.phone_verified_at;
@@ -204,18 +225,36 @@ export function LineCard({
             {!isViewer ? (
               <DropdownMenu
               open={isMenuOpen}
-              onOpenChange={(open) => {
-                if (open && typeof window !== 'undefined' && !window.matchMedia('(min-width: 640px)').matches) {
-                  setIsSheetOpen(true);
-                } else {
-                  setIsMenuOpen(open);
-                }
-              }}
+              onOpenChange={handleMenuOpenChange}
             >
-              <Tooltip>
+              <Tooltip
+                open={isTooltipOpen}
+                onOpenChange={(open: boolean) => {
+                  if (!open) {
+                    setIsTooltipOpen(false);
+                    return;
+                  }
+
+                  if (suppressTooltip || isMenuOpen || isSheetOpen) {
+                    return;
+                  }
+
+                  setIsTooltipOpen(true);
+                }}
+              >
                 <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="pointer-events-auto">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="pointer-events-auto"
+                      onPointerDown={() => setIsTooltipOpen(false)}
+                      onPointerLeave={() => {
+                        setIsTooltipOpen(false);
+                        setSuppressTooltip(false);
+                      }}
+                      onBlur={() => setSuppressTooltip(false)}
+                    >
                       <MoreVertical className="w-5 h-5 text-primary" />
                     </Button>
                   </DropdownMenuTrigger>

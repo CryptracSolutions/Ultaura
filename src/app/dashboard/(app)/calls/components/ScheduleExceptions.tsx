@@ -78,9 +78,9 @@ export function ScheduleExceptions({
   };
 
   const EXCEPTION_BORDER_COLORS: Record<string, string> = {
-    skip: 'var(--warning)',
-    snooze: 'var(--primary)',
-    reschedule: 'var(--info)',
+    skip: '#f59e0b',
+    snooze: '#3b82f6',
+    reschedule: '#6366f1',
   };
 
   const getExceptionTypeLabel = (type: string) => exceptionTypeLabels[type] ?? type;
