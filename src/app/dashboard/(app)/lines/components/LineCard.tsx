@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { DateTime } from 'luxon';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -45,6 +46,14 @@ export function LineCard({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => DateTime.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(DateTime.now());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDelete = async () => {
     const result = await deleteLine(line.id);
@@ -185,7 +194,7 @@ export function LineCard({
                   <span className="text-border">•</span>
                   <span className="inline-flex items-center gap-1">
                     <Clock className="w-3 h-3 text-primary" />
-                    <span>{formatTimezone(line.timezone)}</span>
+                    <span>{formatTimezone(line.timezone, currentTime)}</span>
                   </span>
                 </div>
               </div>
@@ -364,6 +373,9 @@ function formatPhoneNumber(e164: string): string {
   return e164;
 }
 
-function formatTimezone(timezone: string): string {
-  return timezone.replace(/_/g, ' ');
+function formatTimezone(timezone: string, now: DateTime = DateTime.now()): string {
+  const localTime = now.setZone(timezone);
+  const abbr = localTime.toFormat('ZZZZ');
+  const time = localTime.toFormat('h:mm a');
+  return `${time} (${abbr})`;
 }
