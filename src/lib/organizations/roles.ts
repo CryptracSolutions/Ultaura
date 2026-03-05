@@ -33,6 +33,17 @@ const MEMBER = {
   value: MembershipRole.Member,
 };
 
+export const VIEWER = {
+  label: 'common:roles.viewer.label',
+  description: 'common:roles.viewer.description',
+  value: MembershipRole.Viewer,
+};
+
 const roles = [OWNER, ADMIN, MEMBER];
+const roleMetadata = [...roles, VIEWER];
 
 export default roles;
+
+export function getRoleMetadata(role: MembershipRole) {
+  return roleMetadata.find((item) => item.value === role) ?? MEMBER;
+}

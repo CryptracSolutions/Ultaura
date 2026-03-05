@@ -13,6 +13,7 @@ import {
   ErrorCodes,
   type ActionResult,
 } from '@ultaura/schemas';
+import MembershipRole from '~/lib/organizations/types/membership-role';
 import { BILLING, PLANS } from './constants';
 import type { PlanId, UltauraAccountRow } from './types';
 import { getUltauraAccountById, getTrialStatus } from './helpers';
@@ -341,4 +342,43 @@ export async function getTrialInfo(accountId: string): Promise<{
     trialEndsAt: status.trialEndsAt,
     daysRemaining: status.daysRemaining,
   };
+}
+
+export async function getUltauraAccountsForViewer(
+  userId: string,
+): Promise<UltauraAccountRow[]> {
+  const adminClient = getSupabaseServerComponentClient({ admin: true });
+
+  const { data: memberships, error: membershipError } = await adminClient
+    .from('memberships')
+    .select('organization_id')
+    .eq('user_id', userId)
+    .eq('role', MembershipRole.Viewer);
+
+  if (membershipError || !memberships?.length) {
+    if (membershipError) {
+      logger.error({ membershipError, userId }, 'Failed to fetch viewer memberships');
+    }
+    return [];
+  }
+
+  const organizationIds = memberships
+    .map((membership) => membership.organization_id)
+    .filter((value): value is number => typeof value === 'number');
+
+  if (!organizationIds.length) {
+    return [];
+  }
+
+  const { data: accounts, error: accountsError } = await adminClient
+    .from('ultaura_accounts')
+    .select('*')
+    .in('organization_id', organizationIds);
+
+  if (accountsError) {
+    logger.error({ accountsError, userId }, 'Failed to fetch viewer accounts');
+    return [];
+  }
+
+  return accounts ?? [];
 }

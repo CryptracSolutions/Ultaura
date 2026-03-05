@@ -42,6 +42,7 @@ interface MilestonesClientProps {
   line: LineRow;
   milestones: MilestoneRow[];
   disabled?: boolean;
+  readOnly?: boolean;
 }
 
 interface MilestoneFormState {
@@ -64,7 +65,12 @@ const DEFAULT_FORM_STATE: MilestoneFormState = {
   isRecurring: true,
 };
 
-export function MilestonesClient({ line, milestones, disabled = false }: MilestonesClientProps) {
+export function MilestonesClient({
+  line,
+  milestones,
+  disabled = false,
+  readOnly = false,
+}: MilestonesClientProps) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,19 +79,19 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
   const [initialFormState, setInitialFormState] =
     useState<MilestoneFormState>(DEFAULT_FORM_STATE);
   const [milestoneToDelete, setMilestoneToDelete] = useState<MilestoneRow | null>(null);
+  const isReadOnly = disabled || readOnly;
 
-  const resetForm = () => {
+  const initializeForm = (open: boolean) => {
     setFormState(DEFAULT_FORM_STATE);
     setInitialFormState(DEFAULT_FORM_STATE);
     setEditingMilestone(null);
-    setShowForm(false);
+    setShowForm(open);
   };
 
+  const resetForm = () => initializeForm(false);
+
   const openAddForm = () => {
-    setFormState(DEFAULT_FORM_STATE);
-    setInitialFormState(DEFAULT_FORM_STATE);
-    setEditingMilestone(null);
-    setShowForm(true);
+    initializeForm(true);
   };
 
   const openEditForm = (milestone: MilestoneRow) => {
@@ -132,7 +138,7 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (disabled) return;
+    if (isReadOnly) return;
 
     if (!formState.title.trim()) {
       toast.error('Please enter a title');
@@ -160,7 +166,6 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         const result = await updateMilestone(editingMilestone.id, payload, line.short_id);
         if (!result.success) {
           toast.error(result.error.message || 'Failed to update milestone');
-          setIsSubmitting(false);
           return;
         }
         toast.success('Milestone updated');
@@ -168,7 +173,6 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         const result = await createMilestone(line.id, payload);
         if (!result.success) {
           toast.error(result.error.message || 'Failed to create milestone');
-          setIsSubmitting(false);
           return;
         }
         toast.success('Milestone added');
@@ -185,7 +189,7 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
   };
 
   const handleDelete = async () => {
-    if (!milestoneToDelete || disabled) return;
+    if (!milestoneToDelete || isReadOnly) return;
 
     const target = milestoneToDelete;
     setMilestoneToDelete(null);
@@ -206,20 +210,22 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         <p className="text-sm text-muted-foreground">
           Track birthdays, anniversaries, memorial dates, and special achievements so Ultaura can celebrate with you.
         </p>
-        <Button
-          onClick={openAddForm}
-          disabled={disabled}
-          variant="default"
-          size="small"
-          className="sm:w-auto"
-        >
-          <Plus className="h-3 w-3" />
-          Add Milestone
-        </Button>
+        {!readOnly ? (
+          <Button
+            onClick={openAddForm}
+            disabled={disabled}
+            variant="default"
+            size="small"
+            className="sm:w-auto"
+          >
+            <Plus className="h-3 w-3" />
+            Add Milestone
+          </Button>
+        ) : null}
       </div>
 
       <Dialog
-        open={showForm && !disabled}
+        open={showForm && !isReadOnly}
         onOpenChange={(open) => {
           if (!open) {
             resetForm();
@@ -423,10 +429,11 @@ export function MilestonesClient({ line, milestones, disabled = false }: Milesto
         onEdit={openEditForm}
         onDelete={(milestone) => setMilestoneToDelete(milestone)}
         disabled={disabled}
+        readOnly={readOnly}
       />
 
       <ConfirmationDialog
-        open={Boolean(milestoneToDelete)}
+        open={Boolean(milestoneToDelete) && !readOnly}
         onOpenChange={(open) => {
           if (!open) setMilestoneToDelete(null);
         }}

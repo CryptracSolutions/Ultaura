@@ -119,6 +119,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     const bTime = b.nextRunAt ? new Date(b.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
     return aTime - bTime;
   };
+  const sortedOneTimeSchedules = [...oneTimeSchedules].sort(sortByNextRunAt);
 
   // Find the schedule being edited (to get line info for the modal)
   const editingSchedule = editScheduleId ? scheduleById.get(editScheduleId) ?? null : null;
@@ -172,9 +173,15 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     setPreselectedLineId(null);
   };
 
-  const handleOpenForLine = (lineId: string) => {
-    setPreselectedLineId(lineId);
+  const openAddModal = (lineId?: string) => {
+    if (lineId) {
+      setPreselectedLineId(lineId);
+    }
     setShowAddModal(true);
+  };
+
+  const handleOpenForLine = (lineId: string) => {
+    openAddModal(lineId);
   };
 
   // -- No lines state --
@@ -199,23 +206,18 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
   return (
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          {!disabled && (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
+        {!disabled && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="default"
               size="small"
-              onClick={() => {
-                if (selectedLine) setPreselectedLineId(selectedLine.id);
-                setShowAddModal(true);
-              }}
+              onClick={() => openAddModal(selectedLine?.id)}
               className="w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               Add Schedule
             </Button>
-          )}
-          {!disabled && (
             <Button
               variant="default"
               size="small"
@@ -224,21 +226,21 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
             >
               Place Call
             </Button>
-          )}
-          {!disabled && selectedLine && recurringSchedules.length > 0 && (
-            <Button
-              variant="default"
-              size="small"
-              onClick={() => setShowNewExceptionModal(true)}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4" />
-              Create Exception
-            </Button>
-          )}
-        </div>
+            {selectedLine && recurringSchedules.length > 0 && (
+              <Button
+                variant="default"
+                size="small"
+                onClick={() => setShowNewExceptionModal(true)}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                Create Exception
+              </Button>
+            )}
+          </div>
+        )}
         {lines.length > 1 && (
-          <div className="w-full sm:w-[16rem] sm:ml-auto rounded-xl ring-2 ring-primary">
+          <div className="w-full sm:w-[16rem] rounded-xl ring-2 ring-primary">
             <ScheduleLineFilter
               lines={lineFilterData}
               currentLineShortId={selectedLineShortId}
@@ -251,7 +253,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
       {!selectedLine && (
         <div className="space-y-6">
           {lines.map((line) => {
-            const lineSchedules = schedulesByLine[line.id] || [];
+            const lineSchedules = schedulesByLine[line.id] ?? [];
             const enabledSchedules = lineSchedules.filter((s) => s.enabled).sort(sortByNextRunAt);
             const disabledSchedules = lineSchedules.filter((s) => !s.enabled).sort(sortByNextRunAt);
 
@@ -364,7 +366,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
             <div>
               <h2 className="font-semibold text-lg mb-3">One-time Calls</h2>
               <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border">
-                {oneTimeSchedules.sort(sortByNextRunAt).map((schedule) => (
+                {sortedOneTimeSchedules.map((schedule) => (
                   <ScheduleCard
                     key={schedule.scheduleId}
                     schedule={schedule}

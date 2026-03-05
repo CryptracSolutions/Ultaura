@@ -18,9 +18,19 @@ interface TopicsClientProps {
   line: LineRow;
   userType: UserType;
   disabled?: boolean;
+  readOnly?: boolean;
 }
 
-export function TopicsClient({ line, userType, disabled = false }: TopicsClientProps) {
+function splitCommaSeparated(value: string) {
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+export function TopicsClient({
+  line,
+  userType,
+  disabled = false,
+  readOnly = false,
+}: TopicsClientProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,6 +43,10 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
   const storedAvoidTopics = useMemo(
     () => line.seed_avoid_topics ?? [],
     [line.seed_avoid_topics]
+  );
+  const storedAvoidTopicsText = useMemo(
+    () => storedAvoidTopics.join(', '),
+    [storedAvoidTopics]
   );
 
   // Separate curated from custom topics for the form
@@ -51,16 +65,16 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
   // Edit form state
   const [selectedTopics, setSelectedTopics] = useState<string[]>(initialSelectedTopics);
   const [customTopics, setCustomTopics] = useState(initialCustomTopics);
-  const [avoidTopics, setAvoidTopics] = useState(storedAvoidTopics.join(', '));
+  const [avoidTopics, setAvoidTopics] = useState(storedAvoidTopicsText);
 
-  const canEdit = userType === 'family_managed';
+  const canEdit = userType === 'family_managed' && !readOnly;
   const hasAnyTopics = storedEnjoyTopics.length > 0 || storedAvoidTopics.length > 0;
 
   const resetForm = useCallback(() => {
     setSelectedTopics(initialSelectedTopics);
     setCustomTopics(initialCustomTopics);
-    setAvoidTopics(storedAvoidTopics.join(', '));
-  }, [initialSelectedTopics, initialCustomTopics, storedAvoidTopics]);
+    setAvoidTopics(storedAvoidTopicsText);
+  }, [initialSelectedTopics, initialCustomTopics, storedAvoidTopicsText]);
 
   const handleOpenEdit = () => {
     resetForm();
@@ -72,18 +86,19 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
   };
 
   const handleSave = async () => {
+    if (!canEdit || disabled) {
+      return;
+    }
+
     setIsSaving(true);
     try {
       // Combine selected + custom topics into array
-      const customList = customTopics.split(',').map((t) => t.trim()).filter(Boolean);
+      const customList = splitCommaSeparated(customTopics);
       const combinedTopics = Array.from(
         new Set([...selectedTopics, ...customList])
       ).slice(0, MAX_INTEREST_TOPICS);
 
-      const avoidList = avoidTopics
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
+      const avoidList = splitCommaSeparated(avoidTopics);
 
       const result = await updateLine(line.id, {
         seedInterests: combinedTopics,  // Always send array (empty or filled)
@@ -108,7 +123,7 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
   const hasChanges =
     selectedTopics.join(',') !== initialSelectedTopics.join(',') ||
     customTopics !== initialCustomTopics ||
-    avoidTopics !== storedAvoidTopics.join(', ');
+    avoidTopics !== storedAvoidTopicsText;
 
   return (
     <>
@@ -180,18 +195,15 @@ export function TopicsClient({ line, userType, disabled = false }: TopicsClientP
                 <p className="mt-2 text-sm text-muted-foreground">No topics to avoid set.</p>
               )}
             </div>
-
-            {!canEdit && (
-              <p className="text-xs text-muted-foreground">
-                You can change these topics by speaking with Ultaura during a call. Just say something like &quot;I&apos;d like to talk more about gardening&quot; or &quot;Please don&apos;t bring up politics.&quot;
-              </p>
-            )}
           </div>
         </div>
       </div>
 
       {/* Edit Modal */}
-      <Dialog open={isEditing} onOpenChange={(open) => !open && handleCloseEdit()}>
+      <Dialog
+        open={isEditing && canEdit && !disabled}
+        onOpenChange={(open) => !open && handleCloseEdit()}
+      >
         <DialogContent
           className="mobile-form-sheet max-h-[85vh] overflow-y-auto sm:w-[min(90vw,500px)] sm:max-w-[500px]"
           overlayClassName="bg-black/50 backdrop-blur-none"

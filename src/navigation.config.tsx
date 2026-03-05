@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 import configuration from '~/configuration';
+import MembershipRole from '~/lib/organizations/types/membership-role';
 
 type Divider = {
   divider: true;
@@ -39,10 +40,16 @@ type NavigationConfig = {
 export interface NavigationContext {
   userType?: 'self' | 'family_managed';
   accountId?: string;
+  role?: number;
 }
 
 const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
   const isSelfUser = context?.userType === 'self';
+  const normalizedRole = typeof context?.role === 'number' && Number.isFinite(context.role)
+    ? context.role
+    : null;
+  const isViewer = normalizedRole === Number(MembershipRole.Viewer);
+  const hasResolvedRole = normalizedRole !== null;
   const items: NavigationItem[] = [
     {
       label: 'Dashboard',
@@ -59,7 +66,7 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
       ],
     },
     {
-      label: 'Manage',
+      label: 'Care',
       collapsible: false,
       children: [
         {
@@ -68,7 +75,7 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
           Icon: ({ className }: { className: string }) => {
             return <PhoneIcon className={className} />;
           },
-          activeMatch: (currentPath: string) => isLineRouteActive(currentPath),
+          activeMatch: isLineRouteActive,
         },
         {
           label: 'Calls',
@@ -76,7 +83,7 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
           Icon: ({ className }: { className: string }) => {
             return <CalendarDaysIcon className={className} />;
           },
-          activeMatch: (currentPath: string) => isCallsRouteActive(currentPath),
+          activeMatch: isCallsRouteActive,
         },
         {
           label: 'Reminders',
@@ -84,44 +91,41 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
           Icon: ({ className }: { className: string }) => {
             return <BellIcon className={className} />;
           },
-          activeMatch: (currentPath: string) =>
-            isRemindersRouteActive(currentPath),
+          activeMatch: isRemindersRouteActive,
         },
       ],
     },
   ];
 
   if (!isSelfUser) {
-    items.push({
-      label: 'Care',
-      collapsible: false,
-      children: [
-        {
-          label: 'Insights',
-          path: getPath('insights'),
-          Icon: ({ className }: { className: string }) => {
-            return <EyeIcon className={className} />;
-          },
-          activeMatch: (currentPath: string) =>
-            isInsightsRouteActive(currentPath),
+    const careGroup = items.find(
+      (item): item is NavigationGroup => 'children' in item && item.label === 'Care',
+    );
+
+    careGroup?.children.push(
+      {
+        label: 'Insights',
+        path: getPath('insights'),
+        Icon: ({ className }: { className: string }) => {
+          return <EyeIcon className={className} />;
         },
-        {
-          label: 'Alerts',
-          path: getPath('alerts'),
-          Icon: ({ className }: { className: string }) => {
-            return <ExclamationTriangleIcon className={className} />;
-          },
-          activeMatch: (currentPath: string) =>
-            isAlertsRouteActive(currentPath),
+        activeMatch: isInsightsRouteActive,
+      },
+      {
+        label: 'Alerts',
+        path: getPath('alerts'),
+        Icon: ({ className }: { className: string }) => {
+          return <ExclamationTriangleIcon className={className} />;
         },
-      ],
-    });
+        activeMatch: isAlertsRouteActive,
+      },
+    );
   }
 
-  items.push({
-    label: 'Account',
-    collapsible: false,
-    children: [
+  const accountChildren: NavigationItemLink[] = [];
+
+  if (!isViewer && hasResolvedRole) {
+    accountChildren.push(
       {
         label: 'Usage',
         path: getPath('usage'),
@@ -136,8 +140,16 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
           return <ShieldCheckIcon className={className} />;
         },
       },
-    ],
-  });
+    );
+  }
+
+  if (accountChildren.length > 0) {
+    items.push({
+      label: 'Account',
+      collapsible: false,
+      children: accountChildren,
+    });
+  }
 
   return { items };
 };

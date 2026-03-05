@@ -95,8 +95,8 @@ export function RemindersPageClient({
     selectedLineLimits != null &&
     selectedLineLimits.limit != null &&
     selectedLineLimits.count >= selectedLineLimits.limit;
-  const isSelectedLineUnverified = selectedLine ? !selectedLine.phone_verified_at : false;
-  const isSetReminderDisabled = selectedLine ? (isAtLimit || isSelectedLineUnverified) : false;
+  const isSelectedLineUnverified = !!selectedLine && !selectedLine.phone_verified_at;
+  const isSetReminderDisabled = !!selectedLine && (isAtLimit || isSelectedLineUnverified);
 
   // Group reminders by line (All Lines view)
   const remindersByLine = reminders.reduce<Record<string, Reminder[]>>((acc, r) => {
@@ -233,7 +233,7 @@ export function RemindersPageClient({
   return (
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
         {!disabled && (
           <div className="space-y-1">
             <Button
@@ -252,7 +252,7 @@ export function RemindersPageClient({
           </div>
         )}
         {lines.length > 1 && (
-          <div className="w-full sm:w-[16rem] sm:ml-auto rounded-xl ring-2 ring-primary">
+          <div className="w-full sm:w-[16rem] rounded-xl ring-2 ring-primary">
             <ReminderLineFilter
               lines={lineFilterData}
               currentLineShortId={selectedLineShortId}
@@ -265,16 +265,14 @@ export function RemindersPageClient({
       {!selectedLine && (
         <div className="space-y-6">
           {lines.map((line) => {
-            const lineReminders = remindersByLine[line.id] || [];
+            const lineReminders = remindersByLine[line.id] ?? [];
             const lineScheduled = lineReminders.filter((r) => r.status === 'scheduled');
             const linePast = lineReminders.filter((r) => r.status !== 'scheduled');
             const lineLimits = reminderLimits[line.id];
             const activeCount = lineLimits?.count ?? lineScheduled.length;
             const allowedText = lineLimits?.limit == null ? 'Unlimited' : `${lineLimits.limit} allowed`;
             const isLineUnverified = !line.phone_verified_at;
-            const isLineAtLimit =
-              lineLimits?.limit != null &&
-              activeCount >= lineLimits.limit;
+            const isLineAtLimit = lineLimits?.limit != null && activeCount >= lineLimits.limit;
 
             return (
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
@@ -287,11 +285,7 @@ export function RemindersPageClient({
                   <p className="text-sm text-muted-foreground">
                     {activeCount} active reminders
                   </p>
-                  {allowedText ? (
-                    <p className="text-xs text-muted-foreground">
-                      {allowedText}
-                    </p>
-                  ) : null}
+                  <p className="text-xs text-muted-foreground">{allowedText}</p>
                 </div>
 
                 <div className="divide-y divide-border">
@@ -492,7 +486,8 @@ function PastRemindersSection({
         ))}
         {hasMore && (
           <button
-            onClick={() => setExpanded(!expanded)}
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
             className="w-full px-6 py-3 text-sm text-primary hover:underline text-center"
           >
             {expanded ? 'Show less' : `View all ${reminders.length} past reminders`}

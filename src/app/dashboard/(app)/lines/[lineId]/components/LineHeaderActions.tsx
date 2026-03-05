@@ -212,21 +212,22 @@ export function LineHeaderActions({
 
   return (
     <>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
-        <Button
-          onClick={() => {
-            setIsTestCallModalOpen(true);
-            setTestCallError(null);
-            setAlternatePhoneError(null);
-          }}
-          disabled={isReadOnly}
-          variant="default"
-          size="small"
-          className="w-full sm:w-auto"
-        >
-          Test Call
-        </Button>
-      </div>
+      {!isReadOnly ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
+          <Button
+            onClick={() => {
+              setIsTestCallModalOpen(true);
+              setTestCallError(null);
+              setAlternatePhoneError(null);
+            }}
+            variant="default"
+            size="small"
+            className="w-full sm:w-auto"
+          >
+            Test Call
+          </Button>
+        </div>
+      ) : null}
 
       <Modal
         heading="Test call"

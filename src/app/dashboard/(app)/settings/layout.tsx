@@ -7,6 +7,8 @@ import { withI18n } from '~/i18n/with-i18n';
 import { PageBody } from '~/core/ui/Page';
 import Trans from '~/core/ui/Trans';
 import configuration from '~/configuration';
+import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 const enableTeamAccounts = configuration.features.enableTeamAccounts;
 
@@ -33,6 +35,9 @@ const links = [
 async function SettingsLayout({
   children,
 }: React.PropsWithChildren) {
+  const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
+
   return (
     <>
       <AppHeader
@@ -41,18 +46,18 @@ async function SettingsLayout({
       />
 
       <PageBody>
-        <NavigationMenu bordered scrollable>
-          {links.map((link) => (
-            <NavigationItem
-              link={link}
-              key={link.path}
-            />
-          ))}
-        </NavigationMenu>
+        {!isViewer ? (
+          <NavigationMenu bordered scrollable>
+            {links.map((link) => (
+              <NavigationItem
+                link={link}
+                key={link.path}
+              />
+            ))}
+          </NavigationMenu>
+        ) : null}
 
-        <div
-          className={`mt-4 flex h-full flex-col space-y-4 lg:flex-row lg:space-x-8 lg:space-y-0`}
-        >
+        <div className="mt-4 flex h-full flex-col space-y-4 lg:flex-row lg:space-x-8 lg:space-y-0">
           {children}
         </div>
       </PageBody>

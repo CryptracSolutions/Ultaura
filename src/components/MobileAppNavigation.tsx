@@ -32,13 +32,29 @@ import { MobileFeedbackModal } from '~/components/MobileFeedbackModal';
 import Logo from '~/core/ui/Logo';
 import { useSearch } from '~/lib/contexts/SearchContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/core/ui/Dialog';
+import useUserSession from '~/core/hooks/use-user-session';
+import { useIsViewer } from '~/lib/contexts/viewer';
+import AccountSwitcher from '~/app/dashboard/(app)/components/AccountSwitcher';
+
+type OrganizationRoleEntry = {
+  organization: {
+    id: number;
+    uuid: string;
+    name: string;
+  };
+  role: number;
+};
 
 const MobileAppNavigation: React.FC<{
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-}> = ({ isOpen, onOpenChange }) => {
+  allOrganizations: OrganizationRoleEntry[];
+  userId: string;
+}> = ({ isOpen, onOpenChange, allOrganizations, userId }) => {
   const currentOrganization = useCurrentOrganization();
   const { data: ultauraAccount } = useUltauraAccount();
+  const userSession = useUserSession();
+  const isViewer = useIsViewer();
   const { openManualCall } = useManualCall();
   const { openAddReminder } = useAddReminder();
   const { openAddSchedule } = useAddSchedule();
@@ -100,7 +116,11 @@ const MobileAppNavigation: React.FC<{
       : undefined;
   const navConfig = NAVIGATION_CONFIG(
     ultauraAccount
-      ? { userType, accountId: ultauraAccount.id }
+      ? {
+          userType,
+          accountId: ultauraAccount.id,
+          role: userSession?.role == null ? undefined : Number(userSession.role),
+        }
       : undefined
   );
   const navGroups = navConfig.items.filter(
@@ -130,13 +150,15 @@ const MobileAppNavigation: React.FC<{
               wordmarkClassName="text-2xl font-semibold leading-none text-primary"
             />
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setQuickActionsOpen(true)}
-                className="p-2 hover:bg-muted rounded-md transition-colors"
-                aria-label="Quick Actions"
-              >
-                <PlusIcon className="h-6 w-6 text-primary" />
-              </button>
+              {!isViewer ? (
+                <button
+                  onClick={() => setQuickActionsOpen(true)}
+                  className="p-2 hover:bg-muted rounded-md transition-colors"
+                  aria-label="Quick Actions"
+                >
+                  <PlusIcon className="h-6 w-6 text-primary" />
+                </button>
+              ) : null}
               <button
                 onClick={openMobile}
                 className="p-2 hover:bg-muted rounded-md transition-colors"
@@ -158,6 +180,16 @@ const MobileAppNavigation: React.FC<{
 
           {/* Menu Content */}
           <div className="overflow-y-auto h-[calc(100dvh-57px)]">
+            {allOrganizations.length > 1 ? (
+              <div className="px-4 py-3 border-b border-border/60">
+                <AccountSwitcher
+                  organizations={allOrganizations}
+                  currentOrganizationUuid={currentOrganization?.uuid}
+                  userId={userId}
+                />
+              </div>
+            ) : null}
+
             {/* Navigation Groups (includes Account with Usage/Privacy from navConfig) */}
             {navGroups.map((group) => (
               <MenuSection key={group.label} label={group.label}>
@@ -201,39 +233,41 @@ const MobileAppNavigation: React.FC<{
         onClose={() => setFeedbackOpen(false)}
       />
 
-      <Dialog open={quickActionsOpen} onOpenChange={setQuickActionsOpen}>
-        <DialogContent className="z-[60] p-0" overlayClassName="z-[60]" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <DialogHeader className="px-5 pt-5 pb-2">
-            <DialogTitle className="text-base font-semibold">
-              Quick Actions
-            </DialogTitle>
-          </DialogHeader>
-          <div className="pb-2">
-            <MenuButton
-              Icon={BellIcon}
-              label="Set Reminder"
-              onClick={() => handleQuickAction(openAddReminder)}
-            />
-            <MenuButton
-              Icon={CalendarIcon}
-              label="Schedule Call"
-              onClick={() => handleQuickAction(openAddSchedule)}
-            />
-            {userType === 'family_managed' && (
+      {!isViewer ? (
+        <Dialog open={quickActionsOpen} onOpenChange={setQuickActionsOpen}>
+          <DialogContent className="z-[60] p-0" overlayClassName="z-[60]" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader className="px-5 pt-5 pb-2">
+              <DialogTitle className="text-base font-semibold">
+                Quick Actions
+              </DialogTitle>
+            </DialogHeader>
+            <div className="pb-2">
               <MenuButton
-                Icon={PhoneArrowUpRightIcon}
-                label="Place Call"
-                onClick={() => handleQuickAction(openManualCall)}
+                Icon={BellIcon}
+                label="Set Reminder"
+                onClick={() => handleQuickAction(openAddReminder)}
               />
-            )}
-            <MenuButton
-              Icon={PhoneIcon}
-              label="Add Line"
-              onClick={() => handleQuickAction(openAddLine)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+              <MenuButton
+                Icon={CalendarIcon}
+                label="Schedule Call"
+                onClick={() => handleQuickAction(openAddSchedule)}
+              />
+              {userType === 'family_managed' && (
+                <MenuButton
+                  Icon={PhoneArrowUpRightIcon}
+                  label="Place Call"
+                  onClick={() => handleQuickAction(openManualCall)}
+                />
+              )}
+              <MenuButton
+                Icon={PhoneIcon}
+                label="Add Line"
+                onClick={() => handleQuickAction(openAddLine)}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </>
   );
 };

@@ -21,6 +21,8 @@ import getLogger from '~/core/logger';
 import configuration from '~/configuration';
 import initializeServerI18n from '~/i18n/i18n.server';
 import getLanguageCookie from '~/i18n/get-language-cookie';
+import { parseOrganizationIdCookie } from '~/lib/server/cookies/organization.cookie';
+import MembershipRole from '~/lib/organizations/types/membership-role';
 
 /**
  * @name loadAppData
@@ -170,7 +172,12 @@ export const loadAppDataForUser = async () => {
       return redirectToOnboarding();
     }
 
-    // Get user's organizations (should be exactly one in 1:1 mapping)
+    await autoLinkPendingViewerMemberships({
+      userId,
+      userEmail: user.email,
+      emailVerifiedAt: user.email_confirmed_at,
+    });
+
     const { data: organizationsData, error: orgsError } =
       await getOrganizationsByUserId(client, userId);
 
@@ -180,14 +187,28 @@ export const loadAppDataForUser = async () => {
           name: 'loadAppDataForUser',
           userId,
         },
-        `User is not a member of any organization. Redirecting to onboarding...`,
+        `User is not a member of any organization. Redirecting...`,
       );
 
-      return redirectToOnboarding();
+      return redirect('/dashboard/access-removed');
     }
 
-    // Use the first (and should be only) organization
-    const { organization, role } = organizationsData[0];
+    const sortedOrganizations = [...organizationsData].sort((a, b) => {
+      return getRolePriority(b.role) - getRolePriority(a.role);
+    });
+
+    const organizationCookie = await parseOrganizationIdCookie(userId);
+    const cookieSelection = organizationCookie
+      ? sortedOrganizations.find((item) => item.organization?.uuid === organizationCookie)
+      : undefined;
+
+    const defaultSelection = sortedOrganizations.find(
+      (item) => item.role !== MembershipRole.Viewer,
+    ) ?? sortedOrganizations[0];
+
+    const selectedMembership = cookieSelection ?? defaultSelection;
+    const organization = selectedMembership?.organization;
+    const role = selectedMembership?.role;
 
     if (!organization) {
       logger.info(
@@ -220,6 +241,10 @@ export const loadAppDataForUser = async () => {
       user: userRecord,
       organization,
       role,
+      allOrganizations: sortedOrganizations.map((item) => ({
+        organization: item.organization,
+        role: item.role,
+      })),
       ui: getUIStateCookies(),
     };
   } catch (error) {
@@ -253,3 +278,114 @@ function getCsrfToken() {
 }
 
 export default loadAppData;
+
+function getRolePriority(role: MembershipRole) {
+  switch (role) {
+    case MembershipRole.Owner:
+      return 4;
+    case MembershipRole.Admin:
+      return 3;
+    case MembershipRole.Member:
+      return 2;
+    case MembershipRole.Viewer:
+    default:
+      return 1;
+  }
+}
+
+export async function autoLinkPendingViewerMemberships(params: {
+  userId: string;
+  userEmail?: string | null;
+  emailVerifiedAt?: string | null;
+}) {
+  const logger = getLogger();
+  const normalizedEmail = params.userEmail?.trim().toLowerCase();
+
+  if (!normalizedEmail || !params.emailVerifiedAt) {
+    return;
+  }
+
+  const adminClient = getSupabaseServerComponentClient({ admin: true });
+  const { data: pendingMemberships, error: lookupError } = await adminClient
+    .from('memberships')
+    .select('id, organization_id')
+    .eq('invited_email', normalizedEmail)
+    .eq('role', MembershipRole.Viewer)
+    .not('code', 'is', null);
+
+  if (lookupError || !pendingMemberships?.length) {
+    return;
+  }
+
+  const { data: recipients, error: recipientsError } = await adminClient
+    .from('ultaura_notification_recipients')
+    .select('account_id')
+    .eq('email', normalizedEmail)
+    .not('confirmed_at', 'is', null)
+    .not('dashboard_access_granted_at', 'is', null);
+
+  if (recipientsError || !recipients?.length) {
+    return;
+  }
+
+  const recipientAccountIds = Array.from(
+    new Set(recipients.map((recipient) => recipient.account_id).filter(Boolean)),
+  );
+
+  if (!recipientAccountIds.length) {
+    return;
+  }
+
+  const { data: recipientAccounts, error: accountsError } = await adminClient
+    .from('ultaura_accounts')
+    .select('id, organization_id')
+    .in('id', recipientAccountIds);
+
+  if (accountsError || !recipientAccounts?.length) {
+    return;
+  }
+
+  const organizationsWithGrantedAccess = new Set(
+    recipientAccounts.map((account) => account.organization_id),
+  );
+
+  for (const membership of pendingMemberships) {
+    if (!organizationsWithGrantedAccess.has(membership.organization_id)) {
+      continue;
+    }
+
+    const { error: updateError } = await adminClient
+      .from('memberships')
+      .update({
+        user_id: params.userId,
+        invited_email: null,
+        code: null,
+      })
+      .eq('id', membership.id);
+
+    if (!updateError) {
+      continue;
+    }
+
+    // Already linked in a concurrent flow; clean up stale pending invite.
+    if (updateError.code === '23505') {
+      await adminClient
+        .from('memberships')
+        .delete()
+        .eq('id', membership.id)
+        .not('code', 'is', null);
+      continue;
+    }
+
+    logger.warn(
+      {
+        name: 'autoLinkPendingViewerMemberships',
+        userId: params.userId,
+        membershipId: membership.id,
+        organizationId: membership.organization_id,
+        error: updateError,
+      },
+      'Failed to auto-link pending viewer membership',
+    );
+  }
+}

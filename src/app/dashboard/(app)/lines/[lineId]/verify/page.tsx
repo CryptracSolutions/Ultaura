@@ -10,6 +10,8 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
+import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
+import { redirectViewerAway } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Verify Phone - Ultaura',
@@ -20,6 +22,9 @@ interface PageProps {
 }
 
 export default async function VerifyPhonePage({ params }: PageProps) {
+  const appData = await loadAppDataForUser();
+  redirectViewerAway(appData.role);
+
   const line = await getLine(params.lineId);
 
   if (!line) {

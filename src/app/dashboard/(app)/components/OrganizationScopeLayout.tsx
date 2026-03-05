@@ -28,18 +28,38 @@ import { SearchProvider } from '~/lib/contexts/SearchContext';
 import SearchBottomSheet from '~/components/SearchCommandPalette';
 import I18nProvider from '~/i18n/I18nProvider';
 import type { DocsIndexItem } from '~/lib/search/types';
+import ViewerModeBanner from '~/components/ViewerModeBanner';
 
 import { setCookie } from '~/core/generic/cookies';
 import AuthChangeListener from '~/components/AuthChangeListener';
 import type loadAppData from '~/lib/server/loaders/load-app-data';
 import { Page } from '~/core/ui/Page';
 import { cva } from 'cva';
+import { ViewerProvider } from '~/lib/contexts/viewer';
+
+type OrganizationRoleEntry = {
+  organization: Organization;
+  role: number;
+};
 
 const OrganizationScopeLayout: React.FCC<{
   data: Awaited<ReturnType<typeof loadAppData>>;
   ultauraAccountId?: string | null;
   docsIndex: DocsIndexItem[];
-}> = ({ data, ultauraAccountId, docsIndex, children }) => {
+  isViewer?: boolean;
+  accountHolderName?: string | null;
+  seniorName?: string | null;
+  allOrganizations?: OrganizationRoleEntry[];
+}> = ({
+  data,
+  ultauraAccountId,
+  docsIndex,
+  isViewer = false,
+  accountHolderName = null,
+  seniorName = null,
+  allOrganizations = [],
+  children,
+}) => {
   const userSessionContext: UserSession = useMemo(() => {
     return {
       auth: data.auth,
@@ -84,28 +104,36 @@ const OrganizationScopeLayout: React.FCC<{
               <AuthChangeListener
                 whenSignedOut={'/'}
               >
-                <HelpPanelProvider>
-                  <ManualCallProvider>
-                    <AddReminderProvider>
-                      <AddScheduleProvider>
-                        <AddLineProvider>
-                          <SearchProvider docsIndex={docsIndex}>
-                            <Toaster richColors={false} />
-                            <main>
-                              <RouteShellWithSidebar
-                                collapsed={data.ui.sidebarState === 'collapsed'}
-                                ultauraAccountId={ultauraAccountId}
-                              >
-                                {children}
-                              </RouteShellWithSidebar>
-                            </main>
-                            <SearchBottomSheet />
-                          </SearchProvider>
-                        </AddLineProvider>
-                      </AddScheduleProvider>
-                    </AddReminderProvider>
-                  </ManualCallProvider>
-                </HelpPanelProvider>
+                <ViewerProvider
+                  isViewer={isViewer}
+                  accountHolderName={accountHolderName}
+                  seniorName={seniorName}
+                >
+                  <HelpPanelProvider>
+                    <ManualCallProvider>
+                      <AddReminderProvider>
+                        <AddScheduleProvider>
+                          <AddLineProvider>
+                            <SearchProvider docsIndex={docsIndex}>
+                              <Toaster richColors={false} />
+                              <main>
+                                <RouteShellWithSidebar
+                                  collapsed={data.ui.sidebarState === 'collapsed'}
+                                  ultauraAccountId={ultauraAccountId}
+                                  allOrganizations={allOrganizations}
+                                  userId={data.auth.user.id}
+                                >
+                                  {children}
+                                </RouteShellWithSidebar>
+                              </main>
+                              <SearchBottomSheet />
+                            </SearchProvider>
+                          </AddLineProvider>
+                        </AddScheduleProvider>
+                      </AddReminderProvider>
+                    </ManualCallProvider>
+                  </HelpPanelProvider>
+                </ViewerProvider>
               </AuthChangeListener>
             </I18nProvider>
           </CsrfTokenContext.Provider>
@@ -121,6 +149,8 @@ function RouteShellWithSidebar(
   props: React.PropsWithChildren<{
     collapsed: boolean;
     ultauraAccountId?: string | null;
+    allOrganizations: OrganizationRoleEntry[];
+    userId: string;
   }>,
 ) {
   const [collapsed, setCollapsed] = useCollapsible(props.collapsed);
@@ -139,10 +169,16 @@ function RouteShellWithSidebar(
     <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
       <Page
         contentContainerClassName={className}
-        sidebar={<AppSidebar />}
+        sidebar={
+          <AppSidebar
+            allOrganizations={props.allOrganizations}
+            userId={props.userId}
+          />
+        }
       >
         <MobileDashboardHeader onMenuOpen={() => setMobileMenuOpen(true)} />
         <TopNavBar onHelpToggle={toggleHelp} />
+        <ViewerModeBanner />
         {props.ultauraAccountId ? (
           <InProgressCallBanner accountId={props.ultauraAccountId} />
         ) : null}
@@ -152,6 +188,8 @@ function RouteShellWithSidebar(
       <MobileAppNavigation
         isOpen={mobileMenuOpen}
         onOpenChange={setMobileMenuOpen}
+        allOrganizations={props.allOrganizations}
+        userId={props.userId}
       />
       <HelpPanel isOpen={isHelpOpen} onClose={closeHelp} />
     </SidebarContext.Provider>

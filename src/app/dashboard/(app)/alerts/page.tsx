@@ -12,6 +12,7 @@ import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
 import { AlertsPageClient } from './AlertsPageClient';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Alerts - Ultaura',
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 
 export default async function AlertsPage() {
   const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {
@@ -109,7 +111,7 @@ export default async function AlertsPage() {
             lines={lines}
             settings={settings}
             deliveryEmail={appData.auth?.user?.email ?? account.billing_email}
-            disabled={isTrialExpired}
+            disabled={isTrialExpired || isViewer}
           />
         </div>
       </PageBody>

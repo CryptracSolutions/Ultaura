@@ -22,8 +22,21 @@ import { cn } from '~/core/generic/shadcn-utils';
 import configuration from '~/configuration';
 import Logo from '~/core/ui/Logo';
 import LogoImage from '~/core/ui/Logo/LogoImage';
+import AccountSwitcher from './AccountSwitcher';
 
-const AppSidebar: React.FC = () => {
+type OrganizationRoleEntry = {
+  organization: {
+    id: number;
+    uuid: string;
+    name: string;
+  };
+  role: number;
+};
+
+const AppSidebar: React.FC<{
+  allOrganizations: OrganizationRoleEntry[];
+  userId: string;
+}> = ({ allOrganizations, userId }) => {
   const ctx = useContext(SidebarContext);
 
   return (
@@ -77,6 +90,12 @@ const AppSidebar: React.FC = () => {
       <div className={'absolute left-0 bottom-2 w-full'}>
         <hr className="border-border mb-2" />
         <div className="w-full px-2">
+          {!ctx.collapsed ? (
+            <AccountSwitcherContainer
+              allOrganizations={allOrganizations}
+              userId={userId}
+            />
+          ) : null}
           <ProfileDropdownContainer collapsed={ctx.collapsed} />
         </div>
       </div>
@@ -141,6 +160,23 @@ function ProfileDropdownContainer(props: { collapsed: boolean }) {
         signOutRequested={signOut}
         accountName={organization?.name}
         planLabel={planLabel}
+      />
+    </div>
+  );
+}
+
+function AccountSwitcherContainer(props: {
+  allOrganizations: OrganizationRoleEntry[];
+  userId: string;
+}) {
+  const organization = useCurrentOrganization();
+
+  return (
+    <div className="mb-2">
+      <AccountSwitcher
+        organizations={props.allOrganizations}
+        currentOrganizationUuid={organization?.uuid}
+        userId={props.userId}
       />
     </div>
   );

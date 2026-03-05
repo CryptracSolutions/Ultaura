@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import classNames from 'clsx';
 import Trans from '~/core/ui/Trans';
+import { useIsViewer } from '~/lib/contexts/viewer';
 
 interface LineTabNavProps {
   lineShortId: string;
@@ -19,11 +20,22 @@ const LINE_TABS = [
   { key: 'contacts', label: 'Trusted Contacts', pathSuffix: '/contacts' },
 ] as const;
 
+const VIEWER_TAB_KEYS = new Set<string>([
+  'overview',
+  'topics',
+  'milestones',
+  'contacts',
+]);
+
 export function LineTabNav({ lineShortId }: LineTabNavProps) {
+  const isViewer = useIsViewer();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const basePath = `/dashboard/lines/${lineShortId}`;
   const tabRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const visibleTabs = isViewer
+    ? LINE_TABS.filter((tab) => VIEWER_TAB_KEYS.has(tab.key))
+    : LINE_TABS;
 
   const getIsActive = useCallback((pathSuffix: string) => {
     const fullPath = `${basePath}${pathSuffix}`;
@@ -43,9 +55,10 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
     return pathname.startsWith(fullPath);
   }, [basePath, pathname, searchParams]);
 
-  const activeIndex = useMemo(() => {
-    return LINE_TABS.findIndex((tab) => getIsActive(tab.pathSuffix));
-  }, [getIsActive]);
+  const activeIndex = useMemo(
+    () => visibleTabs.findIndex((tab) => getIsActive(tab.pathSuffix)),
+    [getIsActive, visibleTabs],
+  );
 
   // Scroll active tab into view on mount/navigation (for mobile)
   useEffect(() => {
@@ -74,7 +87,7 @@ export function LineTabNav({ lineShortId }: LineTabNavProps) {
 
   return (
     <ul className="w-full items-center flex gap-2 lg:gap-3 border-b border-border pb-1.5 overflow-x-auto flex-nowrap scrollbar-hide">
-      {LINE_TABS.map((tab, index) => {
+      {visibleTabs.map((tab, index) => {
         const isActive = getIsActive(tab.pathSuffix);
         return (
           <li

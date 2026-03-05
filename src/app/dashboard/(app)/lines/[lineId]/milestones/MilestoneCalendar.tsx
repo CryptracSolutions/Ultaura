@@ -13,6 +13,7 @@ interface MilestoneCalendarProps {
   onEdit: (milestone: MilestoneRow) => void;
   onDelete: (milestone: MilestoneRow) => void;
   disabled?: boolean;
+  readOnly?: boolean;
 }
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -86,6 +87,7 @@ export function MilestoneCalendar({
   onEdit,
   onDelete,
   disabled = false,
+  readOnly = false,
 }: MilestoneCalendarProps) {
   const now = DateTime.now().setZone(line.timezone);
   const currentYear = now.year;
@@ -304,24 +306,26 @@ export function MilestoneCalendar({
                       </div>
                     </div>
 
-                    <ResponsiveActionMenu
-                      title={milestone.title}
-                      disabled={disabled}
-                      actions={[
-                        {
-                          label: 'Edit',
-                          icon: <Edit2 className="w-5 h-5" />,
-                          onClick: () => onEdit(milestone),
-                        },
-                        {
-                          label: 'Delete',
-                          icon: <Trash2 className="w-5 h-5" />,
-                          onClick: () => onDelete(milestone),
-                          variant: 'destructive' as const,
-                          separator: true,
-                        },
-                      ]}
-                    />
+                    {!readOnly ? (
+                      <ResponsiveActionMenu
+                        title={milestone.title}
+                        disabled={disabled}
+                        actions={[
+                          {
+                            label: 'Edit',
+                            icon: <Edit2 className="w-5 h-5" />,
+                            onClick: () => onEdit(milestone),
+                          },
+                          {
+                            label: 'Delete',
+                            icon: <Trash2 className="w-5 h-5" />,
+                            onClick: () => onDelete(milestone),
+                            variant: 'destructive' as const,
+                            separator: true,
+                          },
+                        ]}
+                      />
+                    ) : null}
                   </div>
                 </div>
               );

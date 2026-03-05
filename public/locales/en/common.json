@@ -53,6 +53,10 @@
     "member": {
       "label": "Member",
       "description": "Cannot invite members or change settings"
+    },
+    "viewer": {
+      "label": "Viewer",
+      "description": "Can view shared dashboard information with read-only access"
     }
   }
 }

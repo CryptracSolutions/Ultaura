@@ -206,6 +206,7 @@ export interface NotificationRecipient {
   trustedContactId: string | null;
   confirmedAt: string | null;
   unsubscribedAt: string | null;
+  dashboardAccessGrantedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

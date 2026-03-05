@@ -6,6 +6,7 @@ import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { PLANS } from '~/lib/ultaura/constants';
 import { getTrialStatus } from '~/lib/ultaura/helpers';
 import { TrialStatusCard } from './components/TrialStatusCard';
+import { redirectViewerAway } from '~/lib/ultaura/viewer-guards';
 
 export const metadata = {
   title: 'Subscription',
@@ -13,6 +14,7 @@ export const metadata = {
 
 async function SubscriptionSettingsPage() {
   const appData = await loadAppDataForUser();
+  redirectViewerAway(appData.role);
   const organizationId = appData.organization?.id;
   const account = organizationId
     ? await getUltauraAccount(organizationId)

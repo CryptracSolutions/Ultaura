@@ -53,9 +53,23 @@ const LINE_PAGES: LinePageDefinition[] = [
   },
 ];
 
-export function buildLineNavigationItems(lines: SearchItem[]): NavigationSearchItem[] {
+const VIEWER_VISIBLE_LINE_PAGE_KEYS = new Set([
+  'overview',
+  'topics',
+  'milestones',
+  'contacts',
+]);
+
+export function buildLineNavigationItems(
+  lines: SearchItem[],
+  options?: { isViewer?: boolean },
+): NavigationSearchItem[] {
+  const pages = options?.isViewer
+    ? LINE_PAGES.filter((page) => VIEWER_VISIBLE_LINE_PAGE_KEYS.has(page.key))
+    : LINE_PAGES;
+
   return lines.flatMap((line) => {
-    return LINE_PAGES.map((page) => {
+    return pages.map((page) => {
       const href = `${line.href}${page.pathSuffix}`;
       const keywords = [
         page.label,

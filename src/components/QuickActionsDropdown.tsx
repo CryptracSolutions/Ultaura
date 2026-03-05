@@ -12,6 +12,7 @@ import { useManualCall } from '~/lib/contexts/ManualCallContext';
 import { useAddReminder } from '~/lib/contexts/AddReminderContext';
 import { useAddSchedule } from '~/lib/contexts/AddScheduleContext';
 import { useAddLine } from '~/lib/contexts/AddLineContext';
+import { useIsViewer } from '~/lib/contexts/viewer';
 
 import {
   DropdownMenu,
@@ -26,11 +27,16 @@ import Button from '~/core/ui/Button';
 
 const QuickActionsDropdown: React.FC = () => {
   const { data: account } = useUltauraAccount();
+  const isViewer = useIsViewer();
   const { openManualCall } = useManualCall();
   const { openAddReminder } = useAddReminder();
   const { openAddSchedule } = useAddSchedule();
   const { openAddLine } = useAddLine();
   const isFamilyManaged = account?.user_type === 'family_managed';
+
+  if (isViewer) {
+    return null;
+  }
 
   return (
     <DropdownMenu modal={false}>

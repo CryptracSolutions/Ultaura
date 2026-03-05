@@ -30,6 +30,13 @@ export interface FamilyRecipientsSectionProps {
   recipients: NotificationRecipient[];
   isInviting: boolean;
   onRemoveRecipient: (recipientId: string) => Promise<void>;
+  onGrantDashboardAccess: (recipient: NotificationRecipient) => void;
+  onRevokeDashboardAccess: (recipientId: string) => Promise<void>;
+  isDashboardSharingLoading: boolean;
+  isGrantConfirmOpen: boolean;
+  pendingGrantRecipient: NotificationRecipient | null;
+  onCancelGrant: () => void;
+  onConfirmGrant: () => Promise<void>;
   showInviteModal: boolean;
   setShowInviteModal: (open: boolean) => void;
   inviteError: string | null;
@@ -60,6 +67,13 @@ export function FamilyRecipientsSection({
   recipients,
   isInviting,
   onRemoveRecipient,
+  onGrantDashboardAccess,
+  onRevokeDashboardAccess,
+  isDashboardSharingLoading,
+  isGrantConfirmOpen,
+  pendingGrantRecipient,
+  onCancelGrant,
+  onConfirmGrant,
   showInviteModal,
   setShowInviteModal,
   inviteError,
@@ -153,6 +167,9 @@ export function FamilyRecipientsSection({
           <InvitedFamilyList
             recipients={recipients}
             onRemove={onRemoveRecipient}
+            onGrantDashboardAccess={onGrantDashboardAccess}
+            onRevokeDashboardAccess={onRevokeDashboardAccess}
+            dashboardAccessLoading={isDashboardSharingLoading}
             disabled={isInviting}
           />
 
@@ -331,6 +348,24 @@ export function FamilyRecipientsSection({
             cancelLabel="Stay here"
             variant="default"
             onConfirm={closeInviteModal}
+          />
+
+          <ConfirmationDialog
+            open={isGrantConfirmOpen}
+            onOpenChange={(open) => {
+              if (!open) onCancelGrant();
+            }}
+            title="Grant dashboard access?"
+            description={
+              pendingGrantRecipient
+                ? `This gives ${pendingGrantRecipient.name} read-only access to your dashboard, including call history, insights, wellness data, schedules, and reminders for all lines.`
+                : 'This gives read-only dashboard access for all lines.'
+            }
+            confirmLabel="Grant access"
+            cancelLabel="Cancel"
+            variant="default"
+            onConfirm={onConfirmGrant}
+            onCancel={onCancelGrant}
           />
         </SectionBody>
       </Section>

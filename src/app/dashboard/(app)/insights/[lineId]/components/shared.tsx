@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { Check, Lock, ShieldAlert } from 'lucide-react';
 import { InfoTip } from '~/core/ui/InfoTip';
+import { useViewerContext } from '~/lib/contexts/viewer';
 
-// Re-export types and constants from tier-utils for client components
 export {
   SHARING_TIER_LABELS,
   TIER_REQUIREMENTS,
@@ -12,8 +12,9 @@ export {
   type SafetyEvent,
 } from './tier-utils';
 
-// Import TIER_REQUIREMENTS for local use
 import { TIER_REQUIREMENTS } from './tier-utils';
+
+type SeverityLevel = 'low' | 'medium' | 'high';
 
 export function TierGateNotice({
   title,
@@ -26,6 +27,7 @@ export function TierGateNotice({
   lineName: string;
   privacyLabel?: string;
 }) {
+  const { isViewer } = useViewerContext();
   const resolvedPrivacyLabel = privacyLabel ?? 'Privacy: Shared view';
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-7">
@@ -44,13 +46,18 @@ export function TierGateNotice({
         </span>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">
-        Available at {TIER_REQUIREMENTS[requiredTier]} {lineName} controls sharing preferences. Request a change{' '}
-        <Link
-          href="/dashboard/privacy?tab=family&section=sharing"
-          className="text-primary hover:underline"
-        >
-          here -&gt;
-        </Link>
+        Available at {TIER_REQUIREMENTS[requiredTier]} {lineName} controls sharing preferences.
+        {isViewer ? null : (
+          <>
+            {' '}Request a change{' '}
+            <Link
+              href="/dashboard/privacy?tab=family&section=sharing"
+              className="text-primary hover:underline"
+            >
+              here -&gt;
+            </Link>
+          </>
+        )}
       </p>
     </div>
   );
@@ -108,19 +115,19 @@ function formatRelativeTime(isoDate: string): string {
   return formatter.format(months, 'month');
 }
 
-const SEVERITY_CHIP_STYLES: Record<'low' | 'medium' | 'high', string> = {
+const SEVERITY_CHIP_STYLES: Record<SeverityLevel, string> = {
   low: 'border-success/50 bg-success/15 text-foreground',
   medium: 'border-warning/50 bg-warning/15 text-foreground',
   high: 'border-destructive/50 bg-destructive/10 text-foreground',
 };
 
-const SEVERITY_STAT_STYLES: Record<'low' | 'medium' | 'high', string> = {
+const SEVERITY_STAT_STYLES: Record<SeverityLevel, string> = {
   low: 'border-success/40 bg-success/10',
   medium: 'border-warning/40 bg-warning/10',
   high: 'border-destructive/40 bg-destructive/10',
 };
 
-const SEVERITY_BORDER_COLORS: Record<'low' | 'medium' | 'high', string> = {
+const SEVERITY_BORDER_COLORS: Record<SeverityLevel, string> = {
   low: 'var(--success)',
   medium: 'var(--warning)',
   high: 'var(--destructive)',
@@ -135,7 +142,7 @@ export function SafetyAlertsCard({
   events: Array<{
     id: string;
     occurredAt: string;
-    severity: 'low' | 'medium' | 'high';
+    severity: SeverityLevel;
     actionTaken: string | null;
     eventType: string | null;
     category: string | null;
@@ -162,7 +169,7 @@ export function SafetyAlertsCard({
     { low: 0, medium: 0, high: 0 }
   );
 
-  const quickStats = [
+  const quickStats: Array<{ key: SeverityLevel; label: string; count: number }> = [
     { key: 'high', label: 'High', count: eventCountBySeverity.high },
     { key: 'medium', label: 'Medium', count: eventCountBySeverity.medium },
     { key: 'low', label: 'Low', count: eventCountBySeverity.low },
@@ -192,7 +199,7 @@ export function SafetyAlertsCard({
             className={`rounded-xl border px-3 py-2.5 text-center ${
               stat.key === 'high' && stat.count === 0
                 ? 'border-success/60 bg-success/20'
-                : SEVERITY_STAT_STYLES[stat.key as 'low' | 'medium' | 'high']
+                : SEVERITY_STAT_STYLES[stat.key]
             }`}
           >
             <p className="text-lg font-semibold leading-none text-foreground">{stat.count}</p>

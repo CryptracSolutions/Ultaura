@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
 import Button from '~/core/ui/Button';
+import { useIsViewer } from '~/lib/contexts/viewer';
 
 interface LineCardProps {
   line: LineRow;
@@ -39,6 +40,7 @@ export function LineCard({
   callStatus = null,
   isOnVacation = false,
 }: LineCardProps) {
+  const isViewer = useIsViewer();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -190,7 +192,8 @@ export function LineCard({
             </div>
           </div>
           <div className="relative pointer-events-auto flex flex-col items-end gap-2 -mt-3">
-            <DropdownMenu
+            {!isViewer ? (
+              <DropdownMenu
               open={isMenuOpen}
               onOpenChange={(open) => {
                 if (open && typeof window !== 'undefined' && !window.matchMedia('(min-width: 640px)').matches) {
@@ -255,7 +258,8 @@ export function LineCard({
                   </>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            ) : null}
             <div className="shrink-0">{getStatusBadge()}</div>
           </div>
         </div>
@@ -300,7 +304,8 @@ export function LineCard({
         onConfirm={handleDelete}
       />
 
-      <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      {!isViewer ? (
+        <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <DialogContent className="z-[60] p-0" overlayClassName="z-[60]" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogTitle className="px-5 pt-5 pb-2 text-base font-semibold">
             {line.display_name}
@@ -341,7 +346,8 @@ export function LineCard({
             )}
           </div>
         </DialogContent>
-      </Dialog>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

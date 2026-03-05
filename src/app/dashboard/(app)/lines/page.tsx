@@ -14,6 +14,7 @@ import { getTrialStatus } from '~/lib/ultaura/helpers';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import Button from '~/core/ui/Button';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Lines - Ultaura',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 
 export default async function LinesPage() {
   const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {
@@ -137,7 +139,10 @@ export default async function LinesPage() {
               userType={userType}
               planLinesLimit={getPlanLinesLimit(effectivePlanId)}
               canUpgrade={canUpgradePlan(effectivePlanId)}
-              disabled={isTrialExpired}
+              disabled={isTrialExpired || isViewer}
+              readOnlyReason={
+                isTrialExpired ? 'trial_expired' : isViewer ? 'viewer' : null
+              }
               vendorAlreadyAcknowledged={vendorAlreadyAcknowledged}
             />
           </Suspense>

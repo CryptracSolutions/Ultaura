@@ -29,6 +29,7 @@ import type UserSession from '~/core/session/types/user-session';
 import If from '~/core/ui/If';
 import GlobalRole from '~/core/session/types/global-role';
 import useUser from '~/core/hooks/use-user';
+import MembershipRole from '~/lib/organizations/types/membership-role';
 
 const ProfileDropdown: React.FCC<{
   userSession: Maybe<UserSession>;
@@ -54,6 +55,7 @@ const ProfileDropdown: React.FCC<{
   const isSuperAdmin = useMemo(() => {
     return user?.app_metadata.role === GlobalRole.SuperAdmin;
   }, [user]);
+  const isViewer = Number(userSession?.role) === Number(MembershipRole.Viewer);
 
   const handleSignOut = () => {
     setIsSheetOpen(false);
@@ -146,17 +148,19 @@ const ProfileDropdown: React.FCC<{
             </Link>
           </DropdownMenuItem>
 
-          <DropdownMenuItem asChild>
-            <Link
-              className={'flex h-full w-full items-center space-x-2'}
-              href={`${configuration.paths.appPrefix}/${configuration.paths.settings.subscription}`}
-            >
-              <CreditCardIcon className={'h-5'} />
-              <span>
-                <Trans i18nKey={'common:subscriptionSettingsTabLabel'} />
-              </span>
-            </Link>
-          </DropdownMenuItem>
+          {!isViewer ? (
+            <DropdownMenuItem asChild>
+              <Link
+                className={'flex h-full w-full items-center space-x-2'}
+                href={`${configuration.paths.appPrefix}/${configuration.paths.settings.subscription}`}
+              >
+                <CreditCardIcon className={'h-5'} />
+                <span>
+                  <Trans i18nKey={'common:subscriptionSettingsTabLabel'} />
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
 
           <If condition={isSuperAdmin}>
             <DropdownMenuSeparator />
@@ -226,14 +230,16 @@ const ProfileDropdown: React.FCC<{
               <span className="text-foreground">Profile</span>
             </Link>
 
-            <Link
-              href={`${configuration.paths.appPrefix}/${configuration.paths.settings.subscription}`}
-              onClick={() => setIsSheetOpen(false)}
-              className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
-            >
-              <CreditCardIcon className="h-6 w-6 text-primary" />
-              <span className="text-foreground">Subscription</span>
-            </Link>
+            {!isViewer ? (
+              <Link
+                href={`${configuration.paths.appPrefix}/${configuration.paths.settings.subscription}`}
+                onClick={() => setIsSheetOpen(false)}
+                className="flex w-full items-center space-x-4 h-14 px-4 hover:bg-muted transition-colors touch-manipulation"
+              >
+                <CreditCardIcon className="h-6 w-6 text-primary" />
+                <span className="text-foreground">Subscription</span>
+              </Link>
+            ) : null}
 
             {isSuperAdmin && (
               <Link

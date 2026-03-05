@@ -14,6 +14,8 @@ import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
 import AppHeader from '../../../components/AppHeader';
 import { LinePageHeader } from '../components/LinePageHeader';
+import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
+import { redirectViewerAway } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Line Settings - Ultaura',
@@ -24,6 +26,9 @@ interface PageProps {
 }
 
 export default async function LineSettingsPage({ params }: PageProps) {
+  const appData = await loadAppDataForUser();
+  redirectViewerAway(appData.role);
+
   const line = await getLine(params.lineId);
 
   if (!line) {

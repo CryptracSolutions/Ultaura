@@ -17,6 +17,7 @@ import {
   generateNotificationUnsubscribeToken,
   hashNotificationToken,
 } from './notification-tokens';
+import { deleteViewerMembershipForRecipient } from './dashboard-sharing';
 
 const logger = getLogger();
 const MAX_NOTIFICATION_RECIPIENTS = 5;
@@ -119,6 +120,9 @@ async function resolveAccountContext(
 
 type NotificationRecipientRow =
   Database['public']['Tables']['ultaura_notification_recipients']['Row'];
+type NotificationRecipientRowWithDashboardAccess = NotificationRecipientRow & {
+  dashboard_access_granted_at?: string | null;
+};
 
 function normalizeRecipientName(value: string): string {
   return value
@@ -152,6 +156,8 @@ async function requireAccountOwner(
 }
 
 function mapRecipient(row: NotificationRecipientRow): NotificationRecipient {
+  const rowWithDashboardAccess = row as NotificationRecipientRowWithDashboardAccess;
+
   return {
     id: row.id,
     accountId: row.account_id,
@@ -163,6 +169,7 @@ function mapRecipient(row: NotificationRecipientRow): NotificationRecipient {
     trustedContactId: row.trusted_contact_id,
     confirmedAt: row.confirmed_at,
     unsubscribedAt: row.unsubscribed_at,
+    dashboardAccessGrantedAt: rowWithDashboardAccess.dashboard_access_granted_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -499,7 +506,7 @@ export async function removeNotificationRecipient(
   const client = getSupabaseServerActionClient();
   const { data: recipient, error: lookupError } = await client
     .from('ultaura_notification_recipients')
-    .select('id, account_id')
+    .select('id, account_id, email')
     .eq('id', recipientId)
     .maybeSingle();
 
@@ -515,6 +522,29 @@ export async function removeNotificationRecipient(
   const auth = await requireAccountOwner(client, recipient.account_id);
   if (!auth.success) {
     return { success: false, error: createError(ErrorCodes.FORBIDDEN, 'Failed to remove recipient') };
+  }
+
+  if (recipient.email) {
+    const membershipCleanup = await deleteViewerMembershipForRecipient(
+      recipient.account_id,
+      recipient.email
+    );
+
+    if (!membershipCleanup.success) {
+      logger.error(
+        {
+          recipientId,
+          accountId: recipient.account_id,
+          recipientEmail: recipient.email,
+          cleanupError: membershipCleanup.error,
+        },
+        'Failed membership cleanup while removing notification recipient'
+      );
+      return {
+        success: false,
+        error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to remove recipient dashboard access'),
+      };
+    }
   }
 
   const { error } = await client

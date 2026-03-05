@@ -13,6 +13,7 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { getTrialStatus } from '~/lib/ultaura/helpers';
 import UsageTabsClient from './components/UsageTabsClient';
+import { redirectViewerAway } from '~/lib/ultaura/viewer-guards';
 
 export const metadata = {
   title: 'Usage - Ultaura',
@@ -31,6 +32,7 @@ function formatCycleDate(value: string | null) {
 
 export default async function UsagePage() {
   const appData = await loadAppDataForUser();
+  redirectViewerAway(appData.role);
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {

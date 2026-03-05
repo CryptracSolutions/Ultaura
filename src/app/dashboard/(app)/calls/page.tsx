@@ -11,6 +11,7 @@ import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import { getTrialStatus } from '~/lib/ultaura/helpers';
 import Button from '~/core/ui/Button';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Calls - Ultaura',
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 
 export default async function CallsPage() {
   const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {
@@ -100,7 +102,7 @@ export default async function CallsPage() {
           <CallsPageClient
             lines={verifiedLines}
             schedules={schedules}
-            disabled={isTrialExpired}
+            disabled={isTrialExpired || isViewer}
           />
         </div>
       </PageBody>

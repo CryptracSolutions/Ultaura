@@ -45,6 +45,8 @@ import { SEARCH_CATEGORIES } from '~/lib/search/types';
 import { buildIntentBoostMap, getIntentBoost } from '~/lib/search/intent';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import useSupabase from '~/core/hooks/use-supabase';
+import useUserSession from '~/core/hooks/use-user-session';
+import MembershipRole from '~/lib/organizations/types/membership-role';
 import {
   highlightText,
   normalizeText,
@@ -112,6 +114,7 @@ export const SearchPanel = ({
   const { docsIndex, close, prefillQuery, clearPrefillQuery, openMode } =
     useSearch();
   const { data: account } = useUltauraAccount();
+  const userSession = useUserSession();
   const { t } = useTranslation();
   const router = useRouter();
   const { recents, addRecent } = useSearchRecents(isOpen);
@@ -214,12 +217,11 @@ export const SearchPanel = ({
         return (await response.json()) as SearchResponse;
       })
       .then((payload) => {
-        setResults(payload.results ?? buildEmptyResults());
+        const nextResults = payload.results ?? buildEmptyResults();
+        setResults(nextResults);
         const completedAt = performance.now();
         const latencyMs = Math.max(0, Math.round(completedAt - startedAt));
-        const totalResults = countTotalResultItems(
-          payload.results ?? buildEmptyResults(),
-        );
+        const totalResults = countTotalResultItems(nextResults);
 
         lastSearchSessionRef.current = {
           searchId: payload.searchId ?? null,
@@ -237,9 +239,7 @@ export const SearchPanel = ({
           latencyMs,
           resultCount: totalResults,
           zeroResults: totalResults === 0,
-          categoryCounts: summarizeCategoryCounts(
-            payload.results ?? buildEmptyResults(),
-          ),
+          categoryCounts: summarizeCategoryCounts(nextResults),
         });
       })
       .catch((error) => {
@@ -257,15 +257,22 @@ export const SearchPanel = ({
     account?.user_type === 'self' || account?.user_type === 'family_managed'
       ? account.user_type
       : undefined;
+  const isViewer = Number(userSession?.role) === Number(MembershipRole.Viewer);
 
   const lineNavigationItems = useMemo(
-    () => buildLineNavigationItems(results.lines),
-    [results.lines],
+    () => buildLineNavigationItems(results.lines, { isViewer }),
+    [isViewer, results.lines],
   );
 
   const navigationItems = useMemo(() => {
     const items = getNavigationItems(
-      account ? { userType, accountId: account.id } : undefined,
+      account
+        ? {
+            userType,
+            accountId: account.id,
+            role: userSession?.role == null ? undefined : Number(userSession.role),
+          }
+        : undefined,
     );
 
     const translated = items.map((item) => ({
@@ -274,7 +281,7 @@ export const SearchPanel = ({
     }));
 
     return [...translated, ...lineNavigationItems];
-  }, [account, t, userType, lineNavigationItems]);
+  }, [account, lineNavigationItems, t, userSession?.role, userType]);
 
   const normalizedQuery = normalizeText(query);
   const queryTokens = useMemo(

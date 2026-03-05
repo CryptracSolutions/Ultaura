@@ -11,6 +11,8 @@ import type { PlanId, UserType } from '~/lib/ultaura/types';
 import AppHeader from '../../../components/AppHeader';
 import { LinePageHeader } from '../components/LinePageHeader';
 import { TopicsClient } from './TopicsClient';
+import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Topics - Ultaura',
@@ -21,6 +23,9 @@ interface PageProps {
 }
 
 export default async function TopicsPage({ params }: PageProps) {
+  const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
+
   const line = await getLine(params.lineId);
 
   if (!line) {
@@ -58,7 +63,12 @@ export default async function TopicsPage({ params }: PageProps) {
             currentLineShortId={line.short_id}
           />
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <TopicsClient line={line} userType={userType} disabled={isTrialExpired} />
+          <TopicsClient
+            line={line}
+            userType={userType}
+            disabled={isTrialExpired}
+            readOnly={isViewer}
+          />
         </div>
       </PageBody>
     </>

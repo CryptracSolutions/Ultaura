@@ -17,6 +17,7 @@ import { getNotificationRecipients } from '~/lib/ultaura/notification-recipients
 import { getTrialStatus } from '~/lib/ultaura/helpers';
 import { PLANS } from '~/lib/ultaura/constants';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
+import { redirectViewerAway } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Privacy Center - Ultaura',
@@ -31,6 +32,7 @@ export default async function PrivacyCenterPage() {
     />
   );
   const appData = await loadAppDataForUser();
+  redirectViewerAway(appData.role);
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {

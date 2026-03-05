@@ -1,4 +1,5 @@
 enum MembershipRole {
+  Viewer = -1,
   Member = 0,
   Admin = 1,
   Owner = 2,

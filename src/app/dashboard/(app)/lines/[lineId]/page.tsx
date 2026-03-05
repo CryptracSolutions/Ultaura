@@ -18,6 +18,8 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { PLANS } from '~/lib/ultaura/constants';
 import AppHeader from '../../components/AppHeader';
 import type { PlanId } from '~/lib/ultaura/types';
+import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 // Helper to get counts without fetching full data
 async function getScheduleAndReminderCounts(lineId: string) {
@@ -45,6 +47,9 @@ interface PageProps {
 }
 
 export default async function LineDetailPage({ params }: PageProps) {
+  const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
+
   const line = await getLine(params.lineId);
 
   if (!line) {
@@ -95,7 +100,7 @@ export default async function LineDetailPage({ params }: PageProps) {
             reminderLimitPerLine={reminderLimitPerLine}
             milestonesCount={counts.milestonesCount}
             trustedContactsCount={counts.trustedContactsCount}
-            isReadOnly={isTrialExpired}
+            isReadOnly={isTrialExpired || isViewer}
             isTrialActive={isTrialActive}
             isFamilyManaged={isFamilyManaged}
           />

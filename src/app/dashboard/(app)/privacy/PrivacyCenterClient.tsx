@@ -47,6 +47,7 @@ import { SharingPreferencesSection } from './components/sections/SharingPreferen
 import { useAuditFilters } from './hooks/useAuditFilters';
 import { useExportPolling } from './hooks/useExportPolling';
 import { useInviteFlow } from './hooks/useInviteFlow';
+import { useDashboardSharingToggle } from './hooks/useDashboardSharingToggle';
 import { usePrivacyAutosaveState } from './hooks/usePrivacyAutosaveState';
 import {
   buildPrivacyUrl,
@@ -249,6 +250,11 @@ export function PrivacyCenterClient({
   const inviteFlow = useInviteFlow({
     accountId: account.id,
     initialRecipients: notificationRecipients,
+  });
+  const dashboardSharingToggle = useDashboardSharingToggle({
+    accountId: account.id,
+    recipients: inviteFlow.recipients,
+    setRecipients: inviteFlow.setRecipients,
   });
 
   useEffect(() => {
@@ -609,6 +615,13 @@ export function PrivacyCenterClient({
               recipients={inviteFlow.recipients}
               isInviting={inviteFlow.isInviting}
               onRemoveRecipient={inviteFlow.removeRecipient}
+              onGrantDashboardAccess={dashboardSharingToggle.requestGrant}
+              onRevokeDashboardAccess={dashboardSharingToggle.revoke}
+              isDashboardSharingLoading={dashboardSharingToggle.isLoading}
+              isGrantConfirmOpen={dashboardSharingToggle.isConfirmDialogOpen}
+              pendingGrantRecipient={dashboardSharingToggle.pendingRecipient}
+              onCancelGrant={dashboardSharingToggle.cancelGrant}
+              onConfirmGrant={dashboardSharingToggle.confirmGrant}
               showInviteModal={inviteFlow.showInviteModal}
               setShowInviteModal={inviteFlow.setShowInviteModal}
               inviteError={inviteFlow.inviteError}

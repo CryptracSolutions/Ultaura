@@ -14,6 +14,7 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import Button from '~/core/ui/Button';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Reminders - Ultaura',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 
 export default async function RemindersPage() {
   const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {
@@ -94,7 +96,7 @@ export default async function RemindersPage() {
           <RemindersPageClient
             lines={lines}
             reminders={reminders}
-            disabled={isTrialExpired}
+            disabled={isTrialExpired || isViewer}
             reminderLimits={reminderLimits}
           />
         </div>

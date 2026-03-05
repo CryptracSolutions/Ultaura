@@ -13,7 +13,12 @@ export const metadata = {
   title: 'Sign up',
 };
 
-function SignUpPage() {
+function SignUpPage(props: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const inviteCode = getFirstQueryValue(props.searchParams?.inviteCode);
+  const next = getFirstQueryValue(props.searchParams?.next);
+
   return (
     <>
       <div>
@@ -22,7 +27,7 @@ function SignUpPage() {
         </Heading>
       </div>
 
-      <SignUpMethodsContainer />
+      <SignUpMethodsContainer inviteCode={inviteCode} next={next} />
 
       <p
         className={'text-center text-xs text-muted-foreground leading-relaxed'}
@@ -67,3 +72,11 @@ function SignUpPage() {
 }
 
 export default withI18n(SignUpPage);
+
+function getFirstQueryValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+}

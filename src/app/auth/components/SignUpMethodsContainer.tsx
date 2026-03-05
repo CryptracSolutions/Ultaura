@@ -13,11 +13,17 @@ import OAuthProviders from '~/app/auth/components/OAuthProviders';
 
 import configuration from '~/configuration';
 import EmailOtpContainer from '~/app/auth/components/EmailOtpContainer';
+import { acceptInviteAction } from '~/lib/memberships/actions';
 
 const providers = configuration.auth.providers;
 
-function SignUpMethodsContainer() {
+function SignUpMethodsContainer(props: {
+  inviteCode?: string;
+  next?: string;
+}) {
   const router = useRouter();
+  const inviteCode = props.inviteCode?.trim() || undefined;
+  const nextPath = getSafeNextPath(props.next);
 
   const onSignUp = useCallback(() => {
     const requireEmailConfirmation =
@@ -29,19 +35,46 @@ function SignUpMethodsContainer() {
     }
 
     // Otherwise, we redirect them to the onboarding page
-    router.replace(configuration.paths.onboarding);
-  }, [router]);
+    router.replace(nextPath);
+  }, [nextPath, router]);
 
   // Phone sign-ups verify identity via OTP — email confirmation doesn't apply.
   // Always redirect to onboarding after successful phone OTP verification.
   const onPhoneSignUp = useCallback(() => {
-    router.replace(configuration.paths.onboarding);
-  }, [router]);
+    router.replace(nextPath);
+  }, [nextPath, router]);
+
+  const acceptInviteIfPresent = useCallback(
+    async (userId?: string) => {
+      if (!inviteCode) {
+        return;
+      }
+
+      await acceptInviteAction({
+        code: inviteCode,
+        userId,
+      }).catch(() => undefined);
+    },
+    [inviteCode],
+  );
+
+  const onInviteAwareSignUp = useCallback(
+    async (userId?: string) => {
+      await acceptInviteIfPresent(userId);
+      onSignUp();
+    },
+    [acceptInviteIfPresent, onSignUp],
+  );
+
+  const onInviteAwarePhoneSignUp = useCallback(async () => {
+    await acceptInviteIfPresent();
+    onPhoneSignUp();
+  }, [acceptInviteIfPresent, onPhoneSignUp]);
 
   return (
     <>
       <If condition={providers.emailPassword}>
-        <EmailPasswordSignUpContainer onSignUp={onSignUp} />
+        <EmailPasswordSignUpContainer onSignUp={onInviteAwareSignUp} />
       </If>
 
       <If condition={providers.phoneNumber && providers.emailPassword}>
@@ -55,15 +88,18 @@ function SignUpMethodsContainer() {
       </If>
 
       <If condition={providers.phoneNumber}>
-        <PhoneNumberSignInContainer onSuccess={onPhoneSignUp} mode={'signUp'} />
+        <PhoneNumberSignInContainer
+          onSuccess={onInviteAwarePhoneSignUp}
+          mode={'signUp'}
+        />
       </If>
 
       <If condition={providers.emailLink}>
-        <EmailLinkAuth />
+        <EmailLinkAuth inviteCode={inviteCode} />
       </If>
 
       <If condition={providers.emailOtp}>
-        <EmailOtpContainer shouldCreateUser={true} />
+        <EmailOtpContainer inviteCode={inviteCode} shouldCreateUser={true} />
       </If>
 
       <If condition={providers.oAuth.length}>
@@ -77,10 +113,22 @@ function SignUpMethodsContainer() {
           </div>
         </If>
 
-        <OAuthProviders />
+        <OAuthProviders inviteCode={inviteCode} returnUrl={nextPath} />
       </If>
     </>
   );
 }
 
 export default SignUpMethodsContainer;
+
+function getSafeNextPath(value?: string) {
+  if (!value) {
+    return configuration.paths.appHome;
+  }
+
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return configuration.paths.appHome;
+  }
+
+  return value;
+}

@@ -5,7 +5,7 @@ import requireSession from '~/lib/user/require-session';
 import getLogger from '~/core/logger';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
 import type { WellnessAlert } from './types';
-import { getSharingGate, validateAccountOwnership } from './sharing-gate';
+import { getSharingGate } from './sharing-gate';
 import { redactAlertByTier } from './alerts-redaction';
 
 const logger = getLogger();
@@ -18,10 +18,35 @@ export async function getWellnessAlerts(
   const userClient = getSupabaseServerActionClient();
   await requireSession(userClient);
 
-  const ownsAccount = await validateAccountOwnership(userClient, accountId);
-  if (!ownsAccount) {
+  const { data: accessibleAccount, error: accountAccessError } = await userClient
+    .from('ultaura_accounts')
+    .select('id')
+    .eq('id', accountId)
+    .maybeSingle();
+
+  if (accountAccessError || !accessibleAccount) {
     throw new Error('Access denied');
   }
+
+  // This RPC is added by a recent migration; generated Supabase types may lag in local environments.
+  const rpcClient = userClient as unknown as {
+    rpc: (
+      fn: string,
+      params: { p_account_id: string }
+    ) => Promise<{ data: boolean | null; error: unknown }>;
+  };
+  const { data: isDashboardViewer, error: viewerRoleError } = await rpcClient.rpc('is_dashboard_viewer', {
+    p_account_id: accountId,
+  });
+
+  if (viewerRoleError) {
+    logger.warn(
+      { viewerRoleError, accountId },
+      'Failed to resolve viewer role for alerts access; applying viewer-safe filtering',
+    );
+  }
+
+  const requesterIsViewer = viewerRoleError ? true : Boolean(isDashboardViewer);
 
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const { data: alerts, error } = await adminClient
@@ -48,28 +73,32 @@ export async function getWellnessAlerts(
 
   const gateCache = new Map<string, ReturnType<typeof getSharingGate>>();
   const results: WellnessAlert[] = [];
+  const alertRows = alerts ?? [];
 
-  for (const alert of alerts ?? []) {
+  for (const alert of alertRows) {
     const lineId = alert.line_id;
-    let gate = gateCache.get(lineId);
-    if (!gate) {
-      gate = getSharingGate(adminClient, lineId, accountId);
-      gateCache.set(lineId, gate);
+    let gatePromise = gateCache.get(lineId);
+    if (!gatePromise) {
+      gatePromise = getSharingGate(adminClient, lineId, accountId);
+      gateCache.set(lineId, gatePromise);
     }
-    const resolvedGate = await gate;
+    const resolvedGate = await gatePromise;
 
     if (!resolvedGate.canAccessNonSafety) {
       continue;
     }
 
-    if (!resolvedGate.isSelfUser && resolvedGate.isFamilyOutputSuppressed) {
+    const shouldBypassSelfMode = requesterIsViewer && resolvedGate.isSelfUser;
+    const isEffectiveSelfUser = resolvedGate.isSelfUser && !shouldBypassSelfMode;
+
+    if (!isEffectiveSelfUser && resolvedGate.isFamilyOutputSuppressed) {
       continue;
     }
 
     const lineName = (alert.ultaura_lines as { display_name?: string } | null)?.display_name ?? 'Unknown';
     const mapped = mapAlert(alert, lineName);
 
-    if (resolvedGate.isSelfUser) {
+    if (isEffectiveSelfUser) {
       results.push(mapped);
       continue;
     }
@@ -110,11 +139,10 @@ function mapAlert(
 }
 
 export async function acknowledgeWellnessAlert(
-  alertId: string
+  _alertId: string
 ): Promise<ActionResult<void>> {
   const client = getSupabaseServerActionClient();
   await requireSession(client);
-  void alertId;
 
   return {
     success: false,

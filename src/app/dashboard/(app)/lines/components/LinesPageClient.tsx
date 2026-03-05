@@ -17,6 +17,7 @@ interface LinesPageClientProps {
   canUpgrade?: boolean;
   userType?: UserType;
   disabled?: boolean;
+  readOnlyReason?: 'trial_expired' | 'viewer' | null;
   vendorAlreadyAcknowledged?: boolean;
 }
 
@@ -27,6 +28,7 @@ export function LinesPageClient({
   canUpgrade = true,
   userType,
   disabled = false,
+  readOnlyReason = null,
   vendorAlreadyAcknowledged = false,
 }: LinesPageClientProps) {
   const searchParams = useSearchParams();
@@ -101,7 +103,7 @@ export function LinesPageClient({
     <div className="space-y-6 pb-12">
       {/* Add Line Button */}
       <div>
-        {disabled ? (
+        {disabled && readOnlyReason === 'trial_expired' ? (
           <p className="text-sm text-muted-foreground">
             Your trial has ended.{' '}
             <a href="/dashboard/settings/subscription" className="text-primary hover:underline">
@@ -109,7 +111,7 @@ export function LinesPageClient({
             </a>
             .
           </p>
-        ) : canAddLine ? (
+        ) : disabled && readOnlyReason === 'viewer' ? null : canAddLine ? (
           <div className="space-y-2">
             <Button
               variant="default"

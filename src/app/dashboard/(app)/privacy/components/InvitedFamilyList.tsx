@@ -17,10 +17,14 @@ import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
 import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
+import { Switch } from '~/core/ui/Switch';
 
 interface InvitedFamilyListProps {
   recipients: NotificationRecipient[];
   onRemove: (recipientId: string) => Promise<void>;
+  onGrantDashboardAccess: (recipient: NotificationRecipient) => void;
+  onRevokeDashboardAccess: (recipientId: string) => Promise<void>;
+  dashboardAccessLoading?: boolean;
   disabled?: boolean;
 }
 
@@ -40,6 +44,9 @@ function getStatus(recipient: NotificationRecipient): {
 export function InvitedFamilyList({
   recipients,
   onRemove,
+  onGrantDashboardAccess,
+  onRevokeDashboardAccess,
+  dashboardAccessLoading = false,
   disabled = false,
 }: InvitedFamilyListProps) {
   const [pendingRemove, setPendingRemove] = useState<{
@@ -69,6 +76,7 @@ export function InvitedFamilyList({
             <TableHead>Email</TableHead>
             <TableHead>Phone</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Dashboard Access</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -92,6 +100,30 @@ export function InvitedFamilyList({
                   <span className={`text-xs font-medium ${status.className}`}>
                     {status.label}
                   </span>
+                </TableCell>
+                <TableCell>
+                  {!recipient.confirmedAt ? (
+                    <span className="text-xs text-muted-foreground">Confirm email first</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={Boolean(recipient.dashboardAccessGrantedAt)}
+                        disabled={disabled || dashboardAccessLoading}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            onGrantDashboardAccess(recipient);
+                            return;
+                          }
+
+                          void onRevokeDashboardAccess(recipient.id);
+                        }}
+                        aria-label={`Dashboard access for ${recipient.name}`}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {recipient.dashboardAccessGrantedAt ? 'Active' : 'Off'}
+                      </span>
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <ResponsiveActionMenu

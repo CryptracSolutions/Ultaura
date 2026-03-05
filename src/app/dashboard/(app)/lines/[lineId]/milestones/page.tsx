@@ -11,6 +11,8 @@ import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
 import AppHeader from '../../../components/AppHeader';
 import { LinePageHeader } from '../components/LinePageHeader';
+import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
+import { isViewerRole } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Milestones - Ultaura',
@@ -21,6 +23,8 @@ interface PageProps {
 }
 
 export default async function MilestonesPage({ params }: PageProps) {
+  const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
   const line = await getLine(params.lineId);
 
   if (!line) {
@@ -56,7 +60,12 @@ export default async function MilestonesPage({ params }: PageProps) {
             currentLineShortId={line.short_id}
           />
           {isTrialExpired ? <TrialExpiredBanner trialPlanName={trialPlanName} /> : null}
-          <MilestonesClient line={line} milestones={milestones} disabled={isTrialExpired} />
+          <MilestonesClient
+            line={line}
+            milestones={milestones}
+            disabled={isTrialExpired}
+            readOnly={isViewer}
+          />
         </div>
       </PageBody>
     </>

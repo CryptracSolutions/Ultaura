@@ -41,11 +41,19 @@ interface ContactsClientProps {
     shortId: string;
   };
   disabled?: boolean;
+  readOnly?: boolean;
 }
+
+const EMPTY_NEW_CONTACT = {
+  name: '',
+  phone: '',
+  relationship: '',
+};
 
 export function ContactsClient({
   line,
   disabled = false,
+  readOnly = false,
 }: ContactsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,11 +66,7 @@ export function ContactsClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [consentAcknowledged, setConsentAcknowledged] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [newContact, setNewContact] = useState({
-    name: '',
-    phone: '',
-    relationship: '',
-  });
+  const [newContact, setNewContact] = useState(EMPTY_NEW_CONTACT);
 
   const loadContacts = useCallback(async () => {
     const data = await getTrustedContacts(line.id);
@@ -80,7 +84,7 @@ export function ContactsClient({
   }, [isAdding]);
 
   useEffect(() => {
-    if (disabled) return;
+    if (disabled || readOnly) return;
     const shouldOpenAddContact = searchParams.get('openAddContact') === '1';
     if (!shouldOpenAddContact) return;
 
@@ -92,10 +96,10 @@ export function ContactsClient({
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
       scroll: false,
     });
-  }, [disabled, pathname, router, searchParams]);
+  }, [disabled, pathname, readOnly, router, searchParams]);
 
   const resetAddForm = () => {
-    setNewContact({ name: '', phone: '', relationship: '' });
+    setNewContact(EMPTY_NEW_CONTACT);
     setConsentAcknowledged(false);
     setPhoneError(null);
     setIsAdding(false);
@@ -114,7 +118,7 @@ export function ContactsClient({
 
   async function handleAddContact(e: React.FormEvent) {
     e.preventDefault();
-    if (disabled) return;
+    if (disabled || readOnly) return;
 
     const validationError = getUsPhoneValidationError(newContact.phone, {
       required: true,
@@ -140,7 +144,7 @@ export function ContactsClient({
 
       toast.success('Trusted contact added');
       resetAddForm();
-      loadContacts();
+      void loadContacts();
     } catch (error) {
       console.error(error);
       toast.error('Failed to add contact');
@@ -150,7 +154,7 @@ export function ContactsClient({
   }
 
   async function handleRemoveContact(contactId: string) {
-    if (disabled) return;
+    if (disabled || readOnly) return;
 
     try {
       const result = await removeTrustedContact(contactId, line.shortId);
@@ -159,7 +163,7 @@ export function ContactsClient({
         return;
       }
       toast.success('Trusted contact removed');
-      loadContacts();
+      void loadContacts();
     } catch (error) {
       console.error(error);
       toast.error('Failed to remove contact');
@@ -179,20 +183,22 @@ export function ContactsClient({
             Learn more →
           </Link>
         </p>
-        <Button
-          onClick={() => setIsAdding(true)}
-          disabled={disabled}
-          variant="default"
-          size="sm"
-          className="sm:w-auto"
-        >
-          <Plus className="h-3 w-3" />
-          Add Contact
-        </Button>
+        {!readOnly ? (
+          <Button
+            onClick={() => setIsAdding(true)}
+            disabled={disabled}
+            variant="default"
+            size="sm"
+            className="sm:w-auto"
+          >
+            <Plus className="h-3 w-3" />
+            Add Contact
+          </Button>
+        ) : null}
       </div>
 
       <Dialog
-        open={isAdding && !disabled}
+        open={isAdding && !disabled && !readOnly}
         onOpenChange={(open) => {
           if (!open) {
             resetAddForm();
@@ -360,7 +366,7 @@ export function ContactsClient({
                   </p>
                 </div>
               </div>
-              {!disabled && (
+              {!disabled && !readOnly && (
                 <ResponsiveActionMenu
                   title={`${contact.name}\n${contact.phone_e164}`}
                   actions={[
@@ -396,7 +402,7 @@ export function ContactsClient({
       />
 
       <ConfirmationDialog
-        open={contactToRemove !== null}
+        open={contactToRemove !== null && !readOnly}
         onOpenChange={(open) => !open && setContactToRemove(null)}
         title="Remove contact"
         description={
