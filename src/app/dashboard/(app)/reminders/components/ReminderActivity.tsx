@@ -111,10 +111,12 @@ function formatLabel(value: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatEventTimestamp(isoString: string, timezone: string): string {
-  return DateTime.fromISO(isoString)
-    .setZone(timezone)
-    .toFormat('MMM d, h:mm a');
+function formatEventTimestampParts(isoString: string, timezone: string): { date: string; time: string } {
+  const dateTime = DateTime.fromISO(isoString).setZone(timezone);
+  return {
+    date: dateTime.toFormat('MMM d'),
+    time: dateTime.toFormat('h:mm a'),
+  };
 }
 
 function formatEventDetails(event: ReminderEventRow): string | null {
@@ -222,6 +224,7 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
           };
           const Icon = config.icon;
           const details = formatEventDetails(event);
+          const timestampParts = formatEventTimestampParts(event.created_at, lineTimezone);
 
           return (
             <div
@@ -236,7 +239,7 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium text-foreground">
                         {config.label}
@@ -246,10 +249,13 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
                           {details}
                         </span>
                       ) : null}
+                      <span className="hidden shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground sm:inline-flex">
+                        <span>via</span>
+                        <span className="font-medium text-primary">
+                          {getTriggerLabel(event.triggered_by)}
+                        </span>
+                      </span>
                     </div>
-                    <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
-                      via <span className="font-medium text-primary">{getTriggerLabel(event.triggered_by)}</span>
-                    </span>
                   </div>
 
                   {event.reminder_message ? (
@@ -262,18 +268,23 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
 
                   <div className="mt-1.5 hidden items-center justify-between gap-3 sm:flex">
                     <p className="shrink-0 text-xs text-primary">
-                      {formatEventTimestamp(event.created_at, lineTimezone)}
+                      <span className="text-muted-foreground">on </span>
+                      <span>{timestampParts.date}</span>
+                      <span className="text-muted-foreground"> at </span>
+                      <span>{timestampParts.time}</span>
                     </p>
                   </div>
-                </div>
-
-                <div className="mt-1.5 flex basis-full items-center justify-between gap-3 text-xs sm:hidden">
-                  <p className="shrink-0 text-primary">
-                    {formatEventTimestamp(event.created_at, lineTimezone)}
-                  </p>
-                  <span className="shrink-0 text-muted-foreground">
-                    via <span className="font-medium text-primary">{getTriggerLabel(event.triggered_by)}</span>
-                  </span>
+                  <div className="mt-1.5 flex flex-col items-start gap-1 text-xs sm:hidden">
+                    <p className="text-primary">
+                      <span className="text-muted-foreground">on </span>
+                      <span>{timestampParts.date}</span>
+                      <span className="text-muted-foreground"> at </span>
+                      <span>{timestampParts.time}</span>
+                    </p>
+                    <span className="text-muted-foreground">
+                      via <span className="font-medium text-primary">{getTriggerLabel(event.triggered_by)}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

@@ -116,20 +116,26 @@ function getBorderColor(reminder: ReminderCardReminder): string {
   return STATUS_BORDER_COLORS[reminder.status] || 'var(--muted)';
 }
 
-function formatDateTime(isoString: string, timezone: string): string {
+function formatDateTimeParts(isoString: string, timezone: string): { date: string; time: string } {
   const date = new Date(isoString);
-  const options: Intl.DateTimeFormatOptions = {
+  const dateOptions: Intl.DateTimeFormatOptions = {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+  };
+  const timeOptions: Intl.DateTimeFormatOptions = {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
   };
   if (timezone) {
-    options.timeZone = timezone;
+    dateOptions.timeZone = timezone;
+    timeOptions.timeZone = timezone;
   }
-  return date.toLocaleString('en-US', options);
+  return {
+    date: date.toLocaleDateString('en-US', dateOptions),
+    time: date.toLocaleTimeString('en-US', timeOptions),
+  };
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -304,6 +310,7 @@ export function ReminderCard({
   const effective = getEffectiveIcon(reminder);
   const EffectiveIcon = effective.icon;
   const borderColor = getBorderColor(reminder);
+  const dueAtParts = formatDateTimeParts(reminder.dueAt, reminder.lineTimezone);
 
   return (
     <div
@@ -329,13 +336,16 @@ export function ReminderCard({
           )}
 
           {/* Message - prominent */}
-          <p className="text-foreground font-medium line-clamp-2">
+          <p className="text-sm text-foreground font-medium line-clamp-2">
             {reminder.message}
           </p>
 
-          <div className="mt-1.5 flex flex-col items-start gap-1 text-xs sm:flex-row sm:items-center sm:gap-3 sm:text-sm">
+          <div className="mt-1.5 flex flex-col items-start gap-1 text-xs sm:text-sm">
             <span className="min-w-0 whitespace-nowrap text-muted-foreground">
-              {formatDateTime(reminder.dueAt, reminder.lineTimezone)}
+              <span>on </span>
+              <span>{dueAtParts.date}</span>
+              <span> at </span>
+              <span>{dueAtParts.time}</span>
             </span>
             {!isPast && (
               <span className="shrink-0 font-medium text-primary">
