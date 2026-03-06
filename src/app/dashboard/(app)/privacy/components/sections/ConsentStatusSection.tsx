@@ -137,7 +137,9 @@ export function ConsentStatusSection({
 
                 <div>
                   <div className="text-xs text-muted-foreground">Recording</div>
-                  <div className="text-sm text-foreground">{recordingStatus}</div>
+                  <div className={`text-sm ${recordingStatus === 'Approved' ? 'text-primary' : 'text-foreground'}`}>
+                    {recordingStatus}
+                  </div>
                   {recordingNote ? (
                     <div className="text-xs text-muted-foreground mt-1">{recordingNote}</div>
                   ) : null}
