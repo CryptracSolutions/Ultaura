@@ -13,15 +13,10 @@ function AuthBrandPanel() {
       className={
         'relative isolate hidden min-h-screen overflow-hidden lg:flex' +
         ' flex-col items-center justify-center px-10' +
-        ' bg-gradient-to-br from-primary via-primary/90 to-primary/70'
+        ' bg-card'
       }
     >
       <AuthBackgroundAnimation />
-
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0)_36%),linear-gradient(180deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.03)_24%,rgba(255,255,255,0)_46%),linear-gradient(135deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0)_44%)]"
-        aria-hidden="true"
-      />
 
       <div
         className={
