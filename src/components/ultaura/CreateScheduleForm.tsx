@@ -99,7 +99,7 @@ export function CreateScheduleForm({
           {/* Day Selection */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-3">
-              Which days should we call?
+              Which days should Ultaura call?
             </label>
             <div className="space-y-3">
               {/* Weekdays */}

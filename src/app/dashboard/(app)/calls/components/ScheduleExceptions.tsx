@@ -70,7 +70,7 @@ function getExceptionSummary(
   if (exception.exception_type === 'reschedule' && newTime) {
     return {
       title: 'Call moved',
-      supportingText: `The original call scheduled for ${originalOccurrenceLabel} is now happening ${newTime}.`,
+      supportingText: `ORIGINAL CALL: ${originalOccurrenceLabel}\nMOVED TO: ${newTime}`,
       actionLabel: 'Cancel moved call',
       confirmTitle: 'Cancel moved call',
       confirmDescription: 'This cancels the moved call. Ultaura restores the original recurring call only if its original scheduled time is still in the future.',
@@ -210,17 +210,28 @@ export function ScheduleExceptions({
                   className="border-l-4 px-6 py-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2"
                   style={{ borderLeftColor: config.borderColor }}
                 >
-                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${config.bg}`}>
                       <Icon className={`w-5 h-5 ${config.iconColor}`} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">
+                      <p className="text-sm font-medium text-foreground mb-1">
                         {summary.title}
                       </p>
-                      <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                        {summary.supportingText}
-                      </p>
+                      {exception.exception_type === 'reschedule' && newTime ? (
+                        <div className="flex flex-col items-start gap-0.5">
+                          <p className="text-xs text-muted-foreground">
+                            ORIGINAL CALL: <span className="text-primary text-sm">{originalOccurrenceLabel}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            MOVED TO: <span className="text-primary text-sm">{newTime}</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          {summary.supportingText}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">

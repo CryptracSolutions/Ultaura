@@ -126,8 +126,8 @@ export function ScheduleCard({
   const daysStr = formatDaySummaryFull(schedule.daysOfWeek);
 
   const sheetTitle = isOneTime
-    ? `One-time call${schedule.lineVoiceName ? ` with ${schedule.lineVoiceName}` : ''}\nScheduled: ${nextCallLabel || 'TBD'}`
-    : `${timeStr}\n${daysStr}${schedule.lineVoiceName ? `\nwith ${schedule.lineVoiceName}` : ''}`;
+    ? `One-time call${schedule.lineVoiceName ? ` WITH: ${schedule.lineVoiceName}` : ''}\nScheduled: ${nextCallLabel || 'TBD'}`
+    : `CALL TIME: ${timeStr}\nDAYS SET: ${daysStr}${schedule.lineVoiceName ? `\nWITH: ${schedule.lineVoiceName}` : ''}`;
 
   const actions = [];
   if (!isOneTime && onEdit) {
@@ -180,21 +180,21 @@ export function ScheduleCard({
                 <p className="text-sm text-foreground font-medium">One-time call</p>
                 {schedule.lineVoiceName && (
                   <p className="text-xs text-muted-foreground">
-                    with <span className="text-primary text-sm">{schedule.lineVoiceName}</span>
+                    WITH: <span className="text-primary text-sm">{schedule.lineVoiceName}</span>
                   </p>
                 )}
               </>
             ) : (
               <>
                 <p className="text-xs text-muted-foreground">
-                  at <span className="text-primary text-sm">{timeStr}</span>
+                  CALL TIME: <span className="text-primary text-sm">{timeStr}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  on <span className="text-primary text-sm">{daysStr}</span>
+                  DAYS SET: <span className="text-primary text-sm">{daysStr}</span>
                 </p>
                 {schedule.lineVoiceName && (
                   <p className="text-xs text-muted-foreground">
-                    with <span className="text-primary text-sm">{schedule.lineVoiceName}</span>
+                    WITH: <span className="text-primary text-sm">{schedule.lineVoiceName}</span>
                   </p>
                 )}
               </>

@@ -78,18 +78,25 @@ export function NewExceptionModal({
     [schedules]
   );
 
-  const getScheduleLabel = (schedule: typeof schedules[number]) => {
+  const getScheduleLabel = (schedule: typeof schedules[number], index: number) => {
     const time = formatTime(normalizeTimeOfDay(schedule.timeOfDay));
     const days = formatDaySummary(schedule.daysOfWeek);
-    return `${days || 'Custom days'} at ${time}`;
+    return `Schedule ${index + 1} — ${days || 'Custom days'} at ${time}`;
   };
+
+  const selectedScheduleIndex = useMemo(
+    () => recurringSchedules.findIndex((schedule) => schedule.scheduleId === scheduleId),
+    [recurringSchedules, scheduleId],
+  );
 
   const selectedSchedule = useMemo(
     () => recurringSchedules.find((schedule) => schedule.scheduleId === scheduleId) ?? null,
     [recurringSchedules, scheduleId],
   );
 
-  const selectedScheduleLabel = selectedSchedule ? getScheduleLabel(selectedSchedule) : null;
+  const selectedScheduleLabel = selectedSchedule && selectedScheduleIndex >= 0
+    ? getScheduleLabel(selectedSchedule, selectedScheduleIndex)
+    : null;
   const [rescheduleDateValue, rescheduleTimeValue = ''] = rescheduleDateTime.split('T');
 
   const getOccurrenceDateTime = useCallback((date: string, timeOfDay: string) => {
@@ -338,10 +345,13 @@ export function NewExceptionModal({
                 >
                   <SelectValue placeholder="Select a recurring call" />
                 </SelectTrigger>
-                <SelectContent>
-                  {recurringSchedules.map((schedule) => (
+                <SelectContent
+                  align="start"
+                  className="max-w-[calc(100vw-3rem)]"
+                >
+                  {recurringSchedules.map((schedule, index) => (
                     <SelectItem key={schedule.scheduleId} value={schedule.scheduleId}>
-                      {getScheduleLabel(schedule)}
+                      {getScheduleLabel(schedule, index)}
                     </SelectItem>
                   ))}
                 </SelectContent>

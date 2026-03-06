@@ -343,12 +343,12 @@ export function ReminderCard({
           <div className="mt-1.5 flex flex-col items-start gap-1 text-xs sm:text-sm">
             <span className="min-w-0 whitespace-nowrap text-muted-foreground">
               <span>on </span>
-              <span>{dueAtParts.date}</span>
+              <span className="text-primary">{dueAtParts.date}</span>
               <span> at </span>
-              <span>{dueAtParts.time}</span>
+              <span className="text-primary">{dueAtParts.time}</span>
             </span>
             {!isPast && (
-              <span className="shrink-0 font-medium text-primary">
+              <span className="shrink-0 text-xs text-muted-foreground">
                 {formatRelativeTime(reminder.dueAt)}
               </span>
             )}
