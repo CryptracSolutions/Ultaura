@@ -25,31 +25,45 @@ function StaticAmbientSurface() {
         aria-hidden="true"
       >
         <path
-          d="M-80 534C68 452 165 422 280 434C416 448 505 534 650 528C756 523 848 459 1080 286"
+          d="M-80 486C68 404 165 374 280 386C416 400 505 486 650 480C756 475 848 411 1080 238"
           fill="none"
           stroke="rgba(255,255,255,0.34)"
           strokeWidth="1.8"
           strokeLinecap="round"
         />
         <path
-          d="M-120 612C80 540 185 512 302 520C462 530 554 616 712 608C820 602 924 538 1120 398"
+          d="M-120 564C80 492 185 464 302 472C462 482 554 568 712 560C820 554 924 490 1120 350"
           fill="none"
           stroke="rgba(255,255,255,0.24)"
           strokeWidth="1.5"
           strokeLinecap="round"
         />
         <path
-          d="M-40 462C126 404 228 392 338 424C470 462 554 532 694 514C800 500 898 430 1090 320"
+          d="M-40 414C126 356 228 344 338 376C470 414 554 484 694 466C800 452 898 382 1090 272"
           fill="none"
           stroke="rgba(255,255,255,0.28)"
           strokeWidth="1.35"
           strokeLinecap="round"
         />
         <path
-          d="M-110 350C56 322 192 334 322 392C446 448 542 482 690 456C820 434 938 362 1108 232"
+          d="M-110 302C56 274 192 286 322 344C446 400 542 434 690 408C820 386 938 314 1108 184"
           fill="none"
           stroke="rgba(173,247,255,0.22)"
           strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-98 222C78 196 214 210 340 266C466 322 576 352 714 322C838 296 950 234 1120 128"
+          fill="none"
+          stroke="rgba(255,255,255,0.17)"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-150 238C28 238 168 278 304 340C430 398 540 424 668 382C800 338 926 254 1134 124"
+          fill="none"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth="1.05"
           strokeLinecap="round"
         />
       </svg>
@@ -131,31 +145,45 @@ export function AuthBackgroundAnimation() {
         transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
       >
         <path
-          d="M-80 534C68 452 165 422 280 434C416 448 505 534 650 528C756 523 848 459 1080 286"
+          d="M-80 486C68 404 165 374 280 386C416 400 505 486 650 480C756 475 848 411 1080 238"
           fill="none"
           stroke="rgba(255,255,255,0.34)"
           strokeWidth="1.9"
           strokeLinecap="round"
         />
         <path
-          d="M-120 612C80 540 185 512 302 520C462 530 554 616 712 608C820 602 924 538 1120 398"
+          d="M-120 564C80 492 185 464 302 472C462 482 554 568 712 560C820 554 924 490 1120 350"
           fill="none"
           stroke="rgba(255,255,255,0.24)"
           strokeWidth="1.45"
           strokeLinecap="round"
         />
         <path
-          d="M-40 462C126 404 228 392 338 424C470 462 554 532 694 514C800 500 898 430 1090 320"
+          d="M-40 414C126 356 228 344 338 376C470 414 554 484 694 466C800 452 898 382 1090 272"
           fill="none"
           stroke="rgba(255,255,255,0.28)"
           strokeWidth="1.35"
           strokeLinecap="round"
         />
         <path
-          d="M-110 350C56 322 192 334 322 392C446 448 542 482 690 456C820 434 938 362 1108 232"
+          d="M-110 302C56 274 192 286 322 344C446 400 542 434 690 408C820 386 938 314 1108 184"
           fill="none"
           stroke="rgba(173,247,255,0.24)"
           strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-98 222C78 196 214 210 340 266C466 322 576 352 714 322C838 296 950 234 1120 128"
+          fill="none"
+          stroke="rgba(255,255,255,0.20)"
+          strokeWidth="1.05"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-150 238C28 238 168 278 304 340C430 398 540 424 668 382C800 338 926 254 1134 124"
+          fill="none"
+          stroke="rgba(255,255,255,0.20)"
+          strokeWidth="1.1"
           strokeLinecap="round"
         />
       </motion.svg>
