@@ -46,7 +46,9 @@ export function OverviewSection({
   onEnableFamilySharing,
 }: OverviewSectionProps) {
   const enabledTextClass = 'text-success font-medium';
-  const disabledTextClass = 'text-muted-foreground';
+  const disabledTextClass = 'font-medium text-foreground';
+  const summaryLabelClass =
+    'text-xs font-medium uppercase tracking-wider text-foreground';
   const getStatusClass = (isEnabled: boolean) =>
     (isEnabled ? enabledTextClass : disabledTextClass);
 
@@ -80,7 +82,7 @@ export function OverviewSection({
         <SectionBody className="gap-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              <div className={summaryLabelClass}>
                 Consent status
               </div>
               <div className="mt-3 space-y-2 text-sm">
@@ -106,7 +108,7 @@ export function OverviewSection({
             </div>
 
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              <div className={summaryLabelClass}>
                 Active privacy settings
               </div>
               <div className="mt-3 space-y-2 text-sm">
@@ -132,7 +134,7 @@ export function OverviewSection({
             </div>
 
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              <div className={summaryLabelClass}>
                 Data retention
               </div>
               <div className="mt-3 text-lg font-semibold text-foreground">{retentionLabel}</div>
@@ -141,15 +143,13 @@ export function OverviewSection({
 
             {showFamilyTab && showSharingSummary ? (
               <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                <div className={summaryLabelClass}>
                   Family recipients
                 </div>
                 <div className="mt-3 text-lg font-semibold text-foreground">
                   {confirmedRecipients}
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Confirmed · {activeRecipientCount} active recipients
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Confirmed</p>
               </div>
             ) : null}
           </div>

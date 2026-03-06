@@ -98,14 +98,17 @@ export function DataRetentionSection({
             recorded audio. Call session metadata and user-created reminders are
             preserved.
           </p>
-          <Button
-            type="button"
-            variant="destructive"
-            className="w-full sm:w-auto"
-            onClick={onDeletePrivacyData}
-          >
-            Delete privacy data
-          </Button>
+          <div className="flex sm:justify-end">
+            <Button
+              type="button"
+              variant="destructive"
+              size="small"
+              className="w-full sm:w-auto"
+              onClick={onDeletePrivacyData}
+            >
+              Delete privacy data
+            </Button>
+          </div>
         </div>
       </SectionBody>
     </Section>

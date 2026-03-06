@@ -62,14 +62,12 @@ export function NewExceptionModal({
   const router = useRouter();
   const todayIso = DateTime.now().setZone(lineTimezone).toISODate() ?? '';
 
-  const [exceptionType, setExceptionType] = useState<'skip' | 'snooze' | 'reschedule'>('skip');
   const [scheduleId, setScheduleId] = useState('');
   const [exceptionDate, setExceptionDate] = useState('');
-  const [snoozeTime, setSnoozeTime] = useState('');
   const [rescheduleDateTime, setRescheduleDateTime] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<
-    'scheduleId' | 'exceptionDate' | 'snoozeTime' | 'rescheduleDate' | 'rescheduleTime',
+    'scheduleId' | 'exceptionDate' | 'rescheduleDate' | 'rescheduleTime',
     string
   >>>({});
   const [liveValidationMessage, setLiveValidationMessage] = useState('');
@@ -111,13 +109,12 @@ export function NewExceptionModal({
   }, [lineTimezone]);
 
   const originalOccurrence = useMemo(() => {
-    if (!selectedSchedule || !exceptionDate || exceptionType === 'snooze') return null;
+    if (!selectedSchedule || !exceptionDate) return null;
     return getOccurrenceDateTime(exceptionDate, selectedSchedule.timeOfDay);
-  }, [exceptionDate, exceptionType, getOccurrenceDateTime, selectedSchedule]);
+  }, [exceptionDate, getOccurrenceDateTime, selectedSchedule]);
 
   useEffect(() => {
     if (!open) return;
-    setExceptionType('skip');
     setFormError(null);
     setFieldErrors({});
     setLiveValidationMessage('');
@@ -130,9 +127,6 @@ export function NewExceptionModal({
     }
 
     setExceptionDate(todayIso);
-    setSnoozeTime(
-      DateTime.now().setZone(lineTimezone).plus({ hours: 1 }).toFormat('HH:mm')
-    );
     setRescheduleDateTime(`${todayIso}T09:00`);
   }, [open, lineTimezone, recurringSchedules, todayIso]);
 
@@ -153,34 +147,8 @@ export function NewExceptionModal({
     });
   };
 
-  const snoozePreview = useMemo(() => {
-    if (exceptionType !== 'snooze' || !snoozeTime) return null;
-    const now = DateTime.now().setZone(lineTimezone);
-    const parsedTime = parseTimeParts(snoozeTime);
-    if (!parsedTime) return null;
-
-    let candidate = now.set({
-      hour: parsedTime.hours,
-      minute: parsedTime.minutes,
-      second: 0,
-      millisecond: 0,
-    });
-    if (candidate <= now) {
-      candidate = candidate.plus({ days: 1 });
-    }
-    const diffMinutes = Math.round(candidate.diff(now, 'minutes').minutes);
-    const isTomorrow = candidate.startOf('day') > now.startOf('day');
-
-    return {
-      datetime: candidate,
-      isTomorrow,
-      diffMinutes,
-      relative: candidate.toRelative({ base: now }) ?? null,
-    };
-  }, [exceptionType, lineTimezone, snoozeTime]);
-
   const reschedulePreview = useMemo(() => {
-    if (exceptionType !== 'reschedule' || !rescheduleDateTime || !originalOccurrence) return null;
+    if (!rescheduleDateTime || !originalOccurrence) return null;
 
     const candidate = DateTime.fromISO(rescheduleDateTime, { zone: lineTimezone });
     if (!candidate.isValid) return null;
@@ -194,17 +162,7 @@ export function NewExceptionModal({
       direction,
       relative: candidate.toRelative({ base: originalOccurrence }) ?? null,
     };
-  }, [exceptionType, lineTimezone, originalOccurrence, rescheduleDateTime]);
-
-  const exceptionTypeHelpText = useMemo(() => {
-    if (exceptionType === 'skip') {
-      return 'Skip one scheduled occurrence on the selected date. Future recurring calls stay unchanged.';
-    }
-    if (exceptionType === 'snooze') {
-      return 'Delay the next scheduled occurrence to a later time today or tomorrow.';
-    }
-    return 'Move one scheduled occurrence to a new date and time. The recurring pattern continues after that.';
-  }, [exceptionType]);
+  }, [lineTimezone, originalOccurrence, rescheduleDateTime]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -224,11 +182,9 @@ export function NewExceptionModal({
 
     try {
       const today = DateTime.now().setZone(lineTimezone).toISODate();
-      let targetDate = exceptionDate;
+      const targetDate = exceptionDate;
 
-      if (exceptionType === 'snooze') {
-        targetDate = today ?? '';
-      } else if (!targetDate) {
+      if (!targetDate) {
         setFieldError('exceptionDate', 'Choose the date for this one-time exception.');
         setIsLoading(false);
         return;
@@ -242,57 +198,21 @@ export function NewExceptionModal({
 
       let newDatetime: string | undefined;
 
-      if (exceptionType === 'snooze') {
-        if (!snoozeTime) {
-          setFieldError('snoozeTime', 'Choose a snooze time.');
-          setIsLoading(false);
-          return;
-        }
-
-        const parsedTime = parseTimeParts(snoozeTime);
-        if (!parsedTime) {
-          setFieldError('snoozeTime', 'Choose a valid snooze time.');
-          setIsLoading(false);
-          return;
-        }
-        const now = DateTime.now().setZone(lineTimezone);
-        let candidate = now.set({
-          hour: parsedTime.hours,
-          minute: parsedTime.minutes,
-          second: 0,
-          millisecond: 0,
-        });
-        if (candidate <= now) {
-          candidate = candidate.plus({ days: 1 });
-        }
-
-        const diffMinutes = candidate.diff(now, 'minutes').minutes;
-        if (diffMinutes < 5 || diffMinutes > 1440) {
-          setFieldError('snoozeTime', 'Snooze must be between 5 minutes and 24 hours from now.');
-          setIsLoading(false);
-          return;
-        }
-
-        newDatetime = candidate.toFormat("yyyy-MM-dd'T'HH:mm:ss");
+      if (!rescheduleDateTime) {
+        setFieldError('rescheduleDate', 'Choose a new date and time.');
+        setFieldError('rescheduleTime', 'Choose a new date and time.');
+        setIsLoading(false);
+        return;
       }
-
-      if (exceptionType === 'reschedule') {
-        if (!rescheduleDateTime) {
-          setFieldError('rescheduleDate', 'Choose a new date and time.');
-          setFieldError('rescheduleTime', 'Choose a new date and time.');
-          setIsLoading(false);
-          return;
-        }
-        newDatetime = rescheduleDateTime.length === 16
-          ? `${rescheduleDateTime}:00`
-          : rescheduleDateTime;
-      }
+      newDatetime = rescheduleDateTime.length === 16
+        ? `${rescheduleDateTime}:00`
+        : rescheduleDateTime;
 
       const result = await createScheduleException(
         {
           scheduleId,
           exceptionDate: targetDate,
-          exceptionType,
+          exceptionType: 'reschedule',
           newDatetime,
         },
         lineShortId,
@@ -304,7 +224,7 @@ export function NewExceptionModal({
         return;
       }
 
-      toast.success('Exception saved');
+      toast.success('Moved call saved');
       onOpenChange(false);
       router.refresh();
       onSuccess?.();
@@ -324,9 +244,9 @@ export function NewExceptionModal({
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <DialogTitle className="truncate">Create exception</DialogTitle>
+            <DialogTitle className="truncate">Change one call</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Skip, snooze, or reschedule a single call.
+              Move one scheduled call to a different day or time.
             </DialogDescription>
           </div>
 
@@ -348,7 +268,7 @@ export function NewExceptionModal({
         <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
           <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
           <p className="text-xs text-primary leading-snug">
-            This applies to one occurrence only. Your recurring schedule still runs normally after this.{' '}
+            This changes only one occurrence. Your recurring schedule keeps running normally after that.{' '}
             <Link
               href="/docs/schedules-and-reminders/skipping-calls"
               className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -371,9 +291,9 @@ export function NewExceptionModal({
         {recurringSchedules.length === 0 ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-border bg-background px-3 py-3">
-              <p className="text-sm font-medium text-foreground">No eligible recurring schedules</p>
+              <p className="text-sm font-medium text-foreground">No recurring calls available</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Exceptions can only be applied to active recurring schedules. Close this modal, then create or resume a recurring schedule first.
+                You need an active recurring call before you can change one occurrence.
               </p>
             </div>
             <div className="flex flex-col gap-3 pt-1 sm:flex-row">
@@ -402,7 +322,7 @@ export function NewExceptionModal({
           {recurringSchedules.length > 1 && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Schedule
+                Recurring call
               </label>
               <Select
                 value={scheduleId}
@@ -416,7 +336,7 @@ export function NewExceptionModal({
                   aria-invalid={!!fieldErrors.scheduleId}
                   aria-describedby={fieldErrors.scheduleId ? 'schedule-id-error' : undefined}
                 >
-                  <SelectValue placeholder="Select a schedule" />
+                  <SelectValue placeholder="Select a recurring call" />
                 </SelectTrigger>
                 <SelectContent>
                   {recurringSchedules.map((schedule) => (
@@ -436,152 +356,102 @@ export function NewExceptionModal({
 
           {recurringSchedules.length === 1 && selectedScheduleLabel && (
             <div className="rounded-lg border border-border bg-background px-3 py-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Selected schedule</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Recurring call</p>
               <p className="text-sm text-foreground">{selectedScheduleLabel}</p>
             </div>
           )}
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Exception type
+              What happens next
             </label>
-            <Select
-              value={exceptionType}
-              onValueChange={(value) => {
-                setExceptionType(value as typeof exceptionType);
-                clearFieldError('exceptionDate');
-                clearFieldError('snoozeTime');
-                clearFieldError('rescheduleDate');
-                clearFieldError('rescheduleTime');
-              }}
-            >
-              <SelectTrigger className="w-full h-11">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="skip">Skip</SelectItem>
-                <SelectItem value="snooze">Snooze</SelectItem>
-                <SelectItem value="reschedule">Reschedule</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="mt-2 text-xs text-muted-foreground">{exceptionTypeHelpText}</p>
+            <div className="rounded-lg border border-border bg-background px-3 py-3">
+              <p className="text-sm font-medium text-foreground">Move this call</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pick the original date, then choose the new date and time for that one call.
+              </p>
+            </div>
           </div>
 
-          {exceptionType !== 'snooze' && (
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Original date
+            </label>
+            <DatePicker
+              value={exceptionDate}
+              onChange={(value) => {
+                setExceptionDate(value);
+                clearFieldError('exceptionDate');
+              }}
+              min={todayIso || undefined}
+              placeholder="Select date"
+              className={fieldErrors.exceptionDate ? 'border-destructive' : undefined}
+            />
+            {fieldErrors.exceptionDate && (
+              <p className="mt-2 text-xs text-destructive" role="alert">
+                {fieldErrors.exceptionDate}
+              </p>
+            )}
+            {originalOccurrence && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Current scheduled time: {originalOccurrence.toLocaleString(DateTime.DATETIME_MED)}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Date to apply
+                New date
               </label>
               <DatePicker
-                value={exceptionDate}
-                onChange={(value) => {
-                  setExceptionDate(value);
-                  clearFieldError('exceptionDate');
+                value={rescheduleDateValue || ''}
+                onChange={(date) => {
+                  const time = rescheduleTimeValue || '09:00';
+                  setRescheduleDateTime(`${date}T${time}`);
+                  clearFieldError('rescheduleDate');
                 }}
                 min={todayIso || undefined}
                 placeholder="Select date"
-                className={fieldErrors.exceptionDate ? 'border-destructive' : undefined}
+                className={fieldErrors.rescheduleDate ? 'border-destructive' : undefined}
               />
-              {fieldErrors.exceptionDate && (
+              {fieldErrors.rescheduleDate && (
                 <p className="mt-2 text-xs text-destructive" role="alert">
-                  {fieldErrors.exceptionDate}
-                </p>
-              )}
-              {originalOccurrence && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Occurrence to modify: {originalOccurrence.toLocaleString(DateTime.DATETIME_MED)}
+                  {fieldErrors.rescheduleDate}
                 </p>
               )}
             </div>
-          )}
-
-          {exceptionType === 'snooze' && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
                 New time
               </label>
               <TimePicker
-                value={snoozeTime}
-                onChange={(value) => {
-                  setSnoozeTime(value);
-                  clearFieldError('snoozeTime');
+                value={rescheduleTimeValue}
+                onChange={(time) => {
+                  const date = rescheduleDateValue || todayIso;
+                  setRescheduleDateTime(`${date}T${time}`);
+                  clearFieldError('rescheduleTime');
                 }}
                 placeholder="Select time"
-                className={fieldErrors.snoozeTime ? 'border-destructive' : undefined}
+                className={fieldErrors.rescheduleTime ? 'border-destructive' : undefined}
               />
-              {fieldErrors.snoozeTime && (
+              {fieldErrors.rescheduleTime && (
                 <p className="mt-2 text-xs text-destructive" role="alert">
-                  {fieldErrors.snoozeTime}
+                  {fieldErrors.rescheduleTime}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground mt-2">
-                If this time has already passed today, it will move to tomorrow in {lineTimezone}.
+            </div>
+            {reschedulePreview && originalOccurrence && (
+              <p className="text-xs text-muted-foreground">
+                This moves the call from {originalOccurrence.toLocaleString(DateTime.DATETIME_MED)} to{' '}
+                {reschedulePreview.datetime.toLocaleString(DateTime.DATETIME_FULL)} (
+                {reschedulePreview.relative
+                  ? `${reschedulePreview.relative} ${reschedulePreview.direction}`
+                  : `${reschedulePreview.diffMinutes} minutes ${reschedulePreview.direction}`})
+                .
               </p>
-              {snoozePreview && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Next call occurrence will move to {snoozePreview.datetime.toLocaleString(DateTime.DATETIME_FULL)}
-                  {snoozePreview.isTomorrow ? ' (tomorrow)' : ''}
-                  {snoozePreview.relative ? `, about ${snoozePreview.relative}` : ''} ({snoozePreview.diffMinutes} minutes from now).
-                </p>
-              )}
-            </div>
-          )}
-
-          {exceptionType === 'reschedule' && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  New date
-                </label>
-                <DatePicker
-                  value={rescheduleDateValue || ''}
-                  onChange={(date) => {
-                    const time = rescheduleTimeValue || '09:00';
-                    setRescheduleDateTime(`${date}T${time}`);
-                    clearFieldError('rescheduleDate');
-                  }}
-                  min={todayIso || undefined}
-                  placeholder="Select date"
-                  className={fieldErrors.rescheduleDate ? 'border-destructive' : undefined}
-                />
-                {fieldErrors.rescheduleDate && (
-                  <p className="mt-2 text-xs text-destructive" role="alert">
-                    {fieldErrors.rescheduleDate}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  New time
-                </label>
-                <TimePicker
-                  value={rescheduleTimeValue}
-                  onChange={(time) => {
-                    const date = rescheduleDateValue || todayIso;
-                    setRescheduleDateTime(`${date}T${time}`);
-                    clearFieldError('rescheduleTime');
-                  }}
-                  placeholder="Select time"
-                  className={fieldErrors.rescheduleTime ? 'border-destructive' : undefined}
-                />
-                {fieldErrors.rescheduleTime && (
-                  <p className="mt-2 text-xs text-destructive" role="alert">
-                    {fieldErrors.rescheduleTime}
-                  </p>
-                )}
-              </div>
-              {reschedulePreview && originalOccurrence && (
-                <p className="text-xs text-muted-foreground">
-                  This moves the call from {originalOccurrence.toLocaleString(DateTime.DATETIME_MED)} to{' '}
-                  {reschedulePreview.datetime.toLocaleString(DateTime.DATETIME_FULL)} (
-                  {reschedulePreview.relative
-                    ? `${reschedulePreview.relative} ${reschedulePreview.direction}`
-                    : `${reschedulePreview.diffMinutes} minutes ${reschedulePreview.direction}`})
-                  .
-                </p>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="flex flex-col gap-3 pt-4 sm:flex-row">
             <Button
@@ -592,7 +462,7 @@ export function NewExceptionModal({
               className="w-full"
               loading={isLoading}
             >
-              {isLoading ? 'Saving...' : 'Save'}
+              {isLoading ? 'Saving...' : 'Save moved call'}
             </Button>
             <Button
               type="button"

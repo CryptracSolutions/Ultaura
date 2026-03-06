@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { CalendarDays, Clock, Plus, User } from 'lucide-react';
+import { CalendarClock, CalendarDays, Clock, PhoneOutgoing, Plus, User } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
 import { deleteSchedule, updateSchedule } from '~/lib/ultaura/schedules';
 import { useManualCall } from '~/lib/contexts/ManualCallContext';
@@ -21,6 +21,7 @@ interface Schedule {
   lineId: string;
   lineShortId: string;
   displayName: string;
+  lineVoiceName: string | null;
   enabled: boolean;
   nextRunAt: string | null;
   timeOfDay: string;
@@ -82,18 +83,62 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     ? lines.find((l) => l.short_id === selectedLineShortId) ?? null
     : null;
 
+  const orderedSchedules = useMemo(
+    () => {
+      const compareString = (a: string, b: string) => a.localeCompare(b);
+
+      const compareNumberArray = (a: number[], b: number[]) => {
+        const maxLength = Math.max(a.length, b.length);
+
+        for (let index = 0; index < maxLength; index += 1) {
+          const left = a[index] ?? Number.POSITIVE_INFINITY;
+          const right = b[index] ?? Number.POSITIVE_INFINITY;
+
+          if (left !== right) {
+            return left - right;
+          }
+        }
+
+        return 0;
+      };
+
+      return [...schedules].sort((left, right) => {
+        if (left.lineId !== right.lineId) {
+          return compareString(left.lineId, right.lineId);
+        }
+
+        if (left.isOneTime !== right.isOneTime) {
+          return left.isOneTime ? 1 : -1;
+        }
+
+        const dayComparison = compareNumberArray(left.daysOfWeek, right.daysOfWeek);
+        if (dayComparison !== 0) {
+          return dayComparison;
+        }
+
+        const timeComparison = compareString(left.timeOfDay, right.timeOfDay);
+        if (timeComparison !== 0) {
+          return timeComparison;
+        }
+
+        return compareString(left.scheduleId, right.scheduleId);
+      });
+    },
+    [schedules],
+  );
+
   const filteredSchedules = selectedLine
-    ? schedules.filter((s) => s.lineId === selectedLine.id)
-    : schedules;
+    ? orderedSchedules.filter((s) => s.lineId === selectedLine.id)
+    : orderedSchedules;
 
   const recurringSchedules = filteredSchedules.filter(
     (s) => !s.isOneTime && s.daysOfWeek.length > 0,
   );
-  const oneTimeSchedules = filteredSchedules.filter(
-    (s) => s.isOneTime || s.daysOfWeek.length === 0,
+  const standaloneOneTimeSchedules = filteredSchedules.filter(
+    (s) => (s.isOneTime || s.daysOfWeek.length === 0) && !s.rescheduledFrom,
   );
 
-  const schedulesByLine = schedules.reduce<Record<string, Schedule[]>>((acc, s) => {
+  const schedulesByLine = orderedSchedules.reduce<Record<string, Schedule[]>>((acc, s) => {
     if (!acc[s.lineId]) acc[s.lineId] = [];
     acc[s.lineId].push(s);
     return acc;
@@ -119,8 +164,6 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
     const bTime = b.nextRunAt ? new Date(b.nextRunAt).getTime() : Number.POSITIVE_INFINITY;
     return aTime - bTime;
   };
-  const sortedOneTimeSchedules = [...oneTimeSchedules].sort(sortByNextRunAt);
-
   // Find the schedule being edited (to get line info for the modal)
   const editingSchedule = editScheduleId ? scheduleById.get(editScheduleId) ?? null : null;
   const editingLine = editingSchedule
@@ -187,17 +230,19 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
   // -- No lines state --
   if (lines.length === 0) {
     return (
-      <div className="bg-card rounded-xl border border-border p-8 text-center">
+      <div className="bg-card rounded-xl border border-border p-8">
         <CalendarDays className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <h2 className="text-lg font-semibold text-foreground mb-2">No phone lines yet</h2>
         <p className="text-muted-foreground mb-4">
           Add a phone line first, then you can set up call schedules.
         </p>
         {!disabled && (
-          <Button variant="default" size="small" href="/dashboard/lines?action=add">
-            <Plus className="w-4 h-4" />
-            Add a Phone Line
-          </Button>
+          <div className="flex w-full justify-end">
+            <Button variant="default" size="small" href="/dashboard/lines?action=add">
+              <Plus className="w-4 h-4" />
+              Add a Phone Line
+            </Button>
+          </div>
         )}
       </div>
     );
@@ -206,7 +251,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
   return (
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {lines.length > 1 && (
           <div className="w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
             <ScheduleLineFilter
@@ -232,6 +277,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
               onClick={() => openManualCall({ preselectedLineId: selectedLine?.id })}
               className="w-full sm:w-auto"
             >
+              <PhoneOutgoing className="w-4 h-4" />
               Place Call
             </Button>
             {selectedLine && recurringSchedules.length > 0 && (
@@ -241,8 +287,8 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                 onClick={() => setShowNewExceptionModal(true)}
                 className="w-full sm:w-auto"
               >
-                <Plus className="w-4 h-4" />
-                Create Exception
+                <CalendarClock className="w-4 h-4" />
+                Move Call
               </Button>
             )}
           </div>
@@ -254,8 +300,11 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
         <div className="space-y-6">
           {lines.map((line) => {
             const lineSchedules = schedulesByLine[line.id] ?? [];
-            const enabledSchedules = lineSchedules.filter((s) => s.enabled).sort(sortByNextRunAt);
-            const disabledSchedules = lineSchedules.filter((s) => !s.enabled).sort(sortByNextRunAt);
+            const recurringScheduleIds = lineSchedules
+              .filter((schedule) => !schedule.isOneTime && schedule.daysOfWeek.length > 0)
+              .map((schedule) => schedule.scheduleId);
+            const activeScheduleCount = lineSchedules.filter((s) => s.enabled).length;
+            const hasPausedSchedules = activeScheduleCount > 0 && lineSchedules.some((s) => !s.enabled);
 
             return (
               <div key={line.id} className="bg-card rounded-xl border border-border overflow-hidden">
@@ -268,7 +317,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                     <p className="text-sm text-muted-foreground">
                       {lineSchedules.length === 0
                         ? 'No schedules'
-                        : `${enabledSchedules.length} active schedule${enabledSchedules.length !== 1 ? 's' : ''}`}
+                        : `${activeScheduleCount} active schedule${activeScheduleCount !== 1 ? 's' : ''}`}
                     </p>
                   </div>
                 </div>
@@ -293,35 +342,27 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
                     </div>
                   ) : (
                     <>
-                      {enabledSchedules.map((schedule) => (
-                        <ScheduleCard
-                          key={schedule.scheduleId}
-                          schedule={schedule}
-                          disabled={disabled}
-                          loading={!!loadingActions[schedule.scheduleId]}
-                          onEdit={() => handleEdit(schedule.scheduleId)}
-                          onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
-                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
-                        />
-                      ))}
-
-                      {disabledSchedules.length > 0 && enabledSchedules.length > 0 && (
-                        <div className="px-6 py-2 bg-muted/30">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                            Paused
-                          </p>
+                      {lineSchedules.map((schedule, index) => (
+                        <div key={schedule.scheduleId}>
+                          {hasPausedSchedules && !schedule.enabled && (
+                            <div className="px-6 py-2 bg-muted/30">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Paused
+                              </p>
+                            </div>
+                          )}
+                          <ScheduleCard
+                            schedule={schedule}
+                            title={recurringScheduleIds.includes(schedule.scheduleId)
+                              ? `Schedule ${recurringScheduleIds.indexOf(schedule.scheduleId) + 1}`
+                              : undefined}
+                            disabled={disabled}
+                            loading={!!loadingActions[schedule.scheduleId]}
+                            onEdit={() => handleEdit(schedule.scheduleId)}
+                            onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
+                            onDelete={() => setScheduleToDelete(schedule.scheduleId)}
+                          />
                         </div>
-                      )}
-                      {disabledSchedules.map((schedule) => (
-                        <ScheduleCard
-                          key={schedule.scheduleId}
-                          schedule={schedule}
-                          disabled={disabled}
-                          loading={!!loadingActions[schedule.scheduleId]}
-                          onEdit={() => handleEdit(schedule.scheduleId)}
-                          onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
-                          onDelete={() => setScheduleToDelete(schedule.scheduleId)}
-                        />
                       ))}
                     </>
                   )}
@@ -340,33 +381,31 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
             <div>
               <h2 className="font-semibold text-lg mb-3">Recurring Schedules</h2>
               <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border">
-                {recurringSchedules
-                  .slice()
-                  .sort((a, b) => {
-                    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
-                    return sortByNextRunAt(a, b);
-                  })
-                  .map((schedule) => (
-                    <ScheduleCard
-                      key={schedule.scheduleId}
-                      schedule={schedule}
-                      disabled={disabled}
-                      loading={!!loadingActions[schedule.scheduleId]}
-                      onEdit={() => handleEdit(schedule.scheduleId)}
-                      onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
-                      onDelete={() => setScheduleToDelete(schedule.scheduleId)}
-                    />
-                  ))}
+                {recurringSchedules.map((schedule, index) => (
+                  <ScheduleCard
+                    key={schedule.scheduleId}
+                    schedule={schedule}
+                    title={`Schedule ${index + 1}`}
+                    disabled={disabled}
+                    loading={!!loadingActions[schedule.scheduleId]}
+                    onEdit={() => handleEdit(schedule.scheduleId)}
+                    onToggle={() => handleToggle(schedule.scheduleId, schedule.enabled)}
+                    onDelete={() => setScheduleToDelete(schedule.scheduleId)}
+                  />
+                ))}
               </div>
             </div>
           )}
 
           {/* One-time Calls */}
-          {oneTimeSchedules.length > 0 && (
+          {standaloneOneTimeSchedules.length > 0 && (
             <div>
-              <h2 className="font-semibold text-lg mb-3">One-time Calls</h2>
+              <h2 className="font-semibold text-lg mb-1">One-time Calls</h2>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Single calls that are not tied to a recurring schedule.
+              </p>
               <div className="bg-card rounded-xl border border-border overflow-hidden divide-y divide-border">
-                {sortedOneTimeSchedules.map((schedule) => (
+                {[...standaloneOneTimeSchedules].sort(sortByNextRunAt).map((schedule) => (
                   <ScheduleCard
                     key={schedule.scheduleId}
                     schedule={schedule}
@@ -402,7 +441,7 @@ export function CallsPageClient({ lines, schedules, disabled = false }: CallsPag
           {/* Schedule Exceptions */}
           {filteredSchedules.length > 0 && (
             <div>
-              <h2 className="font-semibold text-lg mb-3">Schedule Exceptions</h2>
+              <h2 className="font-semibold text-lg mb-3">Schedule Changes</h2>
               <ScheduleExceptions
                 lineId={selectedLine.id}
                 lineShortId={selectedLine.short_id}

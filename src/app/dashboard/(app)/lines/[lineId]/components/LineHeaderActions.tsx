@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Phone } from 'lucide-react';
+import { AlertTriangle, Phone, PhoneCall } from 'lucide-react';
 import type { ActionError } from '@ultaura/schemas';
 import type { LineRow, UsageSummary } from '~/lib/ultaura/types';
 import { getCallSessionStatus, initiateTestCall } from '~/lib/ultaura/usage';
@@ -224,6 +224,7 @@ export function LineHeaderActions({
             size="small"
             className="w-full sm:w-auto"
           >
+            <PhoneCall className="mr-1.5 h-4 w-4" />
             Test Call
           </Button>
         </div>

@@ -656,6 +656,7 @@ export async function getAllSchedules(accountId: string): Promise<{
   displayName: string;
   lineTimezone: string;
   linePhoneE164: string | null;
+  lineVoiceName: string | null;
   enabled: boolean;
   nextRunAt: string | null;
   timeOfDay: string;
@@ -680,11 +681,13 @@ export async function getAllSchedules(accountId: string): Promise<{
         display_name,
         short_id,
         timezone,
-        phone_e164
+        phone_e164,
+        preferred_grok_voice
       )
     `)
     .eq('account_id', accountId)
-    .order('created_at', { ascending: false });
+    .order('line_id', { ascending: true })
+    .order('created_at', { ascending: true });
 
   if (error) {
     logger.error({ error }, 'Failed to get all schedules');
@@ -702,7 +705,13 @@ export async function getAllSchedules(accountId: string): Promise<{
   return scheduleList.map((schedule) => {
     const isOneTime = schedule.is_one_time || schedule.days_of_week.length === 0;
     const rescheduleSource = isOneTime ? rescheduleSourceMap.get(schedule.id) : null;
-    const line = schedule.ultaura_lines as { short_id: string; display_name: string; timezone?: string; phone_e164?: string | null };
+    const line = schedule.ultaura_lines as {
+      short_id: string;
+      display_name: string;
+      timezone?: string;
+      phone_e164?: string | null;
+      preferred_grok_voice?: string | null;
+    };
     const timezone = line?.timezone || schedule.timezone || TELEPHONY.DEFAULT_TIMEZONE;
     const rescheduledFrom = rescheduleSource
       ? formatRescheduledFrom(
@@ -719,6 +728,7 @@ export async function getAllSchedules(accountId: string): Promise<{
       displayName: line.display_name,
       lineTimezone: timezone,
       linePhoneE164: line.phone_e164 ?? null,
+      lineVoiceName: line.preferred_grok_voice ?? null,
       enabled: schedule.enabled,
       nextRunAt: schedule.next_run_at,
       timeOfDay: schedule.time_of_day,

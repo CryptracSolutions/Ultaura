@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 
 const DAY_SHORT_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_FULL_NAMES = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
 
 export function formatDaySummary(daysOfWeek: number[]): string {
   if (daysOfWeek.length === 0) return '';
@@ -10,6 +11,16 @@ export function formatDaySummary(daysOfWeek: number[]): string {
   if (daysOfWeek.length === 5 && weekdays.every((d) => daysOfWeek.includes(d))) return 'Weekdays';
   if (daysOfWeek.length === 2 && weekends.every((d) => daysOfWeek.includes(d))) return 'Weekends';
   return daysOfWeek.map((d) => DAY_SHORT_NAMES[d]).join(', ');
+}
+
+export function formatDaySummaryFull(daysOfWeek: number[]): string {
+  if (daysOfWeek.length === 0) return '';
+  if (daysOfWeek.length === 7) return 'Every day';
+  const weekdays = [1, 2, 3, 4, 5];
+  const weekends = [0, 6];
+  if (daysOfWeek.length === 5 && weekdays.every((d) => daysOfWeek.includes(d))) return 'Weekdays';
+  if (daysOfWeek.length === 2 && weekends.every((d) => daysOfWeek.includes(d))) return 'Weekends';
+  return daysOfWeek.map((d) => DAY_FULL_NAMES[d]).join(', ');
 }
 
 export function formatNextRunAt(nextRunAt: string | null, timezone?: string): string {

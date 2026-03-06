@@ -24,7 +24,8 @@ export async function getLines(accountId: string): Promise<LineRow[]> {
     .from('ultaura_lines')
     .select('*')
     .eq('account_id', accountId)
-    .order('created_at', { ascending: false });
+    .order('display_name', { ascending: true })
+    .order('created_at', { ascending: true });
 
   if (error) {
     logger.error({ error }, 'Failed to get lines');

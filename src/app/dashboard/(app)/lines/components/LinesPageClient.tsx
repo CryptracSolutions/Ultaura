@@ -112,23 +112,21 @@ export function LinesPageClient({
             .
           </p>
         ) : disabled && readOnlyReason === 'viewer' ? null : canAddLine ? (
-          <div className="space-y-2">
+          <div className="flex w-full justify-start">
             <Button
               variant="default"
               size="small"
-              block
               onClick={() => setIsAddModalOpen(true)}
               className="sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               {isSelfUser ? 'Add My Phone' : 'Add a Phone Line'}
             </Button>
-            {hasUnlimitedLines ? (
-              <p className="text-sm text-muted-foreground">
-                {lines.length} line{lines.length === 1 ? '' : 's'} on your plan. You can add more anytime.
-              </p>
-            ) : null}
           </div>
+        ) : hasUnlimitedLines ? (
+          <p className="text-sm text-muted-foreground">
+            {lines.length} line{lines.length === 1 ? '' : 's'} on your plan. You can add more anytime.
+          </p>
         ) : !hasUnlimitedLines && lines.length > limitedPlanLinesLimit ? (
           <p className="text-sm text-muted-foreground">
             Your plan includes {limitedPlanLinesLimit} line{limitedPlanLinesLimit > 1 ? 's' : ''}, but you currently have {lines.length}. Your existing lines will keep working, but you can&apos;t add new ones until you upgrade or remove a line.

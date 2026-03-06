@@ -126,6 +126,10 @@ export function FamilyRecipientsSection({
         />
         <SectionBody className="gap-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {activeRecipientCount}/{MAX_RECIPIENTS} active recipients
+            </p>
+
             {hasReachedRecipientLimit ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -133,6 +137,7 @@ export function FamilyRecipientsSection({
                     <Button
                       type="button"
                       variant="default"
+                      size="small"
                       className="w-full"
                       disabled
                     >
@@ -147,6 +152,7 @@ export function FamilyRecipientsSection({
               <Button
                 type="button"
                 variant="default"
+                size="small"
                 className="w-full sm:w-auto"
                 onClick={() => {
                   setInviteError(null);
@@ -158,10 +164,6 @@ export function FamilyRecipientsSection({
                 Invite Recipient
               </Button>
             )}
-
-            <p className="text-sm text-muted-foreground">
-              {activeRecipientCount}/{MAX_RECIPIENTS} active recipients
-            </p>
           </div>
 
           <InvitedFamilyList

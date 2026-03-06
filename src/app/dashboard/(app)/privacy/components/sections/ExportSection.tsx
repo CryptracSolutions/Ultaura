@@ -79,19 +79,21 @@ export function ExportSection({
             Export data
           </div>
         }
-        description="Generate a downloadable export of your account data."
+        description="Generate a downloadable export of your account data. Includes all lines and expires in 48 hours."
       />
       <SectionBody className="gap-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">Format</p>
+        <div className="grid gap-4 md:grid-cols-3 md:items-start">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:col-span-2">
+            <p className="text-sm font-medium text-foreground sm:shrink-0">
+              Format
+            </p>
             <Select
               value={exportFormat}
               onValueChange={(value) =>
                 onExportFormatChange(value as 'json' | 'csv')
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue placeholder="Select format" />
               </SelectTrigger>
               <SelectContent>
@@ -100,35 +102,32 @@ export function ExportSection({
               </SelectContent>
             </Select>
           </div>
+          <div className="flex md:justify-end">
+            <Button
+              type="button"
+              variant="default"
+              size="small"
+              className="w-full sm:w-auto"
+              onClick={onExportRequest}
+              disabled={isExportBusy}
+              loading={isExporting}
+            >
+              {isExporting
+                ? 'Requesting...'
+                : exportInProgress
+                  ? 'Export in progress'
+                  : 'Request export'}
+            </Button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <Button
-            type="button"
-            variant="default"
-            className="w-full sm:w-auto"
-            onClick={onExportRequest}
-            disabled={isExportBusy}
-            loading={isExporting}
-          >
-            {isExporting
-              ? 'Requesting...'
-              : exportInProgress
-                ? 'Export in progress'
-                : 'Request export'}
-          </Button>
+        {exportInProgress ? (
           <p className="text-xs text-muted-foreground">
-            Exports are available for 48 hours and include {lineCount} line
-            {lineCount === 1 ? '' : 's'}.
+            {exportPollingTimedOut
+              ? 'Auto-refresh paused after repeated checks. Refresh to check status again.'
+              : 'Updating automatically every 10 seconds.'}
           </p>
-          {exportInProgress ? (
-            <p className="text-xs text-muted-foreground">
-              {exportPollingTimedOut
-                ? 'Auto-refresh paused after repeated checks. Refresh to check status again.'
-                : 'Updating automatically every 10 seconds.'}
-            </p>
-          ) : null}
-        </div>
+        ) : null}
 
         <Accordion>
           <AccordionItem value="export-advanced">
@@ -175,11 +174,11 @@ export function ExportSection({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Download</TableHead>
                   <TableHead>Requested</TableHead>
                   <TableHead>Format</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Expires</TableHead>
-                  <TableHead className="text-right">Download</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -193,6 +192,23 @@ export function ExportSection({
                     request.status === 'ready' ? safeDownloadUrl : null;
                   return (
                     <TableRow key={request.id}>
+                      <TableCell>
+                        {readyDownloadUrl ? (
+                          <a
+                            href={readyDownloadUrl}
+                            className="inline-flex items-center justify-center rounded-md p-1 text-primary transition-colors hover:text-primary/80"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Download ${request.format} export requested ${formatDateTime(request.createdAt)}`}
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            --
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>{formatDateTime(request.createdAt)}</TableCell>
                       <TableCell className="uppercase text-xs text-muted-foreground">
                         {request.format}
@@ -208,22 +224,6 @@ export function ExportSection({
                         {request.expiresAt
                           ? formatDateTime(request.expiresAt)
                           : '--'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {readyDownloadUrl ? (
-                          <a
-                            href={readyDownloadUrl}
-                            className="text-primary hover:underline text-sm"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Download
-                          </a>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            --
-                          </span>
-                        )}
                       </TableCell>
                     </TableRow>
                   );

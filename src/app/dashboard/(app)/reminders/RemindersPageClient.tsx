@@ -233,7 +233,7 @@ export function RemindersPageClient({
   return (
     <div className="space-y-6 pb-12">
       {/* Top bar: CTA + filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {lines.length > 1 && (
           <div className="w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
             <ReminderLineFilter
@@ -251,7 +251,7 @@ export function RemindersPageClient({
               disabled={isSetReminderDisabled}
               className="w-full sm:w-auto"
             >
-              <Plus className="w-4 h-4" />
+              <Bell className="w-4 h-4" />
               Set Reminder
             </Button>
             {isSelectedLineUnverified && (

@@ -21,12 +21,14 @@ interface ResponsiveDetailsButtonProps {
   title: string;
   details: DetailItem[];
   disabled?: boolean;
+  label?: string;
 }
 
 export function ResponsiveDetailsButton({
   title,
   details,
   disabled,
+  label = 'Reminder details',
 }: ResponsiveDetailsButtonProps) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -75,7 +77,7 @@ export function ResponsiveDetailsButton({
               <button
                 disabled={disabled}
                 className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                aria-label="Reminder details"
+                aria-label={label}
                 onPointerDown={() => setIsTooltipOpen(false)}
                 onPointerLeave={() => {
                   setIsTooltipOpen(false);
@@ -87,7 +89,7 @@ export function ResponsiveDetailsButton({
               </button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent sideOffset={20}>Reminder details</TooltipContent>
+          <TooltipContent sideOffset={20}>{label}</TooltipContent>
         </Tooltip>
         <PopoverContent
           align="end"
@@ -119,9 +121,9 @@ export function ResponsiveDetailsButton({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-base font-semibold leading-snug break-words whitespace-pre-wrap">
-                Reminder details
+                {label}
               </DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-muted-foreground break-words">
+              <DialogDescription className="mt-1 text-sm text-muted-foreground break-words whitespace-pre-wrap">
                 {title}
               </DialogDescription>
             </div>
