@@ -251,7 +251,7 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
                       ) : null}
                       <span className="hidden shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground sm:inline-flex">
                         <span>via</span>
-                        <span className="font-medium text-primary">
+                        <span className="text-primary">
                           {getTriggerLabel(event.triggered_by)}
                         </span>
                       </span>
@@ -282,7 +282,7 @@ export function ReminderActivity({ lineId, lineTimezone, initialEvents }: Remind
                       <span>{timestampParts.time}</span>
                     </p>
                     <span className="text-muted-foreground">
-                      via <span className="font-medium text-primary">{getTriggerLabel(event.triggered_by)}</span>
+                      via <span className="text-primary">{getTriggerLabel(event.triggered_by)}</span>
                     </span>
                   </div>
                 </div>

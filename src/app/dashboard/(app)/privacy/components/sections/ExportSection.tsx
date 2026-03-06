@@ -102,7 +102,7 @@ export function ExportSection({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex md:justify-end">
+          <div className="flex md:justify-end md:self-end">
             <Button
               type="button"
               variant="default"
