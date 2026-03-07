@@ -829,7 +829,7 @@ export function SettingsClient({
                       Vacation Mode
                     </div>
                   }
-                  description={`Pause scheduled calls and reminders during vacations. Dates follow ${line.timezone}.`}
+                  description="Pause scheduled calls and reminders during vacations."
                 />
                 <SectionBody>
                   <VacationSettings

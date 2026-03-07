@@ -174,19 +174,20 @@ export function VacationSettings({
               Vacation Mode
             </div>
             <p className="text-sm text-muted-foreground">
-              Pause all scheduled calls and reminders during vacations. Dates are based on{' '}
-              {line.timezone}.
+              Pause all scheduled calls and reminders during vacations.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={openAddModal}
             disabled={disabled}
-            className="inline-flex items-center gap-2 text-sm text-primary hover:underline disabled:opacity-50"
+            variant="default"
+            size="small"
+            className="sm:w-auto"
           >
-            <Plus className="w-4 h-4" />
-            Add Vacation
-          </button>
+            <Plus className="h-3 w-3" />
+            {sortedRanges.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
+          </Button>
         </div>
       ) : null}
 
@@ -205,15 +206,17 @@ export function VacationSettings({
                   : `Show ${pastVacations.length} past vacation${pastVacations.length !== 1 ? 's' : ''}`}
               </button>
             ) : null}
-            <button
+            <Button
               type="button"
               onClick={openAddModal}
               disabled={disabled}
-              className="inline-flex items-center gap-2 text-sm text-primary hover:underline disabled:opacity-50"
+              variant="default"
+              size="small"
+              className="sm:w-auto"
             >
-              <Plus className="w-4 h-4" />
-              Add Vacation
-            </button>
+              <Plus className="h-3 w-3" />
+              {sortedRanges.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
+            </Button>
           </div>
         </div>
       ) : null}
@@ -222,30 +225,20 @@ export function VacationSettings({
         <div className="text-center py-8 rounded-lg border border-dashed border-border bg-muted/20">
           <Palmtree className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
           {pastVacations.length === 0 ? (
-            <p className="text-sm text-muted-foreground mb-4">No vacation ranges yet.</p>
+            <p className="text-sm text-muted-foreground">No vacation ranges yet.</p>
           ) : (
             <>
               <p className="text-sm text-muted-foreground mb-2">No upcoming vacations.</p>
               <button
                 type="button"
                 onClick={() => setShowPastVacations(true)}
-                className="text-xs text-primary hover:underline mb-4"
+                className="text-xs text-primary hover:underline"
               >
                 Show {pastVacations.length} past vacation
                 {pastVacations.length !== 1 ? 's' : ''}
               </button>
             </>
           )}
-          {!disabled ? (
-            <Button
-              type="button"
-              variant="default"
-              onClick={openAddModal}
-            >
-              <Plus className="w-4 h-4" />
-              {pastVacations.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
-            </Button>
-          ) : null}
         </div>
       ) : (
         <div className="space-y-2">
@@ -416,8 +409,6 @@ export function VacationSettings({
                   />
                 </div>
               </div>
-
-              <p className="text-xs text-muted-foreground">Dates are based on {line.timezone}.</p>
 
               <div className="flex flex-col gap-3 pt-4 sm:flex-row">
                 <Button
