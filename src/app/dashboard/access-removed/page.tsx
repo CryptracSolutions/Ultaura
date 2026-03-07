@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Lock } from 'lucide-react';
 
 import Button from '~/core/ui/Button';
+import Logo from '~/core/ui/Logo';
 
 export const metadata = {
   title: 'Dashboard Access Removed',
@@ -9,7 +10,14 @@ export const metadata = {
 
 export default function AccessRemovedPage() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10">
+      <div className="mb-8 flex justify-center">
+        <Logo
+          className="h-10"
+          showWordmark
+          wordmarkClassName="text-2xl font-semibold leading-none text-primary"
+        />
+      </div>
       <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-5">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Lock className="h-6 w-6" aria-hidden="true" />
