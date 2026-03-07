@@ -29,7 +29,7 @@ function SignInMethodsContainer() {
         <EmailPasswordSignInContainer onSignIn={onSignIn} />
       </If>
 
-      <If condition={providers.phoneNumber && providers.emailPassword}>
+      <If condition={providers.oAuth.length && providers.emailPassword}>
         <div className={'flex w-full items-center gap-3'}>
           <div className={'h-px flex-1 bg-border'} />
           <span className={'text-xs uppercase text-muted-foreground'}>
@@ -39,31 +39,23 @@ function SignInMethodsContainer() {
         </div>
       </If>
 
-      <If condition={providers.phoneNumber}>
-        <PhoneNumberSignInContainer onSuccess={onSignIn} mode={'signIn'} />
-      </If>
-
-      <If condition={providers.emailLink}>
-        <EmailLinkAuth />
-      </If>
-
-      <If condition={providers.emailOtp}>
-        <EmailOtpContainer shouldCreateUser={false} />
-      </If>
-
-      <If condition={providers.oAuth.length}>
-        <If condition={providers.emailPassword || providers.phoneNumber}>
-          <div className={'flex w-full items-center gap-3'}>
-            <div className={'h-px flex-1 bg-border'} />
-            <span className={'text-xs uppercase text-muted-foreground'}>
-              <Trans i18nKey={'common:or'} />
-            </span>
-            <div className={'h-px flex-1 bg-border'} />
-          </div>
+      <div className={'flex w-full flex-col space-y-2'}>
+        <If condition={providers.phoneNumber}>
+          <PhoneNumberSignInContainer onSuccess={onSignIn} mode={'signIn'} />
         </If>
 
-        <OAuthProviders />
-      </If>
+        <If condition={providers.emailLink}>
+          <EmailLinkAuth />
+        </If>
+
+        <If condition={providers.emailOtp}>
+          <EmailOtpContainer shouldCreateUser={false} />
+        </If>
+
+        <If condition={providers.oAuth.length}>
+          <OAuthProviders />
+        </If>
+      </div>
     </>
   );
 }

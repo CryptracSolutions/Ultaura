@@ -10,8 +10,7 @@ function AuthBrandPanel() {
   return (
     <aside
       className={
-        'relative isolate hidden min-h-screen overflow-hidden lg:flex' +
-        ' flex-col items-center justify-center px-10'
+        'relative isolate hidden min-h-screen overflow-hidden lg:block' // Changed from flex/items-center to block to allow absolute positioning
       }
     >
       <div className="pointer-events-none absolute inset-0 z-0">
@@ -31,38 +30,37 @@ function AuthBrandPanel() {
         </svg>
       </div>
       
-      <div
-        className={
-          'relative z-10 flex flex-col items-center gap-0 rounded-[2rem] px-10 py-12 text-center' +
-          ' animate-in fade-in slide-in-from-bottom-4 duration-1000'
-        }
-      >
+      {/* Top Left Logo & Wordmark */}
+      <div className="absolute top-2 left-4 z-10 animate-in fade-in slide-in-from-top-4 duration-1000">
         <Link
           aria-label="Ultaura"
           href="/"
           className="inline-flex items-center gap-2"
         >
           {prefersReducedMotion ? (
-            <LogoImage className="h-20 w-auto brightness-0 invert drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
+            <LogoImage className="h-10 w-auto brightness-0 invert drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
           ) : (
             <motion.div
               animate={{ scale: [1, 1.04, 1], opacity: [1, 0.97, 1] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               className="inline-block"
             >
-              <LogoImage className="h-20 w-auto brightness-0 invert drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
+              <LogoImage className="h-10 w-auto brightness-0 invert drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
             </motion.div>
           )}
           <span
             className={cn(
-              'select-none text-base font-bold leading-none tracking-tight text-white text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]',
+              'select-none text-base font-bold leading-none tracking-tight text-white text-[1.45rem] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]',
             )}
           >
             Ultaura
           </span>
         </Link>
+      </div>
 
-        <p className={'mt-0 max-w-sm text-balance text-lg font-semibold tracking-[0.01em] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]'}>
+      {/* Bottom Right Tagline */}
+      <div className="absolute bottom-2 right-4 z-10 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <p className={'text-right max-w-sm text-balance text-base font-semibold tracking-[0.01em] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]'}>
           Companionship, One Call at a Time
         </p>
       </div>

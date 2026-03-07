@@ -64,7 +64,15 @@ const PhoneNumberCredentialForm: React.FC<{
           </TextField.Label>
         </TextField>
 
-        <Button loading={loading} block type={'submit'}>
+        <Button
+          loading={loading}
+          block
+          type={'submit'}
+          variant={'custom'}
+          className={
+            'relative border border-gray-200 text-gray-600 ring-ring ring-offset-1 transition-all hover:border-gray-300 hover:bg-gray-50 focus:ring-2 active:bg-gray-100 dark:border-dark-700 dark:bg-background/90 dark:text-gray-200 dark:ring-ring dark:hover:border-dark-600 dark:hover:bg-background/50 dark:focus:ring-offset-dark-800 dark:active:bg-background/80'
+          }
+        >
           <If condition={action === 'link'}>
             <Trans i18nKey={'profile:verifyPhoneNumberSubmitLabel'} />
           </If>

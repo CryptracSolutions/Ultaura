@@ -77,7 +77,12 @@ function SignUpMethodsContainer(props: {
         <EmailPasswordSignUpContainer onSignUp={onInviteAwareSignUp} />
       </If>
 
-      <If condition={providers.phoneNumber && providers.emailPassword}>
+      <If
+        condition={
+          providers.emailPassword &&
+          (providers.oAuth.length > 0 || providers.phoneNumber)
+        }
+      >
         <div className={'flex w-full items-center gap-3'}>
           <div className={'h-px flex-1 bg-border'} />
           <span className={'text-xs uppercase text-muted-foreground'}>
@@ -87,34 +92,30 @@ function SignUpMethodsContainer(props: {
         </div>
       </If>
 
-      <If condition={providers.phoneNumber}>
-        <PhoneNumberSignInContainer
-          onSuccess={onInviteAwarePhoneSignUp}
-          mode={'signUp'}
-        />
-      </If>
-
-      <If condition={providers.emailLink}>
-        <EmailLinkAuth inviteCode={inviteCode} />
-      </If>
-
-      <If condition={providers.emailOtp}>
-        <EmailOtpContainer inviteCode={inviteCode} shouldCreateUser={true} />
-      </If>
-
-      <If condition={providers.oAuth.length}>
-        <If condition={providers.emailPassword || providers.phoneNumber}>
-          <div className={'flex w-full items-center gap-3'}>
-            <div className={'h-px flex-1 bg-border'} />
-            <span className={'text-xs uppercase text-muted-foreground'}>
-              <Trans i18nKey={'common:or'} />
-            </span>
-            <div className={'h-px flex-1 bg-border'} />
-          </div>
+      <div className={'flex w-full flex-col space-y-2'}>
+        <If condition={providers.phoneNumber}>
+          <PhoneNumberSignInContainer
+            onSuccess={onInviteAwarePhoneSignUp}
+            mode={'signUp'}
+          />
         </If>
 
-        <OAuthProviders inviteCode={inviteCode} returnUrl={nextPath} />
-      </If>
+        <If condition={providers.emailLink}>
+          <EmailLinkAuth inviteCode={inviteCode} />
+        </If>
+
+        <If condition={providers.emailOtp}>
+          <EmailOtpContainer inviteCode={inviteCode} shouldCreateUser={true} />
+        </If>
+
+        <If condition={providers.oAuth.length}>
+          <OAuthProviders
+          inviteCode={inviteCode}
+          returnUrl={nextPath}
+          mode={'signUp'}
+        />
+        </If>
+      </div>
     </>
   );
 }

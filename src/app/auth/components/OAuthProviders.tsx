@@ -17,7 +17,10 @@ const OAUTH_PROVIDERS = configuration.auth.providers.oAuth;
 const OAuthProviders: React.FCC<{
   returnUrl?: string;
   inviteCode?: string;
+  mode?: 'signIn' | 'signUp';
 }> = (props) => {
+  const i18nKey =
+    props.mode === 'signUp' ? 'auth:signUpWithProvider' : 'auth:signInWithProvider';
   const signInWithProviderMutation = useSignInWithProvider();
 
   // we make the UI "busy" until the next page is fully loaded
@@ -87,7 +90,7 @@ const OAuthProviders: React.FCC<{
                 }}
               >
                 <Trans
-                  i18nKey={'auth:signInWithProvider'}
+                  i18nKey={i18nKey}
                   values={{
                     provider: getProviderName(provider),
                   }}

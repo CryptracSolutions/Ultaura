@@ -44,7 +44,15 @@ const EmailPasswordSignInForm: React.FCC<{
 
         <TextField>
           <TextField.Label>
-            <Trans i18nKey={'common:password'} />
+            <div className="flex w-full items-center justify-between !mt-0 mb-1.5">
+              <span><Trans i18nKey={'common:password'} /></span>
+              <Link
+                href={'/auth/password-reset'}
+                className={'text-primary hover:text-primary/70 hover:underline transition-colors'}
+              >
+                <Trans i18nKey={'auth:passwordForgottenQuestion'} />
+              </Link>
+            </div>
 
             <TextField.Input
               required
@@ -53,12 +61,6 @@ const EmailPasswordSignInForm: React.FCC<{
               placeholder={''}
               {...passwordControl}
             />
-
-            <div className={'py-0.5 text-xs'}>
-              <Link href={'/auth/password-reset'} className={'hover:underline'}>
-                <Trans i18nKey={'auth:passwordForgottenQuestion'} />
-              </Link>
-            </div>
           </TextField.Label>
         </TextField>
 

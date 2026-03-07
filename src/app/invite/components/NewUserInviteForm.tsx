@@ -52,7 +52,11 @@ function NewUserInviteForm(
         </LoadingOverlay>
       </If>
 
-      <OAuthProviders inviteCode={props.code} returnUrl={oAuthReturnUrl} />
+      <OAuthProviders
+        inviteCode={props.code}
+        returnUrl={oAuthReturnUrl}
+        mode={'signUp'}
+      />
 
       <If condition={configuration.auth.providers.emailPassword}>
         <If condition={mode === Mode.SignUp}>
