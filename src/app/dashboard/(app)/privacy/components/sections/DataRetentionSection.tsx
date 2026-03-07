@@ -1,6 +1,6 @@
 'use client';
 
-import { Archive, Trash2 } from 'lucide-react';
+import { Archive } from 'lucide-react';
 
 import {
   Accordion,
@@ -90,7 +90,6 @@ export function DataRetentionSection({
 
         <div className="border-t border-border/60 pt-6">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-            <Trash2 className="h-4 w-4 text-muted-foreground" />
             Delete privacy data
           </div>
           <p className="text-sm text-muted-foreground mb-4">

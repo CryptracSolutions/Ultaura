@@ -52,13 +52,6 @@ const ProfileSettingsTabs: React.FC = () => {
             link={profileTabLinks.Authentication}
           />
 
-          {configuration.auth.providers.phoneNumber && (
-            <NavigationItem
-              className={itemClassName}
-              link={profileTabLinks.Phone}
-            />
-          )}
-
           <NavigationItem
             className={itemClassName}
             disabled={!canUpdatePasswordCredentials}
@@ -70,6 +63,13 @@ const ProfileSettingsTabs: React.FC = () => {
             disabled={!canUpdatePasswordCredentials}
             link={profileTabLinks.Password}
           />
+
+          {configuration.auth.providers.phoneNumber && (
+            <NavigationItem
+              className={itemClassName}
+              link={profileTabLinks.Phone}
+            />
+          )}
         </NavigationMenu>
       </div>
 

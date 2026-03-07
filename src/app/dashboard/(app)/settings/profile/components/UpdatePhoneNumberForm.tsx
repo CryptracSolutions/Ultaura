@@ -128,7 +128,6 @@ function UpdatePhoneNumberForm({
 
         <div className={'flex flex-col gap-3 md:flex-row'}>
           <Button
-            variant="default"
             size="small"
             disabled={!hasChanges || isMutating}
             loading={isMutating}
@@ -137,7 +136,6 @@ function UpdatePhoneNumberForm({
           </Button>
           <Button
             type={'button'}
-            variant="outline"
             size="small"
             onClick={resetForm}
             disabled={!hasChanges || isMutating}

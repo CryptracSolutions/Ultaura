@@ -115,18 +115,14 @@ function MultiFactorAuthFactorsList({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
+        <div className="flex flex-col gap-3 md:flex-row">
+          <Button onClick={() => setIsModalOpen(true)} size="small">
             <Shield className="h-4 w-4 mr-2" />
             <Trans i18nKey={'profile:setupTotpButtonLabel'} />
           </Button>
           <Button
-            variant="outline"
             onClick={() => setIsPhoneModalOpen(true)}
-            className="w-full sm:w-auto"
+            size="small"
           >
             <Smartphone className="h-4 w-4 mr-2" />
             <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />
@@ -150,18 +146,14 @@ function MultiFactorAuthFactorsList({
           </p>
         }
       >
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
+        <div className="flex flex-col gap-3 md:flex-row">
+          <Button onClick={() => setIsModalOpen(true)} size="small">
             <Shield className="h-4 w-4 mr-2" />
             <Trans i18nKey={'profile:setupTotpButtonLabel'} />
           </Button>
           <Button
-            variant="outline"
             onClick={() => setIsPhoneModalOpen(true)}
-            className="w-full sm:w-auto"
+            size="small"
           >
             <Smartphone className="h-4 w-4 mr-2" />
             <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />

@@ -47,6 +47,15 @@ export function VacationSettings({
     return DateTime.now().setZone(line.timezone).toISODate();
   }, [line.timezone]);
 
+  const formatVacationDate = useCallback(
+    (dateString: string) => {
+      return DateTime.fromISO(dateString, { zone: line.timezone }).toFormat(
+        "MMMM d, yyyy"
+      );
+    },
+    [line.timezone]
+  );
+
   const sortedRanges = useMemo(
     () => [...ranges].sort((a, b) => a.start.localeCompare(b.start)),
     [ranges]
@@ -192,8 +201,8 @@ export function VacationSettings({
       ) : null}
 
       {!showHeader ? (
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-sm font-medium text-foreground">Vacation ranges</div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm font-medium text-foreground">Upcoming vacations</div>
           <div className="flex items-center gap-3">
             {pastVacations.length > 0 ? (
               <button
@@ -212,7 +221,7 @@ export function VacationSettings({
               disabled={disabled}
               variant="default"
               size="small"
-              className="sm:w-auto"
+              className="w-full sm:w-auto"
             >
               <Plus className="h-3 w-3" />
               {sortedRanges.length === 0 ? 'Add First Vacation' : 'Add Vacation'}
@@ -257,36 +266,36 @@ export function VacationSettings({
           {displayedRanges.map((range) => {
             const status = getStatus(range);
             const statusConfig = {
-              active: { label: 'Active', className: 'bg-amber-100 text-amber-800' },
+              active: { label: 'Active', className: 'bg-amber-500/10 text-amber-600' },
               past: { label: 'Past', className: 'bg-muted text-muted-foreground' },
-              upcoming: { label: 'Upcoming', className: 'bg-blue-100 text-blue-800' },
+              upcoming: { label: 'Upcoming', className: 'bg-primary/10 text-primary' },
             } as const;
             const { label: statusLabel, className: statusClass } = statusConfig[status];
 
             return (
               <div
                 key={`${range.start}-${range.end}`}
-                className="flex items-center justify-between rounded-lg border border-input px-4 py-3"
+                className="flex items-stretch justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 p-4"
               >
-                <div>
-                  <div className="text-sm font-medium text-foreground">
-                    {range.start} → {range.end}
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm text-foreground">
+                    <span className="font-medium text-primary">
+                      {formatVacationDate(range.start)}
+                    </span>
+                    <span className="text-foreground"> → </span>
+                    <span className="font-medium text-primary">
+                      {formatVacationDate(range.end)}
+                    </span>
                   </div>
-                  <span
-                    className={`inline-flex mt-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}
-                  >
-                    {statusLabel}
-                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleRemove(range)}
                   disabled={disabled || status === 'past'}
-                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  className="inline-flex items-center self-start text-destructive hover:text-destructive/70 disabled:opacity-50"
                   title={status === 'past' ? 'Past vacations cannot be removed' : 'Remove vacation'}
                 >
                   <Trash2 className="w-5 h-5" />
-                  Remove
                 </button>
               </div>
             );

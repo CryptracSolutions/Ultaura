@@ -30,7 +30,7 @@ function DeleteProfileContainer() {
         </p>
       </div>
 
-      <div>
+      <div className={'flex justify-end'}>
         <DeleteProfileModal />
       </div>
     </div>

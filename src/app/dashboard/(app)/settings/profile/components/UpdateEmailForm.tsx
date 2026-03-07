@@ -145,7 +145,7 @@ const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
           <div className={'flex flex-col gap-3 md:flex-row'}>
             <Button
               type={'submit'}
-              variant={'default'}
+              size={'small'}
               disabled={!hasChanges || updateUserMutation.isMutating}
               loading={updateUserMutation.isMutating}
             >
@@ -153,7 +153,7 @@ const UpdateEmailForm: React.FC<{ user: User }> = ({ user }) => {
             </Button>
             <Button
               type={'button'}
-              variant={'outline'}
+              size={'small'}
               onClick={() => reset()}
               disabled={!hasChanges || updateUserMutation.isMutating}
             >
