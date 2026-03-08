@@ -33,7 +33,6 @@ function MultiFactorAuthSetupModal(
   return (
     <Modal
       heading={<Trans i18nKey={'profile:setupTotpModalHeading'} />}
-      description={<Trans i18nKey={'profile:setupTotpModalDescription'} />}
       isOpen={props.isOpen}
       setIsOpen={props.setIsOpen}
     >

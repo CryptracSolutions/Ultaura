@@ -4,23 +4,22 @@ import { useCallback, useState } from 'react';
 import useMutation from 'swr/mutation';
 import { Factor } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
-import { XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { Info, Shield, Smartphone } from 'lucide-react';
-
-import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
+import { Shield, Smartphone, Trash2 } from 'lucide-react';
 
 import useFetchAuthFactors from '~/core/hooks/use-fetch-factors';
 import Spinner from '~/core/ui/Spinner';
 import Alert from '~/core/ui/Alert';
 import If from '~/core/ui/If';
-import Modal from '~/core/ui/Modal';
 import Badge from '~/core/ui/Badge';
 import Button from '~/core/ui/Button';
 import Trans from '~/core/ui/Trans';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 
 import useSupabase from '~/core/hooks/use-supabase';
 import useFactorsMutationKey from '~/core/hooks/use-user-factors-mutation-key';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
+import TableContainer from '~/core/ui/TableContainer';
 
 import SettingsTile from '../../../components/SettingsTile';
 import MultiFactorAuthSetupModal from '../../components/MultiFactorAuthSetupModal';
@@ -105,30 +104,10 @@ function MultiFactorAuthFactorsList({
 
   if (!allFactors.length) {
     return (
-      <div className={'flex flex-col space-y-4'}>
-        <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
-          <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="text-xs text-primary leading-snug">
-              <Trans i18nKey={'profile:multiFactorAuthDescription'} />
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 md:flex-row">
-          <Button onClick={() => setIsModalOpen(true)} size="small">
-            <Shield className="h-4 w-4 mr-2" />
-            <Trans i18nKey={'profile:setupTotpButtonLabel'} />
-          </Button>
-          <Button
-            onClick={() => setIsPhoneModalOpen(true)}
-            size="small"
-          >
-            <Smartphone className="h-4 w-4 mr-2" />
-            <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />
-          </Button>
-        </div>
-      </div>
+      <EmptyFactorsState
+        setIsModalOpen={setIsModalOpen}
+        setIsPhoneModalOpen={setIsPhoneModalOpen}
+      />
     );
   }
 
@@ -136,30 +115,41 @@ function MultiFactorAuthFactorsList({
 
   return (
     <div className={'flex flex-col space-y-4'}>
-      <FactorsTable factors={allFactors} setUnenrolling={setUnenrolling} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">Authenticated Steps</p>
 
-      <If
-        condition={canAddNewFactors}
-        fallback={
-          <p className="text-sm text-muted-foreground">
-            <Trans i18nKey={'profile:maxFactorsReached'} />
-          </p>
-        }
-      >
-        <div className="flex flex-col gap-3 md:flex-row">
-          <Button onClick={() => setIsModalOpen(true)} size="small">
-            <Shield className="h-4 w-4 mr-2" />
-            <Trans i18nKey={'profile:setupTotpButtonLabel'} />
-          </Button>
-          <Button
-            onClick={() => setIsPhoneModalOpen(true)}
-            size="small"
-          >
-            <Smartphone className="h-4 w-4 mr-2" />
-            <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />
-          </Button>
-        </div>
-      </If>
+        <If
+          condition={canAddNewFactors}
+          fallback={
+            <p className="text-sm text-muted-foreground sm:text-right">
+              <Trans i18nKey={'profile:maxFactorsReached'} />
+            </p>
+          }
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              size="small"
+              className="w-full sm:w-auto"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              <Trans i18nKey={'profile:setupTotpButtonLabel'} />
+            </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => setIsPhoneModalOpen(true)}
+              size="small"
+            >
+              <Smartphone className="mr-2 h-4 w-4" />
+              <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />
+            </Button>
+          </div>
+        </If>
+      </div>
+
+      <FactorsTable factors={allFactors} setUnenrolling={setUnenrolling} />
 
       <If condition={unEnrolling}>
         {(factorId) => (
@@ -169,6 +159,56 @@ function MultiFactorAuthFactorsList({
           />
         )}
       </If>
+    </div>
+  );
+}
+
+function EmptyFactorsState({
+  setIsModalOpen,
+  setIsPhoneModalOpen,
+}: {
+  setIsModalOpen: (isOpen: boolean) => void;
+  setIsPhoneModalOpen: (isOpen: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          size="small"
+          className="w-full sm:w-auto"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <Shield className="mr-2 h-4 w-4" />
+          <Trans i18nKey={'profile:setupTotpButtonLabel'} />
+        </Button>
+
+        <Button
+          type="button"
+          size="small"
+          className="w-full sm:w-auto"
+          onClick={() => setIsPhoneModalOpen(true)}
+        >
+          <Smartphone className="mr-2 h-4 w-4" />
+          <Trans i18nKey={'profile:setupPhoneMfaButtonLabel'} />
+        </Button>
+      </div>
+
+      <TableContainer>
+        <div className="flex flex-col gap-5 px-4 py-5 sm:px-5">
+          <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Shield className="h-5 w-5" />
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              <Trans i18nKey={'profile:multiFactorAuthDescription'} />
+            </p>
+          </div>
+        </div>
+        </div>
+      </TableContainer>
     </div>
   );
 }
@@ -207,38 +247,16 @@ function ConfirmUnenrollFactorModal(
   );
 
   return (
-    <Modal
-      heading={<Trans i18nKey={'profile:unenrollFactorModalHeading'} />}
-      isOpen={!!props.factorId}
-      setIsOpen={props.setIsModalOpen}
-    >
-      <div className={'flex flex-col space-y-4'}>
-        <div className={'text-sm'}>
-          <Trans i18nKey={'profile:unenrollFactorModalBody'} />
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => props.setIsModalOpen(false)}
-            disabled={unEnroll.isMutating}
-          >
-            <Trans i18nKey={'common:cancel'} />
-          </Button>
-
-          <Button
-            variant="destructive"
-            type="button"
-            onClick={() => onUnenrollRequested(props.factorId)}
-            disabled={unEnroll.isMutating}
-            loading={unEnroll.isMutating}
-          >
-            <Trans i18nKey={'profile:unenrollFactorModalButtonLabel'} />
-          </Button>
-        </div>
-      </div>
-    </Modal>
+    <ConfirmationDialog
+      open={!!props.factorId}
+      onOpenChange={props.setIsModalOpen}
+      title={t('profile:unenrollFactorModalHeading')}
+      description={t('profile:unenrollFactorModalBody')}
+      confirmLabel={t('profile:unenrollFactorModalButtonLabel')}
+      cancelLabel={t('common:cancel')}
+      variant="destructive"
+      onConfirm={() => onUnenrollRequested(props.factorId)}
+    />
   );
 }
 
@@ -250,71 +268,71 @@ function FactorsTable({
   factors: Factor[];
 }>) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>
-            <Trans i18nKey={'profile:factorName'} />
-          </TableHead>
-          <TableHead>
-            <Trans i18nKey={'profile:factorType'} />
-          </TableHead>
-          <TableHead>
-            <Trans i18nKey={'profile:factorStatus'} />
-          </TableHead>
+    <TableContainer>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>
+              <Trans i18nKey={'profile:factorName'} />
+            </TableHead>
+            <TableHead>
+              <Trans i18nKey={'profile:factorType'} />
+            </TableHead>
+            <TableHead>
+              <Trans i18nKey={'profile:factorStatus'} />
+            </TableHead>
 
-          <TableHead />
-        </TableRow>
-      </TableHeader>
-
-      <TableBody>
-        {factors.map((factor) => (
-          <TableRow key={factor.id}>
-            <TableCell>
-              <span className={'block truncate'}>{factor.friendly_name}</span>
-            </TableCell>
-
-            <TableCell>
-              <Badge size={'small'} className={'inline-flex uppercase'}>
-                {factor.factor_type === 'phone' ? (
-                  <Trans i18nKey={'profile:factorTypeSms'} />
-                ) : (
-                  <Trans i18nKey={'profile:factorTypeTotp'} />
-                )}
-              </Badge>
-            </TableCell>
-
-            <TableCell>
-              <Badge
-                size={'small'}
-                className={'inline-flex capitalize'}
-                color={factor.status === 'verified' ? 'success' : 'normal'}
-              >
-                {factor.status}
-              </Badge>
-            </TableCell>
-
-            <TableCell className={'flex justify-end'}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setUnenrolling(factor.id)}
-                  >
-                    <XMarkIcon className={'h-4'} />
-                  </Button>
-                </TooltipTrigger>
-
-                <TooltipContent>
-                  <Trans i18nKey={'profile:unenrollTooltip'} />
-                </TooltipContent>
-              </Tooltip>
-            </TableCell>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+
+        <TableBody>
+          {factors.map((factor) => (
+            <TableRow key={factor.id}>
+              <TableCell>
+                <span className={'block truncate'}>{factor.friendly_name}</span>
+              </TableCell>
+
+              <TableCell>
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {factor.factor_type === 'phone' ? (
+                    <Trans i18nKey={'profile:factorTypeSms'} />
+                  ) : (
+                    <Trans i18nKey={'profile:factorTypeTotp'} />
+                  )}
+                </span>
+              </TableCell>
+
+              <TableCell>
+                <Badge
+                  size={'small'}
+                  className={'inline-flex capitalize'}
+                  color={factor.status === 'verified' ? 'success' : 'normal'}
+                >
+                  {factor.status}
+                </Badge>
+              </TableCell>
+
+              <TableCell className="text-right">
+                <div className="flex justify-end">
+                  <ResponsiveActionMenu
+                    title={factor.friendly_name ?? 'Factor actions'}
+                    actions={[
+                      {
+                        label: 'Remove',
+                        icon: <Trash2 className="h-5 w-5" />,
+                        onClick: () => setUnenrolling(factor.id),
+                        variant: 'destructive',
+                      },
+                    ]}
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 
