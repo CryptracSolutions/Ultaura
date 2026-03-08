@@ -19,6 +19,7 @@ const BillingPortalRedirectButton: React.FCC<{
         data-cy={'manage-billing-redirect-button'}
         type="submit"
         variant="default"
+        size="small"
         className={buttonClassName}
       >
         <span>{children}</span>

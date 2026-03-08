@@ -73,13 +73,13 @@ const Plans: React.FC = () => {
                   'flex flex-col items-start gap-2 px-container pt-container pb-container sm:items-end'
                 }
               >
-                <BillingPortalRedirectButton customerId={customerId as string}>
-                  <Trans i18nKey={'subscription:manageBilling'} />
-                </BillingPortalRedirectButton>
-
-                <span className={'text-xs text-gray-500 dark:text-gray-400 sm:text-right'}>
+                <span className={'order-2 sm:order-1 text-xs text-gray-500 dark:text-gray-400 sm:text-right'}>
                   <Trans i18nKey={'subscription:manageBillingDescription'} />
                 </span>
+
+                <BillingPortalRedirectButton customerId={customerId as string} className="order-1 sm:order-2">
+                  <Trans i18nKey={'subscription:manageBilling'} />
+                </BillingPortalRedirectButton>
               </div>
             </If>
           </IfHasPermissions>

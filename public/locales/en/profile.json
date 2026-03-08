@@ -32,7 +32,7 @@
   "yourPassword": "Your Password",
   "updatePasswordSubmitLabel": "Update Password",
   "newEmail": "Your New Email",
-  "repeatEmail": "Repeat Email",
+  "repeatEmail": "Confirm New Email",
   "updateEmailSubmitLabel": "Update Email Address",
   "updateEmailFromEmailTabHintPrefix": "To update your email address, go to",
   "updateEmailFromEmailTabHintLinkLabel": "Email ->",
