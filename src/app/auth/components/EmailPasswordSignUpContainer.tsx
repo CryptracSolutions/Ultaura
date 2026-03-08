@@ -1,13 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Trans from '~/core/ui/Trans';
 
 import AuthErrorMessage from './AuthErrorMessage';
-import VerificationCodeInput from './VerificationCodeInput';
 import useSignUpWithEmailAndPasswordMutation from '~/core/hooks/use-sign-up-with-email-password';
-import useVerifyOtp from '~/core/hooks/use-verify-otp';
 import If from '~/core/ui/If';
 import Alert from '~/core/ui/Alert';
 import Button from '~/core/ui/Button';
@@ -15,22 +12,27 @@ import Button from '~/core/ui/Button';
 import EmailPasswordSignUpForm from '~/app/auth/components/EmailPasswordSignUpForm';
 
 import configuration from '~/configuration';
+import useResendSignupConfirmation from '~/core/hooks/use-resend-signup-confirmation';
 
 const requireEmailConfirmation = configuration.auth.requireEmailConfirmation;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 const EmailPasswordSignUpContainer: React.FCC<{
   onSignUp: (userId?: string) => unknown;
   onError?: (error?: unknown) => unknown;
 }> = ({ onSignUp, onError }) => {
-  const router = useRouter();
   const signUpMutation = useSignUpWithEmailAndPasswordMutation();
-  const verifyOtpMutation = useVerifyOtp();
+  const resendConfirmationMutation = useResendSignupConfirmation();
   const redirecting = useRef(false);
+  const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
   const loading = signUpMutation.isMutating || redirecting.current;
   const [showVerifyEmailAlert, setShowVerifyEmailAlert] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
-  const [verifyCode, setVerifyCode] = useState('');
-  const [verifyError, setVerifyError] = useState<Error | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState<Error | null>(null);
 
   const callOnErrorCallback = useCallback(() => {
     if (signUpMutation.error && onError) {
@@ -41,6 +43,35 @@ const EmailPasswordSignUpContainer: React.FCC<{
   useEffect(() => {
     callOnErrorCallback();
   }, [callOnErrorCallback]);
+
+  const stopCooldown = useCallback(() => {
+    if (cooldownIntervalRef.current) {
+      clearInterval(cooldownIntervalRef.current);
+      cooldownIntervalRef.current = null;
+    }
+  }, []);
+
+  const startCooldown = useCallback(() => {
+    stopCooldown();
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+
+    cooldownIntervalRef.current = setInterval(() => {
+      setResendCooldown((current) => {
+        if (current <= 1) {
+          stopCooldown();
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+  }, [stopCooldown]);
+
+  useEffect(() => {
+    return () => {
+      stopCooldown();
+    };
+  }, [stopCooldown]);
 
   const onSignupRequested = useCallback(
     async (params: { email: string; password: string }) => {
@@ -55,6 +86,9 @@ const EmailPasswordSignUpContainer: React.FCC<{
         if (requireEmailConfirmation) {
           setSignupEmail(params.email);
           setShowVerifyEmailAlert(true);
+          setResendSuccess(false);
+          setResendError(null);
+          startCooldown();
         }
 
         onSignUp(data.user?.id);
@@ -64,29 +98,37 @@ const EmailPasswordSignUpContainer: React.FCC<{
         }
       }
     },
-    [loading, onError, onSignUp, signUpMutation],
+    [loading, onError, onSignUp, signUpMutation, startCooldown],
   );
 
-  const onVerifyCode = useCallback(async () => {
-    if (!verifyCode || !signupEmail) {
+  const onResendConfirmation = useCallback(async () => {
+    if (
+      !signupEmail ||
+      resendCooldown > 0 ||
+      resendConfirmationMutation.isMutating
+    ) {
       return;
     }
 
-    setVerifyError(null);
+    setResendSuccess(false);
+    setResendError(null);
 
     try {
-      await verifyOtpMutation.trigger({
+      await resendConfirmationMutation.trigger({
         email: signupEmail,
-        token: verifyCode,
-        type: 'signup',
       });
 
-      // Redirect to onboarding after successful verification
-      router.replace(configuration.paths.onboarding);
+      setResendSuccess(true);
+      startCooldown();
     } catch (error) {
-      setVerifyError(error as Error);
+      setResendError(error as Error);
     }
-  }, [verifyCode, signupEmail, verifyOtpMutation, router]);
+  }, [
+    resendConfirmationMutation,
+    resendCooldown,
+    signupEmail,
+    startCooldown,
+  ]);
 
   return (
     <>
@@ -99,33 +141,40 @@ const EmailPasswordSignUpContainer: React.FCC<{
           <p data-cy={'email-confirmation-alert'}>
             <Trans i18nKey={'auth:emailConfirmationAlertBody'} />
           </p>
+
+          <p className={'mt-2 text-sm text-gray-600 dark:text-gray-300'}>
+            <Trans i18nKey={'auth:emailConfirmationAlertDetail'} />
+          </p>
         </Alert>
 
         <div className={'mt-6 flex flex-col space-y-4'}>
-          <p className={'text-center text-sm text-gray-500 dark:text-gray-400'}>
-            <Trans i18nKey={'auth:orEnterCodeBelow'} />
-          </p>
+          <If condition={resendSuccess}>
+            <Alert type={'success'}>
+              <Trans i18nKey={'auth:signupResendSuccess'} />
+            </Alert>
+          </If>
 
-          <VerificationCodeInput
-            onValid={setVerifyCode}
-            onInvalid={() => setVerifyCode('')}
-          />
-
-          <If condition={verifyError}>
+          <If condition={resendError}>
             <Alert type={'error'}>
-              <Trans i18nKey={'auth:verifyCodeError'} />
+              <Trans i18nKey={'auth:signupResendError'} />
             </Alert>
           </If>
 
           <Button
-            onClick={onVerifyCode}
-            loading={verifyOtpMutation.isMutating}
-            disabled={!verifyCode}
+            onClick={onResendConfirmation}
+            loading={resendConfirmationMutation.isMutating}
+            disabled={resendCooldown > 0}
+            variant={'outline'}
           >
-            {verifyOtpMutation.isMutating ? (
-              <Trans i18nKey={'auth:verifyingCode'} />
+            {resendConfirmationMutation.isMutating ? (
+              <Trans i18nKey={'auth:signupResendingEmail'} />
+            ) : resendCooldown > 0 ? (
+              <Trans
+                i18nKey={'auth:signupResendCooldown'}
+                values={{ seconds: resendCooldown }}
+              />
             ) : (
-              <Trans i18nKey={'auth:verifyCode'} />
+              <Trans i18nKey={'auth:signupResendEmail'} />
             )}
           </Button>
         </div>
