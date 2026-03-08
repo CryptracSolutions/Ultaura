@@ -210,7 +210,7 @@ export function Testimonials() {
   }, []);
 
   return (
-    <section className="bg-surface-subtle py-20 lg:py-24">
+    <section className="bg-surface-subtle pt-10 pb-20 lg:pt-12 lg:pb-24">
       <Container>
         <div className="relative flex flex-col items-center space-y-8">
           {/* Header */}

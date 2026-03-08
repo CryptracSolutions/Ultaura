@@ -108,7 +108,7 @@ export function AudienceValueTabs() {
   return (
     <>
       {/* Choose Your Perspective */}
-      <section className="pt-5 pb-11 lg:pt-6 lg:pb-12">
+      <section className="pt-5 pb-[4.7265625rem] lg:pt-6 lg:pb-[5.15625rem]">
         <div className="relative overflow-hidden rounded-3xl bg-surface-elevated px-6 pb-10 pt-1 lg:px-12 lg:py-4">
           <div className="relative">
             <FadeInWhenVisible>
@@ -428,6 +428,9 @@ export function AudienceValueTabs() {
         </div>
       </section>
 
+      {/* Reassurance Built In */}
+      <ReassuranceChecklist />
+
       {/* Before vs. With Ultaura */}
       <section className="bg-surface-subtle pt-10 pb-20 lg:pt-12 lg:pb-24">
         <Container>
@@ -542,8 +545,6 @@ export function AudienceValueTabs() {
         </Container>
       </section>
 
-      {/* Reassurance Built In */}
-      <ReassuranceChecklist />
     </>
   );
 }
