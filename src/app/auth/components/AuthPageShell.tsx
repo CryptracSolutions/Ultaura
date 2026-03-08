@@ -15,7 +15,8 @@ function AuthPageShell({
 
       <div
         className={
-          'flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10' +
+          'flex min-h-screen flex-col items-center justify-center bg-background text-foreground px-4 py-10' +
+          ' dark:bg-[#272728] dark:text-[oklch(0.985_0.001_106.423)]' +
           ' lg:min-h-0 lg:px-10' +
           ' animate-in fade-in slide-in-from-top-8 duration-1000'
         }

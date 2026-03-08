@@ -16,7 +16,7 @@ function ThemeSetter() {
       setTheme(SYSTEM_THEME_CLASSNAME);
     };
 
-    // Ensure the current OS theme is applied on mount.
+    // Always mirror the user's current OS theme across the app.
     applySystemTheme();
 
     // Keep in sync when the OS theme changes.

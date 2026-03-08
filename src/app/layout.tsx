@@ -54,7 +54,7 @@ export default async function RootLayout({
               try {
                 var mql = window.matchMedia('(prefers-color-scheme: dark)');
                 var root = document.documentElement;
-
+                
                 function setThemeFromMql() {
                   var isDark = !!(mql && mql.matches);
 
