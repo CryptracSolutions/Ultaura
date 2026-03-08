@@ -30,8 +30,7 @@ export default function renderDashboardAccessGrantedEmail(
       <Text className="text-[14px] text-stone-700 mt-[20px] mb-0">Hi {recipientName},</Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
-        {inviterName} has given you access to view {seniorName}&apos;s care dashboard on Ultaura for{' '}
-        {accountName}.
+        {inviterName} has given you access to view {seniorName}&apos;s care dashboard on Ultaura.
       </Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">Log in to start viewing.</Text>

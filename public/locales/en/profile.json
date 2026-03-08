@@ -153,7 +153,7 @@
   "emailNudgeDescription": "Add an email for account recovery and important notifications.",
   "emailNudgeCta": "Add email",
   "mfaNudgeHeading": "Secure your account",
-  "mfaNudgeDescription": "Add two-factor authentication for extra security.",
+  "mfaNudgeDescription": "Add 2-step verification for extra security.",
   "mfaNudgeCta": "Set up 2FA",
   "trialExpiredHeading": "Your trial has ended",
   "trialExpiredDescription": "Subscribe to continue using Ultaura.",
