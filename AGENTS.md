@@ -206,10 +206,15 @@ Before finalizing the plan and proceeding to delegation:
 | Skill | Trigger When |
 |-------|--------------|
 | `vercel-react-best-practices` | Writing/reviewing React or Next.js code, performance optimization |
-| `seo-audit` | Auditing SEO, diagnosing ranking issues |
-| `marketing-psychology` | Applying psychological principles to marketing |
+| `seo-audit` | Auditing or upgrading SEO, diagnosing ranking issues |
+| `marketing-psychology` | Applying psychological principles to any marketing copy task |
 | `skill-creator` | Creating new skills for Codex |
+| `Slides` | Use this skill when the user wants to create or modify presentation decks with the artifacts tool |
+| `ultaura-blogs` | Creating, updating, or QA on Ultaura public blog posts that use the exact existing canonical blog UI/layout |
+| `Security Best Practices` | Use when reviewing this codebase for security best practices and suggesting secure-by-default improvements |
+| `GitHub Fix CI` | Using gh to locate failing PR checks, fetching GitHub Actions logs for actionable failures, summarizing failure snippets, proposing fix plans or implementing after approval |
 | `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
+| `Playwright CLI Skill` | When using Playwright to automate real browsers from the terminal |
 | `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
 
 ---
