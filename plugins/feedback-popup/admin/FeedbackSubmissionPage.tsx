@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import type { Metadata } from 'next';
 import { z } from 'zod';
 
@@ -49,7 +48,7 @@ async function FeedbackSubmissionsPage({
         <div className={'flex flex-col space-y-4'}>
           <Breadcrumbs />
 
-          <div className={'flex space-x-2.5'}>
+          <div className={'flex flex-col space-y-2.5'}>
             <FeedbackBadge type={submission.type}>
               <b>Type</b>:
             </FeedbackBadge>
@@ -76,6 +75,17 @@ async function FeedbackSubmissionsPage({
             <Badge size={'small'}>
               <b>Created</b>: {getDate(submission.createdAt)}
             </Badge>
+
+            <If condition={submission.email}>
+              {(email) => (
+                <Badge size={'small'}>
+                  <b>Email</b>:{' '}
+                  <a className={'hover:underline'} href={`mailto:${email}`}>
+                    {email}
+                  </a>
+                </Badge>
+              )}
+            </If>
           </div>
 
           <div className={'flex flex-col space-y-6'}>
@@ -98,12 +108,19 @@ async function FeedbackSubmissionsPage({
                     The user also attached the following file:
                   </p>
 
-                  <Image
-                    width={500}
-                    height={500}
-                    className={'object-cover'}
+                  <a
+                    className={'text-sm underline underline-offset-2'}
+                    href={attachment}
+                    target={'_blank'}
+                    rel={'noreferrer'}
+                  >
+                    Open attachment
+                  </a>
+
+                  <img
+                    className={'max-w-full h-auto rounded-lg border'}
                     src={attachment}
-                    alt={`Attachment`}
+                    alt={'Attachment'}
                   />
                 </div>
               )}
@@ -173,6 +190,14 @@ async function loadFeedbackSubmission(
   // and send it to the client
   const attachment =
     attachmentUrl && (await downloadAttachment(adminClient, attachmentUrl));
+
+  if (!submissionsResponse.data.embedding) {
+    return {
+      submission: submissionsResponse.data,
+      similarSubmissions: [],
+      attachment,
+    };
+  }
 
   const similarSubmissionsResponse = await adminClient.rpc(
     'match_feedback_submissions',

@@ -15,6 +15,8 @@ interface FormStatus {
   success: boolean | undefined;
 }
 
+const FEEDBACK_EMBEDDING_DIMENSION = 384;
+
 const submitFeedbackSchema = z
   .object({
     type: z.enum(['bug', 'feedback', 'question']),
@@ -43,8 +45,10 @@ export async function submitFeedbackAction(
 }> {
   const logger = getLogger();
 
-  const parsed = qs.parse(
+  const parsed = normalizeFeedbackPayload(
+    qs.parse(
     new URLSearchParams(data as unknown as Record<string, string>).toString(),
+    ),
   );
 
   const body = await submitFeedbackSchema.parseAsync(parsed);
@@ -63,7 +67,7 @@ export async function submitFeedbackAction(
     `Submitting feedback...`,
   );
 
-  const embedding = await createEmbedding(body.text);
+  const embedding = await createEmbedding(body.text, logger);
   const table = adminClient.from('feedback_submissions');
 
   const attachment = body.attachment;
@@ -139,6 +143,21 @@ export async function submitFeedbackAction(
   };
 }
 
+function normalizeFeedbackPayload(parsed: unknown) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return parsed;
+  }
+
+  const normalized = { ...parsed } as Record<string, unknown>;
+  const attachment = normalized.attachment;
+
+  if (attachment && (typeof attachment !== 'object' || Array.isArray(attachment))) {
+    delete normalized.attachment;
+  }
+
+  return normalized;
+}
+
 export const deleteFeedbackSubmissionAction = withAdminSession(
   async (data: FormData) => {
     const logger = getLogger();
@@ -211,20 +230,45 @@ export const deleteFeedbackSubmissionAction = withAdminSession(
   },
 );
 
-async function createEmbedding(text: string) {
-  const { pipeline } = await import(
-    /* webpackIgnore: true */ '@xenova/transformers'
-  );
+async function createEmbedding(text: string, logger: ReturnType<typeof getLogger>) {
+  try {
+    const { pipeline } = await import(
+      /* webpackIgnore: true */ '@xenova/transformers'
+    );
 
-  const generateEmbedding = await pipeline(
-    'feature-extraction',
-    'Supabase/gte-small',
-  );
+    const generateEmbedding = await pipeline(
+      'feature-extraction',
+      'Supabase/gte-small',
+    );
 
-  const output = await generateEmbedding(text, {
-    pooling: 'mean',
-    normalize: true,
-  });
+    const output = await generateEmbedding(text, {
+      pooling: 'mean',
+      normalize: true,
+    });
 
-  return Array.from(output.data);
+    const embedding = Array.from(output.data);
+
+    if (embedding.length !== FEEDBACK_EMBEDDING_DIMENSION) {
+      logger.warn(
+        {
+          expected: FEEDBACK_EMBEDDING_DIMENSION,
+          actual: embedding.length,
+        },
+        'Feedback embedding dimension mismatch. Saving without embedding.',
+      );
+
+      return null;
+    }
+
+    return `[${embedding.join(',')}]`;
+  } catch (error) {
+    logger.warn(
+      {
+        error,
+      },
+      'Feedback embedding generation unavailable. Saving without embedding.',
+    );
+
+    return null;
+  }
 }

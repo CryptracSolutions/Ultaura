@@ -400,7 +400,6 @@ function AttachmentButton() {
               ref={fileInputRef}
               type={'file'}
               className={'hidden'}
-              name={'attachment'}
               accept="image/*"
               onChange={handleFileChange}
             />
