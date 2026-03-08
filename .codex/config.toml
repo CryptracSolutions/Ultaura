@@ -3,6 +3,9 @@
 [features]
 multi_agent = true
 
+[mcp_servers.xai-docs]
+url = "https://docs.x.ai/api/mcp"
+
 # Multi-agent configuration for this repo.
 # - Role details are defined in `.codex/agents/*.toml`
 # - Use `/agent` inside Codex to spawn/switch roles

@@ -21,13 +21,13 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 When this doc says “delegate”, it means: use multi-agent roles and spawn/switch agents via the `/agent` command.
 
 **Role glossary (use these names consistently):**
-- `default` — The coordinator/general helper (this chat) that assigns work and integrates final changes.
-- `explorer` — Read-only codebase exploration: find files, patterns, risks. No edits.
-- `worker` — Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
-- `monitor` — Runs checks/tests/builds and reports results (read-only by default).
-- `reviewer` — Reviews diffs for correctness/security/test risks (read-only).
-- `planner` — Produces a decision-complete plan/spec (read-only).
-- `simplifier` — One-shot cleanup pass after verification (edits allowed, **no behavior changes**).
+- `default` — Model: `GPT-5.4`. The coordinator/general helper (this chat) that assigns work and integrates final changes.
+- `explorer` — Model: `GPT-5.4`. Read-only codebase exploration: find files, patterns, risks. No edits.
+- `worker` — Model: `GPT-5.3-Codex`. Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
+- `monitor` — Model: `GPT-5.4`. Runs checks/tests/builds and reports results (read-only by default).
+- `reviewer` — Model: `GPT-5.3-Codex`. Reviews diffs for correctness/security/test risks (read-only).
+- `planner` — Model: `GPT-5.4`. Produces a decision-complete plan/spec (read-only).
+- `simplifier` — Model: `GPT-5.3-Codex`. One-shot cleanup pass after verification (edits allowed, **no behavior changes**).
 
 ## Before ANY Task
 
@@ -42,7 +42,7 @@ You MUST:
 
 ## For Medium/Large Tasks: Mandatory Delegation via Codex Sub-Agents
 
-You MUST use Codex multi-agent roles for medium and large tasks by spawning agents via `/agent` (explorer/worker/monitor/reviewer/planner/simplifier) and **always use parent model for all tasks**. Shared coordination and explicit ownership produce correct implementations over cheap ones.
+You MUST use Codex multi-agent roles for medium and large tasks by spawning agents via `/agent` (explorer/worker/monitor/reviewer/planner/simplifier) and always use the model assigned to each role in the glossary above. Shared coordination and explicit ownership produce correct implementations over cheap ones.
 
 You MUST follow these steps IN ORDER:
 
@@ -62,7 +62,7 @@ You MUST follow these steps IN ORDER:
 ### Sub-Agent Coordination Guidelines
 
 - Spawn agents using `/agent` and assign a clear role (`explorer`/`worker`/`monitor`/`reviewer`/`planner`/`simplifier`).
-- **Always use current parent/orchestrator model** for ALL agent types
+- **Always use the model assigned to that role in the glossary above**
 - **Max 6 explorer agents** in parallel
 - **Max 4 worker agents** in parallel (to avoid file conflicts)
 - **Use explicit coordinator messages** for task handoffs and blockers
@@ -346,7 +346,3 @@ xAI hosts a free, no-auth MCP server that gives direct access to all xAI documen
 - Debugging xAI API errors, understanding model parameters, or checking rate limits
 - Implementing new xAI features (embeddings, function calling, audio formats)
 - Any time you'd otherwise web-search for xAI/Grok documentation
-
-**When NOT to use it:**
-- Frontend-only work unrelated to xAI
-- Supabase/Stripe/Twilio questions (use their own docs)
