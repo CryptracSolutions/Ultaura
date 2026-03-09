@@ -6,6 +6,7 @@ import SignUpMethodsContainer from '~/app/auth/components/SignUpMethodsContainer
 
 import configuration from '~/configuration';
 import { withI18n } from '~/i18n/with-i18n';
+import loadAuthPageData from '~/lib/server/loaders/load-auth-page-data';
 
 const SIGN_IN_PATH = configuration.paths.signIn;
 
@@ -13,9 +14,13 @@ export const metadata = {
   title: 'Sign up',
 };
 
-function SignUpPage(props: {
+async function SignUpPage(props: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  await loadAuthPageData({
+    redirectSignedIn: true,
+  });
+
   const inviteCode = getFirstQueryValue(props.searchParams?.inviteCode);
   const next = getFirstQueryValue(props.searchParams?.next);
 

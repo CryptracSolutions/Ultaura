@@ -3,6 +3,10 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import sendEmail from '~/core/email/send-email';
+import {
+  getNotificationsEmailSender,
+  getSupportReplyToEmail,
+} from '~/core/email/senders';
 import renderSecurityAlertEmail from '~/lib/emails/security-alert';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 
@@ -88,9 +92,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const emailFrom = process.env.EMAIL_SENDER;
-  if (!emailFrom) {
-    return NextResponse.json({ error: 'Missing EMAIL_SENDER configuration' }, { status: 500 });
+  let emailFrom: string;
+  let replyTo: string;
+
+  try {
+    emailFrom = getNotificationsEmailSender();
+    replyTo = getSupportReplyToEmail();
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Missing email sender configuration' },
+      { status: 500 },
+    );
   }
 
   const recommendedAction = RECOMMENDED_ACTIONS[anomalyType] || 'Review recent activity for details.';
@@ -141,6 +153,7 @@ export async function POST(request: Request) {
         subject,
         text,
         html,
+        replyTo,
       });
     }
   } catch (error) {

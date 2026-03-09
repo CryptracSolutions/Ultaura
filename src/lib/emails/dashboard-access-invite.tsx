@@ -23,15 +23,14 @@ export default function renderDashboardAccessInviteEmail(
     baseUrl,
   }: DashboardAccessInviteProps,
 ): { html: string; text: string } {
-  const previewText = `${inviterName} shared ${seniorName}'s dashboard with you`;
+  const previewText = `${inviterName} has given you dashboard access on Ultaura`;
 
   const jsx = (
     <EmailLayout preview={previewText} baseUrl={baseUrl}>
       <Text className="text-[14px] text-stone-700 mt-[20px] mb-0">Hi {recipientName},</Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
-        {inviterName} has given you access to view {seniorName}&apos;s care dashboard on Ultaura for{' '}
-        {accountName}.
+        {inviterName} has given you access to view your loved one&apos;s care dashboard on Ultaura.
       </Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">

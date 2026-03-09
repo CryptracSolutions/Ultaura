@@ -24,7 +24,7 @@ export default function renderSafetyAlertEmail(props: SafetyAlertEmailProps): { 
 
   const jsx = (
     <EmailLayout preview={previewText}>
-      <Text className="text-[14px] text-stone-700 m-0">Hi,</Text>
+      <Text className="text-[14px] text-stone-700 m-0">Hi there,</Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
         We detected a safety alert during a call with {props.lineName}.
@@ -35,7 +35,7 @@ export default function renderSafetyAlertEmail(props: SafetyAlertEmailProps): { 
           {SEVERITY_LABELS[props.severity]} Alert
         </Text>
         <Text className="text-[16px] font-semibold text-stone-800 mt-[6px] mb-0">
-          Action taken
+          What we did
         </Text>
         <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
           {props.actionTaken}

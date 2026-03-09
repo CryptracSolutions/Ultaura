@@ -1,15 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Trans from '~/core/ui/Trans';
 
 import AuthErrorMessage from './AuthErrorMessage';
 import useSignUpWithEmailAndPasswordMutation from '~/core/hooks/use-sign-up-with-email-password';
 import If from '~/core/ui/If';
-import Alert from '~/core/ui/Alert';
-import Button from '~/core/ui/Button';
 
 import EmailPasswordSignUpForm from '~/app/auth/components/EmailPasswordSignUpForm';
+import EmailConfirmationWaiting from '~/app/auth/components/EmailConfirmationWaiting';
 
 import configuration from '~/configuration';
 import useResendSignupConfirmation from '~/core/hooks/use-resend-signup-confirmation';
@@ -133,51 +131,14 @@ const EmailPasswordSignUpContainer: React.FCC<{
   return (
     <>
       <If condition={showVerifyEmailAlert}>
-        <Alert type={'success'}>
-          <Alert.Heading>
-            <Trans i18nKey={'auth:emailConfirmationAlertHeading'} />
-          </Alert.Heading>
-
-          <p data-cy={'email-confirmation-alert'}>
-            <Trans i18nKey={'auth:emailConfirmationAlertBody'} />
-          </p>
-
-          <p className={'mt-2 text-sm text-gray-600 dark:text-gray-300'}>
-            <Trans i18nKey={'auth:emailConfirmationAlertDetail'} />
-          </p>
-        </Alert>
-
-        <div className={'mt-6 flex flex-col space-y-4'}>
-          <If condition={resendSuccess}>
-            <Alert type={'success'}>
-              <Trans i18nKey={'auth:signupResendSuccess'} />
-            </Alert>
-          </If>
-
-          <If condition={resendError}>
-            <Alert type={'error'}>
-              <Trans i18nKey={'auth:signupResendError'} />
-            </Alert>
-          </If>
-
-          <Button
-            onClick={onResendConfirmation}
-            loading={resendConfirmationMutation.isMutating}
-            disabled={resendCooldown > 0}
-            variant={'outline'}
-          >
-            {resendConfirmationMutation.isMutating ? (
-              <Trans i18nKey={'auth:signupResendingEmail'} />
-            ) : resendCooldown > 0 ? (
-              <Trans
-                i18nKey={'auth:signupResendCooldown'}
-                values={{ seconds: resendCooldown }}
-              />
-            ) : (
-              <Trans i18nKey={'auth:signupResendEmail'} />
-            )}
-          </Button>
-        </div>
+        <EmailConfirmationWaiting
+          email={signupEmail}
+          resendCooldown={resendCooldown}
+          resendSuccess={resendSuccess}
+          resendError={resendError}
+          isResending={resendConfirmationMutation.isMutating}
+          onResend={onResendConfirmation}
+        />
       </If>
 
       <If condition={!showVerifyEmailAlert}>

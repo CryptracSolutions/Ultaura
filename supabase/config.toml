@@ -51,6 +51,8 @@ enable_signup = true
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
+# NOTE: Subjects and templates are configured here, but the auth sender/from
+# address itself is configured in Supabase auth mailer settings outside this repo.
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.

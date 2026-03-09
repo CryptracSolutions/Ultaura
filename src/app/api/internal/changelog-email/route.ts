@@ -5,6 +5,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import getLogger from '~/core/logger';
 import sendEmail from '~/core/email/send-email';
+import {
+  getNotificationsEmailSender,
+  getSupportReplyToEmail,
+} from '~/core/email/senders';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import { renderChangelogEmail } from '~/lib/emails/changelog';
 import {
@@ -65,7 +69,11 @@ function getSiteUrl() {
 }
 
 function getEmailSender() {
-  return process.env.EMAIL_SENDER || null;
+  return getNotificationsEmailSender();
+}
+
+function getReplyToEmail() {
+  return getSupportReplyToEmail();
 }
 
 function buildSubject(publishedAt: string | undefined | null) {
@@ -136,9 +144,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const emailFrom = getEmailSender();
-  if (!emailFrom) {
-    return NextResponse.json({ error: 'Missing EMAIL_SENDER configuration' }, { status: 500 });
+  let emailFrom: string;
+  let replyTo: string;
+
+  try {
+    emailFrom = getEmailSender();
+    replyTo = getReplyToEmail();
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Missing email sender configuration' },
+      { status: 500 },
+    );
   }
 
   const { data: accounts, error: accountsError } = await adminClient
@@ -197,6 +213,7 @@ export async function POST(request: NextRequest) {
         subject,
         html: emailContent.html,
         text: emailContent.text,
+        replyTo,
       });
       recipientsSent += 1;
     } catch (error) {

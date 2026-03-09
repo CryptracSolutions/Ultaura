@@ -17,7 +17,9 @@ interface PlanUpgradeEmailProps {
 function renderPlanUpgradeEmail(props: PlanUpgradeEmailProps): { html: string; text: string } {
   const jsx = (
     <EmailLayout preview={`Complete your ${props.planName} plan upgrade`}>
-      <Text className="text-[14px] text-stone-700 m-0">
+      <Text className="text-[14px] text-stone-700 mt-[20px] mb-0">Hi there,</Text>
+
+      <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
         You requested to upgrade to the <strong>{props.planName}</strong> plan.
       </Text>
 

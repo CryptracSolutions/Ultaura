@@ -7,6 +7,7 @@ interface SendEmailParams {
   text?: string;
   html?: string;
   headers?: Record<string, string>;
+  replyTo?: string | string[];
 }
 
 export default async function sendEmail(config: SendEmailParams) {

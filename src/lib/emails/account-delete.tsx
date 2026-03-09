@@ -26,17 +26,12 @@ function renderAccountDeleteEmail(props: Props): { html: string; text: string } 
 
       <Text className="text-stone-700 text-[14px] leading-[24px]">
         This is to confirm that we&apos;ve processed your request to
-        delete your account with {props.productName}.
+        delete your account. This action is irreversible, and all of
+        your data will be removed from our systems.
       </Text>
 
       <Text className="text-stone-700 text-[14px] leading-[24px]">
-        We&apos;re sorry to see you go. Please note that this action is
-        irreversible, and we&apos;ll make sure to delete all of your data
-        from our systems.
-      </Text>
-
-      <Text className="text-stone-700 text-[14px] leading-[24px]">
-        We thank you again for using {props.productName}.
+        We&apos;re sorry to see you go. Thank you for being part of {props.productName}.
       </Text>
     </EmailLayout>
   );

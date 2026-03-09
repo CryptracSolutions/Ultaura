@@ -9,6 +9,7 @@ import type { Database } from '~/database.types';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import deleteOrganization from '~/lib/server/organizations/delete-organization';
 import sendEmail from '~/core/email/send-email';
+import { getAccountsEmailSender } from '~/core/email/senders';
 import renderAccountDeleteEmail from '~/lib/emails/account-delete';
 
 type Params = {
@@ -157,7 +158,7 @@ function getDisplayName(client: SupabaseClient<Database>, userId: string) {
  * @param {Object} params - The parameters for sending the email.
  * @param {string} params.userDisplayName - The display name of the user.
  * @param {string} params.email - The email address of the user.
- * @throws {Error} If the EMAIL_SENDER environmental variable is missing.
+ * @throws {Error} If the EMAIL_SENDER_ACCOUNTS environmental variable is missing.
  */
 async function sendAccountDeleteEmail(params: {
   userDisplayName: string;
@@ -171,11 +172,7 @@ async function sendAccountDeleteEmail(params: {
   });
 
   const subject = `Confirmation of Account Deletion on ${productName}`;
-  const from = process.env.EMAIL_SENDER;
-
-  if (!from) {
-    throw new Error(`Missing EMAIL_SENDER env variable.`);
-  }
+  const from = getAccountsEmailSender();
 
   return sendEmail({
     to: params.email,

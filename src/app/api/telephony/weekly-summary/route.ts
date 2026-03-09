@@ -3,6 +3,10 @@ export const dynamic = 'force-dynamic';
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import sendEmail from '~/core/email/send-email';
+import {
+  getNotificationsEmailSender,
+  getSupportReplyToEmail,
+} from '~/core/email/senders';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import renderWeeklySummaryEmail from '~/lib/emails/weekly-summary';
 import type { WeeklySummaryData } from '~/lib/ultaura/types';
@@ -55,9 +59,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const emailFrom = process.env.EMAIL_SENDER;
-  if (!emailFrom) {
-    return NextResponse.json({ error: 'Missing EMAIL_SENDER configuration' }, { status: 500 });
+  let emailFrom: string;
+  let replyTo: string;
+
+  try {
+    emailFrom = getNotificationsEmailSender();
+    replyTo = getSupportReplyToEmail();
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Missing email sender configuration' },
+      { status: 500 },
+    );
   }
 
   const supabase = getSupabaseRouteHandlerClient({ admin: true });
@@ -207,6 +219,7 @@ export async function POST(request: Request) {
         html,
         text,
         headers,
+        replyTo,
       });
     }
   } catch {

@@ -48,9 +48,9 @@ function useSignUpWithEmailAndPassword() {
 export default useSignUpWithEmailAndPassword;
 
 function getRedirectUrl() {
-  const nextPath = configuration.paths.onboarding;
+  const confirmedPath = `/auth/confirmed?next=${configuration.paths.onboarding}`;
   const callbackPath = configuration.paths.authCallback;
-  const fullPath = `${callbackPath}?next=${nextPath}`;
+  const fullPath = `${callbackPath}?next=${encodeURIComponent(confirmedPath)}`;
 
   return new URL(fullPath, window.location.origin).href;
 }

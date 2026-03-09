@@ -36,7 +36,7 @@ export default function renderWellnessAlertEmail(props: WellnessAlertEmailProps)
 
   const jsx = (
     <EmailLayout preview={previewText} footerLinks={footerLinks}>
-      <Text className="text-[14px] text-stone-700 m-0">Hi,</Text>
+      <Text className="text-[14px] text-stone-700 m-0">Hi there,</Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
         We detected a wellness alert for {props.lineName}.

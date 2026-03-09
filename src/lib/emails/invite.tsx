@@ -32,11 +32,11 @@ export default function renderInviteEmail(props: Props): { html: string; text: s
         <strong>{props.productName}</strong>
       </Heading>
       <Text className="text-stone-700 text-[14px] leading-[24px]">
-        Hello {props.invitedUserEmail},
+        Hi there,
       </Text>
       <Text className="text-stone-700 text-[14px] leading-[24px]">
-        <strong>{props.inviter}</strong> has invited you to the{' '}
-        <strong>{props.organizationName}</strong> team on{' '}
+        <strong>{props.inviter}</strong> has invited you to join{' '}
+        <strong>{props.organizationName}</strong> on{' '}
         <strong>{props.productName}</strong>.
       </Text>
       {props.organizationLogo && (
@@ -73,7 +73,7 @@ export default function renderInviteEmail(props: Props): { html: string; text: s
         </Link>
       </Text>
       <Text className="text-stone-500 text-[12px] leading-[24px]">
-        This invitation was intended for{' '}
+        This invitation was sent to{' '}
         <span className="text-stone-900">{props.invitedUserEmail}</span>.
       </Text>
     </EmailLayout>

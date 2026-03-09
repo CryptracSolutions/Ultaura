@@ -28,11 +28,11 @@ export default function renderMissedCallsAlertEmail(props: MissedCallsAlertProps
 
   const jsx = (
     <EmailLayout preview={previewText} footerLinks={footerLinks}>
-      <Text className="text-[14px] text-stone-700 m-0">Hi,</Text>
+      <Text className="text-[14px] text-stone-700 m-0">Hi there,</Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
         {props.lineName} has missed {props.consecutiveMissedCount} consecutive scheduled
-        calls from Ultaura.
+        check-ins with Ultaura.
       </Text>
 
       <Section className="mt-[16px]">
@@ -41,7 +41,7 @@ export default function renderMissedCallsAlertEmail(props: MissedCallsAlertProps
           - Phone is off or out of reach
         </Text>
         <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
-          - They&apos;re busy or away
+          - They may be busy or away
         </Text>
         <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
           - Line settings may need adjustment

@@ -20,7 +20,7 @@ describe('renderDashboardAccessGrantedEmail', () => {
     expect(html).toContain('Ultaura');
     expect(html).toContain('View Dashboard');
     expect(html).toContain("Martha&#x27;s care dashboard");
-    expect(html).toContain('src="https://example.com/logos/logo-email.png"');
+    expect(html).toContain('src="data:image/png;base64,');
   });
 
   it('returns a non-empty plain-text fallback', () => {

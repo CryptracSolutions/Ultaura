@@ -8,6 +8,10 @@ import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
 import type { Database } from '~/database.types';
 import getLogger from '~/core/logger';
 import sendEmail from '~/core/email/send-email';
+import {
+  getNotificationsEmailSender,
+  getSupportReplyToEmail,
+} from '~/core/email/senders';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import requireSession from '~/lib/user/require-session';
 import MembershipRole from '~/lib/organizations/types/membership-role';
@@ -55,11 +59,15 @@ async function sendDashboardSharingEmail(params: {
   accountId: string;
   recipientId: string;
 }): Promise<void> {
-  const emailFrom = process.env.EMAIL_SENDER?.trim();
+  let emailFrom: string;
+  let replyTo: string;
 
-  if (!emailFrom) {
+  try {
+    emailFrom = getNotificationsEmailSender();
+    replyTo = getSupportReplyToEmail();
+  } catch (error) {
     if (isProductionEnvironment()) {
-      throw new Error('Missing EMAIL_SENDER configuration');
+      throw error;
     }
 
     logger.warn(
@@ -79,6 +87,7 @@ async function sendDashboardSharingEmail(params: {
       subject: params.subject,
       html: params.html,
       text: params.text,
+      replyTo,
     });
   } catch (error) {
     if (isProductionEnvironment()) {

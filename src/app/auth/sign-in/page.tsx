@@ -6,6 +6,7 @@ import { withI18n } from '~/i18n/with-i18n';
 
 import configuration from '~/configuration';
 import SignInMethodsContainer from '~/app/auth/components/SignInMethodsContainer';
+import loadAuthPageData from '~/lib/server/loaders/load-auth-page-data';
 
 const SIGN_UP_PATH = configuration.paths.signUp;
 
@@ -13,7 +14,11 @@ export const metadata = {
   title: 'Sign In',
 };
 
-function SignInPage() {
+async function SignInPage() {
+  await loadAuthPageData({
+    redirectSignedIn: true,
+  });
+
   return (
     <>
       <div>

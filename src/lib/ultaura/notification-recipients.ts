@@ -9,6 +9,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '~/database.types';
 import type { NotificationRecipient } from './types';
 import sendEmail from '~/core/email/send-email';
+import {
+  getNotificationsEmailSender,
+  getSupportReplyToEmail,
+} from '~/core/email/senders';
 import renderNotificationInviteEmail from '~/lib/emails/notification-invite';
 import { getUserDataById } from '~/lib/server/queries';
 import requireSession from '~/lib/user/require-session';
@@ -765,10 +769,8 @@ async function sendInviteEmail(options: {
   token: string;
   client?: SupabaseClient<Database>;
 }) {
-  const emailFrom = process.env.EMAIL_SENDER;
-  if (!emailFrom) {
-    throw new Error('Missing EMAIL_SENDER configuration');
-  }
+  const emailFrom = getNotificationsEmailSender();
+  const replyTo = getSupportReplyToEmail();
 
   const { accountName, lineName, inviterName } = await resolveAccountContext(
     options.accountId,
@@ -791,6 +793,7 @@ async function sendInviteEmail(options: {
     subject,
     html,
     text,
+    replyTo,
   });
 }
 

@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('server-only', () => ({}));
 import { z } from 'zod';
 
 const mocks = vi.hoisted(() => {
@@ -122,7 +124,8 @@ describe('internal changelog email route', () => {
     vi.clearAllMocks();
     process.env.ULTAURA_INTERNAL_API_SECRET = 'test-secret';
     process.env.NEXT_PUBLIC_SITE_URL = 'https://example.com';
-    process.env.EMAIL_SENDER = 'Ultaura <hello@ultaura.com>';
+    process.env.EMAIL_SENDER_NOTIFICATIONS = 'Ultaura Notifications <notifications-test@ultaura.com>';
+    process.env.EMAIL_REPLY_TO_SUPPORT = 'Ultaura Support <support-test@ultaura.com>';
 
     mocks.state.entries = [
       {
@@ -191,6 +194,13 @@ describe('internal changelog email route', () => {
     );
 
     expect(mocks.sendEmail).toHaveBeenCalledTimes(2);
+    expect(mocks.sendEmail).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        from: 'Ultaura Notifications <notifications-test@ultaura.com>',
+        replyTo: 'Ultaura Support <support-test@ultaura.com>',
+      }),
+    );
     const recipients = mocks.sendEmail.mock.calls
       .map((call) => (call as unknown as Array<{ to: string }>)[0]?.to)
       .filter((value): value is string => typeof value === 'string')

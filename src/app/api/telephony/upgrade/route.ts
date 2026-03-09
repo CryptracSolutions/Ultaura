@@ -6,6 +6,7 @@ import configuration from '~/configuration';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getStripeInstance from '~/core/stripe/get-stripe';
 import sendEmail from '~/core/email/send-email';
+import { getAccountsEmailSender } from '~/core/email/senders';
 import renderPlanUpgradeEmail from '~/lib/emails/plan-upgrade';
 import { BILLING, PLANS } from '~/lib/ultaura/constants';
 
@@ -153,10 +154,15 @@ export async function POST(request: Request) {
   }
 
   const planDisplay = getPlanDisplay(planId);
-  const emailFrom = process.env.EMAIL_SENDER;
+  let emailFrom: string;
 
-  if (!emailFrom) {
-    return NextResponse.json({ error: 'Missing EMAIL_SENDER configuration' }, { status: 500 });
+  try {
+    emailFrom = getAccountsEmailSender();
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Missing email sender configuration' },
+      { status: 500 },
+    );
   }
 
   const subject = `Complete your Ultaura plan upgrade`;

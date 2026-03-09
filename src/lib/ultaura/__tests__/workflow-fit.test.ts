@@ -56,7 +56,8 @@ describe('workflow fit actions', () => {
     userId = context.user.id;
     mockSessionUserId = userId;
     await createTestLine(accountId);
-    process.env.EMAIL_SENDER ||= 'test@ultaura.local';
+    process.env.EMAIL_SENDER_NOTIFICATIONS ||= 'Ultaura Notifications <notifications-test@ultaura.local>';
+    process.env.EMAIL_REPLY_TO_SUPPORT ||= 'Ultaura Support <support-test@ultaura.local>';
   });
 
   afterAll(async () => {

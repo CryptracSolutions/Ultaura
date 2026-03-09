@@ -5,6 +5,10 @@ import type MembershipRole from '~/lib/organizations/types/membership-role';
 import { canInviteUser } from '~/lib/organizations/permissions';
 
 import sendEmail from '~/core/email/send-email';
+import {
+  getNotificationsEmailSender,
+  getSupportReplyToEmail,
+} from '~/core/email/senders';
 
 import getLogger from '~/core/logger';
 import configuration from '~/configuration';
@@ -272,13 +276,15 @@ async function sendInviteEmail(props: {
 
   const { default: renderInviteEmail } = await import('~/lib/emails/invite');
 
-  const sender = process.env.EMAIL_SENDER;
+  const sender = getNotificationsEmailSender();
+  const replyTo = getSupportReplyToEmail();
   const productName = configuration.site.siteName;
 
   if (!sender) {
     return Promise.reject(
       `Missing email configuration. Please add the following environment variables:
-      EMAIL_SENDER
+      EMAIL_SENDER_NOTIFICATIONS
+      EMAIL_REPLY_TO_SUPPORT
       `,
     );
   }
@@ -301,6 +307,7 @@ async function sendInviteEmail(props: {
     subject,
     html,
     text,
+    replyTo,
   });
 }
 

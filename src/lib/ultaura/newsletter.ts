@@ -15,6 +15,7 @@ import {
 } from '~/lib/resend/contacts';
 import { TOPIC_KEYS, type TopicKey } from '~/lib/resend/topics';
 import sendEmail from '~/core/email/send-email';
+import { getNewsletterEmailSender } from '~/core/email/senders';
 import renderNewsletterWelcomeEmail from '~/lib/emails/newsletter-welcome';
 
 const logger = getLogger();
@@ -24,7 +25,7 @@ function getSiteUrl(): string {
 }
 
 function getFromEmail(): string {
-  return process.env.RESEND_FROM_EMAIL || process.env.EMAIL_SENDER || 'Ultaura <newsletter@ultaura.com>';
+  return getNewsletterEmailSender();
 }
 
 interface SubscribeParams {

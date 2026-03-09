@@ -49,7 +49,7 @@ export default function renderNotificationInviteEmail(props: NotificationInviteP
           className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
           style={{ backgroundColor: brandColors.primary }}
         >
-          Confirm updates
+          Yes, notify me
         </Button>
       </Section>
 

@@ -1,4 +1,14 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+vi.mock('server-only', () => ({}));
+vi.mock('react', async () => {
+  const actual = await vi.importActual<typeof import('react')>('react');
+  return {
+    ...actual,
+    cache: (fn: unknown) => fn,
+  };
+});
+
 import { POST } from '~/app/api/telephony/weekly-summary/route';
 import type { WeeklySummaryData } from '../types';
 import { createTestAccount, createTestLine } from './setup';
@@ -7,14 +17,14 @@ vi.mock('~/core/email/send-email', () => ({
   default: vi.fn().mockResolvedValue(undefined),
 }));
 
-const renderWeeklySummaryEmail = vi.fn<[WeeklySummaryData], string>(() => '<html></html>');
 vi.mock('~/lib/emails/weekly-summary', () => ({
-  default: renderWeeklySummaryEmail,
+  default: vi.fn(() => ({ html: '<html></html>', text: 'summary text' })),
 }));
 
 describe('weekly summary route', () => {
   beforeAll(() => {
-    process.env.EMAIL_SENDER = 'test-sender@example.com';
+    process.env.EMAIL_SENDER_NOTIFICATIONS = 'Ultaura Notifications <notifications-test@ultaura.com>';
+    process.env.EMAIL_REPLY_TO_SUPPORT = 'Ultaura Support <support-test@ultaura.com>';
     process.env.NEXT_PUBLIC_SITE_URL = 'http://localhost:3000';
   });
 
@@ -78,7 +88,16 @@ describe('weekly summary route', () => {
     }));
 
     expect(response.status).toBe(200);
+    const renderWeeklySummaryEmail = (await import('~/lib/emails/weekly-summary')).default as unknown as { mock: { calls: Array<Array<Record<string, unknown>>> } };
     expect(renderWeeklySummaryEmail).toHaveBeenCalled();
+    const sendEmail = (await import('~/core/email/send-email')).default as unknown as { mock: { calls: Array<Array<Record<string, unknown>>> } };
+    const firstEmail = sendEmail.mock.calls[0]?.[0];
+    expect(firstEmail).toEqual(
+      expect.objectContaining({
+        from: 'Ultaura Notifications <notifications-test@ultaura.com>',
+        replyTo: 'Ultaura Support <support-test@ultaura.com>',
+      }),
+    );
     const firstCall = renderWeeklySummaryEmail.mock.calls[0]?.[0];
     expect(firstCall?.accountId).toBe(account.id);
     expect(firstCall?.lineId).toBe(line.id);

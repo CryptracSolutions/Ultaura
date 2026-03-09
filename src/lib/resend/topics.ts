@@ -21,7 +21,17 @@ export function getResendSegmentId(): string {
 }
 
 export function getResendFromEmail(): string {
-  return process.env.RESEND_FROM_EMAIL || 'Ultaura <newsletter@ultaura.com>';
+  return getRequiredEnv('RESEND_FROM_EMAIL');
+}
+
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing env var ${name}`);
+  }
+
+  return value;
 }
 
 /** Build topics array for Resend API. All opt_out by default. */
