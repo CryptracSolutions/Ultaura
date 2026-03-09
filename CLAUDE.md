@@ -301,6 +301,7 @@ Even for exceptions, STILL:
 | `skill-creator` | Creating new skills for Claude Code or Codex |
 | `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
 | `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
+| `simplify` | Running the one-shot cleanup pass agent to review changed files for reuse, code quality, and efficiency, then apply behavior-preserving cleanup |
 
 ---
 

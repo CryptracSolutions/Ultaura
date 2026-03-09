@@ -84,11 +84,12 @@ After all implementation is complete, the team is shutdown cleanly, and TypeScri
 
 **How to deploy:**
 - Launch a one-shot `simplifier` agent scoped to code simplification
+- Auto-invoke the `simplify` skill for this pass so the agent uses the shared cleanup workflow instead of improvising
 - This is a **one-shot agent**, NOT part of the main implementation pool
 - It is **blocking** - wait for its result before proceeding to shutdown
 
 **Prompt template:**
-> Review all files modified during this task for clarity, consistency, and maintainability. Simplify where possible without changing behavior or functionality. Focus on: variable/function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
+> Use the `simplify` skill. Review all files modified during this task for clarity, consistency, reuse, and maintainability. Simplify where possible without changing behavior or functionality. Focus on variable and function naming, dead code removal, unnecessary complexity, inconsistent patterns with the rest of the codebase, and overly verbose logic. Also review reuse opportunities and efficiency issues in the changed files. Do NOT add features, change APIs, restructure architecture, or add comments/docstrings to code you didn't simplify. List every change you made with file path and brief rationale.
 
 **Pass it:** A list of all files modified during the task (gathered from `git diff --name-only` or tracked during implementation).
 
@@ -209,6 +210,7 @@ Before finalizing the plan and proceeding to delegation:
 | `seo-audit` | Auditing or upgrading SEO, diagnosing ranking issues |
 | `marketing-psychology` | Applying psychological principles to any marketing copy task |
 | `skill-creator` | Creating new skills for Codex |
+| `simplify` | Running the one-shot cleanup pass agent to review changed files for reuse, code quality, and efficiency, then apply behavior-preserving cleanup |
 | `Slides` | Use this skill when the user wants to create or modify presentation decks with the artifacts tool |
 | `ultaura-blogs` | Creating, updating, or QA on Ultaura public blog posts that use the exact existing canonical blog UI/layout |
 | `Security Best Practices` | Use when reviewing this codebase for security best practices and suggesting secure-by-default improvements |
