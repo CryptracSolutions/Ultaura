@@ -23,7 +23,11 @@ import {
   addTrustedContact,
   removeTrustedContact,
 } from '~/lib/ultaura/contacts';
-import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
+import {
+  formatToE164,
+  getUsPhoneValidationError,
+  formatUsPhoneForDisplay,
+} from '~/lib/ultaura/phone';
 import { toast } from 'sonner';
 
 interface TrustedContact {
@@ -361,14 +365,14 @@ export function ContactsClient({
                 <div>
                   <p className="font-medium">{contact.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {contact.phone_e164}
+                    {formatUsPhoneForDisplay(contact.phone_e164)}
                     {contact.relationship && ` · ${contact.relationship}`}
                   </p>
                 </div>
               </div>
               {!disabled && !readOnly && (
                 <ResponsiveActionMenu
-                  title={`${contact.name}\n${contact.phone_e164}`}
+                  title={`${contact.name}\n${formatUsPhoneForDisplay(contact.phone_e164)}`}
                   actions={[
                     {
                       label: 'Remove',

@@ -639,8 +639,6 @@ export function PrivacyCenterClient({
               setInvitePhoneError={inviteFlow.setInvitePhoneError}
               inviteRelationship={inviteFlow.inviteRelationship}
               setInviteRelationship={inviteFlow.setInviteRelationship}
-              inviteAsTrusted={inviteFlow.inviteAsTrusted}
-              setInviteAsTrusted={inviteFlow.setInviteAsTrusted}
               onInviteSubmit={handleInviteSubmit}
               showDiscardConfirm={inviteFlow.showDiscardConfirm}
               setShowDiscardConfirm={inviteFlow.setShowDiscardConfirm}

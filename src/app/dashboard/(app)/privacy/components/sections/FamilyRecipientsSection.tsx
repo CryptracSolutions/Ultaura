@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Plus, Users, X } from 'lucide-react';
 
 import Button from '~/core/ui/Button';
-import { Checkbox } from '~/core/ui/Checkbox';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import {
   Dialog,
@@ -54,8 +53,6 @@ export interface FamilyRecipientsSectionProps {
   setInvitePhoneError: (value?: string) => void;
   inviteRelationship: string;
   setInviteRelationship: (value: string) => void;
-  inviteAsTrusted: boolean;
-  setInviteAsTrusted: (value: boolean) => void;
   onInviteSubmit: (event: FormEvent<HTMLFormElement>) => void;
   showDiscardConfirm: boolean;
   setShowDiscardConfirm: (open: boolean) => void;
@@ -91,8 +88,6 @@ export function FamilyRecipientsSection({
   setInvitePhoneError,
   inviteRelationship,
   setInviteRelationship,
-  inviteAsTrusted,
-  setInviteAsTrusted,
   onInviteSubmit,
   showDiscardConfirm,
   setShowDiscardConfirm,
@@ -263,12 +258,7 @@ export function FamilyRecipientsSection({
                   </TextField>
                   <TextField>
                     <TextField.Label>
-                      Phone{' '}
-                      {inviteAsTrusted ? (
-                        <span className="text-destructive">*</span>
-                      ) : (
-                        '(optional)'
-                      )}
+                      Phone (optional)
                       <PhoneInput
                         value={invitePhone}
                         onValueChange={(value) => {
@@ -280,12 +270,12 @@ export function FamilyRecipientsSection({
                         onBlur={(event) => {
                           setInvitePhoneError(
                             getUsPhoneValidationError(event.target.value, {
-                              required: inviteAsTrusted,
+                              required: false,
                             }) ?? undefined,
                           );
                         }}
                         placeholder="(555) 123-4567"
-                        required={inviteAsTrusted}
+                        required={false}
                         error={invitePhoneError}
                       />
                       <TextField.Error error={invitePhoneError} />
@@ -304,16 +294,6 @@ export function FamilyRecipientsSection({
                     </TextField.Label>
                   </TextField>
                 </div>
-
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Checkbox
-                    checked={inviteAsTrusted}
-                    onCheckedChange={(checked) =>
-                      setInviteAsTrusted(Boolean(checked))
-                    }
-                  />
-                  Also add as emergency contact (requires phone number)
-                </label>
 
                 <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                   <Button

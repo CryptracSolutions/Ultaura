@@ -9,6 +9,7 @@ import { Switch } from '~/core/ui/Switch';
 import type { LineRow, LineVoiceConsent } from '~/lib/ultaura/types';
 import { useCurrentTimeMs } from '../../hooks/useCurrentTimeMs';
 import { PrivacyInfoBanner } from '../PrivacyInfoBanner';
+import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 export interface SharingFeature {
   text: string;
@@ -171,7 +172,9 @@ export function SharingPreferencesSection({
                             {line.display_name}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {line.phone_e164}
+                            <span className="text-primary font-medium">
+                              {formatUsPhoneForDisplay(line.phone_e164)}
+                            </span>
                           </div>
                         </div>
                         <span

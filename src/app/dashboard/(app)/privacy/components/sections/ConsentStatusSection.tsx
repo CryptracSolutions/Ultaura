@@ -6,6 +6,7 @@ import Button from '~/core/ui/Button';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import type { LineRow, LineVoiceConsent } from '~/lib/ultaura/types';
 import { useCurrentTimeMs } from '../../hooks/useCurrentTimeMs';
+import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 export interface ConsentStatusSectionProps {
   recordingEnabled: boolean;
@@ -130,7 +131,9 @@ export function ConsentStatusSection({
                       {line.display_name}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {line.phone_e164}
+                      <span className="text-primary font-medium">
+                        {formatUsPhoneForDisplay(line.phone_e164)}
+                      </span>
                     </div>
                   </div>
                 </div>

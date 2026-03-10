@@ -16,7 +16,6 @@ type InvitePayload = {
   email: string;
   phoneE164?: string;
   relationship?: string;
-  addAsTrustedContact: boolean;
 };
 
 type InvitePayloadOverride = Partial<InvitePayload>;
@@ -39,8 +38,6 @@ export interface UseInviteFlowResult {
   setInvitePhone: (value: string) => void;
   inviteRelationship: string;
   setInviteRelationship: (value: string) => void;
-  inviteAsTrusted: boolean;
-  setInviteAsTrusted: (value: boolean) => void;
   invitePhoneError?: string;
   setInvitePhoneError: (value?: string) => void;
   inviteError: string | null;
@@ -76,7 +73,6 @@ export function useInviteFlow({
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRelationship, setInviteRelationship] = useState('');
-  const [inviteAsTrusted, setInviteAsTrusted] = useState(false);
   const [invitePhoneError, setInvitePhoneError] = useState<string | undefined>();
   const [inviteError, setInviteError] = useState<string | null>(null);
 
@@ -103,15 +99,13 @@ export function useInviteFlow({
     inviteName.trim() !== '' ||
     inviteEmail.trim() !== '' ||
     invitePhone.trim() !== '' ||
-    inviteRelationship.trim() !== '' ||
-    inviteAsTrusted;
+    inviteRelationship.trim() !== '';
 
   const resetInviteForm = useCallback(() => {
     setInviteName('');
     setInviteEmail('');
     setInvitePhone('');
     setInviteRelationship('');
-    setInviteAsTrusted(false);
     setInvitePhoneError(undefined);
     setInviteError(null);
   }, []);
@@ -148,10 +142,9 @@ export function useInviteFlow({
         email: trimmedEmail,
         phoneE164,
         relationship: trimmedRelationship || undefined,
-        addAsTrustedContact: override?.addAsTrustedContact ?? inviteAsTrusted,
       };
     },
-    [inviteAsTrusted, inviteEmail, inviteName, invitePhone, inviteRelationship],
+    [inviteEmail, inviteName, invitePhone, inviteRelationship],
   );
 
   const handleInvite = useCallback(
@@ -170,7 +163,7 @@ export function useInviteFlow({
       }
 
       const phoneValidationError = getUsPhoneValidationError(invitePhone, {
-        required: inviteAsTrusted,
+        required: false,
       });
       if (phoneValidationError) {
         setInvitePhoneError(phoneValidationError);
@@ -179,11 +172,6 @@ export function useInviteFlow({
 
       if (payload.phoneE164 && !TELEPHONY.PHONE_REGEX.test(payload.phoneE164)) {
         setInviteError('Enter a valid US phone number');
-        return;
-      }
-
-      if (payload.addAsTrustedContact && !payload.phoneE164) {
-        setInviteError('Phone number is required for emergency contacts');
         return;
       }
 
@@ -219,7 +207,7 @@ export function useInviteFlow({
         setIsInviting(false);
       }
     },
-    [accountId, buildInvitePayload, closeInviteModal, inviteAsTrusted, invitePhone],
+    [accountId, buildInvitePayload, closeInviteModal, invitePhone],
   );
 
   const submitInvite = useCallback(async () => {
@@ -264,11 +252,11 @@ export function useInviteFlow({
     (value: string) => {
       setInvitePhoneError(
         getUsPhoneValidationError(value, {
-          required: inviteAsTrusted,
+          required: false,
         }) ?? undefined,
       );
     },
-    [inviteAsTrusted],
+    [],
   );
 
   const handleSetInvitePhone = useCallback((value: string) => {
@@ -293,8 +281,6 @@ export function useInviteFlow({
     setInvitePhone: handleSetInvitePhone,
     inviteRelationship,
     setInviteRelationship,
-    inviteAsTrusted,
-    setInviteAsTrusted,
     invitePhoneError,
     setInvitePhoneError,
     inviteError,
