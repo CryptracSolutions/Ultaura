@@ -13,11 +13,8 @@ export default async function ConfirmedPage({
   const inviteCode = getFirstQueryValue(searchParams?.inviteCode);
   const pending = getFirstQueryValue(searchParams?.pending) === '1';
   const email = getFirstQueryValue(searchParams?.email);
-  let next = getSafeNextPath(getFirstQueryValue(searchParams?.next));
-  const client = getSupabaseServerComponentClient();
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+  const requestedNextPath = getFirstQueryValue(searchParams?.next);
+  let next = getSafeNextPath(requestedNextPath);
 
   if (pending && email) {
     return (
@@ -28,6 +25,11 @@ export default async function ConfirmedPage({
       />
     );
   }
+
+  const client = getSupabaseServerComponentClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
 
   if (!user?.email_confirmed_at) {
     redirect(configuration.paths.signUp);
@@ -45,7 +47,10 @@ export default async function ConfirmedPage({
     });
 
     if (inviteResolution.status === 'invalid' || inviteResolution.status === 'failed') {
-      redirect(configuration.paths.signIn);
+      const fallbackToNextPath = Boolean(user.email_confirmed_at && requestedNextPath);
+      if (!fallbackToNextPath) {
+        redirect(configuration.paths.signIn);
+      }
     }
 
     if (inviteResolution.status === 'consumed') {
@@ -56,7 +61,12 @@ export default async function ConfirmedPage({
       redirect(`/invite/${encodeURIComponent(inviteCode)}`);
     }
 
-    next = inviteResolution.destination;
+    if (
+      inviteResolution.status === 'ready' ||
+      inviteResolution.status === 'accepted'
+    ) {
+      next = inviteResolution.destination;
+    }
   }
 
   return <ConfirmedInterstitial next={next} autoRedirect />;

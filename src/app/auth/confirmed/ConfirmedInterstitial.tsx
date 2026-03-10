@@ -41,15 +41,15 @@ export default function ConfirmedInterstitial({
 
   return (
     <>
-      {/* Disable the auth shell's entrance animation for this transient page.
-          The 1s fade-in + slide eats 1/3 of the 3s display time and makes the
-          interstitial look buggy. The style targets a data-attribute on the
-          animated pane in AuthPageShell so other auth pages are unaffected. */}
+      {/* Keep this in rendered markup so the pane animation is disabled before hydration paint. */}
       {autoRedirect && (
-        <style>{`[data-auth-content-pane]{animation-duration:0s!important}`}</style>
+        <style data-confirmed-inline-style>{`[data-auth-content-pane]{animation-duration:0s!important}`}</style>
       )}
 
-      <div className="flex flex-col items-center space-y-4 py-8 text-center">
+      <div
+        data-confirmed-interstitial-root
+        className="flex flex-col items-center space-y-4 py-8 text-center"
+      >
         <CheckCircleIcon className="h-16 w-16 text-green-500" />
 
         <h2

@@ -33,7 +33,7 @@ function AuthPageShell({
 
         <div
           className={
-            'flex w-full max-w-md flex-col items-center space-y-4 rounded-xl border border-border bg-card text-card-foreground px-4 py-6 shadow-lg' +
+            'flex w-full max-w-md flex-col items-center space-y-4 [&>style+*]:!mt-0 rounded-xl border border-border bg-card text-card-foreground px-4 py-6 shadow-lg' +
             ' lg:px-8'
           }
         >
