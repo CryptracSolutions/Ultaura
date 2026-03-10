@@ -295,26 +295,18 @@ describe('EmailConfirmationWaiting', () => {
     expect(states[0].setter).not.toHaveBeenCalledWith('verified');
   });
 
-  it('verifies when polling sees a local session fingerprint change and getUser confirms', async () => {
-    getSessionMock
-      .mockResolvedValueOnce({
-        data: {
-          session: createSession({
-            accessToken: 'token-1',
-            refreshToken: 'refresh-1',
-            expiresAt: 100,
-          }),
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          session: createSession({
-            accessToken: 'token-2',
-            refreshToken: 'refresh-2',
-            expiresAt: 200,
-          }),
-        },
-      });
+  it('verifies when polling detects confirmed user via direct getUser call', async () => {
+    // getSession never changes — simulates the cross-tab scenario where
+    // the in-memory cached session stays stale.
+    getSessionMock.mockResolvedValue({
+      data: {
+        session: createSession({
+          accessToken: 'token-1',
+          refreshToken: 'refresh-1',
+          expiresAt: 100,
+        }),
+      },
+    });
 
     getUserMock.mockResolvedValue({
       data: {
@@ -327,11 +319,37 @@ describe('EmailConfirmationWaiting', () => {
     await renderComponent();
     runMountEffect();
     await vi.advanceTimersByTimeAsync(0);
+    // First poll at 4s calls getUser() directly (not via fingerprint)
     await vi.advanceTimersByTimeAsync(4000);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(getUserMock).toHaveBeenCalledOnce();
+    expect(getUserMock).toHaveBeenCalled();
     expect(states[0].setter).toHaveBeenCalledWith('verified');
+  });
+
+  it('stays waiting when polling calls getUser but email is not yet confirmed', async () => {
+    getSessionMock.mockResolvedValue({
+      data: { session: null },
+    });
+
+    // User exists but email_confirmed_at is null
+    getUserMock.mockResolvedValue({
+      data: {
+        user: createUser({ emailConfirmedAt: null }),
+      },
+    });
+
+    await renderComponent();
+    runMountEffect();
+    await vi.advanceTimersByTimeAsync(0);
+    // Several polls pass
+    await vi.advanceTimersByTimeAsync(4000);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(4000);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(getUserMock).toHaveBeenCalledTimes(2);
+    expect(states[0].setter).not.toHaveBeenCalledWith('verified');
   });
 
   it('shows a manual continue button in verified state and does not auto-redirect by default', async () => {

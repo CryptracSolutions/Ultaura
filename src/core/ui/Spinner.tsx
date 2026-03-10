@@ -1,4 +1,4 @@
-import classNames from 'clsx';
+import { cn } from '~/core/generic/shadcn-utils';
 
 function Spinner(
   props: React.PropsWithChildren<{
@@ -9,7 +9,7 @@ function Spinner(
     <div role="status">
       <svg
         aria-hidden="true"
-        className={classNames(
+        className={cn(
           `h-8 w-8 animate-spin fill-white dark:fill-primary text-primary dark:text-primary/30`,
           props.className,
         )}

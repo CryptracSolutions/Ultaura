@@ -140,9 +140,12 @@ export default function EmailConfirmationWaiting({
 
     void syncSessionFingerprint('initialize');
 
-    // Fallback: poll every 4s
+    // Fallback: poll every 4s by directly checking the user via network
+    // request. getSession() returns the in-memory cached session which does
+    // not update when confirmation happens in another tab, so fingerprint-
+    // based polling misses cross-tab confirmations.
     const pollInterval = setInterval(() => {
-      void syncSessionFingerprint('observe');
+      void checkConfirmedUser();
     }, POLL_INTERVAL_MS);
 
     // Timeout after 5 minutes
