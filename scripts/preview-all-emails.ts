@@ -67,10 +67,10 @@ previews.push({
   }).html),
 });
 
-// 2. Weekly Summary (full tier — self recipient)
+// 2. Weekly Summary (dashboard-access recipient)
 previews.push({
-  name: 'Weekly Summary',
-  description: 'Sent weekly to payers and notification recipients with a check-in digest.',
+  name: 'Weekly Summary (Dashboard Access)',
+  description: 'Sent weekly to payers and dashboard-capable recipients with a check-in digest.',
   html: embedLogo(renderWeeklySummaryEmail({
     lineId: 'line-001',
     lineName: 'Mom (Dorothy)',
@@ -82,6 +82,7 @@ previews.push({
     sharingTier: 'tier_4',
     isSelfRecipient: true,
     isPrimaryRecipient: true,
+    hasDashboardAccess: true,
     safetyEvents: [
       { severity: 'high', timestamp: '2026-02-19T14:30:00Z', actionTaken: 'Suggested 988 hotline' },
     ],
@@ -119,10 +120,64 @@ previews.push({
   }).html),
 });
 
-// 3. Wellness Alert
+// 3. Weekly Summary (notification-only recipient)
 previews.push({
-  name: 'Wellness Alert',
-  description: 'Sent when a wellness concern is detected during calls.',
+  name: 'Weekly Summary (Notification Only)',
+  description: 'Sent weekly to notification-only recipients with email-safe copy and unsubscribe only.',
+  html: embedLogo(renderWeeklySummaryEmail({
+    lineId: 'line-001',
+    lineName: 'Mom (Dorothy)',
+    accountId: 'acct-001',
+    billingEmail: 'michael@example.com',
+    weekStartDate: 'Feb 17',
+    weekEndDate: 'Feb 23',
+    timezone: 'America/New_York',
+    sharingTier: 'tier_2',
+    isSelfRecipient: false,
+    isPrimaryRecipient: false,
+    hasDashboardAccess: false,
+    unsubscribeLink: 'https://ultaura.com/unsubscribe/abc123',
+    safetyEvents: [
+      { severity: 'high', timestamp: '2026-02-19T14:30:00Z', actionTaken: 'Suggested 988 hotline' },
+    ],
+    usageSummary: { minutesUsed: 145, minutesRemaining: 55, overageMinutes: 0, overageCost: 0 },
+    scheduledCalls: 14,
+    answeredCalls: 12,
+    missedCalls: 2,
+    showMissedCallsWarning: true,
+    answerTrend: 'down',
+    answerTrendValue: -2,
+    avgDurationMinutes: 8,
+    durationTrend: 'up',
+    durationTrendValue: 2,
+    engagementNote: 'shorter responses, less elaboration',
+    moodSummary: 'Mostly positive this week, with a few lower moments mid-week.',
+    moodShiftNote: 'Mood dipped on Wednesday — mentioned feeling lonely.',
+    moodDistribution: { positive: 8, neutral: 3, low: 1 },
+    socialNeedNote: 'Dorothy mentioned missing her book club friends twice this week.',
+    topTopics: [
+      { code: 'family', label: 'Family', weight: 0.35 },
+      { code: 'health', label: 'Health', weight: 0.25 },
+      { code: 'gardening', label: 'Gardening', weight: 0.2 },
+      { code: 'cooking', label: 'Cooking', weight: 0.15 },
+    ],
+    concerns: [
+      { code: 'loneliness', label: 'Loneliness', severity: 'moderate', novelty: 'recurring' },
+      { code: 'sleep', label: 'Sleep Quality', severity: 'mild', novelty: 'new' },
+    ],
+    needsFollowUp: true,
+    followUpReasons: ['recurring loneliness', 'new sleep concerns'],
+    isPaused: false,
+    pausedNote: null,
+    dashboardUrl: 'https://ultaura.com/dashboard',
+    settingsUrl: 'https://ultaura.com/dashboard/settings',
+  }).html),
+});
+
+// 4. Wellness Alert (dashboard-access recipient)
+previews.push({
+  name: 'Wellness Alert (Dashboard Access)',
+  description: 'Sent when a wellness concern is detected during calls for recipients with dashboard access.',
   html: embedLogo(renderWellnessAlertEmail({
     lineName: 'Mom (Dorothy)',
     title: 'Mood Decline Detected',
@@ -130,11 +185,28 @@ previews.push({
     severity: 'warning',
     dashboardUrl: 'https://ultaura.com/dashboard/alerts',
     settingsUrl: 'https://ultaura.com/dashboard/settings',
+    hasDashboardAccess: true,
     unsubscribeLink: 'https://ultaura.com/unsubscribe/abc123',
   }).html),
 });
 
-// 4. Safety Alert
+// 5. Wellness Alert (notification-only recipient)
+previews.push({
+  name: 'Wellness Alert (Notification Only)',
+  description: 'Sent when a wellness concern is detected during calls for notification-only recipients.',
+  html: embedLogo(renderWellnessAlertEmail({
+    lineName: 'Mom (Dorothy)',
+    title: 'Mood Decline Detected',
+    summary: 'Dorothy has expressed low mood in 3 of the last 5 calls, mentioning feeling tired and not wanting to go outside. This is a change from her typical positive outlook.',
+    severity: 'warning',
+    dashboardUrl: 'https://ultaura.com/dashboard/alerts',
+    settingsUrl: 'https://ultaura.com/dashboard/settings',
+    hasDashboardAccess: false,
+    unsubscribeLink: 'https://ultaura.com/unsubscribe/abc123',
+  }).html),
+});
+
+// 6. Safety Alert
 previews.push({
   name: 'Safety Alert',
   description: 'Urgent alert sent when distress keywords are detected during a call.',
@@ -146,20 +218,35 @@ previews.push({
   }).html),
 });
 
-// 5. Missed Calls Alert
+// 7. Missed Calls Alert (dashboard-access recipient)
 previews.push({
-  name: 'Missed Calls Alert',
-  description: 'Sent when a line misses multiple consecutive scheduled calls.',
+  name: 'Missed Calls Alert (Dashboard Access)',
+  description: 'Sent when a line misses multiple consecutive scheduled calls for recipients with dashboard access.',
   html: embedLogo(renderMissedCallsAlertEmail({
     lineName: 'Mom (Dorothy)',
     consecutiveMissedCount: 4,
     dashboardUrl: 'https://ultaura.com/dashboard',
     settingsUrl: 'https://ultaura.com/dashboard/lines/line-001/settings',
+    hasDashboardAccess: true,
     unsubscribeLink: 'https://ultaura.com/unsubscribe/abc123',
   }).html),
 });
 
-// 6. Plan Upgrade
+// 8. Missed Calls Alert (Notification Only)
+previews.push({
+  name: 'Missed Calls Alert (Notification Only)',
+  description: 'Sent when a line misses multiple consecutive scheduled calls for notification-only recipients.',
+  html: embedLogo(renderMissedCallsAlertEmail({
+    lineName: 'Mom (Dorothy)',
+    consecutiveMissedCount: 4,
+    dashboardUrl: 'https://ultaura.com/dashboard',
+    settingsUrl: 'https://ultaura.com/dashboard/lines/line-001/settings',
+    hasDashboardAccess: false,
+    unsubscribeLink: 'https://ultaura.com/unsubscribe/abc123',
+  }).html),
+});
+
+// 9. Plan Upgrade
 previews.push({
   name: 'Plan Upgrade',
   description: 'Sent when a user requests a plan upgrade during a phone call.',
@@ -170,7 +257,7 @@ previews.push({
   }).html),
 });
 
-// 7. Notification Invite
+// 10. Notification Invite
 previews.push({
   name: 'Notification Invite',
   description: 'Sent to trusted contacts inviting them to receive updates about a line.',
@@ -183,7 +270,7 @@ previews.push({
   }).html),
 });
 
-// 8. Team Invite
+// 11. Team Invite
 previews.push({
   name: 'Team Invite',
   description: 'Sent when a user is invited to join an organization/team.',
@@ -196,7 +283,7 @@ previews.push({
   }).html),
 });
 
-// 9. Account Deletion
+// 12. Account Deletion
 previews.push({
   name: 'Account Deletion',
   description: 'Confirmation sent after an account is deleted.',
@@ -206,7 +293,7 @@ previews.push({
   }).html),
 });
 
-// 10. Security Alert (Internal)
+// 13. Security Alert (Internal)
 previews.push({
   name: 'Security Alert (Internal)',
   description: 'Internal admin alert for anomaly detection and suspicious activity.',
@@ -220,7 +307,7 @@ previews.push({
   }).html),
 });
 
-// 11. Newsletter Welcome
+// 14. Newsletter Welcome
 previews.push({
   name: 'Newsletter Welcome',
   description: 'Sent after a visitor subscribes to the Ultaura newsletter.',
@@ -232,7 +319,7 @@ previews.push({
   }).html),
 });
 
-// 12. Newsletter Broadcast
+// 15. Newsletter Broadcast
 previews.push({
   name: 'Newsletter Broadcast',
   description: 'General-purpose newsletter sent to subscribers.',

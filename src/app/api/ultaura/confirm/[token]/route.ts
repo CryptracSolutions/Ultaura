@@ -1,64 +1,44 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import {
-  buildHtmlRouteHeaders,
-  renderSimpleActionPage,
-} from '~/lib/server/route-html';
+
 import { confirmNotificationRecipient } from '~/lib/ultaura/notification-recipients';
 
-const HTML_HEADERS = buildHtmlRouteHeaders({
-  cspDirectives: {
-    'default-src': ["'none'"],
-    'style-src': ["'unsafe-inline'"],
-    'form-action': ["'self'"],
-    'base-uri': ["'none'"],
-    'frame-ancestors': ["'none'"],
-  },
-});
-
-function htmlResponse(
-  options: Parameters<typeof renderSimpleActionPage>[0],
-  status = 200,
-) {
-  return new NextResponse(renderSimpleActionPage(options), {
-    headers: HTML_HEADERS,
-    status,
-  });
+function buildConfirmPageUrl(request: Request, token: string) {
+  return new URL(`/ultaura/confirm/${encodeURIComponent(token)}`, request.url);
 }
 
-export async function GET(_: Request, context: { params: { token: string } }) {
+export async function GET(request: Request, context: { params: { token: string } }) {
   const { token } = context.params;
-  return htmlResponse({
-    title: 'Confirm family updates',
-    body: 'Confirm that you want to receive weekly summaries and alerts from Ultaura.',
-    actionLabel: 'Confirm updates',
-    actionUrl: `/api/ultaura/confirm/${encodeURIComponent(token)}`,
-  });
+
+  return NextResponse.redirect(buildConfirmPageUrl(request, token));
 }
 
-export async function POST(_: Request, context: { params: { token: string } }) {
+export async function POST(request: Request, context: { params: { token: string } }) {
+  const { token } = context.params;
+  const redirectUrl = buildConfirmPageUrl(request, token);
+
   try {
-    const { token } = context.params;
     const result = await confirmNotificationRecipient(token);
 
     if (!result.success) {
-      return htmlResponse({
-        title: 'Confirmation failed',
-        body: result.error.message || 'This confirmation link is invalid or expired.',
-        isError: true,
-      }, 400);
+      redirectUrl.searchParams.set('status', 'error');
+      redirectUrl.searchParams.set(
+        'message',
+        result.error.message || 'This confirmation link is invalid or expired.',
+      );
+
+      return NextResponse.redirect(redirectUrl, 303);
     }
 
-    return htmlResponse({
-      title: 'You are confirmed',
-      body: `You will now receive updates from ${result.data.accountName}. You can close this page.`,
-    });
+    redirectUrl.searchParams.set('status', 'success');
+    redirectUrl.searchParams.set('accountName', result.data.accountName);
+
+    return NextResponse.redirect(redirectUrl, 303);
   } catch {
-    return htmlResponse({
-      title: 'Something went wrong',
-      body: 'Please try again later.',
-      isError: true,
-    }, 500);
+    redirectUrl.searchParams.set('status', 'error');
+    redirectUrl.searchParams.set('message', 'Please try again later.');
+
+    return NextResponse.redirect(redirectUrl, 303);
   }
 }

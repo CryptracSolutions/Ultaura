@@ -54,7 +54,12 @@ function validateWebhookSecret(request: Request): NextResponse | null {
 }
 
 function getSiteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const siteUrl =
+    process.env.NODE_ENV !== 'production'
+      ? process.env.SITE_URL || 'http://localhost:3000'
+      : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  return siteUrl.replace(/\/$/, '');
 }
 
 export async function POST(request: Request) {
@@ -161,15 +166,15 @@ export async function POST(request: Request) {
   };
 
   try {
-    const recipients = new Map<string, { isPrimary: boolean; token?: string }>();
+    const recipients = new Map<string, { isPrimary: boolean; token?: string; hasDashboardAccess: boolean }>();
     if (canSendToBillingEmail) {
-      recipients.set(account.billing_email, { isPrimary: true });
+      recipients.set(account.billing_email, { isPrimary: true, hasDashboardAccess: true });
     }
 
     if (canSendToRecipients) {
       const { data: recipientRows, error: recipientError } = await supabase
         .from('ultaura_notification_recipients')
-        .select('id, email')
+        .select('id, email, dashboard_access_granted_at')
         .eq('account_id', normalizedPayload.accountId)
         .not('confirmed_at', 'is', null)
         .is('unsubscribed_at', null);
@@ -195,6 +200,7 @@ export async function POST(request: Request) {
           recipients.set(recipient.email, {
             isPrimary: false,
             token: tokenResult.data.token,
+            hasDashboardAccess: Boolean(recipient.dashboard_access_granted_at),
           });
         }
       }
@@ -213,6 +219,7 @@ export async function POST(request: Request) {
         severity: emailPayload.severity,
         dashboardUrl: emailPayload.dashboardUrl,
         settingsUrl: emailPayload.settingsUrl,
+        hasDashboardAccess: meta.hasDashboardAccess,
         unsubscribeLink,
       });
       const headers = unsubscribeLink

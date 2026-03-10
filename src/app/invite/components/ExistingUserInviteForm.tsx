@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 
 import Trans from '~/core/ui/Trans';
 import Button from '~/core/ui/Button';
@@ -9,12 +10,13 @@ import useSignOut from '~/core/hooks/use-sign-out';
 import useRefresh from '~/core/hooks/use-refresh';
 import { acceptInviteAction } from '~/lib/memberships/actions';
 
-function ExistingUserInviteForm(
-  props: React.PropsWithChildren<{
-    email: string;
-    code: string;
-  }>,
-) {
+function ExistingUserInviteForm(props: {
+  email: string;
+  code: string;
+  mode?: 'accept' | 'wrongAccount';
+  invitedEmail?: string;
+}) {
+  const router = useRouter();
   const signOut = useSignOut();
   const refresh = useRefresh();
   const [isSubmitting, startTransition] = useTransition();
@@ -26,32 +28,59 @@ function ExistingUserInviteForm(
 
   const onInviteAccepted = useCallback(async () => {
     return startTransition(async () => {
-      await acceptInviteAction({
-        code: props.code,
-      });
+      try {
+        const result = await acceptInviteAction({
+          code: props.code,
+          redirectOnSuccess: false,
+        });
+
+        router.replace(result.destination);
+      } catch {
+        router.replace('/auth/invite-error');
+      }
     });
-  }, [props.code, startTransition]);
+  }, [props.code, router, startTransition]);
+
+  const isWrongAccount = props.mode === 'wrongAccount';
 
   return (
     <>
       <div className={'flex flex-col space-y-4'}>
-        <p className={'text-center text-sm'}>
-          <Trans
-            i18nKey={'auth:clickToAcceptAs'}
-            values={{ email: props.email }}
-            components={{ b: <b /> }}
-          />
-        </p>
+        {!isWrongAccount ? (
+          <>
+            <p className={'text-center text-sm'}>
+              <Trans
+                i18nKey={'auth:clickToAcceptAs'}
+                values={{ email: props.email }}
+                components={{ b: <b /> }}
+              />
+            </p>
 
-        <Button
-          block
-          loading={isSubmitting}
-          onClick={onInviteAccepted}
-          data-cy={'accept-invite-submit-button'}
-          type={'submit'}
-        >
-          <Trans i18nKey={'auth:acceptInvite'} />
-        </Button>
+            <Button
+              block
+              loading={isSubmitting}
+              onClick={onInviteAccepted}
+              data-cy={'accept-invite-submit-button'}
+              type={'submit'}
+            >
+              <Trans i18nKey={'auth:acceptInvite'} />
+            </Button>
+          </>
+        ) : (
+          <div className={'space-y-2 text-center'}>
+            <p className={'text-sm font-medium'}>
+              This invite is for{' '}
+              <span className={'font-semibold'}>
+                {props.invitedEmail || 'another account'}
+              </span>
+              .
+            </p>
+            <p className={'text-sm text-muted-foreground'}>
+              Sign out and continue with that email to access the shared
+              dashboard.
+            </p>
+          </div>
+        )}
 
         <div>
           <div className={'flex flex-col space-y-4'}>

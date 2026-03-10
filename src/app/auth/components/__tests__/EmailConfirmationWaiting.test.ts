@@ -82,6 +82,7 @@ beforeEach(() => {
         children: args.slice(2),
       }),
     },
+    useCallback: (fn: Function) => fn,
     useState: (init: unknown) => {
       const nextInit =
         stateIndex === 0 && initialStatusOverride !== undefined
@@ -333,7 +334,7 @@ describe('EmailConfirmationWaiting', () => {
     expect(states[0].setter).toHaveBeenCalledWith('verified');
   });
 
-  it('shows a manual continue button in verified state and does not auto-redirect', async () => {
+  it('shows a manual continue button in verified state and does not auto-redirect by default', async () => {
     initialStatusOverride = 'verified';
     const { tree } = await renderComponent();
 
@@ -347,7 +348,9 @@ describe('EmailConfirmationWaiting', () => {
 
     expect(continueButton).not.toBeNull();
     (continueButton?.props.onClick as () => void)();
-    expect(routerReplaceMock).toHaveBeenCalledWith('/onboarding');
+    expect(routerReplaceMock).toHaveBeenCalledWith(
+      '/auth/confirmed?next=%2Fonboarding',
+    );
   });
 
   it('keeps timeout and resend behavior', async () => {

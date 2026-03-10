@@ -4,7 +4,6 @@ import { useCallback, useState, useTransition } from 'react';
 
 import EmailLinkAuth from '~/app/auth/components/EmailLinkAuth';
 import OAuthProviders from '~/app/auth/components/OAuthProviders';
-import PhoneNumberSignInContainer from '~/app/auth/components/PhoneNumberSignInContainer';
 import EmailPasswordSignInContainer from '~/app/auth/components/EmailPasswordSignInContainer';
 import EmailPasswordSignUpContainer from '~/app/auth/components/EmailPasswordSignUpContainer';
 
@@ -23,11 +22,7 @@ enum Mode {
   SignIn,
 }
 
-function NewUserInviteForm(
-  props: React.PropsWithChildren<{
-    code: string;
-  }>,
-) {
+function NewUserInviteForm(props: { code: string }) {
   const [mode, setMode] = useState<Mode>(Mode.SignUp);
   const [isSubmitting, startTransition] = useTransition();
   const oAuthReturnUrl = isBrowser() ? window.location.pathname : '';
@@ -35,10 +30,15 @@ function NewUserInviteForm(
   const onInviteAccepted = useCallback(
     async (userId?: string) => {
       startTransition(async () => {
-        await acceptInviteAction({
+        const result = await acceptInviteAction({
           code: props.code,
           userId,
+          redirectOnSuccess: false,
         });
+
+        if (result.destination) {
+          window.location.replace(result.destination);
+        }
       });
     },
     [props.code],
@@ -88,13 +88,6 @@ function NewUserInviteForm(
             </Button>
           </div>
         </If>
-      </If>
-
-      <If condition={configuration.auth.providers.phoneNumber}>
-        <PhoneNumberSignInContainer
-          onSuccess={onInviteAccepted}
-          mode={'signUp'}
-        />
       </If>
 
       <If condition={configuration.auth.providers.emailLink}>

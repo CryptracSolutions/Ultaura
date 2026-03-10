@@ -12,7 +12,7 @@ describe('ultaura confirm route', () => {
     vi.doUnmock('~/lib/ultaura/notification-recipients');
   });
 
-  it('GET escapes token in form action and includes CSP header', async () => {
+  it('GET redirects to the themed confirm page with the encoded token', async () => {
     vi.doMock('~/lib/ultaura/notification-recipients', () => ({
       confirmNotificationRecipient: vi.fn(),
     }));
@@ -21,15 +21,14 @@ describe('ultaura confirm route', () => {
     const response = await GET(new Request('http://localhost'), {
       params: { token: 'abc" onclick="alert(1)' },
     });
-    const html = await response.text();
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
-    expect(html).toContain('/api/ultaura/confirm/abc%22%20onclick%3D%22alert(1)');
-    expect(html).not.toContain('onclick="alert(1)"');
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost/ultaura/confirm/abc%22%20onclick%3D%22alert(1)',
+    );
   });
 
-  it('POST forwards token to service and includes CSP header on success', async () => {
+  it('POST forwards token to service and redirects to success state', async () => {
     const confirmNotificationRecipient = vi.fn(async () => ({
       success: true as const,
       data: { accountName: 'Ultaura Family' },
@@ -42,15 +41,15 @@ describe('ultaura confirm route', () => {
     const response = await POST(new Request('http://localhost', { method: 'POST' }), {
       params: { token: 'token-123' },
     });
-    const html = await response.text();
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
-    expect(html).toContain('You are confirmed');
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost/ultaura/confirm/token-123?status=success&accountName=Ultaura+Family',
+    );
     expect(confirmNotificationRecipient).toHaveBeenCalledWith('token-123');
   });
 
-  it('POST returns generic 500 page when service throws', async () => {
+  it('POST redirects to error state when service throws', async () => {
     const confirmNotificationRecipient = vi.fn(async () => {
       throw new Error('boom');
     });
@@ -62,13 +61,11 @@ describe('ultaura confirm route', () => {
     const response = await POST(new Request('http://localhost', { method: 'POST' }), {
       params: { token: 'token-123' },
     });
-    const html = await response.text();
 
-    expect(response.status).toBe(500);
-    expect(response.headers.get(CSP_HEADER)).toContain("default-src 'none'");
-    expect(html).toContain('Something went wrong');
-    expect(html).toContain('Please try again later.');
-    expect(html).not.toContain('boom');
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost/ultaura/confirm/token-123?status=error&message=Please+try+again+later.',
+    );
   });
 });
 

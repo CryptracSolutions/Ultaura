@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import AuthErrorMessage from './AuthErrorMessage';
 import useSignUpWithEmailAndPasswordMutation from '~/core/hooks/use-sign-up-with-email-password';
@@ -14,11 +15,15 @@ import useResendSignupConfirmation from '~/core/hooks/use-resend-signup-confirma
 
 const requireEmailConfirmation = configuration.auth.requireEmailConfirmation;
 const RESEND_COOLDOWN_SECONDS = 60;
+const EMAIL_CONFIRMATION_STATE_KEY = 'ultaura.email-confirmation.pending';
 
 const EmailPasswordSignUpContainer: React.FCC<{
   onSignUp: (userId?: string) => unknown;
   onError?: (error?: unknown) => unknown;
-}> = ({ onSignUp, onError }) => {
+  inviteCode?: string;
+  nextPath?: string;
+}> = ({ onSignUp, onError, inviteCode, nextPath }) => {
+  const router = useRouter();
   const signUpMutation = useSignUpWithEmailAndPasswordMutation();
   const resendConfirmationMutation = useResendSignupConfirmation();
   const redirecting = useRef(false);
@@ -41,6 +46,27 @@ const EmailPasswordSignUpContainer: React.FCC<{
   useEffect(() => {
     callOnErrorCallback();
   }, [callOnErrorCallback]);
+
+  useEffect(() => {
+    if (showVerifyEmailAlert || typeof window === 'undefined') {
+      return;
+    }
+
+    const pending = readPendingEmailConfirmationState();
+
+    if (
+      !pending ||
+      pending.inviteCode !== (inviteCode ?? null) ||
+      pending.nextPath !== (nextPath ?? null)
+    ) {
+      return;
+    }
+
+    setSignupEmail(pending.email);
+    setShowVerifyEmailAlert(true);
+    setResendSuccess(false);
+    setResendError(null);
+  }, [inviteCode, nextPath, showVerifyEmailAlert]);
 
   const stopCooldown = useCallback(() => {
     if (cooldownIntervalRef.current) {
@@ -78,7 +104,19 @@ const EmailPasswordSignUpContainer: React.FCC<{
       }
 
       try {
-        const data = await signUpMutation.trigger(params);
+        if (requireEmailConfirmation) {
+          persistPendingEmailConfirmationState({
+            email: params.email,
+            inviteCode,
+            nextPath,
+          });
+        }
+
+        const data = await signUpMutation.trigger({
+          ...params,
+          inviteCode,
+          next: nextPath,
+        });
 
         // If the user is required to confirm their email, we display a message
         if (requireEmailConfirmation) {
@@ -89,14 +127,26 @@ const EmailPasswordSignUpContainer: React.FCC<{
           startCooldown();
         }
 
-        onSignUp(data.user?.id);
+        await onSignUp(data.user?.id);
+
+        if (requireEmailConfirmation) {
+          router.replace(
+            getPendingConfirmationPath({
+              email: params.email,
+              inviteCode,
+              nextPath,
+            }),
+          );
+        }
       } catch (error) {
+        clearPendingEmailConfirmationState();
+
         if (onError) {
           onError(error);
         }
       }
     },
-    [loading, onError, onSignUp, signUpMutation, startCooldown],
+    [inviteCode, loading, nextPath, onError, onSignUp, router, signUpMutation, startCooldown],
   );
 
   const onResendConfirmation = useCallback(async () => {
@@ -133,6 +183,8 @@ const EmailPasswordSignUpContainer: React.FCC<{
       <If condition={showVerifyEmailAlert}>
         <EmailConfirmationWaiting
           email={signupEmail}
+          inviteCode={inviteCode}
+          nextPath={nextPath}
           resendCooldown={resendCooldown}
           resendSuccess={resendSuccess}
           resendError={resendError}
@@ -154,3 +206,100 @@ const EmailPasswordSignUpContainer: React.FCC<{
 };
 
 export default EmailPasswordSignUpContainer;
+
+function persistPendingEmailConfirmationState(params: {
+  email: string;
+  inviteCode?: string;
+  nextPath?: string;
+}) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    EMAIL_CONFIRMATION_STATE_KEY,
+    JSON.stringify({
+      email: params.email,
+      inviteCode: params.inviteCode ?? null,
+      nextPath: params.nextPath ?? null,
+    }),
+  );
+
+  const url = new URL(window.location.href);
+  url.searchParams.set('emailConfirmation', 'pending');
+  window.history.replaceState(null, '', url.toString());
+}
+
+function getPendingConfirmationPath(params: {
+  email: string;
+  inviteCode?: string;
+  nextPath?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set('pending', '1');
+  searchParams.set('email', params.email);
+
+  if (params.inviteCode) {
+    searchParams.set('inviteCode', params.inviteCode);
+  }
+
+  if (params.nextPath) {
+    searchParams.set('next', params.nextPath);
+  }
+
+  return `/auth/confirmed?${searchParams.toString()}`;
+}
+
+function readPendingEmailConfirmationState(): {
+  email: string;
+  inviteCode: string | null;
+  nextPath: string | null;
+} | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get('emailConfirmation') !== 'pending') {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(EMAIL_CONFIRMATION_STATE_KEY);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      email?: string;
+      inviteCode?: string | null;
+      nextPath?: string | null;
+    };
+
+    if (!parsed.email) {
+      return null;
+    }
+
+    return {
+      email: parsed.email,
+      inviteCode: parsed.inviteCode ?? null,
+      nextPath: parsed.nextPath ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingEmailConfirmationState() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.removeItem(EMAIL_CONFIRMATION_STATE_KEY);
+
+  const url = new URL(window.location.href);
+  url.searchParams.delete('emailConfirmation');
+  window.history.replaceState(null, '', url.toString());
+}

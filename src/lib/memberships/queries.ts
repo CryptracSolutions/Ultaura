@@ -1,9 +1,23 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { MEMBERSHIPS_TABLE } from '~/lib/db-tables';
 import type Membership from '~/lib/organizations/types/membership';
+import MembershipRole from '~/lib/organizations/types/membership-role';
 import type { Database } from '../../database.types';
 
 type Client = SupabaseClient<Database>;
+
+const INVITE_MEMBERSHIP_LOOKUP_QUERY = `
+  id,
+  role,
+  code,
+  invitedEmail: invited_email,
+  organizationId: organization_id,
+  userId: user_id,
+  organization: organization_id (
+    id,
+    uuid
+  )
+`;
 
 /**
  * @name getMembershipByInviteCode
@@ -30,6 +44,49 @@ export async function getMembershipByInviteCode<Response>(
       `,
     )
     .eq('code', params.code)
+    .maybeSingle();
+}
+
+export type InviteMembershipLookup = {
+  id: number;
+  role: MembershipRole;
+  code: string | null;
+  invitedEmail: string | null;
+  organizationId: number;
+  userId: string | null;
+  organization: {
+    id: number;
+    uuid: string;
+  } | null;
+};
+
+/**
+ * @name getInviteMembershipForResolution
+ * @description Fetch invite membership data required for resolution and acceptance.
+ */
+export async function getInviteMembershipForResolution(
+  client: Client,
+  code: string,
+) {
+  return getMembershipByInviteCode<InviteMembershipLookup>(client, {
+    code,
+    query: INVITE_MEMBERSHIP_LOOKUP_QUERY,
+  });
+}
+
+/**
+ * @name getPendingInviteMembershipForResolution
+ * @description Fetch invite membership data for entry points that only allow unused invites.
+ */
+export async function getPendingInviteMembershipForResolution(
+  client: Client,
+  code: string,
+) {
+  return client
+    .from(MEMBERSHIPS_TABLE)
+    .select<string, InviteMembershipLookup>(INVITE_MEMBERSHIP_LOOKUP_QUERY)
+    .eq('code', code)
+    .is('user_id', null)
     .maybeSingle();
 }
 

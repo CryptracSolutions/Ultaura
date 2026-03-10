@@ -8,6 +8,9 @@ import initializeServerI18n from '~/i18n/i18n.server';
 import getLanguageCookie from '~/i18n/get-language-cookie';
 import verifyRequiresMfa from '~/core/session/utils/check-requires-mfa';
 import { getUserDataById } from '~/lib/server/queries';
+import { getOrganizationsByUserId } from '~/lib/organizations/database/queries';
+import MembershipRole from '~/lib/organizations/types/membership-role';
+import { autoLinkPendingViewerMemberships } from '~/lib/server/loaders/load-app-data';
 
 interface LoadAuthPageDataOptions {
   redirectSignedIn?: boolean;
@@ -60,9 +63,30 @@ async function redirectSignedInUser() {
   const userRecord = await getUserDataById(client, user.id).catch(() => null);
   const shouldContinueOnboarding = !userRecord || !userRecord.onboarded;
 
-  redirect(
-    shouldContinueOnboarding
-      ? configuration.paths.onboarding
-      : configuration.paths.appHome,
-  );
+  if (shouldContinueOnboarding) {
+    await autoLinkPendingViewerMemberships({
+      userId: user.id,
+      userEmail: user.email,
+      emailVerifiedAt: user.email_confirmed_at,
+    });
+
+    const organizations = await getOrganizationsByUserId(client, user.id).then(
+      ({ data }) => data ?? [],
+      () => [],
+    );
+    const hasViewerOnlyAccess =
+      organizations.length > 0 &&
+      organizations.every(
+        (organization: { role: number }) =>
+          Number(organization.role) === Number(MembershipRole.Viewer),
+      );
+
+    redirect(
+      hasViewerOnlyAccess
+        ? configuration.paths.appHome
+        : configuration.paths.onboarding,
+    );
+  }
+
+  redirect(configuration.paths.appHome);
 }

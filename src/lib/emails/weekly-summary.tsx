@@ -33,6 +33,7 @@ function formatDateLabel(value: string): string {
 type WeeklySummaryEmailProps = WeeklySummaryData & {
   isSelfRecipient?: boolean;
   isPrimaryRecipient?: boolean;
+  hasDashboardAccess?: boolean;
   unsubscribeLink?: string;
 };
 
@@ -54,9 +55,10 @@ export default function renderWeeklySummaryEmail(summary: WeeklySummaryEmailProp
   const allowTopics = summary.isSelfRecipient || effectiveTier === 'tier_3' || effectiveTier === 'tier_4';
   const allowConcerns = summary.isSelfRecipient || effectiveTier === 'tier_4';
 
-  const footerLinks: Array<{ label: string; href: string }> = [
-    { label: 'Manage notifications', href: summary.settingsUrl },
-  ];
+  const footerLinks: Array<{ label: string; href: string }> = [];
+  if (summary.isPrimaryRecipient || summary.hasDashboardAccess) {
+    footerLinks.push({ label: 'Manage notifications', href: summary.settingsUrl });
+  }
   if (summary.unsubscribeLink && !summary.isPrimaryRecipient) {
     footerLinks.push({ label: 'Unsubscribe', href: summary.unsubscribeLink });
   }
@@ -73,6 +75,13 @@ export default function renderWeeklySummaryEmail(summary: WeeklySummaryEmailProp
       <Text className="text-[14px] text-stone-700 mt-[16px] mb-0">
         {greeting}
       </Text>
+
+      {!summary.isPrimaryRecipient && !summary.hasDashboardAccess ? (
+        <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
+          You are receiving email updates only. If you&apos;d like dashboard access,
+          please contact the account holder to activate it.
+        </Text>
+      ) : null}
 
       {summary.isPaused ? (
         <Section className="mt-[16px] bg-stone-100 rounded-lg px-[14px] py-[12px]">

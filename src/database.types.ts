@@ -2807,6 +2807,10 @@ export type Database = {
           confirmation_token_hash: string | null
           confirmed_at: string | null
           created_at: string
+          dashboard_access_granted_at: string | null
+          dashboard_access_invited_email: string | null
+          dashboard_access_membership_id: number | null
+          dashboard_access_user_id: string | null
           email: string
           id: string
           is_trusted_contact: boolean
@@ -2825,6 +2829,10 @@ export type Database = {
           confirmation_token_hash?: string | null
           confirmed_at?: string | null
           created_at?: string
+          dashboard_access_granted_at?: string | null
+          dashboard_access_invited_email?: string | null
+          dashboard_access_membership_id?: number | null
+          dashboard_access_user_id?: string | null
           email: string
           id?: string
           is_trusted_contact?: boolean
@@ -2843,6 +2851,10 @@ export type Database = {
           confirmation_token_hash?: string | null
           confirmed_at?: string | null
           created_at?: string
+          dashboard_access_granted_at?: string | null
+          dashboard_access_invited_email?: string | null
+          dashboard_access_membership_id?: number | null
+          dashboard_access_user_id?: string | null
           email?: string
           id?: string
           is_trusted_contact?: boolean
@@ -5978,4 +5990,3 @@ export const Constants = {
     },
   },
 } as const
-

@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server';
 import { redirect } from 'next/navigation';
 
-import { acceptInviteToOrganization } from '~/lib/memberships/mutations';
 import getLogger from '~/core/logger';
 import configuration from '~/configuration';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import MembershipRole from '~/lib/organizations/types/membership-role';
+import { resolveInvite } from '~/lib/memberships/invite-resolution';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -58,14 +58,42 @@ export async function GET(request: NextRequest) {
           `Attempting to accept user invite...`,
         );
 
-        const inviteResult = await acceptInviteFromEmailLink({
-          inviteCode,
+        const adminClient = getSupabaseRouteHandlerClient({
+          admin: true,
+        });
+        const inviteResult = await resolveInvite({
+          client: adminClient,
+          code: inviteCode,
           userId,
           userEmail,
         });
 
-        if (inviteResult?.role === MembershipRole.Viewer && !rawNextUrl) {
-          nextUrl = configuration.paths.appHome;
+        if (inviteResult.status === 'wrong_account') {
+          return redirect(`/invite/${encodeURIComponent(inviteCode)}`);
+        }
+
+        if (inviteResult.status === 'failed') {
+          return redirect(inviteResult.destination);
+        }
+
+        if (
+          inviteResult.status === 'invalid' ||
+          inviteResult.status === 'consumed'
+        ) {
+          return redirect(configuration.paths.appHome);
+        }
+
+        nextUrl = inviteResult.destination;
+
+        if (
+          inviteResult.status === 'accepted' &&
+          inviteResult.role === MembershipRole.Viewer
+        ) {
+          await applyViewerDisplayName({
+            adminClient,
+            userId,
+            userEmail,
+          });
         }
       } catch (acceptError) {
         logger.error(
@@ -89,66 +117,6 @@ export async function GET(request: NextRequest) {
   }
 
   return redirect(nextUrl);
-}
-
-/**
- * @name acceptInviteFromEmailLink
- * @description If we find an invite code, we try to accept the invite
- * received from the email link method
- */
-async function acceptInviteFromEmailLink(params: {
-  inviteCode: string;
-  userId: Maybe<string>;
-  userEmail?: Maybe<string>;
-}) {
-  const logger = getLogger();
-
-  if (!params.userId) {
-    logger.error(params, `Attempted to accept invite, but no user id provided`);
-
-    return null;
-  }
-
-  logger.info(params, `Found invite code. Accepting invite...`);
-
-  const adminClient = getSupabaseRouteHandlerClient({
-    admin: true,
-  });
-
-  const { data, error } = await acceptInviteToOrganization(adminClient, {
-    code: params.inviteCode,
-    userId: params.userId,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  const membershipId = (data as { membership?: number } | null)?.membership;
-
-  if (!membershipId) {
-    return null;
-  }
-
-  const { data: membership } = await adminClient
-    .from('memberships')
-    .select('role')
-    .eq('id', membershipId)
-    .maybeSingle();
-
-  const role = (membership?.role ?? MembershipRole.Member) as MembershipRole;
-
-  if (role === MembershipRole.Viewer) {
-    await applyViewerDisplayName({
-      adminClient,
-      userId: params.userId,
-      userEmail: params.userEmail,
-    });
-  }
-
-  logger.info(params, `Invite successfully accepted`);
-
-  return { role };
 }
 
 async function applyViewerDisplayName(params: {

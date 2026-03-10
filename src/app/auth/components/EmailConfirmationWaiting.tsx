@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Session } from '@supabase/supabase-js';
@@ -21,9 +21,12 @@ type ConfirmationStatus = 'waiting' | 'verified' | 'timeout';
 
 const TIMEOUT_MS = 300_000; // 5 minutes
 const POLL_INTERVAL_MS = 4_000;
+const EMAIL_CONFIRMATION_STATE_KEY = 'ultaura.email-confirmation.pending';
 
 interface EmailConfirmationWaitingProps {
   email: string;
+  inviteCode?: string;
+  nextPath?: string;
   resendCooldown: number;
   resendSuccess: boolean;
   resendError: Error | null;
@@ -33,6 +36,8 @@ interface EmailConfirmationWaitingProps {
 
 export default function EmailConfirmationWaiting({
   email,
+  inviteCode,
+  nextPath,
   resendCooldown,
   resendSuccess,
   resendError,
@@ -42,6 +47,11 @@ export default function EmailConfirmationWaiting({
   const supabase = useSupabase();
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
+  const continuePath = getContinuePath({ inviteCode, nextPath });
+  const continueToApp = useCallback(() => {
+    clearPendingEmailConfirmationState();
+    router.replace(continuePath);
+  }, [continuePath, router]);
 
   const [status, setStatus] = useState<ConfirmationStatus>('waiting');
   const statusRef = useRef<ConfirmationStatus>('waiting');
@@ -168,7 +178,7 @@ export default function EmailConfirmationWaiting({
         >
           <Trans i18nKey="auth:confirmationVerified" />
         </h2>
-        <Button onClick={() => router.replace(configuration.paths.onboarding)}>
+        <Button onClick={continueToApp}>
           <Trans i18nKey="auth:confirmationContinueToApp" />
         </Button>
       </div>
@@ -249,8 +259,40 @@ export default function EmailConfirmationWaiting({
   );
 }
 
+function clearPendingEmailConfirmationState() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.removeItem(EMAIL_CONFIRMATION_STATE_KEY);
+}
+
 function normalizeEmail(email: Maybe<string>) {
   return email?.trim().toLowerCase() ?? '';
+}
+
+function getContinuePath(params: { inviteCode?: string; nextPath?: string }) {
+  const safeNext = getSafeNextPath(params.nextPath);
+  const searchParams = new URLSearchParams();
+  searchParams.set('next', safeNext);
+
+  if (params.inviteCode) {
+    searchParams.set('inviteCode', params.inviteCode);
+  }
+
+  return `/auth/confirmed?${searchParams.toString()}`;
+}
+
+function getSafeNextPath(value?: string) {
+  if (!value) {
+    return configuration.paths.onboarding;
+  }
+
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return configuration.paths.onboarding;
+  }
+
+  return value;
 }
 
 function getSessionFingerprint(session: Session | null | undefined) {

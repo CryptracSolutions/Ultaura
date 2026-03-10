@@ -147,39 +147,14 @@ export const loadAppDataForUser = async () => {
     const user = session.user;
     const userId = user.id;
 
-    // Get user record from database
-    const userRecord = await getUserDataById(client, userId);
-
-    const isOnboarded = Boolean(userRecord?.onboarded);
-
-    if (!userRecord) {
-      logger.info(
-        {
-          name: 'loadAppDataForUser',
-          userId,
-        },
-        `User record not found in the database. Redirecting to onboarding...`,
-      );
-
-      return redirectToOnboarding();
-    }
-
-    if (!isOnboarded) {
-      logger.info(
-        {
-          name: 'loadAppDataForUser',
-        },
-        `User is not yet onboarded. Redirecting to onboarding...`,
-      );
-
-      return redirectToOnboarding();
-    }
-
     await autoLinkPendingViewerMemberships({
       userId,
       userEmail: user.email,
       emailVerifiedAt: user.email_confirmed_at,
     });
+
+    // Get user record from database after any pending viewer memberships are linked.
+    let userRecord = await getUserDataById(client, userId);
 
     const { data: organizationsData, error: orgsError } =
       await getOrganizationsByUserId(client, userId);
@@ -211,6 +186,41 @@ export const loadAppDataForUser = async () => {
 
     const organization = selectedMembership.organization;
     const role = selectedMembership.role;
+    const isViewer = Number(role) === Number(MembershipRole.Viewer);
+
+    if (isViewer) {
+      userRecord = await ensureViewerUserRecordReady({
+        userId,
+        userRecord,
+      });
+    }
+
+    const isOnboarded = Boolean(userRecord?.onboarded);
+
+    if (!userRecord) {
+      logger.info(
+        {
+          name: 'loadAppDataForUser',
+          userId,
+          role,
+        },
+        `User record not found in the database. Redirecting to onboarding...`,
+      );
+
+      return redirectToOnboarding();
+    }
+
+    if (!isOnboarded && !isViewer) {
+      logger.info(
+        {
+          name: 'loadAppDataForUser',
+          role,
+        },
+        `User is not yet onboarded and does not have viewer-only access. Redirecting to onboarding...`,
+      );
+
+      return redirectToOnboarding();
+    }
 
     if (!organization) {
       logger.info(
@@ -435,4 +445,43 @@ export async function autoLinkPendingViewerMemberships(params: {
       'Failed to auto-link pending viewer membership',
     );
   }
+}
+
+async function ensureViewerUserRecordReady(params: {
+  userId: string;
+  userRecord: Awaited<ReturnType<typeof getUserDataById>>;
+}) {
+  const logger = getLogger();
+
+  if (params.userRecord?.onboarded) {
+    return params.userRecord;
+  }
+
+  try {
+    if (!params.userRecord) {
+      const adminClient = getSupabaseServerComponentClient({ admin: true });
+      await adminClient
+        .from('users')
+        .insert({
+          id: params.userId,
+          onboarded: false,
+        } as never);
+    }
+  } catch (error) {
+    logger.warn(
+      {
+        name: 'ensureViewerUserRecordReady',
+        userId: params.userId,
+        error: JSON.stringify(error),
+      },
+      'Failed to auto-provision viewer user record',
+    );
+  }
+
+  if (params.userRecord) {
+    return params.userRecord;
+  }
+
+  const client = getSupabaseServerComponentClient();
+  return getUserDataById(client, params.userId);
 }

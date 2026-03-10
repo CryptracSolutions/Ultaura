@@ -64,7 +64,7 @@ const AuthRedirectListener: React.FCC<{
           };
         });
 
-        if (event === 'SIGNED_IN') {
+        if (event === 'SIGNED_IN' && shouldRefreshOnSignIn()) {
           router.refresh();
         }
       },
@@ -104,6 +104,11 @@ export default function AuthChangeListener({
       {children}
     </AuthRedirectListener>
   );
+}
+
+function shouldRefreshOnSignIn() {
+  const currentPath = window.location.pathname;
+  return !currentPath.startsWith('/auth/');
 }
 
 function useRedirectUserAway() {

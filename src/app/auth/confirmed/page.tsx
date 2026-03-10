@@ -2,23 +2,64 @@ import { redirect } from 'next/navigation';
 import configuration from '~/configuration';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import ConfirmedInterstitial from './ConfirmedInterstitial';
+import { resolveInvite } from '~/lib/memberships/invite-resolution';
+import PendingEmailConfirmation from './PendingEmailConfirmation';
 
 export default async function ConfirmedPage({
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const next = getSafeNextPath(getFirstQueryValue(searchParams?.next));
+  const inviteCode = getFirstQueryValue(searchParams?.inviteCode);
+  const pending = getFirstQueryValue(searchParams?.pending) === '1';
+  const email = getFirstQueryValue(searchParams?.email);
+  let next = getSafeNextPath(getFirstQueryValue(searchParams?.next));
   const client = getSupabaseServerComponentClient();
   const {
     data: { user },
   } = await client.auth.getUser();
 
+  if (pending && email) {
+    return (
+      <PendingEmailConfirmation
+        email={email}
+        inviteCode={inviteCode}
+        nextPath={next}
+      />
+    );
+  }
+
   if (!user?.email_confirmed_at) {
     redirect(configuration.paths.signUp);
   }
 
-  return <ConfirmedInterstitial next={next} />;
+  if (inviteCode) {
+    const adminClient = getSupabaseServerComponentClient({ admin: true });
+    const inviteResolution = await resolveInvite({
+      client: adminClient,
+      code: inviteCode,
+      userId: user.id,
+      userEmail: user.email,
+      consume: false,
+      activateOrganization: true,
+    });
+
+    if (inviteResolution.status === 'invalid' || inviteResolution.status === 'failed') {
+      redirect(configuration.paths.signIn);
+    }
+
+    if (inviteResolution.status === 'consumed') {
+      redirect(inviteResolution.destination);
+    }
+
+    if (inviteResolution.status === 'wrong_account') {
+      redirect(`/invite/${encodeURIComponent(inviteCode)}`);
+    }
+
+    next = inviteResolution.destination;
+  }
+
+  return <ConfirmedInterstitial next={next} autoRedirect />;
 }
 
 function getSafeNextPath(value?: string) {

@@ -15,20 +15,20 @@ interface NotificationInviteProps {
   lineName: string;
   inviterName: string;
   confirmLink: string;
+  baseUrl?: string;
 }
 
 export default function renderNotificationInviteEmail(props: NotificationInviteProps): { html: string; text: string } {
   const previewText = `You've been invited to receive updates about ${props.lineName}`;
 
   const jsx = (
-    <EmailLayout preview={previewText}>
+    <EmailLayout preview={previewText} baseUrl={props.baseUrl}>
       <Text className="text-[14px] text-stone-700 mt-[20px] mb-0">
         Hi {props.recipientName},
       </Text>
 
       <Text className="text-[14px] text-stone-700 mt-[12px] mb-0">
-        {props.inviterName} has invited you to receive updates about {props.lineName} from{' '}
-        {props.accountName}.
+        {props.inviterName} has invited you to receive updates about {props.lineName}.
       </Text>
 
       <Section className="mt-[16px]">

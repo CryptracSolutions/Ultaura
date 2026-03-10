@@ -83,7 +83,12 @@ function createInviteFailedError() {
 }
 
 function getSiteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const siteUrl =
+    process.env.NODE_ENV !== 'production'
+      ? process.env.SITE_URL || 'http://localhost:3000'
+      : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  return siteUrl.replace(/\/$/, '');
 }
 
 async function resolveAccountContext(
@@ -108,7 +113,12 @@ async function resolveAccountContext(
     .order('created_at', { ascending: true });
 
   const accountName = account?.name || 'Ultaura';
-  const lineName = lines?.length === 1 ? lines[0].display_name : 'your loved one';
+  const lineName =
+    lines?.length === 1
+      ? lines[0].display_name
+      : lines && lines.length > 1
+        ? 'your loved ones'
+        : 'your loved one';
 
   const { data: user } = await clientInstance.auth.getUser();
   const userId = user.user?.id;
@@ -776,7 +786,8 @@ async function sendInviteEmail(options: {
     options.accountId,
     options.client
   );
-  const confirmLink = `${getSiteUrl()}/api/ultaura/confirm/${options.token}`;
+  const siteUrl = getSiteUrl();
+  const confirmLink = `${siteUrl}/api/ultaura/confirm/${options.token}`;
   const subject = `You've been invited to receive updates from ${accountName}`;
 
   const { html, text } = renderNotificationInviteEmail({
@@ -785,6 +796,7 @@ async function sendInviteEmail(options: {
     lineName,
     inviterName,
     confirmLink,
+    baseUrl: siteUrl,
   });
 
   await sendEmail({

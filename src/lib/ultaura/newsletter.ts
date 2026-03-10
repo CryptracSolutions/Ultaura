@@ -21,7 +21,12 @@ import renderNewsletterWelcomeEmail from '~/lib/emails/newsletter-welcome';
 const logger = getLogger();
 
 function getSiteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const siteUrl =
+    process.env.NODE_ENV !== 'production'
+      ? process.env.SITE_URL || 'http://localhost:3000'
+      : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  return siteUrl.replace(/\/$/, '');
 }
 
 function getFromEmail(): string {

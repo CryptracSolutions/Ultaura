@@ -13,15 +13,17 @@ interface MissedCallsAlertProps {
   consecutiveMissedCount: number;
   dashboardUrl: string;
   settingsUrl: string;
+  hasDashboardAccess?: boolean;
   unsubscribeLink?: string;
 }
 
 export default function renderMissedCallsAlertEmail(props: MissedCallsAlertProps): { html: string; text: string } {
   const previewText = `Missed check-ins for ${props.lineName}`;
 
-  const footerLinks: Array<{ label: string; href: string }> = [
-    { label: 'Line Settings', href: props.settingsUrl },
-  ];
+  const footerLinks: Array<{ label: string; href: string }> = [];
+  if (props.hasDashboardAccess) {
+    footerLinks.push({ label: 'Line Settings', href: props.settingsUrl });
+  }
   if (props.unsubscribeLink) {
     footerLinks.push({ label: 'Unsubscribe', href: props.unsubscribeLink });
   }
@@ -44,7 +46,7 @@ export default function renderMissedCallsAlertEmail(props: MissedCallsAlertProps
           - They may be busy or away
         </Text>
         <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
-          - Line settings may need adjustment
+          - {props.hasDashboardAccess ? 'Line settings may need adjustment' : 'The account holder may need to adjust line settings'}
         </Text>
       </Section>
 
@@ -53,20 +55,31 @@ export default function renderMissedCallsAlertEmail(props: MissedCallsAlertProps
         <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
           - Give them a call to check in
         </Text>
-        <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
-          - Review call schedule in your dashboard
-        </Text>
+        {props.hasDashboardAccess ? (
+          <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
+            - Review call schedule in your dashboard
+          </Text>
+        ) : null}
       </Section>
 
-      <Section className="mt-[20px] text-center">
-        <Button
-          href={props.dashboardUrl}
-          className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
-          style={{ backgroundColor: brandColors.primary }}
-        >
-          View Dashboard
-        </Button>
-      </Section>
+      {!props.hasDashboardAccess ? (
+        <Text className="text-[12px] text-stone-500 mt-[16px] mb-0">
+          You are receiving email updates only. If you&apos;d like dashboard access,
+          please contact the account holder to activate it.
+        </Text>
+      ) : null}
+
+      {props.hasDashboardAccess ? (
+        <Section className="mt-[20px] text-center">
+          <Button
+            href={props.dashboardUrl}
+            className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
+            style={{ backgroundColor: brandColors.primary }}
+          >
+            View Dashboard
+          </Button>
+        </Section>
+      ) : null}
     </EmailLayout>
   );
 

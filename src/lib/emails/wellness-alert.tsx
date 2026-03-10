@@ -15,6 +15,7 @@ interface WellnessAlertEmailProps {
   severity: 'info' | 'warning' | 'urgent';
   dashboardUrl: string;
   settingsUrl: string;
+  hasDashboardAccess?: boolean;
   unsubscribeLink?: string;
 }
 
@@ -27,9 +28,10 @@ const SEVERITY_LABELS: Record<WellnessAlertEmailProps['severity'], string> = {
 export default function renderWellnessAlertEmail(props: WellnessAlertEmailProps): { html: string; text: string } {
   const previewText = `Wellness alert for ${props.lineName}`;
 
-  const footerLinks: Array<{ label: string; href: string }> = [
-    { label: 'Alert Settings', href: props.settingsUrl },
-  ];
+  const footerLinks: Array<{ label: string; href: string }> = [];
+  if (props.hasDashboardAccess) {
+    footerLinks.push({ label: 'Alert Settings', href: props.settingsUrl });
+  }
   if (props.unsubscribeLink) {
     footerLinks.push({ label: 'Unsubscribe', href: props.unsubscribeLink });
   }
@@ -58,20 +60,28 @@ export default function renderWellnessAlertEmail(props: WellnessAlertEmailProps)
         <Text className="text-[14px] text-stone-700 m-0">
           Suggested next step: reach out and check in.
         </Text>
+        {!props.hasDashboardAccess ? (
+          <Text className="text-[12px] text-stone-500 mt-[6px] mb-0">
+            You are receiving email updates only. If you&apos;d like dashboard access,
+            please contact the account holder to activate it.
+          </Text>
+        ) : null}
         <Text className="text-[12px] text-stone-500 mt-[6px] mb-0">
           Ultaura alerts are informational and not medical advice.
         </Text>
       </Section>
 
-      <Section className="mt-[20px] text-center">
-        <Button
-          href={props.dashboardUrl}
-          className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
-          style={{ backgroundColor: brandColors.primary }}
-        >
-          View Alerts
-        </Button>
-      </Section>
+      {props.hasDashboardAccess ? (
+        <Section className="mt-[20px] text-center">
+          <Button
+            href={props.dashboardUrl}
+            className="rounded text-white text-[12px] px-[20px] py-[12px] font-semibold no-underline text-center"
+            style={{ backgroundColor: brandColors.primary }}
+          >
+            View Alerts
+          </Button>
+        </Section>
+      ) : null}
     </EmailLayout>
   );
 

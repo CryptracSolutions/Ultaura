@@ -71,9 +71,8 @@ const OAuthProviders: React.FCC<{
                     queryParams.set('inviteCode', props.inviteCode);
                   }
 
-                  const redirectPath = [callback, queryParams.toString()].join(
-                    '?',
-                  );
+                  const query = queryParams.toString();
+                  const redirectPath = query ? `${callback}?${query}` : callback;
 
                   const redirectTo = [origin, redirectPath].join('');
 

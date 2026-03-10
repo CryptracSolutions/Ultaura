@@ -5,6 +5,8 @@ import configuration from '~/configuration';
 interface Credentials {
   email: string;
   password: string;
+  inviteCode?: string;
+  next?: string;
 }
 
 /**
@@ -17,7 +19,10 @@ function useSignUpWithEmailAndPassword() {
   return useSWRMutation(
     key,
     (_, { arg: credentials }: { arg: Credentials }) => {
-      const emailRedirectTo = getRedirectUrl();
+      const emailRedirectTo = getRedirectUrl({
+        inviteCode: credentials.inviteCode,
+        next: credentials.next,
+      });
 
       return client.auth
         .signUp({
@@ -47,10 +52,33 @@ function useSignUpWithEmailAndPassword() {
 
 export default useSignUpWithEmailAndPassword;
 
-function getRedirectUrl() {
-  const confirmedPath = `/auth/confirmed?next=${configuration.paths.onboarding}`;
+function getRedirectUrl(params: { inviteCode?: string; next?: string }) {
+  const safeNext = getSafeNextPath(params.next);
+  const confirmedParams = new URLSearchParams();
+  confirmedParams.set('next', safeNext);
+
+  if (params.inviteCode) {
+    confirmedParams.set('inviteCode', params.inviteCode);
+  }
+
+  const confirmedPath = `/auth/confirmed?${confirmedParams.toString()}`;
   const callbackPath = configuration.paths.authCallback;
-  const fullPath = `${callbackPath}?next=${encodeURIComponent(confirmedPath)}`;
+  const callbackParams = new URLSearchParams();
+  callbackParams.set('next', confirmedPath);
+
+  const fullPath = `${callbackPath}?${callbackParams.toString()}`;
 
   return new URL(fullPath, window.location.origin).href;
+}
+
+function getSafeNextPath(value?: string) {
+  if (!value) {
+    return configuration.paths.onboarding;
+  }
+
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return configuration.paths.onboarding;
+  }
+
+  return value;
 }

@@ -9,15 +9,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import MembershipRole from '~/lib/organizations/types/membership-role';
 
 import {
-  acceptInviteToOrganization,
   deleteMembershipById,
   updateMembershipById,
 } from '~/lib/memberships/mutations';
+import { resolveInvite } from '~/lib/memberships/invite-resolution';
 
 import getLogger from '~/core/logger';
 import { withSession } from '~/core/generic/actions-utils';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
-import { getOrganizationById } from '~/lib/organizations/database/queries';
 
 import configuration from '~/configuration';
 import { Database } from '~/database.types';
@@ -55,6 +54,8 @@ export const deleteMemberAction = withSession(
 export const acceptInviteAction = async (params: {
   code: string;
   userId?: string;
+  userEmail?: string;
+  redirectOnSuccess?: boolean;
 }) => {
   const code = params.code;
 
@@ -64,19 +65,22 @@ export const acceptInviteAction = async (params: {
   // if the user ID is provided, we use it
   // (for example, when signing up for the 1st time)
   let userId = params.userId;
-  let signedIn = false;
+  const shouldRedirectOnSuccess = params.redirectOnSuccess ?? true;
 
-  // if the user ID is not provided, we try to get it from the session
-  if (!userId) {
-    const { data } = await client.auth.getUser();
+  let userEmail = params.userEmail;
+  const { data } = await client.auth.getUser();
 
-    // if the session is not available, we throw an error
-    if (!data.user) {
-      throw new Error(`Session not available`);
+  if (data.user) {
+    userEmail = data.user.email ?? userEmail;
+
+    if (!userId) {
+      userId = data.user.id;
     }
+  }
 
-    userId = data.user.id;
-    signedIn = true;
+  // if the user ID is still not available, we throw an error
+  if (!userId) {
+    throw new Error(`Session not available`);
   }
 
   if (params.userId && params.userId !== userId) {
@@ -95,51 +99,53 @@ export const acceptInviteAction = async (params: {
     admin: true,
   });
 
-  const { data, error } = await acceptInviteToOrganization(adminClient, {
+  const inviteResolution = await resolveInvite({
+    client: adminClient,
     code,
     userId,
+    userEmail,
   });
 
-  if (error) {
-    throw new Error(`Error accepting invite to organization: ${error.message}`);
+  if (
+    inviteResolution.status === 'invalid' ||
+    inviteResolution.status === 'consumed' ||
+    inviteResolution.status === 'wrong_account' ||
+    inviteResolution.status === 'failed'
+  ) {
+    throw new Error(
+      inviteResolution.message ?? `Invite could not be accepted (${inviteResolution.status})`,
+    );
   }
 
-  const result = data as { organization: number; membership: number };
-  const organizationId = result.organization;
-  const membershipId = result.membership;
+  const organizationId = inviteResolution.organizationId;
+  const membershipId = inviteResolution.membershipId;
 
   logger.info(
     {
       membershipId,
       organizationId,
       userId,
+      status: inviteResolution.status,
     },
     `Member successfully added to organization`,
   );
 
-  const organizationResponse = await getOrganizationById(
-    adminClient,
-    organizationId,
-  );
-
-  if (organizationResponse.error) {
-    throw organizationResponse.error;
-  }
-
+  // When signup passes an explicit userId, keep invite completion behind
+  // the confirmation gate even if Supabase creates a same-user session.
   const needsEmailVerification =
-    configuration.auth.requireEmailConfirmation && !signedIn;
+    configuration.auth.requireEmailConfirmation && Boolean(params.userId);
 
   // if the user is *not* required to confirm their email
   // we redirect them to the app home
-  if (!needsEmailVerification) {
+  if (!needsEmailVerification && shouldRedirectOnSuccess) {
     logger.info(
       {
         membershipId,
       },
-      `Redirecting user to app home...`,
+      `Redirecting user after invite acceptance...`,
     );
 
-    redirect(configuration.paths.appHome);
+    redirect(inviteResolution.destination);
   }
 
   logger.info(
@@ -152,6 +158,7 @@ export const acceptInviteAction = async (params: {
   return {
     success: true,
     needsEmailVerification,
+    destination: inviteResolution.destination,
   };
 };
 

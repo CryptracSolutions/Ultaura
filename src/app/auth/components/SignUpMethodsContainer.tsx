@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import If from '~/core/ui/If';
 import Trans from '~/core/ui/Trans';
@@ -16,6 +16,7 @@ import EmailOtpContainer from '~/app/auth/components/EmailOtpContainer';
 import { acceptInviteAction } from '~/lib/memberships/actions';
 
 const providers = configuration.auth.providers;
+const INVITE_ERROR_PATH = '/auth/invite-error';
 
 function SignUpMethodsContainer(props: {
   inviteCode?: string;
@@ -23,9 +24,10 @@ function SignUpMethodsContainer(props: {
 }) {
   const router = useRouter();
   const inviteCode = props.inviteCode?.trim() || undefined;
-  const nextPath = getSafeNextPath(props.next);
+  const [nextPath, setNextPath] = useState(() => getOptionalSafeNextPath(props.next));
+  const redirectPath = getSafeNextPath(nextPath);
 
-  const onSignUp = useCallback(() => {
+  const onSignUp = useCallback((destination?: string) => {
     const requireEmailConfirmation =
       configuration.auth.requireEmailConfirmation;
 
@@ -34,53 +36,72 @@ function SignUpMethodsContainer(props: {
       return;
     }
 
-    // Otherwise, we redirect them to the onboarding page
-    router.replace(nextPath);
+    // When email confirmation is not required, continue directly.
+    router.replace(getSafeNextPath(destination ?? nextPath));
   }, [nextPath, router]);
 
-  // Phone sign-ups verify identity via OTP — email confirmation doesn't apply.
-  // Always redirect to onboarding after successful phone OTP verification.
   const onPhoneSignUp = useCallback(() => {
-    router.replace(nextPath);
-  }, [nextPath, router]);
+    router.replace(redirectPath);
+  }, [redirectPath, router]);
 
   const acceptInviteIfPresent = useCallback(
     async (userId?: string) => {
       if (!inviteCode) {
-        return;
+        return null;
       }
 
-      await acceptInviteAction({
+      return acceptInviteAction({
         code: inviteCode,
         userId,
-      }).catch(() => undefined);
+        redirectOnSuccess: false,
+      });
     },
     [inviteCode],
   );
 
   const onInviteAwareSignUp = useCallback(
     async (userId?: string) => {
-      await acceptInviteIfPresent(userId);
-      onSignUp();
+      try {
+        const result = await acceptInviteIfPresent(userId);
+
+        if (result?.destination) {
+          setNextPath(getOptionalSafeNextPath(result.destination));
+        }
+
+        onSignUp(result?.destination);
+      } catch {
+        router.replace(INVITE_ERROR_PATH);
+      }
     },
-    [acceptInviteIfPresent, onSignUp],
+    [acceptInviteIfPresent, onSignUp, router],
   );
 
   const onInviteAwarePhoneSignUp = useCallback(async () => {
-    await acceptInviteIfPresent();
-    onPhoneSignUp();
-  }, [acceptInviteIfPresent, onPhoneSignUp]);
+    try {
+      await acceptInviteIfPresent();
+      onPhoneSignUp();
+    } catch {
+      router.replace(INVITE_ERROR_PATH);
+    }
+  }, [acceptInviteIfPresent, onPhoneSignUp, router]);
 
   return (
     <>
       <If condition={providers.emailPassword}>
-        <EmailPasswordSignUpContainer onSignUp={onInviteAwareSignUp} />
+        <EmailPasswordSignUpContainer
+          onSignUp={onInviteAwareSignUp}
+          inviteCode={inviteCode}
+          nextPath={nextPath}
+        />
       </If>
 
       <If
         condition={
           providers.emailPassword &&
-          (providers.oAuth.length > 0 || providers.phoneNumber)
+          (providers.oAuth.length > 0 ||
+            (providers.phoneNumber && !inviteCode) ||
+            providers.emailLink ||
+            providers.emailOtp)
         }
       >
         <div className={'flex w-full items-center gap-3'}>
@@ -93,7 +114,7 @@ function SignUpMethodsContainer(props: {
       </If>
 
       <div className={'flex w-full flex-col space-y-2'}>
-        <If condition={providers.phoneNumber}>
+        <If condition={providers.phoneNumber && !inviteCode}>
           <PhoneNumberSignInContainer
             onSuccess={onInviteAwarePhoneSignUp}
             mode={'signUp'}
@@ -110,10 +131,10 @@ function SignUpMethodsContainer(props: {
 
         <If condition={providers.oAuth.length}>
           <OAuthProviders
-          inviteCode={inviteCode}
-          returnUrl={nextPath}
-          mode={'signUp'}
-        />
+            inviteCode={inviteCode}
+            returnUrl={redirectPath}
+            mode={'signUp'}
+          />
         </If>
       </div>
     </>
@@ -129,6 +150,18 @@ function getSafeNextPath(value?: string) {
 
   if (!value.startsWith('/') || value.startsWith('//')) {
     return configuration.paths.appHome;
+  }
+
+  return value;
+}
+
+function getOptionalSafeNextPath(value?: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return undefined;
   }
 
   return value;
