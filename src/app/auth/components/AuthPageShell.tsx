@@ -14,6 +14,7 @@ function AuthPageShell({
       <AuthBrandPanel />
 
       <div
+        data-auth-content-pane
         className={
           'flex min-h-screen flex-col items-center justify-center bg-background text-foreground px-4 py-10' +
           ' dark:bg-[#272728] dark:text-[oklch(0.985_0.001_106.423)]' +
