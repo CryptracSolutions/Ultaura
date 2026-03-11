@@ -32,6 +32,11 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
     const autoId = useId();
     const resolvedErrorId = errorId ?? `${id ?? autoId}-error`;
 
+    // Format E164 values for display (e.g., "+14155552671" -> "(415) 555-2671")
+    const displayValue = value?.startsWith('+')
+      ? formatUsPhoneProgressive(value)
+      : value;
+
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
       const formatted = formatUsPhoneProgressive(event.target.value);
       onValueChange(formatted);
@@ -57,7 +62,7 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
           inputMode="numeric"
           autoComplete="tel-national"
           maxLength={14}
-          value={value}
+          value={displayValue}
           onChange={handleChange}
           onBlur={onBlur}
           aria-invalid={error ? true : undefined}

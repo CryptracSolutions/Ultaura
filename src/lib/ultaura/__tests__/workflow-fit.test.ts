@@ -98,7 +98,7 @@ describe('workflow fit actions', () => {
     expect(vi.mocked(sendEmail)).toHaveBeenCalled();
   });
 
-  it('confirms an invite and creates a trusted contact', async () => {
+  it('confirms an invite without creating a trusted contact automatically', async () => {
     const recipientId = randomUUID();
     const token = randomBytes(32).toString('hex');
     const tokenHash = hashToken(token);
@@ -133,7 +133,7 @@ describe('workflow fit actions', () => {
       .single();
 
     expect(confirmed?.confirmed_at).not.toBeNull();
-    expect(confirmed?.trusted_contact_id).not.toBeNull();
+    expect(confirmed?.trusted_contact_id).toBeNull();
 
     const { data: trustedContact } = await testServiceRoleClient
       .from('ultaura_trusted_contacts')
@@ -142,7 +142,7 @@ describe('workflow fit actions', () => {
       .eq('name', 'Mary Trusted')
       .maybeSingle();
 
-    expect(trustedContact?.id).toBe(confirmed?.trusted_contact_id);
+    expect(trustedContact).toBeNull();
   });
 
   it('upgrades self accounts to family mode', async () => {

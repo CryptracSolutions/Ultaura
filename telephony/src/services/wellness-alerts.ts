@@ -193,7 +193,7 @@ export async function processWellnessAlertsForCall(options: {
   }
 
   const preferences = await getNotificationPreferences(options.accountId, options.lineId);
-  const deliveryMethod = preferences.alert_delivery_method || 'email';
+  const deliveryMethod = 'dashboard_only';
 
   const { data: line, error: lineError } = await supabase
     .from('ultaura_lines')
@@ -252,15 +252,7 @@ export async function processWellnessAlertsForCall(options: {
           settingsUrl,
         };
 
-        if (deliveryMethod === 'email') {
-          const delivered = await sendWellnessAlertEmail(payload);
-          if (delivered) {
-            await supabase
-              .from('ultaura_wellness_alerts')
-              .update({ delivered_at: new Date().toISOString() })
-              .eq('id', alertId);
-          }
-        }
+        await sendWellnessAlertEmail(payload);
 
         const mentionIds = mentions.map((mention) => mention.id);
         await supabase
@@ -340,15 +332,7 @@ export async function processWellnessAlertsForCall(options: {
             settingsUrl,
           };
 
-          if (deliveryMethod === 'email') {
-            const delivered = await sendWellnessAlertEmail(payload);
-            if (delivered) {
-              await supabase
-                .from('ultaura_wellness_alerts')
-                .update({ delivered_at: new Date().toISOString() })
-                .eq('id', alertId);
-            }
-          }
+          await sendWellnessAlertEmail(payload);
         }
       }
     }
@@ -393,15 +377,7 @@ export async function processWellnessAlertsForCall(options: {
           settingsUrl,
         };
 
-        if (deliveryMethod === 'email') {
-          const delivered = await sendWellnessAlertEmail(payload);
-          if (delivered) {
-            await supabase
-              .from('ultaura_wellness_alerts')
-              .update({ delivered_at: new Date().toISOString() })
-              .eq('id', alertId);
-          }
-        }
+        await sendWellnessAlertEmail(payload);
 
         await supabase
           .from('ultaura_cognitive_flags')

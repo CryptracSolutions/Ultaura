@@ -8,6 +8,7 @@ import {
 
 import { brandColors } from '~/lib/brand-colors';
 import { EmailLayout } from '~/lib/emails/components/email-layout';
+import type { AlertDeliveryChannel } from '~/lib/ultaura/types';
 
 interface NotificationInviteProps {
   recipientName: string;
@@ -15,11 +16,20 @@ interface NotificationInviteProps {
   lineName: string;
   inviterName: string;
   confirmLink: string;
+  deliveryChannel: AlertDeliveryChannel;
   baseUrl?: string;
 }
 
 export default function renderNotificationInviteEmail(props: NotificationInviteProps): { html: string; text: string } {
   const previewText = `You've been invited to receive updates about ${props.lineName}`;
+  const usesSmsAlerts =
+    props.deliveryChannel === 'sms' || props.deliveryChannel === 'both';
+  const alertDeliveryCopy =
+    props.deliveryChannel === 'sms'
+      ? 'Text alerts after phone verification'
+      : props.deliveryChannel === 'both'
+        ? 'Email and text alerts after phone verification'
+        : 'Email alerts';
 
   const jsx = (
     <EmailLayout preview={previewText} baseUrl={props.baseUrl}>
@@ -36,12 +46,19 @@ export default function renderNotificationInviteEmail(props: NotificationInviteP
           You will receive:
         </Text>
         <Text className="text-[14px] text-stone-700 mt-[6px] mb-0">
-          - Weekly check-in summaries
+          - Weekly check-in summaries by email
         </Text>
         <Text className="text-[14px] text-stone-700 mt-[4px] mb-0">
-          - Wellness and missed call alerts
+          - {alertDeliveryCopy}
         </Text>
       </Section>
+
+      {usesSmsAlerts ? (
+        <Text className="text-[12px] text-stone-500 mt-[12px] mb-0">
+          After you confirm this invite, you&apos;ll be asked to verify your
+          phone before text alerts begin.
+        </Text>
+      ) : null}
 
       <Section className="mt-[22px] text-center">
         <Button

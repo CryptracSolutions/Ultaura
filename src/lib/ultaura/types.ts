@@ -151,6 +151,7 @@ export type VerificationStatus =
   | 'approved'
   | 'canceled'
   | 'expired';
+export type AlertDeliveryChannel = 'email' | 'sms' | 'both';
 export type UserType = 'self' | 'family_managed';
 
 // ============================================
@@ -201,6 +202,10 @@ export interface NotificationRecipient {
   name: string;
   email: string;
   phoneE164: string | null;
+  deliveryChannel: AlertDeliveryChannel;
+  smsVerifiedAt: string | null;
+  smsConsentAcknowledgedAt: string | null;
+  smsOptedOut: boolean;
   relationship?: string | null;
   isTrustedContact: boolean;
   trustedContactId: string | null;
@@ -961,6 +966,8 @@ export interface WellnessAlert {
 
 export type UltauraAccountRow =
   Database['public']['Tables']['ultaura_accounts']['Row'];
+export type AccountAlertDeliveryRow =
+  Database['public']['Tables']['ultaura_account_alert_delivery']['Row'];
 export type LineRow = Database['public']['Tables']['ultaura_lines']['Row'];
 export type ScheduleRow =
   Database['public']['Tables']['ultaura_schedules']['Row'];

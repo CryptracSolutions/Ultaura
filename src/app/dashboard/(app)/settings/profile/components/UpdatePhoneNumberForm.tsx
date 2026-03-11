@@ -10,8 +10,7 @@ import TextField from '~/core/ui/TextField';
 import Trans from '~/core/ui/Trans';
 import If from '~/core/ui/If';
 
-import Modal from '~/core/ui/Modal';
-import AuthErrorMessage from '~/app/auth/components/AuthErrorMessage';
+import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import useSupabase from '~/core/hooks/use-supabase';
 
 import configuration from '~/configuration';
@@ -38,6 +37,8 @@ function UpdatePhoneNumberForm({
   const [phoneNumber, setPhoneNumber] = useState(currentPhoneNumber);
   const [phoneError, setPhoneError] = useState<string | undefined>(undefined);
   const hasChanges = phoneNumber !== currentPhoneNumber;
+  const showRemovePhoneSection =
+    configuration.auth.providers.phoneNumber && Boolean(currentPhoneNumber) && !hasChanges;
 
   const resetForm = useCallback(() => {
     setPhoneNumber(currentPhoneNumber);
@@ -111,19 +112,9 @@ function UpdatePhoneNumberForm({
             />
             <TextField.Error error={phoneError} />
           </TextField.Label>
-
-          {/* Only show this if phone number is enabled */}
-          <If condition={configuration.auth.providers.phoneNumber}>
-            <div>
-              <If condition={currentPhoneNumber}>
-                <RemovePhoneNumberButton
-                  onSuccess={() => {
-                    onUpdate(undefined);
-                  }}
-                />
-              </If>
-            </div>
-          </If>
+          <p className="text-sm text-muted-foreground">
+            <Trans i18nKey={'profile:phoneNumberHelperText'} />
+          </p>
         </TextField>
 
         <div className={'flex flex-col gap-3 md:flex-row'}>
@@ -132,7 +123,13 @@ function UpdatePhoneNumberForm({
             disabled={!hasChanges || isMutating}
             loading={isMutating}
           >
-            <Trans i18nKey={'profile:updatePhoneNumber'} />
+            <Trans
+              i18nKey={
+                currentPhoneNumber
+                  ? 'profile:updatePhoneNumber'
+                  : 'profile:addPhoneNumber'
+              }
+            />
           </Button>
           <Button
             type={'button'}
@@ -143,6 +140,27 @@ function UpdatePhoneNumberForm({
             Discard
           </Button>
         </div>
+
+        <If condition={showRemovePhoneSection}>
+          <div className="border-t border-border pt-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  <Trans i18nKey={'profile:removePhoneNumber'} />
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <Trans i18nKey={'profile:removePhoneNumberSectionDescription'} />
+                </p>
+              </div>
+
+              <RemovePhoneNumberButton
+                onSuccess={() => {
+                  onUpdate(undefined);
+                }}
+              />
+            </div>
+          </div>
+        </If>
       </div>
     </form>
   );
@@ -157,26 +175,27 @@ function RemovePhoneNumberButton({
 }>) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { t } = useTranslation();
-  const { trigger, error, isMutating } = useUpdatePhoneNumber();
+  const { trigger, isMutating } = useUpdatePhoneNumber();
 
-  const onUnlinkPhoneNumber = useCallback(() => {
+  const onUnlinkPhoneNumber = useCallback(async () => {
     const promise = trigger('').then(() => {
-      setIsModalOpen(false);
       onSuccess();
     });
 
-    return toast.promise(promise, {
+    toast.promise(promise, {
       loading: t(`profile:unlinkActionLoading`),
       success: t(`profile:unlinkActionSuccess`),
       error: t(`profile:unlinkActionError`),
     });
+
+    await promise;
   }, [trigger, t, onSuccess]);
 
   return (
     <>
       <Button
         type={'button'}
-        variant="outline"
+        variant="destructive"
         size="small"
         onClick={() => setIsModalOpen(true)}
       >
@@ -185,46 +204,16 @@ function RemovePhoneNumberButton({
         </span>
       </Button>
 
-      <Modal
-        heading={<Trans i18nKey={'profile:removePhoneNumber'} />}
-        isOpen={isModalOpen}
-        setIsOpen={setIsModalOpen}
-      >
-        <div className={'flex flex-col space-y-2.5 text-sm'}>
-          <div>
-            <Trans i18nKey={'profile:confirmRemovePhoneNumberDescription'} />
-          </div>
-
-          <div>
-            <Trans i18nKey={'common:modalConfirmationQuestion'} />
-          </div>
-
-          <AuthErrorMessage error={error} />
-
-          <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="small"
-              onClick={() => setIsModalOpen(false)}
-              disabled={isMutating}
-            >
-              <Trans i18nKey={'common:cancel'} />
-            </Button>
-
-            <Button
-              type="button"
-              variant="destructive"
-              size="small"
-              onClick={onUnlinkPhoneNumber}
-              disabled={isMutating}
-              loading={isMutating}
-            >
-              <Trans i18nKey={'profile:confirmRemovePhoneNumber'} />
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmationDialog
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        title={t('profile:removePhoneNumber')}
+        description={t('profile:confirmRemovePhoneNumberDescription')}
+        confirmLabel={t('profile:confirmRemovePhoneNumber')}
+        cancelLabel={t('common:cancel')}
+        variant="destructive"
+        onConfirm={onUnlinkPhoneNumber}
+      />
     </>
   );
 }

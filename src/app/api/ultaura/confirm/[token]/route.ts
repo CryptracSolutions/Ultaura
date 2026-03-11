@@ -31,6 +31,16 @@ export async function POST(request: Request, context: { params: { token: string 
       return NextResponse.redirect(redirectUrl, 303);
     }
 
+    if (result.data.smsVerificationToken) {
+      return NextResponse.redirect(
+        new URL(
+          `/ultaura/alerts/verify-phone/${encodeURIComponent(result.data.smsVerificationToken)}`,
+          request.url,
+        ),
+        303,
+      );
+    }
+
     redirectUrl.searchParams.set('status', 'success');
     redirectUrl.searchParams.set('accountName', result.data.accountName);
 

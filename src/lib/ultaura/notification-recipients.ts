@@ -7,13 +7,14 @@ import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import { createError, ErrorCodes, type ActionResult } from '@ultaura/schemas';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '~/database.types';
-import type { NotificationRecipient } from './types';
+import type { AlertDeliveryChannel, NotificationRecipient } from './types';
 import sendEmail from '~/core/email/send-email';
 import {
   getNotificationsEmailSender,
   getSupportReplyToEmail,
 } from '~/core/email/senders';
 import renderNotificationInviteEmail from '~/lib/emails/notification-invite';
+import renderRecipientSmsVerificationEmail from '~/lib/emails/recipient-sms-verification';
 import { getUserDataById } from '~/lib/server/queries';
 import requireSession from '~/lib/user/require-session';
 import {
@@ -22,6 +23,7 @@ import {
   hashNotificationToken,
 } from './notification-tokens';
 import { revokeDashboardAccess } from './dashboard-sharing';
+import { issueRecipientSmsVerificationAccessToken } from './recipient-sms-verification';
 
 const logger = getLogger();
 const MAX_NOTIFICATION_RECIPIENTS = 5;
@@ -39,8 +41,14 @@ type InviteRollbackSnapshot = Pick<
   | 'name'
   | 'email'
   | 'phone_e164'
+  | 'delivery_channel'
   | 'relationship'
   | 'is_trusted_contact'
+  | 'sms_verified_at'
+  | 'sms_consent_acknowledged_at'
+  | 'sms_verify_access_token_hash'
+  | 'sms_verify_access_token_expires_at'
+  | 'sms_verify_last_sent_at'
   | 'confirmation_token_hash'
   | 'confirmation_token_expires_at'
   | 'unsubscribe_token_hash'
@@ -56,19 +64,6 @@ type InviteMutationContext = {
   mutationType: 'insert' | 'update';
   rollbackSnapshot?: InviteRollbackSnapshot;
 };
-
-type InviteSendError = Error & {
-  code: 'INVITE_SEND_FAILED';
-  context: InviteMutationContext;
-};
-
-function createInviteSendError(context: InviteMutationContext): InviteSendError {
-  const error = new Error('Failed to send invite email') as InviteSendError;
-  error.name = 'NotificationInviteSendError';
-  error.code = 'INVITE_SEND_FAILED';
-  error.context = context;
-  return error;
-}
 
 function isRecipientLimitError(error: { message?: string } | null | undefined): boolean {
   return Boolean(error?.message?.includes(RECIPIENT_LIMIT_TRIGGER_ERROR));
@@ -141,11 +136,22 @@ type NotificationRecipientRowWithDashboardAccess = NotificationRecipientRow & {
   dashboard_access_invited_email?: string | null;
 };
 
+type NotificationRecipientRowWithSmsOptOut = NotificationRecipientRowWithDashboardAccess & {
+  sms_opted_out?: boolean;
+};
+
 function normalizeRecipientName(value: string): string {
   return value
     .replace(/<[^>]*>/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeDeliveryChannel(value?: AlertDeliveryChannel): AlertDeliveryChannel {
+  if (value === 'sms' || value === 'both') {
+    return value;
+  }
+  return 'email';
 }
 
 async function requireAccountOwner(
@@ -173,7 +179,7 @@ async function requireAccountOwner(
 }
 
 function mapRecipient(row: NotificationRecipientRow): NotificationRecipient {
-  const rowWithDashboardAccess = row as NotificationRecipientRowWithDashboardAccess;
+  const rowWithDashboardAccess = row as NotificationRecipientRowWithSmsOptOut;
 
   return {
     id: row.id,
@@ -181,6 +187,10 @@ function mapRecipient(row: NotificationRecipientRow): NotificationRecipient {
     name: row.name,
     email: row.email,
     phoneE164: row.phone_e164,
+    deliveryChannel: row.delivery_channel as AlertDeliveryChannel,
+    smsVerifiedAt: row.sms_verified_at,
+    smsConsentAcknowledgedAt: row.sms_consent_acknowledged_at,
+    smsOptedOut: Boolean(rowWithDashboardAccess.sms_opted_out),
     relationship: row.relationship,
     isTrustedContact: row.is_trusted_contact,
     trustedContactId: row.trusted_contact_id,
@@ -226,7 +236,35 @@ export async function getNotificationRecipients(
     return [];
   }
 
-  return (data || []).map(mapRecipient);
+  const rows = data || [];
+  const phones = Array.from(
+    new Set(rows.map((row) => row.phone_e164).filter((value): value is string => Boolean(value))),
+  );
+
+  const optedOutPhones = new Set<string>();
+  if (phones.length > 0) {
+    const { data: optOutRows, error: optOutError } = await client
+      .from('ultaura_sms_opt_outs')
+      .select('phone_e164')
+      .in('phone_e164', phones);
+
+    if (optOutError) {
+      logger.error({ error: optOutError, accountId }, 'Failed to fetch recipient SMS opt-out states');
+    } else {
+      for (const row of optOutRows || []) {
+        if (row.phone_e164) {
+          optedOutPhones.add(row.phone_e164);
+        }
+      }
+    }
+  }
+
+  return rows.map((row) =>
+    mapRecipient({
+      ...row,
+      sms_opted_out: Boolean(row.phone_e164 && optedOutPhones.has(row.phone_e164)),
+    } as NotificationRecipientRow),
+  );
 }
 
 export async function inviteNotificationRecipient(
@@ -235,6 +273,8 @@ export async function inviteNotificationRecipient(
     name: string;
     email: string;
     phoneE164?: string;
+    deliveryChannel?: AlertDeliveryChannel;
+    smsConsentAcknowledgedAt?: string | null;
     relationship?: string;
     addAsTrustedContact?: boolean;
     allowReinvite?: boolean;
@@ -270,6 +310,23 @@ export async function inviteNotificationRecipient(
     };
   }
   const nowIso = new Date().toISOString();
+  const deliveryChannel = normalizeDeliveryChannel(input.deliveryChannel);
+  const phoneE164 = input.phoneE164 ?? null;
+  const smsConsentAcknowledgedAt = input.smsConsentAcknowledgedAt ?? null;
+
+  if ((deliveryChannel === 'sms' || deliveryChannel === 'both') && !phoneE164) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Phone number is required for SMS alerts'),
+    };
+  }
+
+  if ((deliveryChannel === 'sms' || deliveryChannel === 'both') && !smsConsentAcknowledgedAt) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'SMS consent is required for SMS alerts'),
+    };
+  }
 
   const { data: existing, error: existingError } = await client
     .from('ultaura_notification_recipients')
@@ -324,8 +381,14 @@ export async function inviteNotificationRecipient(
       name: existing.name,
       email: existing.email,
       phone_e164: existing.phone_e164,
+      delivery_channel: existing.delivery_channel,
       relationship: existing.relationship,
       is_trusted_contact: existing.is_trusted_contact,
+      sms_verified_at: existing.sms_verified_at,
+      sms_consent_acknowledged_at: existing.sms_consent_acknowledged_at,
+      sms_verify_access_token_hash: existing.sms_verify_access_token_hash,
+      sms_verify_access_token_expires_at: existing.sms_verify_access_token_expires_at,
+      sms_verify_last_sent_at: existing.sms_verify_last_sent_at,
       confirmation_token_hash: existing.confirmation_token_hash,
       confirmation_token_expires_at: existing.confirmation_token_expires_at,
       unsubscribe_token_hash: existing.unsubscribe_token_hash,
@@ -335,14 +398,30 @@ export async function inviteNotificationRecipient(
       updated_at: existing.updated_at,
     };
 
+    const phoneChanged = (existing.phone_e164 ?? null) !== phoneE164;
+    const deliveryChannelChanged = existing.delivery_channel !== deliveryChannel;
+    const shouldResetSmsVerification = phoneChanged || deliveryChannelChanged;
+
     const { data: updated, error: updateError } = await client
       .from('ultaura_notification_recipients')
       .update({
         name,
         email,
-        phone_e164: input.phoneE164 ?? null,
+        phone_e164: phoneE164,
+        delivery_channel: deliveryChannel,
         relationship: input.relationship ?? null,
         is_trusted_contact: input.addAsTrustedContact ?? false,
+        sms_consent_acknowledged_at: smsConsentAcknowledgedAt,
+        sms_verified_at: shouldResetSmsVerification ? null : existing.sms_verified_at,
+        sms_verify_access_token_hash: shouldResetSmsVerification
+          ? null
+          : existing.sms_verify_access_token_hash,
+        sms_verify_access_token_expires_at: shouldResetSmsVerification
+          ? null
+          : existing.sms_verify_access_token_expires_at,
+        sms_verify_last_sent_at: shouldResetSmsVerification
+          ? null
+          : existing.sms_verify_last_sent_at,
         confirmation_token_hash: tokenState.tokenHash,
         confirmation_token_expires_at: tokenState.expiresAt,
         unsubscribe_token_hash: input.allowReinvite ? null : existing.unsubscribe_token_hash,
@@ -381,10 +460,33 @@ export async function inviteNotificationRecipient(
         recipientEmail: updated.email,
         accountId,
         token: tokenState.token,
+        deliveryChannel,
         client,
       });
     } catch (error) {
-      throw createInviteSendError(inviteContext);
+      const rollbackResult = await rollbackNotificationInviteMutation(
+        inviteContext,
+        { client },
+      );
+
+      if (!rollbackResult.success) {
+        logger.error(
+          { rollbackError: rollbackResult.error, context: inviteContext },
+          'Failed to rollback recipient update after invite email failure',
+        );
+      }
+
+      logger.error(
+        { error, recipientId: updated.id, accountId },
+        'Failed to send invite email for existing recipient',
+      );
+      return {
+        success: false,
+        error: createError(
+          ErrorCodes.EXTERNAL_SERVICE_ERROR,
+          'We could not send the invite email. Please try again.',
+        ),
+      };
     }
 
     revalidatePath('/dashboard/privacy', 'page');
@@ -409,7 +511,9 @@ export async function inviteNotificationRecipient(
       account_id: accountId,
       name,
       email,
-      phone_e164: input.phoneE164 ?? null,
+      phone_e164: phoneE164,
+      delivery_channel: deliveryChannel,
+      sms_consent_acknowledged_at: smsConsentAcknowledgedAt,
       relationship: input.relationship ?? null,
       is_trusted_contact: input.addAsTrustedContact ?? false,
     })
@@ -457,14 +561,311 @@ export async function inviteNotificationRecipient(
       recipientEmail: updated.email,
       accountId,
       token: tokenState.token,
+      deliveryChannel,
       client,
     });
   } catch (error) {
-    throw createInviteSendError(inviteContext);
+    const rollbackResult = await rollbackNotificationInviteMutation(
+      inviteContext,
+      { client },
+    );
+
+    if (!rollbackResult.success) {
+      logger.error(
+        { rollbackError: rollbackResult.error, context: inviteContext },
+        'Failed to rollback new recipient after invite email failure',
+      );
+    }
+
+    logger.error(
+      { error, recipientId: updated.id, accountId },
+      'Failed to send invite email for new recipient',
+    );
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.EXTERNAL_SERVICE_ERROR,
+        'We could not send the invite email. Please try again.',
+      ),
+    };
   }
 
   revalidatePath('/dashboard/privacy', 'page');
   return { success: true, data: mapRecipient(updated) };
+}
+
+async function sendRecipientSmsVerificationEmail(options: {
+  recipientName: string;
+  recipientEmail: string;
+  accountId: string;
+  verificationToken: string;
+  client?: SupabaseClient<Database>;
+}) {
+  const emailFrom = getNotificationsEmailSender();
+  const replyTo = getSupportReplyToEmail();
+  const { accountName, inviterName } = await resolveAccountContext(
+    options.accountId,
+    options.client,
+  );
+  const siteUrl = getSiteUrl();
+  const verifyLink = `${siteUrl}/ultaura/alerts/verify-phone/${options.verificationToken}`;
+  const subject = `Verify your phone for Ultaura SMS alerts`;
+  const { html, text } = renderRecipientSmsVerificationEmail({
+    recipientName: options.recipientName,
+    accountName,
+    inviterName,
+    verificationLink: verifyLink,
+    baseUrl: siteUrl,
+  });
+
+  await sendEmail({
+    from: emailFrom,
+    to: options.recipientEmail,
+    subject,
+    html,
+    text,
+    replyTo,
+  });
+}
+
+async function issueAndSendRecipientSmsVerificationLink(options: {
+  recipient: NotificationRecipientRow;
+  client: SupabaseClient<Database>;
+}): Promise<ActionResult<void>> {
+  const tokenResult = await issueRecipientSmsVerificationAccessToken(options.recipient.id, {
+    client: options.client,
+  });
+  if (!tokenResult.success) {
+    return { success: false, error: tokenResult.error };
+  }
+
+  try {
+    await sendRecipientSmsVerificationEmail({
+      recipientName: options.recipient.name,
+      recipientEmail: options.recipient.email,
+      accountId: options.recipient.account_id,
+      verificationToken: tokenResult.data.token,
+      client: options.client,
+    });
+  } catch (error) {
+    logger.error(
+      { error, recipientId: options.recipient.id },
+      'Failed to send recipient SMS verification email',
+    );
+    return {
+      success: false,
+      error: createError(ErrorCodes.EXTERNAL_SERVICE_ERROR, 'Failed to send verification email'),
+    };
+  }
+
+  return { success: true, data: undefined };
+}
+
+export async function updateNotificationRecipientDelivery(
+  recipientId: string,
+  input: {
+    deliveryChannel: AlertDeliveryChannel;
+    smsConsentAcknowledgedAt?: string | null;
+  },
+): Promise<ActionResult<NotificationRecipient>> {
+  const client = getSupabaseServerActionClient();
+  const { data: existing, error: lookupError } = await client
+    .from('ultaura_notification_recipients')
+    .select('*')
+    .eq('id', recipientId)
+    .maybeSingle();
+
+  if (lookupError) {
+    logger.error({ error: lookupError, recipientId }, 'Failed to load notification recipient');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to load recipient'),
+    };
+  }
+
+  if (!existing) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Recipient not found'),
+    };
+  }
+
+  const auth = await requireAccountOwner(client, existing.account_id);
+  if (!auth.success) {
+    return { success: false, error: auth.error };
+  }
+
+  const deliveryChannel = normalizeDeliveryChannel(input.deliveryChannel);
+  const requiresSms = deliveryChannel === 'sms' || deliveryChannel === 'both';
+  const nowIso = new Date().toISOString();
+
+  if (requiresSms && !existing.phone_e164) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Phone number is required for SMS alerts'),
+    };
+  }
+
+  const smsConsentAcknowledgedAt =
+    requiresSms
+      ? input.smsConsentAcknowledgedAt ?? existing.sms_consent_acknowledged_at ?? null
+      : null;
+
+  if (requiresSms && !smsConsentAcknowledgedAt) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'SMS consent is required for SMS alerts'),
+    };
+  }
+
+  const shouldResetSmsVerification =
+    requiresSms && existing.delivery_channel === 'email';
+
+  const { data: updated, error: updateError } = await client
+    .from('ultaura_notification_recipients')
+    .update({
+      delivery_channel: deliveryChannel,
+      sms_consent_acknowledged_at: smsConsentAcknowledgedAt,
+      sms_verified_at: requiresSms
+        ? shouldResetSmsVerification
+          ? null
+          : existing.sms_verified_at
+        : null,
+      sms_verify_access_token_hash: requiresSms
+        ? shouldResetSmsVerification
+          ? null
+          : existing.sms_verify_access_token_hash
+        : null,
+      sms_verify_access_token_expires_at: requiresSms
+        ? shouldResetSmsVerification
+          ? null
+          : existing.sms_verify_access_token_expires_at
+        : null,
+      sms_verify_last_sent_at: requiresSms
+        ? shouldResetSmsVerification
+          ? null
+          : existing.sms_verify_last_sent_at
+        : null,
+      updated_at: nowIso,
+    })
+    .eq('id', recipientId)
+    .select('*')
+    .single();
+
+  if (updateError || !updated) {
+    logger.error({ error: updateError, recipientId }, 'Failed to update notification recipient delivery');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to update recipient delivery'),
+    };
+  }
+
+  if (
+    updated.confirmed_at &&
+    requiresSms &&
+    !updated.sms_verified_at &&
+    updated.phone_e164 &&
+    shouldResetSmsVerification
+  ) {
+    const sendResult = await issueAndSendRecipientSmsVerificationLink({
+      recipient: updated,
+      client,
+    });
+    if (!sendResult.success) {
+      await client
+        .from('ultaura_notification_recipients')
+        .update({
+          delivery_channel: existing.delivery_channel,
+          sms_consent_acknowledged_at: existing.sms_consent_acknowledged_at,
+          sms_verified_at: existing.sms_verified_at,
+          sms_verify_access_token_hash: existing.sms_verify_access_token_hash,
+          sms_verify_access_token_expires_at:
+            existing.sms_verify_access_token_expires_at,
+          sms_verify_last_sent_at: existing.sms_verify_last_sent_at,
+          updated_at: existing.updated_at,
+        })
+        .eq('id', recipientId);
+
+      return { success: false, error: sendResult.error };
+    }
+  }
+
+  revalidatePath('/dashboard/privacy', 'page');
+  return { success: true, data: mapRecipient(updated) };
+}
+
+export async function resendRecipientSmsVerificationLink(
+  recipientId: string,
+): Promise<ActionResult<void>> {
+  const client = getSupabaseServerActionClient();
+  const { data: recipient, error: lookupError } = await client
+    .from('ultaura_notification_recipients')
+    .select('*')
+    .eq('id', recipientId)
+    .maybeSingle();
+
+  if (lookupError) {
+    logger.error({ error: lookupError, recipientId }, 'Failed to load recipient for SMS verification resend');
+    return {
+      success: false,
+      error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to load recipient'),
+    };
+  }
+
+  if (!recipient) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.NOT_FOUND, 'Recipient not found'),
+    };
+  }
+
+  const auth = await requireAccountOwner(client, recipient.account_id);
+  if (!auth.success) {
+    return { success: false, error: auth.error };
+  }
+
+  if (!recipient.confirmed_at) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Recipient must confirm their invite first'),
+    };
+  }
+
+  if (recipient.unsubscribed_at) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Recipient has unsubscribed'),
+    };
+  }
+
+  if (recipient.delivery_channel !== 'sms' && recipient.delivery_channel !== 'both') {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Recipient is not configured for SMS alerts'),
+    };
+  }
+
+  if (!recipient.phone_e164) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'Recipient is missing a phone number'),
+    };
+  }
+
+  if (recipient.sms_verified_at) {
+    return { success: true, data: undefined };
+  }
+
+  const sendResult = await issueAndSendRecipientSmsVerificationLink({
+    recipient,
+    client,
+  });
+  if (!sendResult.success) {
+    return { success: false, error: sendResult.error };
+  }
+
+  revalidatePath('/dashboard/privacy', 'page');
+  return { success: true, data: undefined };
 }
 
 export async function rollbackNotificationInviteMutation(
@@ -585,7 +986,7 @@ export async function removeNotificationRecipient(
 
 export async function confirmNotificationRecipient(
   token: string
-): Promise<ActionResult<{ accountName: string }>> {
+): Promise<ActionResult<{ accountName: string; smsVerificationToken: string | null }>> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
   const tokenHash = hashNotificationToken(token);
   const unsubscribeTokenState = generateNotificationUnsubscribeToken({ ttlDays: 14 });
@@ -642,11 +1043,40 @@ export async function confirmNotificationRecipient(
     .eq('id', recipient.account_id)
     .single();
 
-  if (recipient.is_trusted_contact && !recipient.trusted_contact_id && recipient.phone_e164) {
-    await createTrustedContactFromRecipient(adminClient, recipient);
+  const shouldIssueSmsVerificationToken =
+    (recipient.delivery_channel === 'sms' || recipient.delivery_channel === 'both') &&
+    Boolean(recipient.phone_e164);
+
+  if (!shouldIssueSmsVerificationToken) {
+    return {
+      success: true,
+      data: {
+        accountName: account?.name ?? 'Ultaura',
+        smsVerificationToken: null,
+      },
+    };
   }
 
-  return { success: true, data: { accountName: account?.name ?? 'Ultaura' } };
+  const tokenResult = await issueRecipientSmsVerificationAccessToken(recipient.id, {
+    client: adminClient,
+  });
+  if (!tokenResult.success) {
+    return {
+      success: false,
+      error: createError(
+        ErrorCodes.DATABASE_ERROR,
+        'Failed to prepare phone verification'
+      ),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      accountName: account?.name ?? 'Ultaura',
+      smsVerificationToken: tokenResult.data.token,
+    },
+  };
 }
 
 export async function unsubscribeNotificationRecipient(
@@ -777,6 +1207,7 @@ async function sendInviteEmail(options: {
   recipientEmail: string;
   accountId: string;
   token: string;
+  deliveryChannel: AlertDeliveryChannel;
   client?: SupabaseClient<Database>;
 }) {
   const emailFrom = getNotificationsEmailSender();
@@ -796,6 +1227,7 @@ async function sendInviteEmail(options: {
     lineName,
     inviterName,
     confirmLink,
+    deliveryChannel: options.deliveryChannel,
     baseUrl: siteUrl,
   });
 
@@ -807,100 +1239,4 @@ async function sendInviteEmail(options: {
     text,
     replyTo,
   });
-}
-
-async function createTrustedContactFromRecipient(
-  adminClient: ReturnType<typeof getSupabaseServerActionClient>,
-  recipient: NotificationRecipientRow
-): Promise<void> {
-  const phoneE164 = recipient.phone_e164;
-  if (!phoneE164) {
-    return;
-  }
-
-  const { data: lines } = await adminClient
-    .from('ultaura_lines')
-    .select('id, phone_verified_at, created_at')
-    .eq('account_id', recipient.account_id)
-    .order('created_at', { ascending: true });
-
-  if (!lines || lines.length === 0) {
-    return;
-  }
-
-  const targetLine = lines.find((line) => line.phone_verified_at) ?? lines[0];
-
-  const { data: trustedContact, error } = await adminClient
-    .from('ultaura_trusted_contacts')
-    .insert({
-      account_id: recipient.account_id,
-      line_id: targetLine.id,
-      name: recipient.name,
-      phone_e164: phoneE164,
-      relationship: recipient.relationship ?? null,
-      notify_on: ['medium', 'high'],
-      enabled: true,
-    })
-    .select('id')
-    .single();
-
-  if (error || !trustedContact) {
-    logger.error({ error, recipientId: recipient.id }, 'Failed to create trusted contact from recipient');
-    return;
-  }
-
-  const nowIso = new Date().toISOString();
-
-  const { error: linkBackError } = await adminClient
-    .from('ultaura_notification_recipients')
-    .update({ trusted_contact_id: trustedContact.id, updated_at: nowIso })
-    .eq('id', recipient.id);
-
-  if (linkBackError) {
-    logger.error(
-      { error: linkBackError, recipientId: recipient.id, trustedContactId: trustedContact.id },
-      'Failed to link recipient to trusted contact'
-    );
-    return;
-  }
-
-  const { data: existingConsent, error: existingConsentError } = await adminClient
-    .from('ultaura_consents')
-    .select('id')
-    .eq('line_id', targetLine.id)
-    .eq('type', 'trusted_contact_notify')
-    .eq('granted', true)
-    .is('revoked_at', null)
-    .maybeSingle();
-
-  if (existingConsentError) {
-    logger.error(
-      { error: existingConsentError, recipientId: recipient.id, lineId: targetLine.id },
-      'Failed to verify existing trusted contact consent'
-    );
-    return;
-  }
-
-  if (!existingConsent) {
-    const { error: consentInsertError } = await adminClient.from('ultaura_consents').insert({
-      account_id: recipient.account_id,
-      line_id: targetLine.id,
-      type: 'trusted_contact_notify',
-      granted: true,
-      granted_by: 'payer_ack',
-      evidence: {
-        source: 'notification_invite',
-        timestamp: nowIso,
-        contactName: recipient.name,
-      },
-    });
-
-    if (consentInsertError) {
-      logger.error(
-        { error: consentInsertError, recipientId: recipient.id, lineId: targetLine.id },
-        'Failed to grant trusted contact consent from recipient confirmation'
-      );
-      return;
-    }
-  }
 }

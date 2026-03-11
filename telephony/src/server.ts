@@ -30,6 +30,7 @@ import { internalSmsRouter } from './routes/internal/sms.js';
 import { internalRecordingsRouter } from './routes/internal/recordings.js';
 import { internalExportsRouter } from './routes/internal/exports.js';
 import { internalOpsRouter } from './routes/internal/ops.js';
+import { internalRecipientVerifyRouter } from './routes/internal/recipient-verify.js';
 import { validateWebSocketConnection, unregisterConnection } from './services/ws-security.js';
 import testRoutes from './routes/test.js';
 import { getActiveCallCount, getActiveCallSessionIds } from './services/active-calls.js';
@@ -186,6 +187,7 @@ app.use('/internal', internalSmsRouter);
 app.use('/internal', internalRecordingsRouter);
 app.use('/internal', internalExportsRouter);
 app.use('/internal', internalOpsRouter);
+app.use('/internal', internalRecipientVerifyRouter);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/test', testRoutes);
 }

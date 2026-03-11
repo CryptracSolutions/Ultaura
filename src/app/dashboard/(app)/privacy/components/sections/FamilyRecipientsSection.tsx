@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, Users, X } from 'lucide-react';
 
 import Button from '~/core/ui/Button';
+import { Checkbox } from '~/core/ui/Checkbox';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import {
   Dialog,
@@ -13,6 +14,13 @@ import {
   DialogTitle,
   gateDialogAutoFocus,
 } from '~/core/ui/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/core/ui/Select';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import TextField from '~/core/ui/TextField';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
@@ -21,6 +29,7 @@ import { getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { InvitedFamilyList } from '../InvitedFamilyList';
 import { PrivacyInfoBanner } from '../PrivacyInfoBanner';
+import type { RecipientDeliveryChannel } from '../../lib/recipient-delivery';
 
 const MAX_RECIPIENTS = 5;
 
@@ -49,10 +58,21 @@ export interface FamilyRecipientsSectionProps {
   setInviteEmail: (value: string) => void;
   invitePhone: string;
   setInvitePhone: (value: string) => void;
+  inviteDeliveryChannel: RecipientDeliveryChannel;
+  setInviteDeliveryChannel: (value: RecipientDeliveryChannel) => void;
+  inviteSmsConsentAcknowledged: boolean;
+  setInviteSmsConsentAcknowledged: (value: boolean) => void;
   invitePhoneError?: string;
   setInvitePhoneError: (value?: string) => void;
   inviteRelationship: string;
   setInviteRelationship: (value: string) => void;
+  getRecipientDeliveryChannel: (recipientId: string) => RecipientDeliveryChannel;
+  resendRecipientSmsInvite: (recipientId: string) => Promise<{ success: boolean; error?: string }>;
+  updateRecipientDeliveryChannel: (
+    recipientId: string,
+    deliveryChannel: RecipientDeliveryChannel,
+    smsConsentAcknowledgedAt?: string | null,
+  ) => Promise<{ success: boolean; error?: string }>;
   onInviteSubmit: (event: FormEvent<HTMLFormElement>) => void;
   showDiscardConfirm: boolean;
   setShowDiscardConfirm: (open: boolean) => void;
@@ -84,10 +104,17 @@ export function FamilyRecipientsSection({
   setInviteEmail,
   invitePhone,
   setInvitePhone,
+  inviteDeliveryChannel,
+  setInviteDeliveryChannel,
+  inviteSmsConsentAcknowledged,
+  setInviteSmsConsentAcknowledged,
   invitePhoneError,
   setInvitePhoneError,
   inviteRelationship,
   setInviteRelationship,
+  getRecipientDeliveryChannel,
+  resendRecipientSmsInvite,
+  updateRecipientDeliveryChannel,
   onInviteSubmit,
   showDiscardConfirm,
   setShowDiscardConfirm,
@@ -98,9 +125,10 @@ export function FamilyRecipientsSection({
   return (
     <>
       <PrivacyInfoBanner>
-        Family sharing lets you invite family members to receive weekly
-        summaries and wellness alerts. What is shared follows your loved
-        one&apos;s sharing preferences during calls.{' '}
+        Family recipients receive weekly summaries and alert updates. Trusted
+        contacts are managed separately for urgent safety outreach by SMS. What
+        is shared follows your loved one&apos;s sharing preferences during
+        calls.{' '}
         <Link
           href="/docs/insights-and-reports/sharing-with-family"
           className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -117,7 +145,7 @@ export function FamilyRecipientsSection({
               Family Recipients
             </div>
           }
-          description="Invite up to 5 family members to receive summaries and alerts."
+          description="Invite up to 5 family members for ongoing updates. Weekly summaries stay on email, and alerts can be sent by email, SMS, or both."
         />
         <SectionBody className="gap-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -166,6 +194,9 @@ export function FamilyRecipientsSection({
             onRemove={onRemoveRecipient}
             onGrantDashboardAccess={onGrantDashboardAccess}
             onRevokeDashboardAccess={onRevokeDashboardAccess}
+            getRecipientDeliveryChannel={getRecipientDeliveryChannel}
+            onResendSmsVerificationLink={resendRecipientSmsInvite}
+            onUpdateRecipientDeliveryChannel={updateRecipientDeliveryChannel}
             dashboardAccessLoading={isDashboardSharingLoading}
             disabled={isInviting}
           />
@@ -205,8 +236,10 @@ export function FamilyRecipientsSection({
                     Invite family recipient
                   </DialogTitle>
                   <DialogDescription className="text-sm text-muted-foreground">
-                    This person will receive weekly summaries and wellness
-                    alerts.
+                    Weekly summaries stay on email in v1. Choose whether alerts
+                    are delivered by email, SMS, or both. For urgent safety-only
+                    outreach, add trusted contacts in the line&apos;s Contacts
+                    section.
                   </DialogDescription>
                 </div>
                 <Button
@@ -258,7 +291,10 @@ export function FamilyRecipientsSection({
                   </TextField>
                   <TextField>
                     <TextField.Label>
-                      Phone (optional)
+                      Phone{' '}
+                      {inviteDeliveryChannel === 'email' ? '(optional)' : (
+                        <span className="text-destructive">*</span>
+                      )}
                       <PhoneInput
                         value={invitePhone}
                         onValueChange={(value) => {
@@ -270,15 +306,35 @@ export function FamilyRecipientsSection({
                         onBlur={(event) => {
                           setInvitePhoneError(
                             getUsPhoneValidationError(event.target.value, {
-                              required: false,
+                              required: inviteDeliveryChannel !== 'email',
                             }) ?? undefined,
                           );
                         }}
                         placeholder="(555) 123-4567"
-                        required={false}
+                        required={inviteDeliveryChannel !== 'email'}
                         error={invitePhoneError}
                       />
                       <TextField.Error error={invitePhoneError} />
+                    </TextField.Label>
+                  </TextField>
+                  <TextField>
+                    <TextField.Label>
+                      Delivery
+                      <Select
+                        value={inviteDeliveryChannel}
+                        onValueChange={(value) =>
+                          setInviteDeliveryChannel(value as RecipientDeliveryChannel)
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="sms">SMS</SelectItem>
+                          <SelectItem value="both">Both</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TextField.Label>
                   </TextField>
                   <TextField>
@@ -294,6 +350,22 @@ export function FamilyRecipientsSection({
                     </TextField.Label>
                   </TextField>
                 </div>
+
+                {inviteDeliveryChannel !== 'email' ? (
+                  <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={inviteSmsConsentAcknowledged}
+                      onCheckedChange={(checked) =>
+                        setInviteSmsConsentAcknowledged(Boolean(checked))
+                      }
+                    />
+                    <span>
+                      I confirm this recipient agreed to receive SMS alerts from
+                      Ultaura at this phone number. They can reply STOP to stop
+                      texts and START to resume.
+                    </span>
+                  </label>
+                ) : null}
 
                 <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                   <Button

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Brain, Activity, Mail, PhoneMissed, User } from 'lucide-react';
+import { Bell, Brain, Activity, Mail, PhoneMissed, Settings, User } from 'lucide-react';
+import Link from 'next/link';
 import { Switch } from '~/core/ui/Switch';
 import {
   Select,
@@ -13,9 +14,19 @@ import {
 import { Section, SectionHeader, SectionBody } from '~/core/ui/Section';
 import { useAutoSave } from '~/core/hooks/use-auto-save';
 import { useRouter } from 'next/navigation';
-import type { LineRow, NotificationPreferencesRow } from '~/lib/ultaura/types';
+import type {
+  AlertDeliveryChannel,
+  LineRow,
+  NotificationPreferencesRow,
+} from '~/lib/ultaura/types';
 import { updateNotificationPreferences } from '~/lib/ultaura/insights';
 import { WEEKDAY_OPTIONS, TIME_OPTIONS } from '~/lib/ultaura/constants';
+import {
+  type AccountAlertDelivery,
+  updateAccountAlertDelivery,
+} from '~/lib/ultaura/account-alert-delivery';
+import { Checkbox } from '~/core/ui/Checkbox';
+import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 interface AlertSettingsEntry {
   line: LineRow;
@@ -25,6 +36,9 @@ interface AlertSettingsEntry {
 interface AlertSettingsProps {
   settings: AlertSettingsEntry[];
   deliveryEmail: string;
+  ownerAlertDelivery: AccountAlertDelivery;
+  ownerPhone: string | null;
+  ownerPhoneVerified: boolean;
   disabled?: boolean;
 }
 
@@ -111,11 +125,179 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function OwnerAlertSettingsSection({
+  ownerAlertDelivery,
+  ownerPhone,
+  ownerPhoneVerified,
+  deliveryEmail,
+  disabled = false,
+}: {
+  ownerAlertDelivery: AccountAlertDelivery;
+  ownerPhone: string | null;
+  ownerPhoneVerified: boolean;
+  deliveryEmail: string;
+  disabled?: boolean;
+}) {
+  const router = useRouter();
+  const [deliveryChannel, setDeliveryChannel] = useState<AlertDeliveryChannel>(
+    ownerAlertDelivery.deliveryChannel,
+  );
+  const [smsConsentAcknowledged, setSmsConsentAcknowledged] = useState(
+    Boolean(ownerAlertDelivery.smsConsentAcknowledgedAt),
+  );
+
+  const ownerSave = useAutoSave<{
+    deliveryChannel: AlertDeliveryChannel;
+    smsConsentAcknowledgedAt: string | null;
+  }>({
+    saveFn: async (value) => {
+      const result = await updateAccountAlertDelivery(
+        ownerAlertDelivery.accountId,
+        value,
+      );
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error.message || 'Failed to update owner notifications',
+        };
+      }
+      return { success: true };
+    },
+    toastSuccess: 'Owner notification settings saved',
+    onSuccess: () => router.refresh(),
+    disabled,
+  });
+
+  const canUseSms = Boolean(ownerPhone && ownerPhoneVerified);
+
+  const saveOwnerSettings = (
+    nextChannel: AlertDeliveryChannel,
+    nextConsent: boolean,
+  ) => {
+    ownerSave.triggerSave({
+      deliveryChannel: nextChannel,
+      smsConsentAcknowledgedAt:
+        nextChannel === 'email' || !nextConsent
+          ? null
+          : ownerAlertDelivery.smsConsentAcknowledgedAt ?? new Date().toISOString(),
+    });
+  };
+
+  const handleChannelChange = (value: AlertDeliveryChannel) => {
+    if (value !== 'email' && !canUseSms) {
+      return;
+    }
+
+    setDeliveryChannel(value);
+    if (value === 'email') {
+      setSmsConsentAcknowledged(false);
+      saveOwnerSettings('email', false);
+      return;
+    }
+
+    if (smsConsentAcknowledged) {
+      saveOwnerSettings(value, true);
+    }
+  };
+
+  const handleConsentChange = (checked: boolean) => {
+    setSmsConsentAcknowledged(checked);
+    if (checked && deliveryChannel !== 'email') {
+      saveOwnerSettings(deliveryChannel, true);
+    }
+  };
+
+  return (
+    <Section>
+      <SectionHeader
+        title={
+          <div className="flex items-center gap-2">
+            <Settings className="h-4 w-4 text-muted-foreground" />
+            Alert Settings
+          </div>
+        }
+        description="Choose how the primary account holder receives alerts."
+      />
+      <SectionBody className="gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-foreground">Email</p>
+            <p className="text-sm text-muted-foreground">{deliveryEmail}</p>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-foreground">Phone</p>
+            <p className="text-sm text-muted-foreground">
+              {ownerPhone ? formatUsPhoneForDisplay(ownerPhone) : 'No phone on file'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {ownerPhoneVerified
+                ? 'This phone comes from your account sign-in profile.'
+                : 'SMS requires a verified phone on your account profile.'}
+            </p>
+            <Link
+              href="/dashboard/settings/profile"
+              className="text-xs font-medium text-primary underline underline-offset-2 hover:no-underline"
+            >
+              Manage phone in profile →
+            </Link>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium text-foreground">Delivery channel</p>
+          <Select
+            value={deliveryChannel}
+            onValueChange={(value) =>
+              handleChannelChange(value as AlertDeliveryChannel)
+            }
+            disabled={disabled || ownerSave.isSaving}
+          >
+            <SelectTrigger className="w-full sm:max-w-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="sms" disabled={!canUseSms}>
+                SMS
+              </SelectItem>
+              <SelectItem value="both" disabled={!canUseSms}>
+                Both
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {deliveryChannel !== 'email' ? (
+          <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
+            <Checkbox
+              checked={smsConsentAcknowledged}
+              onCheckedChange={(checked) =>
+                handleConsentChange(Boolean(checked))
+              }
+            />
+            <span>
+              I agree to receive Ultaura alert texts at this phone number. SMS
+              alerts can be stopped with STOP and restarted with START.
+            </span>
+          </label>
+        ) : null}
+
+        {!canUseSms ? (
+          <p className="text-xs text-muted-foreground">
+            SMS and Both are unavailable until your account has a verified
+            sign-in phone number.
+          </p>
+        ) : null}
+      </SectionBody>
+    </Section>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Per-line settings section                                         */
 /* ------------------------------------------------------------------ */
 
-function AlertSettingsSection({
+export function AlertSettingsSection({
   line,
   preferences,
   deliveryEmail,
@@ -369,6 +551,9 @@ function AlertSettingsSection({
 export function AlertSettings({
   settings,
   deliveryEmail,
+  ownerAlertDelivery,
+  ownerPhone,
+  ownerPhoneVerified,
   disabled = false,
 }: AlertSettingsProps) {
   return (
@@ -377,12 +562,27 @@ export function AlertSettings({
         Alerts share high-level categories only. Specific details stay private.
       </p>
 
+      <OwnerAlertSettingsSection
+        ownerAlertDelivery={ownerAlertDelivery}
+        ownerPhone={ownerPhone}
+        ownerPhoneVerified={ownerPhoneVerified}
+        deliveryEmail={deliveryEmail}
+        disabled={disabled}
+      />
+
       {settings.length === 0 ? (
         <Section>
+          <SectionHeader title="Line Notifications" />
           <SectionBody>
             <p className="text-sm text-muted-foreground">
-              No lines available yet.
+              Add a line to receive wellness alerts and notifications about your loved ones.
             </p>
+            <Link
+              href="/dashboard/lines"
+              className="text-sm font-medium text-primary underline underline-offset-2 hover:no-underline inline-block mt-2"
+            >
+              Add your first line →
+            </Link>
           </SectionBody>
         </Section>
       ) : (

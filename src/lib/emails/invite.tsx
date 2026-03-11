@@ -23,7 +23,7 @@ interface Props {
 }
 
 export default function renderInviteEmail(props: Props): { html: string; text: string } {
-  const previewText = `Join ${props.invitedUserEmail} on ${props.productName}`;
+  const previewText = `Join ${props.organizationName} on ${props.productName}`;
 
   const jsx = (
     <EmailLayout preview={previewText}>

@@ -635,10 +635,17 @@ export function PrivacyCenterClient({
               setInviteEmail={inviteFlow.setInviteEmail}
               invitePhone={inviteFlow.invitePhone}
               setInvitePhone={inviteFlow.setInvitePhone}
+              inviteDeliveryChannel={inviteFlow.inviteDeliveryChannel}
+              setInviteDeliveryChannel={inviteFlow.setInviteDeliveryChannel}
+              inviteSmsConsentAcknowledged={inviteFlow.inviteSmsConsentAcknowledged}
+              setInviteSmsConsentAcknowledged={inviteFlow.setInviteSmsConsentAcknowledged}
               invitePhoneError={inviteFlow.invitePhoneError}
               setInvitePhoneError={inviteFlow.setInvitePhoneError}
               inviteRelationship={inviteFlow.inviteRelationship}
               setInviteRelationship={inviteFlow.setInviteRelationship}
+              getRecipientDeliveryChannel={inviteFlow.getRecipientDeliveryChannel}
+              resendRecipientSmsInvite={inviteFlow.resendRecipientSmsInvite}
+              updateRecipientDeliveryChannel={inviteFlow.updateRecipientDeliveryChannel}
               onInviteSubmit={handleInviteSubmit}
               showDiscardConfirm={inviteFlow.showDiscardConfirm}
               setShowDiscardConfirm={inviteFlow.setShowDiscardConfirm}

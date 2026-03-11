@@ -405,6 +405,7 @@ async function handleHighTierResult(
   });
   await notifyPayerSafetyEmail({
     accountId,
+    callSessionId: job.callSessionId,
     lineId: job.lineId,
     tier: 'high',
     actionTaken: result.actionTaken,

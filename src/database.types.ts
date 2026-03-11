@@ -415,6 +415,38 @@ export type Database = {
           },
         ]
       }
+      ultaura_account_alert_delivery: {
+        Row: {
+          account_id: string
+          created_at: string
+          delivery_channel: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
+          sms_consent_acknowledged_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
+          sms_consent_acknowledged_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
+          sms_consent_acknowledged_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_account_alert_delivery_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_accounts: {
         Row: {
           billing_email: string
@@ -2811,12 +2843,18 @@ export type Database = {
           dashboard_access_invited_email: string | null
           dashboard_access_membership_id: number | null
           dashboard_access_user_id: string | null
+          delivery_channel: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
           email: string
           id: string
           is_trusted_contact: boolean
           name: string
           phone_e164: string | null
           relationship: string | null
+          sms_consent_acknowledged_at: string | null
+          sms_verify_access_token_expires_at: string | null
+          sms_verify_access_token_hash: string | null
+          sms_verify_last_sent_at: string | null
+          sms_verified_at: string | null
           trusted_contact_id: string | null
           unsubscribe_token_expires_at: string | null
           unsubscribe_token_hash: string | null
@@ -2833,12 +2871,18 @@ export type Database = {
           dashboard_access_invited_email?: string | null
           dashboard_access_membership_id?: number | null
           dashboard_access_user_id?: string | null
+          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
           email: string
           id?: string
           is_trusted_contact?: boolean
           name: string
           phone_e164?: string | null
           relationship?: string | null
+          sms_consent_acknowledged_at?: string | null
+          sms_verify_access_token_expires_at?: string | null
+          sms_verify_access_token_hash?: string | null
+          sms_verify_last_sent_at?: string | null
+          sms_verified_at?: string | null
           trusted_contact_id?: string | null
           unsubscribe_token_expires_at?: string | null
           unsubscribe_token_hash?: string | null
@@ -2855,12 +2899,18 @@ export type Database = {
           dashboard_access_invited_email?: string | null
           dashboard_access_membership_id?: number | null
           dashboard_access_user_id?: string | null
+          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
           email?: string
           id?: string
           is_trusted_contact?: boolean
           name?: string
           phone_e164?: string | null
           relationship?: string | null
+          sms_consent_acknowledged_at?: string | null
+          sms_verify_access_token_expires_at?: string | null
+          sms_verify_access_token_hash?: string | null
+          sms_verify_last_sent_at?: string | null
+          sms_verified_at?: string | null
           trusted_contact_id?: string | null
           unsubscribe_token_expires_at?: string | null
           unsubscribe_token_hash?: string | null
@@ -4963,6 +5013,7 @@ export type Database = {
         | "incomplete"
         | "incomplete_expired"
         | "paused"
+      ultaura_alert_delivery_channel: "email" | "sms" | "both"
       ultaura_account_status: "trial" | "active" | "past_due" | "canceled"
       ultaura_billable_type: "trial" | "included" | "overage" | "payg"
       ultaura_call_direction: "inbound" | "outbound"
@@ -5855,6 +5906,7 @@ export const Constants = {
         "incomplete_expired",
         "paused",
       ],
+      ultaura_alert_delivery_channel: ["email", "sms", "both"],
       ultaura_account_status: ["trial", "active", "past_due", "canceled"],
       ultaura_billable_type: ["trial", "included", "overage", "payg"],
       ultaura_call_direction: ["inbound", "outbound"],

@@ -4,35 +4,11 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import getLogger from '~/core/logger';
-import {
-  inviteNotificationRecipient,
-  rollbackNotificationInviteMutation,
-} from '~/lib/ultaura/notification-recipients';
+import { ErrorCodes } from '@ultaura/schemas';
+import { inviteNotificationRecipient } from '~/lib/ultaura/notification-recipients';
 
 const E164_PHONE_REGEX = /^\+[1-9]\d{1,14}$/;
 const logger = getLogger();
-
-type InviteFailureContext = Parameters<typeof rollbackNotificationInviteMutation>[0];
-type InviteSendFailureError = Error & {
-  code?: string;
-  context: InviteFailureContext;
-};
-
-function isInviteSendFailure(
-  error: unknown
-): error is InviteSendFailureError {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const inviteError = error as Partial<InviteSendFailureError>;
-  const hasContext = Boolean(inviteError.context);
-
-  return (
-    hasContext &&
-    (inviteError.code === 'INVITE_SEND_FAILED' || error.name === 'NotificationInviteSendError')
-  );
-}
 
 const InviteSchema = z.object({
   accountId: z.string().uuid(),
@@ -42,9 +18,27 @@ const InviteSchema = z.object({
     (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
     z.string().trim().regex(E164_PHONE_REGEX, 'Invalid E.164 phone number').optional(),
   ),
+  deliveryChannel: z.enum(['email', 'sms', 'both']).optional(),
+  smsConsentAcknowledgedAt: z.string().datetime().nullable().optional(),
   relationship: z.string().optional(),
   addAsTrustedContact: z.boolean().optional(),
   allowReinvite: z.boolean().optional(),
+}).superRefine((value, ctx) => {
+  const requiresSms = value.deliveryChannel === 'sms' || value.deliveryChannel === 'both';
+  if (requiresSms && !value.phoneE164) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['phoneE164'],
+      message: 'Phone number is required for SMS alerts',
+    });
+  }
+  if (requiresSms && !value.smsConsentAcknowledgedAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['smsConsentAcknowledgedAt'],
+      message: 'SMS consent is required for SMS alerts',
+    });
+  }
 });
 
 export async function POST(request: Request) {
@@ -81,6 +75,8 @@ export async function POST(request: Request) {
         name: inviteInput.name,
         email: inviteInput.email,
         phoneE164: inviteInput.phoneE164,
+        deliveryChannel: inviteInput.deliveryChannel,
+        smsConsentAcknowledgedAt: inviteInput.smsConsentAcknowledgedAt ?? undefined,
         relationship: inviteInput.relationship,
         addAsTrustedContact: inviteInput.addAsTrustedContact,
         allowReinvite: inviteInput.allowReinvite,
@@ -89,34 +85,22 @@ export async function POST(request: Request) {
     );
 
     if (!result.success) {
-      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+      const status =
+        result.error.code === ErrorCodes.FORBIDDEN
+          ? 403
+          : result.error.code === ErrorCodes.UNAUTHORIZED
+            ? 401
+            : result.error.code === ErrorCodes.EXTERNAL_SERVICE_ERROR
+              ? 502
+              : result.error.code === ErrorCodes.DATABASE_ERROR
+                ? 500
+                : 400;
+
+      return NextResponse.json({ success: false, error: result.error }, { status });
     }
 
     return NextResponse.json({ success: true, data: result.data });
   } catch (error) {
-    if (isInviteSendFailure(error)) {
-      const rollbackResult = await rollbackNotificationInviteMutation(error.context, {
-        client: supabase,
-      });
-      if (!rollbackResult.success) {
-        logger.error(
-          { rollbackError: rollbackResult.error, context: error.context },
-          'Failed to rollback invite mutation after email send failure'
-        );
-      }
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'INVITE_SEND_FAILED',
-            message: 'We could not send the invite email. Please try again.',
-          },
-        },
-        { status: 502 }
-      );
-    }
-
     logger.error({ error }, 'Invite API route failed');
     return NextResponse.json(
       {

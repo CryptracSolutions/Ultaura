@@ -7,6 +7,7 @@ import { getUltauraAccount, getTrialInfo } from '~/lib/ultaura/accounts';
 import { getLines } from '~/lib/ultaura/lines';
 import { getWellnessAlerts } from '~/lib/ultaura/alerts';
 import { getNotificationPreferences } from '~/lib/ultaura/insights';
+import { getAccountAlertDelivery } from '~/lib/ultaura/account-alert-delivery';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
@@ -85,6 +86,16 @@ export default async function AlertsPage() {
       preferences: await getNotificationPreferences(account.id, line.id),
     })),
   );
+  const ownerAlertDeliveryResult = await getAccountAlertDelivery(account.id);
+  const ownerAlertDelivery = ownerAlertDeliveryResult.success
+    ? ownerAlertDeliveryResult.data
+    : {
+        accountId: account.id,
+        deliveryChannel: 'email' as const,
+        smsConsentAcknowledgedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
   const isTrialExpired = trialInfo?.isExpired ?? false;
   const isTrialActive = (trialInfo?.isOnTrial ?? false) && !isTrialExpired;
@@ -111,6 +122,9 @@ export default async function AlertsPage() {
             lines={lines}
             settings={settings}
             deliveryEmail={appData.auth?.user?.email ?? account.billing_email}
+            ownerAlertDelivery={ownerAlertDelivery}
+            ownerPhone={appData.auth?.user?.phone ?? null}
+            ownerPhoneVerified={Boolean(appData.auth?.user?.phoneConfirmedAt)}
             disabled={isTrialExpired || isViewer}
           />
         </div>

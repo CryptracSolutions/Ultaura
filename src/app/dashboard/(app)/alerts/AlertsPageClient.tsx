@@ -3,13 +3,26 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import classNames from 'clsx';
 import { Info } from 'lucide-react';
 import type { LineRow, WellnessAlert } from '~/lib/ultaura/types';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import { WellnessAlertsList } from './WellnessAlertsList';
-import { AlertSettings } from './AlertSettings';
-import { AlertsLineFilter } from './components/AlertsLineFilter';
+import {
+  AlertSettings,
+  OwnerAlertSettingsSection,
+  AlertSettingsSection,
+} from './AlertSettings';
+import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
+import type { AccountAlertDelivery } from '~/lib/ultaura/account-alert-delivery';
+import type { AlertSectionConfig, AlertSectionValue } from './types';
+import {
+  ALERT_SECTIONS,
+  buildAlertUrl,
+  parseAlertSection,
+} from './lib/alert-navigation';
+import { Section, SectionHeader, SectionBody } from '~/core/ui/Section';
 
 const ALERTS_INFO_TIP = (
   <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
@@ -34,7 +47,7 @@ const NOTIFICATIONS_INFO_TIP = (
     <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
     <div className="text-xs text-primary leading-snug space-y-1.5">
       <p>
-        All notifications are sent to your billing email and any confirmed{' '}
+        All notifications are sent to you and any confirmed{' '}
         <Link
           href="/dashboard/privacy?tab=family&section=recipients"
           className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -44,8 +57,9 @@ const NOTIFICATIONS_INFO_TIP = (
         .
       </p>
       <ul className="list-disc pl-4 space-y-0.5">
-        <li>Weekly summaries and missed call alerts are delivered in full.</li>
         <li>Wellness alerts follow the sharing tier set by your loved one.</li>
+        <li>Alert delivery follows each recipient&apos;s alert channel setting.</li>
+        <li>Weekly summaries are email-only.</li>
       </ul>
     </div>
   </div>
@@ -66,7 +80,7 @@ const ALERTS_TABS: Array<{
   {
     value: 'alert-settings',
     label: 'Notifications',
-    path: '/dashboard/alerts?tab=alert-settings',
+    path: buildAlertUrl('lines'),
   },
 ];
 
@@ -75,7 +89,63 @@ interface AlertsPageClientProps {
   lines: LineRow[];
   settings: Parameters<typeof AlertSettings>[0]['settings'];
   deliveryEmail: string;
+  ownerAlertDelivery: AccountAlertDelivery;
+  ownerPhone: string | null;
+  ownerPhoneVerified: boolean;
   disabled?: boolean;
+}
+
+function AlertsSidebarNav({
+  sections,
+  activeSection,
+}: {
+  sections: AlertSectionConfig[];
+  activeSection: AlertSectionConfig;
+}) {
+  const links = sections.map((section) => ({
+    path: buildAlertUrl(section.value),
+    label: section.label,
+  }));
+
+  return (
+    <>
+      <div className="hidden min-w-[12rem] lg:flex">
+        <nav className="w-full" aria-label="Alerts section navigation">
+          <ul className="flex flex-col space-y-1.5">
+            {sections.map((section) => {
+              const isActive = section.value === activeSection.value;
+
+              return (
+                <li key={section.value}>
+                  <Link
+                    href={buildAlertUrl(section.value)}
+                    scroll={false}
+                    className={classNames(
+                      'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-primary',
+                    )}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <span>{section.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+
+      <div className="block w-full lg:hidden">
+        <MobileNavigationDropdown
+          links={links}
+          currentLabel={activeSection.label}
+          ariaLabel="Select alerts section"
+        />
+      </div>
+    </>
+  );
 }
 
 export function AlertsPageClient({
@@ -83,10 +153,13 @@ export function AlertsPageClient({
   lines,
   settings,
   deliveryEmail,
+  ownerAlertDelivery,
+  ownerPhone,
+  ownerPhoneVerified,
   disabled,
 }: AlertsPageClientProps) {
   const searchParams = useSearchParams();
-  const [selectedLineId, setSelectedLineId] = useState('all');
+  const [activeLineTab, setActiveLineTab] = useState<string | null>(null);
 
   const tabParam = searchParams.get('tab');
   const activeTab: AlertsTabValue =
@@ -94,34 +167,33 @@ export function AlertsPageClient({
       ? tabParam
       : 'wellness-alerts';
 
-  const filteredAlerts = useMemo(() => {
-    if (selectedLineId === 'all') return alerts;
-    return alerts.filter((alert) => alert.lineId === selectedLineId);
-  }, [alerts, selectedLineId]);
+  // Parse section from URL, default to 'lines'
+  const sectionParam = parseAlertSection(searchParams.get('section'));
+  const activeSectionValue: AlertSectionValue = sectionParam ?? 'lines';
+  const activeSection =
+    ALERT_SECTIONS.find((s) => s.value === activeSectionValue) ??
+    ALERT_SECTIONS[0];
 
-  const filteredSettings = useMemo(() => {
-    if (selectedLineId === 'all') return settings;
-    return settings.filter((s) => s.line.id === selectedLineId);
-  }, [settings, selectedLineId]);
+  // Initialize activeLineTab to first line when lines change
+  useMemo(() => {
+    if (lines.length > 0 && !activeLineTab) {
+      setActiveLineTab(lines[0].id);
+    } else if (lines.length === 0) {
+      setActiveLineTab(null);
+    }
+  }, [lines, activeLineTab]);
 
-  const lineFilterData = lines.map((l) => ({
-    id: l.id,
-    display_name: l.display_name,
-  }));
+  // Get active line for line notifications section
+  const activeLineEntry = useMemo(() => {
+    if (activeLineTab) {
+      return settings.find((s) => s.line.id === activeLineTab);
+    }
+    return settings[0] ?? null;
+  }, [settings, activeLineTab]);
 
   return (
     <div className="space-y-6 pb-12">
       <div className="mb-6">
-        {lines.length > 1 && (
-          <div className="mb-3 w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
-            <AlertsLineFilter
-              lines={lineFilterData}
-              value={selectedLineId}
-              onValueChange={setSelectedLineId}
-            />
-          </div>
-        )}
-
         <NavigationMenu bordered scrollable>
           {ALERTS_TABS.map((tab) => (
             <NavigationItem
@@ -138,17 +210,87 @@ export function AlertsPageClient({
         {activeTab === 'wellness-alerts' && (
           <>
             {ALERTS_INFO_TIP}
-            <WellnessAlertsList alerts={filteredAlerts} />
+            <WellnessAlertsList alerts={alerts} />
           </>
         )}
         {activeTab === 'alert-settings' && (
-          <div className="flex min-w-0 flex-1 flex-col gap-6">
-            {NOTIFICATIONS_INFO_TIP}
-            <AlertSettings
-              settings={filteredSettings}
-              deliveryEmail={deliveryEmail}
-              disabled={disabled}
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+            <AlertsSidebarNav
+              sections={ALERT_SECTIONS}
+              activeSection={activeSection}
             />
+            <div className="flex min-w-0 flex-1 flex-col gap-6">
+              {NOTIFICATIONS_INFO_TIP}
+
+              {activeSection.value === 'owner' && (
+                <OwnerAlertSettingsSection
+                  ownerAlertDelivery={ownerAlertDelivery}
+                  ownerPhone={ownerPhone}
+                  ownerPhoneVerified={ownerPhoneVerified}
+                  deliveryEmail={deliveryEmail}
+                  disabled={disabled}
+                />
+              )}
+
+              {activeSection.value === 'lines' && (
+                <>
+                  {settings.length === 0 ? (
+                    <Section>
+                      <SectionHeader title="Line Notifications" />
+                      <SectionBody className="gap-4">
+                        <p className="text-sm text-muted-foreground">
+                          Add a line to receive wellness alerts and notifications
+                          about your loved ones.
+                        </p>
+                        <Link
+                          href="/dashboard/lines"
+                          className="text-sm font-medium text-primary underline underline-offset-2 hover:no-underline"
+                        >
+                          Add your first line →
+                        </Link>
+                      </SectionBody>
+                    </Section>
+                  ) : (
+                    <>
+                      {/* Line sub-navigation tabs */}
+                      {settings.length > 1 && (
+                        <NavigationMenu bordered scrollable>
+                          {settings.map((entry) => (
+                            <NavigationItem
+                              key={entry.line.id}
+                              active={
+                                activeLineTab === entry.line.id ||
+                                (activeLineTab === null &&
+                                  entry.line.id === settings[0]?.line.id)
+                              }
+                              scroll={false}
+                              link={{
+                                path: '#',
+                                label: entry.line.display_name,
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setActiveLineTab(entry.line.id);
+                              }}
+                            />
+                          ))}
+                        </NavigationMenu>
+                      )}
+
+                      {/* Active line settings */}
+                      {activeLineEntry && (
+                        <AlertSettingsSection
+                          line={activeLineEntry.line}
+                          preferences={activeLineEntry.preferences}
+                          deliveryEmail={deliveryEmail}
+                          disabled={disabled}
+                        />
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

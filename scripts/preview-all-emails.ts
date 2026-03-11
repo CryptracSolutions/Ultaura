@@ -19,6 +19,7 @@ import renderNewsletterBroadcastEmail from '../src/lib/emails/newsletter-broadca
 import renderNewsletterWelcomeEmail from '../src/lib/emails/newsletter-welcome';
 import renderNotificationInviteEmail from '../src/lib/emails/notification-invite';
 import renderPlanUpgradeEmail from '../src/lib/emails/plan-upgrade';
+import renderRecipientSmsVerificationEmail from '../src/lib/emails/recipient-sms-verification';
 import renderSafetyAlertEmail from '../src/lib/emails/safety-alert';
 import renderSecurityAlertEmail from '../src/lib/emails/security-alert';
 import renderWeeklySummaryEmail from '../src/lib/emails/weekly-summary';
@@ -260,17 +261,31 @@ previews.push({
 // 10. Notification Invite
 previews.push({
   name: 'Notification Invite',
-  description: 'Sent to trusted contacts inviting them to receive updates about a line.',
+  description: 'Sent to family recipients inviting them to receive summaries and alerts.',
   html: embedLogo(renderNotificationInviteEmail({
     recipientName: 'Michael',
     accountName: "Sarah's Family",
     lineName: 'Mom (Dorothy)',
     inviterName: 'Sarah',
     confirmLink: 'https://ultaura.com/confirm/notif-abc123',
+    deliveryChannel: 'both',
   }).html),
 });
 
-// 11. Team Invite
+// 11. Recipient SMS Verification
+previews.push({
+  name: 'Recipient SMS Verification',
+  description: 'Sent after invite confirmation when a family recipient needs to verify their phone for SMS alerts.',
+  html: embedLogo(renderRecipientSmsVerificationEmail({
+    recipientName: 'Michael',
+    accountName: "Sarah's Family",
+    inviterName: 'Sarah',
+    verificationLink: 'https://ultaura.com/ultaura/alerts/verify-phone/verify-abc123',
+    baseUrl: 'https://ultaura.com',
+  }).html),
+});
+
+// 12. Team Invite
 previews.push({
   name: 'Team Invite',
   description: 'Sent when a user is invited to join an organization/team.',
@@ -283,7 +298,7 @@ previews.push({
   }).html),
 });
 
-// 12. Account Deletion
+// 13. Account Deletion
 previews.push({
   name: 'Account Deletion',
   description: 'Confirmation sent after an account is deleted.',

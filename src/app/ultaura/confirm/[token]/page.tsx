@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AlertCircle, Check, Lock } from 'lucide-react';
 
@@ -68,6 +67,12 @@ export default function ConfirmFamilyUpdatesPage({
       );
     }
 
+    if (result.data.smsVerificationToken) {
+      redirect(
+        `/ultaura/alerts/verify-phone/${encodeURIComponent(result.data.smsVerificationToken)}`
+      );
+    }
+
     redirect(
       buildConfirmPagePath(params.token, {
         status: 'success',
@@ -95,10 +100,10 @@ export default function ConfirmFamilyUpdatesPage({
       : 'Confirm family updates';
 
   const body = isSuccess
-    ? `You will now receive updates from ${searchParams?.accountName || 'Ultaura'}.`
+    ? `You will now receive family updates from ${searchParams?.accountName || 'Ultaura'}.`
     : isError
       ? searchParams?.message || 'This confirmation link is invalid or expired.'
-      : 'Confirm that you want to receive weekly summaries and alerts from Ultaura.';
+      : 'Confirm that you want to receive weekly summaries and family alert updates from Ultaura.';
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10">
@@ -132,8 +137,8 @@ export default function ConfirmFamilyUpdatesPage({
             </form>
           )}
 
-          <Button asChild variant="outline">
-            <Link href="/">Go to Home</Link>
+          <Button href="/" variant="outline">
+            Go to Home
           </Button>
         </div>
       </div>

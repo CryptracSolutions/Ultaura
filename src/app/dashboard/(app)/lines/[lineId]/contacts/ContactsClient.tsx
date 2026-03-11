@@ -178,8 +178,9 @@ export function ContactsClient({
     <div className="space-y-6 pb-12">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Trusted contacts receive SMS alerts when Ultaura detects signs of
-          distress during calls.{' '}
+          Trusted contacts are for urgent safety outreach via SMS for
+          high-severity concerns only and are managed separately from family
+          recipients.{' '}
           <Link
             href="/docs/safety-and-contacts/trusted-contacts"
             className="text-primary font-medium underline underline-offset-2 hover:no-underline"
@@ -219,8 +220,8 @@ export function ContactsClient({
                 Add trusted contact
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Trusted contacts receive SMS alerts when Ultaura detects
-                distress.
+                Trusted contacts receive urgent SMS safety alerts. They are not
+                used for weekly summaries or regular family updates.
               </DialogDescription>
             </div>
             <Button
@@ -322,9 +323,9 @@ export function ContactsClient({
                   htmlFor="consent-acknowledgment"
                   className="text-sm leading-tight"
                 >
-                  I understand that this contact will receive SMS notifications
-                  when Ultaura detects signs of distress during calls (such as
-                  expressions of hopelessness or self-harm).
+                  I understand that this contact will receive urgent SMS safety
+                  notifications when Ultaura detects signs of distress during
+                  calls (such as expressions of hopelessness or self-harm).
                 </label>
               </div>
             </div>
@@ -411,7 +412,7 @@ export function ContactsClient({
         title="Remove contact"
         description={
           contactToRemove
-            ? `Remove ${contactToRemove.name} from trusted contacts? They will no longer receive distress alerts.`
+            ? `Remove ${contactToRemove.name} from trusted contacts? They will no longer receive urgent safety SMS alerts.`
             : ''
         }
         confirmLabel="Remove"

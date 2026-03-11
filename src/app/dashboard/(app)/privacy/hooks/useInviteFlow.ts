@@ -5,9 +5,20 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { toast } from 'sonner';
 
 import { TELEPHONY } from '~/lib/ultaura/constants';
-import { inviteNotificationRecipient, removeNotificationRecipient } from '~/lib/ultaura/notification-recipients';
+import {
+  inviteNotificationRecipient,
+  removeNotificationRecipient,
+  resendRecipientSmsVerificationLink,
+  updateNotificationRecipientDelivery,
+} from '~/lib/ultaura/notification-recipients';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
+import {
+  getRecipientDeliveryChannel as getRecipientPersistedDeliveryChannel,
+  getRecipientSmsConsentTimestamp,
+  recipientRequiresSms,
+  type RecipientDeliveryChannel,
+} from '../lib/recipient-delivery';
 
 const REMOVE_RECIPIENT_ERROR = 'Failed to remove recipient';
 
@@ -16,6 +27,9 @@ type InvitePayload = {
   email: string;
   phoneE164?: string;
   relationship?: string;
+  deliveryChannel: RecipientDeliveryChannel;
+  smsConsentAcknowledged: boolean;
+  smsConsentedAt?: string;
 };
 
 type InvitePayloadOverride = Partial<InvitePayload>;
@@ -36,6 +50,10 @@ export interface UseInviteFlowResult {
   setInviteEmail: (value: string) => void;
   invitePhone: string;
   setInvitePhone: (value: string) => void;
+  inviteDeliveryChannel: RecipientDeliveryChannel;
+  setInviteDeliveryChannel: (value: RecipientDeliveryChannel) => void;
+  inviteSmsConsentAcknowledged: boolean;
+  setInviteSmsConsentAcknowledged: (value: boolean) => void;
   inviteRelationship: string;
   setInviteRelationship: (value: string) => void;
   invitePhoneError?: string;
@@ -59,6 +77,17 @@ export interface UseInviteFlowResult {
   confirmReinvite: () => Promise<void>;
   removeRecipient: (recipientId: string) => Promise<void>;
   validatePhoneOnBlur: (value: string) => void;
+  getRecipientDeliveryChannel: (recipientId: string) => RecipientDeliveryChannel;
+  getRecipientSmsConsentAcknowledged: (recipientId: string) => boolean;
+  getRecipientSmsConsentTimestamp: (recipientId: string) => string | null;
+  resendRecipientSmsInvite: (
+    recipientId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  updateRecipientDeliveryChannel: (
+    recipientId: string,
+    deliveryChannel: RecipientDeliveryChannel,
+    smsConsentAcknowledgedAt?: string | null,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function useInviteFlow({
@@ -72,6 +101,10 @@ export function useInviteFlow({
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
+  const [inviteDeliveryChannel, setInviteDeliveryChannel] =
+    useState<RecipientDeliveryChannel>('email');
+  const [inviteSmsConsentAcknowledged, setInviteSmsConsentAcknowledged] =
+    useState(false);
   const [inviteRelationship, setInviteRelationship] = useState('');
   const [invitePhoneError, setInvitePhoneError] = useState<string | undefined>();
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -99,12 +132,16 @@ export function useInviteFlow({
     inviteName.trim() !== '' ||
     inviteEmail.trim() !== '' ||
     invitePhone.trim() !== '' ||
-    inviteRelationship.trim() !== '';
+    inviteRelationship.trim() !== '' ||
+    inviteDeliveryChannel !== 'email' ||
+    inviteSmsConsentAcknowledged;
 
   const resetInviteForm = useCallback(() => {
     setInviteName('');
     setInviteEmail('');
     setInvitePhone('');
+    setInviteDeliveryChannel('email');
+    setInviteSmsConsentAcknowledged(false);
     setInviteRelationship('');
     setInvitePhoneError(undefined);
     setInviteError(null);
@@ -142,9 +179,23 @@ export function useInviteFlow({
         email: trimmedEmail,
         phoneE164,
         relationship: trimmedRelationship || undefined,
+        deliveryChannel: override?.deliveryChannel ?? inviteDeliveryChannel,
+        smsConsentAcknowledged:
+          override?.smsConsentAcknowledged ?? inviteSmsConsentAcknowledged,
+        smsConsentedAt:
+          override?.smsConsentAcknowledged ?? inviteSmsConsentAcknowledged
+            ? new Date().toISOString()
+            : undefined,
       };
     },
-    [inviteEmail, inviteName, invitePhone, inviteRelationship],
+    [
+      inviteDeliveryChannel,
+      inviteEmail,
+      inviteName,
+      invitePhone,
+      inviteRelationship,
+      inviteSmsConsentAcknowledged,
+    ],
   );
 
   const handleInvite = useCallback(
@@ -162,11 +213,17 @@ export function useInviteFlow({
         return;
       }
 
+      const requiresSmsChannel = recipientRequiresSms(payload.deliveryChannel);
       const phoneValidationError = getUsPhoneValidationError(invitePhone, {
-        required: false,
+        required: requiresSmsChannel,
       });
       if (phoneValidationError) {
         setInvitePhoneError(phoneValidationError);
+        return;
+      }
+
+      if (requiresSmsChannel && !payload.smsConsentAcknowledged) {
+        setInviteError('Please confirm SMS consent before sending this invite');
         return;
       }
 
@@ -179,6 +236,7 @@ export function useInviteFlow({
       try {
         const result = await inviteNotificationRecipient(accountId, {
           ...payload,
+          smsConsentAcknowledgedAt: payload.smsConsentedAt ?? null,
           allowReinvite,
         });
 
@@ -252,17 +310,104 @@ export function useInviteFlow({
     (value: string) => {
       setInvitePhoneError(
         getUsPhoneValidationError(value, {
-          required: false,
+          required: recipientRequiresSms(inviteDeliveryChannel),
         }) ?? undefined,
       );
     },
-    [],
+    [inviteDeliveryChannel],
   );
 
   const handleSetInvitePhone = useCallback((value: string) => {
     setInvitePhone(value);
     setInvitePhoneError(undefined);
   }, []);
+
+  const handleSetInviteDeliveryChannel = useCallback(
+    (value: RecipientDeliveryChannel) => {
+      setInviteDeliveryChannel(value);
+      setInviteError(null);
+      if (value === 'email') {
+        setInviteSmsConsentAcknowledged(false);
+      }
+    },
+    [],
+  );
+
+  const getRecipientDeliveryChannel = useCallback(
+    (recipientId: string): RecipientDeliveryChannel => {
+      const recipient = recipients.find((item) => item.id === recipientId);
+      return recipient ? getRecipientPersistedDeliveryChannel(recipient) : 'email';
+    },
+    [recipients],
+  );
+
+  const getRecipientSmsConsentAcknowledged = useCallback(
+    (recipientId: string): boolean => {
+      const recipient = recipients.find((item) => item.id === recipientId);
+      if (!recipient) return false;
+      return Boolean(getRecipientSmsConsentTimestamp(recipient));
+    },
+    [recipients],
+  );
+
+  const getRecipientSmsConsentTimestampValue = useCallback(
+    (recipientId: string): string | null => {
+      const recipient = recipients.find((item) => item.id === recipientId);
+      if (!recipient) return null;
+      return getRecipientSmsConsentTimestamp(recipient);
+    },
+    [recipients],
+  );
+
+  const resendRecipientSmsInvite = useCallback(
+    async (recipientId: string) => {
+      const recipient = recipients.find((item) => item.id === recipientId);
+      const result = await resendRecipientSmsVerificationLink(recipientId);
+      if (!result.success) {
+        const error = result.error.message || 'Failed to resend verification link';
+        toast.error(error);
+        return { success: false, error };
+      }
+
+      toast.success(
+        recipient
+          ? `Verification link resent to ${recipient.name}.`
+          : 'Verification link resent.',
+      );
+      return { success: true };
+    },
+    [recipients],
+  );
+
+  const updateRecipientDeliveryChannel = useCallback(
+    async (
+      recipientId: string,
+      deliveryChannel: RecipientDeliveryChannel,
+      smsConsentAcknowledgedAt?: string | null,
+    ) => {
+      const recipient = recipients.find((item) => item.id === recipientId);
+      const result = await updateNotificationRecipientDelivery(recipientId, {
+        deliveryChannel,
+        smsConsentAcknowledgedAt:
+          deliveryChannel === 'email'
+            ? null
+            : smsConsentAcknowledgedAt ?? recipient?.smsConsentAcknowledgedAt ?? null,
+      });
+
+      if (!result.success) {
+        const error = result.error.message || 'Failed to update recipient delivery';
+        toast.error(error);
+        return { success: false, error };
+      }
+
+      setRecipients((prev) =>
+        prev.map((item) => (item.id === recipientId ? result.data : item)),
+      );
+      toast.success('Recipient delivery updated');
+      return { success: true };
+    },
+    [recipients],
+  );
 
   useEffect(() => {
     setRecipients(initialRecipients);
@@ -279,6 +424,10 @@ export function useInviteFlow({
     setInviteEmail,
     invitePhone,
     setInvitePhone: handleSetInvitePhone,
+    inviteDeliveryChannel,
+    setInviteDeliveryChannel: handleSetInviteDeliveryChannel,
+    inviteSmsConsentAcknowledged,
+    setInviteSmsConsentAcknowledged,
     inviteRelationship,
     setInviteRelationship,
     invitePhoneError,
@@ -302,5 +451,10 @@ export function useInviteFlow({
     confirmReinvite,
     removeRecipient,
     validatePhoneOnBlur,
+    getRecipientDeliveryChannel,
+    getRecipientSmsConsentAcknowledged,
+    getRecipientSmsConsentTimestamp: getRecipientSmsConsentTimestampValue,
+    resendRecipientSmsInvite,
+    updateRecipientDeliveryChannel,
   };
 }

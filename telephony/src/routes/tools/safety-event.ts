@@ -285,6 +285,7 @@ safetyEventRouter.post('/', async (req: Request, res: Response) => {
           });
           await notifyPayerSafetyEmail({
             accountId,
+            callSessionId,
             lineId,
             tier: 'high',
             actionTaken,

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
+import getLogger from '~/core/logger';
 import sendEmail from '~/core/email/send-email';
 import {
   getNotificationsEmailSender,
@@ -9,7 +10,10 @@ import {
 } from '~/core/email/senders';
 import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client';
 import renderMissedCallsAlertEmail from '~/lib/emails/missed-calls-alert';
-import { issueNotificationRecipientUnsubscribeToken } from '~/lib/ultaura/notification-recipients';
+import {
+  resolveFamilyAlertDestinations,
+  sendAlertSms,
+} from '~/lib/ultaura/alert-fanout';
 
 interface MissedCallsAlertPayload {
   lineId: string;
@@ -20,6 +24,8 @@ interface MissedCallsAlertPayload {
   dashboardUrl: string;
   settingsUrl: string;
 }
+
+const logger = getLogger();
 
 function validateWebhookSecret(request: Request): NextResponse | null {
   const expectedSecret = process.env.ULTAURA_INTERNAL_API_SECRET;
@@ -56,6 +62,14 @@ function getSiteUrl(): string {
       : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
   return siteUrl.replace(/\/$/, '');
+}
+
+function buildMissedCallSmsBody(input: {
+  lineName: string;
+  consecutiveMissedCount: number;
+  dashboardUrl: string;
+}): string {
+  return `Ultaura missed check-in alert for ${input.lineName}: ${input.consecutiveMissedCount} consecutive missed calls. View details: ${input.dashboardUrl}`;
 }
 
 export async function POST(request: Request) {
@@ -101,7 +115,7 @@ export async function POST(request: Request) {
 
   const { data: account, error: accountError } = await supabase
     .from('ultaura_accounts')
-    .select('billing_email, user_type, sharing_enabled')
+    .select('billing_email, user_type, sharing_enabled, created_by_user_id')
     .eq('id', normalizedPayload.accountId)
     .single();
 
@@ -139,58 +153,31 @@ export async function POST(request: Request) {
   }
 
   try {
-    const recipients = new Map<string, { isPrimary: boolean; token?: string; hasDashboardAccess: boolean }>();
-    if (canSendToBillingEmail) {
-      recipients.set(account.billing_email, { isPrimary: true, hasDashboardAccess: true });
-    }
-
-    if (canSendToRecipients) {
-      const { data: recipientRows, error: recipientError } = await supabase
-        .from('ultaura_notification_recipients')
-        .select('id, email, dashboard_access_granted_at')
-        .eq('account_id', normalizedPayload.accountId)
-        .not('confirmed_at', 'is', null)
-        .is('unsubscribed_at', null);
-
-      if (recipientError) {
-        return NextResponse.json({ error: 'Failed to load recipients' }, { status: 500 });
-      }
-
-      for (const recipient of recipientRows || []) {
-        if (!recipients.has(recipient.email)) {
-          const tokenResult = await issueNotificationRecipientUnsubscribeToken(
-            recipient.id,
-            { client: supabase }
-          );
-
-          if (!tokenResult.success) {
-            return NextResponse.json(
-              { error: 'Failed to issue unsubscribe tokens' },
-              { status: 500 }
-            );
-          }
-
-          recipients.set(recipient.email, {
-            isPrimary: false,
-            token: tokenResult.data.token,
-            hasDashboardAccess: Boolean(recipient.dashboard_access_granted_at),
-          });
-        }
-      }
-    }
+    const destinations = await resolveFamilyAlertDestinations({
+      supabase,
+      account: {
+        id: normalizedPayload.accountId,
+        billing_email: account.billing_email,
+        created_by_user_id: account.created_by_user_id,
+      },
+      includeOwner: canSendToBillingEmail,
+      includeRecipients: canSendToRecipients,
+    });
 
     const subject = `Missed check-ins for ${normalizedPayload.lineName}`;
+    let deliveredEmailCount = 0;
+    let deliveredSmsCount = 0;
 
-    for (const [email, meta] of Array.from(recipients.entries())) {
-      const unsubscribeLink = meta.isPrimary || !meta.token
+    for (const destination of destinations.emails) {
+      const unsubscribeLink = destination.isPrimary || !destination.unsubscribeToken
         ? undefined
-        : `${getSiteUrl()}/api/ultaura/unsubscribe/${meta.token}`;
+        : `${getSiteUrl()}/api/ultaura/unsubscribe/${destination.unsubscribeToken}`;
       const { html, text } = renderMissedCallsAlertEmail({
         lineName: normalizedPayload.lineName,
         consecutiveMissedCount: normalizedPayload.consecutiveMissedCount,
         dashboardUrl: normalizedPayload.dashboardUrl,
         settingsUrl: normalizedPayload.settingsUrl,
-        hasDashboardAccess: meta.hasDashboardAccess,
+        hasDashboardAccess: destination.hasDashboardAccess,
         unsubscribeLink,
       });
       const headers = unsubscribeLink
@@ -200,15 +187,61 @@ export async function POST(request: Request) {
           }
         : undefined;
 
-      await sendEmail({
-        from: emailFrom,
-        to: email,
-        subject,
-        html,
-        text,
-        headers,
-        replyTo,
+      try {
+        await sendEmail({
+          from: emailFrom,
+          to: destination.email,
+          subject,
+          html,
+          text,
+          headers,
+          replyTo,
+        });
+        deliveredEmailCount += 1;
+      } catch (error) {
+        logger.error(
+          { error, accountId: normalizedPayload.accountId, lineId: normalizedPayload.lineId, to: destination.email },
+          'Failed to send missed-call alert email',
+        );
+      }
+    }
+
+    const smsBody = buildMissedCallSmsBody({
+      lineName: normalizedPayload.lineName,
+      consecutiveMissedCount: normalizedPayload.consecutiveMissedCount,
+      dashboardUrl: normalizedPayload.dashboardUrl,
+    });
+
+    for (const destination of destinations.sms) {
+      const smsResult = await sendAlertSms({
+        accountId: normalizedPayload.accountId,
+        lineId: normalizedPayload.lineId,
+        phoneNumber: destination.phoneE164,
+        body: smsBody,
+        notificationType: 'missed_calls',
       });
+
+      if (smsResult.status === 'sent') {
+        deliveredSmsCount += 1;
+      } else {
+        logger.warn(
+          {
+            accountId: normalizedPayload.accountId,
+            lineId: normalizedPayload.lineId,
+            phoneNumber: destination.phoneE164,
+            status: smsResult.status,
+            error: 'error' in smsResult ? smsResult.error : undefined,
+          },
+          'Failed to deliver missed-call alert SMS',
+        );
+      }
+    }
+
+    if (
+      destinations.emails.length + destinations.sms.length > 0 &&
+      deliveredEmailCount + deliveredSmsCount === 0
+    ) {
+      return NextResponse.json({ error: 'Failed to deliver missed call alert' }, { status: 502 });
     }
   } catch {
     return NextResponse.json({ error: 'Failed to send missed call alert email' }, { status: 500 });
