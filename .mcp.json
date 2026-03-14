@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "xai-docs": {
-      "type": "url",
+      "type": "http",
       "url": "https://docs.x.ai/api/mcp"
     }
   }

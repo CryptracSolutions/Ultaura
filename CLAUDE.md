@@ -1,13 +1,18 @@
 # User Preferences for Claude
 
 - **The user is *NOT* a developer and has minimal experience**
+- Think in first principles, be direct, and adapt to context. Skip "great question" fluff. Verifiable facts over platitudes.
 - Humanize all your output.
 - Self-critique every response before output: Fix weaknesses, iterate. The user should only see the final version.
 - Be useful over polite. When wrong, say so and show better.
+- Act like a high-performing senior engineer. Be concise, direct, and execution-focused.
+- Prefer simple, maintainable, production-friendly solutions. Write low-complexity code that is easy to read, debug, and modify.
+- Do not overengineer or add heavy abstractions, extra layers, or large dependencies for small features.
+- Keep APIs small, behavior explicit, and naming clear. Avoid cleverness unless it clearly improves the result.
 
 ---
 
-# ⚠️ MANDATORY: Delegation-First Workflow
+# MANDATORY: Delegation-First Workflow
 
 > **CRITICAL: This section is NON-NEGOTIABLE. You MUST follow this workflow for ALL implementation tasks. Failure to delegate is a workflow violation.**
 
@@ -21,7 +26,7 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 
 You MUST:
 
-1. **Size the task** (this takes 5 seconds, not doing it is lazy):
+1. **Size the task**:
    - **Small**: 1-3 files, 1-2 small concerns/issues/bugs, 1-4 steps → May proceed directly
    - **Medium**: 4-6 files, multiple concerns/issues/bugs, 5+ steps → MUST delegate
    - **Large**: 7+ files, architectural changes, 10+ steps → MUST delegate
@@ -33,43 +38,28 @@ You MUST:
 You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large tasks. Teams give agents shared task boards, inter-agent messaging, and persistent context — producing correct implementations over cheap ones.
 
 **Model assignments** (non-negotiable):
-| Role | Model |
-|------|-------|
-| Orchestrator (main agent) | Opus 4.6 — set via `/model Opus 4.6` |
-| Explore agents | Opus 4.6 |
-| Plan agent | Opus 4.6 |
-| Implementation teammates | Sonnet 4.6 (default) — upgrade to Opus 4.6 when the task is genuinely complex |
-| Code simplifier | Sonnet 4.6 |
-
-**Implementation model override rule:** The orchestrator should upgrade a specific implementation teammate to Opus 4.6 when the task involves ambiguous requirements, tricky state management, or needs to reason about multiple interacting systems simultaneously. Sonnet stays the default because it follows plan specs precisely without over-engineering — Opus is reserved for tasks where deeper reasoning outweighs that risk.
-
-**Every time you deploy an agent, you MUST state the model being used in your visible output to the user.** This applies to ALL agent types — Explore, Plan, Implementation teammates, Code simplifier, and any one-shot Task agents.
-
-**Silently deploying agents without stating the model OR deploying a Haiku 4.5 agent are workflow violations.**
-
-**Format:** When launching agents, announce them like this:
-
-> Launching **[agent role/name]** on **[model]** — [brief purpose]
-
-**Example formats:**
-- "Launching **Explore agent** on **Opus 4.6** — investigating database schema and RLS policies"
-- "Launching **Implementation teammate `frontend-1`** on **Sonnet 4.6** — building the schedule form component"
-- "Launching **Plan agent** on **Opus 4.6** — drafting implementation plan"
-- "Launching **code-simplifier** on **Sonnet 4.6** — reviewing modified files for cleanup"
+| Role | Model | Goals |
+|------|-------|-------|
+| Orchestrator (main agent) | `Opus 4.6` | The coordinator/orchestrator (this chat) that assigns work and integrates final changes. |
+| Explore agents | `Sonnet 4.6` | Read-only extreme depth codebase exploration: find files, patterns, risks. |
+| Plan agent | `Opus 4.6` | Produces a decision-complete plan/spec |
+| Implementation teammates | `Sonnet 4.6` | Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
+| Monitor agent| `Opus 4.6` | Reviews code changes or diffs for correctness/security/test risks and runs checks/tests/builds and reports results |
+| Code simplifier | `Opus 4.6` | One-shot cleanup pass after verification (edits allowed, **conservatvely, no behavior changes**) |
 
 You MUST follow these steps IN ORDER:
 
 | Step | Action | Tool | Required? |
 |------|--------|------|-----------|
-| 1 | Explore codebase | Launch up to 6 `Explore` agents | **ALWAYS** |
+| 1 | Explore codebase | Launch up to 8 `Explore` agents | **ALWAYS** |
 | 2 | Plan & interview | `EnterPlanMode`, then `AskUserQuestion` to clarify (see Plan Mode Guidance) | **ALWAYS** |
 | 3 | Create shared task list | `TaskCreate` for each step | **ALWAYS** if 3+ steps |
-| 4 | Spawn implementation teammates | Launch up to 6 `Task` teammates. Use `isolation: "worktree"` for independent tasks (see Worktree Isolation) | **ALWAYS** |
+| 4 | Spawn implementation teammates | Launch up to 8 `Task` teammates. Use `isolation: "worktree"` for independent tasks (see Worktree Isolation) | **ALWAYS** |
 | 5 | Assign tasks | `TaskUpdate` with `owner` | **ALWAYS** |
 | 6 | Coordinate & unblock | `SendMessage` to guide teammates, resolve blockers | As needed |
 | 7 | Merge worktree branches | `git merge <branch> --no-edit` per worktree agent (see Merge-back process) | If worktrees used |
-| 8 | Verify | `pnpm tsc --noEmit`, visual check if UI via Chrome MCP | **ALWAYS** |
-| 9 | Code simplification | `Task` with `subagent_type: "code-simplifier:code-simplifier"` | **ALWAYS for medium/large** |
+| 8 | Verify | `pnpm typecheck`, visual check if UI via `agent-browser` | **ALWAYS** |
+| 9 | Code simplification | `Task` with `subagent_type: "code-simplifier:code-simplifier"` with instructions to invoke `simplify` skill | **ALWAYS for medium/large** |
 | 10 | Shutdown & cleanup | `SendMessage` shutdown requests to each teammate | **ALWAYS** |
 
 ### Plan Mode Guidance (Step 2)
@@ -285,7 +275,7 @@ ONLY these cases may skip the delegation workflow:
 Even for exceptions, STILL:
 - Auto-invoke relevant skills
 - Verify TypeScript compiles
-- Use Chrome MCP (when available) if it's a visible UI change
+- Use `agent-browser` if it's a visible UI change
 
 ---
 
@@ -302,19 +292,37 @@ Even for exceptions, STILL:
 | `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
 | `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
 | `simplify` | Running the one-shot cleanup pass agent to review changed files for reuse, code quality, and efficiency, then apply behavior-preserving cleanup |
+| `agent-browser` | Any browser interaction: navigating pages, filling forms, clicking buttons, taking screenshots, scraping data, testing a UI flow, or verifying a visual implementation |
+| `security-reviewer` subagent | Any new API route, DB migration, auth change, RLS policy modification, or anything touching the safety system — invoke as a one-shot `Explore` agent pointing at the changed files |
 
 ---
 
-### Chrome Visual Verification
+### Visual Verification with agent-browser
 
-For **any UI/UX changes**, use Chrome MCP for visual verification (when made available by the user):
-- **Before/after awareness**: Note current state before changes
-- **Interactive states**: Verify hover, focus, loading, error states
+For **any UI/UX changes**, use `agent-browser` to visually verify the result when the user asks to test or check an implementation:
 
-Skip Chrome for:
+```bash
+agent-browser open http://localhost:3000
+agent-browser snapshot -i
+agent-browser screenshot --annotate
+```
+
+**Standard verification checklist:**
+- Navigate to the affected page
+- Log in with test credentials if needed:
+| Email | Password |
+| payer@ultaura-seed.test | testingpassword |
+- Take an annotated screenshot to confirm layout/content
+- Test interactive states (click buttons, fill forms, open modals)
+- Check mobile viewport: `agent-browser set viewport 375 812`
+- Re-snapshot after any navigation or DOM change
+
+**When the user says "test it", "check it", "does it work", or "show me"** — use `agent-browser` automatically. Don't ask, just do it.
+
+Skip `agent-browser` for:
 - Backend-only changes
-- Non-visual config changes
-- Database migrations
+- Non-visual config or database changes
+- TypeScript-only refactors with no UI impact
 
 # What is Ultaura?
 
@@ -322,7 +330,7 @@ Skip Chrome for:
 
 The product serves **two audiences equally**:
 - **Seniors** receive daily AI companion calls — a friendly voice that remembers their life, checks in on them, sets reminders, and helps when they need it. The senior can also call Ultaura anytime they want assistance or just to chat.
-- **Families/caregivers** use the dashboard to set up and monitor their loved one's lines, view wellness insights, manage schedules, set reminders, and receive alerts when something seems off.
+- **Families/caregivers** use the dashboard to set up and monitor their loved one's lines, view wellness insights, manage schedules, set reminders, manage health, and receive alerts when something seems off.
 
 The dashboard is **family-first in design** but accessible to seniors too.
 
@@ -332,7 +340,7 @@ These apply to EVERY change, no exceptions:
 
 | Principle | What It Means for Code |
 |-----------|----------------------|
-| **Privacy is sacred** | All personal data (memories, insights, call content) is encrypted at rest (AES-256-GCM) with per-line data encryption keys. Consent is granular and opt-in. Never log, expose, or weaken encryption. Never skip consent checks. |
+| **Privacy is sacred** | All personal data (memories, insights, call content) is encrypted at rest (AES-256-GCM) with per-line data encryption keys. Consent is granular and opt-in. Never log, expose, or weaken encryption. Never skip consent checks. Encryption utility: `src/lib/ultaura/encryption.ts` — use this for all data at rest, never implement encryption inline. |
 | **Accessibility first** | UI must be senior-friendly: large tap targets, high contrast, simple flows, minimal cognitive load. Always verify at 375px viewport. |
 | **Safety above features** | Multi-layer safety system (AI classifier + heuristics + keyword scanning + verification gate) protects vulnerable users. Never disable, bypass, or weaken safety checks. If a feature conflicts with safety, safety wins. |
 
@@ -355,6 +363,8 @@ These apply to EVERY change, no exceptions:
 | **Video** | Remotion | Marketing/onboarding video generation |
 | **Package manager** | pnpm (workspace monorepo) | |
 | **Testing** | Vitest (unit), Cypress (E2E) | |
+
+> **Monorepo build order**: Always run `pnpm build:packages` before `pnpm typecheck` or starting dev. Workspace packages (`@ultaura/types`, `@ultaura/schemas`, `@ultaura/prompts`) must be compiled first — importing them without building produces cryptic TypeScript errors.
 
 ---
 
@@ -417,6 +427,52 @@ Ultaura/
 2. **Family views the dashboard**: `src/app/dashboard/` reads from Supabase (via `src/lib/ultaura/`) → decrypts insights/memories on the server → renders the UI.
 3. **Prompts are compiled**: `packages/prompts/` builds the system prompt for each call, combining the senior's persona, safety rules, conversation history, and available tools.
 4. **Shared types flow everywhere**: `packages/types/` and `packages/schemas/` are imported by both `src/` and `telephony/` to keep data contracts in sync.
+
+---
+
+# Database Conventions
+
+## Migration naming
+All migration files must follow: `YYYYMMDDHHMMSS_snake_case_description.sql`
+Example: `20240315143022_add_health_profile_table.sql`
+
+Every new table requires:
+1. `ALTER TABLE <name> ENABLE ROW LEVEL SECURITY;`
+2. At least one RLS policy scoped to `auth.uid()`
+3. If storing sensitive data: `encrypted_data text` and `encrypted_data_key text` columns — use `src/lib/ultaura/encryption.ts`
+
+## Supabase local dev workflow
+> **Do NOT run these commands unless the user explicitly asks.** They affect local database state and can be slow or destructive.
+
+```bash
+pnpm supabase:start        # start local Supabase (run before any DB work)
+pnpm supabase:db:reset     # apply all migrations + seed data (after schema changes)
+pnpm typegen               # regenerate src/database.types.ts (after schema changes)
+pnpm supabase:stop         # stop local Supabase
+```
+
+---
+
+# Testing
+
+| Type | Command | When to use |
+|------|---------|-------------|
+| Unit | `pnpm test:unit` | Business logic, utility functions, service modules |
+| E2E | `pnpm test:e2e` | User flows, dashboard interactions (requires local Supabase running) |
+| DB | `pnpm test:db` | Migration correctness, RLS policy verification |
+
+Unit test files live next to the source file: `foo.ts` → `foo.test.ts`.
+Cypress E2E tests live in `cypress/`.
+
+---
+
+# Code Conventions
+
+- **Business logic lives in `src/lib/ultaura/`** — never put logic in components or API route handlers
+- **API routes use the Supabase SSR client** (from `src/lib/server/`) — never use the browser client on the server
+- **Components follow the shadcn/ui pattern** — Radix primitive + `cva` variants, no raw HTML elements for interactive UI
+- **`server-only` import** at the top of any file that must stay server-side (prevents accidental client bundle inclusion)
+- **Imports from workspace packages**: use `@ultaura/types`, `@ultaura/schemas`, `@ultaura/prompts` — run `pnpm build:packages` first if types are missing
 
 ---
 

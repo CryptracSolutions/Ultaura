@@ -1,5 +1,6 @@
 # Project-scoped Codex configuration (trusted projects).
 # MCP servers configured here are shared by the Codex CLI and IDE extension.
+sandbox_mode = "workspace-write"
 [features]
 multi_agent = true
 
@@ -10,7 +11,7 @@ url = "https://docs.x.ai/api/mcp"
 # - Role details are defined in `.codex/agents/*.toml`
 # - Use `/agent` inside Codex to spawn/switch roles
 [agents]
-max_threads = 6
+max_threads = 10
 
 [agents.default]
 description = "Ultaura coordinator + general helper (fallback)."
@@ -39,3 +40,6 @@ config_file = "agents/planner.toml"
 [agents.simplifier]
 description = "Cleanup/simplification pass after verification (edits allowed, no behavior changes)."
 config_file = "agents/simplifier.toml"
+
+[sandbox_workspace_write]
+network_access = true

@@ -5,6 +5,10 @@
 - Humanize all your output.
 - Self-critique every response before output: Fix weaknesses, iterate. The user should only see the final version.
 - Be useful over polite. When wrong, say so and show better.
+- Act like a high-performing senior engineer. Be concise, direct, and execution-focused.
+- Prefer simple, maintainable, production-friendly solutions. Write low-complexity code that is easy to read, debug, and modify.
+- Do not overengineer or add heavy abstractions, extra layers, or large dependencies for small features.
+- Keep APIs small, behavior explicit, and naming clear. Avoid cleverness unless it clearly improves the result.
 
 # MANDATORY: Delegation-First Workflow
 
@@ -21,13 +25,13 @@ This is not optional. This is not a suggestion. You cannot rationalize your way 
 When this doc says “delegate”, it means: use multi-agent roles and spawn/switch agents via the `/agent` command.
 
 **Role glossary (use these names consistently):**
-- `default` — Model: `GPT-5.4`. The coordinator/general helper (this chat) that assigns work and integrates final changes.
-- `explorer` — Model: `GPT-5.4`. Read-only codebase exploration: find files, patterns, risks. No edits.
-- `worker` — Model: `GPT-5.3-Codex`. Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
-- `monitor` — Model: `GPT-5.4`. Runs checks/tests/builds and reports results (read-only by default).
-- `reviewer` — Model: `GPT-5.3-Codex`. Reviews diffs for correctness/security/test risks (read-only).
-- `planner` — Model: `GPT-5.4`. Produces a decision-complete plan/spec (read-only).
-- `simplifier` — Model: `GPT-5.3-Codex`. One-shot cleanup pass after verification (edits allowed, **no behavior changes**).
+- `default` — Model: `gpt-5.4`. The coordinator/orchestrator (this chat) that assigns work and integrates final changes.
+- `explorer` — Model: `gpt-5.3-codex`. Read-only codebase exploration: find files, patterns, risks.
+- `worker` — Model: `gpt-5.3-codex`. Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
+- `monitor` — Model: `gpt-5.3-codex`. Runs checks/tests/builds and reports results (read-only by default).
+- `reviewer` — Model: `gpt-5.3-codex`. Reviews diffs for correctness/security/test risks (read-only).
+- `planner` — Model: `gpt-5.4`. Produces a decision-complete plan/spec.
+- `simplifier` — Model: `gpt-5.3-codex`. One-shot cleanup pass after verification (edits allowed, **conservatvely, no behavior changes**).
 
 ## Before ANY Task
 
@@ -56,7 +60,7 @@ You MUST follow these steps IN ORDER:
 | 6 | Assign tasks | `update_plan` with ownership labels per sub-agent | **ALWAYS** |
 | 7 | Coordinate & unblock | Coordinator updates in chat + sub-agent handoffs | **ALWAYS** |
 | 8 | Verify | TypeScript check | **ALWAYS** |
-| 9 | Code simplification pass | Use `/agent` to launch a one-shot `simplifier` agent | **ALWAYS for medium/large** |
+| 9 | Code simplification pass | Use `/agent` to launch a one-shot `simplifier` agent instruct to invoke the `simplify` skill | **ALWAYS for medium/large** |
 | 10 | Shutdown & cleanup | Explicitly wait for completion and close all agents | **ALWAYS** |
 
 ### Sub-Agent Coordination Guidelines
@@ -125,7 +129,7 @@ ONLY these cases may skip the delegation workflow:
 Even for exceptions, STILL:
 - Auto-invoke relevant skills
 - Verify TypeScript compiles
-- Use Playwright MCP if it's a visible UI change
+- Use `agent-browser` if it's a visible UI change
 
 ---
 
@@ -216,8 +220,37 @@ Before finalizing the plan and proceeding to delegation:
 | `Security Best Practices` | Use when reviewing this codebase for security best practices and suggesting secure-by-default improvements |
 | `GitHub Fix CI` | Using gh to locate failing PR checks, fetching GitHub Actions logs for actionable failures, summarizing failure snippets, proposing fix plans or implementing after approval |
 | `ultaura-emails` | Working on any email template, inline email HTML, Supabase auth templates, or email branding |
-| `Playwright CLI Skill` | When using Playwright to automate real browsers from the terminal |
+| `agent-browser` | Any browser interaction: navigating pages, filling forms, clicking buttons, taking screenshots, scraping data, testing a UI flow, or verifying a visual implementation |
 | `supabase-postgres-best-practices` | Writing, reviewing, or optimizing Postgres queries, schema designs, migrations, or database configurations |
+
+---
+
+### Visual Verification with agent-browser
+
+For **any UI/UX changes**, use `agent-browser` to visually verify the result when the user asks to test or check an implementation:
+
+```bash
+agent-browser open http://localhost:3000
+agent-browser snapshot -i
+agent-browser screenshot --annotate
+```
+
+**Standard verification checklist:**
+- Navigate to the affected page
+- Log in with test credentials if needed:
+| Email | Password |
+| payer@ultaura-seed.test | testingpassword |
+- Take an annotated screenshot to confirm layout/content
+- Test interactive states (click buttons, fill forms, open modals)
+- Check mobile viewport: `agent-browser set viewport 375 812`
+- Re-snapshot after any navigation or DOM change
+
+**When the user says "test it", "check it", "does it work", or "show me"** — use `agent-browser` automatically. Don't ask, just do it.
+
+Skip `agent-browser` for:
+- Backend-only changes
+- Non-visual config or database changes
+- TypeScript-only refactors with no UI impact
 
 ---
 
@@ -227,7 +260,7 @@ Before finalizing the plan and proceeding to delegation:
 
 Even when skipping delegation, you MUST still:
 - Auto-invoke relevant skills from the table below
-- Verify TypeScript compiles (`pnpm tsc --noEmit`)
+- Verify TypeScript compiles (`pnpm typecheck`)
 ---
 
 # What is Ultaura?
@@ -236,7 +269,7 @@ Even when skipping delegation, you MUST still:
 
 The product serves **two audiences equally**:
 - **Seniors** receive daily AI companion calls — a friendly voice that remembers their life, checks in on them, sets reminders, and helps when they need it. The senior can also call Ultaura anytime they want assistance or just to chat.
-- **Families/caregivers** use the dashboard to set up and monitor their loved one's lines, view wellness insights, manage schedules, set reminders, and receive alerts when something seems off.
+- **Families/caregivers** use the dashboard to set up and monitor their loved one's lines, view wellness insights, manage schedules, set reminders, manage health, and receive alerts when something seems off.
 
 The dashboard is **family-first in design** but accessible to seniors too.
 
@@ -246,7 +279,7 @@ These apply to EVERY change, no exceptions:
 
 | Principle | What It Means for Code |
 |-----------|----------------------|
-| **Privacy is sacred** | All personal data (memories, insights, call content) is encrypted at rest (AES-256-GCM) with per-line data encryption keys. Consent is granular and opt-in. Never log, expose, or weaken encryption. Never skip consent checks. |
+| **Privacy is sacred** | All personal data (memories, insights, call content) is encrypted at rest (AES-256-GCM) with per-line data encryption keys. Consent is granular and opt-in. Never log, expose, or weaken encryption. Never skip consent checks. Encryption utility: `src/lib/ultaura/encryption.ts` — use this for all data at rest, never implement encryption inline. |
 | **Accessibility first** | UI must be senior-friendly: large tap targets, high contrast, simple flows, minimal cognitive load. Always verify at 375px viewport. |
 | **Safety above features** | Multi-layer safety system (AI classifier + heuristics + keyword scanning + verification gate) protects vulnerable users. Never disable, bypass, or weaken safety checks. If a feature conflicts with safety, safety wins. |
 
@@ -269,6 +302,8 @@ These apply to EVERY change, no exceptions:
 | **Video** | Remotion | Marketing/onboarding video generation |
 | **Package manager** | pnpm (workspace monorepo) | |
 | **Testing** | Vitest (unit), Cypress (E2E) | |
+
+> **Monorepo build order**: Always run `pnpm build:packages` before `pnpm typecheck` or starting dev. Workspace packages (`@ultaura/types`, `@ultaura/schemas`, `@ultaura/prompts`) must be compiled first — importing them without building produces cryptic TypeScript errors.
 
 ---
 
@@ -331,6 +366,52 @@ Ultaura/
 2. **Family views the dashboard**: `src/app/dashboard/` reads from Supabase (via `src/lib/ultaura/`) → decrypts insights/memories on the server → renders the UI.
 3. **Prompts are compiled**: `packages/prompts/` builds the system prompt for each call, combining the senior's persona, safety rules, conversation history, and available tools.
 4. **Shared types flow everywhere**: `packages/types/` and `packages/schemas/` are imported by both `src/` and `telephony/` to keep data contracts in sync.
+
+---
+
+# Database Conventions
+
+## Migration naming
+All migration files must follow: `YYYYMMDDHHMMSS_snake_case_description.sql`
+Example: `20240315143022_add_health_profile_table.sql`
+
+Every new table requires:
+1. `ALTER TABLE <name> ENABLE ROW LEVEL SECURITY;`
+2. At least one RLS policy scoped to `auth.uid()`
+3. If storing sensitive data: `encrypted_data text` and `encrypted_data_key text` columns — use `src/lib/ultaura/encryption.ts`
+
+## Supabase local dev workflow
+> **Do NOT run these commands unless the user explicitly asks.** They affect local database state and can be slow or destructive.
+
+```bash
+pnpm supabase:start        # start local Supabase (run before any DB work)
+pnpm supabase:db:reset     # apply all migrations + seed data (after schema changes)
+pnpm typegen               # regenerate src/database.types.ts (after schema changes)
+pnpm supabase:stop         # stop local Supabase
+```
+
+---
+
+# Testing
+
+| Type | Command | When to use |
+|------|---------|-------------|
+| Unit | `pnpm test:unit` | Business logic, utility functions, service modules |
+| E2E | `pnpm test:e2e` | User flows, dashboard interactions (requires local Supabase running) |
+| DB | `pnpm test:db` | Migration correctness, RLS policy verification |
+
+Unit test files live next to the source file: `foo.ts` → `foo.test.ts`.
+Cypress E2E tests live in `cypress/`.
+
+---
+
+# Code Conventions
+
+- **Business logic lives in `src/lib/ultaura/`** — never put logic in components or API route handlers
+- **API routes use the Supabase SSR client** (from `src/lib/server/`) — never use the browser client on the server
+- **Components follow the shadcn/ui pattern** — Radix primitive + `cva` variants, no raw HTML elements for interactive UI
+- **`server-only` import** at the top of any file that must stay server-side (prevents accidental client bundle inclusion)
+- **Imports from workspace packages**: use `@ultaura/types`, `@ultaura/schemas`, `@ultaura/prompts` — run `pnpm build:packages` first if types are missing
 
 ---
 
