@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '~/app/api/voice-demo/route';
-import { normalizeLocale, toLanguageCode } from '~/i18n/locales';
+import { normalizeLocale } from '~/i18n/locales';
 
 let requestCounter = 10;
 const supportedLanguage = 'en';
@@ -11,6 +11,9 @@ if (!normalizedSupportedLocale) {
   throw new Error('Expected test locale to be supported');
 }
 const unsupportedLanguage = 'zz';
+
+// Fake audio bytes for mocked xAI TTS response
+const fakeAudioBytes = new Uint8Array([0xff, 0xfb, 0x90, 0x00]);
 
 function createPostRequest(body: unknown): NextRequest {
   requestCounter += 1;
@@ -26,20 +29,37 @@ function createPostRequest(body: unknown): NextRequest {
 }
 
 describe('voice-demo route', () => {
-  it('accepts legacy payload with text and voice only', async () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    // Mock fetch to intercept xAI TTS calls
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      if (url === 'https://api.x.ai/v1/tts') {
+        return new Response(fakeAudioBytes, {
+          status: 200,
+          headers: { 'Content-Type': 'audio/mpeg' },
+        });
+      }
+      return originalFetch(input);
+    }) as typeof globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('returns audio for legacy payload with text and voice only', async () => {
     const response = await POST(
       createPostRequest({ text: '  Hello from legacy client  ', voice: 'Ara' }),
     );
-    const payload = await response.json();
 
-    expect(response.status).toBe(503);
-    expect(payload.requestedVoice).toBe('Ara');
-    expect(payload.requestedText).toBe('Hello from legacy client');
-    expect(payload.requestedLanguage).toBeNull();
-    expect(payload.requestedLocale).toBeNull();
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('audio/mpeg');
   });
 
-  it('accepts valid language and locale and echoes normalized values', async () => {
+  it('returns audio for valid language and locale', async () => {
     const response = await POST(
       createPostRequest({
         text: 'Hello there',
@@ -48,11 +68,22 @@ describe('voice-demo route', () => {
         locale: supportedLocaleInput.toLowerCase(),
       }),
     );
-    const payload = await response.json();
 
-    expect(response.status).toBe(503);
-    expect(payload.requestedLanguage).toBe(toLanguageCode(supportedLanguage));
-    expect(payload.requestedLocale).toBe(normalizedSupportedLocale);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('audio/mpeg');
+  });
+
+  it('sends lowercase voice_id to xAI', async () => {
+    await POST(
+      createPostRequest({ text: 'Hello', voice: 'Ara' }),
+    );
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://api.x.ai/v1/tts',
+      expect.objectContaining({
+        body: expect.stringContaining('"voice_id":"ara"'),
+      }),
+    );
   });
 
   it.each([

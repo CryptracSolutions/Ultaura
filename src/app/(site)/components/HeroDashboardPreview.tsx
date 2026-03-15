@@ -12,7 +12,9 @@ import {
   ShieldCheckIcon,
   SparklesIcon,
   SpeakerWaveIcon,
+  StopCircleIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { cn } from '~/core/generic/shadcn-utils';
 
 /* ───────── Mock Data ───────── */
@@ -145,6 +147,8 @@ export function HeroDashboardPreview() {
     undefined,
   );
   const [modeHeight, setModeHeight] = useState<number | undefined>(undefined);
+  const [heroPlayState, setHeroPlayState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const heroAudioRef = useRef<HTMLAudioElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const dashboardModeRef = useRef<HTMLDivElement>(null);
@@ -282,15 +286,65 @@ export function HeroDashboardPreview() {
     setIsAutoPlaying(false);
   }, []);
 
+  const handleListenClick = useCallback(async () => {
+    if (heroPlayState === 'playing') {
+      if (heroAudioRef.current) {
+        heroAudioRef.current.pause();
+        heroAudioRef.current.currentTime = 0;
+      }
+      setHeroPlayState('idle');
+      return;
+    }
+
+    setHeroPlayState('loading');
+    try {
+      const response = await fetch('/api/voice-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: "Hi, I'm Ultaura! Your trusted personal assistant and closest companion.",
+          voice: 'Ara',
+        }),
+      });
+
+      if (!response.ok) {
+        setHeroPlayState('idle');
+        return;
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      if (heroAudioRef.current) {
+        heroAudioRef.current.src = audioUrl;
+        heroAudioRef.current.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          setHeroPlayState('idle');
+        };
+        await heroAudioRef.current.play();
+      }
+      setHeroPlayState('playing');
+    } catch {
+      setHeroPlayState('idle');
+    }
+  }, [heroPlayState]);
+
   return (
     <div ref={containerRef} className="relative min-w-0 w-full">
+      <audio ref={heroAudioRef} className="hidden" />
       <div className="mt-3 mb-3 flex justify-center">
         <button
           type="button"
-          title="Coming soon"
-          className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium cursor-not-allowed ring-1 ring-primary"
+          onClick={handleListenClick}
+          disabled={heroPlayState === 'loading'}
+          className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium ring-1 ring-primary transition-colors hover:bg-primary/20 disabled:opacity-70"
         >
-          <SpeakerWaveIcon className="h-4 w-4 text-primary shrink-0" />
+          {heroPlayState === 'loading' ? (
+            <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />
+          ) : heroPlayState === 'playing' ? (
+            <StopCircleIcon className="h-4 w-4 text-primary shrink-0" />
+          ) : (
+            <SpeakerWaveIcon className="h-4 w-4 text-primary shrink-0" />
+          )}
           <span>
             <span className="text-foreground">Listen to </span>
             <span className="text-foreground">Ultaura</span>

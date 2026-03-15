@@ -183,17 +183,6 @@ export default function DemoPage() {
           }),
         });
 
-        const data = await response.json();
-
-        if (response.status === 503) {
-          // API not yet available - show friendly message
-          setPlayState('idle');
-          setErrorMessage(
-            "Voice demo coming soon! We're waiting for the xAI TTS API to launch.",
-          );
-          return;
-        }
-
         if (response.status === 429) {
           setPlayState('error');
           setErrorMessage(
@@ -203,6 +192,7 @@ export default function DemoPage() {
         }
 
         if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
           setPlayState('error');
           setErrorMessage(
             data.error || 'Something went wrong. Please try again.',
@@ -210,15 +200,18 @@ export default function DemoPage() {
           return;
         }
 
-        // When TTS API is available, this will handle audio playback:
-        // const audioBlob = await response.blob();
-        // const audioUrl = URL.createObjectURL(audioBlob);
-        // if (audioRef.current) {
-        //   audioRef.current.src = audioUrl;
-        //   audioRef.current.play();
-        // }
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            handleAudioEnd();
+          };
+          await audioRef.current.play();
+        }
 
-        setPlayState('idle');
+        setPlayState('playing');
       } catch (error) {
         console.error('Voice demo error:', error);
         setPlayState('error');

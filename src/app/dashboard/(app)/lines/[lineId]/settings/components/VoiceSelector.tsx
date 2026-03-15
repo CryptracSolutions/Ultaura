@@ -110,8 +110,17 @@ export function VoiceSelector({
           return;
         }
 
-        setPlayState('idle');
-        setPlayingVoice(null);
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            handleAudioEnd();
+          };
+          await audioRef.current.play();
+        }
+        setPlayState('playing');
       } catch (error) {
         console.error('Voice demo error:', error);
         setPlayState('idle');

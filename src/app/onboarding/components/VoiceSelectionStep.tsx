@@ -124,15 +124,22 @@ const VoiceSelectionStep: React.FCC<{
         });
 
         if (!response.ok) {
-          // TTS not yet available - just reset state
           setPlayState('idle');
           setPlayingVoice(null);
           return;
         }
 
-        // When TTS API is available, handle audio playback here
-        setPlayState('idle');
-        setPlayingVoice(null);
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            handleAudioEnd();
+          };
+          await audioRef.current.play();
+        }
+        setPlayState('playing');
       } catch (error) {
         console.error('Voice demo error:', error);
         setPlayState('idle');

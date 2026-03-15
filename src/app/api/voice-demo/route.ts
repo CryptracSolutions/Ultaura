@@ -202,37 +202,43 @@ export async function POST(request: NextRequest) {
     // Sanitize text (basic XSS prevention)
     const sanitizedText = text.trim().slice(0, MAX_TEXT_LENGTH);
 
-    // TODO: Replace with actual xAI TTS API call when available
-    // Expected endpoint: https://api.x.ai/v1/audio/speech
-    // Expected format:
-    // const response = await fetch('https://api.x.ai/v1/audio/speech', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     model: 'grok-tts',
-    //     voice: voice,
-    //     input: sanitizedText,
-    //   }),
-    // });
-    // return new NextResponse(response.body, {
-    //   headers: { 'Content-Type': 'audio/mpeg' },
-    // });
+    // Use the most specific language/locale available for xAI TTS
+    const ttsLanguage = normalizedLocale ?? normalizedLanguage ?? 'en';
 
-    // For now, return a placeholder response indicating the API is not yet available
-    return NextResponse.json(
-      {
-        status: 'pending',
-        message: 'Voice demo coming soon! The xAI TTS API is not yet available.',
-        requestedVoice: voice,
-        requestedText: sanitizedText,
-        requestedLanguage: normalizedLanguage,
-        requestedLocale: normalizedLocale,
+    const ttsResponse = await fetch('https://api.x.ai/v1/tts', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+        'Content-Type': 'application/json',
       },
-      { status: 503 }
-    );
+      body: JSON.stringify({
+        text: sanitizedText,
+        voice_id: (voice as string).toLowerCase(),
+        language: ttsLanguage,
+      }),
+    });
+
+    if (!ttsResponse.ok) {
+      const status = ttsResponse.status;
+      if (status === 429) {
+        return NextResponse.json(
+          { error: 'xAI rate limit reached. Please wait a moment and try again.' },
+          { status: 429 }
+        );
+      }
+      console.error('xAI TTS error:', status, await ttsResponse.text().catch(() => ''));
+      return NextResponse.json(
+        { error: 'Voice generation failed. Please try again.' },
+        { status: 502 }
+      );
+    }
+
+    return new NextResponse(ttsResponse.body, {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
   } catch (error) {
     console.error('Voice demo API error:', error);
     return NextResponse.json(
@@ -245,8 +251,8 @@ export async function POST(request: NextRequest) {
 // GET endpoint to check API status
 export async function GET() {
   return NextResponse.json({
-    status: 'pending',
-    message: 'Voice demo API is ready. Waiting for xAI TTS API release.',
+    status: 'active',
+    message: 'Voice demo API is live.',
     availableVoices: VALID_VOICES,
     maxTextLength: MAX_TEXT_LENGTH,
     rateLimit: `${MAX_REQUESTS_PER_MINUTE} requests per minute`,
