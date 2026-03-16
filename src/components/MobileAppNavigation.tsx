@@ -63,6 +63,7 @@ const MobileAppNavigation: React.FC<{
   const { openAddLine } = useAddLine();
   const { open: openHelp } = useHelpPanel();
   const { openMobile, isMobileOpen } = useSearch();
+  const healthFeatureEnabled = useHealthFeatureEnabled();
   const [isVisible, setIsVisible] = useState(false);
   const [animationState, setAnimationState] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -116,7 +117,6 @@ const MobileAppNavigation: React.FC<{
     ultauraAccount?.user_type === 'self' || ultauraAccount?.user_type === 'family_managed'
       ? ultauraAccount.user_type
       : undefined;
-  const healthFeatureEnabled = useHealthFeatureEnabled();
   const mobileUserId = userSession?.auth?.user?.id;
   const HEALTH_ELIGIBLE_PLANS = ['comfort', 'family', 'payg'];
 
