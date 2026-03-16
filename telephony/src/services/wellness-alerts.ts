@@ -216,7 +216,8 @@ export async function processWellnessAlertsForCall(options: {
       .eq('call_session_id', options.callSessionId)
       .eq('line_id', options.lineId)
       .eq('triggers_alert', true)
-      .is('alert_sent_at', null);
+      .is('alert_sent_at', null)
+      .is('suppressed_at', null);
 
     if (mentionsError) {
       logger.error({ error: mentionsError, lineId: options.lineId }, 'Failed to load health mentions');

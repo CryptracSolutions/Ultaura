@@ -3766,7 +3766,8 @@ ON CONFLICT DO NOTHING;
 INSERT INTO ultaura_data_export_requests (
   id, account_id, requested_by, format,
   include_memories, include_call_metadata, include_reminders,
-  status, processed_at, expires_at, download_url
+  status, processed_at, expires_at, download_url,
+  visibility_scope, includes_health_profile, requested_scope_snapshot
 ) VALUES
 
 (gen_random_uuid(),
@@ -3776,7 +3777,9 @@ INSERT INTO ultaura_data_export_requests (
  'ready',
  NOW() - INTERVAL '2 days',
  NOW() + INTERVAL '5 days',
- 'https://exports.example.com/seed-export-placeholder.json')
+ 'https://exports.example.com/seed-export-placeholder.json',
+ 'standard_account', false,
+ '{"requestedFormat":"json","visibilityScope":"standard_account","healthInclusionMode":"automatic_when_present","includesHealthProfile":false,"includesDocumentFiles":false,"deliveredArtifactFormat":"requested_format_native"}'::jsonb)
 
 ON CONFLICT DO NOTHING;
 

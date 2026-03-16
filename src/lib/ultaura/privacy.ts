@@ -15,6 +15,8 @@ import type {
   LineVoiceConsent,
   RetentionPeriod,
 } from './types';
+import { getHealthExportInclusion } from './health/export';
+import { cleanupHealthDataForDeletion } from './health/deletion';
 
 const logger = getLogger();
 const DEV_TELEPHONY_BACKEND_URL = 'http://localhost:3001';
@@ -880,15 +882,40 @@ export async function requestDataExport(
   const headersList = await headers();
   const nowIso = new Date().toISOString();
 
+  // Compute Health inclusion at request time using DB-side classification functions.
+  const format = options?.format || 'json';
+  const { includesHealthProfile, includesDocumentFiles } =
+    await getHealthExportInclusion(accountId);
+
+  const visibilityScope = includesHealthProfile
+    ? 'health_owner_only'
+    : 'standard_account';
+
+  const deliveredArtifactFormat = includesHealthProfile
+    ? 'zip'
+    : 'requested_format_native';
+
+  const requestedScopeSnapshot = {
+    requestedFormat: format,
+    visibilityScope,
+    healthInclusionMode: 'automatic_when_present',
+    includesHealthProfile,
+    includesDocumentFiles,
+    deliveredArtifactFormat,
+  };
+
   const { data, error } = await userClient
     .from('ultaura_data_export_requests')
     .insert({
       account_id: accountId,
       requested_by: actorUserId,
-      format: options?.format || 'json',
+      format,
       include_memories: options?.includeMemories ?? true,
       include_call_metadata: options?.includeCallMetadata ?? true,
       include_reminders: options?.includeReminders ?? true,
+      visibility_scope: visibilityScope,
+      includes_health_profile: includesHealthProfile,
+      requested_scope_snapshot: requestedScopeSnapshot,
     })
     .select('id')
     .single();
@@ -1003,6 +1030,13 @@ export async function getDataExportRequests(
     downloadUrl: row.download_url,
     fileSizeBytes: row.file_size_bytes,
     errorMessage: row.error_message,
+    visibilityScope: (row as Record<string, unknown>).visibility_scope as DataExportRequest['visibilityScope'] ?? 'standard_account',
+    includesHealthProfile: Boolean((row as Record<string, unknown>).includes_health_profile),
+    requestedScopeSnapshot: (row as Record<string, unknown>).requested_scope_snapshot as Record<string, unknown> | undefined,
+    artifactStoragePath: (row as Record<string, unknown>).artifact_storage_path as string | null | undefined,
+    artifactExtension: (row as Record<string, unknown>).artifact_extension as string | null | undefined,
+    artifactContentType: (row as Record<string, unknown>).artifact_content_type as string | null | undefined,
+    invalidatedAt: (row as Record<string, unknown>).invalidated_at as string | null | undefined,
   }));
 }
 
@@ -1161,6 +1195,14 @@ export async function requestAccountDataDeletion(
   }
 
   const lineIds = (accountLines || []).map((line) => line.id);
+
+  // Health Profile cleanup (must run before general reminder cascade and consent deletes)
+  const healthCleanup = await cleanupHealthDataForDeletion(accountId, lineIds);
+  if (!healthCleanup.success) {
+    return failDeletion('health_cleanup', 'Failed to delete account data', {
+      failedStages: healthCleanup.failedStages,
+    });
+  }
 
   const { error: remindersError } = await adminClient
     .from('ultaura_reminders')

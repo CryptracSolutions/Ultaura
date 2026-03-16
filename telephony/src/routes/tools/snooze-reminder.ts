@@ -107,13 +107,14 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Get the reminder
+    // Get the reminder — exclude health_profile reminders from voice tool
     const { data: reminder, error: reminderError } = await supabase
       .from('ultaura_reminders')
       .select('*')
       .eq('id', targetReminderId)
       .eq('line_id', effectiveLineId)
       .eq('account_id', session.account_id)
+      .eq('source_context', 'general')
       .single();
 
     if (reminderError || !reminder) {
@@ -173,7 +174,8 @@ snoozeReminderRouter.post('/', async (req: Request, res: Response) => {
       })
       .eq('id', targetReminderId)
       .eq('line_id', effectiveLineId)
-      .eq('account_id', session.account_id);
+      .eq('account_id', session.account_id)
+      .eq('source_context', 'general');
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to snooze reminder');

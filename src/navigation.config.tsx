@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
+import { HeartPulse } from 'lucide-react';
 
 import configuration from '~/configuration';
 import MembershipRole from '~/lib/organizations/types/membership-role';
@@ -22,6 +23,10 @@ type NavigationItemLink = {
   Icon: (props: { className: string }) => JSX.Element;
   end?: boolean;
   activeMatch?: (currentPath: string) => boolean;
+  locked?: boolean;
+  badge?: number;
+  featureFlag?: string;
+  hidden?: boolean;
 };
 
 type NavigationGroup = {
@@ -41,6 +46,14 @@ export interface NavigationContext {
   userType?: 'self' | 'family_managed';
   accountId?: string;
   role?: number;
+  /** True only when the current user is the canonical account owner (created_by_user_id). */
+  isHealthOwner?: boolean;
+  /** True when the Health feature flag is enabled. */
+  healthFeatureEnabled?: boolean;
+  /** True when the account is on an eligible plan (comfort/family/payg, non-trial). */
+  isHealthEligible?: boolean;
+  /** Pending Health suggestion count for nav badge. */
+  pendingSuggestionCount?: number;
 }
 
 const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
@@ -122,6 +135,32 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
     );
   }
 
+  // Health is owner-only (R9) and feature-flag-gated (Section 7.1B).
+  // Canonical owner = created_by_user_id, NOT membership role.
+  // Applies equally to family-managed and self-managed owners (R7).
+  const isHealthOwner = context?.isHealthOwner === true;
+  const isHealthFlagOn = context?.healthFeatureEnabled === true;
+  const isHealthEligible = context?.isHealthEligible === true;
+
+  // Show Health nav only to canonical owners when the feature flag is on.
+  // For ineligible owners (Care/trial), show as locked with no counts/badges (R4, R5).
+  if (isHealthOwner && isHealthFlagOn) {
+    const careGroup = items.find(
+      (item): item is NavigationGroup => 'children' in item && item.label === 'Care',
+    );
+
+    careGroup?.children.push({
+      label: 'Health',
+      path: getPath('health'),
+      Icon: ({ className }: { className: string }) => {
+        return <HeartPulse className={className} />;
+      },
+      activeMatch: isHealthRouteActive,
+      locked: !isHealthEligible,
+      badge: isHealthEligible ? (context?.pendingSuggestionCount ?? 0) : undefined,
+    });
+  }
+
   const accountChildren: NavigationItemLink[] = [];
 
   if (!isViewer && hasResolvedRole) {
@@ -166,6 +205,7 @@ const remindersRoutePattern = createRoutePattern(getPath('reminders'));
 const callsRoutePattern = createRoutePattern(getPath('calls'));
 const insightsRoutePattern = createRoutePattern(getPath('insights'));
 const alertsRoutePattern = createRoutePattern(getPath('alerts'));
+const healthRoutePattern = createRoutePattern(getPath('health'));
 const linesRoutePattern = createRoutePattern(getPath('lines'));
 const lineInsightsRoutePattern = createRoutePattern(
   getPath('lines/:lineId/insights'),
@@ -188,6 +228,10 @@ function isInsightsRouteActive(currentPath: string) {
 
 function isAlertsRouteActive(currentPath: string) {
   return alertsRoutePattern.test(currentPath);
+}
+
+function isHealthRouteActive(currentPath: string) {
+  return healthRoutePattern.test(currentPath);
 }
 
 function isLineRouteActive(currentPath: string) {

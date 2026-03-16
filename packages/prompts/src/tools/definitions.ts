@@ -376,6 +376,12 @@ Use when the user asks to switch voices. If they do not specify a voice, ask whi
   },
   {
     type: 'function',
+    name: 'mark_health_disclosure_private',
+    description: "Call when the senior says \"don't tell my family\" or \"keep this private\" about health-related information. This suppresses health mentions and suggestions from this call from being shared with family.",
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
     name: 'log_health_mention',
     description: 'Log health mention. Always private.',
     parameters: {
@@ -732,6 +738,70 @@ Do NOT confirm the update verbally - just update silently and continue unless th
     name: 'deny_memory_consent',
     description: 'Call when the user declines to have their conversations remembered.',
     parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'grant_health_consent',
+    description: 'Call when the senior explicitly agrees to Health tracking. This records their spoken consent for health information sharing with their family.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'deny_health_consent',
+    description: 'Call when the senior explicitly declines Health tracking. This records their spoken refusal.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'revoke_health_consent',
+    description: 'Call when the senior asks to stop Health tracking mid-call. This immediately disables health features for this call.',
+    parameters: EMPTY_PARAMS,
+  },
+  {
+    type: 'function',
+    name: 'queue_health_suggestion',
+    description:
+      'Submit a structured health suggestion when the senior mentions a condition or medication during conversation. Only submit when you are reasonably confident about the information.',
+    parameters: {
+      type: 'object',
+      properties: {
+        suggestion_type: {
+          type: 'string',
+          enum: ['condition', 'medication'],
+          description: 'Whether this is about a condition or medication',
+        },
+        suggestion_mode: {
+          type: 'string',
+          enum: ['new', 'update'],
+          description: 'Whether this is a new item or an update to an existing one',
+        },
+        normalized_name: {
+          type: 'string',
+          description: 'The normalized name of the condition or medication',
+        },
+        confidence_label: {
+          type: 'string',
+          enum: ['high', 'medium'],
+          description: 'How confident you are about this suggestion',
+        },
+        summary_paraphrase: {
+          type: 'string',
+          description: 'A brief factual paraphrase of what was said (no direct quotes)',
+        },
+        proposed_fields: {
+          type: 'object',
+          description: 'Structured fields for the suggestion (status, dosage, etc.)',
+        },
+      },
+      required: [
+        'suggestion_type',
+        'suggestion_mode',
+        'normalized_name',
+        'confidence_label',
+        'summary_paraphrase',
+        'proposed_fields',
+      ],
+    },
   },
   {
     type: 'function',

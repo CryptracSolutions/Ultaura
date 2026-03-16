@@ -43,6 +43,11 @@ export interface TimelineFilter {
   offset?: number;
 }
 
+// Health-specific sources (health_item_history, health_document_access_log, health_observations,
+// health_conditions, health_medications, health_documents, health_suggestions) are intentionally
+// excluded from the admin timeline. Health data is visible only through owner-only Health surfaces.
+// See spec Section 9.5 and task 7.3.
+
 /**
  * PERFORMANCE NOTE — In-memory merge
  *
@@ -313,6 +318,7 @@ async function fetchReminders(
     .select(
       'id, account_id, line_id, due_at, message, message_ciphertext, status, created_at',
     )
+    .eq('source_context', 'general')
     .order('created_at', { ascending: false })
     .limit(SOURCE_LIMIT);
 

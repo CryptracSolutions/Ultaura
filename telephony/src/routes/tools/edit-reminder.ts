@@ -146,13 +146,14 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       );
     }
 
-    // Get the reminder
+    // Get the reminder — exclude health_profile reminders from voice tool
     const { data: reminder, error: reminderError } = await supabase
       .from('ultaura_reminders')
       .select('*')
       .eq('id', reminderId)
       .eq('line_id', effectiveLineId)
       .eq('account_id', session.account_id)
+      .eq('source_context', 'general')
       .single();
 
     if (reminderError || !reminder) {
@@ -298,7 +299,8 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
       .update(updates)
       .eq('id', reminderId)
       .eq('line_id', effectiveLineId)
-      .eq('account_id', session.account_id);
+      .eq('account_id', session.account_id)
+      .eq('source_context', 'general');
 
     if (updateError && legacyPlaintextMessage && updateError.code === '23502') {
       logger.warn({ error: updateError }, 'Reminder message column is still NOT NULL; falling back to plaintext (apply migrations to disable plaintext storage)');
@@ -310,7 +312,8 @@ editReminderRouter.post('/', async (req: Request, res: Response) => {
         })
         .eq('id', reminderId)
         .eq('line_id', effectiveLineId)
-        .eq('account_id', session.account_id));
+        .eq('account_id', session.account_id)
+        .eq('source_context', 'general'));
     }
 
     if (updateError) {

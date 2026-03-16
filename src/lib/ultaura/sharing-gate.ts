@@ -40,6 +40,11 @@ export async function validateAccountOwnership(
   return data !== null;
 }
 
+// NOTE: Health Profile is intentionally excluded from the sharing gate.
+// Health access is owner-only (gated by requireHealthOwner) and governed by
+// its own consent system (ultaura_health_line_consent). The sharing gate
+// only controls insight/memory sharing with family viewers — Health data
+// never flows through this gate.
 export async function getSharingGate(
   adminClient: SupabaseClient,
   lineId: string,
@@ -104,29 +109,29 @@ async function fetchInternalContext(
   lineId: string,
   accountId: string
 ): Promise<InternalSharingGateContext> {
-  const { data: account } = await client
-    .from('ultaura_accounts')
-    .select('user_type')
-    .eq('id', accountId)
-    .single();
-
-  const { data: voiceConsent } = await client
-    .from('ultaura_line_voice_consent')
-    .select('sharing_consent, sharing_tier')
-    .eq('line_id', lineId)
-    .maybeSingle();
-
-  const { data: privacy, error: privacyError } = await client
-    .from('ultaura_insight_privacy')
-    .select('is_paused, insights_enabled')
-    .eq('line_id', lineId)
-    .maybeSingle();
+  const [accountResult, voiceConsentResult, privacyResult] = await Promise.all([
+    client
+      .from('ultaura_accounts')
+      .select('user_type')
+      .eq('id', accountId)
+      .single(),
+    client
+      .from('ultaura_line_voice_consent')
+      .select('sharing_consent, sharing_tier')
+      .eq('line_id', lineId)
+      .maybeSingle(),
+    client
+      .from('ultaura_insight_privacy')
+      .select('is_paused, insights_enabled')
+      .eq('line_id', lineId)
+      .maybeSingle(),
+  ]);
 
   return {
-    userType: (account?.user_type ?? 'family_managed') as 'self' | 'family_managed',
-    sharingConsent: (voiceConsent?.sharing_consent ?? 'pending') as VoiceConsentStatus,
-    sharingTier: (voiceConsent?.sharing_tier ?? 'tier_1') as SharingTier,
-    isPaused: privacy?.is_paused ?? false,
-    insightsEnabled: privacyError ? false : (privacy?.insights_enabled ?? false),
+    userType: (accountResult.data?.user_type ?? 'family_managed') as 'self' | 'family_managed',
+    sharingConsent: (voiceConsentResult.data?.sharing_consent ?? 'pending') as VoiceConsentStatus,
+    sharingTier: (voiceConsentResult.data?.sharing_tier ?? 'tier_1') as SharingTier,
+    isPaused: privacyResult.data?.is_paused ?? false,
+    insightsEnabled: privacyResult.error ? false : (privacyResult.data?.insights_enabled ?? false),
   };
 }

@@ -18,6 +18,7 @@ import type {
   SafetyCategory,
   SafetyMatch,
   SafetyTier,
+  TelephonyHealthContext,
 } from '@ultaura/types';
 import { SAFETY_CATEGORY_TIERS } from '@ultaura/types';
 import { logger } from '../utils/logger.js';
@@ -258,6 +259,10 @@ interface GrokBridgeOptions {
   // Plan info for upgrade context
   currentPlanId: PlanId;
   accountStatus: AccountStatus;
+  needsHealthConsent?: boolean;
+  healthConsentStatus?: 'not_requested' | 'granted' | 'denied' | 'revoked';
+  canUseHealthInCall?: boolean;
+  healthContext?: TelephonyHealthContext | null;
   promptPlaceholders?: Record<string, string>;
   interruptionTolerance?: 'high' | 'normal' | 'low' | null;
   fillerWordPatience?: 'high' | 'normal' | 'low' | null;
@@ -336,6 +341,7 @@ export class GrokBridge {
   private periodicSweepTimer: NodeJS.Timeout | null = null;
   private lastSweepTime = 0;
   private languageAutoDetectionComplete = false;
+  private healthContextDisabledLocally = false;
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
@@ -712,6 +718,13 @@ export class GrokBridge {
       }
     }
 
+    if (this.options.healthContext?.canUseHealthInCall && !this.healthContextDisabledLocally) {
+      const healthSection = this.buildHealthContextSection();
+      if (healthSection) {
+        prompt += `\n\n${healthSection}`;
+      }
+    }
+
     const consentSections = this.getConsentPromptSections();
     if (consentSections.length > 0) {
       prompt += `\n\n${consentSections.join('\n\n')}`;
@@ -798,6 +811,37 @@ Say something like ${exampleMention} or ${exampleHeard}
 If ${safeUserName} doesn't engage with this topic, move on gracefully and do not repeat if already covered.`;
   }
 
+  private buildHealthContextSection(): string | null {
+    const ctx = this.options.healthContext;
+    if (!ctx || !ctx.canUseHealthInCall) return null;
+
+    const lines: string[] = ['## Health Profile Context'];
+
+    if (ctx.conditions.length > 0) {
+      const condList = ctx.conditions
+        .map((c) => `${sanitizePromptSnippet(c.name)} (${c.status})`)
+        .join(', ');
+      lines.push(`Conditions: ${condList}`);
+    }
+
+    if (ctx.medications.length > 0) {
+      const medList = ctx.medications
+        .map((m) => {
+          const times = m.timesOfDay.length ? `, ${m.timesOfDay.join('/')}` : '';
+          return `${sanitizePromptSnippet(m.name)} (${m.status}${times})`;
+        })
+        .join(', ');
+      lines.push(`Medications: ${medList}`);
+    }
+
+    if (ctx.conditions.length === 0 && ctx.medications.length === 0) {
+      lines.push('No conditions or medications on file.');
+    }
+
+    lines.push('Use this information naturally in conversation. Never read it as a list.');
+    return lines.join('\n');
+  }
+
   private getConsentPromptSections(): string[] {
     const sections: string[] = [];
 
@@ -811,6 +855,10 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
 
     if (this.options.needsSharingConsent) {
       sections.push(this.getSharingConsentSection());
+    }
+
+    if (this.options.needsHealthConsent) {
+      sections.push(this.getHealthConsentSection());
     }
 
     return sections;
@@ -848,6 +896,11 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
     }
 
     return `## Family Sharing Consent\nOnly ask near the END of the call when needed.\n\nIf userType is family_managed:\nAsk: "Your family set this up because they care about you. I can send them a short weekly note—just that we talked and how you're doing overall. Nothing specific about what we discuss. Is that okay with you?"\n- If YES: call set_sharing_tier with tier="${this.options.sharingTier}" and consent="granted" (current default: ${tierDescription}).\n- If NO: call set_sharing_tier with tier="tier_1" and consent="denied".\n\nIf userType is self and they request sharing:\n- Call enable_family_sharing, then ask for tier preference.\n- After they choose, call set_sharing_tier with consent="granted".\n\nIf they say "share more/less" or "don't share with my family": call set_sharing_tier with the requested tier, and use consent="denied" for a full decline.\nIf asked "what do you share": call get_sharing_tier and explain the current level.\nIf unclear, ask up to 2 times, then say:\n"No problem, we can skip that for now. Just let me know if you'd like to discuss it later."`;
+  }
+
+  private getHealthConsentSection(): string {
+    const safeName = sanitizePromptSnippet(this.options.userName || 'there');
+    return `## Health Consent\nAsk near the END of the call:\n"${safeName}, your family set up health tracking so I can be aware of your health conditions and medications during our calls. Would you be comfortable with that?"\n\nIf YES: call grant_health_consent.\nIf NO: call deny_health_consent.\nIf unclear, ask up to 2 times, then say:\n"No problem, we can skip that for now. Just let me know if you'd like to discuss it later."`;
   }
 
   private getVadThreshold(): number {
@@ -1013,6 +1066,21 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
         return this.options.userType === 'self' && !this.options.sharingEnabled;
       }
       if (
+        tool.name === 'grant_health_consent' ||
+        tool.name === 'deny_health_consent'
+      ) {
+        return this.options.needsHealthConsent === true;
+      }
+      if (tool.name === 'revoke_health_consent') {
+        return this.options.canUseHealthInCall === true && !this.healthContextDisabledLocally;
+      }
+      if (
+        tool.name === 'queue_health_suggestion' ||
+        tool.name === 'mark_health_disclosure_private'
+      ) {
+        return this.options.canUseHealthInCall === true && !this.healthContextDisabledLocally;
+      }
+      if (
         (this.options.isReminderCall || this.options.isTestCall) &&
         retentionTools.has(tool.name)
       ) {
@@ -1020,6 +1088,11 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
       }
       return true;
     });
+  }
+
+  public disableHealthForSession(): void {
+    this.healthContextDisabledLocally = true;
+    this.refreshSessionInstructions();
   }
 
   private sendMessage(message: unknown): void {
@@ -2215,6 +2288,123 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
                   },
                 );
                 break;
+
+              case 'grant_health_consent': {
+                const raw = await this.callToolEndpoint(
+                  `${baseUrl}/tools/grant_health_consent`,
+                  {
+                    callSessionId: this.options.callSessionId,
+                    lineId: this.options.lineId,
+                  },
+                );
+
+                const parsed = this.parseToolResponse(
+                  raw,
+                  'grant_health_consent',
+                );
+                this.options.onToolResult?.(
+                  'grant_health_consent',
+                  parsed?.success === true,
+                );
+                if (parsed?.success) {
+                  this.options.needsHealthConsent = false;
+                  this.refreshSessionInstructions();
+                }
+
+                result = raw;
+                break;
+              }
+
+              case 'deny_health_consent': {
+                const raw = await this.callToolEndpoint(
+                  `${baseUrl}/tools/deny_health_consent`,
+                  {
+                    callSessionId: this.options.callSessionId,
+                    lineId: this.options.lineId,
+                  },
+                );
+
+                const parsed = this.parseToolResponse(
+                  raw,
+                  'deny_health_consent',
+                );
+                this.options.onToolResult?.(
+                  'deny_health_consent',
+                  parsed?.success === true,
+                );
+                if (parsed?.success) {
+                  this.options.needsHealthConsent = false;
+                  this.disableHealthForSession();
+                }
+
+                result = raw;
+                break;
+              }
+
+              case 'revoke_health_consent': {
+                const raw = await this.callToolEndpoint(
+                  `${baseUrl}/tools/revoke_health_consent`,
+                  {
+                    callSessionId: this.options.callSessionId,
+                    lineId: this.options.lineId,
+                  },
+                );
+
+                const parsed = this.parseToolResponse(
+                  raw,
+                  'revoke_health_consent',
+                );
+                this.options.onToolResult?.(
+                  'revoke_health_consent',
+                  parsed?.success === true,
+                );
+                if (parsed?.success) {
+                  this.disableHealthForSession();
+                }
+
+                result = raw;
+                break;
+              }
+
+              case 'queue_health_suggestion': {
+                // Post-revoke guard: block if Health disabled for this session
+                if (this.healthContextDisabledLocally) {
+                  result = JSON.stringify({ success: false, error: 'health_context_unavailable' });
+                  break;
+                }
+
+                result = await this.callToolEndpoint(
+                  `${baseUrl}/tools/queue_health_suggestion`,
+                  {
+                    callSessionId: this.options.callSessionId,
+                    lineId: this.options.lineId,
+                    suggestion_type: args.suggestion_type,
+                    suggestion_mode: args.suggestion_mode,
+                    normalized_name: args.normalized_name,
+                    confidence_label: args.confidence_label,
+                    summary_paraphrase: args.summary_paraphrase,
+                    proposed_fields: args.proposed_fields,
+                  },
+                );
+                break;
+              }
+
+              case 'mark_health_disclosure_private': {
+                // Post-revoke guard: block if Health disabled for this session
+                if (this.healthContextDisabledLocally) {
+                  result = JSON.stringify({ success: false, error: 'health_context_unavailable' });
+                  break;
+                }
+
+                result = await this.callToolEndpoint(
+                  `${baseUrl}/tools/mark_health_disclosure_private`,
+                  {
+                    callSessionId: this.options.callSessionId,
+                    lineId: this.options.lineId,
+                  },
+                );
+                break;
+              }
 
               default:
                 result = JSON.stringify({ error: `Unknown tool: ${name}` });

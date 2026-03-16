@@ -4,6 +4,7 @@ import React, { useContext, useId, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Lock } from 'lucide-react';
 import classNames from 'clsx';
 import { cva } from 'cva';
 
@@ -136,11 +137,17 @@ export function SidebarItem({
   children,
   Icon,
   activeMatch,
+  locked,
+  badge,
+  disabled,
 }: React.PropsWithChildren<{
   path: string;
   Icon: React.ElementType;
   end?: boolean;
   activeMatch?: (currentPath: string) => boolean;
+  locked?: boolean;
+  badge?: number;
+  disabled?: boolean;
 }>) {
   const { collapsed } = useContext(SidebarContext);
 
@@ -154,21 +161,62 @@ export function SidebarItem({
     active,
   });
 
+  const iconEl = (
+    <If condition={collapsed} fallback={<Icon className={'h-[18px]'} />}>
+      <Tooltip>
+        <TooltipTrigger>
+          <Icon className={'h-[18px]'} />
+        </TooltipTrigger>
+
+        <TooltipContent side={'right'} sideOffset={20}>
+          {children}
+        </TooltipContent>
+      </Tooltip>
+    </If>
+  );
+
+  const badgeEl =
+    badge != null && badge > 0 ? (
+      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+        {badge > 99 ? '99+' : badge}
+      </span>
+    ) : null;
+
+  if (locked || disabled) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className={cn(
+              className,
+              'cursor-not-allowed opacity-50',
+            )}
+            aria-disabled="true"
+            role="link"
+          >
+            {iconEl}
+            <span className="flex flex-1 items-center justify-between">
+              <span>{children}</span>
+              <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={20}>
+          {locked
+            ? 'Upgrade your plan to access Health Profile'
+            : 'This feature is not available'}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
     <Link key={path} href={path} className={className}>
-      <If condition={collapsed} fallback={<Icon className={'h-[18px]'} />}>
-        <Tooltip>
-          <TooltipTrigger>
-            <Icon className={'h-[18px]'} />
-          </TooltipTrigger>
-
-          <TooltipContent side={'right'} sideOffset={20}>
-            {children}
-          </TooltipContent>
-        </Tooltip>
-      </If>
-
-      <span>{children}</span>
+      {iconEl}
+      <span className="flex flex-1 items-center justify-between">
+        <span>{children}</span>
+        {badgeEl}
+      </span>
     </Link>
   );
 }

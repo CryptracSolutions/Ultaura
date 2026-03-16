@@ -11,6 +11,7 @@ import deleteOrganization from '~/lib/server/organizations/delete-organization';
 import sendEmail from '~/core/email/send-email';
 import { getAccountsEmailSender } from '~/core/email/senders';
 import renderAccountDeleteEmail from '~/lib/emails/account-delete';
+import { cleanupHealthDataForDeletion } from '~/lib/ultaura/health/deletion';
 
 type Params = {
   client: SupabaseClient<Database>;
@@ -47,11 +48,25 @@ export async function deleteUser(params: DeleteUserParams) {
   );
 
   // we delete all the organizations the user is an owner of
-  const requests = organizations.map((organizationId) => {
-    return deleteOrganization(client, { organizationId });
-  });
+  // Health cleanup runs before each org delete to avoid orphaned Health data
+  for (const organizationId of organizations) {
+    const { data: account } = await adminClient
+      .from('ultaura_accounts')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
 
-  await Promise.all(requests);
+    if (account?.id) {
+      const { data: lines } = await adminClient
+        .from('ultaura_lines')
+        .select('id')
+        .eq('account_id', account.id);
+      const lineIds = (lines || []).map((l: { id: string }) => l.id);
+      await cleanupHealthDataForDeletion(account.id, lineIds);
+    }
+
+    await deleteOrganization(client, { organizationId });
+  }
 
   logger.info(
     { userId, organizations },

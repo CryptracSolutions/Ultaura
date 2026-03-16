@@ -14,6 +14,7 @@ import {
 import { getPlan, getUltauraAccountById, withTrialCheck } from './helpers';
 import type { LineRow, UltauraAccountRow } from './types';
 import { generateShortId, isShortId, isUUID } from './short-id';
+import { cleanupHealthDataForDeletion } from './health/deletion';
 
 const logger = getLogger();
 
@@ -393,10 +394,16 @@ export async function updateLine(
 
 const deleteLineWithTrial = withTrialCheck(
   async (
-    _account: UltauraAccountRow,
+    account: UltauraAccountRow,
     input: { lineId: string },
   ): Promise<ActionResult<void>> => {
     const client = getSupabaseServerComponentClient();
+
+    // Clean up Health data for this line before deleting the line row
+    await cleanupHealthDataForDeletion(account.id, [input.lineId], {
+      scope: 'line',
+      lineId: input.lineId,
+    });
 
     const { error } = await client
       .from('ultaura_lines')

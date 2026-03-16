@@ -10,6 +10,14 @@ import type { ReminderEventRow } from './types';
 import { decryptReminderMessagesForLine } from './reminder-crypto';
 import { getLine } from './lines';
 
+// Health-specific reminder event types
+export type HealthReminderEventType =
+  | 'health_link_created'
+  | 'health_link_paused'
+  | 'health_link_resumed'
+  | 'health_link_canceled'
+  | 'health_link_schedule_mismatch_prompted';
+
 const logger = getLogger();
 const DECRYPTION_PLACEHOLDER = '[Unable to decrypt reminder]';
 
@@ -67,8 +75,9 @@ export async function getReminderEvents(reminderId: string): Promise<ReminderEve
 
   const { data, error } = await client
     .from('ultaura_reminder_events')
-    .select('*')
+    .select('*, ultaura_reminders!inner(source_context)')
     .eq('reminder_id', reminderId)
+    .eq('ultaura_reminders.source_context', 'general')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -99,10 +108,12 @@ export async function getLineReminderEvents(lineId: string, limit = 50): Promise
         message,
         message_ciphertext,
         message_iv,
-        message_tag
+        message_tag,
+        source_context
       )
     `)
     .eq('line_id', lineId)
+    .eq('ultaura_reminders.source_context', 'general')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -111,7 +122,7 @@ export async function getLineReminderEvents(lineId: string, limit = 50): Promise
     return [];
   }
 
-  const events = (data || []) as Array<ReminderEventRow & {
+  const events = ((data || []) as Array<ReminderEventRow & {
     ultaura_reminders?: {
       id: string;
       account_id: string;
@@ -120,8 +131,11 @@ export async function getLineReminderEvents(lineId: string, limit = 50): Promise
       message_ciphertext?: string | null;
       message_iv?: string | null;
       message_tag?: string | null;
+      source_context?: string | null;
     } | null;
-  }>;
+  }>).filter(
+    (event) => !event.ultaura_reminders || event.ultaura_reminders.source_context !== 'health_profile'
+  );
 
   const reminders = events
     .map((event) => event.ultaura_reminders)

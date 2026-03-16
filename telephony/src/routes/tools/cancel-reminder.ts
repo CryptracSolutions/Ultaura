@@ -67,13 +67,14 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Get the reminder
+    // Get the reminder — exclude health_profile reminders from voice tool
     const { data: reminder, error: reminderError } = await supabase
       .from('ultaura_reminders')
       .select('*')
       .eq('id', reminderId)
       .eq('line_id', effectiveLineId)
       .eq('account_id', session.account_id)
+      .eq('source_context', 'general')
       .single();
 
     if (reminderError || !reminder) {
@@ -100,7 +101,8 @@ cancelReminderRouter.post('/', async (req: Request, res: Response) => {
       .update({ status: 'canceled' })
       .eq('id', reminderId)
       .eq('line_id', effectiveLineId)
-      .eq('account_id', session.account_id);
+      .eq('account_id', session.account_id)
+      .eq('source_context', 'general');
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to cancel reminder');

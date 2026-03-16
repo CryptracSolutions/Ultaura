@@ -912,11 +912,74 @@ async function processReminders(): Promise<void> {
 }
 
 /**
+ * Re-check Health reminder eligibility before delivery.
+ * Verifies: feature flag, plan eligibility, consent granted, not paused.
+ */
+async function recheckHealthReminderEligibility(reminder: ReminderRow): Promise<boolean> {
+  const supabase = getSupabaseClient();
+
+  try {
+    // Check feature flag
+    const { data: flag } = await supabase
+      .from('ultaura_runtime_feature_flags')
+      .select('enabled')
+      .eq('feature_key', 'health_profile')
+      .maybeSingle();
+
+    if (!flag?.enabled) return false;
+
+    // Check plan eligibility (non-trial, comfort/family/payg)
+    const { data: account } = await supabase
+      .from('ultaura_accounts')
+      .select('plan_id, status')
+      .eq('id', reminder.account_id)
+      .single();
+
+    if (!account) return false;
+    if (account.status === 'trial') return false;
+    const eligiblePlans = new Set(['comfort', 'family', 'payg']);
+    if (!eligiblePlans.has(account.plan_id)) return false;
+
+    // Check Health consent is granted for this line
+    const { data: consent } = await supabase
+      .from('ultaura_health_line_consent')
+      .select('health_consent')
+      .eq('line_id', reminder.line_id)
+      .maybeSingle();
+
+    if (!consent || consent.health_consent !== 'granted') return false;
+
+    // Check reminder is not paused
+    if (reminder.is_paused) return false;
+
+    return true;
+  } catch (err) {
+    logger.error({ error: err, reminderId: reminder.id }, 'Health reminder eligibility check failed');
+    return false; // fail-closed
+  }
+}
+
+/**
  * Process a single reminder with idempotency.
  */
 async function processReminder(reminder: ReminderRow): Promise<void> {
   const supabase = getSupabaseClient();
   const configuredMethod = getReminderMetricMethod(reminder);
+
+  // Health reminders: re-check consent and eligibility before delivery.
+  // If the re-check fails, release the claim so the reminder is not delivered.
+  if ((reminder as unknown as Record<string, unknown>).source_context === 'health_profile') {
+    const eligible = await recheckHealthReminderEligibility(reminder);
+    if (!eligible) {
+      logger.info({ reminderId: reminder.id, lineId: reminder.line_id }, 'Health reminder ineligible — releasing claim');
+      await supabase
+        .from('ultaura_reminders')
+        .update({ processing_claimed_by: null, processing_claimed_at: null })
+        .eq('id', reminder.id);
+      return;
+    }
+    // Eligible — fall through to normal outbound call delivery
+  }
 
   // Generate idempotency key for this specific reminder occurrence
   const idempotencyKey = `reminder:${reminder.id}:${reminder.due_at}`;

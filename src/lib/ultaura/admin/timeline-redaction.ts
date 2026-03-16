@@ -28,27 +28,66 @@ const RECIPIENT_VISIBLE_SOURCES: Set<TimelineSource> = new Set<TimelineSource>([
   'safety_event',
 ]);
 
+/**
+ * Returns true if a consent_audit action string is Health-related.
+ * Health consent actions are identified by the `health_` prefix, matching
+ * action types such as `health_consent_updated`, `health_consent_granted`, etc.
+ */
+function isHealthConsentAction(action: unknown): boolean {
+  return typeof action === 'string' && action.startsWith('health_');
+}
+
+/**
+ * Strip old_value and new_value from consent_audit entries whose action is
+ * Health-related. Health consent state is owner-only data and must never
+ * be exposed through the admin timeline, regardless of redaction mode.
+ * The action type itself (e.g. `health_consent_updated`) is preserved so
+ * the audit trail remains meaningful.
+ * See spec Section 9.5 and task 7.3.
+ */
+function redactHealthConsentValues(entries: TimelineEntry[]): TimelineEntry[] {
+  return entries.map((entry) => {
+    if (entry.source !== 'consent_audit') return entry;
+
+    const payload = entry.payload as Record<string, unknown>;
+    if (!isHealthConsentAction(payload.action)) return entry;
+
+    return {
+      ...entry,
+      payload: {
+        ...payload,
+        old_value: '[redacted]',
+        new_value: '[redacted]',
+      },
+    };
+  });
+}
+
 export function applyRedaction(
   entries: TimelineEntry[],
   mode: RedactionMode,
 ): TimelineEntry[] {
+  // Health consent values are stripped universally — before any mode-based
+  // redaction — so they are never visible even in admin_full mode.
+  const sanitized = redactHealthConsentValues(entries);
+
   if (mode === 'admin_full') {
-    return entries;
+    return sanitized;
   }
 
   if (mode === 'payer_simulated') {
-    return entries
+    return sanitized
       .filter((entry) => PAYER_VISIBLE_SOURCES.has(entry.source))
       .map((entry) => redactForPayer(entry));
   }
 
   if (mode === 'recipient_simulated') {
-    return entries
+    return sanitized
       .filter((entry) => RECIPIENT_VISIBLE_SOURCES.has(entry.source))
       .map((entry) => redactForRecipient(entry));
   }
 
-  return entries;
+  return sanitized;
 }
 
 function redactForPayer(entry: TimelineEntry): TimelineEntry {
@@ -84,6 +123,14 @@ function redactForPayer(entry: TimelineEntry): TimelineEntry {
     }
 
     case 'reminder': {
+      // Health-linked reminders must never surface in payer view — filter defensively
+      if ((entry.payload as Record<string, unknown>).source_context === 'health_profile') {
+        return {
+          ...entry,
+          summary: '[hidden]',
+          payload: {},
+        };
+      }
       // Payer sees reminder info but encrypted payloads are stripped
       const cleaned = { ...entry.payload };
       if (cleaned.has_encrypted_message) {

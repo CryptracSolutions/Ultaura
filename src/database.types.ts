@@ -320,6 +320,38 @@ export type Database = {
           },
         ]
       }
+      ultaura_account_alert_delivery: {
+        Row: {
+          account_id: string
+          created_at: string
+          delivery_channel: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
+          sms_consent_acknowledged_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
+          sms_consent_acknowledged_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
+          sms_consent_acknowledged_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_account_alert_delivery_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_account_crypto_keys: {
         Row: {
           account_id: string
@@ -408,38 +440,6 @@ export type Database = {
           },
           {
             foreignKeyName: "ultaura_account_privacy_settings_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: true
-            referencedRelation: "ultaura_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ultaura_account_alert_delivery: {
-        Row: {
-          account_id: string
-          created_at: string
-          delivery_channel: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
-          sms_consent_acknowledged_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          account_id: string
-          created_at?: string
-          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
-          sms_consent_acknowledged_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          account_id?: string
-          created_at?: string
-          delivery_channel?: Database["public"]["Enums"]["ultaura_alert_delivery_channel"]
-          sms_consent_acknowledged_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ultaura_account_alert_delivery_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: true
             referencedRelation: "ultaura_accounts"
@@ -773,6 +773,8 @@ export type Database = {
             | Database["public"]["Enums"]["ultaura_call_end_reason"]
             | null
           ended_at: string | null
+          health_private_disclosure_suppressed_at: string | null
+          health_private_disclosure_suppression_reason: string | null
           id: string
           is_preview_mode: boolean
           is_reminder_call: boolean
@@ -804,6 +806,8 @@ export type Database = {
             | Database["public"]["Enums"]["ultaura_call_end_reason"]
             | null
           ended_at?: string | null
+          health_private_disclosure_suppressed_at?: string | null
+          health_private_disclosure_suppression_reason?: string | null
           id?: string
           is_preview_mode?: boolean
           is_reminder_call?: boolean
@@ -835,6 +839,8 @@ export type Database = {
             | Database["public"]["Enums"]["ultaura_call_end_reason"]
             | null
           ended_at?: string | null
+          health_private_disclosure_suppressed_at?: string | null
+          health_private_disclosure_suppression_reason?: string | null
           id?: string
           is_preview_mode?: boolean
           is_reminder_call?: boolean
@@ -1320,6 +1326,9 @@ export type Database = {
       ultaura_data_export_requests: {
         Row: {
           account_id: string
+          artifact_content_type: string | null
+          artifact_extension: string | null
+          artifact_storage_path: string | null
           created_at: string
           download_url: string | null
           error_message: string | null
@@ -1330,12 +1339,19 @@ export type Database = {
           include_call_metadata: boolean
           include_memories: boolean
           include_reminders: boolean
+          includes_health_profile: boolean
+          invalidated_at: string | null
           processed_at: string | null
           requested_by: string
+          requested_scope_snapshot: Json
           status: Database["public"]["Enums"]["ultaura_export_status"]
+          visibility_scope: string
         }
         Insert: {
           account_id: string
+          artifact_content_type?: string | null
+          artifact_extension?: string | null
+          artifact_storage_path?: string | null
           created_at?: string
           download_url?: string | null
           error_message?: string | null
@@ -1346,12 +1362,19 @@ export type Database = {
           include_call_metadata?: boolean
           include_memories?: boolean
           include_reminders?: boolean
+          includes_health_profile?: boolean
+          invalidated_at?: string | null
           processed_at?: string | null
           requested_by: string
+          requested_scope_snapshot: Json
           status?: Database["public"]["Enums"]["ultaura_export_status"]
+          visibility_scope?: string
         }
         Update: {
           account_id?: string
+          artifact_content_type?: string | null
+          artifact_extension?: string | null
+          artifact_storage_path?: string | null
           created_at?: string
           download_url?: string | null
           error_message?: string | null
@@ -1362,9 +1385,13 @@ export type Database = {
           include_call_metadata?: boolean
           include_memories?: boolean
           include_reminders?: boolean
+          includes_health_profile?: boolean
+          invalidated_at?: string | null
           processed_at?: string | null
           requested_by?: string
+          requested_scope_snapshot?: Json
           status?: Database["public"]["Enums"]["ultaura_export_status"]
+          visibility_scope?: string
         }
         Relationships: [
           {
@@ -1557,6 +1584,831 @@ export type Database = {
           },
         ]
       }
+      ultaura_health_account_state: {
+        Row: {
+          account_id: string
+          created_at: string
+          disclaimer_acknowledged_at: string | null
+          disclaimer_acknowledged_by: string | null
+          disclaimer_version: string | null
+          first_item_created_at: string | null
+          first_viewed_at: string | null
+          last_viewed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          disclaimer_acknowledged_at?: string | null
+          disclaimer_acknowledged_by?: string | null
+          disclaimer_version?: string | null
+          first_item_created_at?: string | null
+          first_viewed_at?: string | null
+          last_viewed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          disclaimer_acknowledged_at?: string | null
+          disclaimer_acknowledged_by?: string | null
+          disclaimer_version?: string | null
+          first_item_created_at?: string | null
+          first_viewed_at?: string | null
+          last_viewed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_account_state_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_account_state_disclaimer_acknowledged_by_fkey"
+            columns: ["disclaimer_acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_call_notices: {
+        Row: {
+          account_id: string
+          created_at: string
+          dedupe_key: string
+          delivered_at: string | null
+          id: string
+          line_id: string
+          notice_type: Database["public"]["Enums"]["ultaura_health_call_notice_type"]
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+          status: Database["public"]["Enums"]["ultaura_health_call_notice_status"]
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          dedupe_key: string
+          delivered_at?: string | null
+          id?: string
+          line_id: string
+          notice_type: Database["public"]["Enums"]["ultaura_health_call_notice_type"]
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+          status?: Database["public"]["Enums"]["ultaura_health_call_notice_status"]
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          dedupe_key?: string
+          delivered_at?: string | null
+          id?: string
+          line_id?: string
+          notice_type?: Database["public"]["Enums"]["ultaura_health_call_notice_type"]
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+          status?: Database["public"]["Enums"]["ultaura_health_call_notice_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_call_notices_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_call_notices_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_conditions: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by_user_id: string | null
+          deleted_at: string | null
+          id: string
+          line_id: string
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+          source: string
+          status: Database["public"]["Enums"]["ultaura_health_condition_status"]
+          updated_at: string
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string
+          line_id: string
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+          source: string
+          status: Database["public"]["Enums"]["ultaura_health_condition_status"]
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string
+          line_id?: string
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+          source?: string
+          status?: Database["public"]["Enums"]["ultaura_health_condition_status"]
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_conditions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_conditions_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_conditions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_conditions_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_consent_history: {
+        Row: {
+          account_id: string
+          actor_user_id: string | null
+          call_session_id: string | null
+          created_at: string
+          event_type: Database["public"]["Enums"]["ultaura_health_consent_event_type"]
+          id: string
+          line_id: string
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+          resulting_status:
+            | Database["public"]["Enums"]["ultaura_health_consent_status"]
+            | null
+        }
+        Insert: {
+          account_id: string
+          actor_user_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type: Database["public"]["Enums"]["ultaura_health_consent_event_type"]
+          id?: string
+          line_id: string
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+          resulting_status?:
+            | Database["public"]["Enums"]["ultaura_health_consent_status"]
+            | null
+        }
+        Update: {
+          account_id?: string
+          actor_user_id?: string | null
+          call_session_id?: string | null
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["ultaura_health_consent_event_type"]
+          id?: string
+          line_id?: string
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+          resulting_status?:
+            | Database["public"]["Enums"]["ultaura_health_consent_status"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_consent_history_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_consent_history_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_consent_history_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_consent_history_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_document_access_log: {
+        Row: {
+          account_id: string
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          document_id: string
+          id: string
+          line_id: string
+          was_successful: boolean
+        }
+        Insert: {
+          account_id: string
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          line_id: string
+          was_successful?: boolean
+        }
+        Update: {
+          account_id?: string
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          line_id?: string
+          was_successful?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_document_access_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_document_access_log_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_document_access_log_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_document_access_tokens: {
+        Row: {
+          account_id: string
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          document_id: string
+          expires_at: string
+          id: string
+          line_id: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          account_id: string
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          document_id: string
+          expires_at: string
+          id?: string
+          line_id: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          document_id?: string
+          expires_at?: string
+          id?: string
+          line_id?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_document_access_tokens_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_document_access_tokens_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_document_access_tokens_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_health_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_document_access_tokens_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_documents: {
+        Row: {
+          account_id: string
+          created_at: string
+          file_alg: string | null
+          file_extension: string | null
+          file_iv: string | null
+          file_kid: string | null
+          file_size_bytes: number | null
+          file_tag: string | null
+          id: string
+          line_id: string
+          mime_type: string | null
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+          status: Database["public"]["Enums"]["ultaura_health_document_status"]
+          storage_object_key: string | null
+          updated_at: string
+          updated_by_user_id: string | null
+          upload_failed_at: string | null
+          uploaded_by_user_id: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          file_alg?: string | null
+          file_extension?: string | null
+          file_iv?: string | null
+          file_kid?: string | null
+          file_size_bytes?: number | null
+          file_tag?: string | null
+          id?: string
+          line_id: string
+          mime_type?: string | null
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+          status?: Database["public"]["Enums"]["ultaura_health_document_status"]
+          storage_object_key?: string | null
+          updated_at?: string
+          updated_by_user_id?: string | null
+          upload_failed_at?: string | null
+          uploaded_by_user_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          file_alg?: string | null
+          file_extension?: string | null
+          file_iv?: string | null
+          file_kid?: string | null
+          file_size_bytes?: number | null
+          file_tag?: string | null
+          id?: string
+          line_id?: string
+          mime_type?: string | null
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+          status?: Database["public"]["Enums"]["ultaura_health_document_status"]
+          storage_object_key?: string | null
+          updated_at?: string
+          updated_by_user_id?: string | null
+          upload_failed_at?: string | null
+          uploaded_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_documents_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_documents_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_documents_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_documents_uploaded_by_user_id_fkey"
+            columns: ["uploaded_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_item_history: {
+        Row: {
+          account_id: string
+          action: Database["public"]["Enums"]["ultaura_health_item_action"]
+          actor_type: Database["public"]["Enums"]["ultaura_health_actor_type"]
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          item_id: string | null
+          item_kind: Database["public"]["Enums"]["ultaura_health_item_kind"]
+          line_id: string
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+        }
+        Insert: {
+          account_id: string
+          action: Database["public"]["Enums"]["ultaura_health_item_action"]
+          actor_type: Database["public"]["Enums"]["ultaura_health_actor_type"]
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_kind: Database["public"]["Enums"]["ultaura_health_item_kind"]
+          line_id: string
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+        }
+        Update: {
+          account_id?: string
+          action?: Database["public"]["Enums"]["ultaura_health_item_action"]
+          actor_type?: Database["public"]["Enums"]["ultaura_health_actor_type"]
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_kind?: Database["public"]["Enums"]["ultaura_health_item_kind"]
+          line_id?: string
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_item_history_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_item_history_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_item_history_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_line_consent: {
+        Row: {
+          account_id: string
+          created_at: string
+          health_consent: Database["public"]["Enums"]["ultaura_health_consent_status"]
+          health_consent_at: string | null
+          health_consent_call_session_id: string | null
+          health_consent_requested_at: string | null
+          health_first_consent_requested_at: string | null
+          health_last_prompt_call_session_id: string | null
+          health_last_prompted_at: string | null
+          line_id: string
+          self_explanation_last_prompt_call_session_id: string | null
+          self_explanation_last_prompted_at: string | null
+          self_explanation_requested_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          health_consent?: Database["public"]["Enums"]["ultaura_health_consent_status"]
+          health_consent_at?: string | null
+          health_consent_call_session_id?: string | null
+          health_consent_requested_at?: string | null
+          health_first_consent_requested_at?: string | null
+          health_last_prompt_call_session_id?: string | null
+          health_last_prompted_at?: string | null
+          line_id: string
+          self_explanation_last_prompt_call_session_id?: string | null
+          self_explanation_last_prompted_at?: string | null
+          self_explanation_requested_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          health_consent?: Database["public"]["Enums"]["ultaura_health_consent_status"]
+          health_consent_at?: string | null
+          health_consent_call_session_id?: string | null
+          health_consent_requested_at?: string | null
+          health_first_consent_requested_at?: string | null
+          health_last_prompt_call_session_id?: string | null
+          health_last_prompted_at?: string | null
+          line_id?: string
+          self_explanation_last_prompt_call_session_id?: string | null
+          self_explanation_last_prompted_at?: string | null
+          self_explanation_requested_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_line_consent_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_line_consent_health_consent_call_session_id_fkey"
+            columns: ["health_consent_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_line_consent_health_last_prompt_call_sessio_fkey"
+            columns: ["health_last_prompt_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_line_consent_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: true
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_line_consent_self_explanation_last_prompt_c_fkey"
+            columns: ["self_explanation_last_prompt_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_medication_reminders: {
+        Row: {
+          account_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          line_id: string
+          medication_id: string
+          reminder_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          line_id: string
+          medication_id: string
+          reminder_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          line_id?: string
+          medication_id?: string
+          reminder_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_medication_reminders_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_medication_reminders_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_medication_reminders_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_health_medications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_medication_reminders_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_reminders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_medications: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by_user_id: string | null
+          deleted_at: string | null
+          id: string
+          line_id: string
+          linked_condition_id: string | null
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+          source: string
+          status: Database["public"]["Enums"]["ultaura_health_medication_status"]
+          updated_at: string
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string
+          line_id: string
+          linked_condition_id?: string | null
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+          source: string
+          status: Database["public"]["Enums"]["ultaura_health_medication_status"]
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string
+          line_id?: string
+          linked_condition_id?: string | null
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+          source?: string
+          status?: Database["public"]["Enums"]["ultaura_health_medication_status"]
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_medications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_medications_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_medications_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_medications_linked_condition_id_fkey"
+            columns: ["linked_condition_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_health_conditions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_medications_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_health_mentions: {
         Row: {
           account_id: string
@@ -1572,6 +2424,9 @@ export type Database = {
           mention_kid: string
           mention_tag: string
           severity: string | null
+          suppressed_at: string | null
+          suppressed_by_call_session_id: string | null
+          suppression_reason: string | null
           triggers_alert: boolean | null
         }
         Insert: {
@@ -1588,6 +2443,9 @@ export type Database = {
           mention_kid?: string
           mention_tag: string
           severity?: string | null
+          suppressed_at?: string | null
+          suppressed_by_call_session_id?: string | null
+          suppression_reason?: string | null
           triggers_alert?: boolean | null
         }
         Update: {
@@ -1604,6 +2462,9 @@ export type Database = {
           mention_kid?: string
           mention_tag?: string
           severity?: string | null
+          suppressed_at?: string | null
+          suppressed_by_call_session_id?: string | null
+          suppression_reason?: string | null
           triggers_alert?: boolean | null
         }
         Relationships: [
@@ -1626,6 +2487,222 @@ export type Database = {
             columns: ["line_id"]
             isOneToOne: false
             referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_mentions_suppressed_by_call_session_id_fkey"
+            columns: ["suppressed_by_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_observations: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by_user_id: string | null
+          deleted_at: string | null
+          id: string
+          line_id: string
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+          updated_at: string
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string
+          line_id: string
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          deleted_at?: string | null
+          id?: string
+          line_id?: string
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_observations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_observations_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_observations_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_observations_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultaura_health_suggestions: {
+        Row: {
+          account_id: string
+          created_at: string
+          dedupe_key: string
+          dismiss_reason:
+            | Database["public"]["Enums"]["ultaura_health_suggestion_dismiss_reason"]
+            | null
+          id: string
+          line_id: string
+          material_evidence_key: string
+          payload_alg: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid: string | null
+          payload_tag: string
+          resulting_item_id: string | null
+          reviewed_at: string | null
+          reviewed_by_user_id: string | null
+          similar_item_id: string | null
+          source_call_session_id: string | null
+          source_call_started_at: string | null
+          status: Database["public"]["Enums"]["ultaura_health_suggestion_status"]
+          suggestion_mode: Database["public"]["Enums"]["ultaura_health_suggestion_mode"]
+          suggestion_type: Database["public"]["Enums"]["ultaura_health_suggestion_type"]
+          suppressed_at: string | null
+          suppressed_by_call_session_id: string | null
+          suppression_reason:
+            | Database["public"]["Enums"]["ultaura_health_suggestion_suppression_reason"]
+            | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          dedupe_key: string
+          dismiss_reason?:
+            | Database["public"]["Enums"]["ultaura_health_suggestion_dismiss_reason"]
+            | null
+          id?: string
+          line_id: string
+          material_evidence_key: string
+          payload_alg?: string
+          payload_ciphertext: string
+          payload_iv: string
+          payload_kid?: string | null
+          payload_tag: string
+          resulting_item_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          similar_item_id?: string | null
+          source_call_session_id?: string | null
+          source_call_started_at?: string | null
+          status?: Database["public"]["Enums"]["ultaura_health_suggestion_status"]
+          suggestion_mode: Database["public"]["Enums"]["ultaura_health_suggestion_mode"]
+          suggestion_type: Database["public"]["Enums"]["ultaura_health_suggestion_type"]
+          suppressed_at?: string | null
+          suppressed_by_call_session_id?: string | null
+          suppression_reason?:
+            | Database["public"]["Enums"]["ultaura_health_suggestion_suppression_reason"]
+            | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          dedupe_key?: string
+          dismiss_reason?:
+            | Database["public"]["Enums"]["ultaura_health_suggestion_dismiss_reason"]
+            | null
+          id?: string
+          line_id?: string
+          material_evidence_key?: string
+          payload_alg?: string
+          payload_ciphertext?: string
+          payload_iv?: string
+          payload_kid?: string | null
+          payload_tag?: string
+          resulting_item_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          similar_item_id?: string | null
+          source_call_session_id?: string | null
+          source_call_started_at?: string | null
+          status?: Database["public"]["Enums"]["ultaura_health_suggestion_status"]
+          suggestion_mode?: Database["public"]["Enums"]["ultaura_health_suggestion_mode"]
+          suggestion_type?: Database["public"]["Enums"]["ultaura_health_suggestion_type"]
+          suppressed_at?: string | null
+          suppressed_by_call_session_id?: string | null
+          suppression_reason?:
+            | Database["public"]["Enums"]["ultaura_health_suggestion_suppression_reason"]
+            | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_health_suggestions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_suggestions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_suggestions_reviewed_by_user_id_fkey"
+            columns: ["reviewed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_suggestions_source_call_session_id_fkey"
+            columns: ["source_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_health_suggestions_suppressed_by_call_session_id_fkey"
+            columns: ["suppressed_by_call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -2851,10 +3928,10 @@ export type Database = {
           phone_e164: string | null
           relationship: string | null
           sms_consent_acknowledged_at: string | null
+          sms_verified_at: string | null
           sms_verify_access_token_expires_at: string | null
           sms_verify_access_token_hash: string | null
           sms_verify_last_sent_at: string | null
-          sms_verified_at: string | null
           trusted_contact_id: string | null
           unsubscribe_token_expires_at: string | null
           unsubscribe_token_hash: string | null
@@ -2879,10 +3956,10 @@ export type Database = {
           phone_e164?: string | null
           relationship?: string | null
           sms_consent_acknowledged_at?: string | null
+          sms_verified_at?: string | null
           sms_verify_access_token_expires_at?: string | null
           sms_verify_access_token_hash?: string | null
           sms_verify_last_sent_at?: string | null
-          sms_verified_at?: string | null
           trusted_contact_id?: string | null
           unsubscribe_token_expires_at?: string | null
           unsubscribe_token_hash?: string | null
@@ -2907,10 +3984,10 @@ export type Database = {
           phone_e164?: string | null
           relationship?: string | null
           sms_consent_acknowledged_at?: string | null
+          sms_verified_at?: string | null
           sms_verify_access_token_expires_at?: string | null
           sms_verify_access_token_hash?: string | null
           sms_verify_last_sent_at?: string | null
-          sms_verified_at?: string | null
           trusted_contact_id?: string | null
           unsubscribe_token_expires_at?: string | null
           unsubscribe_token_hash?: string | null
@@ -2918,6 +3995,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ultaura_notification_recipien_dashboard_access_membership__fkey"
+            columns: ["dashboard_access_membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ultaura_notification_recipients_account_id_fkey"
             columns: ["account_id"]
@@ -3478,6 +4562,7 @@ export type Database = {
           next_delivery_attempt_at: string | null
           occurrence_count: number
           original_due_at: string | null
+          pause_sources: Database["public"]["Enums"]["ultaura_reminder_pause_source"][]
           paused_at: string | null
           privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
           processing_claimed_at: string | null
@@ -3485,6 +4570,7 @@ export type Database = {
           rrule: string | null
           search_tokens: string[] | null
           snoozed_until: string | null
+          source_context: string
           status: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day: string | null
           timezone: string
@@ -3515,6 +4601,7 @@ export type Database = {
           next_delivery_attempt_at?: string | null
           occurrence_count?: number
           original_due_at?: string | null
+          pause_sources?: Database["public"]["Enums"]["ultaura_reminder_pause_source"][]
           paused_at?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
           processing_claimed_at?: string | null
@@ -3522,6 +4609,7 @@ export type Database = {
           rrule?: string | null
           search_tokens?: string[] | null
           snoozed_until?: string | null
+          source_context?: string
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day?: string | null
           timezone: string
@@ -3552,6 +4640,7 @@ export type Database = {
           next_delivery_attempt_at?: string | null
           occurrence_count?: number
           original_due_at?: string | null
+          pause_sources?: Database["public"]["Enums"]["ultaura_reminder_pause_source"][]
           paused_at?: string | null
           privacy_scope?: Database["public"]["Enums"]["ultaura_privacy_scope"]
           processing_claimed_at?: string | null
@@ -3559,6 +4648,7 @@ export type Database = {
           rrule?: string | null
           search_tokens?: string[] | null
           snoozed_until?: string | null
+          source_context?: string
           status?: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day?: string | null
           timezone?: string
@@ -3586,6 +4676,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ultaura_runtime_feature_flags: {
+        Row: {
+          enabled: boolean
+          flag_key: string
+          updated_at: string
+        }
+        Insert: {
+          enabled: boolean
+          flag_key: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          flag_key?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       ultaura_safety_events: {
         Row: {
@@ -4570,6 +5678,10 @@ export type Database = {
         Args: { account_id: string }
         Returns: boolean
       }
+      can_access_ultaura_health_line: {
+        Args: { target_line_id: string }
+        Returns: boolean
+      }
       can_update_user_role:
         | { Args: { membership_id: number }; Returns: boolean }
         | {
@@ -4620,6 +5732,7 @@ export type Database = {
           next_delivery_attempt_at: string | null
           occurrence_count: number
           original_due_at: string | null
+          pause_sources: Database["public"]["Enums"]["ultaura_reminder_pause_source"][]
           paused_at: string | null
           privacy_scope: Database["public"]["Enums"]["ultaura_privacy_scope"]
           processing_claimed_at: string | null
@@ -4627,6 +5740,7 @@ export type Database = {
           rrule: string | null
           search_tokens: string[] | null
           snoozed_until: string | null
+          source_context: string
           status: Database["public"]["Enums"]["ultaura_reminder_status"]
           time_of_day: string | null
           timezone: string
@@ -4751,6 +5865,10 @@ export type Database = {
         Returns: number
       }
       get_admin_platform_stats: { Args: never; Returns: Json }
+      get_auth_user_id_by_email: {
+        Args: { lookup_email: string }
+        Returns: string
+      }
       get_effective_plan_id: { Args: { p_account_id: string }; Returns: string }
       get_organizations_for_authenticated_user: {
         Args: never
@@ -4819,6 +5937,14 @@ export type Database = {
         }[]
       }
       get_user_id_by_email: { Args: { lookup_email: string }; Returns: string }
+      has_exportable_health_document_files: {
+        Args: { target_account_id: string }
+        Returns: boolean
+      }
+      has_exportable_health_profile_data: {
+        Args: { target_account_id: string }
+        Returns: boolean
+      }
       heartbeat_scheduler_lease: {
         Args: {
           p_extend_seconds?: number
@@ -4835,10 +5961,35 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_dashboard_viewer: { Args: { p_account_id: string }; Returns: boolean }
       is_line_on_vacation: { Args: { p_line_id: string }; Returns: boolean }
+      is_runtime_feature_enabled: {
+        Args: { target_flag_key: string }
+        Returns: boolean
+      }
+      is_ultaura_account_owner: {
+        Args: { target_account_id: string }
+        Returns: boolean
+      }
       is_ultaura_trial_active: {
         Args: { p_account_id: string }
         Returns: boolean
+      }
+      is_valid_health_export_scope_snapshot: {
+        Args: { payload: Json }
+        Returns: boolean
+      }
+      lock_reminder_for_update: {
+        Args: { p_reminder_id: string }
+        Returns: {
+          account_id: string
+          id: string
+          is_paused: boolean
+          line_id: string
+          pause_sources: string[]
+          source_context: string
+          status: string
+        }[]
       }
       mark_memory_accessed: {
         Args: { p_memory_id: string }
@@ -5013,8 +6164,8 @@ export type Database = {
         | "incomplete"
         | "incomplete_expired"
         | "paused"
-      ultaura_alert_delivery_channel: "email" | "sms" | "both"
       ultaura_account_status: "trial" | "active" | "past_due" | "canceled"
+      ultaura_alert_delivery_channel: "email" | "sms" | "both"
       ultaura_billable_type: "trial" | "included" | "overage" | "payg"
       ultaura_call_direction: "inbound" | "outbound"
       ultaura_call_end_reason:
@@ -5080,6 +6231,59 @@ export type Database = {
         | "ready"
         | "expired"
         | "failed"
+      ultaura_health_actor_type: "owner" | "system" | "telephony"
+      ultaura_health_call_notice_status:
+        | "pending"
+        | "delivered"
+        | "superseded"
+        | "canceled"
+      ultaura_health_call_notice_type: "consent_change" | "major_profile_change"
+      ultaura_health_condition_status: "active" | "monitoring" | "resolved"
+      ultaura_health_consent_event_type:
+        | "owner_request"
+        | "spoken_prompt"
+        | "spoken_decision"
+        | "self_service_decision"
+      ultaura_health_consent_status:
+        | "not_requested"
+        | "granted"
+        | "denied"
+        | "revoked"
+      ultaura_health_document_status: "uploading" | "active" | "failed"
+      ultaura_health_item_action:
+        | "created"
+        | "edited"
+        | "deleted"
+        | "suggestion_approved"
+        | "suggestion_dismissed"
+        | "system_stale_dismissed"
+      ultaura_health_item_kind:
+        | "condition"
+        | "medication"
+        | "document"
+        | "observation"
+        | "suggestion"
+      ultaura_health_medication_status: "current" | "as_needed" | "discontinued"
+      ultaura_health_observation_category:
+        | "memory"
+        | "mood_emotional"
+        | "physical_mobility"
+        | "nutrition_eating"
+        | "sleep"
+        | "social_engagement"
+        | "medication_compliance"
+        | "general_other"
+      ultaura_health_observation_concern:
+        | "note"
+        | "mild_concern"
+        | "significant_concern"
+      ultaura_health_suggestion_dismiss_reason:
+        | "owner_dismissed"
+        | "system_stale"
+      ultaura_health_suggestion_mode: "new" | "update"
+      ultaura_health_suggestion_status: "pending" | "approved" | "dismissed"
+      ultaura_health_suggestion_suppression_reason: "owner_private_disclosure"
+      ultaura_health_suggestion_type: "condition" | "medication"
       ultaura_line_status: "active" | "paused" | "disabled"
       ultaura_memory_type:
         | "fact"
@@ -5093,6 +6297,13 @@ export type Database = {
         | "routine"
       ultaura_opt_out_channel: "outbound_calls" | "sms" | "all"
       ultaura_privacy_scope: "line_only" | "shareable_with_payer"
+      ultaura_reminder_pause_source:
+        | "manual"
+        | "health_manual_resume_required"
+        | "health_consent_not_requested"
+        | "health_consent_denied"
+        | "health_consent_revoked"
+        | "health_plan_ineligible"
       ultaura_reminder_status: "scheduled" | "sent" | "missed" | "canceled"
       ultaura_retention_period:
         | "30_days"
@@ -5351,7 +6562,6 @@ export type Database = {
           created_at: string | null
           id: string
           last_accessed_at: string | null
-          level: number | null
           metadata: Json | null
           name: string | null
           owner: string | null
@@ -5366,7 +6576,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_accessed_at?: string | null
-          level?: number | null
           metadata?: Json | null
           name?: string | null
           owner?: string | null
@@ -5381,7 +6590,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_accessed_at?: string | null
-          level?: number | null
           metadata?: Json | null
           name?: string | null
           owner?: string | null
@@ -5394,38 +6602,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "objects_bucketId_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      prefixes: {
-        Row: {
-          bucket_id: string
-          created_at: string | null
-          level: number
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string | null
-          level?: number
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string | null
-          level?: number
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prefixes_bucketId_fkey"
             columns: ["bucket_id"]
             isOneToOne: false
             referencedRelation: "buckets"
@@ -5580,28 +6756,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_prefixes: {
-        Args: { _bucket_id: string; _name: string }
-        Returns: undefined
-      }
       can_insert_object: {
         Args: { bucketid: string; metadata: Json; name: string; owner: string }
         Returns: undefined
       }
-      delete_leaf_prefixes: {
-        Args: { bucket_ids: string[]; names: string[] }
-        Returns: undefined
-      }
-      delete_prefix: {
-        Args: { _bucket_id: string; _name: string }
-        Returns: boolean
-      }
       extension: { Args: { name: string }; Returns: string }
       filename: { Args: { name: string }; Returns: string }
       foldername: { Args: { name: string }; Returns: string[] }
-      get_level: { Args: { name: string }; Returns: number }
-      get_prefix: { Args: { name: string }; Returns: string }
-      get_prefixes: { Args: { name: string }; Returns: string[] }
+      get_common_prefix: {
+        Args: { p_delimiter: string; p_key: string; p_prefix: string }
+        Returns: string
+      }
       get_size_by_bucket: {
         Args: never
         Returns: {
@@ -5626,64 +6791,25 @@ export type Database = {
       }
       list_objects_with_delimiter: {
         Args: {
-          bucket_id: string
+          _bucket_id: string
           delimiter_param: string
           max_keys?: number
           next_token?: string
           prefix_param: string
+          sort_order?: string
           start_after?: string
         }
         Returns: {
+          created_at: string
           id: string
+          last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
         }[]
-      }
-      lock_top_prefixes: {
-        Args: { bucket_ids: string[]; names: string[] }
-        Returns: undefined
       }
       operation: { Args: never; Returns: string }
-      search:
-        | {
-            Args: {
-              bucketname: string
-              levels?: number
-              limits?: number
-              offsets?: number
-              prefix: string
-            }
-            Returns: {
-              created_at: string
-              id: string
-              last_accessed_at: string
-              metadata: Json
-              name: string
-              updated_at: string
-            }[]
-          }
-        | {
-            Args: {
-              bucketname: string
-              levels?: number
-              limits?: number
-              offsets?: number
-              prefix: string
-              search?: string
-              sortcolumn?: string
-              sortorder?: string
-            }
-            Returns: {
-              created_at: string
-              id: string
-              last_accessed_at: string
-              metadata: Json
-              name: string
-              updated_at: string
-            }[]
-          }
-      search_legacy_v1: {
+      search: {
         Args: {
           bucketname: string
           levels?: number
@@ -5703,65 +6829,48 @@ export type Database = {
           updated_at: string
         }[]
       }
-      search_v1_optimised: {
+      search_by_timestamp: {
         Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
+          p_bucket_id: string
+          p_level: number
+          p_limit: number
+          p_prefix: string
+          p_sort_column: string
+          p_sort_column_after: string
+          p_sort_order: string
+          p_start_after: string
         }
         Returns: {
           created_at: string
           id: string
+          key: string
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
         }[]
       }
-      search_v2:
-        | {
-            Args: {
-              bucket_name: string
-              levels?: number
-              limits?: number
-              prefix: string
-              start_after?: string
-            }
-            Returns: {
-              created_at: string
-              id: string
-              key: string
-              metadata: Json
-              name: string
-              updated_at: string
-            }[]
-          }
-        | {
-            Args: {
-              bucket_name: string
-              levels?: number
-              limits?: number
-              prefix: string
-              sort_column?: string
-              sort_column_after?: string
-              sort_order?: string
-              start_after?: string
-            }
-            Returns: {
-              created_at: string
-              id: string
-              key: string
-              last_accessed_at: string
-              metadata: Json
-              name: string
-              updated_at: string
-            }[]
-          }
+      search_v2: {
+        Args: {
+          bucket_name: string
+          levels?: number
+          limits?: number
+          prefix: string
+          sort_column?: string
+          sort_column_after?: string
+          sort_order?: string
+          start_after?: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          key: string
+          last_accessed_at: string
+          metadata: Json
+          name: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       buckettype: "STANDARD" | "ANALYTICS" | "VECTOR"
@@ -5906,8 +7015,8 @@ export const Constants = {
         "incomplete_expired",
         "paused",
       ],
-      ultaura_alert_delivery_channel: ["email", "sms", "both"],
       ultaura_account_status: ["trial", "active", "past_due", "canceled"],
+      ultaura_alert_delivery_channel: ["email", "sms", "both"],
       ultaura_billable_type: ["trial", "included", "overage", "payg"],
       ultaura_call_direction: ["inbound", "outbound"],
       ultaura_call_end_reason: [
@@ -5980,6 +7089,76 @@ export const Constants = {
         "expired",
         "failed",
       ],
+      ultaura_health_actor_type: ["owner", "system", "telephony"],
+      ultaura_health_call_notice_status: [
+        "pending",
+        "delivered",
+        "superseded",
+        "canceled",
+      ],
+      ultaura_health_call_notice_type: [
+        "consent_change",
+        "major_profile_change",
+      ],
+      ultaura_health_condition_status: ["active", "monitoring", "resolved"],
+      ultaura_health_consent_event_type: [
+        "owner_request",
+        "spoken_prompt",
+        "spoken_decision",
+        "self_service_decision",
+      ],
+      ultaura_health_consent_status: [
+        "not_requested",
+        "granted",
+        "denied",
+        "revoked",
+      ],
+      ultaura_health_document_status: ["uploading", "active", "failed"],
+      ultaura_health_item_action: [
+        "created",
+        "edited",
+        "deleted",
+        "suggestion_approved",
+        "suggestion_dismissed",
+        "system_stale_dismissed",
+      ],
+      ultaura_health_item_kind: [
+        "condition",
+        "medication",
+        "document",
+        "observation",
+        "suggestion",
+      ],
+      ultaura_health_medication_status: [
+        "current",
+        "as_needed",
+        "discontinued",
+      ],
+      ultaura_health_observation_category: [
+        "memory",
+        "mood_emotional",
+        "physical_mobility",
+        "nutrition_eating",
+        "sleep",
+        "social_engagement",
+        "medication_compliance",
+        "general_other",
+      ],
+      ultaura_health_observation_concern: [
+        "note",
+        "mild_concern",
+        "significant_concern",
+      ],
+      ultaura_health_suggestion_dismiss_reason: [
+        "owner_dismissed",
+        "system_stale",
+      ],
+      ultaura_health_suggestion_mode: ["new", "update"],
+      ultaura_health_suggestion_status: ["pending", "approved", "dismissed"],
+      ultaura_health_suggestion_suppression_reason: [
+        "owner_private_disclosure",
+      ],
+      ultaura_health_suggestion_type: ["condition", "medication"],
       ultaura_line_status: ["active", "paused", "disabled"],
       ultaura_memory_type: [
         "fact",
@@ -5994,6 +7173,14 @@ export const Constants = {
       ],
       ultaura_opt_out_channel: ["outbound_calls", "sms", "all"],
       ultaura_privacy_scope: ["line_only", "shareable_with_payer"],
+      ultaura_reminder_pause_source: [
+        "manual",
+        "health_manual_resume_required",
+        "health_consent_not_requested",
+        "health_consent_denied",
+        "health_consent_revoked",
+        "health_plan_ineligible",
+      ],
       ultaura_reminder_status: ["scheduled", "sent", "missed", "canceled"],
       ultaura_retention_period: [
         "30_days",
@@ -6042,3 +7229,4 @@ export const Constants = {
     },
   },
 } as const
+

@@ -35,6 +35,15 @@ import {
   statusToColor,
 } from '../../lib/privacy-formatters';
 
+function getDownloadHref(request: DataExportRequest): string | null {
+  if (request.status !== 'ready') return null;
+  if (request.invalidatedAt) return null;
+  if (request.visibilityScope === 'health_owner_only') {
+    return `/api/privacy/exports/${request.id}/download`;
+  }
+  return getSafeDownloadUrl(request.downloadUrl);
+}
+
 export interface ExportSectionProps {
   exportFormat: 'json' | 'csv';
   onExportFormatChange: (format: 'json' | 'csv') => void;
@@ -185,21 +194,19 @@ export function ExportSection({
                 {exports.map((request) => {
                   const statusLabel = formatStatusLabel(request.status);
                   const statusColor = statusToColor(request.status);
-                  const safeDownloadUrl = getSafeDownloadUrl(
-                    request.downloadUrl,
-                  );
-                  const readyDownloadUrl =
-                    request.status === 'ready' ? safeDownloadUrl : null;
+                  const downloadHref = getDownloadHref(request);
+                  const isHealthExport =
+                    request.visibilityScope === 'health_owner_only';
                   return (
                     <TableRow key={request.id}>
                       <TableCell>
-                        {readyDownloadUrl ? (
+                        {downloadHref ? (
                           <a
-                            href={readyDownloadUrl}
+                            href={downloadHref}
                             className="inline-flex items-center justify-center rounded-md p-1 text-primary transition-colors hover:text-primary/80"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Download ${request.format} export requested ${formatDateTime(request.createdAt)}`}
+                            target={isHealthExport ? '_self' : '_blank'}
+                            rel={isHealthExport ? undefined : 'noopener noreferrer'}
+                            aria-label={`Download ${isHealthExport ? 'ZIP' : request.format.toUpperCase()} export requested ${formatDateTime(request.createdAt)}`}
                           >
                             <Download className="h-4 w-4" />
                           </a>
@@ -211,7 +218,7 @@ export function ExportSection({
                       </TableCell>
                       <TableCell>{formatDateTime(request.createdAt)}</TableCell>
                       <TableCell className="uppercase text-xs text-muted-foreground">
-                        {request.format}
+                        {isHealthExport ? 'ZIP' : request.format}
                       </TableCell>
                       <TableCell>
                         <span

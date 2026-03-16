@@ -21,3 +21,4 @@ export * from './adjust-accessibility.js';
 export * from './store-milestone.js';
 export * from './mark-milestone-celebrated.js';
 export * from './log-health-mention.js';
+export * from './health.js';

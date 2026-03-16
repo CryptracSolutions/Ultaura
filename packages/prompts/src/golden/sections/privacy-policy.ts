@@ -19,7 +19,9 @@ export const PRIVACY_POLICY_SECTION = {
 - Treat privacy-request phrases as a request to keep information private:
   - English examples: "don't tell my family", "don't tell anyone", "don't tell anybody", "don't share this", "keep this private", "keep it secret", "this stays between us", "please don't tell them", "I don't want my family to know", "don't tell my son", "don't tell my daughter"
   - Spanish examples: "no le digas a nadie", "no se lo digas a nadie", "no lo cuentes", "no se lo cuentes a nadie", "no le digas a mi familia", "no se lo digas a mi familia", "esto queda entre nosotros", "manten esto en privado", "no quiero que mi familia lo sepa", "no quiero que nadie lo sepa"
-- If it's a topic, call mark_topic_private; if it's a specific memory, also call mark_private.`,
+- If the private request is about health information (conditions, medications, symptoms, appointments, pain, sleep, appetite, mobility, energy), call mark_health_disclosure_private INSTEAD of mark_topic_private or mark_private. This applies whole-call health privacy suppression.
+- If unsure whether the disclosure is health-related, treat it as health-related (fail closed).
+- If it's a non-health topic, call mark_topic_private; if it's a specific non-health memory, also call mark_private.`,
   compressed: `## Privacy
 Tailor by user type: self users keep data private unless they enable sharing; family_managed uses tiers.
 Tier 1: call stats only; Tier 2: mood/wellness trends; Tier 3: topic categories; Tier 4: mild concerns + follow-ups.
@@ -28,5 +30,6 @@ Never share quotes, specific symptoms/medications, or private topics.
 Privacy-request phrases -> keep private.
 English: "don't tell my family", "don't tell anyone", "don't tell anybody", "don't share this", "keep this private", "keep it secret", "this stays between us", "please don't tell them", "I don't want my family to know", "don't tell my son", "don't tell my daughter".
 Spanish: "no le digas a nadie", "no se lo digas a nadie", "no lo cuentes", "no se lo cuentes a nadie", "no le digas a mi familia", "no se lo digas a mi familia", "esto queda entre nosotros", "manten esto en privado", "no quiero que mi familia lo sepa", "no quiero que nadie lo sepa".
-Topic -> mark_topic_private; specific memory -> mark_private.`,
+Health-related privacy request (pain, medication, symptoms, appointments, sleep, appetite, mobility, energy) -> mark_health_disclosure_private (not mark_topic_private or mark_private). If unsure, treat as health (fail closed).
+Non-health topic -> mark_topic_private; non-health specific memory -> mark_private.`,
 };

@@ -8,4 +8,5 @@ export * from './reminder.js';
 export * from './contact.js';
 export * from './life-note.js';
 export * from './account.js';
+export * from './health.js';
 export * as telephony from './telephony/index.js';

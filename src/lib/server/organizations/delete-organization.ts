@@ -9,6 +9,7 @@ import {
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import getLogger from '~/core/logger';
 import getStripeInstance from '~/core/stripe/get-stripe';
+import { cleanupHealthDataForDeletion } from '~/lib/ultaura/health/deletion';
 
 /**
  * Deletes an organization.
@@ -52,6 +53,22 @@ export default async function deleteOrganization(
   }
 
   const adminClient = getSupabaseServerActionClient({ admin: true });
+
+  // Clean up Health data before the org row is deleted
+  const { data: account } = await adminClient
+    .from('ultaura_accounts')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+
+  if (account?.id) {
+    const { data: lines } = await adminClient
+      .from('ultaura_lines')
+      .select('id')
+      .eq('account_id', account.id);
+    const lineIds = (lines || []).map((l: { id: string }) => l.id);
+    await cleanupHealthDataForDeletion(account.id, lineIds);
+  }
 
   const response = await adminClient
     .from(ORGANIZATIONS_TABLE)

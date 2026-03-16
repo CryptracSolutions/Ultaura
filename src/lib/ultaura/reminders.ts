@@ -202,6 +202,7 @@ export async function getReminders(lineId: string): Promise<ReminderRow[]> {
     .from('ultaura_reminders')
     .select('*')
     .eq('line_id', lineId)
+    .eq('source_context', 'general')
     .order('due_at', { ascending: true });
 
   if (error) {
@@ -221,6 +222,7 @@ export async function getReminder(reminderId: string): Promise<ReminderRow | nul
     .from('ultaura_reminders')
     .select('*')
     .eq('id', reminderId)
+    .eq('source_context', 'general')
     .single();
 
   if (error) {
@@ -1227,7 +1229,8 @@ export async function getPendingReminderCount(lineId: string): Promise<number> {
     .from('ultaura_reminders')
     .select('*', { count: 'exact', head: true })
     .eq('line_id', lineId)
-    .eq('status', 'scheduled');
+    .eq('status', 'scheduled')
+    .eq('source_context', 'general');
 
   if (error) {
     logger.error({ error }, 'Failed to get pending reminder count');
@@ -1254,7 +1257,8 @@ export async function getScheduledReminderStatsByLine(
     .from('ultaura_reminders')
     .select('line_id')
     .eq('account_id', accountId)
-    .eq('status', 'scheduled');
+    .eq('status', 'scheduled')
+    .eq('source_context', 'general');
 
   if (error) {
     logger.error({ error, accountId }, 'Failed to get scheduled reminder stats by line');
@@ -1283,6 +1287,7 @@ export async function getNextReminder(lineId: string): Promise<ReminderRow | nul
     .select('*')
     .eq('line_id', lineId)
     .eq('status', 'scheduled')
+    .eq('source_context', 'general')
     .gte('due_at', new Date().toISOString())
     .order('due_at', { ascending: true })
     .limit(1)
@@ -1348,6 +1353,7 @@ export async function getUpcomingReminders(accountId: string): Promise<{
     `)
     .eq('account_id', accountId)
     .eq('status', 'scheduled')
+    .eq('source_context', 'general')
     .gte('due_at', new Date().toISOString())
     .order('due_at', { ascending: true })
     .limit(10);
@@ -1452,6 +1458,7 @@ export async function getAllReminders(accountId: string): Promise<{
       )
     `)
     .eq('account_id', accountId)
+    .eq('source_context', 'general')
     .order('due_at', { ascending: true });
 
   if (error) {

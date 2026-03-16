@@ -67,13 +67,14 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Get the reminder
+    // Get the reminder — exclude health_profile reminders from voice tool
     const { data: reminder, error: reminderError } = await supabase
       .from('ultaura_reminders')
       .select('*')
       .eq('id', reminderId)
       .eq('line_id', effectiveLineId)
       .eq('account_id', session.account_id)
+      .eq('source_context', 'general')
       .single();
 
     if (reminderError || !reminder) {
@@ -94,17 +95,18 @@ resumeReminderRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Resume the reminder
+    // Resume the reminder via pause_sources array — DB trigger canonicalizes is_paused
+    // Only clears 'manual' source; other pause sources (e.g. health consent) remain.
+    // DB trigger sets is_paused = false only when pause_sources becomes empty.
+    const currentSources = (reminder.pause_sources || []) as string[];
+    const newSources = currentSources.filter(s => s !== 'manual');
     const { error: updateError } = await supabase
       .from('ultaura_reminders')
-      .update({
-        is_paused: false,
-        paused_at: null,
-        current_snooze_count: 0, // Reset snooze count on resume
-      })
+      .update({ pause_sources: newSources })
       .eq('id', reminderId)
       .eq('line_id', effectiveLineId)
-      .eq('account_id', session.account_id);
+      .eq('account_id', session.account_id)
+      .eq('source_context', 'general');
 
     if (updateError) {
       logger.error({ error: updateError }, 'Failed to resume reminder');

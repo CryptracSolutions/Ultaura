@@ -13,6 +13,7 @@ import {
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { encryptHealthMentionSummary } from '../../utils/health-mention-crypto.js';
 import { minimizeDerivedText } from '../../utils/derived-artifact-minimizer.js';
+import { isHealthSuppressionActive } from '../../services/health-privacy-state.js';
 
 export const logHealthMentionRouter = Router();
 
@@ -60,23 +61,33 @@ logHealthMentionRouter.post('/', async (req: Request, res: Response) => {
     );
 
     const triggersAlert = severity === 'concerning';
+    const suppressionActive = await isHealthSuppressionActive(callSessionId);
+
     const supabase = getSupabaseClient();
+    const insertData: Record<string, unknown> = {
+      id: mentionId,
+      account_id: session.account_id,
+      line_id: lineId,
+      call_session_id: callSessionId,
+      mention_ciphertext: ciphertext,
+      mention_iv: iv,
+      mention_tag: tag,
+      mention_alg: alg,
+      mention_kid: kid,
+      category,
+      severity: severity ?? null,
+      triggers_alert: triggersAlert,
+    };
+
+    if (suppressionActive) {
+      insertData.suppressed_at = new Date().toISOString();
+      insertData.suppression_reason = 'owner_private_disclosure';
+      insertData.suppressed_by_call_session_id = callSessionId;
+    }
+
     const { error } = await supabase
       .from('ultaura_health_mentions')
-      .insert({
-        id: mentionId,
-        account_id: session.account_id,
-        line_id: lineId,
-        call_session_id: callSessionId,
-        mention_ciphertext: ciphertext,
-        mention_iv: iv,
-        mention_tag: tag,
-        mention_alg: alg,
-        mention_kid: kid,
-        category,
-        severity: severity ?? null,
-        triggers_alert: triggersAlert,
-      });
+      .insert(insertData);
 
     if (error) {
       logger.error({ error, lineId }, 'Failed to log health mention');

@@ -97,6 +97,7 @@ export async function GET(request: Request) {
           'id, line_id, message, message_ciphertext, message_iv, message_tag, due_at, created_at, search_tokens, ultaura_lines(display_name, short_id, created_at)'
         )
         .eq('account_id', accountId)
+        .eq('source_context', 'general')
         .order('due_at', { ascending: false })
         .limit(50)
     : null;
@@ -261,6 +262,7 @@ export async function GET(request: Request) {
           'id, line_id, message, message_ciphertext, message_iv, message_tag, due_at, created_at, search_tokens, ultaura_lines(display_name, short_id, created_at)'
         )
         .eq('account_id', accountId)
+        .eq('source_context', 'general')
         .order('due_at', { ascending: false })
         .limit(20);
 

@@ -3,26 +3,24 @@ import 'server-only';
 import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import getLogger from '~/core/logger';
-import { decodeBytea, encodeBytea, type ByteaInput } from './bytea';
+import { decodeBytea } from './bytea';
 import { buildShingles, tokenizeText } from '~/lib/search/match';
+import { isDecryptionError } from './crypto-kek';
 import {
-  isDecryptionError,
-  unwrapDEK,
-  wrapDEKWithCurrentKey,
-} from './crypto-kek';
+  toUint8Array,
+  isLegacyLine,
+  getOrCreateAccountDEK,
+  getOrCreateLineDEK,
+  encryptPayload,
+  decryptPayload,
+} from './crypto-dek';
 
 const logger = getLogger();
 
-const ALGORITHM = 'aes-256-gcm';
-const TAG_LENGTH = 16;
-const IV_LENGTH = 12;
 const REMINDER_ALG = 'AES-256-GCM';
 const REMINDER_KID = 'kek_v1';
 const SEARCH_TOKEN_CONTEXT = 'reminder_search_token_v1';
 
-const DEFAULT_DEK_CUTOFF = '2026-03-01T00:00:00Z';
-const PER_LINE_DEK_ENABLED = process.env.ULTAURA_PER_LINE_DEK_ENABLED !== 'false';
-const PER_LINE_DEK_CUTOFF = new Date(process.env.ULTAURA_PER_LINE_DEK_CUTOFF || DEFAULT_DEK_CUTOFF);
 const SEARCH_HASH_FALLBACK_WINDOW_MS = 15 * 60 * 1000;
 const SEARCH_HASH_FALLBACK_ALERT_THRESHOLD = Number.parseInt(
   process.env.ULTAURA_SEARCH_HASH_FALLBACK_ALERT_THRESHOLD || '25',
@@ -34,182 +32,6 @@ const SEARCH_HASH_FALLBACK_WARN_EVERY = Number.parseInt(
 );
 let searchHashFallbackWindowStartedAt = Date.now();
 let searchHashFallbackCountInWindow = 0;
-
-function toUint8Array(value: Uint8Array | Buffer): Uint8Array {
-  return Uint8Array.from(value);
-}
-
-function decodeByteaOrThrow(
-  label: string,
-  value: ByteaInput,
-  expectedLength?: number
-): Buffer {
-  const decoded = decodeBytea(value);
-  if (!decoded) {
-    const preview = typeof value === 'string'
-      ? { rawLength: value.length, rawPrefix: value.slice(0, 8) }
-      : undefined;
-    logger.error({ label, valueType: typeof value, ...preview }, 'Failed to decode bytea value');
-    throw new Error(`Invalid ${label} payload`);
-  }
-  if (expectedLength && decoded.length !== expectedLength) {
-    const preview = typeof value === 'string'
-      ? { rawLength: value.length, rawPrefix: value.slice(0, 8) }
-      : undefined;
-    logger.error(
-      { label, expectedLength, actualLength: decoded.length, ...preview },
-      'Bytea payload length mismatch'
-    );
-    throw new Error(`Invalid ${label} length`);
-  }
-  return Buffer.from(decoded);
-}
-
-function wrapDEK(dek: Buffer): { wrapped: Buffer; iv: Buffer; tag: Buffer } {
-  return wrapDEKWithCurrentKey(dek, {
-    algorithm: ALGORITHM,
-    authTagLength: TAG_LENGTH,
-    ivLength: IV_LENGTH,
-  });
-}
-
-function isLegacyLine(createdAt: string | null | undefined): boolean {
-  if (!PER_LINE_DEK_ENABLED || !createdAt) {
-    return true;
-  }
-
-  const cutoff = Number.isNaN(PER_LINE_DEK_CUTOFF.getTime())
-    ? new Date(DEFAULT_DEK_CUTOFF)
-    : PER_LINE_DEK_CUTOFF;
-
-  return new Date(createdAt) < cutoff;
-}
-
-async function getOrCreateAccountDEK(
-  client: SupabaseClient,
-  accountId: string
-): Promise<Buffer> {
-  const { data: existing } = await client
-    .from('ultaura_account_crypto_keys')
-    .select('*')
-    .eq('account_id', accountId)
-    .single();
-
-  if (existing) {
-    const wrapped = decodeByteaOrThrow('account.dek_wrapped', existing.dek_wrapped);
-    const iv = decodeByteaOrThrow('account.dek_wrap_iv', existing.dek_wrap_iv, IV_LENGTH);
-    const tag = decodeByteaOrThrow('account.dek_wrap_tag', existing.dek_wrap_tag, TAG_LENGTH);
-    return unwrapDEK(
-      wrapped,
-      iv,
-      tag,
-      {
-        algorithm: ALGORITHM,
-        authTagLength: TAG_LENGTH,
-      }
-    );
-  }
-
-  const dek = crypto.randomBytes(32);
-  const { wrapped, iv, tag } = wrapDEK(dek);
-
-  const { error } = await client
-    .from('ultaura_account_crypto_keys')
-    .insert({
-      account_id: accountId,
-      dek_wrapped: encodeBytea(wrapped),
-      dek_wrap_iv: encodeBytea(iv),
-      dek_wrap_tag: encodeBytea(tag),
-      dek_kid: REMINDER_KID,
-      dek_alg: REMINDER_ALG,
-    });
-
-  if (error) {
-    logger.error({ error, accountId }, 'Failed to create account DEK');
-    throw new Error('Failed to create account encryption key');
-  }
-
-  return dek;
-}
-
-async function getLineDEK(
-  client: SupabaseClient,
-  lineId: string
-): Promise<Buffer | null> {
-  const { data: existing, error } = await client
-    .from('ultaura_line_crypto_keys')
-    .select('*')
-    .eq('line_id', lineId)
-    .maybeSingle();
-
-  if (error) {
-    logger.error({ error, lineId }, 'Failed to load line DEK');
-    return null;
-  }
-
-  if (!existing) {
-    return null;
-  }
-
-  const wrapped = decodeByteaOrThrow('line.dek_wrapped', existing.dek_wrapped);
-  const iv = decodeByteaOrThrow('line.dek_wrap_iv', existing.dek_wrap_iv, IV_LENGTH);
-  const tag = decodeByteaOrThrow('line.dek_wrap_tag', existing.dek_wrap_tag, TAG_LENGTH);
-  return unwrapDEK(
-    wrapped,
-    iv,
-    tag,
-    {
-      algorithm: ALGORITHM,
-      authTagLength: TAG_LENGTH,
-    }
-  );
-}
-
-async function createLineDEK(
-  client: SupabaseClient,
-  accountId: string,
-  lineId: string
-): Promise<Buffer> {
-  const dek = crypto.randomBytes(32);
-  const { wrapped, iv, tag } = wrapDEK(dek);
-
-  const { error } = await client
-    .from('ultaura_line_crypto_keys')
-    .insert({
-      line_id: lineId,
-      account_id: accountId,
-      dek_wrapped: encodeBytea(wrapped),
-      dek_wrap_iv: encodeBytea(iv),
-      dek_wrap_tag: encodeBytea(tag),
-      dek_kid: REMINDER_KID,
-      dek_alg: REMINDER_ALG,
-    });
-
-  if (error) {
-    if ((error as { code?: string }).code === '23505') {
-      const existing = await getLineDEK(client, lineId);
-      if (existing) {
-        return existing;
-      }
-    }
-    logger.error({ error, lineId }, 'Failed to create line DEK');
-    throw new Error('Failed to create line encryption key');
-  }
-
-  return dek;
-}
-
-async function getOrCreateLineDEK(
-  client: SupabaseClient,
-  accountId: string,
-  lineId: string
-): Promise<Buffer> {
-  const existing = await getLineDEK(client, lineId);
-  if (existing) {
-    return existing;
-  }
-  return createLineDEK(client, accountId, lineId);
-}
 
 export function buildReminderMessageAAD(
   accountId: string,
@@ -229,56 +51,14 @@ export function buildReminderMessageAAD(
   );
 }
 
-function encryptValue(
-  dek: Buffer,
-  message: string,
-  aad: Uint8Array
-): { ciphertext: Buffer; iv: Buffer; tag: Buffer } {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const plaintext = Buffer.from(JSON.stringify(message), 'utf8');
-
-  const cipher = crypto.createCipheriv(ALGORITHM, toUint8Array(dek), toUint8Array(iv), {
-    authTagLength: TAG_LENGTH,
-  });
-
-  cipher.setAAD(aad);
-  const ciphertext = Buffer.concat([
-    Uint8Array.from(cipher.update(toUint8Array(plaintext))),
-    Uint8Array.from(cipher.final()),
-  ]);
-  const tag = cipher.getAuthTag();
-
-  return { ciphertext, iv, tag };
-}
-
-function decryptValue(
-  dek: Buffer,
-  ciphertext: Uint8Array,
-  iv: Uint8Array,
-  tag: Uint8Array,
-  aad: Uint8Array
-): string {
-  const decipher = crypto.createDecipheriv(ALGORITHM, toUint8Array(dek), toUint8Array(iv), {
-    authTagLength: TAG_LENGTH,
-  });
-
-  decipher.setAuthTag(toUint8Array(tag));
-  decipher.setAAD(aad);
-
-  const plaintext = Buffer.concat([
-    Uint8Array.from(decipher.update(toUint8Array(ciphertext))),
-    Uint8Array.from(decipher.final()),
-  ]);
-
-  return String(JSON.parse(plaintext.toString('utf8')) ?? '');
-}
-
 async function getReminderDEK(
   client: SupabaseClient,
   accountId: string,
   lineId: string,
   lineCreatedAt?: string | null
 ): Promise<Buffer> {
+  const PER_LINE_DEK_ENABLED = process.env.ULTAURA_PER_LINE_DEK_ENABLED !== 'false';
+
   if (!PER_LINE_DEK_ENABLED) {
     return getOrCreateAccountDEK(client, accountId);
   }
@@ -415,7 +195,7 @@ export async function encryptReminderMessage(
 }> {
   const dek = await getReminderDEK(client, accountId, lineId, lineCreatedAt);
   const aad = buildReminderMessageAAD(accountId, lineId, reminderId);
-  const { ciphertext, iv, tag } = encryptValue(dek, message, aad);
+  const { ciphertext, iv, tag } = encryptPayload(dek, message, aad);
 
   return {
     ciphertext,
@@ -437,7 +217,7 @@ export async function decryptReminderMessage(
   const dek = await getReminderDEK(client, accountId, lineId, lineCreatedAt);
   const aad = buildReminderMessageAAD(accountId, lineId, reminderId);
 
-  return decryptValue(dek, encrypted.ciphertext, encrypted.iv, encrypted.tag, aad);
+  return decryptPayload(dek, encrypted.ciphertext, encrypted.iv, encrypted.tag, aad);
 }
 
 export function decryptReminderMessagesWithDek(
@@ -462,7 +242,7 @@ export function decryptReminderMessagesWithDek(
       }
       const aad = buildReminderMessageAAD(accountId, lineId, reminder.id);
       try {
-        const message = decryptValue(
+        const message = decryptPayload(
           dek,
           toUint8Array(ciphertext),
           toUint8Array(iv),
@@ -499,3 +279,4 @@ export async function decryptReminderMessagesForLine(
   const dek = await getReminderDEK(client, accountId, lineId, lineCreatedAt);
   return decryptReminderMessagesWithDek(dek, accountId, lineId, reminders);
 }
+

@@ -4,10 +4,21 @@ import { getSupabaseClient } from '../utils/supabase.js';
 import { fetchDecryptedMemories } from '../utils/encryption.js';
 import { buildReminderMessageAAD, decryptReminderMessageWithDek } from '../utils/reminder-crypto.js';
 import { getMemoryDEK } from './line-encryption.js';
+import { getInternalApiSecret } from '../utils/env.js';
 
 const EXPORT_VERSION = '1.0';
 const EXPORT_BUCKET = 'ultaura-exports';
 const SIGNED_URL_TTL_SECONDS = 48 * 60 * 60;
+const HEALTH_SIGNED_URL_TTL_SECONDS = 24 * 60 * 60;
+const DOCUMENT_FETCH_TIMEOUT_MS = 30_000;
+
+function getAppBaseUrl(): string {
+  return (
+    process.env.ULTAURA_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'http://localhost:3000'
+  ).replace(/\/$/, '');
+}
 
 export type ExportProcessResult =
   | { success: true }
@@ -132,7 +143,8 @@ export async function processExportRequest(
       const { data: reminderRows, error: remindersError } = await supabase
         .from('ultaura_reminders')
         .select('id, line_id, account_id, message, message_ciphertext, message_iv, message_tag, rrule, due_at, status, created_at')
-        .eq('account_id', request.account_id);
+        .eq('account_id', request.account_id)
+        .eq('source_context', 'general');
 
       if (remindersError) {
         throw new Error('Failed to load reminders for export');
@@ -262,18 +274,46 @@ export async function processExportRequest(
       })),
     };
 
-    const payload = request.format === 'csv'
+    // Abort if the request was invalidated while we were processing.
+    if ((request as Record<string, unknown>).invalidated_at) {
+      await supabase
+        .from('ultaura_data_export_requests')
+        .update({
+          status: 'failed',
+          processed_at: nowIso,
+          error_message: 'Export invalidated before processing completed',
+        })
+        .eq('id', exportRequestId);
+      return { success: false, status: 409, error: 'Export invalidated' };
+    }
+
+    const isHealthBearing = Boolean((request as Record<string, unknown>).includes_health_profile);
+
+    const basePayload = request.format === 'csv'
       ? await buildCsvZip(exportData)
       : Buffer.from(JSON.stringify(exportData, null, 2));
 
-    const extension = request.format === 'csv' ? 'zip' : 'json';
+    let finalPayload: Buffer;
+    let extension: string;
+    let contentType: string;
+
+    if (isHealthBearing) {
+      finalPayload = await assembleHealthZip(exportRequestId, basePayload, request.format === 'csv');
+      extension = 'zip';
+      contentType = 'application/zip';
+    } else {
+      finalPayload = basePayload;
+      extension = request.format === 'csv' ? 'zip' : 'json';
+      contentType = request.format === 'csv' ? 'application/zip' : 'application/json';
+    }
+
     const path = `${request.account_id}/${request.id}.${extension}`;
 
     const { error: uploadError } = await supabase
       .storage
       .from(EXPORT_BUCKET)
-      .upload(path, payload, {
-        contentType: request.format === 'csv' ? 'application/zip' : 'application/json',
+      .upload(path, finalPayload, {
+        contentType,
         upsert: true,
       });
 
@@ -281,28 +321,50 @@ export async function processExportRequest(
       throw new Error('Failed to upload export file');
     }
 
-    const { data: signed, error: signedError } = await supabase
-      .storage
-      .from(EXPORT_BUCKET)
-      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+    const ttl = isHealthBearing ? HEALTH_SIGNED_URL_TTL_SECONDS : SIGNED_URL_TTL_SECONDS;
+    const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
 
-    if (signedError || !signed?.signedUrl) {
-      throw new Error('Failed to create signed URL');
+    if (isHealthBearing) {
+      // Health-bearing exports use authenticated download route — no signed URL.
+      await supabase
+        .from('ultaura_data_export_requests')
+        .update({
+          status: 'ready',
+          processed_at: nowIso,
+          expires_at: expiresAt,
+          download_url: null,
+          file_size_bytes: finalPayload.length,
+          error_message: null,
+          artifact_storage_path: path,
+          artifact_extension: `.${extension}`,
+          artifact_content_type: contentType,
+        } as Record<string, unknown>)
+        .eq('id', exportRequestId);
+    } else {
+      const { data: signed, error: signedError } = await supabase
+        .storage
+        .from(EXPORT_BUCKET)
+        .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+
+      if (signedError || !signed?.signedUrl) {
+        throw new Error('Failed to create signed URL');
+      }
+
+      await supabase
+        .from('ultaura_data_export_requests')
+        .update({
+          status: 'ready',
+          processed_at: nowIso,
+          expires_at: expiresAt,
+          download_url: signed.signedUrl,
+          file_size_bytes: finalPayload.length,
+          error_message: null,
+          artifact_storage_path: path,
+          artifact_extension: `.${extension}`,
+          artifact_content_type: contentType,
+        } as Record<string, unknown>)
+        .eq('id', exportRequestId);
     }
-
-    const expiresAt = new Date(Date.now() + SIGNED_URL_TTL_SECONDS * 1000).toISOString();
-
-    await supabase
-      .from('ultaura_data_export_requests')
-      .update({
-        status: 'ready',
-        processed_at: nowIso,
-        expires_at: expiresAt,
-        download_url: signed.signedUrl,
-        file_size_bytes: payload.length,
-        error_message: null,
-      })
-      .eq('id', exportRequestId);
 
     return { success: true };
   } catch (error) {
@@ -320,6 +382,91 @@ export async function processExportRequest(
 
     return { success: false, status: 500, error: message };
   }
+}
+
+interface HealthBundleDocument {
+  exportedFilename: string;
+  internalBytePath: string;
+}
+
+interface HealthBundleResponse {
+  manifest: unknown;
+  documentFiles: HealthBundleDocument[];
+}
+
+async function assembleHealthZip(
+  requestId: string,
+  baseExportBuffer: Buffer,
+  isCsvFormat: boolean
+): Promise<Buffer> {
+  const appBaseUrl = getAppBaseUrl();
+  const webhookSecret = getInternalApiSecret();
+
+  // Fetch the health bundle manifest + document list from the app.
+  const bundleRes = await fetch(
+    `${appBaseUrl}/api/privacy/exports/${requestId}/health-bundle`,
+    {
+      headers: { 'X-Webhook-Secret': webhookSecret },
+    }
+  );
+
+  if (!bundleRes.ok) {
+    const body = await bundleRes.text().catch(() => '');
+    logger.error(
+      { requestId, status: bundleRes.status, body },
+      'Failed to fetch health bundle for export'
+    );
+    throw new Error(`Health bundle fetch failed (${bundleRes.status})`);
+  }
+
+  const bundle = (await bundleRes.json()) as HealthBundleResponse;
+
+  const zip = new JSZip();
+
+  // Add base export data to ZIP root.
+  const baseFilename = isCsvFormat ? 'export.zip' : 'export.json';
+  zip.file(baseFilename, baseExportBuffer);
+
+  // Add health manifest.
+  zip.file('health/manifest.json', JSON.stringify(bundle.manifest, null, 2));
+
+  // Fetch and add each health document.
+  const documents = bundle.documentFiles ?? [];
+  for (const doc of documents) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DOCUMENT_FETCH_TIMEOUT_MS);
+
+    try {
+      const docRes = await fetch(`${appBaseUrl}${doc.internalBytePath}`, {
+        method: 'POST',
+        headers: { 'X-Webhook-Secret': webhookSecret },
+        signal: controller.signal,
+      });
+
+      if (!docRes.ok) {
+        logger.warn(
+          { requestId, filename: doc.exportedFilename, status: docRes.status },
+          'Health document fetch returned non-OK status — skipping'
+        );
+        continue;
+      }
+
+      const bytes = Buffer.from(await docRes.arrayBuffer());
+      zip.file(`health/documents/${doc.exportedFilename}`, bytes);
+    } catch (err) {
+      const isTimeout = (err as { name?: string }).name === 'AbortError';
+      logger.warn(
+        { requestId, filename: doc.exportedFilename, isTimeout, err },
+        isTimeout
+          ? 'Health document fetch timed out — skipping'
+          : 'Health document fetch failed — skipping'
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 function getRetentionDays(retentionPeriod: string | null): number | null {

@@ -19,6 +19,8 @@ import {
 import { getStartingLanguageForLine } from '../services/language.js';
 import { getMemoryDEK } from '../services/line-encryption.js';
 import { getAccountPrivacySettings, getLineVoiceConsent, updateLineVoiceConsent, logConsentAuditEvent } from '../services/privacy.js';
+import { getHealthConsentState } from '../services/health-consent-voice.js';
+import { fetchHealthContext } from '../services/health-context.js';
 import { buildRetentionContext, type RetentionContext } from '../services/retention-context.js';
 import { buildPromptPlaceholders } from '../services/prompt-context.js';
 import { registerActiveCall, unregisterActiveCall } from '../services/active-calls.js';
@@ -325,9 +327,10 @@ export async function handleMediaStreamConnection(
           try {
             createBuffer(callSessionId, line.id, account.id);
 
-            const [privacySettings, voiceConsent] = await Promise.all([
+            const [privacySettings, voiceConsent, healthConsentState] = await Promise.all([
               getAccountPrivacySettings(account.id),
               getLineVoiceConsent(line.id),
+              getHealthConsentState(line.id),
             ]);
 
             if (!privacySettings) {
@@ -378,6 +381,16 @@ export async function handleMediaStreamConnection(
             const isPreviewMode = session.is_preview_mode;
             const isQuickTest = session.is_test_call && !isPreviewMode;
 
+            let needsHealthConsent =
+              userType === 'family_managed' &&
+              healthConsentState !== null &&
+              healthConsentState.healthConsent !== 'granted' &&
+              healthConsentState.healthConsentRequestedAt !== null &&
+              (
+                healthConsentState.healthLastPromptedAt === null ||
+                healthConsentState.healthConsentRequestedAt > healthConsentState.healthLastPromptedAt
+              );
+
             if (isPreviewMode) {
               needsMemoryConsent = aiSummarizationEnabled;
               needsRecordingConsent = recordingEnabled;
@@ -388,6 +401,7 @@ export async function handleMediaStreamConnection(
               needsMemoryConsent = false;
               needsRecordingConsent = false;
               needsSharingConsent = false;
+              needsHealthConsent = false;
             }
 
             if (
@@ -740,6 +754,16 @@ export async function handleMediaStreamConnection(
                 onDisconnect,
               });
             } else {
+              // Fetch Health context (3s timeout, 1 retry, fail-closed)
+              let healthContext: import('@ultaura/types').TelephonyHealthContext | null = null;
+              try {
+                healthContext = await fetchHealthContext(line.id, callSessionId);
+              } catch (error) {
+                logger.warn({ error, lineId: line.id }, 'Health context fetch failed, continuing without');
+              }
+
+              const canUseHealthInCall = healthContext?.canUseHealthInCall === true;
+
               const lifeNote = takeLifeNoteForCallSession(callSessionId);
               grokBridge = new GrokBridge({
                 callSessionId,
@@ -777,6 +801,10 @@ export async function handleMediaStreamConnection(
                 onboardingCompleted: Boolean(onboardingCompletedAt),
                 currentPlanId: account.plan_id as PlanId,
                 accountStatus: account.status as AccountStatus,
+                needsHealthConsent,
+                healthConsentStatus: healthConsentState?.healthConsent ?? 'not_requested',
+                canUseHealthInCall,
+                healthContext,
                 promptPlaceholders,
                 canReceiveInboundCalls: line.inbound_allowed,
                 pendingCallPreview: retentionContext.pendingPreview,

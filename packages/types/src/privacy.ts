@@ -96,4 +96,12 @@ export interface DataExportRequest {
   downloadUrl: string | null;
   fileSizeBytes: number | null;
   errorMessage: string | null;
+  // Health Profile export extensions
+  visibilityScope?: 'standard_account' | 'health_owner_only';
+  includesHealthProfile?: boolean;
+  requestedScopeSnapshot?: Record<string, unknown>;
+  artifactStoragePath?: string | null;
+  artifactExtension?: string | null;
+  artifactContentType?: string | null;
+  invalidatedAt?: string | null;
 }

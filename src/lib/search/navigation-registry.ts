@@ -22,6 +22,11 @@ export function getNavigationItems(
 
     if ('children' in item) {
       item.children.forEach((child) => {
+        // Skip items that are hidden or locked — they are not navigable
+        if (child.hidden || child.locked) {
+          return;
+        }
+
         items.push(
           buildItem(`${child.path}`, child.label, child.path, child.Icon)
         );

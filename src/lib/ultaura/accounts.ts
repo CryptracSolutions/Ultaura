@@ -18,6 +18,8 @@ import { BILLING, PLANS } from './constants';
 import type { PlanId, UltauraAccountRow } from './types';
 import { getUltauraAccountById, getTrialStatus } from './helpers';
 import { logRequiredConsentAudit } from './privacy';
+import { pauseHealthRemindersForConsentChange } from './health/reminders';
+import { invalidateHealthBearingExports } from './health/deletion';
 
 const logger = getLogger();
 
@@ -287,6 +289,48 @@ export async function upgradeSelfToFamilyMode(
       error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to record sharing audit event'),
     };
   }
+
+  // Reset health consent state for all lines on this account.
+  // When a self-managed user upgrades to family-managed, the consent model changes
+  // (family must now request consent from the senior instead of self-granting).
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+
+  const { data: lines } = await adminClient
+    .from('ultaura_lines')
+    .select('id')
+    .eq('account_id', accountId);
+
+  if (lines && lines.length > 0) {
+    const lineIds = lines.map((l) => l.id);
+
+    await adminClient
+      .from('ultaura_health_line_consent')
+      .update({
+        health_consent: 'not_requested',
+        health_consent_requested_at: null,
+        health_consent_at: null,
+        health_consent_call_session_id: null,
+        self_explanation_requested_at: null,
+        self_explanation_last_prompted_at: null,
+        self_explanation_last_prompt_call_session_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .in('line_id', lineIds);
+
+    await adminClient
+      .from('ultaura_health_call_notices')
+      .update({ status: 'canceled', updated_at: new Date().toISOString() })
+      .in('line_id', lineIds)
+      .eq('status', 'pending');
+
+    // Pause health reminders for all lines since consent is now not_requested
+    for (const lineId of lineIds) {
+      await pauseHealthRemindersForConsentChange(lineId, accountId, 'not_requested');
+    }
+  }
+
+  // Invalidate any Health-bearing exports since the consent model has changed
+  await invalidateHealthBearingExports(accountId);
 
   revalidatePath('/dashboard', 'layout');
   return { success: true, data: undefined };

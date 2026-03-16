@@ -7,6 +7,7 @@ import { logger } from '../../server.js';
 import { getSupabaseClient } from '../../utils/supabase.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { addPrivateTopic } from '../../services/insight-state.js';
+import { isHealthSuppressionActive, activateHealthSuppression } from '../../services/health-privacy-state.js';
 
 export const markTopicPrivateRouter = Router();
 
@@ -85,6 +86,52 @@ markTopicPrivateRouter.post('/', async (req: Request, res: Response) => {
     }
 
     addPrivateTopic(callSessionId, topic_code);
+
+    // Health-adjacent auto-suppression: check all 3 criteria from spec Section 8.6
+    // Fail closed: if unsure, treat as health-adjacent
+    if (!session.is_test_call && !session.is_preview_mode) {
+      const alreadySuppressed = await isHealthSuppressionActive(callSessionId);
+      if (!alreadySuppressed) {
+        let isHealthAdjacent = false;
+
+        // Criterion 1: health mention categories in this call
+        const { data: healthMentions } = await supabase
+          .from('ultaura_health_mentions')
+          .select('id')
+          .eq('call_session_id', callSessionId)
+          .limit(1);
+        if (healthMentions && healthMentions.length > 0) {
+          isHealthAdjacent = true;
+        }
+
+        // Criterion 2: call-insight concern/follow-up codes
+        if (!isHealthAdjacent) {
+          const { data: insights } = await supabase
+            .from('ultaura_call_insights')
+            .select('insights_ciphertext')
+            .eq('call_session_id', callSessionId)
+            .limit(1);
+          // If any call insight exists for this session, conservatively treat as potentially health-adjacent
+          // since we cannot decrypt to check codes here — fail closed
+          if (insights && insights.length > 0) {
+            isHealthAdjacent = true;
+          }
+        }
+
+        // Criterion 3: health_medical classifier pattern on the topic code
+        if (!isHealthAdjacent && topic_code) {
+          const HEALTH_MEDICAL_PATTERN = /(medication|medicine|doctor|hospital|surgery|diagnosis|symptom|pain|prescription|illness|disease|treatment|therapy|medical|nurse|clinic|pharmacy|pill|dose|appointment|checkup|blood pressure|diabetes|arthritis|heart|cancer)/i;
+          if (HEALTH_MEDICAL_PATTERN.test(topic_code)) {
+            isHealthAdjacent = true;
+          }
+        }
+
+        if (isHealthAdjacent) {
+          await activateHealthSuppression(callSessionId, lineId);
+          logger.info({ callSessionId, lineId }, 'Health suppression auto-activated from mark_topic_private');
+        }
+      }
+    }
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {

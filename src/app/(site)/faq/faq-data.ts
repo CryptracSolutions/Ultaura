@@ -153,6 +153,12 @@ export const FAQ_DATA: FAQCategory[] = [
         answer:
           "Yes, Ultaura can play word games, trivia, tell jokes, share stories, and suggest activities based on your loved one's interests and abilities. These help keep conversations engaging and mentally stimulating.",
       },
+      {
+        id: 'health-profile',
+        question: 'What is Health Profile?',
+        answer:
+          "Health Profile lets you track your loved one's health conditions, medications, observations, and upload medical documents in the dashboard. When consent is granted, Ultaura can use this information during calls to provide more personalized and aware conversations. All health data is encrypted and visible only to the account owner. Health Profile is available on Comfort, Family, and Usage Based plans.",
+      },
     ],
   },
   {

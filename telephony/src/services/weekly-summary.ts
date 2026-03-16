@@ -312,6 +312,19 @@ async function decryptInsightsForWindow(options: {
   const supabase = getSupabaseClient();
   const { lineId, accountId, startUtc, endUtc } = options;
 
+  // Exclude insights from calls with health-adjacent privacy suppression (whole-call suppression)
+  const { data: suppressedSessions } = await supabase
+    .from('ultaura_call_sessions')
+    .select('id')
+    .eq('line_id', lineId)
+    .not('health_private_disclosure_suppressed_at', 'is', null)
+    .gte('created_at', startUtc)
+    .lt('created_at', endUtc);
+
+  const suppressedSessionIds = new Set(
+    (suppressedSessions || []).map((s: { id: string }) => s.id)
+  );
+
   const { data: insightRows, error } = await supabase
     .from('ultaura_call_insights')
     .select(
@@ -328,7 +341,9 @@ async function decryptInsightsForWindow(options: {
 
   const decrypted: DecryptedInsightEntry[] = [];
 
-  for (const row of insightRows || []) {
+  for (const row of (insightRows || []).filter(
+    (r: { call_session_id: string }) => !suppressedSessionIds.has(r.call_session_id)
+  )) {
     try {
       const insights = await decryptInsights(
         accountId,

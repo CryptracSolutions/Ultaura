@@ -51,10 +51,6 @@ async function updatePendingDeletion(id: string, updates: Record<string, unknown
   }
 }
 
-async function markProcessed(id: string, updates: Record<string, unknown>) {
-  await updatePendingDeletion(id, updates);
-}
-
 async function deleteTwilioRecording(recordingSid: string): Promise<void> {
   const client = getTwilioClient();
   await client.recordings(recordingSid).remove();
@@ -160,6 +156,9 @@ async function processWithLease(): Promise<void> {
     await maybeCleanupExpiredExports();
     await processPendingExportRequests();
     await processPendingDeletions();
+    if (!shuttingDown) await cleanupStaleDocumentUploads();
+    if (!shuttingDown) await cleanupFailedDocuments();
+    if (!shuttingDown) await cleanupExpiredDocumentTokens();
   } finally {
     if (heartbeatInterval) {
       clearInterval(heartbeatInterval);
@@ -200,11 +199,46 @@ async function maybeCleanupExpiredExports(): Promise<void> {
   const bucket = supabase.storage.from('ultaura-exports');
   const nowIso = new Date(now).toISOString();
 
+  // Health-bearing exports expire after 24 hours. Use artifact_storage_path
+  // for cleanup so we never infer the path from requestedFormat.
+  const healthCutoff = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  const { data: healthExpired, error: healthExpiredError } = await supabase
+    .from('ultaura_data_export_requests')
+    .select('id, artifact_storage_path')
+    .eq('status', 'ready')
+    .eq('visibility_scope', 'health_owner_only')
+    .lt('processed_at', healthCutoff) as { data: Array<{ id: string; artifact_storage_path: string | null }> | null; error: unknown };
+
+  if (healthExpiredError) {
+    logger.error({ error: healthExpiredError }, 'Failed to load expired Health exports');
+  } else if (healthExpired?.length) {
+    for (const exportRequest of healthExpired) {
+      if (shuttingDown) break;
+
+      if (exportRequest.artifact_storage_path) {
+        const { error: removeError } = await bucket.remove([exportRequest.artifact_storage_path]);
+        if (removeError) {
+          logger.error(
+            { error: removeError, path: exportRequest.artifact_storage_path },
+            'Failed to remove expired Health export artifact'
+          );
+        }
+      }
+
+      await supabase
+        .from('ultaura_data_export_requests')
+        .update({ status: 'expired', download_url: null })
+        .eq('id', exportRequest.id);
+    }
+  }
+
+  // Standard exports expire after 48 hours (existing behavior, using expires_at).
   const { data: expiredReady, error: expiredError } = await supabase
     .from('ultaura_data_export_requests')
-    .select('id, account_id, format')
+    .select('id, artifact_storage_path, account_id, format')
     .eq('status', 'ready')
-    .lt('expires_at', nowIso);
+    .neq('visibility_scope', 'health_owner_only')
+    .lt('expires_at', nowIso) as { data: Array<{ id: string; artifact_storage_path: string | null; account_id: string; format: string }> | null; error: unknown };
 
   if (expiredError) {
     logger.error({ error: expiredError }, 'Failed to load expired exports');
@@ -212,7 +246,9 @@ async function maybeCleanupExpiredExports(): Promise<void> {
     for (const exportRequest of expiredReady) {
       if (shuttingDown) break;
 
-      const path = `${exportRequest.account_id}/${exportRequest.id}.${exportRequest.format}`;
+      // Use persisted artifact_storage_path when available; fall back to inferred path.
+      const path = exportRequest.artifact_storage_path
+        ?? `${exportRequest.account_id}/${exportRequest.id}.${exportRequest.format}`;
       const { error: removeError } = await bucket.remove([path]);
       if (removeError) {
         logger.error({ error: removeError, path }, 'Failed to remove expired export file');
@@ -228,9 +264,9 @@ async function maybeCleanupExpiredExports(): Promise<void> {
   const failedCutoff = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: failedExports, error: failedError } = await supabase
     .from('ultaura_data_export_requests')
-    .select('id, account_id, format')
+    .select('id, artifact_storage_path, account_id, format')
     .eq('status', 'failed')
-    .lt('created_at', failedCutoff);
+    .lt('created_at', failedCutoff) as { data: Array<{ id: string; artifact_storage_path: string | null; account_id: string; format: string }> | null; error: unknown };
 
   if (failedError) {
     logger.error({ error: failedError }, 'Failed to load old failed exports');
@@ -238,7 +274,8 @@ async function maybeCleanupExpiredExports(): Promise<void> {
     for (const exportRequest of failedExports) {
       if (shuttingDown) break;
 
-      const path = `${exportRequest.account_id}/${exportRequest.id}.${exportRequest.format}`;
+      const path = exportRequest.artifact_storage_path
+        ?? `${exportRequest.account_id}/${exportRequest.id}.${exportRequest.format}`;
       const { error: removeError } = await bucket.remove([path]);
       if (removeError) {
         logger.error({ error: removeError, path }, 'Failed to remove failed export file');
@@ -302,7 +339,7 @@ async function processPendingDeletions(): Promise<void> {
 
   const eligible = data.filter((record) => {
     if (record.attempts >= record.max_attempts) {
-      markProcessed(record.id, {
+      updatePendingDeletion(record.id, {
         processed_at: new Date().toISOString(),
         last_error: record.last_error || 'Max attempts reached',
       }).catch(() => undefined);
@@ -336,7 +373,7 @@ async function processPendingDeletions(): Promise<void> {
         })
         .eq('recording_sid', record.recording_sid);
 
-      await markProcessed(record.id, {
+      await updatePendingDeletion(record.id, {
         attempts: nextAttempts,
         last_attempt_at: now,
         processed_at: now,
@@ -361,7 +398,114 @@ async function processPendingDeletions(): Promise<void> {
         logger.warn({ recordingSid: record.recording_sid, error }, 'Recording deletion failed; will retry');
       }
 
-      await markProcessed(record.id, updates);
+      await updatePendingDeletion(record.id, updates);
     }
+  }
+}
+
+async function cleanupStaleDocumentUploads(): Promise<void> {
+  const supabase = getSupabaseClient();
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('ultaura_health_documents')
+    .select('id, storage_object_key')
+    .eq('status', 'uploading')
+    .lt('created_at', cutoff) as { data: Array<{ id: string; storage_object_key: string | null }> | null; error: unknown };
+
+  if (error) {
+    logger.error({ error }, 'Failed to load stale document uploads');
+    return;
+  }
+
+  if (!data || data.length === 0) return;
+
+  logger.info({ count: data.length }, 'Cleaning up stale document uploads');
+
+  const bucket = supabase.storage.from('ultaura-health-documents');
+
+  for (const doc of data) {
+    if (shuttingDown) break;
+
+    if (doc.storage_object_key) {
+      const { error: removeError } = await bucket.remove([doc.storage_object_key]);
+      if (removeError) {
+        logger.error({ error: removeError, documentId: doc.id, key: doc.storage_object_key }, 'Failed to remove stale upload blob');
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('ultaura_health_documents')
+      .update({ status: 'failed', upload_failed_at: new Date().toISOString() })
+      .eq('id', doc.id);
+
+    if (updateError) {
+      logger.error({ error: updateError, documentId: doc.id }, 'Failed to mark stale upload as failed');
+    } else {
+      logger.info({ documentId: doc.id }, 'Marked stale document upload as failed');
+    }
+  }
+}
+
+async function cleanupFailedDocuments(): Promise<void> {
+  const supabase = getSupabaseClient();
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('ultaura_health_documents')
+    .select('id, storage_object_key')
+    .eq('status', 'failed')
+    .or(`upload_failed_at.lt.${cutoff},and(upload_failed_at.is.null,created_at.lt.${cutoff})`) as { data: Array<{ id: string; storage_object_key: string | null }> | null; error: unknown };
+
+  if (error) {
+    logger.error({ error }, 'Failed to load old failed documents');
+    return;
+  }
+
+  if (!data || data.length === 0) return;
+
+  logger.info({ count: data.length }, 'Cleaning up old failed documents');
+
+  const bucket = supabase.storage.from('ultaura-health-documents');
+
+  for (const doc of data) {
+    if (shuttingDown) break;
+
+    if (doc.storage_object_key) {
+      const { error: removeError } = await bucket.remove([doc.storage_object_key]);
+      if (removeError) {
+        logger.error({ error: removeError, documentId: doc.id, key: doc.storage_object_key }, 'Failed to remove failed document blob');
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from('ultaura_health_documents')
+      .delete()
+      .eq('id', doc.id);
+
+    if (deleteError) {
+      logger.error({ error: deleteError, documentId: doc.id }, 'Failed to hard-delete old failed document');
+    } else {
+      logger.info({ documentId: doc.id }, 'Hard-deleted old failed document');
+    }
+  }
+}
+
+async function cleanupExpiredDocumentTokens(): Promise<void> {
+  const supabase = getSupabaseClient();
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { error, count } = await supabase
+    .from('ultaura_health_document_access_tokens')
+    .delete({ count: 'exact' })
+    .lt('expires_at', cutoff);
+
+  if (error) {
+    logger.error({ error }, 'Failed to delete expired document access tokens');
+    return;
+  }
+
+  if (count && count > 0) {
+    logger.info({ count }, 'Deleted expired document access tokens');
   }
 }

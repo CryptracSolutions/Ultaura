@@ -16,6 +16,7 @@ import {
   LifebuoyIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { Lock } from 'lucide-react';
 
 import Trans from '~/core/ui/Trans';
 
@@ -34,6 +35,7 @@ import { useSearch } from '~/lib/contexts/SearchContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/core/ui/Dialog';
 import useUserSession from '~/core/hooks/use-user-session';
 import { useIsViewer } from '~/lib/contexts/viewer';
+import { useHealthFeatureEnabled } from '~/lib/contexts/health-feature-flag';
 import AccountSwitcher from '~/app/dashboard/(app)/components/AccountSwitcher';
 
 type OrganizationRoleEntry = {
@@ -114,18 +116,31 @@ const MobileAppNavigation: React.FC<{
     ultauraAccount?.user_type === 'self' || ultauraAccount?.user_type === 'family_managed'
       ? ultauraAccount.user_type
       : undefined;
+  const healthFeatureEnabled = useHealthFeatureEnabled();
+  const mobileUserId = userSession?.auth?.user?.id;
+  const HEALTH_ELIGIBLE_PLANS = ['comfort', 'family', 'payg'];
+
   const navConfig = NAVIGATION_CONFIG(
     ultauraAccount
       ? {
           userType,
           accountId: ultauraAccount.id,
           role: userSession?.role == null ? undefined : Number(userSession.role),
+          isHealthOwner:
+            !!mobileUserId &&
+            !!ultauraAccount.created_by_user_id &&
+            mobileUserId === ultauraAccount.created_by_user_id,
+          healthFeatureEnabled,
+          isHealthEligible:
+            HEALTH_ELIGIBLE_PLANS.includes(ultauraAccount.plan_id ?? '') &&
+            ultauraAccount.status !== 'trial',
+          pendingSuggestionCount: 0,
         }
       : undefined
   );
   const navGroups = navConfig.items.filter(
     (item) => 'children' in item
-  ) as Array<{ label: string; children: Array<{ path: string; label: string; Icon: React.ElementType }> }>;
+  ) as Array<{ label: string; children: Array<{ path: string; label: string; Icon: React.ElementType; hidden?: boolean; locked?: boolean }> }>;
 
   return (
     <>
@@ -193,15 +208,31 @@ const MobileAppNavigation: React.FC<{
             {/* Navigation Groups (includes Account with Usage/Privacy from navConfig) */}
             {navGroups.map((group) => (
               <MenuSection key={group.label} label={group.label}>
-                {group.children.map((child) => (
-                  <MenuLink
-                    key={child.path}
-                    Icon={child.Icon}
-                    path={child.path}
-                    label={child.label}
-                    onClick={closeMenu}
-                  />
-                ))}
+                {group.children.map((child) => {
+                  if (child.hidden) {
+                    return null;
+                  }
+
+                  if (child.locked) {
+                    return (
+                      <MenuLockedItem
+                        key={child.path}
+                        Icon={child.Icon}
+                        label={child.label}
+                      />
+                    );
+                  }
+
+                  return (
+                    <MenuLink
+                      key={child.path}
+                      Icon={child.Icon}
+                      path={child.path}
+                      label={child.label}
+                      onClick={closeMenu}
+                    />
+                  );
+                })}
               </MenuSection>
             ))}
 
@@ -316,6 +347,24 @@ function MenuButton({
       <Icon className="h-6 w-6 text-primary" />
       <span className="text-foreground">{label}</span>
     </button>
+  );
+}
+
+function MenuLockedItem({
+  label,
+  Icon,
+}: {
+  label: string;
+  Icon: React.ElementType;
+}) {
+  return (
+    <div className="flex w-full items-center space-x-4 h-14 px-4 opacity-50 cursor-not-allowed">
+      <Icon className="h-6 w-6 text-muted-foreground" />
+      <span className="flex flex-1 items-center justify-between text-muted-foreground">
+        <Trans i18nKey={label} defaults={label} />
+        <Lock className="h-4 w-4" />
+      </span>
+    </div>
   );
 }
 

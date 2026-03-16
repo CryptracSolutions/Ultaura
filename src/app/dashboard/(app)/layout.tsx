@@ -5,6 +5,8 @@ import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getDocsIndex } from '~/lib/search/docs-index';
 import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import MembershipRole from '~/lib/organizations/types/membership-role';
+import { isHealthFeatureEnabled } from '~/lib/ultaura/health/entitlements';
+import { HealthFeatureFlagProvider } from '~/lib/contexts/health-feature-flag';
 
 type AppDataWithOrganizations = Awaited<ReturnType<typeof loadAppDataForUser>> & {
   allOrganizations?: Array<{
@@ -57,18 +59,22 @@ async function AppLayout({ children }: React.PropsWithChildren) {
     }
   }
 
+  const healthEnabled = await isHealthFeatureEnabled();
+
   return (
-    <AppRouteShell
-      data={data}
-      ultauraAccountId={account?.id ?? null}
-      docsIndex={docsIndex}
-      isViewer={isViewer}
-      accountHolderName={accountHolderName}
-      seniorName={seniorName}
-      allOrganizations={allOrganizations}
-    >
-      <UltauraErrorBoundary>{children}</UltauraErrorBoundary>
-    </AppRouteShell>
+    <HealthFeatureFlagProvider enabled={healthEnabled}>
+      <AppRouteShell
+        data={data}
+        ultauraAccountId={account?.id ?? null}
+        docsIndex={docsIndex}
+        isViewer={isViewer}
+        accountHolderName={accountHolderName}
+        seniorName={seniorName}
+        allOrganizations={allOrganizations}
+      >
+        <UltauraErrorBoundary>{children}</UltauraErrorBoundary>
+      </AppRouteShell>
+    </HealthFeatureFlagProvider>
   );
 }
 

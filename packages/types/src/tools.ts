@@ -10,6 +10,10 @@ import type { SafetyCategory, SafetyTier } from './safety.js';
 import type { TopicCode, ConcernCode, FollowUpReasonCode } from './insights.js';
 import type { SharingTier } from './privacy.js';
 
+// Health tool types (HealthSpokenConsentToolName, HealthSpokenConsentToolInput,
+// MarkHealthDisclosurePrivateInput) are defined in health.ts and exported from
+// the package index via health.js.
+
 export interface GrokTool {
   type: 'web_search' | 'function';
   name?: string;

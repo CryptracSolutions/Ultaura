@@ -2,6 +2,7 @@ import type {
   Memory,
   AccountStatus,
   PlanId,
+  TelephonyHealthContext,
 } from '@ultaura/types';
 import { getLanguageName } from '../utils/language.js';
 import { IDENTITY_SECTION } from '../golden/sections/identity.js';
@@ -32,6 +33,7 @@ import { WEB_SEARCH_POLICY_SECTION } from '../golden/sections/web-search-policy.
 import { SEGMENTS_POLICY_SECTION } from '../golden/sections/segments-policy.js';
 import { RECORDING_CONSENT_SECTION } from '../golden/sections/recording-consent.js';
 import { FAMILY_SHARING_CONSENT_SECTION } from '../golden/sections/family-sharing-consent.js';
+import { HEALTH_CONSENT_SECTION } from '../golden/sections/health-consent.js';
 import { INSIGHTS_CONSENT_SECTION } from '../golden/sections/insights-consent.js';
 import { PREVIEW_DEMO_SECTION } from '../golden/sections/preview-demo.js';
 import { sanitizeForPrompt, sanitizeKey } from '../utils/sanitize.js';
@@ -70,6 +72,9 @@ export interface CompanionPromptParams {
   needsSharingConsent?: boolean;
   onboardingCompleted?: boolean;
   placeholders?: Record<string, string>;
+  healthContext?: TelephonyHealthContext | null;
+  needsHealthConsent?: boolean;
+  healthConsentStatus?: 'not_requested' | 'granted' | 'denied' | 'revoked';
 }
 
 function selectSection(section: PromptSection, compressed: boolean): string {
@@ -171,6 +176,32 @@ export function compilePrompt(
 
   if (params.needsSharingConsent && params.userType === 'family_managed') {
     sections.push(selectSection(FAMILY_SHARING_CONSENT_SECTION, compressed));
+  }
+
+  if (params.needsHealthConsent) {
+    sections.push(selectSection(HEALTH_CONSENT_SECTION, compressed));
+  }
+
+  if (params.healthContext?.canUseHealthInCall === true) {
+    const conditions = params.healthContext.conditions
+      .map((c) => `${sanitizeForPrompt(c.name)} (${c.status})`)
+      .join(', ');
+    const medications = params.healthContext.medications
+      .map((m) => {
+        const times = m.timesOfDay.length ? `, ${m.timesOfDay.join('/')}` : '';
+        return `${sanitizeForPrompt(m.name)} (${m.status}${times})`;
+      })
+      .join(', ');
+    const conditionsLine = conditions ? `Conditions: ${conditions}` : '';
+    const medicationsLine = medications ? `Medications: ${medications}` : '';
+    const contextBody = [conditionsLine, medicationsLine].filter(Boolean).join('\n');
+    if (contextBody) {
+      sections.push(
+        compressed
+          ? `## Health Profile\n${contextBody}\nUse naturally in conversation. Never read as a list.`
+          : `## Health Profile Context\n${contextBody}\nUse this information naturally in conversation. Never read it as a list.`
+      );
+    }
   }
 
   if (params.lowMinutesWarning && params.minutesRemaining !== undefined) {

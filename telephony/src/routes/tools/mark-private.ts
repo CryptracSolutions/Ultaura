@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../../server.js';
 import { getCallSession, incrementToolInvocations, recordCallEvent } from '../../services/call-session.js';
 import { findFuzzyMatches, markMemoriesAccessed, markMemoryPrivate, searchMemoriesSemantic } from '../../services/memory.js';
+import { getSupabaseClient } from '../../utils/supabase.js';
+import { isHealthSuppressionActive, activateHealthSuppression } from '../../services/health-privacy-state.js';
 
 export const markPrivateRouter = Router();
 
@@ -130,6 +132,53 @@ markPrivateRouter.post('/', async (req: Request, res: Response) => {
     const toMark = matches[0].memory;
     await markMemoryPrivate(accountId, lineId, toMark.id);
     logger.info({ lineId, memoryId: toMark.id }, 'Memory marked as private');
+
+    // Health-adjacent auto-suppression: check all 3 criteria from spec Section 8.6
+    // Fail closed: if unsure, treat as health-adjacent
+    if (!session.is_test_call && !session.is_preview_mode) {
+      const alreadySuppressed = await isHealthSuppressionActive(callSessionId);
+      if (!alreadySuppressed) {
+        const supabase = getSupabaseClient();
+        let isHealthAdjacent = false;
+
+        // Criterion 1: health mention categories in this call
+        const { data: healthMentions } = await supabase
+          .from('ultaura_health_mentions')
+          .select('id')
+          .eq('call_session_id', callSessionId)
+          .limit(1);
+        if (healthMentions && healthMentions.length > 0) {
+          isHealthAdjacent = true;
+        }
+
+        // Criterion 2: call-insight concern/follow-up codes
+        if (!isHealthAdjacent) {
+          const { data: insights } = await supabase
+            .from('ultaura_call_insights')
+            .select('insights_ciphertext')
+            .eq('call_session_id', callSessionId)
+            .limit(1);
+          // If any call insight exists for this session, conservatively treat as potentially health-adjacent
+          // since we cannot decrypt to check codes here — fail closed
+          if (insights && insights.length > 0) {
+            isHealthAdjacent = true;
+          }
+        }
+
+        // Criterion 3: health_medical classifier pattern on the privacy request text
+        if (!isHealthAdjacent && whatToKeepPrivate) {
+          const HEALTH_MEDICAL_PATTERN = /(medication|medicine|doctor|hospital|surgery|diagnosis|symptom|pain|prescription|illness|disease|treatment|therapy|medical|nurse|clinic|pharmacy|pill|dose|appointment|checkup|blood pressure|diabetes|arthritis|heart|cancer)/i;
+          if (HEALTH_MEDICAL_PATTERN.test(whatToKeepPrivate)) {
+            isHealthAdjacent = true;
+          }
+        }
+
+        if (isHealthAdjacent) {
+          await activateHealthSuppression(callSessionId, lineId);
+          logger.info({ callSessionId, lineId }, 'Health suppression auto-activated from mark_private');
+        }
+      }
+    }
 
     await incrementToolInvocations(callSessionId);
     await recordCallEvent(callSessionId, 'tool_call', {

@@ -6,20 +6,33 @@ import { SidebarItem, SidebarDivider, SidebarGroup } from '~/core/ui/Sidebar';
 import createNavigationConfig from '~/navigation.config';
 import useUltauraAccount from '~/lib/ultaura/hooks/use-ultaura-account';
 import useUserSession from '~/core/hooks/use-user-session';
-
+import { useHealthFeatureEnabled } from '~/lib/contexts/health-feature-flag';
 function AppSidebarNavigation() {
   const { data: account } = useUltauraAccount();
   const userSession = useUserSession();
+  const healthFeatureEnabled = useHealthFeatureEnabled();
   const userType =
     account?.user_type === 'self' || account?.user_type === 'family_managed'
       ? account.user_type
       : undefined;
+
+  const userId = userSession?.auth?.user?.id;
+  const HEALTH_ELIGIBLE_PLANS = ['comfort', 'family', 'payg'];
   const navigation = createNavigationConfig(
     account
       ? {
           userType,
           accountId: account.id,
           role: userSession?.role == null ? undefined : Number(userSession.role),
+          isHealthOwner:
+            !!userId &&
+            !!account.created_by_user_id &&
+            userId === account.created_by_user_id,
+          healthFeatureEnabled,
+          isHealthEligible:
+            HEALTH_ELIGIBLE_PLANS.includes(account.plan_id ?? '') &&
+            account.status !== 'trial',
+          pendingSuggestionCount: 0,
         }
       : undefined
   );
@@ -40,6 +53,10 @@ function AppSidebarNavigation() {
               collapsed={item.collapsed}
             >
               {item.children.map((child) => {
+                if (child.hidden) {
+                  return null;
+                }
+
                 return (
                   <SidebarItem
                     key={child.path}
@@ -47,6 +64,8 @@ function AppSidebarNavigation() {
                     path={child.path}
                     Icon={child.Icon}
                     activeMatch={child.activeMatch}
+                    locked={child.locked}
+                    badge={child.badge}
                   >
                     <Trans i18nKey={child.label} defaults={child.label} />
                   </SidebarItem>

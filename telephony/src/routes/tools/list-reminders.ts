@@ -68,13 +68,14 @@ listRemindersRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Get upcoming reminders
+    // Get upcoming reminders — exclude health_profile reminders from voice tool
     const { data: reminders, error } = await supabase
       .from('ultaura_reminders')
       .select('id, message, message_ciphertext, message_iv, message_tag, due_at, timezone, is_recurring, is_paused, current_snooze_count')
       .eq('line_id', session.line_id)
       .eq('account_id', session.account_id)
       .eq('status', 'scheduled')
+      .eq('source_context', 'general')
       .order('due_at', { ascending: true })
       .limit(10);
 
