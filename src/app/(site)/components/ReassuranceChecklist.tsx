@@ -11,7 +11,7 @@ const REASSURANCES = [
   { text: 'Someone\u2019s listening \u2014 even when you can\u2019t be', detail: 'If something sounds off, Ultaura responds with care and alerts your trusted contacts right away.' },
   { text: 'Shaped by people who get it', detail: 'Designed with family caregivers, elder care doctors, and social workers — not just engineers.' },
   { text: 'A voice that feels like a friend', detail: 'Five personalities to choose from — preview each one and pick whoever feels right. They can always switch later.' },
-  { text: 'It just calls their phone', detail: 'Ultaura calls their phone — landline, cell, even a flip phone. Zero setup, zero tech skills needed.' },
+  { text: 'Health awareness', detail: 'Track conditions, observations, medications, and medical documents in a private and encrypted Health Profile.' },
   { text: 'Try it free for 14 days', detail: 'No card required to start. If it\u2019s not right, cancel in one click — no questions asked.' },
 ];
 

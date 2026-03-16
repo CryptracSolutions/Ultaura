@@ -221,9 +221,9 @@ export function AudienceValueTabs() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">
-                          <span>Wellness + Safety alerts</span>
+                          <span>Health Profile</span>
                           <span className="font-semibold text-foreground">
-                            Supported
+                            Conditions, meds & more
                           </span>
                         </div>
                         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2">

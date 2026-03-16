@@ -153,11 +153,60 @@ export const FAQ_DATA: FAQCategory[] = [
         answer:
           "Yes, Ultaura can play word games, trivia, tell jokes, share stories, and suggest activities based on your loved one's interests and abilities. These help keep conversations engaging and mentally stimulating.",
       },
+    ],
+  },
+  {
+    id: 'health-profile',
+    title: 'Health Profile',
+    description: 'Managing health information for your loved one.',
+    items: [
       {
-        id: 'health-profile',
+        id: 'hp-what-is-it',
         question: 'What is Health Profile?',
         answer:
-          "Health Profile lets you track your loved one's health conditions, medications, observations, and upload medical documents in the dashboard. When consent is granted, Ultaura can use this information during calls to provide more personalized and aware conversations. All health data is encrypted and visible only to the account owner. Health Profile is available on Comfort, Family, and Usage Based plans.",
+          "Health Profile is a dedicated section in your dashboard where you can record and manage your loved one's health information — conditions, medications, observations, and medical documents. When consent is enabled, Ultaura can use this information during calls to provide more personalized and aware conversations. All health data is encrypted and visible only to the account owner.",
+      },
+      {
+        id: 'hp-data-types',
+        question: 'What types of health information can I track?',
+        answer:
+          'Health Profile has five sections: Conditions (diagnoses like diabetes or arthritis, with status tracking and approximate dates), Medications (names, dosages, schedules, and linked conditions), Observations (notes about mood, memory, mobility, sleep, appetite, or anything else you notice), Documents (uploaded files like lab results, discharge summaries, prescriptions, or care plans), and Suggestions (conditions or medications Ultaura noticed during calls that you can review, approve, or dismiss).',
+      },
+      {
+        id: 'hp-consent',
+        question: 'How does consent work for Health Profile?',
+        answer:
+          "Health Profile supports two consent modes. For family-managed lines, the account owner requests consent and Ultaura asks the senior during their next call — they can grant, deny, or revoke at any time. For self-managed lines, you toggle consent directly in the dashboard. Granting consent means Ultaura can reference health details during calls. Denying or revoking consent means the Health Profile stays a private dashboard record only. You can change consent at any time.",
+      },
+      {
+        id: 'hp-plans',
+        question: 'Which plans include Health Profile?',
+        answer:
+          'Health Profile is available on Comfort ($49/month), Family ($99/month), and Usage Based (Pay As You Go, $0.15/minute) plans. It is not available on the Care plan or during the free trial period. You can upgrade your plan at any time from the Billing section of your dashboard to unlock Health Profile.',
+      },
+      {
+        id: 'hp-ai-suggestions',
+        question: 'What are AI suggestions and how do they work?',
+        answer:
+          "When consent is enabled, Ultaura listens for health-related details during calls — like mentions of a new symptom, a medication change, or a doctor visit. These appear as suggestions in the Health Profile for you to review. You decide whether to approve each suggestion as a new entry, apply it as an update to an existing record, or dismiss it. Nothing is added to the Health Profile automatically — you're always in control.",
+      },
+      {
+        id: 'hp-medication-reminders',
+        question: 'Can Ultaura remind about medications from the Health Profile?',
+        answer:
+          "Yes. When you add medications with scheduled times to the Health Profile and consent is enabled, you can create medication reminders that Ultaura weaves into calls naturally. Unlike general reminders, Health Profile medication reminders include the actual medication name and dosage context. These reminders are delivered during calls only — not via SMS — and you can pause or cancel them at any time.",
+      },
+      {
+        id: 'hp-privacy',
+        question: 'How is health data protected?',
+        answer:
+          'All health data is encrypted at rest using AES-256-GCM encryption with per-line encryption keys — the same standard used for all sensitive data in Ultaura. Health information is visible only to the account owner, not other account members or viewers. Health data is never shared with third parties, never used to train AI models, and you can delete any health record at any time.',
+      },
+      {
+        id: 'hp-documents',
+        question: 'What kinds of documents can I upload?',
+        answer:
+          "You can upload medical documents like lab results, discharge summaries, prescriptions, insurance documents, imaging scans, or doctor's notes. Supported formats include PDF, JPEG, and PNG, with a maximum file size of 25 MB. All uploaded files are encrypted before storage and can only be accessed by the account owner. You can view, download, or delete documents at any time.",
       },
     ],
   },

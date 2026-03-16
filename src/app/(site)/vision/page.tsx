@@ -18,6 +18,8 @@ import {
   ChatBubbleLeftRightIcon,
   CpuChipIcon,
   BriefcaseIcon,
+  ClipboardDocumentListIcon,
+  ChatBubbleBottomCenterTextIcon,
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import Container from '~/core/ui/Container';
@@ -70,7 +72,7 @@ const FEATURES = [
     icon: ClockIcon,
     title: 'Gentle reminders woven into conversation',
     description:
-      'Medications, appointments, birthdays — Ultaura brings them up naturally during the call. No alarms, no clinical tone. Just a friendly nudge at the right moment.',
+      'Medications, appointments, birthdays — Ultaura brings them up naturally during the call. When a Health Profile is set up, medication reminders are tied to what you\'ve recorded. No alarms, no clinical tone. Just a friendly nudge at the right moment.',
   },
   {
     icon: GlobeAltIcon,
@@ -89,6 +91,18 @@ const FEATURES = [
     title: 'Milestones and special occasions',
     description:
       "Birthdays, anniversaries, memorials — Ultaura remembers the dates that matter and acknowledges them with warmth. No one should feel forgotten on the days that count.",
+  },
+  {
+    icon: ClipboardDocumentListIcon,
+    title: 'Health tracking in the dashboard',
+    description:
+      'Track conditions, medications, observations, and upload medical documents — all in one place. Everything is encrypted and visible only to the account owner.',
+  },
+  {
+    icon: ChatBubbleBottomCenterTextIcon,
+    title: 'AI-aware calls with your consent',
+    description:
+      'When you grant consent, Ultaura uses health context during calls. It can notice patterns, suggest adding a condition or medication, and remind about meds at the right time.',
   },
 ];
 

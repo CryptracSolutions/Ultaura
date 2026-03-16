@@ -51,7 +51,7 @@ const HOW_IT_WORKS_STEPS = [
   {
     title: 'You stay informed',
     description:
-      'See when they talked, how long, and how they\u2019re doing \u2014 all from your dashboard. No recordings, no eavesdropping. Just reassurance.',
+      'See when they talked, how long, and how they\u2019re doing \u2014 all from your dashboard. No recordings, no eavesdropping. Just reassurance, and any health or concern details Ultaura is aware of.',
     icon: ChartBarIcon,
   },
 ];

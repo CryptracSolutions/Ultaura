@@ -2,12 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Clock, Users, Zap, Heart, Loader2 } from 'lucide-react';
+import { Check, Clock, Users, Zap, Heart, Loader2, Lock } from 'lucide-react';
 import classNames from 'clsx';
 import { PLANS, BILLING } from '~/lib/ultaura/constants';
-import { SHARED_FEATURES, PLAN_LIMITS } from '~/lib/ultaura/plan-features';
-
-const HEALTH_ELIGIBLE_PLANS = new Set(['comfort', 'family', 'payg']);
+import { SHARED_FEATURES, PLAN_LIMITS, HEALTH_ELIGIBLE_PLANS } from '~/lib/ultaura/plan-features';
 import { createUltauraCheckout } from '~/lib/ultaura/checkout';
 
 type BillingPeriod = 'monthly' | 'annual';
@@ -206,12 +204,27 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                       <span className="text-sm font-medium text-foreground">{limit}</span>
                     </li>
                   ))}
-                  {HEALTH_ELIGIBLE_PLANS.has(planId) && (
+                  {HEALTH_ELIGIBLE_PLANS.has(planId) ? (
                     <li className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm font-medium text-foreground">Health Profile</span>
+                      <div>
+                        <span className="text-sm font-medium text-foreground">Health Profile</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Track conditions, medications, observations, and medical documents — and let Ultaura care better
+                        </p>
+                      </div>
                     </li>
-                  )}
+                  ) : planId === 'care' ? (
+                    <li className="flex items-start gap-2 opacity-50">
+                      <Lock className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-sm text-muted-foreground">Health Profile</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Track conditions, medications, observations, and medical documents — and let Ultaura care better
+                        </p>
+                      </div>
+                    </li>
+                  ) : null}
                 </ul>
               )}
 

@@ -6,7 +6,7 @@ type PlanLimitDetails = {
 };
 
 export const SHARED_FEATURES = [
-  'Schedule calls + SMS reminders',
+  'Scheduled calls and SMS reminders',
   'Mood and wellness insights',
   'Safety alerts and monitoring',
   'Family dashboard with call summaries',
@@ -43,7 +43,7 @@ export const PLAN_LIMITS: Record<string, PlanLimitDetails> = {
 };
 
 // Plans that include Health Profile
-const HEALTH_ELIGIBLE_PLANS = new Set(['comfort', 'family', 'payg']);
+export const HEALTH_ELIGIBLE_PLANS = new Set(['comfort', 'family', 'payg']);
 
 // Backward-compatible export: limits first, then shared features, then Health for eligible plans
 export const DASHBOARD_PLAN_FEATURES: Record<string, string[]> = Object.fromEntries(
