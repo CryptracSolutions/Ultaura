@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from '~/core/ui/Dialog';
 import { acknowledgeHealthDisclaimerAction } from '~/lib/ultaura/health/actions';
+import Button from '~/core/ui/Button';
 
 interface HealthDisclaimerDialogProps {
   accountId: string;
@@ -64,15 +65,17 @@ export function HealthDisclaimerDialog({
           ) : null}
         </div>
 
-        <DialogFooter>
-          <button
+        <DialogFooter className="gap-3 pt-4">
+          <Button
             type="button"
+            variant="default"
+            className="w-full"
             onClick={handleAcknowledge}
             disabled={isPending}
-            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed sm:w-auto"
+            loading={isPending}
           >
-            {isPending ? 'Saving...' : 'I understand'}
-          </button>
+            I understand
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

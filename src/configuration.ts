@@ -120,6 +120,7 @@ const configuration = {
           '2 phone lines',
           'Daily check-in calls',
           'Up to 10 reminders per line',
+          'Health Profile',
           'Memory & conversation history',
           '24/7 Priority support',
         ],
@@ -149,6 +150,7 @@ const configuration = {
           '4 phone lines',
           'Daily check-in calls',
           'Unlimited reminders',
+          'Health Profile',
           'Memory & conversation history',
           'Safety monitoring & alerts',
           'Dedicated account manager',
@@ -180,6 +182,7 @@ const configuration = {
           'Unlimited phone lines',
           'Daily check-in calls',
           'Unlimited reminders',
+          'Health Profile',
           'No monthly commitment',
         ],
         plans: [

@@ -6,6 +6,8 @@ import { Check, Clock, Users, Zap, Heart, Loader2 } from 'lucide-react';
 import classNames from 'clsx';
 import { PLANS, BILLING } from '~/lib/ultaura/constants';
 import { SHARED_FEATURES, PLAN_LIMITS } from '~/lib/ultaura/plan-features';
+
+const HEALTH_ELIGIBLE_PLANS = new Set(['comfort', 'family', 'payg']);
 import { createUltauraCheckout } from '~/lib/ultaura/checkout';
 
 type BillingPeriod = 'monthly' | 'annual';
@@ -204,6 +206,12 @@ export function UltauraPricingTable({ organizationUid, currentPlanId }: UltauraP
                       <span className="text-sm font-medium text-foreground">{limit}</span>
                     </li>
                   ))}
+                  {HEALTH_ELIGIBLE_PLANS.has(planId) && (
+                    <li className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm font-medium text-foreground">Health Profile</span>
+                    </li>
+                  )}
                 </ul>
               )}
 

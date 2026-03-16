@@ -12,6 +12,8 @@ import type { PlanId, UserType } from '~/lib/ultaura/types';
 import { PLANS, TRIAL_ELIGIBLE_PLANS } from '~/lib/ultaura/constants';
 import { SHARED_FEATURES, PLAN_LIMITS } from '~/lib/ultaura/plan-features';
 
+const HEALTH_ELIGIBLE_PLANS = new Set(['comfort', 'family', 'payg']);
+
 const planIcons: Record<string, React.ReactNode> = {
   care: <Heart className="w-6 h-6" />,
   comfort: <Clock className="w-6 h-6" />,
@@ -134,6 +136,12 @@ const PlanSelectionStep: React.FCC<{
                       </span>
                     </li>
                   ))}
+                  {HEALTH_ELIGIBLE_PLANS.has(planId) && (
+                    <li className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm font-medium text-foreground">Health Profile</span>
+                    </li>
+                  )}
                 </ul>
               )}
 

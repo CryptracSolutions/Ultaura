@@ -34,8 +34,15 @@ You need 3 additional test states. Run these SQL commands in the Supabase SQL ed
 **Scenario A: Viewer / Non-Owner Member**
 
 ```sql
--- Create a second test user
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, instance_id, aud, role)
+-- Create auth user with all required token columns as empty strings (GoTrue requires non-NULL)
+INSERT INTO auth.users (
+  id, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data,
+  created_at, updated_at, instance_id, aud, role,
+  confirmation_token, recovery_token, email_change_token_new,
+  email_change_token_current, phone_change_token, reauthentication_token,
+  email_change, phone_change
+)
 VALUES (
   'aaaaaaaa-0000-4000-a000-000000000002',
   'viewer@ultaura-seed.test',
@@ -44,11 +51,23 @@ VALUES (
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Viewer User"}',
   now(), now(),
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'
+  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+  '', '', '', '', '', '', '', ''
 );
 
--- Create matching public user row
-INSERT INTO public.users (id, photo_url, display_name, onboarding_complete)
+-- GoTrue requires an identity row to authenticate
+INSERT INTO auth.identities (id, user_id, provider, identity_data, provider_id, created_at, updated_at, last_sign_in_at)
+VALUES (
+  'aaaaaaaa-0000-4000-a000-000000000002',
+  'aaaaaaaa-0000-4000-a000-000000000002',
+  'email',
+  '{"sub":"aaaaaaaa-0000-4000-a000-000000000002","email":"viewer@ultaura-seed.test"}',
+  'viewer@ultaura-seed.test',
+  now(), now(), now()
+);
+
+-- Create matching public user row (column is "onboarded", not "onboarding_complete")
+INSERT INTO public.users (id, photo_url, display_name, onboarded)
 VALUES ('aaaaaaaa-0000-4000-a000-000000000002', NULL, 'Viewer User', true);
 
 -- Add as viewer (role = -1) to the Johnson Family org
@@ -63,8 +82,15 @@ FROM organizations WHERE name = 'Johnson Family';
 **Scenario B: Trial Account on Comfort Plan**
 
 ```sql
--- Create a trial test user
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, instance_id, aud, role)
+-- Create auth user
+INSERT INTO auth.users (
+  id, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data,
+  created_at, updated_at, instance_id, aud, role,
+  confirmation_token, recovery_token, email_change_token_new,
+  email_change_token_current, phone_change_token, reauthentication_token,
+  email_change, phone_change
+)
 VALUES (
   'aaaaaaaa-0000-4000-a000-000000000003',
   'trial@ultaura-seed.test',
@@ -73,10 +99,21 @@ VALUES (
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Trial User"}',
   now(), now(),
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'
+  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+  '', '', '', '', '', '', '', ''
 );
 
-INSERT INTO public.users (id, photo_url, display_name, onboarding_complete)
+INSERT INTO auth.identities (id, user_id, provider, identity_data, provider_id, created_at, updated_at, last_sign_in_at)
+VALUES (
+  'aaaaaaaa-0000-4000-a000-000000000003',
+  'aaaaaaaa-0000-4000-a000-000000000003',
+  'email',
+  '{"sub":"aaaaaaaa-0000-4000-a000-000000000003","email":"trial@ultaura-seed.test"}',
+  'trial@ultaura-seed.test',
+  now(), now(), now()
+);
+
+INSERT INTO public.users (id, photo_url, display_name, onboarded)
 VALUES ('aaaaaaaa-0000-4000-a000-000000000003', NULL, 'Trial User', true);
 
 -- Create org
@@ -100,15 +137,20 @@ SELECT
   'trial@ultaura-seed.test'
 FROM organizations WHERE name = 'Trial Family';
 
--- Create one line
-INSERT INTO ultaura_lines (id, account_id, display_name, phone_number, status, timezone)
+-- Create subscription (dashboard requires a subscription row to load)
+INSERT INTO ultaura_subscriptions (account_id, plan_id, status, billing_interval)
+VALUES ('bbbbbbbb-0000-4000-a000-000000000002', 'comfort', 'trialing', 'month');
+
+-- Create one line (column is "phone_e164", and "short_id" is required)
+INSERT INTO ultaura_lines (id, account_id, display_name, phone_e164, status, timezone, short_id)
 VALUES (
   'cccccccc-0000-4000-a000-000000000005',
   'bbbbbbbb-0000-4000-a000-000000000002',
   'Trial Senior',
   '+15551000005',
   'active',
-  'America/New_York'
+  'America/New_York',
+  'trial001'
 );
 ```
 
@@ -118,8 +160,15 @@ VALUES (
 **Scenario C: Care Plan Account**
 
 ```sql
--- Create a care plan test user
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, instance_id, aud, role)
+-- Create auth user
+INSERT INTO auth.users (
+  id, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data,
+  created_at, updated_at, instance_id, aud, role,
+  confirmation_token, recovery_token, email_change_token_new,
+  email_change_token_current, phone_change_token, reauthentication_token,
+  email_change, phone_change
+)
 VALUES (
   'aaaaaaaa-0000-4000-a000-000000000004',
   'care@ultaura-seed.test',
@@ -128,10 +177,21 @@ VALUES (
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Care User"}',
   now(), now(),
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'
+  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+  '', '', '', '', '', '', '', ''
 );
 
-INSERT INTO public.users (id, photo_url, display_name, onboarding_complete)
+INSERT INTO auth.identities (id, user_id, provider, identity_data, provider_id, created_at, updated_at, last_sign_in_at)
+VALUES (
+  'aaaaaaaa-0000-4000-a000-000000000004',
+  'aaaaaaaa-0000-4000-a000-000000000004',
+  'email',
+  '{"sub":"aaaaaaaa-0000-4000-a000-000000000004","email":"care@ultaura-seed.test"}',
+  'care@ultaura-seed.test',
+  now(), now(), now()
+);
+
+INSERT INTO public.users (id, photo_url, display_name, onboarded)
 VALUES ('aaaaaaaa-0000-4000-a000-000000000004', NULL, 'Care User', true);
 
 INSERT INTO organizations (name) VALUES ('Care Family');
@@ -152,14 +212,19 @@ SELECT
   'care@ultaura-seed.test'
 FROM organizations WHERE name = 'Care Family';
 
-INSERT INTO ultaura_lines (id, account_id, display_name, phone_number, status, timezone)
+-- Create subscription (dashboard requires a subscription row to load)
+INSERT INTO ultaura_subscriptions (account_id, plan_id, status, billing_interval)
+VALUES ('bbbbbbbb-0000-4000-a000-000000000003', 'care', 'active', 'month');
+
+INSERT INTO ultaura_lines (id, account_id, display_name, phone_e164, status, timezone, short_id)
 VALUES (
   'cccccccc-0000-4000-a000-000000000006',
   'bbbbbbbb-0000-4000-a000-000000000003',
   'Care Senior',
   '+15551000006',
   'active',
-  'America/New_York'
+  'America/New_York',
+  'care0001'
 );
 ```
 
@@ -170,7 +235,7 @@ VALUES (
 
 ```sql
 UPDATE ultaura_runtime_feature_flags
-SET is_enabled = true, updated_at = now()
+SET enabled = true, updated_at = now()
 WHERE flag_key = 'health_profile';
 ```
 
@@ -227,7 +292,7 @@ ORDER BY l.display_name;
 Set the flag to `false`:
 
 ```sql
-UPDATE ultaura_runtime_feature_flags SET is_enabled = false WHERE flag_key = 'health_profile';
+UPDATE ultaura_runtime_feature_flags SET enabled = false, updated_at = now() WHERE flag_key = 'health_profile';
 ```
 
 Log in as `payer@ultaura-seed.test`:

@@ -162,10 +162,10 @@ export function SidebarItem({
   });
 
   const iconEl = (
-    <If condition={collapsed} fallback={<Icon className={'h-[18px]'} />}>
+    <If condition={collapsed} fallback={<Icon className={'h-[18px] w-[18px]'} />}>
       <Tooltip>
         <TooltipTrigger>
-          <Icon className={'h-[18px]'} />
+          <Icon className={'h-[18px] w-[18px]'} />
         </TooltipTrigger>
 
         <TooltipContent side={'right'} sideOffset={20}>
@@ -265,7 +265,7 @@ function getSidebarItemClassBuilder() {
         {
           collapsed: false,
           active: true,
-          className: `shadow-[inset_1px_0_0_0_var(--primary)] pl-[11px] text-sidebar-foreground [&_svg]:text-primary`,
+          className: `shadow-[inset_1px_0_0_0_var(--primary)] text-sidebar-foreground [&_svg]:text-primary`,
         },
         {
           collapsed: true,

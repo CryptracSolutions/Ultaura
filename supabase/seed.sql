@@ -4607,6 +4607,12 @@ WHERE id IN ('schedules', 'reminders', 'weekly-summaries', 'recording-deletions'
 -- Restore replication role after seed
 SET session_replication_role = 'origin';
 
+-- Backfill health consent rows (trigger doesn't fire during seed because
+-- session_replication_role = 'replica' suppresses triggers above)
+INSERT INTO ultaura_health_line_consent (line_id, account_id)
+SELECT id, account_id FROM ultaura_lines
+ON CONFLICT (line_id) DO NOTHING;
+
 COMMIT;
 
 -- ============================================================
