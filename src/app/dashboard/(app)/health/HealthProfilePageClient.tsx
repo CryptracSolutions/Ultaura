@@ -19,7 +19,6 @@ import {
   DialogTrigger,
 } from '~/core/ui/Dialog';
 import { HealthLockedState } from './components/HealthLockedState';
-import { HealthLineSelector } from './components/HealthLineSelector';
 import { HealthDisclaimerDialog } from './components/HealthDisclaimerDialog';
 import { HealthConsentCard } from './components/HealthConsentCard';
 import { HealthConditionsTab } from './components/HealthConditionsTab';
@@ -145,20 +144,13 @@ export function HealthProfilePageClient({
     );
   }
 
-  // Multi-line accounts with no line selected need to pick one first
-  const needsLineSelection = lines.length > 1 && !selectedLineId;
-  if (needsLineSelection) {
-    return (
-      <HealthLineSelector
-        lines={lines}
-        accountId={account.id}
-      />
-    );
-  }
+  // Multi-line accounts with no line selected: auto-select the first line
+  // (line switching is handled inline via the select dropdown in the main render)
+  const resolvedLineId = selectedLineId ?? (lines.length > 0 ? lines[0]!.short_id : null);
 
   // Resolve the selected line object
   const selectedLine = lines.find(
-    (l) => l.short_id === selectedLineId || (lines.length === 1 && !selectedLineId),
+    (l) => l.short_id === resolvedLineId,
   ) ?? lines[0];
 
   if (!selectedLine) {

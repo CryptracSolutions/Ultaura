@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { Lock } from 'lucide-react';
+import Button from '~/core/ui/Button';
 
 export function HealthLockedState() {
   return (
@@ -18,12 +18,9 @@ export function HealthLockedState() {
         for your loved one.
       </p>
 
-      <Link
-        href="/dashboard/settings/subscription"
-        className="mt-6 inline-flex min-h-[44px] items-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-      >
+      <Button href="/dashboard/settings/subscription" className="mt-6">
         View plans
-      </Link>
+      </Button>
     </div>
   );
 }
