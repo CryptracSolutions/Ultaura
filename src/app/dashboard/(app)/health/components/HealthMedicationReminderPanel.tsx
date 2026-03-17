@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import { Bell, Play, X, Plus } from 'lucide-react';
 import Button from '~/core/ui/Button';
+import TextField from '~/core/ui/TextField';
 import {
   createHealthReminderAction,
   getHealthRemindersForMedicationAction,
@@ -166,12 +167,12 @@ export function HealthMedicationReminderPanel({
             <label htmlFor="reminder-time" className="text-xs font-medium text-muted-foreground">
               Time (HH:MM)
             </label>
-            <input
+            <TextField.Input
               id="reminder-time"
               type="time"
               value={newTimeOfDay}
               onChange={(e) => setNewTimeOfDay(e.target.value)}
-              className="block w-full min-h-[44px] rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="min-h-[44px]"
               aria-label="Reminder time"
             />
           </div>
@@ -180,14 +181,14 @@ export function HealthMedicationReminderPanel({
             <label htmlFor="reminder-label" className="text-xs font-medium text-muted-foreground">
               Label (optional)
             </label>
-            <input
+            <TextField.Input
               id="reminder-label"
               type="text"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               placeholder={`${medicationName} reminder`}
               maxLength={120}
-              className="block w-full min-h-[44px] rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="min-h-[44px]"
               aria-label="Reminder label"
             />
           </div>

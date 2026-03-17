@@ -41,7 +41,8 @@ export function HealthDisclaimerDialog({
   return (
     <Dialog open modal>
       <DialogContent
-        className="sm:max-w-md"
+        className="sm:max-w-[468px]"
+        overlayClassName="bg-black/50 backdrop-blur-none"
         onOpenAutoFocus={(e) => e.preventDefault()}
         // Prevent closing by clicking outside or pressing Escape — acknowledgement is required
         onInteractOutside={(e) => e.preventDefault()}

@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from '~/core/ui/Dialog';
 import Button from '~/core/ui/Button';
@@ -189,22 +187,11 @@ export function HealthMedicationForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-4">
-            <DialogTitle>{isEditing ? 'Edit medication' : 'Add medication'}</DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              type="button"
-              onClick={() => onOpenChange(false)}
-              disabled={isPending}
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
+      <DialogContent
+        className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+      >
+        <DialogTitle>{isEditing ? 'Edit medication' : 'Add medication'}</DialogTitle>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Name */}
@@ -380,21 +367,22 @@ export function HealthMedicationForm({
           )}
 
           {/* Actions */}
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
               type="button"
               variant="outline"
+              className="w-full"
               onClick={() => onOpenChange(false)}
               disabled={isPending}
-              className="min-h-[44px]"
             >
               Cancel
             </Button>
             <Button
               type="submit"
+              variant="default"
+              className="w-full"
               loading={isPending}
               disabled={isPending}
-              className="min-h-[44px]"
             >
               {isEditing ? 'Save changes' : 'Add medication'}
             </Button>

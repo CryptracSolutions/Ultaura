@@ -5,12 +5,14 @@ import { Plus, Pencil, Trash2, FileText, FileImage, Download } from 'lucide-reac
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
+import TextField from '~/core/ui/TextField';
+import Textarea from '~/core/ui/Textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { HealthDocumentUploadForm } from './HealthDocumentUploadForm';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from '~/core/ui/Dialog';
 import {
@@ -101,74 +103,78 @@ function EditMetadataDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Document</DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+      >
+        <DialogTitle>Edit Document</DialogTitle>
         <form onSubmit={handleSave} className="space-y-4 mt-2">
           <div>
             <label htmlFor="edit-title" className="block text-sm font-medium text-foreground mb-1.5">
               Title <span className="text-destructive">*</span>
             </label>
-            <input
+            <TextField.Input
               id="edit-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 120))}
               maxLength={120}
               required
-              className="block w-full min-h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="min-h-[44px]"
             />
           </div>
           <div>
             <label htmlFor="edit-category" className="block text-sm font-medium text-foreground mb-1.5">
               Category
             </label>
-            <select
-              id="edit-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as HealthDocumentCategory | '')}
-              className="block w-full min-h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            <Select
+              value={category || '__none__'}
+              onValueChange={(v) => setCategory(v === '__none__' ? '' : v as HealthDocumentCategory)}
             >
-              <option value="">— Select category —</option>
-              {(Object.entries(CATEGORY_LABELS) as [HealthDocumentCategory, string][]).map(
-                ([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ),
-              )}
-            </select>
+              <SelectTrigger id="edit-category" className="min-h-[44px]">
+                <SelectValue placeholder="— Select category —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Select category —</SelectItem>
+                {(Object.entries(CATEGORY_LABELS) as [HealthDocumentCategory, string][]).map(
+                  ([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ),
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label htmlFor="edit-date" className="block text-sm font-medium text-foreground mb-1.5">
               Document Date
             </label>
-            <input
+            <TextField.Input
               id="edit-date"
               type="date"
               value={documentDate}
               onChange={(e) => setDocumentDate(e.target.value)}
-              className="block w-full min-h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="min-h-[44px]"
             />
           </div>
           <div>
             <label htmlFor="edit-notes" className="block text-sm font-medium text-foreground mb-1.5">
               Notes
             </label>
-            <textarea
+            <Textarea
               id="edit-notes"
               value={notes}
-              onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value.slice(0, 2000))}
               maxLength={2000}
               rows={3}
-              className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              className="resize-none"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
               type="button"
               variant="outline"
               size="small"
-              className="min-h-[44px]"
+              className="w-full"
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
@@ -178,7 +184,7 @@ function EditMetadataDialog({
               type="submit"
               variant="default"
               size="small"
-              className="min-h-[44px]"
+              className="w-full"
               disabled={!title.trim() || saving}
             >
               {saving ? 'Saving…' : 'Save'}

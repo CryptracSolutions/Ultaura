@@ -4,10 +4,12 @@ import { useState, useRef } from 'react';
 import { Upload, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
+import TextField from '~/core/ui/TextField';
+import Textarea from '~/core/ui/Textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/core/ui/Select';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from '~/core/ui/Dialog';
 import type { HealthDocument, HealthDocumentCategory } from '@ultaura/types';
@@ -130,10 +132,11 @@ export function HealthDocumentUploadForm({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg w-full">
-        <DialogHeader>
-          <DialogTitle>Upload Document</DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+      >
+        <DialogTitle>Upload Document</DialogTitle>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {/* File input */}
@@ -188,7 +191,7 @@ export function HealthDocumentUploadForm({
             <label htmlFor="doc-title" className="block text-sm font-medium text-foreground mb-1.5">
               Title <span className="text-destructive">*</span>
             </label>
-            <input
+            <TextField.Input
               id="doc-title"
               type="text"
               value={title}
@@ -196,7 +199,7 @@ export function HealthDocumentUploadForm({
               placeholder="e.g. Blood work — March 2026"
               maxLength={120}
               required
-              className="block w-full min-h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="min-h-[44px]"
             />
             <p className="mt-0.5 text-xs text-muted-foreground text-right">{title.length}/120</p>
           </div>
@@ -206,21 +209,24 @@ export function HealthDocumentUploadForm({
             <label htmlFor="doc-category" className="block text-sm font-medium text-foreground mb-1.5">
               Category
             </label>
-            <select
-              id="doc-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as HealthDocumentCategory | '')}
-              className="block w-full min-h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            <Select
+              value={category || '__none__'}
+              onValueChange={(v) => setCategory(v === '__none__' ? '' : v as HealthDocumentCategory)}
             >
-              <option value="">— Select category —</option>
-              {(Object.entries(CATEGORY_LABELS) as [HealthDocumentCategory, string][]).map(
-                ([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ),
-              )}
-            </select>
+              <SelectTrigger id="doc-category" className="min-h-[44px]">
+                <SelectValue placeholder="— Select category —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Select category —</SelectItem>
+                {(Object.entries(CATEGORY_LABELS) as [HealthDocumentCategory, string][]).map(
+                  ([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ),
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Document date */}
@@ -228,12 +234,12 @@ export function HealthDocumentUploadForm({
             <label htmlFor="doc-date" className="block text-sm font-medium text-foreground mb-1.5">
               Document Date
             </label>
-            <input
+            <TextField.Input
               id="doc-date"
               type="date"
               value={documentDate}
               onChange={(e) => setDocumentDate(e.target.value)}
-              className="block w-full min-h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="min-h-[44px]"
             />
           </div>
 
@@ -242,14 +248,14 @@ export function HealthDocumentUploadForm({
             <label htmlFor="doc-notes" className="block text-sm font-medium text-foreground mb-1.5">
               Notes
             </label>
-            <textarea
+            <Textarea
               id="doc-notes"
               value={notes}
-              onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value.slice(0, 2000))}
               placeholder="Optional notes about this document…"
               maxLength={2000}
               rows={3}
-              className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              className="resize-none"
             />
             <p className="mt-0.5 text-xs text-muted-foreground text-right">{notes.length}/2000</p>
           </div>
@@ -263,12 +269,12 @@ export function HealthDocumentUploadForm({
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
               type="button"
               variant="outline"
               size="small"
-              className="min-h-[44px]"
+              className="w-full"
               onClick={handleClose}
               disabled={uploading}
             >
@@ -278,7 +284,7 @@ export function HealthDocumentUploadForm({
               type="submit"
               variant="default"
               size="small"
-              className="min-h-[44px] gap-1.5"
+              className="w-full gap-1.5"
               disabled={!canSubmit}
             >
               <Upload className="h-4 w-4" />

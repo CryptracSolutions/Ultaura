@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -112,28 +111,17 @@ export function HealthObservationForm({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
-        className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto"
+        className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
         overlayClassName="bg-black/50 backdrop-blur-none"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <DialogTitle>{isEdit ? 'Edit observation' : 'Add observation'}</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              {isEdit ? 'Update the details below' : 'Record an observation about wellbeing, mood, or behaviour'}
-            </DialogDescription>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleClose}
-            disabled={isPending}
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </Button>
+        <div className="min-w-0">
+          <DialogTitle>{isEdit ? 'Edit observation' : 'Add observation'}</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            {isEdit ? 'Update the details below' : 'Record an observation about wellbeing, mood, or behaviour'}
+          </DialogDescription>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-5">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {/* Observation text */}
           <div>
             <label htmlFor="observation-text" className="block text-sm font-medium text-foreground mb-2">
@@ -214,16 +202,7 @@ export function HealthObservationForm({
             </Select>
           </div>
 
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-            <Button
-              type="submit"
-              variant="default"
-              className="w-full"
-              disabled={isPending || !text.trim()}
-              loading={isPending}
-            >
-              {isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Add observation'}
-            </Button>
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
               type="button"
               variant="outline"
@@ -232,6 +211,15 @@ export function HealthObservationForm({
               disabled={isPending}
             >
               Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              className="w-full"
+              disabled={isPending || !text.trim()}
+              loading={isPending}
+            >
+              {isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Add observation'}
             </Button>
           </div>
         </form>
