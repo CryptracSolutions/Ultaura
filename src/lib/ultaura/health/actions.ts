@@ -132,18 +132,13 @@ export async function revokeHealthConsentSelfAction(
 export async function getConditionsAction(
   lineId: string,
 ): Promise<{ success: true; conditions: HealthCondition[] } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
   try {
-    const conditions = await getConditions(lineId);
+    const conditions = await getConditions(lineId, undefined, access.context.accountId);
     return { success: true, conditions };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to load conditions' };
@@ -154,17 +149,12 @@ export async function createConditionAction(
   lineId: string,
   formData: ConditionFormInput,
 ): Promise<{ success: true; condition: HealthCondition } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     const condition = await createCondition(accountId, lineId, actorUserId, formData);
@@ -180,17 +170,12 @@ export async function editConditionAction(
   lineId: string,
   formData: ConditionFormInput,
 ): Promise<{ success: true; condition: HealthCondition } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     const condition = await editCondition(conditionId, lineId, accountId, actorUserId, formData);
@@ -205,17 +190,12 @@ export async function deleteConditionAction(
   conditionId: string,
   lineId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     await deleteCondition(conditionId, lineId, accountId, actorUserId);
@@ -231,17 +211,12 @@ export async function changeConditionStatusAction(
   lineId: string,
   status: HealthConditionStatus,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     await changeConditionStatus(conditionId, lineId, accountId, actorUserId, status);
@@ -264,18 +239,13 @@ export async function getHealthItemHistoryAction(
   | { success: true; entries: Awaited<ReturnType<typeof getHealthItemHistory>> }
   | { success: false; error: string }
 > {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
   try {
-    const entries = await getHealthItemHistory(lineId, itemKind, itemId);
+    const entries = await getHealthItemHistory(lineId, itemKind, itemId, 50, access.context.accountId);
     return { success: true, entries };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to load history' };
@@ -303,18 +273,13 @@ export async function getMedicationsAction(
   lineId: string,
   filter?: { status?: HealthMedicationStatus },
 ): Promise<{ success: true; medications: HealthMedication[] } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
   try {
-    const medications = await getMedications(lineId, filter);
+    const medications = await getMedications(lineId, filter, access.context.accountId);
     return { success: true, medications };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to load medications' };
@@ -325,17 +290,12 @@ export async function createMedicationAction(
   lineId: string,
   formData: MedicationFormInput,
 ): Promise<{ success: true; medication: HealthMedication } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await createMedication(accountId, lineId, actorUserId, formData);
   if (!result.success) {
@@ -351,17 +311,12 @@ export async function editMedicationAction(
   lineId: string,
   formData: Partial<MedicationFormInput>,
 ): Promise<{ success: true; medication: HealthMedication } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await editMedication(medicationId, lineId, accountId, actorUserId, formData);
   if (!result.success) {
@@ -376,17 +331,12 @@ export async function deleteMedicationAction(
   medicationId: string,
   lineId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await deleteMedication(medicationId, lineId, accountId, actorUserId);
   if (!result.success) {
@@ -402,17 +352,12 @@ export async function changeMedicationStatusAction(
   lineId: string,
   status: HealthMedicationStatus,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await changeMedicationStatus(medicationId, lineId, accountId, actorUserId, status);
   if (!result.success) {
@@ -429,18 +374,13 @@ export async function getPendingSuggestionsAction(
   lineId: string,
   filter?: { type?: 'condition' | 'medication' },
 ): Promise<{ success: true; suggestions: HealthSuggestion[] } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
   try {
-    const suggestions = await getPendingSuggestions(lineId, filter);
+    const suggestions = await getPendingSuggestions(lineId, filter, access.context.accountId);
     return { success: true, suggestions };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to load suggestions' };
@@ -453,11 +393,6 @@ export async function getPendingSuggestionCountAction(
   | { success: true; total: number; conditions: number; medications: number }
   | { success: false; error: string }
 > {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
@@ -475,17 +410,12 @@ export async function approveSuggestionAsNewAction(
   suggestionId: string,
   lineId: string,
 ): Promise<{ success: true; resultingItemId: string } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await approveSuggestionAsNew(suggestionId, lineId, accountId, actorUserId);
   if (!result.success) {
@@ -501,17 +431,12 @@ export async function approveSuggestionAsUpdateAction(
   lineId: string,
   targetItemId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await approveSuggestionAsUpdate(suggestionId, lineId, accountId, actorUserId, targetItemId);
   if (!result.success) {
@@ -526,17 +451,12 @@ export async function dismissSuggestionAction(
   suggestionId: string,
   lineId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await dismissSuggestion(suggestionId, lineId, accountId, actorUserId);
   if (!result.success) {
@@ -554,18 +474,13 @@ export async function dismissSuggestionAction(
 export async function getObservationsAction(
   lineId: string,
 ): Promise<{ success: true; observations: HealthObservation[] } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
   try {
-    const observations = await getObservations(lineId);
+    const observations = await getObservations(lineId, access.context.accountId);
     return { success: true, observations };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to load observations' };
@@ -576,17 +491,12 @@ export async function createObservationAction(
   lineId: string,
   input: ObservationFormInput,
 ): Promise<{ success: true; observation: HealthObservation } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     const observation = await createObservation(accountId, lineId, actorUserId, input);
@@ -602,17 +512,12 @@ export async function editObservationAction(
   lineId: string,
   input: ObservationFormInput,
 ): Promise<{ success: true; observation: HealthObservation } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     const observation = await editObservation(observationId, lineId, accountId, actorUserId, input);
@@ -627,17 +532,12 @@ export async function deleteObservationAction(
   observationId: string,
   lineId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     await deleteObservation(observationId, lineId, accountId, actorUserId);
@@ -656,17 +556,12 @@ export async function createHealthReminderAction(
   timeOfDay: string,
   label?: string,
 ): Promise<{ success: true; reminderId: string } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await createHealthReminder({ medicationId, lineId, accountId, actorUserId, timeOfDay, label });
   if (!result.success) {
@@ -681,11 +576,6 @@ export async function getHealthRemindersForMedicationAction(
   medicationId: string,
   lineId: string,
 ): Promise<{ success: true; reminders: Awaited<ReturnType<typeof getHealthRemindersForMedication>> } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
@@ -703,17 +593,12 @@ export async function resumeHealthReminderAction(
   reminderId: string,
   lineId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await resumeHealthReminder(reminderId, lineId, accountId, actorUserId);
   if (!result.success) {
@@ -728,17 +613,12 @@ export async function cancelHealthReminderAction(
   reminderId: string,
   lineId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   const result = await cancelSingleHealthReminder(reminderId, lineId, accountId, actorUserId);
   if (!result.success) {
@@ -756,18 +636,13 @@ export { type DocumentMetadataInput };
 export async function getDocumentsAction(
   lineId: string,
 ): Promise<{ success: true; documents: HealthDocument[] } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
   try {
-    const documents = await getDocuments(lineId);
+    const documents = await getDocuments(lineId, access.context.accountId);
     return { success: true, documents };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to load documents' };
@@ -779,17 +654,12 @@ export async function editDocumentMetadataAction(
   lineId: string,
   input: DocumentMetadataInput,
 ): Promise<{ success: true; document: HealthDocument } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     const document = await editDocumentMetadata(documentId, lineId, accountId, actorUserId, input);
@@ -804,17 +674,12 @@ export async function deleteDocumentAction(
   documentId: string,
   lineId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const actorUserId = await getActorUserId();
-  if (!actorUserId) {
-    return { success: false, error: 'Not authenticated' };
-  }
-
   const access = await requireHealthLineAccess(lineId);
   if (!access.ok) {
     return { success: false, error: access.error };
   }
 
-  const { accountId } = access.context;
+  const { accountId, actorUserId } = access.context;
 
   try {
     await deleteDocument(documentId, lineId, accountId, actorUserId);

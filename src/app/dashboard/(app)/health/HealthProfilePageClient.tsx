@@ -8,24 +8,11 @@ import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 
 import type { HealthTabValue, HealthConsentStatus, HealthCondition, HealthObservation, HealthDocument } from '@ultaura/types';
+import { cn } from '~/core/generic/shadcn-utils';
 import type { LineRow, UltauraAccountRow } from '~/lib/ultaura/types';
 
-import { Info } from 'lucide-react';
-import Button from '~/core/ui/Button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '~/core/ui/Dialog';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '~/core/ui/Select';
+import Link from 'next/link';
+import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
 import { HealthLockedState } from './components/HealthLockedState';
 import { HealthDisclaimerDialog } from './components/HealthDisclaimerDialog';
 import { HealthConsentCard } from './components/HealthConsentCard';
@@ -42,6 +29,7 @@ import {
   parseHealthTab,
   parseHealthLine,
 } from './lib/health-navigation';
+
 
 interface ConsentState {
   lineId: string;
@@ -88,11 +76,9 @@ export function HealthProfilePageClient({
     disclaimerState.isCurrent,
   );
 
-  const activeTab = parseHealthTab(
-    Object.fromEntries(searchParams.entries()),
-  ) as HealthTabValue;
-
-  const lineIdFromUrl = parseHealthLine(Object.fromEntries(searchParams.entries()));
+  const searchParamsRecord = Object.fromEntries(searchParams.entries());
+  const activeTab = parseHealthTab(searchParamsRecord) as HealthTabValue;
+  const lineIdFromUrl = parseHealthLine(searchParamsRecord);
 
   // Resolve the selected line: URL param > localStorage > first line
   const [selectedLineId, setSelectedLineId] = useState<string | null>(() => {
@@ -172,120 +158,143 @@ export function HealthProfilePageClient({
   const consentState = consentByLineId[selectedLine.id] ?? null;
   const userType = account.user_type === 'self' ? 'self' : 'family_managed';
 
-  const tabLinks = HEALTH_TABS.map((tab) => ({
-    path: buildHealthUrl(tab.value, selectedLine.short_id),
+  return (
+    <div className="space-y-4 pb-12">
+      {/* Info tip banner */}
+      <CollapsibleInfoTip storageKey="health_info_tip_collapsed" collapsedLabel="Health disclaimer">
+        Ultaura is not a doctor or medical professional. Health information
+        stored here is for personal reference and, with your permission, to help
+        Ultaura provide more informed companionship. Ultaura may make mistakes.
+        Always consult qualified healthcare providers for medical advice,
+        diagnosis, or treatment.{' '}
+        <Link
+          href="/docs/health"
+          className="font-medium underline underline-offset-2 hover:no-underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Learn more →
+        </Link>
+      </CollapsibleInfoTip>
+
+      {/* Line tabs + consent badge row */}
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+        {lines.length > 1 && (
+          <NavigationMenu bordered scrollable ariaLabel="Select companion line">
+            {lines.map((line) => (
+              <NavigationItem
+                key={line.id}
+                link={{
+                  path: buildHealthUrl(activeTab, line.short_id),
+                  label: line.display_name,
+                }}
+                active={line.short_id === resolvedLineId}
+                scroll={false}
+                onClick={(e) => {
+                  e?.preventDefault();
+                  handleLineSelected(line.short_id);
+                }}
+              />
+            ))}
+          </NavigationMenu>
+        )}
+
+        {consentState ? (
+          <div className="self-start sm:ml-auto sm:self-auto shrink-0">
+            <HealthConsentCard
+              lineId={selectedLine.id}
+              userType={userType}
+              consentStatus={consentState.consentStatus}
+              consentRequestedAt={consentState.consentRequestedAt}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      {/* Sidebar + Content layout */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+        <HealthSidebarNav
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          lineId={selectedLine.short_id}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <HealthTabContent
+            tab={activeTab}
+            lineId={selectedLine.short_id}
+            lineFullId={selectedLine.id}
+            accountId={account.id}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HealthSidebarNav({
+  activeTab,
+  onTabChange,
+  lineId,
+}: {
+  activeTab: HealthTabValue;
+  onTabChange: (tab: HealthTabValue) => void;
+  lineId?: string;
+}) {
+  const sidebarLinks = HEALTH_TABS.map((tab) => ({
+    path: buildHealthUrl(tab.value, lineId),
     label: tab.label,
   }));
 
   const activeTabConfig = HEALTH_TABS.find((t) => t.value === activeTab);
 
   return (
-    <div className="space-y-4 pb-12">
-      {/* About Health Profile + Line switcher row */}
-      <div className="flex items-center justify-between gap-4">
-        {/* Line switcher for multi-line accounts */}
-        {lines.length > 1 ? (
-          <div className="w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
-            <Select value={selectedLine.short_id} onValueChange={handleLineSelected}>
-              <SelectTrigger
-                className="h-auto min-h-[32px] rounded-xl border-0 bg-card/70 px-3 py-1 text-sm font-medium shadow-sm backdrop-blur"
-                aria-label="Select line"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {lines.map((line) => (
-                  <SelectItem key={line.id} value={line.short_id}>
-                    {line.display_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <div />
-        )}
-
-        {/* About Health Profile info button */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="small"
-              aria-label="About Health Profile"
-            >
-              <Info className="size-4" />
-              <span className="hidden sm:inline">About Health Profile</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[468px]">
-            <DialogHeader>
-              <DialogTitle>About Health Profile</DialogTitle>
-            </DialogHeader>
-            <div className="py-1">
-              <p className="text-sm text-foreground leading-relaxed">
-                Ultaura is not a doctor or medical professional. Health
-                information stored here is for personal reference and, with your
-                permission, to help Ultaura provide more informed companionship.
-                Ultaura may make mistakes. Always consult qualified healthcare
-                providers for medical advice, diagnosis, or treatment.
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden min-w-[12rem] lg:flex">
+        <nav className="w-full" aria-label="Health section navigation">
+          <ul className="flex flex-col space-y-1.5">
+            {HEALTH_TABS.map((tab) => {
+              const isActive = tab.value === activeTab;
+              return (
+                <li key={tab.value}>
+                  <Link
+                    href={buildHealthUrl(tab.value, lineId)}
+                    scroll={false}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onTabChange(tab.value);
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-primary',
+                    )}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <span>{tab.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </div>
 
-      {/* Consent card */}
-      {consentState ? (
-        <HealthConsentCard
-          lineId={selectedLine.id}
-          accountId={account.id}
-          userType={userType}
-          consentStatus={consentState.consentStatus}
-          consentRequestedAt={consentState.consentRequestedAt}
-          historyPreview={consentState.historyPreview}
-        />
-      ) : null}
-
-      {/* Tab navigation */}
-      <div>
-        {/* Desktop tabs */}
-        <div className="hidden sm:block">
-          <NavigationMenu bordered scrollable ariaLabel="Health sections">
-            {HEALTH_TABS.map((tab) => (
-              <NavigationItem
-                key={tab.value}
-                link={{
-                  path: buildHealthUrl(tab.value, selectedLine.short_id),
-                  label: tab.label,
-                }}
-                active={activeTab === tab.value}
-                onClick={() => handleTabChange(tab.value)}
-              />
-            ))}
-          </NavigationMenu>
-        </div>
-
-        {/* Mobile tab dropdown */}
-        <div className="sm:hidden">
-          <MobileNavigationDropdown
-            links={tabLinks}
-            currentLabel={activeTabConfig?.label}
-            ariaLabel="Health sections"
-          />
-        </div>
-      </div>
-
-      {/* Tab content */}
-      <div className="py-2">
-        <HealthTabContent
-          tab={activeTab}
-          lineId={selectedLine.short_id}
-          lineFullId={selectedLine.id}
-          accountId={account.id}
+      {/* Mobile dropdown */}
+      <div className="block w-full lg:hidden">
+        <MobileNavigationDropdown
+          links={sidebarLinks}
+          currentLabel={activeTabConfig?.label}
+          ariaLabel="Health sections"
+          onNavigate={(e, link) => {
+            e.preventDefault();
+            const tab = HEALTH_TABS.find((t) => buildHealthUrl(t.value, lineId) === link.path);
+            if (tab) onTabChange(tab.value);
+          }}
         />
       </div>
-    </div>
+    </>
   );
 }
 
@@ -305,18 +314,29 @@ function ConditionsTabLoader({
     setIsLoading(true);
     setError(null);
 
-    getConditionsAction(lineId).then((result) => {
-      if (cancelled) return;
-      if (result.success) {
-        setConditions(result.conditions);
-      } else {
-        setError(result.error);
-      }
-    }).catch(() => {
-      if (!cancelled) setError('Failed to load conditions');
-    }).finally(() => {
-      if (!cancelled) setIsLoading(false);
-    });
+    let retries = 0;
+    const load = () => {
+      getConditionsAction(lineId).then((result) => {
+        if (cancelled) return;
+        if (result.success) {
+          setConditions(result.conditions);
+          setIsLoading(false);
+        } else {
+          setError(result.error);
+          setIsLoading(false);
+        }
+      }).catch(() => {
+        if (cancelled) return;
+        if (retries < 1) {
+          retries++;
+          setTimeout(load, 500);
+        } else {
+          setError('Failed to load conditions');
+          setIsLoading(false);
+        }
+      });
+    };
+    load();
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -358,18 +378,29 @@ function ObservationsTabLoader({ lineId }: { lineId: string }) {
     setIsLoading(true);
     setError(null);
 
-    getObservationsAction(lineId).then((result) => {
-      if (cancelled) return;
-      if (result.success) {
-        setObservations(result.observations);
-      } else {
-        setError(result.error);
-      }
-    }).catch(() => {
-      if (!cancelled) setError('Failed to load observations');
-    }).finally(() => {
-      if (!cancelled) setIsLoading(false);
-    });
+    let retries = 0;
+    const load = () => {
+      getObservationsAction(lineId).then((result) => {
+        if (cancelled) return;
+        if (result.success) {
+          setObservations(result.observations);
+          setIsLoading(false);
+        } else {
+          setError(result.error);
+          setIsLoading(false);
+        }
+      }).catch(() => {
+        if (cancelled) return;
+        if (retries < 1) {
+          retries++;
+          setTimeout(load, 500);
+        } else {
+          setError('Failed to load observations');
+          setIsLoading(false);
+        }
+      });
+    };
+    load();
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -414,18 +445,29 @@ function DocumentsTabLoader({
     setIsLoading(true);
     setError(null);
 
-    getDocumentsAction(lineId).then((result) => {
-      if (cancelled) return;
-      if (result.success) {
-        setDocuments(result.documents);
-      } else {
-        setError(result.error);
-      }
-    }).catch(() => {
-      if (!cancelled) setError('Failed to load documents');
-    }).finally(() => {
-      if (!cancelled) setIsLoading(false);
-    });
+    let retries = 0;
+    const load = () => {
+      getDocumentsAction(lineId).then((result) => {
+        if (cancelled) return;
+        if (result.success) {
+          setDocuments(result.documents);
+          setIsLoading(false);
+        } else {
+          setError(result.error);
+          setIsLoading(false);
+        }
+      }).catch(() => {
+        if (cancelled) return;
+        if (retries < 1) {
+          retries++;
+          setTimeout(load, 500);
+        } else {
+          setError('Failed to load documents');
+          setIsLoading(false);
+        }
+      });
+    };
+    load();
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps

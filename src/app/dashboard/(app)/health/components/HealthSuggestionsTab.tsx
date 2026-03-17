@@ -305,7 +305,7 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
       </div>
 
       {/* Filter toggle */}
-      <div className="flex items-center gap-2" role="group" aria-label="Filter suggestions">
+      <div className="inline-flex gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Filter suggestions">
         {(
           [
             { value: 'all', label: `All${totalCount > 0 ? ` (${totalCount})` : ''}` },
@@ -317,10 +317,10 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
             key={value}
             onClick={() => setFilter(value)}
             className={[
-              'min-h-[44px] rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
               filter === value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                ? 'bg-primary/10 text-primary shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
             ].join(' ')}
             aria-pressed={filter === value}
           >

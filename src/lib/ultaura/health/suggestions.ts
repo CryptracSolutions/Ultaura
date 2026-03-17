@@ -1,7 +1,7 @@
 import 'server-only';
 
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
-import { encryptHealthPayload, decryptHealthPayload } from './crypto';
+import { encryptHealthPayload, decryptHealthPayload, preloadLineDEK } from './crypto';
 import { writeHealthHistoryEntry } from './history';
 import { getOrCreateLineDEK } from '../crypto-dek';
 import { deriveDedupeSubkey, deriveEvidenceSubkey, computeDedupeKey, computeEvidenceKey } from './hmac';
@@ -43,6 +43,7 @@ async function decryptSuggestionRow(
   row: SuggestionRow,
   accountId: string,
   lineId: string,
+  dek?: Buffer,
 ): Promise<StoredHealthSuggestionPayload> {
   const plaintext = await decryptHealthPayload(accountId, lineId, {
     ciphertext: row.payload_ciphertext as string,
@@ -50,7 +51,7 @@ async function decryptSuggestionRow(
     tag: row.payload_tag as string,
     alg: row.payload_alg,
     kid: row.payload_kid,
-  });
+  }, dek);
   return JSON.parse(plaintext) as StoredHealthSuggestionPayload;
 }
 
@@ -96,9 +97,10 @@ async function getAccountIdForLine(
 export async function getPendingSuggestions(
   lineId: string,
   filter?: { type?: 'condition' | 'medication' },
+  knownAccountId?: string,
 ): Promise<HealthSuggestion[]> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
-  const accountId = await getAccountIdForLine(adminClient, lineId);
+  const accountId = knownAccountId ?? await getAccountIdForLine(adminClient, lineId);
 
   let query = adminClient
     .from('ultaura_health_suggestions')
@@ -122,11 +124,12 @@ export async function getPendingSuggestions(
 
   if (!rows || rows.length === 0) return [];
 
+  const dek = await preloadLineDEK(accountId, lineId);
   const suggestions: HealthSuggestion[] = [];
 
   for (const row of rows) {
     try {
-      const payload = await decryptSuggestionRow(row as SuggestionRow, accountId, lineId);
+      const payload = await decryptSuggestionRow(row as SuggestionRow, accountId, lineId, dek);
       suggestions.push(mapSuggestionRow(row as SuggestionRow, payload));
     } catch {
       // Skip rows that fail to decrypt

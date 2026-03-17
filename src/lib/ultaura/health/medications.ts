@@ -1,7 +1,7 @@
 import 'server-only';
 
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
-import { encryptHealthPayload, decryptHealthPayload } from './crypto';
+import { encryptHealthPayload, decryptHealthPayload, preloadLineDEK } from './crypto';
 import { mapHealthMedicationRow } from './types';
 import { writeHealthHistoryEntry } from './history';
 import { cancelHealthReminders } from './reminders';
@@ -61,6 +61,7 @@ async function decryptMedicationRow(
   },
   accountId: string,
   lineId: string,
+  dek?: Buffer,
 ): Promise<StoredMedicationPayload> {
   const plaintext = await decryptHealthPayload(accountId, lineId, {
     ciphertext: row.payload_ciphertext,
@@ -68,7 +69,7 @@ async function decryptMedicationRow(
     tag: row.payload_tag,
     alg: row.payload_alg,
     kid: row.payload_kid,
-  });
+  }, dek);
   return JSON.parse(plaintext) as StoredMedicationPayload;
 }
 
@@ -98,9 +99,11 @@ export async function checkDuplicateMedication(
 
   if (!rows || rows.length === 0) return { isDuplicate: false, existingId: null };
 
+  const dek = await preloadLineDEK(line.account_id, lineId);
+
   for (const row of rows) {
     try {
-      const payload = await decryptMedicationRow(row, line.account_id, lineId);
+      const payload = await decryptMedicationRow(row, line.account_id, lineId, dek);
       if (isSimilarName(payload.name, name)) {
         return { isDuplicate: true, existingId: row.id };
       }
@@ -119,16 +122,20 @@ export async function checkDuplicateMedication(
 export async function getMedications(
   lineId: string,
   filter?: { status?: HealthMedicationStatus },
+  knownAccountId?: string,
 ): Promise<HealthMedication[]> {
-  const userClient = getSupabaseServerActionClient();
+  let accountId = knownAccountId;
+  if (!accountId) {
+    const userClient = getSupabaseServerActionClient();
+    const { data: line } = await userClient
+      .from('ultaura_lines')
+      .select('id, account_id')
+      .eq('id', lineId)
+      .single();
 
-  const { data: line } = await userClient
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
-
-  if (!line) return [];
+    if (!line) return [];
+    accountId = line.account_id;
+  }
 
   const adminClient = getSupabaseServerActionClient({ admin: true });
 
@@ -147,13 +154,14 @@ export async function getMedications(
 
   const { data: rows, error } = await query;
 
-  if (error || !rows) return [];
+  if (error || !rows || rows.length === 0) return [];
 
+  const dek = await preloadLineDEK(accountId, lineId);
   const medications: HealthMedication[] = [];
 
   for (const row of rows) {
     try {
-      const payload = await decryptMedicationRow(row, line.account_id, lineId);
+      const payload = await decryptMedicationRow(row, accountId, lineId, dek);
       medications.push(mapHealthMedicationRow(row, payload));
     } catch {
       // skip undecryptable rows

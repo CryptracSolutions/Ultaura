@@ -6,8 +6,8 @@ export const HEALTH_TABS: Array<{ value: HealthTabValue; label: string }> = [
   { value: 'suggestions', label: 'Suggestions' },
   { value: 'conditions', label: 'Conditions' },
   { value: 'medications', label: 'Medications' },
-  { value: 'documents', label: 'Documents' },
   { value: 'observations', label: 'Observations' },
+  { value: 'documents', label: 'Documents' },
 ];
 
 const HEALTH_TAB_VALUES: HealthTabValue[] = HEALTH_TABS.map((t) => t.value);
@@ -71,5 +71,5 @@ export function parseHealthLine(
     value = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
   }
 
-  return value ?? null;
+  return value;
 }

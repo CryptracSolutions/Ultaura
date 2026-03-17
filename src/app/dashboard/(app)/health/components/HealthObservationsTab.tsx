@@ -171,8 +171,11 @@ export function HealthObservationsTab({ lineId, observations: initialObservation
     setObservations((prev) => prev.filter((o) => o.id !== id));
   };
 
-  const handleAdded = () => {
+  const handleAdded = (observation?: HealthObservation) => {
     setAddOpen(false);
+    if (observation) {
+      setObservations((prev) => [observation, ...prev]);
+    }
   };
 
   return (

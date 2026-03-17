@@ -124,7 +124,7 @@ export function FamilyRecipientsSection({
 
   return (
     <>
-      <PrivacyInfoBanner>
+      <PrivacyInfoBanner storageKey="privacy_recipients_info_collapsed">
         Family recipients receive weekly summaries and alert updates. Trusted
         contacts are managed separately for urgent safety outreach by SMS. What
         is shared follows your loved one&apos;s sharing preferences during
@@ -132,6 +132,7 @@ export function FamilyRecipientsSection({
         <Link
           href="/docs/insights-and-reports/sharing-with-family"
           className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+          onClick={(e) => e.stopPropagation()}
         >
           Learn more →
         </Link>

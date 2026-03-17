@@ -1,7 +1,7 @@
 import 'server-only';
 
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
-import { encryptHealthPayload, decryptHealthPayload } from './crypto';
+import { encryptHealthPayload, decryptHealthPayload, preloadLineDEK } from './crypto';
 import { writeHealthHistoryEntry } from './history';
 import { mapHealthObservationRow } from './types';
 import { observationFormSchema } from '@ultaura/schemas';
@@ -14,20 +14,25 @@ import type {
 } from '@ultaura/types';
 import { TELEPHONY } from '../constants';
 
-export async function getObservations(lineId: string): Promise<HealthObservation[]> {
+export async function getObservations(
+  lineId: string,
+  knownAccountId?: string,
+): Promise<HealthObservation[]> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
 
-  const { data: line, error: lineError } = await adminClient
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
+  let accountId = knownAccountId;
+  if (!accountId) {
+    const { data: line, error: lineError } = await adminClient
+      .from('ultaura_lines')
+      .select('id, account_id')
+      .eq('id', lineId)
+      .single();
 
-  if (lineError || !line) {
-    throw new Error('Line not found');
+    if (lineError || !line) {
+      throw new Error('Line not found');
+    }
+    accountId = line.account_id;
   }
-
-  const accountId = line.account_id;
 
   const { data: rows, error } = await adminClient
     .from('ultaura_health_observations')
@@ -44,6 +49,7 @@ export async function getObservations(lineId: string): Promise<HealthObservation
 
   if (!rows || rows.length === 0) return [];
 
+  const dek = await preloadLineDEK(accountId, lineId);
   const observations: HealthObservation[] = [];
 
   for (const row of rows) {
@@ -54,7 +60,7 @@ export async function getObservations(lineId: string): Promise<HealthObservation
         tag: row.payload_tag,
         alg: row.payload_alg,
         kid: row.payload_kid,
-      });
+      }, dek);
 
       const payload = JSON.parse(plaintext) as StoredObservationPayload;
       observations.push(mapHealthObservationRow(row, payload));

@@ -43,9 +43,9 @@ You MUST use the **Agent Teams** feature (`Teammate` tool) for medium and large 
 | Orchestrator (main agent) | `Opus 4.6` | The coordinator/orchestrator (this chat) that assigns work and integrates final changes. |
 | Explore agents | `Sonnet 4.6` | Read-only extreme depth codebase exploration: find files, patterns, risks. |
 | Plan agent | `Opus 4.6` | Produces a decision-complete plan/spec |
-| Implementation teammates | `Sonnet 4.6` | Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
+| Implementation agent or teammates | `Sonnet 4.6` | Implementation: makes code changes (edits allowed), scoped to specific files/areas to avoid conflicts.
 | Monitor agent| `Opus 4.6` | Reviews code changes or diffs for correctness/security/test risks and runs checks/tests/builds and reports results |
-| Code simplifier | `Opus 4.6` | One-shot cleanup pass after verification (edits allowed, **conservatvely, no behavior changes**) |
+| Code simplifier | `Sonnet 4.6` | One-shot cleanup pass after verification (edits allowed, **conservatvely, no behavior changes**) |
 
 You MUST follow these steps IN ORDER:
 
@@ -236,7 +236,7 @@ You MUST create a task list using `TaskCreate` for **any work with 3+ steps**:
 After all implementation is complete and TypeScript/visual verification passes, you MUST run a code-simplifier agent before shutting down the team.
 
 **How to deploy:**
-- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "sonnet"`
+- Use the `Task` tool with `subagent_type: "code-simplifier:code-simplifier"` and `model: "Sonnet 4.6"`
 - The subagent MUST invoke the `/simplify` skill — this is the single source of truth for simplification logic
 - This is a **one-shot agent**, NOT a teammate — it runs independently after the team finishes
 - It is **blocking** — wait for its result before proceeding to shutdown

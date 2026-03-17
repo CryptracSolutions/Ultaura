@@ -25,7 +25,7 @@ interface HealthConditionFormProps {
   accountId: string;
   condition?: HealthCondition;
   existingConditions: HealthCondition[];
-  onSuccess?: () => void;
+  onSuccess?: (condition?: HealthCondition) => void;
 }
 
 const STATUS_LABELS: Record<HealthConditionStatus, string> = {
@@ -121,7 +121,7 @@ export function HealthConditionForm({
       if (result.success) {
         toast.success(isEdit ? 'Condition updated' : 'Condition added');
         onOpenChange(false);
-        onSuccess?.();
+        onSuccess?.(result.condition);
       } else {
         toast.error(result.error ?? 'Something went wrong');
       }

@@ -77,13 +77,14 @@ export function SharingPreferencesSection({
 
   return (
     <>
-      <PrivacyInfoBanner>
+      <PrivacyInfoBanner storageKey="privacy_sharing_info_collapsed">
         Family sharing lets you invite family members to receive weekly
           summaries and wellness alerts. What is shared follows your loved
           one&apos;s sharing preferences during calls.{' '}
         <Link
           href="/docs/insights-and-reports/sharing-with-family"
           className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+          onClick={(e) => e.stopPropagation()}
         >
           Learn more →
         </Link>

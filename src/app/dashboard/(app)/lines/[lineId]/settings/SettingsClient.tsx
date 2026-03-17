@@ -41,6 +41,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from '~/core/ui/Accordion';
+import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 import { useTranslation } from 'react-i18next';
 import { useAutoSave } from '~/core/hooks/use-auto-save';
@@ -1078,19 +1079,17 @@ export function SettingsClient({
                   description="Control how insights are generated and manage alert visibility."
                 />
                 <SectionBody className="gap-6">
-                  <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3.5">
-                    <Info className="h-[18px] w-[18px] text-primary flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-primary leading-snug">
-                      Manage recording and family sharing consent in the{' '}
-                      <Link
-                        href="/dashboard/privacy"
-                        className="text-primary font-medium underline underline-offset-2 hover:no-underline"
-                      >
-                        Privacy Center
-                      </Link>
-                      .
-                    </p>
-                  </div>
+                  <CollapsibleInfoTip storageKey="line_settings_privacy_info_collapsed" collapsedLabel="Privacy info">
+                    Manage recording and family sharing consent in the{' '}
+                    <Link
+                      href="/dashboard/privacy"
+                      className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    >
+                      Privacy Center
+                    </Link>
+                    .
+                  </CollapsibleInfoTip>
 
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">

@@ -1,7 +1,7 @@
 import 'server-only';
 
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
-import { encryptHealthPayload, decryptHealthPayload } from './crypto';
+import { encryptHealthPayload, decryptHealthPayload, preloadLineDEK } from './crypto';
 import { writeHealthHistoryEntry } from './history';
 import { mapHealthDocumentRow } from './types';
 import type {
@@ -19,20 +19,25 @@ export interface DocumentMetadataInput {
   notes?: string | null;
 }
 
-export async function getDocuments(lineId: string): Promise<HealthDocument[]> {
+export async function getDocuments(
+  lineId: string,
+  knownAccountId?: string,
+): Promise<HealthDocument[]> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
 
-  const { data: line, error: lineError } = await adminClient
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
+  let accountId = knownAccountId;
+  if (!accountId) {
+    const { data: line, error: lineError } = await adminClient
+      .from('ultaura_lines')
+      .select('id, account_id')
+      .eq('id', lineId)
+      .single();
 
-  if (lineError || !line) {
-    throw new Error('Line not found');
+    if (lineError || !line) {
+      throw new Error('Line not found');
+    }
+    accountId = line.account_id;
   }
-
-  const accountId = line.account_id;
 
   const { data: rows, error } = await adminClient
     .from('ultaura_health_documents')
@@ -49,6 +54,7 @@ export async function getDocuments(lineId: string): Promise<HealthDocument[]> {
 
   if (!rows || rows.length === 0) return [];
 
+  const dek = await preloadLineDEK(accountId, lineId);
   const documents: HealthDocument[] = [];
 
   for (const row of rows) {
@@ -59,7 +65,7 @@ export async function getDocuments(lineId: string): Promise<HealthDocument[]> {
         tag: row.payload_tag,
         alg: row.payload_alg,
         kid: row.payload_kid,
-      });
+      }, dek);
 
       const payload = JSON.parse(plaintext) as StoredDocumentPayload;
 

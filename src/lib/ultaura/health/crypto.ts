@@ -16,6 +16,15 @@ import { encodeBytea, type ByteaInput } from '../bytea';
 
 // Health ALWAYS uses line DEK — no account DEK fallback, no legacy line check.
 
+/** Pre-fetch the line DEK so it can be reused across multiple decrypt calls. */
+export async function preloadLineDEK(
+  accountId: string,
+  lineId: string,
+): Promise<Buffer> {
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+  return getOrCreateLineDEK(adminClient, accountId, lineId);
+}
+
 function buildHealthPayloadAAD(
   accountId: string,
   lineId: string
@@ -68,10 +77,14 @@ export async function decryptHealthPayload(
     tag: ByteaInput;
     alg: string;
     kid: string | null;
-  }
+  },
+  preloadedDek?: Buffer,
 ): Promise<string> {
-  const adminClient = getSupabaseServerActionClient({ admin: true });
-  const dek = await getOrCreateLineDEK(adminClient, accountId, lineId);
+  const dek = preloadedDek ?? await getOrCreateLineDEK(
+    getSupabaseServerActionClient({ admin: true }),
+    accountId,
+    lineId,
+  );
   const aad = buildHealthPayloadAAD(accountId, lineId);
 
   const ciphertextBuf = decodeByteaOrThrow('health.ciphertext', encrypted.ciphertext);

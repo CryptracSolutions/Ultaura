@@ -238,8 +238,11 @@ export function HealthConditionsTab({
     );
   };
 
-  const handleAdded = () => {
+  const handleAdded = (condition?: HealthCondition) => {
     setAddOpen(false);
+    if (condition) {
+      setConditions((prev) => [condition, ...prev]);
+    }
   };
 
   return (
@@ -258,21 +261,21 @@ export function HealthConditionsTab({
       </div>
 
       {/* View toggle */}
-      <div className="inline-flex rounded-md border border-border overflow-hidden" role="tablist">
+      <div className="inline-flex gap-1 rounded-lg bg-muted p-1" role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={view === 'active'}
           onClick={() => setView('active')}
-          className={`min-h-[44px] px-4 py-2 text-sm font-medium transition-colors ${
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             view === 'active'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-background text-foreground hover:bg-muted'
+              ? 'bg-primary/10 text-primary shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Active
           {activeConditions.length > 0 && (
-            <span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
+            <span className="ml-1.5 text-xs text-muted-foreground">
               {activeConditions.length}
             </span>
           )}
@@ -282,15 +285,15 @@ export function HealthConditionsTab({
           role="tab"
           aria-selected={view === 'resolved'}
           onClick={() => setView('resolved')}
-          className={`min-h-[44px] px-4 py-2 text-sm font-medium transition-colors ${
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             view === 'resolved'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-background text-foreground hover:bg-muted'
+              ? 'bg-primary/10 text-primary shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Resolved
           {resolvedConditions.length > 0 && (
-            <span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
+            <span className="ml-1.5 text-xs text-muted-foreground">
               {resolvedConditions.length}
             </span>
           )}

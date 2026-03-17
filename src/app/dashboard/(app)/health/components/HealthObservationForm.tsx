@@ -20,7 +20,7 @@ interface HealthObservationFormProps {
   onOpenChange: (open: boolean) => void;
   lineId: string;
   observation?: HealthObservation;
-  onSuccess?: () => void;
+  onSuccess?: (observation?: HealthObservation) => void;
 }
 
 const CATEGORY_LABELS: Record<HealthObservationCategory, string> = {
@@ -96,7 +96,7 @@ export function HealthObservationForm({
       if (result.success) {
         toast.success(isEdit ? 'Observation updated' : 'Observation added');
         onOpenChange(false);
-        onSuccess?.();
+        onSuccess?.(result.observation);
       } else {
         toast.error(result.error ?? 'Something went wrong');
       }

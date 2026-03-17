@@ -1,7 +1,7 @@
 import 'server-only';
 
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
-import { encryptHealthPayload, decryptHealthPayload } from './crypto';
+import { encryptHealthPayload, decryptHealthPayload, preloadLineDEK } from './crypto';
 import { writeHealthHistoryEntry } from './history';
 import { conditionFormSchema } from '@ultaura/schemas';
 import type {
@@ -22,21 +22,24 @@ interface GetConditionsFilter {
 export async function getConditions(
   lineId: string,
   filter?: GetConditionsFilter,
+  /** Pass accountId from the access check to skip a redundant line lookup. */
+  knownAccountId?: string,
 ): Promise<HealthCondition[]> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
 
-  // Get account_id for decryption
-  const { data: line, error: lineError } = await adminClient
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
+  let accountId = knownAccountId;
+  if (!accountId) {
+    const { data: line, error: lineError } = await adminClient
+      .from('ultaura_lines')
+      .select('id, account_id')
+      .eq('id', lineId)
+      .single();
 
-  if (lineError || !line) {
-    throw new Error('Line not found');
+    if (lineError || !line) {
+      throw new Error('Line not found');
+    }
+    accountId = line.account_id;
   }
-
-  const accountId = line.account_id;
 
   let query = adminClient
     .from('ultaura_health_conditions')
@@ -67,6 +70,8 @@ export async function getConditions(
 
   if (!rows || rows.length === 0) return [];
 
+  // Pre-load DEK once for all rows instead of fetching per-row
+  const dek = await preloadLineDEK(accountId, lineId);
   const conditions: HealthCondition[] = [];
 
   for (const row of rows) {
@@ -77,7 +82,7 @@ export async function getConditions(
         tag: row.payload_tag,
         alg: row.payload_alg,
         kid: row.payload_kid,
-      });
+      }, dek);
 
       const payload = JSON.parse(plaintext) as StoredConditionPayload;
 
@@ -494,6 +499,7 @@ async function staleDismissSuggestions(
 
   if (!suggestions || suggestions.length === 0) return;
 
+  const dek = await preloadLineDEK(accountId, lineId);
   const toStale: string[] = [];
 
   for (const suggestion of suggestions) {
@@ -504,7 +510,7 @@ async function staleDismissSuggestions(
         tag: suggestion.payload_tag,
         alg: suggestion.payload_alg,
         kid: suggestion.payload_kid,
-      });
+      }, dek);
       const payload = JSON.parse(plaintext) as { normalizedName: string };
       if (payload.normalizedName?.trim().toLowerCase() === nameLower) {
         toStale.push(suggestion.id);

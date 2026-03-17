@@ -54,7 +54,7 @@ export function OverviewSection({
 
   return (
     <>
-      <PrivacyInfoBanner>
+      <PrivacyInfoBanner storageKey="privacy_overview_info_collapsed">
           All data stays in your control. Ultaura stores call insights and
           memories securely.{' '}
           {isSelfUser
@@ -64,6 +64,7 @@ export function OverviewSection({
           <Link
             href="/docs/privacy"
             className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+            onClick={(e) => e.stopPropagation()}
           >
             Learn more →
           </Link>

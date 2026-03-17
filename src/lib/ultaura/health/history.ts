@@ -1,7 +1,7 @@
 import 'server-only';
 
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
-import { encryptHealthPayload, decryptHealthPayload } from './crypto';
+import { encryptHealthPayload, decryptHealthPayload, preloadLineDEK } from './crypto';
 import type { HealthHistoryPayload } from '@ultaura/types';
 
 type ItemKind = 'condition' | 'medication' | 'document' | 'observation' | 'suggestion';
@@ -71,21 +71,23 @@ export async function getHealthItemHistory(
   itemKind?: ItemKind,
   itemId?: string,
   limit = 50,
+  knownAccountId?: string,
 ): Promise<HealthHistoryEntry[]> {
   const adminClient = getSupabaseServerActionClient({ admin: true });
 
-  // Fetch line's account_id so we can decrypt
-  const { data: line, error: lineError } = await adminClient
-    .from('ultaura_lines')
-    .select('id, account_id')
-    .eq('id', lineId)
-    .single();
+  let accountId = knownAccountId;
+  if (!accountId) {
+    const { data: line, error: lineError } = await adminClient
+      .from('ultaura_lines')
+      .select('id, account_id')
+      .eq('id', lineId)
+      .single();
 
-  if (lineError || !line) {
-    throw new Error('Line not found');
+    if (lineError || !line) {
+      throw new Error('Line not found');
+    }
+    accountId = line.account_id;
   }
-
-  const accountId = line.account_id;
 
   let query = adminClient
     .from('ultaura_health_item_history')
@@ -111,6 +113,7 @@ export async function getHealthItemHistory(
 
   if (!rows || rows.length === 0) return [];
 
+  const dek = await preloadLineDEK(accountId, lineId);
   const entries: HealthHistoryEntry[] = [];
 
   for (const row of rows) {
@@ -121,7 +124,7 @@ export async function getHealthItemHistory(
         tag: row.payload_tag,
         alg: row.payload_alg,
         kid: row.payload_kid,
-      });
+      }, dek);
 
       const payload = JSON.parse(plaintext) as HealthHistoryPayload;
 
