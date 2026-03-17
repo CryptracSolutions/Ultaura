@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { cache } from 'react';
 import getSupabaseServerActionClient from '~/core/supabase/action-client';
 import type { UltauraAccountRow } from '../types';
 
@@ -12,7 +13,11 @@ export function isHealthEligiblePlan(planId: string, status: string): boolean {
   return HEALTH_ELIGIBLE_PLAN_IDS.has(planId);
 }
 
-export async function isHealthFeatureEnabled(): Promise<boolean> {
+/**
+ * Cached per-request — safe to call multiple times within the same RSC render
+ * or server action without duplicate DB queries.
+ */
+export const isHealthFeatureEnabled = cache(async (): Promise<boolean> => {
   try {
     const adminClient = getSupabaseServerActionClient({ admin: true });
     const { data, error } = await adminClient.from('ultaura_runtime_feature_flags')
@@ -28,7 +33,7 @@ export async function isHealthFeatureEnabled(): Promise<boolean> {
   }
 
   return process.env.HEALTH_PROFILE_ENABLED === 'true';
-}
+});
 
 type HealthEntitlementState = {
   isEnabled: boolean;

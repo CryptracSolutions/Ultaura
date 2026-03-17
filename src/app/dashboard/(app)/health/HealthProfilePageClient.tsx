@@ -11,6 +11,7 @@ import type { HealthTabValue, HealthConsentStatus, HealthCondition, HealthObserv
 import { cn } from '~/core/generic/shadcn-utils';
 import type { LineRow, UltauraAccountRow } from '~/lib/ultaura/types';
 
+import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
 import { HealthLockedState } from './components/HealthLockedState';
@@ -433,7 +434,7 @@ function ConditionsTabLoader({
   if (isLoading && conditions === null) {
     return (
       <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
         Loading conditions…
       </div>
     );
@@ -519,7 +520,7 @@ function ObservationsTabLoader({
   if (isLoading && observations === null) {
     return (
       <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
         Loading observations…
       </div>
     );
@@ -604,7 +605,7 @@ function DocumentsTabLoader({
   if (isLoading && documents === null) {
     return (
       <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
         Loading documents…
       </div>
     );

@@ -150,11 +150,11 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
     redirect('/dashboard');
   }
 
-  // Load entitlement state (plan eligibility check)
-  const entitlementState = await getHealthEntitlementState(account);
-
-  // Load lines, account state, consent data
-  const lines = await getLines(account.id);
+  // Parallelize entitlement + lines — they both depend only on `account`
+  const [entitlementState, lines] = await Promise.all([
+    getHealthEntitlementState(account),
+    getLines(account.id),
+  ]);
 
   const parsedTab = parseHealthTab(searchParams ?? {});
   const requestedLineShortId = parseHealthLine(searchParams ?? {});
@@ -163,21 +163,18 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
       ? lines.find((line) => line.short_id === requestedLineShortId)
       : null) ?? lines[0] ?? null;
 
-  const initialTabData =
+  // Parallelize tab data prefetch + consent queries + consent history
+  const tabDataPromise =
     !entitlementState.isLocked && prefetchLine
-      ? await loadInitialTabData(parsedTab, prefetchLine.id, account.id)
-      : null;
+      ? loadInitialTabData(parsedTab, prefetchLine.id, account.id)
+      : Promise.resolve(null);
 
-  const [accountState, ...consentResults] = await Promise.allSettled([
+  const consentPromise = Promise.allSettled([
     getHealthAccountState(account.id),
     ...lines.map((line) => getHealthConsentState(line.id)),
   ]);
 
-  const resolvedAccountState =
-    accountState.status === 'fulfilled' ? accountState.value : null;
-
-  // Build consent map keyed by line ID — history previews fetched in parallel
-  const historyPreviews = await Promise.all(
+  const historyPromise = Promise.all(
     lines.map(async (line) => {
       try {
         const history = await getHealthConsentHistory(line.id, 5);
@@ -193,6 +190,17 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
       }
     }),
   );
+
+  const [initialTabData, consentSettled, historyPreviews] = await Promise.all([
+    tabDataPromise,
+    consentPromise,
+    historyPromise,
+  ]);
+
+  const [accountState, ...consentResults] = consentSettled;
+
+  const resolvedAccountState =
+    accountState.status === 'fulfilled' ? accountState.value : null;
 
   type ConsentEntry = {
     lineId: string;
@@ -232,16 +240,16 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
     }
   }
 
-  // Record first/last view (non-blocking)
-  try {
-    const isFirstView = !resolvedAccountState?.first_viewed_at;
-    await recordHealthFirstView(account.id);
-    if (isFirstView) {
-      emitHealthFirstView(account.id);
-    }
-  } catch (err) {
-    logger.warn({ err, accountId: account.id }, 'Failed to record health first view');
-  }
+  // Record first/last view — fire and forget, don't block render
+  void recordHealthFirstView(account.id)
+    .then(() => {
+      if (!resolvedAccountState?.first_viewed_at) {
+        emitHealthFirstView(account.id);
+      }
+    })
+    .catch((err: unknown) => {
+      logger.warn({ err, accountId: account.id }, 'Failed to record health first view');
+    });
 
   const disclaimerState = {
     isCurrent: isDisclaimerCurrent(resolvedAccountState),

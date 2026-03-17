@@ -15,24 +15,14 @@ type HealthLineOwnerContext = HealthOwnerContext & {
   accountUserType: string;
 };
 
-async function getAuthenticatedUserId(
-  client: ReturnType<typeof getSupabaseServerActionClient>
-): Promise<string | null> {
-  const { data, error } = await client.auth.getUser();
-  if (error || !data.user) {
-    return null;
-  }
-  return data.user.id;
-}
-
 export async function requireHealthOwner(
   accountId: string
 ): Promise<{ ok: true; context: HealthOwnerContext } | { ok: false; error: string }> {
   const userClient = getSupabaseServerActionClient();
   const adminClient = getSupabaseServerActionClient({ admin: true });
-  await requireSession(userClient);
+  const session = await requireSession(userClient);
 
-  const actorUserId = await getAuthenticatedUserId(userClient);
+  const actorUserId = session.user.id;
   if (!actorUserId) {
     return { ok: false, error: 'User not authenticated' };
   }
@@ -66,9 +56,9 @@ export async function requireHealthLineAccess(
 ): Promise<{ ok: true; context: HealthLineOwnerContext } | { ok: false; error: string }> {
   const userClient = getSupabaseServerActionClient();
   const adminClient = getSupabaseServerActionClient({ admin: true });
-  await requireSession(userClient);
+  const session = await requireSession(userClient);
 
-  const actorUserId = await getAuthenticatedUserId(userClient);
+  const actorUserId = session.user.id;
   if (!actorUserId) {
     return { ok: false, error: 'User not authenticated' };
   }

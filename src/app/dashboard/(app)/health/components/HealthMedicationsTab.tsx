@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useTransition } from 'react';
-import { Plus, Pencil, Trash2, Clock, Bell } from 'lucide-react';
+import { Plus, Pencil, Trash2, Clock, Bell, Loader2 } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -255,7 +255,7 @@ export function HealthMedicationsTab({
       {/* Content */}
       {loading && (
         <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
           Loading medications…
         </div>
       )}

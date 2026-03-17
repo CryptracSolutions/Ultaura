@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { CheckCircle2, XCircle, Clock, Pill, Activity, ChevronDown } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Pill, Activity, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
@@ -332,7 +332,7 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
       {/* Content */}
       {isLoading && suggestions === null ? (
         <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
           Loading suggestions…
         </div>
       ) : error ? (
