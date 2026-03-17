@@ -13,8 +13,14 @@ import { getHealthAccountState, recordHealthFirstView, isDisclaimerCurrent } fro
 import { getHealthConsentState } from '~/lib/ultaura/health/consent';
 import { getHealthConsentHistory } from '~/lib/ultaura/health/consent-history';
 import { emitHealthFirstView } from '~/lib/ultaura/health/analytics';
+import { getConditions } from '~/lib/ultaura/health/conditions';
+import { getMedications } from '~/lib/ultaura/health/medications';
+import { getObservations } from '~/lib/ultaura/health/observations';
+import { getDocuments } from '~/lib/ultaura/health/documents';
 import { HealthProfilePageClient } from './HealthProfilePageClient';
-import type { HealthConsentStatus } from '@ultaura/types';
+import type { HealthConsentStatus, HealthTabValue } from '@ultaura/types';
+import { parseHealthTab, parseHealthLine } from './lib/health-navigation';
+import type { HealthInitialTabData } from './types';
 
 export const metadata: Metadata = {
   title: 'Health Profile - Ultaura',
@@ -22,7 +28,56 @@ export const metadata: Metadata = {
 
 const logger = getLogger();
 
-export default async function HealthProfilePage() {
+interface PageProps {
+  searchParams?: Record<string, string | string[] | undefined>;
+}
+
+async function loadInitialTabData(
+  tab: HealthTabValue,
+  lineId: string,
+  accountId: string,
+): Promise<HealthInitialTabData | null> {
+  try {
+    if (tab === 'conditions') {
+      return {
+        tab: 'conditions',
+        lineId,
+        conditions: await getConditions(lineId, undefined, accountId),
+      };
+    }
+
+    if (tab === 'medications') {
+      return {
+        tab: 'medications',
+        lineId,
+        medications: await getMedications(lineId, undefined, accountId),
+      };
+    }
+
+    if (tab === 'observations') {
+      return {
+        tab: 'observations',
+        lineId,
+        observations: await getObservations(lineId, accountId),
+      };
+    }
+
+    if (tab === 'documents') {
+      return {
+        tab: 'documents',
+        lineId,
+        documents: await getDocuments(lineId, accountId),
+      };
+    }
+
+    return null;
+  } catch (err) {
+    logger.warn({ err, tab, lineId }, 'Failed to prefetch health tab data');
+    return null;
+  }
+}
+
+export default async function HealthProfilePage({ searchParams }: PageProps) {
   const pageHeader = (
     <AppHeader
       title="Health Profile"
@@ -99,6 +154,18 @@ export default async function HealthProfilePage() {
 
   // Load lines, account state, consent data
   const lines = await getLines(account.id);
+
+  const parsedTab = parseHealthTab(searchParams ?? {});
+  const requestedLineShortId = parseHealthLine(searchParams ?? {});
+  const prefetchLine =
+    (requestedLineShortId
+      ? lines.find((line) => line.short_id === requestedLineShortId)
+      : null) ?? lines[0] ?? null;
+
+  const initialTabData =
+    !entitlementState.isLocked && prefetchLine
+      ? await loadInitialTabData(parsedTab, prefetchLine.id, account.id)
+      : null;
 
   const [accountState, ...consentResults] = await Promise.allSettled([
     getHealthAccountState(account.id),
@@ -189,6 +256,7 @@ export default async function HealthProfilePage() {
           consentByLineId={consentByLineId}
           entitlementState={entitlementState}
           disclaimerState={disclaimerState}
+          initialTabData={initialTabData}
         />
       </PageBody>
     </>

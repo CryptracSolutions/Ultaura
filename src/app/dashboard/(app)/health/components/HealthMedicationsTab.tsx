@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { Plus, Pencil, Trash2, Clock, Bell } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
@@ -15,10 +15,62 @@ import {
 } from '~/lib/ultaura/health/actions';
 import type { HealthMedication, HealthCondition, HealthMedicationStatus } from '@ultaura/types';
 
+const MEDICATION_LOAD_TIMEOUT_MS = 8000;
+const MEDICATION_LOAD_RETRY_DELAY_MS = 500;
+const MEDICATION_LOAD_MAX_RETRIES = 2;
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function withTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Timeout')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function runWithRetries<T>(operation: () => Promise<T>): Promise<T> {
+  let attempt = 0;
+  let lastError: unknown;
+
+  while (attempt <= MEDICATION_LOAD_MAX_RETRIES) {
+    try {
+      return await withTimeout(operation, MEDICATION_LOAD_TIMEOUT_MS);
+    } catch (error) {
+      lastError = error;
+      if (attempt === MEDICATION_LOAD_MAX_RETRIES) {
+        break;
+      }
+      await delay(MEDICATION_LOAD_RETRY_DELAY_MS);
+    }
+
+    attempt++;
+  }
+
+  throw lastError ?? new Error('Request failed');
+}
+
 interface HealthMedicationsTabProps {
   lineId: string;
   accountId: string;
   conditions: HealthCondition[];
+  initialMedications?: HealthMedication[];
 }
 
 type FilterView = 'current' | 'as_needed' | 'discontinued';
@@ -45,11 +97,13 @@ export function HealthMedicationsTab({
   lineId,
   accountId,
   conditions,
+  initialMedications,
 }: HealthMedicationsTabProps) {
   const [activeView, setActiveView] = useState<FilterView>('current');
-  const [medications, setMedications] = useState<HealthMedication[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [medications, setMedications] = useState<HealthMedication[]>(initialMedications ?? []);
+  const [loading, setLoading] = useState(initialMedications === undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const requestVersionRef = useRef(0);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingMedication, setEditingMedication] = useState<HealthMedication | undefined>(undefined);
@@ -60,22 +114,51 @@ export function HealthMedicationsTab({
 
   const [isPending, startTransition] = useTransition();
 
-  async function loadMedications() {
+  useEffect(() => {
+    requestVersionRef.current += 1;
+    const requestVersion = requestVersionRef.current;
+
+    if (initialMedications !== undefined) {
+      setMedications(initialMedications);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
+
+    setMedications([]);
     setLoading(true);
     setLoadError(null);
-    const result = await getMedicationsAction(lineId);
-    if (result.success) {
-      setMedications(result.medications);
-    } else {
-      setLoadError(result.error);
-    }
-    setLoading(false);
-  }
 
-  useEffect(() => {
-    loadMedications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineId]);
+    runWithRetries(() => getMedicationsAction(lineId))
+      .then((result) => {
+        if (requestVersionRef.current !== requestVersion) return;
+
+        if (result.success) {
+          setMedications(result.medications);
+          setLoadError(null);
+          return;
+        }
+
+        setMedications([]);
+        setLoadError(result.error);
+      })
+      .catch(() => {
+        if (requestVersionRef.current !== requestVersion) return;
+        setMedications([]);
+        setLoadError('Failed to load medications');
+      })
+      .finally(() => {
+        if (requestVersionRef.current === requestVersion) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      if (requestVersionRef.current === requestVersion) {
+        requestVersionRef.current += 1;
+      }
+    };
+  }, [lineId, initialMedications]);
 
   const filteredMedications = medications.filter((m) => m.status === activeView);
 

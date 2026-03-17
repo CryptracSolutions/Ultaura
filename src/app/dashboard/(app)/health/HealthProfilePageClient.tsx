@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
@@ -29,6 +29,58 @@ import {
   parseHealthTab,
   parseHealthLine,
 } from './lib/health-navigation';
+import type { HealthInitialTabData } from './types';
+
+const TAB_LOAD_TIMEOUT_MS = 8000;
+const TAB_LOAD_RETRY_DELAY_MS = 500;
+const TAB_LOAD_MAX_RETRIES = 2;
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function withTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Timeout')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function runWithRetries<T>(operation: () => Promise<T>): Promise<T> {
+  let attempt = 0;
+  let lastError: unknown;
+
+  while (attempt <= TAB_LOAD_MAX_RETRIES) {
+    try {
+      return await withTimeout(operation, TAB_LOAD_TIMEOUT_MS);
+    } catch (error) {
+      lastError = error;
+      if (attempt === TAB_LOAD_MAX_RETRIES) {
+        break;
+      }
+      await delay(TAB_LOAD_RETRY_DELAY_MS);
+    }
+
+    attempt++;
+  }
+
+  throw lastError ?? new Error('Request failed');
+}
 
 
 interface ConsentState {
@@ -60,6 +112,7 @@ interface HealthProfilePageClientProps {
   consentByLineId: Record<string, ConsentState>;
   entitlementState: EntitlementState;
   disclaimerState: DisclaimerState;
+  initialTabData: HealthInitialTabData | null;
 }
 
 export function HealthProfilePageClient({
@@ -68,12 +121,16 @@ export function HealthProfilePageClient({
   consentByLineId,
   entitlementState,
   disclaimerState,
+  initialTabData,
 }: HealthProfilePageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [disclaimerAcknowledged, setDisclaimerAcknowledged] = useState(
     disclaimerState.isCurrent,
+  );
+  const [initialTabDataSeed, setInitialTabDataSeed] = useState<HealthInitialTabData | null>(
+    initialTabData,
   );
 
   const searchParamsRecord = Object.fromEntries(searchParams.entries());
@@ -146,6 +203,18 @@ export function HealthProfilePageClient({
   const selectedLine = lines.find(
     (l) => l.short_id === resolvedLineId,
   ) ?? lines[0];
+  const selectedLineFullId = selectedLine?.id ?? null;
+
+  useEffect(() => {
+    if (!initialTabDataSeed || !selectedLineFullId) return;
+
+    if (
+      initialTabDataSeed.tab !== activeTab
+      || initialTabDataSeed.lineId !== selectedLineFullId
+    ) {
+      setInitialTabDataSeed(null);
+    }
+  }, [activeTab, initialTabDataSeed, selectedLineFullId]);
 
   if (!selectedLine) {
     return (
@@ -224,6 +293,7 @@ export function HealthProfilePageClient({
             lineId={selectedLine.short_id}
             lineFullId={selectedLine.id}
             accountId={account.id}
+            initialTabData={initialTabDataSeed}
           />
         </div>
       </div>
@@ -301,46 +371,64 @@ function HealthSidebarNav({
 function ConditionsTabLoader({
   lineId,
   accountId,
+  initialConditions,
 }: {
   lineId: string;
   accountId: string;
+  initialConditions?: HealthCondition[];
 }) {
-  const [conditions, setConditions] = useState<HealthCondition[] | null>(null);
+  const [conditions, setConditions] = useState<HealthCondition[] | null>(
+    initialConditions ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(initialConditions === undefined);
+  const requestVersionRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    requestVersionRef.current += 1;
+    const requestVersion = requestVersionRef.current;
+
+    if (initialConditions !== undefined) {
+      setConditions(initialConditions);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setConditions(null);
     setIsLoading(true);
     setError(null);
 
-    let retries = 0;
-    const load = () => {
-      getConditionsAction(lineId).then((result) => {
-        if (cancelled) return;
+    runWithRetries(() => getConditionsAction(lineId))
+      .then((result) => {
+        if (requestVersionRef.current !== requestVersion) return;
+
         if (result.success) {
           setConditions(result.conditions);
-          setIsLoading(false);
-        } else {
-          setError(result.error);
-          setIsLoading(false);
+          setError(null);
+          return;
         }
-      }).catch(() => {
-        if (cancelled) return;
-        if (retries < 1) {
-          retries++;
-          setTimeout(load, 500);
-        } else {
-          setError('Failed to load conditions');
+
+        setConditions(null);
+        setError(result.error);
+      })
+      .catch(() => {
+        if (requestVersionRef.current !== requestVersion) return;
+        setConditions(null);
+        setError('Failed to load conditions');
+      })
+      .finally(() => {
+        if (requestVersionRef.current === requestVersion) {
           setIsLoading(false);
         }
       });
-    };
-    load();
 
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineId]);
+    return () => {
+      if (requestVersionRef.current === requestVersion) {
+        requestVersionRef.current += 1;
+      }
+    };
+  }, [lineId, initialConditions]);
 
   if (isLoading && conditions === null) {
     return (
@@ -368,43 +456,65 @@ function ConditionsTabLoader({
   );
 }
 
-function ObservationsTabLoader({ lineId }: { lineId: string }) {
-  const [observations, setObservations] = useState<HealthObservation[] | null>(null);
+function ObservationsTabLoader({
+  lineId,
+  initialObservations,
+}: {
+  lineId: string;
+  initialObservations?: HealthObservation[];
+}) {
+  const [observations, setObservations] = useState<HealthObservation[] | null>(
+    initialObservations ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(initialObservations === undefined);
+  const requestVersionRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    requestVersionRef.current += 1;
+    const requestVersion = requestVersionRef.current;
+
+    if (initialObservations !== undefined) {
+      setObservations(initialObservations);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setObservations(null);
     setIsLoading(true);
     setError(null);
 
-    let retries = 0;
-    const load = () => {
-      getObservationsAction(lineId).then((result) => {
-        if (cancelled) return;
+    runWithRetries(() => getObservationsAction(lineId))
+      .then((result) => {
+        if (requestVersionRef.current !== requestVersion) return;
+
         if (result.success) {
           setObservations(result.observations);
-          setIsLoading(false);
-        } else {
-          setError(result.error);
-          setIsLoading(false);
+          setError(null);
+          return;
         }
-      }).catch(() => {
-        if (cancelled) return;
-        if (retries < 1) {
-          retries++;
-          setTimeout(load, 500);
-        } else {
-          setError('Failed to load observations');
+
+        setObservations(null);
+        setError(result.error);
+      })
+      .catch(() => {
+        if (requestVersionRef.current !== requestVersion) return;
+        setObservations(null);
+        setError('Failed to load observations');
+      })
+      .finally(() => {
+        if (requestVersionRef.current === requestVersion) {
           setIsLoading(false);
         }
       });
-    };
-    load();
 
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineId]);
+    return () => {
+      if (requestVersionRef.current === requestVersion) {
+        requestVersionRef.current += 1;
+      }
+    };
+  }, [lineId, initialObservations]);
 
   if (isLoading && observations === null) {
     return (
@@ -433,45 +543,63 @@ function ObservationsTabLoader({ lineId }: { lineId: string }) {
 
 function DocumentsTabLoader({
   lineId,
+  initialDocuments,
 }: {
   lineId: string;
+  initialDocuments?: HealthDocument[];
 }) {
-  const [documents, setDocuments] = useState<HealthDocument[] | null>(null);
+  const [documents, setDocuments] = useState<HealthDocument[] | null>(
+    initialDocuments ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(initialDocuments === undefined);
+  const requestVersionRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    requestVersionRef.current += 1;
+    const requestVersion = requestVersionRef.current;
+
+    if (initialDocuments !== undefined) {
+      setDocuments(initialDocuments);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setDocuments(null);
     setIsLoading(true);
     setError(null);
 
-    let retries = 0;
-    const load = () => {
-      getDocumentsAction(lineId).then((result) => {
-        if (cancelled) return;
+    runWithRetries(() => getDocumentsAction(lineId))
+      .then((result) => {
+        if (requestVersionRef.current !== requestVersion) return;
+
         if (result.success) {
           setDocuments(result.documents);
-          setIsLoading(false);
-        } else {
-          setError(result.error);
-          setIsLoading(false);
+          setError(null);
+          return;
         }
-      }).catch(() => {
-        if (cancelled) return;
-        if (retries < 1) {
-          retries++;
-          setTimeout(load, 500);
-        } else {
-          setError('Failed to load documents');
+
+        setDocuments(null);
+        setError(result.error);
+      })
+      .catch(() => {
+        if (requestVersionRef.current !== requestVersion) return;
+        setDocuments(null);
+        setError('Failed to load documents');
+      })
+      .finally(() => {
+        if (requestVersionRef.current === requestVersion) {
           setIsLoading(false);
         }
       });
-    };
-    load();
 
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineId]);
+    return () => {
+      if (requestVersionRef.current === requestVersion) {
+        requestVersionRef.current += 1;
+      }
+    };
+  }, [lineId, initialDocuments]);
 
   if (isLoading && documents === null) {
     return (
@@ -503,36 +631,75 @@ function HealthTabContent({
   lineId,
   lineFullId,
   accountId,
+  initialTabData,
 }: {
   tab: HealthTabValue;
   lineId: string;
   lineFullId: string;
   accountId: string;
+  initialTabData: HealthInitialTabData | null;
 }) {
   if (tab === 'suggestions') {
     return <HealthSuggestionsTab lineId={lineFullId} accountId={accountId} />;
   }
 
   if (tab === 'conditions') {
-    return <ConditionsTabLoader lineId={lineFullId} accountId={accountId} />;
+    const initialConditions =
+      initialTabData?.tab === 'conditions' && initialTabData.lineId === lineFullId
+        ? initialTabData.conditions
+        : undefined;
+
+    return (
+      <ConditionsTabLoader
+        lineId={lineFullId}
+        accountId={accountId}
+        initialConditions={initialConditions}
+      />
+    );
   }
 
   if (tab === 'medications') {
+    const initialMedications =
+      initialTabData?.tab === 'medications' && initialTabData.lineId === lineFullId
+        ? initialTabData.medications
+        : undefined;
+
     return (
       <HealthMedicationsTab
         lineId={lineFullId}
         accountId={accountId}
         conditions={[]}
+        initialMedications={initialMedications}
       />
     );
   }
 
   if (tab === 'documents') {
-    return <DocumentsTabLoader lineId={lineFullId} />;
+    const initialDocuments =
+      initialTabData?.tab === 'documents' && initialTabData.lineId === lineFullId
+        ? initialTabData.documents
+        : undefined;
+
+    return (
+      <DocumentsTabLoader
+        lineId={lineFullId}
+        initialDocuments={initialDocuments}
+      />
+    );
   }
 
   if (tab === 'observations') {
-    return <ObservationsTabLoader lineId={lineFullId} />;
+    const initialObservations =
+      initialTabData?.tab === 'observations' && initialTabData.lineId === lineFullId
+        ? initialTabData.observations
+        : undefined;
+
+    return (
+      <ObservationsTabLoader
+        lineId={lineFullId}
+        initialObservations={initialObservations}
+      />
+    );
   }
 
   return null;
