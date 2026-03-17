@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import getLogger from '~/core/logger';
@@ -250,14 +251,16 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
     <>
       {pageHeader}
       <PageBody>
-        <HealthProfilePageClient
-          account={account}
-          lines={lines}
-          consentByLineId={consentByLineId}
-          entitlementState={entitlementState}
-          disclaimerState={disclaimerState}
-          initialTabData={initialTabData}
-        />
+        <Suspense>
+          <HealthProfilePageClient
+            account={account}
+            lines={lines}
+            consentByLineId={consentByLineId}
+            entitlementState={entitlementState}
+            disclaimerState={disclaimerState}
+            initialTabData={initialTabData}
+          />
+        </Suspense>
       </PageBody>
     </>
   );

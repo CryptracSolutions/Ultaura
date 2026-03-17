@@ -138,15 +138,18 @@ export function HealthProfilePageClient({
   const lineIdFromUrl = parseHealthLine(searchParamsRecord);
 
   // Resolve the selected line: URL param > localStorage > first line
-  const [selectedLineId, setSelectedLineId] = useState<string | null>(() => {
-    if (lineIdFromUrl) return lineIdFromUrl;
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(lineIdFromUrl ?? null);
 
+  // Read persisted line selection from localStorage after mount (avoids hydration mismatch)
+  useEffect(() => {
+    if (selectedLineId) return; // already have a value from URL
     try {
-      return localStorage.getItem(`${HEALTH_LINE_STORAGE_KEY_PREFIX}${account.id}`) ?? null;
+      const stored = localStorage.getItem(`${HEALTH_LINE_STORAGE_KEY_PREFIX}${account.id}`);
+      if (stored) setSelectedLineId(stored);
     } catch {
-      return null;
+      // continue without localStorage
     }
-  });
+  }, [account.id, selectedLineId]);
 
   // Sync URL → state: when ?line= changes (e.g. line selector navigates, or user edits URL)
   useEffect(() => {
@@ -180,26 +183,8 @@ export function HealthProfilePageClient({
     router.push(buildHealthUrl(activeTab, lineShortId), { scroll: false });
   };
 
-  // Locked state — show before anything else
-  if (entitlementState.isLocked) {
-    return <HealthLockedState />;
-  }
-
-  // Disclaimer gate — must acknowledge before proceeding
-  if (!disclaimerAcknowledged) {
-    return (
-      <HealthDisclaimerDialog
-        accountId={account.id}
-        onAcknowledged={() => setDisclaimerAcknowledged(true)}
-      />
-    );
-  }
-
-  // Multi-line accounts with no line selected: auto-select the first line
-  // (line switching is handled inline via the select dropdown in the main render)
+  // Compute derived values before any conditional returns (Rules of Hooks)
   const resolvedLineId = selectedLineId ?? (lines.length > 0 ? lines[0]!.short_id : null);
-
-  // Resolve the selected line object
   const selectedLine = lines.find(
     (l) => l.short_id === resolvedLineId,
   ) ?? lines[0];
@@ -215,6 +200,21 @@ export function HealthProfilePageClient({
       setInitialTabDataSeed(null);
     }
   }, [activeTab, initialTabDataSeed, selectedLineFullId]);
+
+  // Locked state — show before anything else
+  if (entitlementState.isLocked) {
+    return <HealthLockedState />;
+  }
+
+  // Disclaimer gate — must acknowledge before proceeding
+  if (!disclaimerAcknowledged) {
+    return (
+      <HealthDisclaimerDialog
+        accountId={account.id}
+        onAcknowledged={() => setDisclaimerAcknowledged(true)}
+      />
+    );
+  }
 
   if (!selectedLine) {
     return (

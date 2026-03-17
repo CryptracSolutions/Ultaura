@@ -19,6 +19,8 @@ interface GetConditionsFilter {
   includeMonitoring?: boolean;
 }
 
+const CONDITION_DECRYPT_CONCURRENCY = 8;
+
 export async function getConditions(
   lineId: string,
   filter?: GetConditionsFilter,
@@ -72,9 +74,9 @@ export async function getConditions(
 
   // Pre-load DEK once for all rows instead of fetching per-row
   const dek = await preloadLineDEK(accountId, lineId);
-  const conditions: HealthCondition[] = [];
+  const decodedConditions: Array<HealthCondition | null> = new Array(rows.length).fill(null);
 
-  for (const row of rows) {
+  const decodeRow = async (row: (typeof rows)[number]): Promise<HealthCondition | null> => {
     try {
       const plaintext = await decryptHealthPayload(accountId, lineId, {
         ciphertext: row.payload_ciphertext,
@@ -86,7 +88,7 @@ export async function getConditions(
 
       const payload = JSON.parse(plaintext) as StoredConditionPayload;
 
-      conditions.push({
+      return {
         id: row.id,
         lineId: row.line_id,
         status: row.status as HealthConditionStatus,
@@ -98,13 +100,34 @@ export async function getConditions(
         notes: payload.notes,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      });
+      };
     } catch {
       // Skip conditions that fail to decrypt
+      return null;
     }
-  }
+  };
 
-  return conditions;
+  let nextIndex = 0;
+  const takeNextIndex = () => {
+    if (nextIndex >= rows.length) return null;
+    const current = nextIndex;
+    nextIndex += 1;
+    return current;
+  };
+
+  const workerCount = Math.min(CONDITION_DECRYPT_CONCURRENCY, rows.length);
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const index = takeNextIndex();
+        if (index === null) return;
+
+        decodedConditions[index] = await decodeRow(rows[index]!);
+      }
+    }),
+  );
+
+  return decodedConditions.filter((condition): condition is HealthCondition => condition !== null);
 }
 
 export async function checkDuplicateCondition(

@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Info, ChevronUp } from 'lucide-react';
 
 interface CollapsibleInfoTipProps {
@@ -17,13 +17,18 @@ export function CollapsibleInfoTip({
   collapsedLabel,
   children,
 }: CollapsibleInfoTipProps) {
-  const [collapsed, setCollapsed] = useState(() => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Read persisted collapsed state after mount to avoid hydration mismatch
+  useEffect(() => {
     try {
-      return localStorage.getItem(storageKey) === '1';
+      if (localStorage.getItem(storageKey) === '1') {
+        setCollapsed(true);
+      }
     } catch {
-      return false;
+      // continue without localStorage
     }
-  });
+  }, [storageKey]);
 
   const collapse = () => {
     setCollapsed(true);
