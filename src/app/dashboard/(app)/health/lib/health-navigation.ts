@@ -12,7 +12,7 @@ export const HEALTH_TABS: Array<{ value: HealthTabValue; label: string }> = [
 
 const HEALTH_TAB_VALUES: HealthTabValue[] = HEALTH_TABS.map((t) => t.value);
 
-export const DEFAULT_HEALTH_TAB: HealthTabValue = 'suggestions';
+export const DEFAULT_HEALTH_TAB: HealthTabValue = 'conditions';
 
 /**
  * Builds a URL to the Health Profile page with optional tab and line parameters.

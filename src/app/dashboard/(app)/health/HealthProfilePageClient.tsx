@@ -10,6 +10,14 @@ import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 import type { HealthTabValue, HealthConsentStatus, HealthCondition, HealthObservation, HealthDocument } from '@ultaura/types';
 import type { LineRow, UltauraAccountRow } from '~/lib/ultaura/types';
 
+import { Info } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '~/core/ui/Dialog';
 import { HealthLockedState } from './components/HealthLockedState';
 import { HealthLineSelector } from './components/HealthLineSelector';
 import { HealthDisclaimerDialog } from './components/HealthDisclaimerDialog';
@@ -90,6 +98,13 @@ export function HealthProfilePageClient({
     }
   });
 
+  // Sync URL → state: when ?line= changes (e.g. line selector navigates, or user edits URL)
+  useEffect(() => {
+    if (lineIdFromUrl && lineIdFromUrl !== selectedLineId) {
+      setSelectedLineId(lineIdFromUrl);
+    }
+  }, [lineIdFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Sync selectedLineId to URL when it changes
   useEffect(() => {
     if (!selectedLineId) return;
@@ -166,10 +181,12 @@ export function HealthProfilePageClient({
 
   return (
     <div className="space-y-4">
-      {/* Line switcher for multi-line accounts */}
-      {lines.length > 1 && (
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-muted-foreground">Viewing:</span>
+      {/* About Health Profile + Line switcher row */}
+      <div className="flex items-center justify-between gap-4">
+        {/* Line switcher for multi-line accounts */}
+        {lines.length > 1 ? (
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Viewing:</span>
           <select
             value={selectedLine.short_id}
             onChange={(e) => handleLineSelected(e.target.value)}
@@ -182,8 +199,38 @@ export function HealthProfilePageClient({
               </option>
             ))}
           </select>
-        </div>
-      )}
+          </div>
+        ) : (
+          <div />
+        )}
+
+        {/* About Health Profile info button */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <button
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="About Health Profile"
+            >
+              <Info className="size-4" />
+              <span className="hidden sm:inline">About Health Profile</span>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>About Health Profile</DialogTitle>
+            </DialogHeader>
+            <div className="py-1">
+              <p className="text-sm text-foreground leading-relaxed">
+                Ultaura is not a doctor or medical professional. Health
+                information stored here is for personal reference and, with your
+                permission, to help Ultaura provide more informed companionship.
+                Ultaura may make mistakes. Always consult qualified healthcare
+                providers for medical advice, diagnosis, or treatment.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {/* Consent card */}
       {consentState ? (

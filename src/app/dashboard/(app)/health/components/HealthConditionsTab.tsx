@@ -309,11 +309,40 @@ export function HealthConditionsTab({
       {/* Content */}
       {displayed.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            {view === 'active'
-              ? 'No active conditions yet. Add one using the button above.'
-              : 'No resolved conditions.'}
-          </p>
+          {view === 'active' && conditions.length === 0 ? (
+            <div className="mx-auto max-w-sm space-y-4">
+              <p className="text-sm font-medium text-foreground">
+                Get started with Health Profile
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Set up health information in this order:
+              </p>
+              <ol className="mx-auto w-fit space-y-2 text-left text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">1</span>
+                  <span><span className="font-medium text-foreground">Conditions</span> — add known health conditions</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">2</span>
+                  <span><span className="font-medium text-foreground">Medications</span> — add current medications</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">3</span>
+                  <span><span className="font-medium text-foreground">Documents</span> — upload health records</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">4</span>
+                  <span><span className="font-medium text-foreground">Observations</span> — log day-to-day notes</span>
+                </li>
+              </ol>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {view === 'active'
+                ? 'No active conditions yet. Add one using the button above.'
+                : 'No resolved conditions.'}
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

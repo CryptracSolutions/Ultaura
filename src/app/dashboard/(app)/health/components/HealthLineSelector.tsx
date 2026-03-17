@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Phone } from 'lucide-react';
 import type { LineRow } from '~/lib/ultaura/types';
-import { HEALTH_LINE_STORAGE_KEY_PREFIX, buildHealthUrl } from '../lib/health-navigation';
+import { HEALTH_LINE_STORAGE_KEY_PREFIX, DEFAULT_HEALTH_TAB, buildHealthUrl } from '../lib/health-navigation';
 
 interface HealthLineSelectorProps {
   lines: LineRow[];
@@ -20,7 +20,7 @@ export function HealthLineSelector({ lines, accountId }: HealthLineSelectorProps
       // localStorage may be unavailable; continue without it
     }
 
-    router.push(buildHealthUrl('suggestions', lineShortId));
+    router.push(buildHealthUrl(DEFAULT_HEALTH_TAB, lineShortId));
   };
 
   return (
