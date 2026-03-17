@@ -1,6 +1,6 @@
 'use client';
 
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Plus, X } from 'lucide-react';
 import Button from '~/core/ui/Button';
 
 interface HealthTimesOfDayInputProps {
@@ -44,7 +44,7 @@ export function HealthTimesOfDayInput({ value, onChange }: HealthTimesOfDayInput
             aria-label={`Remove time ${index + 1}`}
             className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:border-primary"
           >
-            <XMarkIcon className="h-4 w-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       ))}
@@ -57,7 +57,7 @@ export function HealthTimesOfDayInput({ value, onChange }: HealthTimesOfDayInput
           onClick={handleAdd}
           className="min-h-[44px] gap-1.5"
         >
-          <PlusIcon className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Add time
         </Button>
       )}

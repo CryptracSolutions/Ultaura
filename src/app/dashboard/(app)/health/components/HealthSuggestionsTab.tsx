@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { CheckCircle2, XCircle, Clock, Pill, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
+import Badge from '~/core/ui/Badge';
 import {
   getPendingSuggestionsAction,
   approveSuggestionAsNewAction,
@@ -27,14 +28,14 @@ interface HealthSuggestionsTabProps {
 // Confidence badge
 // ---------------------------------------------------------------------------
 
-const CONFIDENCE_BADGE: Record<'high' | 'medium', { label: string; className: string }> = {
+const CONFIDENCE_BADGE: Record<'high' | 'medium', { label: string; color: 'success' | 'warn' }> = {
   high: {
     label: 'High confidence',
-    className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    color: 'success',
   },
   medium: {
     label: 'Medium confidence',
-    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+    color: 'warn',
   },
 };
 
@@ -170,7 +171,7 @@ function SuggestionCard({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+    <div className="rounded-xl border border-border bg-card p-6 space-y-2">
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -180,15 +181,9 @@ function SuggestionCard({
             <Activity className="size-4 shrink-0 text-muted-foreground" />
           )}
           <span className="font-semibold text-sm text-foreground truncate">{suggestion.normalizedName}</span>
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${confidenceBadge.className}`}
-          >
-            {confidenceBadge.label}
-          </span>
+          <Badge color={confidenceBadge.color} size="small">{confidenceBadge.label}</Badge>
           {suggestion.similarItemWarning && (
-            <span className="shrink-0 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 text-xs font-medium">
-              Similar {suggestion.suggestionType} exists
-            </span>
+            <Badge color="warn" size="small">Similar {suggestion.suggestionType} exists</Badge>
           )}
         </div>
         {relativeTime && (

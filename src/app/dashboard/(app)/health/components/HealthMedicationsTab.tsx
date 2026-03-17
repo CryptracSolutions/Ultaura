@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon, ClockIcon, BellIcon } from '@heroicons/react/24/outline';
+import { Plus, Pencil, Trash2, Clock, Bell } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -146,7 +146,7 @@ export function HealthMedicationsTab({
           onClick={handleAdd}
           className="min-h-[44px] gap-1.5"
         >
-          <PlusIcon className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Add medication
         </Button>
       </div>
@@ -288,7 +288,7 @@ function MedicationCard({
     : null;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+    <div className="rounded-xl border border-border bg-card p-6 space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <p className="text-base font-semibold text-foreground leading-snug">{medication.name}</p>
@@ -336,7 +336,7 @@ function MedicationCard({
           className="min-h-[44px] gap-1"
           aria-label={`Edit ${medication.name}`}
         >
-          <PencilIcon className="h-3.5 w-3.5" />
+          <Pencil className="h-3.5 w-3.5" />
           Edit
         </Button>
 
@@ -360,7 +360,7 @@ function MedicationCard({
           aria-label={`${showReminders ? 'Hide' : 'Show'} reminders for ${medication.name}`}
           aria-expanded={showReminders}
         >
-          <BellIcon className="h-3.5 w-3.5" />
+          <Bell className="h-3.5 w-3.5" />
           Reminders
         </Button>
 
@@ -372,7 +372,7 @@ function MedicationCard({
           className="min-h-[44px] gap-1"
           aria-label={`View history for ${medication.name}`}
         >
-          <ClockIcon className="h-3.5 w-3.5" />
+          <Clock className="h-3.5 w-3.5" />
           History
         </Button>
 
@@ -384,7 +384,7 @@ function MedicationCard({
           className="min-h-[44px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
           aria-label={`Delete ${medication.name}`}
         >
-          <TrashIcon className="h-3.5 w-3.5" />
+          <Trash2 className="h-3.5 w-3.5" />
           Delete
         </Button>
       </div>

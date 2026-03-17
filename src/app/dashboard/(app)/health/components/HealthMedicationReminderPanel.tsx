@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { BellIcon, PlayIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { Bell, Play, X, Plus } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import {
   createHealthReminderAction,
@@ -132,11 +132,11 @@ export function HealthMedicationReminderPanel({
   const activeReminders = reminders.filter((r) => r.status !== 'canceled');
 
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+    <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <BellIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <Bell className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <h4 className="text-sm font-semibold text-foreground">Call Reminders</h4>
         </div>
         <Button
@@ -147,7 +147,7 @@ export function HealthMedicationReminderPanel({
           className="min-h-[44px] gap-1"
           aria-label={`Add reminder for ${medicationName}`}
         >
-          <PlusIcon className="h-3.5 w-3.5" />
+          <Plus className="h-3.5 w-3.5" />
           Add reminder
         </Button>
       </div>
@@ -262,7 +262,7 @@ export function HealthMedicationReminderPanel({
                     className="min-h-[44px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
                     aria-label={`Cancel reminder at ${formatTime(reminder.timeOfDay)}`}
                   >
-                    <XMarkIcon className="h-3.5 w-3.5" />
+                    <X className="h-3.5 w-3.5" />
                     Cancel
                   </Button>
                 </div>
@@ -288,7 +288,7 @@ export function HealthMedicationReminderPanel({
                     className="min-h-[44px] gap-1 self-start"
                     aria-label={`Resume reminder at ${formatTime(reminder.timeOfDay)}`}
                   >
-                    <PlayIcon className="h-3.5 w-3.5" />
+                    <Play className="h-3.5 w-3.5" />
                     Resume reminder
                   </Button>
                 )}
