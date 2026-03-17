@@ -16,10 +16,10 @@ export default function HealthLoading() {
           </p>
 
           <div className="mt-6 space-y-3">
-            <div className="h-16 animate-pulse rounded-lg border border-border/60 bg-muted/30" />
-            <div className="h-10 animate-pulse rounded-lg border border-border/60 bg-muted/30" />
-            <div className="h-32 animate-pulse rounded-lg border border-border/60 bg-muted/30" />
-            <div className="h-28 animate-pulse rounded-lg border border-border/60 bg-muted/30" />
+            <div className="h-16 animate-pulse rounded-xl border border-border/60 bg-muted/30" />
+            <div className="h-10 animate-pulse rounded-xl border border-border/60 bg-muted/30" />
+            <div className="h-32 animate-pulse rounded-xl border border-border/60 bg-muted/30" />
+            <div className="h-28 animate-pulse rounded-xl border border-border/60 bg-muted/30" />
           </div>
         </div>
       </PageBody>

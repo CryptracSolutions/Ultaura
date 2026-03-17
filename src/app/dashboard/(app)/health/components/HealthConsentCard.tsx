@@ -8,6 +8,8 @@ import {
   grantHealthConsentSelfAction,
   revokeHealthConsentSelfAction,
 } from '~/lib/ultaura/health/actions';
+import { Section, SectionHeader, SectionBody } from '~/core/ui/Section';
+import Button from '~/core/ui/Button';
 
 const COOLDOWN_DAYS = 30;
 
@@ -125,30 +127,30 @@ export function HealthConsentCard({
   const isGranted = localConsentStatus === 'granted';
   const StatusIcon = isGranted ? ShieldCheck : ShieldX;
 
-  return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <StatusIcon
-            className={`h-5 w-5 shrink-0 ${isGranted ? 'text-green-600' : 'text-muted-foreground'}`}
-            aria-hidden="true"
-          />
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              {isGranted ? 'Health active in calls' : 'Health not active in calls'}
-            </p>
-            {!isGranted && (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Health information is not being used during Ultaura calls.
-              </p>
-            )}
-          </div>
-        </div>
+  const statusTitle = (
+    <span className="flex items-center gap-2">
+      <StatusIcon
+        className={`h-4 w-4 shrink-0 ${isGranted ? 'text-green-600' : 'text-muted-foreground'}`}
+        aria-hidden="true"
+      />
+      {isGranted ? 'Health active in calls' : 'Health not active in calls'}
+    </span>
+  );
 
-        <div className="shrink-0">
+  const statusDescription = !isGranted
+    ? 'Health information is not being used during Ultaura calls.'
+    : undefined;
+
+  return (
+    <Section>
+      <SectionHeader title={statusTitle} description={statusDescription} />
+      <SectionBody className="gap-3">
+        <div className="flex items-center gap-3">
           {userType === 'family_managed' ? (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="small"
               onClick={handleRePrompt}
               disabled={isPending || cooldownActive}
               title={
@@ -156,7 +158,6 @@ export function HealthConsentCard({
                   ? `A request was already sent within the last ${COOLDOWN_DAYS} days`
                   : 'Ask Ultaura to request consent on the next call'
               }
-              className="inline-flex min-h-[44px] items-center space-x-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
               {cooldownActive ? (
                 <Clock className="h-3.5 w-3.5" aria-hidden="true" />
@@ -164,47 +165,48 @@ export function HealthConsentCard({
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               )}
               <span>{cooldownActive ? 'Request sent' : 'Request re-prompt'}</span>
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="small"
               onClick={handleSelfToggle}
               disabled={isPending}
-              className="inline-flex min-h-[44px] items-center rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isPending ? 'Saving...' : isGranted ? 'Disable Health for calls' : 'Enable Health for calls'}
-            </button>
+            </Button>
           )}
         </div>
-      </div>
 
-      {feedback ? (
-        <p
-          className={`mt-3 text-xs ${feedback.type === 'success' ? 'text-green-700' : 'text-destructive'}`}
-        >
-          {feedback.message}
-        </p>
-      ) : null}
-
-      {historyPreview.length > 0 ? (
-        <div className="mt-4 border-t border-border pt-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Recent activity
+        {feedback ? (
+          <p
+            className={`text-xs ${feedback.type === 'success' ? 'text-green-700' : 'text-destructive'}`}
+          >
+            {feedback.message}
           </p>
-          <ul className="space-y-1.5">
-            {historyPreview.slice(0, 3).map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between">
-                <span className="text-xs text-foreground">
-                  {formatEventLabel(entry.eventType, entry.resultingStatus)}
-                </span>
-                <span className="text-xs text-muted-foreground ml-4 shrink-0">
-                  {formatRelativeDate(entry.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+
+        {historyPreview.length > 0 ? (
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              Recent activity
+            </p>
+            <ul className="space-y-1.5">
+              {historyPreview.slice(0, 3).map((entry) => (
+                <li key={entry.id} className="flex items-center justify-between">
+                  <span className="text-xs text-foreground">
+                    {formatEventLabel(entry.eventType, entry.resultingStatus)}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-4 shrink-0">
+                    {formatRelativeDate(entry.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </SectionBody>
+    </Section>
   );
 }
