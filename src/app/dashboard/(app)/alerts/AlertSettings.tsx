@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '~/core/ui/Select';
 import { Section, SectionHeader, SectionBody } from '~/core/ui/Section';
+import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
 import { useAutoSave } from '~/core/hooks/use-auto-save';
 import { useRouter } from 'next/navigation';
 import type {
@@ -216,7 +217,30 @@ export function OwnerAlertSettingsSection({
             Alert Settings
           </div>
         }
-        description="Choose how the primary account holder receives alerts."
+        description={
+          <span className="inline-flex items-center gap-1.5">
+            Choose how the primary account holder receives alerts.
+            <CollapsibleInfoTip storageKey="notifications_info_tip_collapsed" collapsedLabel="Notification info">
+              <div className="space-y-1.5">
+                <p>
+                  All notifications are sent to you and any confirmed{' '}
+                  <Link
+                    href="/dashboard/privacy?tab=family&section=recipients"
+                    className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+                  >
+                    family recipients
+                  </Link>
+                  .
+                </p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>Wellness alerts follow the sharing tier set by your loved one.</li>
+                  <li>Alert delivery follows each recipient&apos;s alert channel setting.</li>
+                  <li>Weekly summaries are email-only.</li>
+                </ul>
+              </div>
+            </CollapsibleInfoTip>
+          </span>
+        }
       />
       <SectionBody className="gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -381,7 +405,30 @@ export function AlertSettingsSection({
             {line.display_name}
           </div>
         }
-        description="Manage alerts, weekly summaries, and missed call notifications."
+        description={
+          <span className="inline-flex items-center gap-1.5">
+            Manage alerts, weekly summaries, and missed call notifications.
+            <CollapsibleInfoTip storageKey="notifications_info_tip_collapsed" collapsedLabel="Notification info">
+              <div className="space-y-1.5">
+                <p>
+                  All notifications are sent to you and any confirmed{' '}
+                  <Link
+                    href="/dashboard/privacy?tab=family&section=recipients"
+                    className="text-primary font-medium underline underline-offset-2 hover:no-underline"
+                  >
+                    family recipients
+                  </Link>
+                  .
+                </p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>Wellness alerts follow the sharing tier set by your loved one.</li>
+                  <li>Alert delivery follows each recipient&apos;s alert channel setting.</li>
+                  <li>Weekly summaries are email-only.</li>
+                </ul>
+              </div>
+            </CollapsibleInfoTip>
+          </span>
+        }
       />
       <SectionBody className="gap-0">
         {/* ── Wellness Alerts ── */}

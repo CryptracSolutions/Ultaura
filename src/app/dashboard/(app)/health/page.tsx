@@ -14,6 +14,7 @@ import { getHealthAccountState, recordHealthFirstView, isDisclaimerCurrent } fro
 import { getHealthConsentState } from '~/lib/ultaura/health/consent';
 import { getHealthConsentHistory } from '~/lib/ultaura/health/consent-history';
 import { emitHealthFirstView } from '~/lib/ultaura/health/analytics';
+import { PageTitleWithInfo } from '~/core/ui/PageTitleWithInfo';
 import { getConditions } from '~/lib/ultaura/health/conditions';
 import { getMedications } from '~/lib/ultaura/health/medications';
 import { getObservations } from '~/lib/ultaura/health/observations';
@@ -21,7 +22,7 @@ import { getDocuments } from '~/lib/ultaura/health/documents';
 import { HealthProfilePageClient } from './HealthProfilePageClient';
 import type { HealthConsentStatus, HealthTabValue } from '@ultaura/types';
 import { parseHealthTab, parseHealthLine } from './lib/health-navigation';
-import type { HealthInitialTabData } from './types';
+import type { HealthInitialTabData, HealthChecklistCounts } from './types';
 
 export const metadata: Metadata = {
   title: 'Health Profile - Ultaura',
@@ -76,6 +77,19 @@ async function loadInitialTabData(
     logger.warn({ err, tab, lineId }, 'Failed to prefetch health tab data');
     return null;
   }
+}
+
+async function loadChecklistCounts(
+  lineId: string,
+  accountId: string,
+): Promise<HealthChecklistCounts> {
+  const [conditions, medications, observations, documents] = await Promise.all([
+    getConditions(lineId, undefined, accountId).then((c) => c.length).catch(() => 0),
+    getMedications(lineId, undefined, accountId).then((m) => m.length).catch(() => 0),
+    getObservations(lineId, accountId).then((o) => o.length).catch(() => 0),
+    getDocuments(lineId, accountId).then((d) => d.length).catch(() => 0),
+  ]);
+  return { conditions, medications, observations, documents };
 }
 
 export default async function HealthProfilePage({ searchParams }: PageProps) {
@@ -169,6 +183,11 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
       ? loadInitialTabData(parsedTab, prefetchLine.id, account.id)
       : Promise.resolve(null);
 
+  const checklistCountsPromise =
+    !entitlementState.isLocked && prefetchLine
+      ? loadChecklistCounts(prefetchLine.id, account.id)
+      : Promise.resolve({ conditions: 0, medications: 0, observations: 0, documents: 0 });
+
   const consentPromise = Promise.allSettled([
     getHealthAccountState(account.id),
     ...lines.map((line) => getHealthConsentState(line.id)),
@@ -191,8 +210,9 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
     }),
   );
 
-  const [initialTabData, consentSettled, historyPreviews] = await Promise.all([
+  const [initialTabData, checklistCounts, consentSettled, historyPreviews] = await Promise.all([
     tabDataPromise,
+    checklistCountsPromise,
     consentPromise,
     historyPromise,
   ]);
@@ -257,7 +277,24 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
 
   return (
     <>
-      {pageHeader}
+      <AppHeader
+        title={
+          <PageTitleWithInfo title="Health Profile" storageKey="health_info_tip_collapsed" infoLabel="Health disclaimer">
+            Ultaura is not a doctor or medical professional. Health information
+            stored here is for personal reference and, with your permission, to help
+            Ultaura provide more informed companionship. Ultaura may make mistakes.
+            Always consult qualified healthcare providers for medical advice,
+            diagnosis, or treatment.{' '}
+            <a
+              href="/docs/health"
+              className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+            >
+              Learn more →
+            </a>
+          </PageTitleWithInfo>
+        }
+        description="Manage health information and call context for your loved one"
+      />
       <PageBody>
         <Suspense>
           <HealthProfilePageClient
@@ -267,6 +304,7 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
             entitlementState={entitlementState}
             disclaimerState={disclaimerState}
             initialTabData={initialTabData}
+            checklistCounts={checklistCounts}
           />
         </Suspense>
       </PageBody>

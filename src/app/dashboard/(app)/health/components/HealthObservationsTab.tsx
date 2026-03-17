@@ -181,8 +181,13 @@ export function HealthObservationsTab({ lineId, observations: initialObservation
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="text-base font-semibold text-foreground">Observations</h3>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Observations</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Log day-to-day notes about health, mood, or behavior changes.
+          </p>
+        </div>
         <Button
           variant="default"
           size="small"

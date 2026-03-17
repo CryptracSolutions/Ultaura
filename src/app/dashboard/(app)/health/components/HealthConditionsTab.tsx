@@ -248,8 +248,13 @@ export function HealthConditionsTab({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="text-base font-semibold text-foreground">Conditions</h3>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Conditions</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Track known health conditions, their status, and history over time.
+          </p>
+        </div>
         <Button
           variant="default"
           size="small"
@@ -302,44 +307,11 @@ export function HealthConditionsTab({
 
       {/* Content */}
       {displayed.length === 0 ? (
-        <>
-          {view === 'active' && conditions.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-6">
-              <div className="mx-auto max-w-sm space-y-4 text-center">
-                <p className="text-sm font-medium text-foreground">
-                  Get started with Health Profile
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Set up health information in this order:
-                </p>
-                <ol className="mx-auto w-fit space-y-2 text-left text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">1</span>
-                    <span><span className="font-medium text-foreground">Conditions</span> — add known health conditions</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">2</span>
-                    <span><span className="font-medium text-foreground">Medications</span> — add current medications</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">3</span>
-                    <span><span className="font-medium text-foreground">Documents</span> — upload health records</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">4</span>
-                    <span><span className="font-medium text-foreground">Observations</span> — log day-to-day notes</span>
-                  </li>
-                </ol>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              {view === 'active'
-                ? 'No active conditions yet. Add one using the button above.'
-                : 'No resolved conditions.'}
-            </div>
-          )}
-        </>
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          {view === 'active'
+            ? 'No active conditions.'
+            : 'No resolved conditions.'}
+        </div>
       ) : (
         <div className="space-y-3">
           {displayed.map((condition) => (

@@ -13,7 +13,6 @@ import type { LineRow, UltauraAccountRow } from '~/lib/ultaura/types';
 
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
 import { HealthLockedState } from './components/HealthLockedState';
 import { HealthDisclaimerDialog } from './components/HealthDisclaimerDialog';
 import { HealthConsentCard } from './components/HealthConsentCard';
@@ -30,7 +29,8 @@ import {
   parseHealthTab,
   parseHealthLine,
 } from './lib/health-navigation';
-import type { HealthInitialTabData } from './types';
+import type { HealthInitialTabData, HealthChecklistCounts } from './types';
+import { HealthChecklist } from './components/HealthChecklist';
 
 const TAB_LOAD_TIMEOUT_MS = 8000;
 const TAB_LOAD_RETRY_DELAY_MS = 500;
@@ -114,6 +114,7 @@ interface HealthProfilePageClientProps {
   entitlementState: EntitlementState;
   disclaimerState: DisclaimerState;
   initialTabData: HealthInitialTabData | null;
+  checklistCounts: HealthChecklistCounts;
 }
 
 export function HealthProfilePageClient({
@@ -123,6 +124,7 @@ export function HealthProfilePageClient({
   entitlementState,
   disclaimerState,
   initialTabData,
+  checklistCounts,
 }: HealthProfilePageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -230,21 +232,8 @@ export function HealthProfilePageClient({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* Info tip banner */}
-      <CollapsibleInfoTip storageKey="health_info_tip_collapsed" collapsedLabel="Health disclaimer">
-        Ultaura is not a doctor or medical professional. Health information
-        stored here is for personal reference and, with your permission, to help
-        Ultaura provide more informed companionship. Ultaura may make mistakes.
-        Always consult qualified healthcare providers for medical advice,
-        diagnosis, or treatment.{' '}
-        <Link
-          href="/docs/health"
-          className="font-medium underline underline-offset-2 hover:no-underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          Learn more →
-        </Link>
-      </CollapsibleInfoTip>
+      {/* Health checklist */}
+      <HealthChecklist counts={checklistCounts} />
 
       {/* Line tabs + consent badge row */}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
@@ -272,6 +261,7 @@ export function HealthProfilePageClient({
           <div className="self-start sm:ml-auto sm:self-auto shrink-0">
             <HealthConsentCard
               lineId={selectedLine.id}
+              lineName={selectedLine.display_name}
               userType={userType}
               consentStatus={consentState.consentStatus}
               consentRequestedAt={consentState.consentRequestedAt}

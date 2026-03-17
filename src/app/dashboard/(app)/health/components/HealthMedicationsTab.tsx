@@ -221,8 +221,13 @@ export function HealthMedicationsTab({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-foreground">Medications</h3>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Medications</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage current medications, dosages, and reminders.
+          </p>
+        </div>
         <Button
           variant="default"
           size="small"

@@ -1,75 +1,45 @@
 'use client';
 
-import { type ReactNode, useEffect, useState } from 'react';
-import { Info, ChevronUp } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { Info } from 'lucide-react';
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from '~/core/ui/Popover';
 
 interface CollapsibleInfoTipProps {
-  /** Unique key for persisting collapsed state in localStorage */
+  /** Unique key — retained for API compatibility */
   storageKey: string;
-  /** Short label shown when collapsed (e.g. "Health disclaimer") */
+  /** Label shown in the popover header */
   collapsedLabel: string;
   /** The full disclaimer content (can include links, lists, etc.) */
   children: ReactNode;
 }
 
 export function CollapsibleInfoTip({
-  storageKey,
   collapsedLabel,
   children,
 }: CollapsibleInfoTipProps) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  // Read persisted collapsed state after mount to avoid hydration mismatch
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(storageKey) === '1') {
-        setCollapsed(true);
-      }
-    } catch {
-      // continue without localStorage
-    }
-  }, [storageKey]);
-
-  const collapse = () => {
-    setCollapsed(true);
-    try {
-      localStorage.setItem(storageKey, '1');
-    } catch {
-      // continue without localStorage
-    }
-  };
-
-  const expand = () => {
-    setCollapsed(false);
-    try {
-      localStorage.removeItem(storageKey);
-    } catch {
-      // continue without localStorage
-    }
-  };
-
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={expand}
-        className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs text-primary transition-colors hover:bg-primary/10"
-      >
-        <Info className="h-3.5 w-3.5 shrink-0" />
-        <span>{collapsedLabel}</span>
-      </button>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={collapse}
-      className="flex w-full cursor-default items-start gap-2.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-left transition-colors hover:bg-primary/10"
-    >
-      <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-      <div className="flex-1 text-xs text-primary leading-snug">{children}</div>
-      <ChevronUp className="h-3.5 w-3.5 shrink-0 text-primary/60 mt-0.5" />
-    </button>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={collapsedLabel}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/30 bg-primary/5 text-primary transition-colors hover:bg-primary/10"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 overflow-hidden rounded-xl border border-border/70 p-0 shadow-lg">
+        <div className="border-b border-border/50 bg-primary/5 px-4 py-3">
+          <p className="text-sm font-semibold text-foreground">{collapsedLabel}</p>
+        </div>
+        <div className="px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+          {children}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

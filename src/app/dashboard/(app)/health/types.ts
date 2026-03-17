@@ -10,6 +10,13 @@ export type { HealthTabValue };
 
 export type HealthViewMode = 'list' | 'detail';
 
+export interface HealthChecklistCounts {
+  conditions: number;
+  medications: number;
+  observations: number;
+  documents: number;
+}
+
 export type HealthFilterState = {
   tab: HealthTabValue;
   lineId: string | null;

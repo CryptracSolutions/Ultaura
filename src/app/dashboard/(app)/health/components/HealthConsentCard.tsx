@@ -19,6 +19,7 @@ const COOLDOWN_DAYS = 30;
 
 interface HealthConsentCardProps {
   lineId: string;
+  lineName: string;
   userType: 'self' | 'family_managed';
   consentStatus: HealthConsentStatus;
   consentRequestedAt: string | null;
@@ -32,6 +33,7 @@ function isCooldownActive(requestedAt: string | null): boolean {
 
 export function HealthConsentCard({
   lineId,
+  lineName,
   userType,
   consentStatus,
   consentRequestedAt,
@@ -99,41 +101,43 @@ export function HealthConsentCard({
           }`}
         >
           <StatusIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Status
+          User Status
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3">
         <div className="space-y-2.5">
           <p className="text-sm font-medium text-foreground">
-            {isGranted ? 'Health is active in calls' : 'Health is not active in calls'}
+            {isGranted ? `Health information for ${lineName} is actively being used during calls with Ultaura` : `Health information for ${lineName} is not actively being used during calls with Ultaura`}
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {isGranted
-              ? 'Health information is being shared with Ultaura during calls to provide more informed companionship.'
-              : 'Health information is not being used during Ultaura calls.'}
+              ? `${lineName} has granted consent. Ultaura uses this to provide more informed companionship.`
+              : `${lineName} controls this setting. Request a re-prompt to have Ultaura ask them for permission to use this during calls.`}
           </p>
 
           {userType === 'family_managed' ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="small"
-              block
-              onClick={handleRePrompt}
-              disabled={isPending || cooldownActive}
-              title={
-                cooldownActive
-                  ? `A request was already sent within the last ${COOLDOWN_DAYS} days`
-                  : 'Ask Ultaura to request consent on the next call'
-              }
-            >
-              {cooldownActive ? (
-                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              <span>{cooldownActive ? 'Request sent' : 'Request re-prompt'}</span>
-            </Button>
+            !isGranted && (
+              <Button
+                type="button"
+                variant="outline"
+                size="small"
+                block
+                onClick={handleRePrompt}
+                disabled={isPending || cooldownActive}
+                title={
+                  cooldownActive
+                    ? `A request was already sent within the last ${COOLDOWN_DAYS} days`
+                    : 'Ask Ultaura to request consent on the next call'
+                }
+              >
+                {cooldownActive ? (
+                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                <span>{cooldownActive ? 'Request sent' : 'Request re-prompt'}</span>
+              </Button>
+            )
           ) : (
             <Button
               type="button"

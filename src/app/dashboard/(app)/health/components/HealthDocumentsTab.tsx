@@ -324,8 +324,13 @@ export function HealthDocumentsTab({ lineId, documents: initialDocuments }: Heal
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="text-base font-semibold text-foreground">Documents</h3>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Documents</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Store lab results, prescriptions, and other health records securely.
+          </p>
+        </div>
         <Button
           variant="default"
           size="small"
