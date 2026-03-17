@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { Plus, Pencil, Trash2, History } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
+import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { HealthObservationForm } from './HealthObservationForm';
 import { HealthHistoryDrawer } from './HealthHistoryDrawer';
@@ -27,21 +28,11 @@ const CATEGORY_LABELS: Record<HealthObservationCategory, string> = {
   general_other: 'General / Other',
 };
 
-const CATEGORY_BADGE: Record<HealthObservationCategory, string> = {
-  memory: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  mood_emotional: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  physical_mobility: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  nutrition_eating: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  sleep: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
-  social_engagement: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
-  medication_compliance: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-  general_other: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-};
 
-const CONCERN_BADGE: Record<HealthObservationConcern, { label: string; className: string }> = {
-  note: { label: 'Note', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
-  mild_concern: { label: 'Mild Concern', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
-  significant_concern: { label: 'Significant Concern', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+const CONCERN_BADGE: Record<HealthObservationConcern, { label: string; color: 'normal' | 'warn' | 'error' }> = {
+  note: { label: 'Note', color: 'normal' },
+  mild_concern: { label: 'Mild Concern', color: 'warn' },
+  significant_concern: { label: 'Significant Concern', color: 'error' },
 };
 
 function formatObservedDate(date: string): string {
@@ -87,21 +78,17 @@ function ObservationCard({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div className="rounded-xl border border-border bg-card p-6 space-y-3">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-foreground leading-relaxed flex-1 min-w-0">{truncated}</p>
-          <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${concernBadge.className}`}>
-            {concernBadge.label}
-          </span>
+          <Badge color={concernBadge.color} size="small">{concernBadge.label}</Badge>
         </div>
 
         {/* Badges row */}
         <div className="flex flex-wrap items-center gap-2">
           {observation.category && (
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_BADGE[observation.category]}`}>
-              {CATEGORY_LABELS[observation.category]}
-            </span>
+            <Badge color="normal" size="small">{CATEGORY_LABELS[observation.category]}</Badge>
           )}
           {observation.observedDate && (
             <span className="text-xs text-muted-foreground">
@@ -114,7 +101,7 @@ function ObservationCard({
         <div className="flex items-center gap-2 pt-1 flex-wrap">
           <Button
             variant="outline"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5"
             onClick={() => setEditOpen(true)}
             aria-label="Edit observation"
@@ -125,7 +112,7 @@ function ObservationCard({
 
           <Button
             variant="ghost"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5"
             onClick={() => setHistoryOpen(true)}
             aria-label="View observation history"
@@ -136,7 +123,7 @@ function ObservationCard({
 
           <Button
             variant="ghost"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5 text-destructive hover:text-destructive"
             onClick={() => setDeleteOpen(true)}
             aria-label="Delete observation"
@@ -201,7 +188,7 @@ export function HealthObservationsTab({
         <h3 className="text-base font-semibold text-foreground">Observations</h3>
         <Button
           variant="default"
-          size="sm"
+          size="small"
           className="min-h-[44px] gap-1.5"
           onClick={() => setAddOpen(true)}
         >

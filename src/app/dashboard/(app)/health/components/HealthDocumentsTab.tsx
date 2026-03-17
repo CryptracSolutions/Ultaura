@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Plus, Pencil, Trash2, FileText, FileImage, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
+import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { HealthDocumentUploadForm } from './HealthDocumentUploadForm';
 import {
@@ -29,15 +30,6 @@ const CATEGORY_LABELS: Record<HealthDocumentCategory, string> = {
   other: 'Other',
 };
 
-const CATEGORY_BADGE_CLASS: Record<HealthDocumentCategory, string> = {
-  lab_results: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  discharge_summary: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  prescription: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  insurance: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  imaging_scans: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  doctors_notes: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
-  other: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-};
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -175,7 +167,7 @@ function EditMetadataDialog({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="small"
               className="min-h-[44px]"
               onClick={() => onOpenChange(false)}
               disabled={saving}
@@ -185,7 +177,7 @@ function EditMetadataDialog({
             <Button
               type="submit"
               variant="default"
-              size="sm"
+              size="small"
               className="min-h-[44px]"
               disabled={!title.trim() || saving}
             >
@@ -225,11 +217,10 @@ function DocumentCard({
   };
 
   const categoryLabel = document.category ? CATEGORY_LABELS[document.category] : null;
-  const categoryBadgeClass = document.category ? CATEGORY_BADGE_CLASS[document.category] : null;
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div className="rounded-xl border border-border bg-card p-6 space-y-3">
         {/* Header row */}
         <div className="flex items-start gap-3">
           <FileTypeIcon mimeType={document.mimeType} />
@@ -240,12 +231,8 @@ function DocumentCard({
               {formatFileSize(document.fileSizeBytes)} &middot; Uploaded {formatDate(document.createdAt)}
             </p>
           </div>
-          {categoryLabel && categoryBadgeClass && (
-            <span
-              className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${categoryBadgeClass}`}
-            >
-              {categoryLabel}
-            </span>
+          {categoryLabel && (
+            <Badge color="normal" size="small">{categoryLabel}</Badge>
           )}
         </div>
 
@@ -265,7 +252,7 @@ function DocumentCard({
         <div className="flex items-center gap-2 pt-1 flex-wrap">
           <Button
             variant="outline"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5"
             onClick={() => setEditOpen(true)}
             aria-label={`Edit ${document.title}`}
@@ -276,7 +263,7 @@ function DocumentCard({
 
           <Button
             variant="ghost"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5 text-destructive hover:text-destructive"
             onClick={() => setDeleteOpen(true)}
             aria-label={`Delete ${document.title}`}
@@ -338,7 +325,7 @@ export function HealthDocumentsTab({ lineId, documents: initialDocuments }: Heal
         <h3 className="text-base font-semibold text-foreground">Documents</h3>
         <Button
           variant="default"
-          size="sm"
+          size="small"
           className="min-h-[44px] gap-1.5"
           onClick={() => setUploadOpen(true)}
         >

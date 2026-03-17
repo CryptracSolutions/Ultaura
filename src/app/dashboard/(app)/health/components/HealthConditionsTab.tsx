@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { Plus, Pencil, Trash2, History, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
+import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { HealthConditionForm } from './HealthConditionForm';
 import { HealthHistoryDrawer } from './HealthHistoryDrawer';
@@ -21,10 +22,10 @@ interface HealthConditionsTabProps {
 
 type ViewMode = 'active' | 'resolved';
 
-const STATUS_BADGE: Record<HealthConditionStatus, { label: string; className: string }> = {
-  active: { label: 'Active', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
-  monitoring: { label: 'Monitoring', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
-  resolved: { label: 'Resolved', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+const STATUS_BADGE: Record<HealthConditionStatus, { label: string; color: 'success' | 'warn' | 'normal' }> = {
+  active: { label: 'Active', color: 'success' },
+  monitoring: { label: 'Monitoring', color: 'warn' },
+  resolved: { label: 'Resolved', color: 'normal' },
 };
 
 function formatApproximateDate(date: HealthCondition['diagnosedOnsetDate']): string | null {
@@ -92,7 +93,7 @@ function ConditionCard({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div className="rounded-xl border border-border bg-card p-6 space-y-3">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -101,9 +102,7 @@ function ConditionCard({
               <p className="text-xs text-muted-foreground mt-0.5">Diagnosed: {diagnosedStr}</p>
             )}
           </div>
-          <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>
-            {badge.label}
-          </span>
+          <Badge color={badge.color} size="small">{badge.label}</Badge>
         </div>
 
         {/* Details row */}
@@ -119,7 +118,7 @@ function ConditionCard({
           {/* Edit */}
           <Button
             variant="outline"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5"
             onClick={() => setEditOpen(true)}
             aria-label={`Edit ${condition.name}`}
@@ -132,7 +131,7 @@ function ConditionCard({
           <div className="relative">
             <Button
               variant="outline"
-              size="sm"
+              size="small"
               className="min-h-[44px] gap-1.5"
               onClick={() => setStatusMenuOpen((v) => !v)}
               aria-label="Change status"
@@ -165,7 +164,7 @@ function ConditionCard({
           {/* History */}
           <Button
             variant="ghost"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5"
             onClick={() => setHistoryOpen(true)}
             aria-label={`View history for ${condition.name}`}
@@ -177,7 +176,7 @@ function ConditionCard({
           {/* Delete */}
           <Button
             variant="ghost"
-            size="sm"
+            size="small"
             className="min-h-[44px] gap-1.5 text-destructive hover:text-destructive"
             onClick={() => setDeleteOpen(true)}
             aria-label={`Delete ${condition.name}`}
@@ -257,7 +256,7 @@ export function HealthConditionsTab({
         <h3 className="text-base font-semibold text-foreground">Conditions</h3>
         <Button
           variant="default"
-          size="sm"
+          size="small"
           className="min-h-[44px] gap-1.5"
           onClick={() => setAddOpen(true)}
         >

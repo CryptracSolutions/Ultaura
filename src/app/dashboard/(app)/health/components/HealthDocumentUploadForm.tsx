@@ -267,7 +267,7 @@ export function HealthDocumentUploadForm({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="small"
               className="min-h-[44px]"
               onClick={handleClose}
               disabled={uploading}
@@ -277,7 +277,7 @@ export function HealthDocumentUploadForm({
             <Button
               type="submit"
               variant="default"
-              size="sm"
+              size="small"
               className="min-h-[44px] gap-1.5"
               disabled={!canSubmit}
             >
