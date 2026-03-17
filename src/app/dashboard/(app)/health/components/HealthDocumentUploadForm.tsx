@@ -199,7 +199,6 @@ export function HealthDocumentUploadForm({
               placeholder="e.g. Blood work — March 2026"
               maxLength={120}
               required
-              className="min-h-[44px]"
             />
             <p className="mt-0.5 text-xs text-muted-foreground text-right">{title.length}/120</p>
           </div>
@@ -213,7 +212,7 @@ export function HealthDocumentUploadForm({
               value={category || '__none__'}
               onValueChange={(v) => setCategory(v === '__none__' ? '' : v as HealthDocumentCategory)}
             >
-              <SelectTrigger id="doc-category" className="min-h-[44px]">
+              <SelectTrigger id="doc-category">
                 <SelectValue placeholder="— Select category —" />
               </SelectTrigger>
               <SelectContent>
@@ -239,7 +238,6 @@ export function HealthDocumentUploadForm({
               type="date"
               value={documentDate}
               onChange={(e) => setDocumentDate(e.target.value)}
-              className="min-h-[44px]"
             />
           </div>
 
@@ -284,7 +282,7 @@ export function HealthDocumentUploadForm({
               type="submit"
               variant="default"
               size="small"
-              className="w-full gap-1.5"
+              className="w-full"
               disabled={!canSubmit}
             >
               <Upload className="h-4 w-4" />

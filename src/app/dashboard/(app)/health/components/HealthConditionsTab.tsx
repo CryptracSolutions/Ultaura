@@ -6,6 +6,12 @@ import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '~/core/ui/Dropdown';
 import { HealthConditionForm } from './HealthConditionForm';
 import { HealthHistoryDrawer } from './HealthHistoryDrawer';
 import {
@@ -58,7 +64,6 @@ function ConditionCard({
   const [editOpen, setEditOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [_isPending, startTransition] = useTransition();
 
   const badge = STATUS_BADGE[condition.status];
@@ -75,7 +80,6 @@ function ConditionCard({
   };
 
   const handleStatusChange = (newStatus: HealthConditionStatus) => {
-    setStatusMenuOpen(false);
     startTransition(async () => {
       const result = await changeConditionStatusAction(condition.id, lineId, newStatus);
       if (result.success) {
@@ -119,7 +123,6 @@ function ConditionCard({
           <Button
             variant="outline"
             size="small"
-            className="min-h-[44px] gap-1.5"
             onClick={() => setEditOpen(true)}
             aria-label={`Edit ${condition.name}`}
           >
@@ -128,44 +131,34 @@ function ConditionCard({
           </Button>
 
           {/* Change status */}
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="small"
-              className="min-h-[44px] gap-1.5"
-              onClick={() => setStatusMenuOpen((v) => !v)}
-              aria-label="Change status"
-              aria-haspopup="menu"
-              aria-expanded={statusMenuOpen}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Status
-            </Button>
-            {statusMenuOpen && (
-              <div
-                className="absolute z-50 mt-1 left-0 rounded-md border border-border bg-popover shadow-md min-w-[140px]"
-                role="menu"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="small"
+                aria-label="Change status"
               >
-                {otherStatuses.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    role="menuitem"
-                    onClick={() => handleStatusChange(s)}
-                    className="flex w-full min-h-[44px] items-center px-3 py-2 text-sm hover:bg-muted transition-colors"
-                  >
-                    {STATUS_BADGE[s].label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Status
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {otherStatuses.map((s) => (
+                <DropdownMenuItem
+                  key={s}
+                  className="min-h-[44px]"
+                  onClick={() => handleStatusChange(s)}
+                >
+                  {STATUS_BADGE[s].label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* History */}
           <Button
             variant="ghost"
             size="small"
-            className="min-h-[44px] gap-1.5"
             onClick={() => setHistoryOpen(true)}
             aria-label={`View history for ${condition.name}`}
           >
@@ -177,7 +170,7 @@ function ConditionCard({
           <Button
             variant="ghost"
             size="small"
-            className="min-h-[44px] gap-1.5 text-destructive hover:text-destructive"
+            className="text-destructive hover:text-destructive"
             onClick={() => setDeleteOpen(true)}
             aria-label={`Delete ${condition.name}`}
           >
@@ -257,7 +250,6 @@ export function HealthConditionsTab({
         <Button
           variant="default"
           size="small"
-          className="min-h-[44px] gap-1.5"
           onClick={() => setAddOpen(true)}
         >
           <Plus className="h-4 w-4" />
@@ -307,42 +299,44 @@ export function HealthConditionsTab({
 
       {/* Content */}
       {displayed.length === 0 ? (
-        <div className="py-10 text-center">
+        <>
           {view === 'active' && conditions.length === 0 ? (
-            <div className="mx-auto max-w-sm space-y-4">
-              <p className="text-sm font-medium text-foreground">
-                Get started with Health Profile
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Set up health information in this order:
-              </p>
-              <ol className="mx-auto w-fit space-y-2 text-left text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">1</span>
-                  <span><span className="font-medium text-foreground">Conditions</span> — add known health conditions</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">2</span>
-                  <span><span className="font-medium text-foreground">Medications</span> — add current medications</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">3</span>
-                  <span><span className="font-medium text-foreground">Documents</span> — upload health records</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">4</span>
-                  <span><span className="font-medium text-foreground">Observations</span> — log day-to-day notes</span>
-                </li>
-              </ol>
+            <div className="rounded-lg border border-dashed border-border p-6">
+              <div className="mx-auto max-w-sm space-y-4 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  Get started with Health Profile
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Set up health information in this order:
+                </p>
+                <ol className="mx-auto w-fit space-y-2 text-left text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">1</span>
+                    <span><span className="font-medium text-foreground">Conditions</span> — add known health conditions</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">2</span>
+                    <span><span className="font-medium text-foreground">Medications</span> — add current medications</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">3</span>
+                    <span><span className="font-medium text-foreground">Documents</span> — upload health records</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">4</span>
+                    <span><span className="font-medium text-foreground">Observations</span> — log day-to-day notes</span>
+                  </li>
+                </ol>
+              </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               {view === 'active'
                 ? 'No active conditions yet. Add one using the button above.'
                 : 'No resolved conditions.'}
-            </p>
+            </div>
           )}
-        </div>
+        </>
       ) : (
         <div className="space-y-3">
           {displayed.map((condition) => (

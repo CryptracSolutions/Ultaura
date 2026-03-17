@@ -126,7 +126,7 @@ export function HealthApproximateDateInput({
         onValueChange={(v) => handlePrecisionChange(v as ApproximateDatePrecision)}
         disabled={disabled}
       >
-        <SelectTrigger className="w-full min-h-[44px]" id={id}>
+        <SelectTrigger className="w-full" id={id}>
           <SelectValue placeholder="Select precision" />
         </SelectTrigger>
         <SelectContent>
@@ -147,7 +147,7 @@ export function HealthApproximateDateInput({
           onChange={handleYearChange}
           disabled={disabled}
           maxLength={4}
-          className="w-28 min-h-[44px]"
+          className="w-28"
           aria-label="Year"
         />
       </div>
@@ -161,7 +161,7 @@ export function HealthApproximateDateInput({
             onValueChange={handleMonthChange}
             disabled={disabled}
           >
-            <SelectTrigger className="w-44 min-h-[44px]">
+            <SelectTrigger className="w-44">
               <SelectValue placeholder="Select month" />
             </SelectTrigger>
             <SelectContent>
@@ -190,7 +190,7 @@ export function HealthApproximateDateInput({
             onChange={handleDayChange}
             disabled={disabled}
             maxLength={2}
-            className="w-20 min-h-[44px]"
+            className="w-20"
             aria-label="Day"
           />
           {day && (parseInt(day, 10) < 1 || parseInt(day, 10) > maxDays) && (

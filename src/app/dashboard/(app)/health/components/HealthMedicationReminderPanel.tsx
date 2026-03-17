@@ -145,7 +145,6 @@ export function HealthMedicationReminderPanel({
           size="small"
           onClick={() => setShowAddForm((v) => !v)}
           disabled={isPending}
-          className="min-h-[44px] gap-1"
           aria-label={`Add reminder for ${medicationName}`}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -172,7 +171,6 @@ export function HealthMedicationReminderPanel({
               type="time"
               value={newTimeOfDay}
               onChange={(e) => setNewTimeOfDay(e.target.value)}
-              className="min-h-[44px]"
               aria-label="Reminder time"
             />
           </div>
@@ -188,7 +186,6 @@ export function HealthMedicationReminderPanel({
               onChange={(e) => setNewLabel(e.target.value)}
               placeholder={`${medicationName} reminder`}
               maxLength={120}
-              className="min-h-[44px]"
               aria-label="Reminder label"
             />
           </div>
@@ -203,7 +200,6 @@ export function HealthMedicationReminderPanel({
               size="small"
               onClick={handleAdd}
               disabled={isPending}
-              className="min-h-[44px]"
             >
               {isPending ? 'Saving…' : 'Save reminder'}
             </Button>
@@ -212,7 +208,6 @@ export function HealthMedicationReminderPanel({
               size="small"
               onClick={() => { setShowAddForm(false); setAddError(null); }}
               disabled={isPending}
-              className="min-h-[44px]"
             >
               Cancel
             </Button>
@@ -222,7 +217,10 @@ export function HealthMedicationReminderPanel({
 
       {/* Loading / error states */}
       {loading && (
-        <p className="text-xs text-muted-foreground py-2">Loading reminders…</p>
+        <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Loading reminders…
+        </div>
       )}
 
       {!loading && loadError && (
@@ -260,7 +258,7 @@ export function HealthMedicationReminderPanel({
                     size="small"
                     onClick={() => handleCancel(reminder.reminderId)}
                     disabled={isPending}
-                    className="min-h-[44px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     aria-label={`Cancel reminder at ${formatTime(reminder.timeOfDay)}`}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -286,7 +284,7 @@ export function HealthMedicationReminderPanel({
                     size="small"
                     onClick={() => handleResume(reminder.reminderId)}
                     disabled={isPending}
-                    className="min-h-[44px] gap-1 self-start"
+                    className="self-start"
                     aria-label={`Resume reminder at ${formatTime(reminder.timeOfDay)}`}
                   >
                     <Play className="h-3.5 w-3.5" />

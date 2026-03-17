@@ -150,7 +150,7 @@ export function HealthObservationForm({
               onValueChange={(v) => setCategory(v === NO_CATEGORY ? null : v as HealthObservationCategory)}
               disabled={isPending}
             >
-              <SelectTrigger className="w-full min-h-[44px]" id="observation-category">
+              <SelectTrigger className="w-full" id="observation-category">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
@@ -175,7 +175,6 @@ export function HealthObservationForm({
               value={observedDate}
               onChange={(e) => setObservedDate(e.target.value)}
               disabled={isPending}
-              className="min-h-[44px]"
             />
           </div>
 
@@ -189,7 +188,7 @@ export function HealthObservationForm({
               onValueChange={(v) => setConcernLevel(v as HealthObservationConcern)}
               disabled={isPending}
             >
-              <SelectTrigger className="w-full min-h-[44px]" id="observation-concern">
+              <SelectTrigger className="w-full" id="observation-concern">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

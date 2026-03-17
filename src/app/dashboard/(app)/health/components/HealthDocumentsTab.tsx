@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, FileText, FileImage, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
@@ -120,7 +120,6 @@ function EditMetadataDialog({
               onChange={(e) => setTitle(e.target.value.slice(0, 120))}
               maxLength={120}
               required
-              className="min-h-[44px]"
             />
           </div>
           <div>
@@ -131,7 +130,7 @@ function EditMetadataDialog({
               value={category || '__none__'}
               onValueChange={(v) => setCategory(v === '__none__' ? '' : v as HealthDocumentCategory)}
             >
-              <SelectTrigger id="edit-category" className="min-h-[44px]">
+              <SelectTrigger id="edit-category">
                 <SelectValue placeholder="— Select category —" />
               </SelectTrigger>
               <SelectContent>
@@ -153,7 +152,6 @@ function EditMetadataDialog({
               type="date"
               value={documentDate}
               onChange={(e) => setDocumentDate(e.target.value)}
-              className="min-h-[44px]"
             />
           </div>
           <div>
@@ -259,7 +257,6 @@ function DocumentCard({
           <Button
             variant="outline"
             size="small"
-            className="min-h-[44px] gap-1.5"
             onClick={() => setEditOpen(true)}
             aria-label={`Edit ${document.title}`}
           >
@@ -270,7 +267,7 @@ function DocumentCard({
           <Button
             variant="ghost"
             size="small"
-            className="min-h-[44px] gap-1.5 text-destructive hover:text-destructive"
+            className="text-destructive hover:text-destructive"
             onClick={() => setDeleteOpen(true)}
             aria-label={`Delete ${document.title}`}
           >
@@ -332,7 +329,6 @@ export function HealthDocumentsTab({ lineId, documents: initialDocuments }: Heal
         <Button
           variant="default"
           size="small"
-          className="min-h-[44px] gap-1.5"
           onClick={() => setUploadOpen(true)}
         >
           <Plus className="h-4 w-4" />
@@ -342,11 +338,9 @@ export function HealthDocumentsTab({ lineId, documents: initialDocuments }: Heal
 
       {/* Content */}
       {documents.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <p className="text-sm text-muted-foreground text-center py-6">
-            No documents uploaded yet. Store lab results, discharge summaries, prescriptions, and
-            other health documents securely.
-          </p>
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No documents uploaded yet. Store lab results, discharge summaries, prescriptions, and
+          other health documents securely.
         </div>
       ) : (
         <div className="space-y-3">

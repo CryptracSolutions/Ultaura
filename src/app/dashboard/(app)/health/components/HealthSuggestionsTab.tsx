@@ -1,10 +1,16 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { CheckCircle2, XCircle, Clock, Pill, Activity } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Pill, Activity, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '~/core/ui/Dropdown';
 import {
   getPendingSuggestionsAction,
   approveSuggestionAsNewAction,
@@ -126,7 +132,6 @@ function SuggestionCard({
   onApproved: (id: string) => void;
 }) {
   const [_isPending, startTransition] = useTransition();
-  const [approveMenuOpen, setApproveMenuOpen] = useState(false);
 
   const confidenceBadge = CONFIDENCE_BADGE[suggestion.confidenceLabel];
   const relativeTime = formatRelativeTime(suggestion.sourceCallStartedAt);
@@ -144,7 +149,6 @@ function SuggestionCard({
   };
 
   const handleApproveAsNew = () => {
-    setApproveMenuOpen(false);
     startTransition(async () => {
       const result = await approveSuggestionAsNewAction(suggestion.id, lineId);
       if (result.success) {
@@ -158,7 +162,6 @@ function SuggestionCard({
 
   const handleApproveAsUpdate = () => {
     if (!suggestion.similarItemId) return;
-    setApproveMenuOpen(false);
     startTransition(async () => {
       const result = await approveSuggestionAsUpdateAction(suggestion.id, lineId, suggestion.similarItemId!);
       if (result.success) {
@@ -171,80 +174,70 @@ function SuggestionCard({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 space-y-2">
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          {suggestion.suggestionType === 'medication' ? (
-            <Pill className="size-4 shrink-0 text-muted-foreground" />
+    <div
+      className="rounded-xl border border-border/60 border-l-4 bg-muted/20 px-4 py-3.5"
+      style={{ borderLeftColor: suggestion.confidenceLabel === 'high' ? 'var(--success)' : 'var(--warning)' }}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        {/* Left: name + badges + summary */}
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {suggestion.suggestionType === 'medication' ? (
+              <Pill className="size-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <Activity className="size-4 shrink-0 text-muted-foreground" />
+            )}
+            <p className="text-sm font-semibold text-foreground">{suggestion.normalizedName}</p>
+            <Badge color={confidenceBadge.color} size="small">{confidenceBadge.label}</Badge>
+            {suggestion.similarItemWarning && (
+              <Badge color="warn" size="small">Similar {suggestion.suggestionType} exists</Badge>
+            )}
+            {relativeTime && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="size-3" />
+                {relativeTime}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{suggestion.summaryParaphrase}</p>
+          <ProposedFieldsPreview
+            suggestionType={suggestion.suggestionType}
+            proposedFields={suggestion.proposedFields}
+          />
+        </div>
+
+        {/* Right: action buttons */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {suggestion.similarItemId ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="small" variant="default">
+                  <CheckCircle2 className="size-3.5" />
+                  Approve
+                  <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="min-h-[44px]" onClick={handleApproveAsNew}>
+                  Add as new
+                </DropdownMenuItem>
+                <DropdownMenuItem className="min-h-[44px]" onClick={handleApproveAsUpdate}>
+                  Apply update to existing
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
-            <Activity className="size-4 shrink-0 text-muted-foreground" />
+            <Button size="small" variant="default" onClick={handleApproveAsNew}>
+              <CheckCircle2 className="size-3.5" />
+              Approve
+            </Button>
           )}
-          <span className="font-semibold text-sm text-foreground truncate">{suggestion.normalizedName}</span>
-          <Badge color={confidenceBadge.color} size="small">{confidenceBadge.label}</Badge>
-          {suggestion.similarItemWarning && (
-            <Badge color="warn" size="small">Similar {suggestion.suggestionType} exists</Badge>
-          )}
-        </div>
-        {relativeTime && (
-          <span className="flex items-center gap-1 shrink-0 text-xs text-muted-foreground">
-            <Clock className="size-3" />
-            {relativeTime}
-          </span>
-        )}
-      </div>
 
-      {/* Summary paraphrase */}
-      <p className="text-sm text-muted-foreground leading-snug">{suggestion.summaryParaphrase}</p>
-
-      {/* Proposed fields */}
-      <ProposedFieldsPreview
-        suggestionType={suggestion.suggestionType}
-        proposedFields={suggestion.proposedFields}
-      />
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 pt-1">
-        {/* Approve button / menu */}
-        <div className="relative">
-          <Button
-            size="small"
-            variant="default"
-            onClick={() => {
-              if (suggestion.similarItemId) {
-                setApproveMenuOpen((v) => !v);
-              } else {
-                handleApproveAsNew();
-              }
-            }}
-          >
-            <CheckCircle2 className="size-3.5 mr-1" />
-            Approve
-            {suggestion.similarItemId ? ' ▾' : ''}
+          <Button size="small" variant="ghost" onClick={handleDismiss}>
+            <XCircle className="size-3.5" />
+            Dismiss
           </Button>
-
-          {approveMenuOpen && suggestion.similarItemId && (
-            <div className="absolute left-0 top-full mt-1 z-10 min-w-[180px] rounded-md border border-border bg-popover shadow-md py-1">
-              <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
-                onClick={handleApproveAsNew}
-              >
-                Add as new
-              </button>
-              <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
-                onClick={handleApproveAsUpdate}
-              >
-                Apply update to existing
-              </button>
-            </div>
-          )}
         </div>
-
-        <Button size="small" variant="ghost" onClick={handleDismiss}>
-          <XCircle className="size-3.5 mr-1" />
-          Dismiss
-        </Button>
       </div>
     </div>
   );
@@ -338,18 +331,19 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
 
       {/* Content */}
       {isLoading && suggestions === null ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">Loading suggestions…</div>
+        <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Loading suggestions…
+        </div>
       ) : error ? (
         <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       ) : !suggestions || suggestions.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            {filter === 'all'
-              ? 'No pending suggestions. They will appear here after Ultaura hears mentions during calls.'
-              : `No pending ${filter} suggestions.`}
-          </p>
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          {filter === 'all'
+            ? 'No pending suggestions. They will appear here after Ultaura hears mentions during calls.'
+            : `No pending ${filter} suggestions.`}
         </div>
       ) : (
         <div className="space-y-3">

@@ -36,7 +36,6 @@ export function HealthTimesOfDayInput({ value, onChange }: HealthTimesOfDayInput
             type="time"
             value={time}
             onChange={(e) => handleTimeChange(index, e.target.value)}
-            className="min-h-[44px]"
             aria-label={`Time ${index + 1}`}
           />
           <button
@@ -56,7 +55,6 @@ export function HealthTimesOfDayInput({ value, onChange }: HealthTimesOfDayInput
           variant="outline"
           size="small"
           onClick={handleAdd}
-          className="min-h-[44px] gap-1.5"
         >
           <Plus className="h-4 w-4" />
           Add time

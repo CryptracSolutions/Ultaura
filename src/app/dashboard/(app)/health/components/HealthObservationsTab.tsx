@@ -13,7 +13,6 @@ import type { HealthObservation, HealthObservationCategory, HealthObservationCon
 
 interface HealthObservationsTabProps {
   lineId: string;
-  accountId: string;
   observations: HealthObservation[];
 }
 
@@ -102,7 +101,6 @@ function ObservationCard({
           <Button
             variant="outline"
             size="small"
-            className="min-h-[44px] gap-1.5"
             onClick={() => setEditOpen(true)}
             aria-label="Edit observation"
           >
@@ -113,7 +111,6 @@ function ObservationCard({
           <Button
             variant="ghost"
             size="small"
-            className="min-h-[44px] gap-1.5"
             onClick={() => setHistoryOpen(true)}
             aria-label="View observation history"
           >
@@ -124,7 +121,7 @@ function ObservationCard({
           <Button
             variant="ghost"
             size="small"
-            className="min-h-[44px] gap-1.5 text-destructive hover:text-destructive"
+            className="text-destructive hover:text-destructive"
             onClick={() => setDeleteOpen(true)}
             aria-label="Delete observation"
           >
@@ -163,10 +160,7 @@ function ObservationCard({
   );
 }
 
-export function HealthObservationsTab({
-  lineId,
-  observations: initialObservations,
-}: HealthObservationsTabProps) {
+export function HealthObservationsTab({ lineId, observations: initialObservations }: HealthObservationsTabProps) {
   const [observations, setObservations] = useState<HealthObservation[]>(initialObservations);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -189,7 +183,6 @@ export function HealthObservationsTab({
         <Button
           variant="default"
           size="small"
-          className="min-h-[44px] gap-1.5"
           onClick={() => setAddOpen(true)}
         >
           <Plus className="h-4 w-4" />
@@ -199,10 +192,8 @@ export function HealthObservationsTab({
 
       {/* Content */}
       {sorted.length === 0 ? (
-        <div className="py-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            No observations yet. Add one using the button above.
-          </p>
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No observations yet. Add one using the button above.
         </div>
       ) : (
         <div className="space-y-3">

@@ -11,6 +11,7 @@ import type { HealthTabValue, HealthConsentStatus, HealthCondition, HealthObserv
 import type { LineRow, UltauraAccountRow } from '~/lib/ultaura/types';
 
 import { Info } from 'lucide-react';
+import Button from '~/core/ui/Button';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '~/core/ui/Dialog';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '~/core/ui/Select';
 import { HealthLockedState } from './components/HealthLockedState';
 import { HealthDisclaimerDialog } from './components/HealthDisclaimerDialog';
 import { HealthConsentCard } from './components/HealthConsentCard';
@@ -172,25 +180,27 @@ export function HealthProfilePageClient({
   const activeTabConfig = HEALTH_TABS.find((t) => t.value === activeTab);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12">
       {/* About Health Profile + Line switcher row */}
       <div className="flex items-center justify-between gap-4">
         {/* Line switcher for multi-line accounts */}
         {lines.length > 1 ? (
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-muted-foreground">Viewing:</span>
-          <select
-            value={selectedLine.short_id}
-            onChange={(e) => handleLineSelected(e.target.value)}
-            className="min-h-[44px] rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-            aria-label="Select line"
-          >
-            {lines.map((line) => (
-              <option key={line.id} value={line.short_id}>
-                {line.display_name}
-              </option>
-            ))}
-          </select>
+          <div className="w-full sm:w-[16rem] rounded-xl ring-1 ring-primary">
+            <Select value={selectedLine.short_id} onValueChange={handleLineSelected}>
+              <SelectTrigger
+                className="h-auto min-h-[32px] rounded-xl border-0 bg-card/70 px-3 py-1 text-sm font-medium shadow-sm backdrop-blur"
+                aria-label="Select line"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {lines.map((line) => (
+                  <SelectItem key={line.id} value={line.short_id}>
+                    {line.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ) : (
           <div />
@@ -199,15 +209,16 @@ export function HealthProfilePageClient({
         {/* About Health Profile info button */}
         <Dialog>
           <DialogTrigger asChild>
-            <button
-              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            <Button
+              variant="ghost"
+              size="small"
               aria-label="About Health Profile"
             >
               <Info className="size-4" />
               <span className="hidden sm:inline">About Health Profile</span>
-            </button>
+            </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-[468px]">
             <DialogHeader>
               <DialogTitle>About Health Profile</DialogTitle>
             </DialogHeader>
@@ -313,7 +324,8 @@ function ConditionsTabLoader({
 
   if (isLoading && conditions === null) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         Loading conditions…
       </div>
     );
@@ -336,13 +348,7 @@ function ConditionsTabLoader({
   );
 }
 
-function ObservationsTabLoader({
-  lineId,
-  accountId,
-}: {
-  lineId: string;
-  accountId: string;
-}) {
+function ObservationsTabLoader({ lineId }: { lineId: string }) {
   const [observations, setObservations] = useState<HealthObservation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -371,7 +377,8 @@ function ObservationsTabLoader({
 
   if (isLoading && observations === null) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         Loading observations…
       </div>
     );
@@ -388,7 +395,6 @@ function ObservationsTabLoader({
   return (
     <HealthObservationsTab
       lineId={lineId}
-      accountId={accountId}
       observations={observations ?? []}
     />
   );
@@ -427,7 +433,8 @@ function DocumentsTabLoader({
 
   if (isLoading && documents === null) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         Loading documents…
       </div>
     );
@@ -483,7 +490,7 @@ function HealthTabContent({
   }
 
   if (tab === 'observations') {
-    return <ObservationsTabLoader lineId={lineFullId} accountId={accountId} />;
+    return <ObservationsTabLoader lineId={lineFullId} />;
   }
 
   return null;

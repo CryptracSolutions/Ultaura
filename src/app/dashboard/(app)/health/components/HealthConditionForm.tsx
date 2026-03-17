@@ -191,7 +191,7 @@ export function HealthConditionForm({
               onValueChange={(v) => setStatus(v as HealthConditionStatus)}
               disabled={isPending}
             >
-              <SelectTrigger className="w-full min-h-[44px]" id="condition-status">
+              <SelectTrigger className="w-full" id="condition-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -230,7 +230,6 @@ export function HealthConditionForm({
               disabled={isPending}
               maxLength={120}
               placeholder="e.g. Stage 2, Mild"
-              className="min-h-[44px]"
             />
           </div>
 
@@ -247,7 +246,6 @@ export function HealthConditionForm({
               disabled={isPending}
               maxLength={160}
               placeholder="e.g. Dr. Smith"
-              className="min-h-[44px]"
             />
           </div>
 

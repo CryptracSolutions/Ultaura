@@ -144,7 +144,6 @@ export function HealthMedicationsTab({
           variant="default"
           size="small"
           onClick={handleAdd}
-          className="min-h-[44px] gap-1.5"
         >
           <Plus className="h-4 w-4" />
           Add medication
@@ -172,7 +171,10 @@ export function HealthMedicationsTab({
 
       {/* Content */}
       {loading && (
-        <div className="py-8 text-center text-sm text-muted-foreground">Loading medications...</div>
+        <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Loading medications…
+        </div>
       )}
 
       {!loading && loadError && (
@@ -333,7 +335,6 @@ function MedicationCard({
           size="small"
           onClick={onEdit}
           disabled={isPending}
-          className="min-h-[44px] gap-1"
           aria-label={`Edit ${medication.name}`}
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -345,7 +346,6 @@ function MedicationCard({
           size="small"
           onClick={onChangeStatus}
           disabled={isPending}
-          className="min-h-[44px]"
           aria-label={`Change status of ${medication.name}`}
         >
           Change status
@@ -356,7 +356,6 @@ function MedicationCard({
           size="small"
           onClick={() => setShowReminders((v) => !v)}
           disabled={isPending}
-          className="min-h-[44px] gap-1"
           aria-label={`${showReminders ? 'Hide' : 'Show'} reminders for ${medication.name}`}
           aria-expanded={showReminders}
         >
@@ -369,7 +368,6 @@ function MedicationCard({
           size="small"
           onClick={onViewHistory}
           disabled={isPending}
-          className="min-h-[44px] gap-1"
           aria-label={`View history for ${medication.name}`}
         >
           <Clock className="h-3.5 w-3.5" />
@@ -381,7 +379,7 @@ function MedicationCard({
           size="small"
           onClick={onDelete}
           disabled={isPending}
-          className="min-h-[44px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
           aria-label={`Delete ${medication.name}`}
         >
           <Trash2 className="h-3.5 w-3.5" />

@@ -162,7 +162,10 @@ export function HealthHistoryDrawer({
         </div>
 
         {isLoading && (
-          <div className="py-8 text-center text-sm text-muted-foreground">Loading history…</div>
+          <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Loading history…
+          </div>
         )}
 
         {error && !isLoading && (
