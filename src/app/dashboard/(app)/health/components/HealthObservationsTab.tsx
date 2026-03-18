@@ -165,7 +165,7 @@ function ObservationCard({
 export function HealthObservationsTab({ lineId, observations: initialObservations }: HealthObservationsTabProps) {
   const [observations, setObservations] = useState<HealthObservation[]>(initialObservations);
   const [addOpen, setAddOpen] = useState(false);
-  const [concernFilter, setConcernFilter] = useState<HealthObservationConcern | 'all'>('all');
+  const [concernFilter, setConcernFilter] = useState<'all' | 'note' | 'concern'>('all');
   const [categoryFilter, setCategoryFilter] = useState<HealthObservationCategory | 'all'>('all');
 
   // Sort by createdAt desc (server already returns in order but keep client-side consistent)
@@ -175,21 +175,22 @@ export function HealthObservationsTab({ lineId, observations: initialObservation
   );
 
   const filtered = sorted.filter((o) => {
-    if (concernFilter !== 'all' && (o.concernLevel ?? 'note') !== concernFilter) return false;
+    const level = o.concernLevel ?? 'note';
+    if (concernFilter === 'note' && level !== 'note') return false;
+    if (concernFilter === 'concern' && level === 'note') return false;
     if (categoryFilter !== 'all' && o.category !== categoryFilter) return false;
     return true;
   });
 
   // Build concern and category counts in a single pass
   const { concernCounts, categoryCounts } = useMemo(() => {
-    const concern = { all: sorted.length, note: 0, mild_concern: 0, significant_concern: 0 };
+    const concern = { all: sorted.length, note: 0, concern: 0 };
     const category: Record<string, number> = {};
 
     for (const o of sorted) {
       const level = o.concernLevel ?? 'note';
       if (level === 'note') concern.note++;
-      else if (level === 'mild_concern') concern.mild_concern++;
-      else if (level === 'significant_concern') concern.significant_concern++;
+      else concern.concern++;
 
       if (o.category) {
         category[o.category] = (category[o.category] ?? 0) + 1;
@@ -239,22 +240,21 @@ export function HealthObservationsTab({ lineId, observations: initialObservation
       </div>
 
       {/* Filter row */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Filter by concern level">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+        <div className="flex sm:inline-flex gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Filter by concern level">
           {(
             [
               { value: 'all', label: 'All' },
               { value: 'note', label: 'Notes' },
-              { value: 'mild_concern', label: 'Mild Concern' },
-              { value: 'significant_concern', label: 'Significant Concern' },
-            ] as { value: HealthObservationConcern | 'all'; label: string }[]
+              { value: 'concern', label: 'Concerns' },
+            ] as { value: 'all' | 'note' | 'concern'; label: string }[]
           ).map(({ value, label }) => (
             <button
               key={value}
               type="button"
               onClick={() => setConcernFilter(value)}
               aria-pressed={concernFilter === value}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-initial rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 concernFilter === value
                   ? 'bg-primary/10 text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -268,12 +268,12 @@ export function HealthObservationsTab({ lineId, observations: initialObservation
           ))}
         </div>
 
-        <div className="ml-auto">
+        <div className="sm:ml-auto">
           <Select
             value={categoryFilter}
             onValueChange={(v) => setCategoryFilter(v as HealthObservationCategory | 'all')}
           >
-            <SelectTrigger className="h-9 min-w-[180px] text-sm">
+            <SelectTrigger className="h-9 w-full sm:min-w-[180px] text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

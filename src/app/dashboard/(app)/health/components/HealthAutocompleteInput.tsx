@@ -107,11 +107,14 @@ export function HealthAutocompleteInput({
     }
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside.
+  // Uses a microtask delay so the click event on sibling elements (e.g. the
+  // submit button) fires before the dropdown unmounts — otherwise the React
+  // re-render from `setShowDropdown(false)` can swallow the click.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
+        requestAnimationFrame(() => setShowDropdown(false));
       }
     };
     document.addEventListener('mousedown', handler);

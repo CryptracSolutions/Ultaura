@@ -210,6 +210,7 @@ export function HealthProfilePageClient({
         {consentState ? (
           <div className="self-start sm:ml-auto sm:self-auto shrink-0">
             <HealthConsentCard
+              key={selectedLine.id}
               lineId={selectedLine.id}
               lineName={selectedLine.display_name}
               userType={userType}

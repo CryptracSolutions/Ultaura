@@ -31,7 +31,7 @@ export function HealthEmptyState({
         <Button
           variant="outline"
           size="small"
-          className="mt-4"
+          className="mt-4 self-stretch sm:self-auto"
           onClick={onCtaClick}
         >
           <Plus className="h-4 w-4" />

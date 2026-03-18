@@ -100,7 +100,20 @@ export function HealthApproximateDateInput({
   const handleYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const next = e.target.value.replace(/\D/g, '').slice(0, 4);
     setYear(next);
-    emit(precision, next, month, day);
+    // Only emit with the raw value while typing — padStart happens on blur
+    if (next.length === 4) {
+      emit(precision, next, month, day);
+    } else if (!next) {
+      emit(precision, '', month, day);
+    }
+  };
+
+  const handleYearBlur = () => {
+    if (year && year.length < 4) {
+      const padded = year.padStart(4, '0');
+      setYear(padded);
+      emit(precision, padded, month, day);
+    }
   };
 
   const handleMonthChange = (nextMonth: string) => {
@@ -145,6 +158,7 @@ export function HealthApproximateDateInput({
           placeholder="e.g. 2019"
           value={year}
           onChange={handleYearChange}
+          onBlur={handleYearBlur}
           disabled={disabled}
           maxLength={4}
           className="w-28"

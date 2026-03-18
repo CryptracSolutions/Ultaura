@@ -7,12 +7,8 @@ import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import { HealthEmptyState } from './HealthEmptyState';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '~/core/ui/Dropdown';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import { HealthConditionForm } from './HealthConditionForm';
 import { HealthHistoryDrawer } from './HealthHistoryDrawer';
 import {
@@ -99,85 +95,60 @@ function ConditionCard({
   return (
     <>
       <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-3">
+        {/* Header row — name + action buttons */}
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h4 className="text-sm font-semibold text-foreground truncate">{condition.name}</h4>
-            {diagnosedStr && (
-              <p className="text-xs text-muted-foreground mt-0.5">Diagnosed: {diagnosedStr}</p>
-            )}
           </div>
-          <Badge color={badge.color} size="small">{badge.label}</Badge>
+          <div className="flex shrink-0 items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setHistoryOpen(true)}
+                  className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                  aria-label={`View history for ${condition.name}`}
+                >
+                  <History className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent sideOffset={20}>History</TooltipContent>
+            </Tooltip>
+            <ResponsiveActionMenu
+              title={condition.name}
+              actions={[
+                {
+                  label: 'Edit',
+                  icon: <Pencil className="w-5 h-5" />,
+                  onClick: () => setEditOpen(true),
+                },
+                {
+                  label: 'Change status',
+                  icon: <CheckCircle2 className="w-5 h-5" />,
+                  subItems: otherStatuses.map((s) => ({
+                    label: STATUS_BADGE[s].label,
+                    onClick: () => handleStatusChange(s),
+                  })),
+                },
+                {
+                  label: 'Delete',
+                  icon: <Trash2 className="w-5 h-5" />,
+                  onClick: () => setDeleteOpen(true),
+                  variant: 'destructive' as const,
+                  separator: true,
+                },
+              ]}
+            />
+          </div>
         </div>
 
-        {/* Details row */}
-        {(condition.stageSeverity || condition.treatingClinician) && (
+        {/* Details row — diagnosed, stage, clinician + status badge */}
+        <div className="flex items-center justify-between gap-3">
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {diagnosedStr && <span>Diagnosed: {diagnosedStr}</span>}
             {condition.stageSeverity && <span>Stage: {condition.stageSeverity}</span>}
             {condition.treatingClinician && <span>Clinician: {condition.treatingClinician}</span>}
           </div>
-        )}
-
-        {/* Actions row */}
-        <div className="flex items-center gap-2 pt-1 flex-wrap">
-          {/* Edit */}
-          <Button
-            variant="outline"
-            size="small"
-            onClick={() => setEditOpen(true)}
-            aria-label={`Edit ${condition.name}`}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-
-          {/* Change status */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="small"
-                aria-label="Change status"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Status
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {otherStatuses.map((s) => (
-                <DropdownMenuItem
-                  key={s}
-                  className="min-h-[44px]"
-                  onClick={() => handleStatusChange(s)}
-                >
-                  {STATUS_BADGE[s].label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* History */}
-          <Button
-            variant="ghost"
-            size="small"
-            onClick={() => setHistoryOpen(true)}
-            aria-label={`View history for ${condition.name}`}
-          >
-            <History className="h-3.5 w-3.5" />
-            History
-          </Button>
-
-          {/* Delete */}
-          <Button
-            variant="ghost"
-            size="small"
-            className="text-destructive hover:text-destructive"
-            onClick={() => setDeleteOpen(true)}
-            aria-label={`Delete ${condition.name}`}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </Button>
+          <Badge color={badge.color} size="small">{badge.label}</Badge>
         </div>
       </div>
 
@@ -263,6 +234,7 @@ export function HealthConditionsTab({
           <Button
             variant="default"
             size="small"
+            className="w-full sm:w-auto"
             onClick={() => setAddOpen(true)}
           >
             <Plus className="h-4 w-4" />
@@ -272,13 +244,13 @@ export function HealthConditionsTab({
       </div>
 
       {/* View toggle */}
-      <div className="inline-flex gap-1 rounded-lg bg-muted p-1" role="tablist">
+      <div className="flex sm:inline-flex gap-1 rounded-lg bg-muted p-1" role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={view === 'active'}
           onClick={() => setView('active')}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          className={`flex-1 sm:flex-initial rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             view === 'active'
               ? 'bg-primary/10 text-primary shadow-sm'
               : 'text-muted-foreground hover:text-foreground'
@@ -296,7 +268,7 @@ export function HealthConditionsTab({
           role="tab"
           aria-selected={view === 'resolved'}
           onClick={() => setView('resolved')}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          className={`flex-1 sm:flex-initial rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             view === 'resolved'
               ? 'bg-primary/10 text-primary shadow-sm'
               : 'text-muted-foreground hover:text-foreground'

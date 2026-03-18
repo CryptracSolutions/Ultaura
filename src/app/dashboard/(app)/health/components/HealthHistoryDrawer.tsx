@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import SideDialog from '~/core/ui/SideDialog';
+import { X } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '~/core/ui/Dialog';
+import Button from '~/core/ui/Button';
 import { getHealthItemHistoryAction } from '~/lib/ultaura/health/actions';
 import type { HealthHistoryEntry } from '~/lib/ultaura/health/history';
 import type { HealthConditionHistoryChange } from '@ultaura/types';
@@ -64,7 +66,7 @@ function HistoryEntryItem({ entry }: { entry: HealthHistoryEntry }) {
   return (
     <div className="relative pl-6 pb-6">
       {/* Timeline dot */}
-      <span className="absolute left-0 top-1 h-3 w-3 rounded-full border-2 border-primary bg-background" />
+      <span className="absolute left-0 top-1 h-3 w-3 rounded-full bg-primary" />
       {/* Timeline line */}
       <span className="absolute left-[5px] top-4 bottom-0 w-px bg-border" />
 
@@ -91,7 +93,7 @@ function HistoryEntryItem({ entry }: { entry: HealthHistoryEntry }) {
                 <p><span className="font-medium text-foreground">Name:</span> {String(payload.snapshot.name)}</p>
               )}
               {'status' in payload.snapshot && (
-                <p><span className="font-medium text-foreground">Status:</span> {String(payload.snapshot.status)}</p>
+                <p><span className="font-medium text-foreground">Status:</span> <span className="text-primary">{String(payload.snapshot.status)}</span></p>
               )}
             </div>
           )}
@@ -105,7 +107,7 @@ function HistoryEntryItem({ entry }: { entry: HealthHistoryEntry }) {
                 <div className="flex items-start gap-2 text-muted-foreground">
                   <span className="line-through">{formatFieldValue(change.before)}</span>
                   <span aria-hidden="true">→</span>
-                  <span className="text-foreground">{formatFieldValue(change.after)}</span>
+                  <span className="text-primary font-medium">{formatFieldValue(change.after)}</span>
                 </div>
               </li>
             ))}
@@ -154,15 +156,31 @@ export function HealthHistoryDrawer({
   }, [open, lineId, itemKind, itemId]);
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-          <p className="text-sm text-muted-foreground">Most recent activity first</p>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="mobile-form-sheet sm:max-w-[520px] max-h-[85vh] overflow-y-auto"
+        overlayClassName="bg-black/50 backdrop-blur-none"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription className="text-sm text-primary mt-1">
+              Most recent activity first
+            </DialogDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </div>
 
         {isLoading && (
-          <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             Loading history…
           </div>
@@ -179,13 +197,13 @@ export function HealthHistoryDrawer({
         )}
 
         {!isLoading && !error && entries.length > 0 && (
-          <div className="mt-2">
+          <div className="mt-4">
             {entries.map((entry) => (
               <HistoryEntryItem key={entry.id} entry={entry} />
             ))}
           </div>
         )}
-      </div>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

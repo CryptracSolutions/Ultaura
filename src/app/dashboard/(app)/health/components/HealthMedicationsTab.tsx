@@ -189,14 +189,14 @@ export function HealthMedicationsTab({
       </div>
 
       {/* View filter */}
-      <div className="inline-flex gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Filter medications by status">
+      <div className="flex sm:inline-flex gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Filter medications by status">
         {VIEW_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => setActiveView(opt.value)}
             aria-pressed={activeView === opt.value}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+            className={`flex-1 sm:flex-initial rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               activeView === opt.value
                 ? 'bg-primary/10 text-primary shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'

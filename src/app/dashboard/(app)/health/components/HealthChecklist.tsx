@@ -1,6 +1,7 @@
 'use client';
 
-import { ClipboardCheck, Check } from 'lucide-react';
+import { useState } from 'react';
+import { ClipboardCheck, Check, ChevronDown } from 'lucide-react';
 import {
   Popover,
   PopoverTrigger,
@@ -24,8 +25,10 @@ export function HealthChecklist({ counts }: HealthChecklistProps) {
   const allDone = completedCount === STEPS.length;
   const progressPercent = (completedCount / STEPS.length) * 100;
 
+  const [open, setOpen] = useState(false);
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -34,9 +37,10 @@ export function HealthChecklist({ counts }: HealthChecklistProps) {
           <ClipboardCheck className="h-3.5 w-3.5 shrink-0" />
           <span>Health checklist</span>
           <span className="text-primary/60">{completedCount}/{STEPS.length}</span>
+          <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 overflow-hidden rounded-xl border border-border/70 p-0 shadow-lg">
+      <PopoverContent align="end" className="w-80 overflow-hidden rounded-xl border border-border/70 p-0 shadow-lg" onClick={() => setOpen(false)}>
         {/* Header */}
         <div className="border-b border-border/50 bg-primary/5 px-4 py-3">
           <div className="flex items-center justify-between">
@@ -60,7 +64,7 @@ export function HealthChecklist({ counts }: HealthChecklistProps) {
           <p className="mt-1.5 text-[11px] text-muted-foreground">
             {allDone
               ? 'All set! Health profile is fully configured.'
-              : 'Set up health information in this order for the best experience.'}
+              : "Set up each line's health information for the best experience with Ultaura."}
           </p>
         </div>
 

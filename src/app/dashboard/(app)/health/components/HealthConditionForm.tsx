@@ -81,18 +81,34 @@ export function HealthConditionForm({
     setProceedDespiteDuplicate(false);
   }, [condition, open]);
 
-  // Check duplicates when name changes
+  // Check duplicates when name changes — catches exact matches, reordered
+  // words (e.g. "Diabetes Type 2" vs "Type 2 Diabetes"), and substring
+  // containment (e.g. "Diabetes" matching "Type 2 Diabetes").
   useEffect(() => {
     if (!name.trim()) {
       setDuplicateWarning(null);
       return;
     }
-    const nameLower = name.trim().toLowerCase();
-    const duplicate = existingConditions.find(
-      (c) =>
-        c.name.trim().toLowerCase() === nameLower &&
-        c.id !== condition?.id,
-    );
+
+    const normalize = (s: string) =>
+      s.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).sort().join(' ');
+
+    const inputNorm = normalize(name);
+    const inputLower = name.trim().toLowerCase();
+
+    const duplicate = existingConditions.find((c) => {
+      if (c.id === condition?.id) return false;
+      const existingLower = c.name.trim().toLowerCase();
+      const existingNorm = normalize(c.name);
+      // Exact match
+      if (existingLower === inputLower) return true;
+      // Same words in different order
+      if (existingNorm === inputNorm) return true;
+      // One contains the other (3+ char input to avoid false positives)
+      if (inputLower.length >= 3 && (existingLower.includes(inputLower) || inputLower.includes(existingLower))) return true;
+      return false;
+    });
+
     setDuplicateWarning(duplicate ?? null);
     if (!duplicate) setProceedDespiteDuplicate(false);
   }, [name, existingConditions, condition?.id]);

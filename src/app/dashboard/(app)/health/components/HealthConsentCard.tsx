@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ShieldCheck, ShieldX, Clock, RefreshCw } from 'lucide-react';
+import { ShieldCheck, ShieldX, Clock, RefreshCw, ChevronDown } from 'lucide-react';
 import type { HealthConsentStatus } from '@ultaura/types';
 import {
   requestHealthConsentRePromptAction,
@@ -39,6 +39,7 @@ export function HealthConsentCard({
   consentRequestedAt,
 }: HealthConsentCardProps) {
   const [isPending, startTransition] = useTransition();
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [localConsentStatus, setLocalConsentStatus] = useState(consentStatus);
   const cooldownActive = isCooldownActive(consentRequestedAt);
@@ -90,7 +91,7 @@ export function HealthConsentCard({
   const StatusIcon = isGranted ? ShieldCheck : ShieldX;
 
   return (
-    <Popover>
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -102,9 +103,10 @@ export function HealthConsentCard({
         >
           <StatusIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           User Status
+          <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${popoverOpen ? 'rotate-180' : ''}`} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-3">
+      <PopoverContent align="start" className="w-72 p-3" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; setPopoverOpen(false); }}>
         <div className="space-y-2.5">
           <p className="text-sm font-medium text-foreground">
             {isGranted ? `Health information for ${lineName} is actively being used during calls with Ultaura` : `Health information for ${lineName} is not actively being used during calls with Ultaura`}
