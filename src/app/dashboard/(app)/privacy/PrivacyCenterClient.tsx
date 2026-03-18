@@ -135,8 +135,6 @@ const SHARING_TIER_FEATURES: Record<
 };
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const SHARING_COOLDOWN_MS = THIRTY_DAYS_MS;
-const RECORDING_REENABLE_COOLDOWN_MS = THIRTY_DAYS_MS;
 const AUDIT_PAGE_SIZE = 10;
 
 function getDefaultTabUrl(tab: PrivacyTabValue): string {
@@ -518,7 +516,7 @@ export function PrivacyCenterClient({
               latestRecordingRequestByLine={latestRecordingRequestByLine}
               recordingRequestLineId={recordingRequestLineId}
               isAnyLineRequestPending={isLineRequestPending}
-              recordingReenableCooldownMs={RECORDING_REENABLE_COOLDOWN_MS}
+              recordingReenableCooldownMs={THIRTY_DAYS_MS}
               onRecordingReenable={handleRecordingReenable}
               formatShortDate={formatDate}
             />
@@ -666,7 +664,7 @@ export function PrivacyCenterClient({
               lineConsentById={lineConsentById}
               sharingTierLabels={SHARING_TIER_LABELS}
               sharingTierFeatures={SHARING_TIER_FEATURES}
-              sharingCooldownMs={SHARING_COOLDOWN_MS}
+              sharingCooldownMs={THIRTY_DAYS_MS}
               sharingRequestLineId={sharingRequestLineId}
               isAnyLineRequestPending={isLineRequestPending}
               onSharingRePrompt={handleSharingRePrompt}
@@ -774,8 +772,8 @@ function PrivacySidebarNav({
                     className={classNames(
                       'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-primary',
+                        ? 'bg-primary/10 text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-primary',
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >

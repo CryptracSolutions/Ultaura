@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Plus, Pencil, Trash2, History, CheckCircle2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, History, CheckCircle2, Stethoscope } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { HealthEmptyState } from './HealthEmptyState';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -250,19 +251,24 @@ export function HealthConditionsTab({
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-base font-semibold text-foreground">Conditions</h3>
+          <div className="flex items-center gap-2">
+            <Stethoscope className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-base font-semibold text-foreground">Conditions</h3>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Track known health conditions, their status, and history over time.
           </p>
         </div>
-        <Button
-          variant="default"
-          size="small"
-          onClick={() => setAddOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Add condition
-        </Button>
+        {conditions.length > 0 && (
+          <Button
+            variant="default"
+            size="small"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add condition
+          </Button>
+        )}
       </div>
 
       {/* View toggle */}
@@ -306,27 +312,33 @@ export function HealthConditionsTab({
       </div>
 
       {/* Content */}
-      {displayed.length === 0 ? (
+      {conditions.length === 0 ? (
+        <HealthEmptyState
+          icon={Stethoscope}
+          headline="No conditions tracked yet"
+          description="Track health conditions so Ultaura can provide better support during calls."
+          ctaLabel="Add condition"
+          onCtaClick={() => setAddOpen(true)}
+        />
+      ) : displayed.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          {view === 'active'
-            ? 'No active conditions.'
-            : 'No resolved conditions.'}
+          {view === 'active' ? 'No active conditions.' : 'No resolved conditions.'}
         </div>
       ) : (
-        <div className="space-y-3">
-          {displayed.map((condition) => (
-            <ConditionCard
-              key={condition.id}
-              condition={condition}
-              allConditions={conditions}
-              lineId={lineId}
-              accountId={accountId}
-              onDeleted={handleDeleted}
-              onStatusChanged={handleStatusChanged}
-            />
-          ))}
-        </div>
-      )}
+            <div className="space-y-3">
+              {displayed.map((condition) => (
+                <ConditionCard
+                  key={condition.id}
+                  condition={condition}
+                  allConditions={conditions}
+                  lineId={lineId}
+                  accountId={accountId}
+                  onDeleted={handleDeleted}
+                  onStatusChanged={handleStatusChanged}
+                />
+              ))}
+            </div>
+          )}
 
       {/* Add condition dialog */}
       <HealthConditionForm

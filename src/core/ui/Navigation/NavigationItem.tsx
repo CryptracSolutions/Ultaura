@@ -94,13 +94,13 @@ function getNavigationMenuItemClassBuilder() {
         {
           active: true,
           pill: true,
-          className: `bg-muted text-foreground hover:text-primary`,
+          className: `bg-primary/10 text-foreground hover:text-primary`,
         },
         // not active - pill
         {
           active: false,
           pill: true,
-          className: `hover:bg-muted hover:text-primary active:bg-muted/80 text-muted-foreground`,
+          className: `hover:bg-muted/50 hover:text-primary active:bg-muted/80 text-muted-foreground`,
         },
         // not active - bordered
         {

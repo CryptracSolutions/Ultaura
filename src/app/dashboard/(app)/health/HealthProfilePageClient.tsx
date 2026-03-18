@@ -29,59 +29,9 @@ import {
   parseHealthTab,
   parseHealthLine,
 } from './lib/health-navigation';
+import { runWithRetries } from './lib/health-fetch-utils';
 import type { HealthInitialTabData, HealthChecklistCounts } from './types';
 import { HealthChecklist } from './components/HealthChecklist';
-
-const TAB_LOAD_TIMEOUT_MS = 8000;
-const TAB_LOAD_RETRY_DELAY_MS = 500;
-const TAB_LOAD_MAX_RETRIES = 2;
-
-function delay(ms: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-async function withTimeout<T>(
-  operation: () => Promise<T>,
-  timeoutMs: number,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  try {
-    return await Promise.race([
-      operation(),
-      new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Timeout')), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
-
-async function runWithRetries<T>(operation: () => Promise<T>): Promise<T> {
-  let attempt = 0;
-  let lastError: unknown;
-
-  while (attempt <= TAB_LOAD_MAX_RETRIES) {
-    try {
-      return await withTimeout(operation, TAB_LOAD_TIMEOUT_MS);
-    } catch (error) {
-      lastError = error;
-      if (attempt === TAB_LOAD_MAX_RETRIES) {
-        break;
-      }
-      await delay(TAB_LOAD_RETRY_DELAY_MS);
-    }
-
-    attempt++;
-  }
-
-  throw lastError ?? new Error('Request failed');
-}
 
 
 interface ConsentState {
@@ -231,7 +181,7 @@ export function HealthProfilePageClient({
   const userType = account.user_type === 'self' ? 'self' : 'family_managed';
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-3 pb-12">
       {/* Health checklist */}
       <HealthChecklist counts={checklistCounts} />
 
@@ -278,14 +228,16 @@ export function HealthProfilePageClient({
           lineId={selectedLine.short_id}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <HealthTabContent
-            tab={activeTab}
-            lineId={selectedLine.short_id}
-            lineFullId={selectedLine.id}
-            accountId={account.id}
-            initialTabData={initialTabDataSeed}
-          />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="rounded-xl border border-border/50 bg-card/50 p-6">
+            <HealthTabContent
+              tab={activeTab}
+              lineId={selectedLine.short_id}
+              lineFullId={selectedLine.id}
+              accountId={account.id}
+              initialTabData={initialTabDataSeed}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -328,8 +280,8 @@ function HealthSidebarNav({
                     className={cn(
                       'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-primary',
+                        ? 'bg-primary/10 text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-primary',
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >

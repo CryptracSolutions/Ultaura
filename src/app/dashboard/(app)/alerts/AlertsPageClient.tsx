@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import classNames from 'clsx';
@@ -81,8 +81,8 @@ function AlertsSidebarNav({
                     className={classNames(
                       'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-primary',
+                        ? 'bg-primary/10 text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-primary',
                     )}
                     aria-current={isActive ? 'page' : undefined}
                   >
@@ -133,7 +133,7 @@ export function AlertsPageClient({
     ALERT_SECTIONS[0];
 
   // Initialize activeLineTab to first line when lines change
-  useMemo(() => {
+  useEffect(() => {
     if (lines.length > 0 && !activeLineTab) {
       setActiveLineTab(lines[0].id);
     } else if (lines.length === 0) {

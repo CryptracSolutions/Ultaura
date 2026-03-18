@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { CheckCircle2, XCircle, Clock, Pill, Activity, ChevronDown, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Pill, Activity, ChevronDown, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
+import { HealthEmptyState } from './HealthEmptyState';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -281,11 +282,7 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineId, filter]);
 
-  const handleDismissed = (id: string) => {
-    setSuggestions((prev) => prev?.filter((s) => s.id !== id) ?? null);
-  };
-
-  const handleApproved = (id: string) => {
+  const handleRemoveSuggestion = (id: string) => {
     setSuggestions((prev) => prev?.filter((s) => s.id !== id) ?? null);
   };
 
@@ -297,7 +294,10 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
     <div className="space-y-4">
       {/* Header */}
       <div>
-        <h3 className="text-base font-semibold text-foreground">Suggestions</h3>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-base font-semibold text-foreground">Suggestions</h3>
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           When Ultaura hears mentions of health conditions or medications during calls, suggestions
           will appear here for your review.
@@ -340,11 +340,17 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
           {error}
         </div>
       ) : !suggestions || suggestions.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          {filter === 'all'
-            ? 'No pending suggestions. They will appear here after Ultaura hears mentions during calls.'
-            : `No pending ${filter} suggestions.`}
-        </div>
+        filter === 'all' ? (
+          <HealthEmptyState
+            icon={Sparkles}
+            headline="No suggestions yet"
+            description="When Ultaura hears mentions of health conditions or medications during calls, suggestions will appear here for your review."
+          />
+        ) : (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            {`No pending ${filter} suggestions.`}
+          </div>
+        )
       ) : (
         <div className="space-y-3">
           {suggestions.map((s) => (
@@ -352,8 +358,8 @@ export function HealthSuggestionsTab({ lineId, accountId }: HealthSuggestionsTab
               key={s.id}
               suggestion={s}
               lineId={lineId}
-              onDismissed={handleDismissed}
-              onApproved={handleApproved}
+              onDismissed={handleRemoveSuggestion}
+              onApproved={handleRemoveSuggestion}
             />
           ))}
         </div>

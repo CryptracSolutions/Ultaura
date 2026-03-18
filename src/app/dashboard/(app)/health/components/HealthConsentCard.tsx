@@ -94,10 +94,10 @@ export function HealthConsentCard({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors hover:opacity-80 ${
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80 ${
             isGranted
-              ? 'bg-primary/10 text-primary'
-              : 'bg-destructive/10 text-destructive'
+              ? 'border-primary/30 bg-primary/5 text-primary'
+              : 'border-destructive/30 bg-destructive/5 text-destructive'
           }`}
         >
           <StatusIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

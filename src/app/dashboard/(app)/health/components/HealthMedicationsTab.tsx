@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useTransition } from 'react';
-import { Plus, Pencil, Trash2, Clock, Bell, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Clock, Bell, Loader2, Pill } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { HealthEmptyState } from './HealthEmptyState';
 import { HealthMedicationForm } from './HealthMedicationForm';
 import { HealthHistoryDrawer } from './HealthHistoryDrawer';
 import { HealthMedicationReminderPanel } from './HealthMedicationReminderPanel';
@@ -13,58 +14,8 @@ import {
   deleteMedicationAction,
   changeMedicationStatusAction,
 } from '~/lib/ultaura/health/actions';
+import { runWithRetries } from '../lib/health-fetch-utils';
 import type { HealthMedication, HealthCondition, HealthMedicationStatus } from '@ultaura/types';
-
-const MEDICATION_LOAD_TIMEOUT_MS = 8000;
-const MEDICATION_LOAD_RETRY_DELAY_MS = 500;
-const MEDICATION_LOAD_MAX_RETRIES = 2;
-
-function delay(ms: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-async function withTimeout<T>(
-  operation: () => Promise<T>,
-  timeoutMs: number,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  try {
-    return await Promise.race([
-      operation(),
-      new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Timeout')), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
-
-async function runWithRetries<T>(operation: () => Promise<T>): Promise<T> {
-  let attempt = 0;
-  let lastError: unknown;
-
-  while (attempt <= MEDICATION_LOAD_MAX_RETRIES) {
-    try {
-      return await withTimeout(operation, MEDICATION_LOAD_TIMEOUT_MS);
-    } catch (error) {
-      lastError = error;
-      if (attempt === MEDICATION_LOAD_MAX_RETRIES) {
-        break;
-      }
-      await delay(MEDICATION_LOAD_RETRY_DELAY_MS);
-    }
-
-    attempt++;
-  }
-
-  throw lastError ?? new Error('Request failed');
-}
 
 interface HealthMedicationsTabProps {
   lineId: string;
@@ -81,17 +32,11 @@ const VIEW_OPTIONS: Array<{ value: FilterView; label: string }> = [
   { value: 'discontinued', label: 'Discontinued' },
 ];
 
-function statusBadgeColor(status: HealthMedicationStatus): 'success' | 'info' | 'normal' {
-  if (status === 'current') return 'success';
-  if (status === 'as_needed') return 'info';
-  return 'normal';
-}
-
-function statusLabel(status: HealthMedicationStatus): string {
-  if (status === 'current') return 'Current';
-  if (status === 'as_needed') return 'As-needed';
-  return 'Discontinued';
-}
+const MEDICATION_STATUS_BADGE: Record<HealthMedicationStatus, { label: string; color: 'success' | 'info' | 'normal' }> = {
+  current: { label: 'Current', color: 'success' },
+  as_needed: { label: 'As-needed', color: 'info' },
+  discontinued: { label: 'Discontinued', color: 'normal' },
+};
 
 export function HealthMedicationsTab({
   lineId,
@@ -223,19 +168,24 @@ export function HealthMedicationsTab({
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-foreground">Medications</h3>
+          <div className="flex items-center gap-2">
+            <Pill className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-base font-semibold text-foreground">Medications</h3>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage current medications, dosages, and reminders.
           </p>
         </div>
-        <Button
-          variant="default"
-          size="small"
-          onClick={handleAdd}
-        >
-          <Plus className="h-4 w-4" />
-          Add medication
-        </Button>
+        {medications.length > 0 && (
+          <Button
+            variant="default"
+            size="small"
+            onClick={handleAdd}
+          >
+            <Plus className="h-4 w-4" />
+            Add medication
+          </Button>
+        )}
       </div>
 
       {/* View filter */}
@@ -271,13 +221,19 @@ export function HealthMedicationsTab({
         </div>
       )}
 
-      {!loading && !loadError && filteredMedications.length === 0 && (
+      {!loading && !loadError && medications.length === 0 ? (
+        <HealthEmptyState
+          icon={Pill}
+          headline="No medications added yet"
+          description="Add medications to help Ultaura remember dosages and send reminders."
+          ctaLabel="Add medication"
+          onCtaClick={handleAdd}
+        />
+      ) : !loading && !loadError && filteredMedications.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
           No {VIEW_OPTIONS.find((v) => v.value === activeView)?.label.toLowerCase()} medications.
         </div>
-      )}
-
-      {!loading && !loadError && filteredMedications.length > 0 && (
+      ) : !loading && !loadError && filteredMedications.length > 0 ? (
         <div className="space-y-3">
           {filteredMedications.map((med) => (
             <MedicationCard
@@ -296,7 +252,7 @@ export function HealthMedicationsTab({
             />
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Add/Edit form */}
       <HealthMedicationForm
@@ -382,8 +338,8 @@ function MedicationCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <p className="text-base font-semibold text-foreground leading-snug">{medication.name}</p>
-          <Badge color={statusBadgeColor(medication.status)} size="small">
-            {statusLabel(medication.status)}
+          <Badge color={MEDICATION_STATUS_BADGE[medication.status].color} size="small">
+            {MEDICATION_STATUS_BADGE[medication.status].label}
           </Badge>
         </div>
       </div>

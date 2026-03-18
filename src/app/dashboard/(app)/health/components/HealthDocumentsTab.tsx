@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, FileText, FileImage } from 'lucide-react';
+import { HealthEmptyState } from './HealthEmptyState';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
@@ -308,6 +309,18 @@ interface HealthDocumentsTabProps {
 export function HealthDocumentsTab({ lineId, documents: initialDocuments }: HealthDocumentsTabProps) {
   const [documents, setDocuments] = useState<HealthDocument[]>(initialDocuments);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<HealthDocumentCategory | 'all'>('all');
+
+  const filtered = categoryFilter === 'all'
+    ? documents
+    : documents.filter((d) => d.category === categoryFilter);
+
+  const categoryCounts = documents.reduce<Record<string, number>>((acc, d) => {
+    if (d.category) {
+      acc[d.category] = (acc[d.category] ?? 0) + 1;
+    }
+    return acc;
+  }, {}) as Record<HealthDocumentCategory, number>;
 
   const handleUploaded = (doc: HealthDocument) => {
     setDocuments((prev) => [doc, ...prev]);
@@ -326,30 +339,64 @@ export function HealthDocumentsTab({ lineId, documents: initialDocuments }: Heal
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-base font-semibold text-foreground">Documents</h3>
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-base font-semibold text-foreground">Documents</h3>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Store lab results, prescriptions, and other health records securely.
           </p>
         </div>
-        <Button
-          variant="default"
-          size="small"
-          onClick={() => setUploadOpen(true)}
+        {documents.length > 0 && (
+          <Button
+            variant="default"
+            size="small"
+            onClick={() => setUploadOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Upload document
+          </Button>
+        )}
+      </div>
+
+      {/* Filter row */}
+      <div className="flex justify-end">
+        <Select
+          value={categoryFilter}
+          onValueChange={(v) => setCategoryFilter(v as HealthDocumentCategory | 'all')}
         >
-          <Plus className="h-4 w-4" />
-          Upload document
-        </Button>
+          <SelectTrigger className="h-9 min-w-[180px] text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories{documents.length > 0 ? ` (${documents.length})` : ''}</SelectItem>
+            {(Object.entries(CATEGORY_LABELS) as [HealthDocumentCategory, string][]).map(
+              ([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}{categoryCounts[value] > 0 ? ` (${categoryCounts[value]})` : ''}
+                </SelectItem>
+              ),
+            )}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Content */}
       {documents.length === 0 ? (
+        <HealthEmptyState
+          icon={FileText}
+          headline="No documents uploaded yet"
+          description="Store lab results, prescriptions, and other health records securely in one place."
+          ctaLabel="Upload document"
+          onCtaClick={() => setUploadOpen(true)}
+        />
+      ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No documents uploaded yet. Store lab results, discharge summaries, prescriptions, and
-          other health documents securely.
+          No documents match the selected filter.
         </div>
       ) : (
         <div className="space-y-3">
-          {documents.map((doc) => (
+          {filtered.map((doc) => (
             <DocumentCard
               key={doc.id}
               document={doc}
