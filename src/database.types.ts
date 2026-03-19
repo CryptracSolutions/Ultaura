@@ -5080,6 +5080,53 @@ export type Database = {
           },
         ]
       }
+      ultaura_session_handoffs: {
+        Row: {
+          call_session_id: string
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          handoff_number: number
+          id: string
+          prewarm_duration_ms: number | null
+          status: string
+          summary_length: number | null
+          summary_source: string | null
+        }
+        Insert: {
+          call_session_id: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          handoff_number: number
+          id?: string
+          prewarm_duration_ms?: number | null
+          status: string
+          summary_length?: number | null
+          summary_source?: string | null
+        }
+        Update: {
+          call_session_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          handoff_number?: number
+          id?: string
+          prewarm_duration_ms?: number | null
+          status?: string
+          summary_length?: number | null
+          summary_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_session_handoffs_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_sms_opt_outs: {
         Row: {
           created_at: string

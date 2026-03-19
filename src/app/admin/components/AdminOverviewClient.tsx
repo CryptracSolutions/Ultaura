@@ -23,6 +23,7 @@ import {
 
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
+import AdminLiveSessionsCard from '~/app/admin/components/AdminLiveSessionsCard';
 import AdminPlanChart from '~/app/admin/components/AdminPlanChart';
 import AdminStatCard from '~/app/admin/components/AdminStatCard';
 import {
@@ -149,6 +150,7 @@ export default function AdminOverviewClient({ data }: { data: AdminDashboardData
 
         {activeTab === 'usage' && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <AdminLiveSessionsCard />
             <AdminStatCard
               icon={ClockIcon}
               label="Minutes Used This Month"
@@ -208,7 +210,7 @@ export default function AdminOverviewClient({ data }: { data: AdminDashboardData
 }
 
 function isTabValue(value: string | null): value is TabValue {
-  return value === 'overview' || value === 'revenue' || value === 'usage' || value === 'costs';
+  return TABS.some((tab) => tab.value === value);
 }
 
 function buildTabPath(

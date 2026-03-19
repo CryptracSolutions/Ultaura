@@ -216,7 +216,7 @@ function buildRoutinePromptSection(
   return `## Routine Check-ins\nIf it feels natural, work in one of these today:\n${prompts}`;
 }
 
-interface GrokBridgeOptions {
+export interface GrokBridgeOptions {
   callSessionId: string;
   twilioCallSid?: string | null;
   twilioStreamSid?: string | null;
@@ -275,6 +275,7 @@ interface GrokBridgeOptions {
   onToolResult?: (toolName: string, success: boolean) => void;
   onBargeIn?: () => void;
   onDisconnect?: (type: 'error' | 'close', detail: string) => void;
+  conversationContinuation?: string | null;
 }
 
 interface GrokMessage {
@@ -342,6 +343,7 @@ export class GrokBridge {
   private lastSweepTime = 0;
   private languageAutoDetectionComplete = false;
   private healthContextDisabledLocally = false;
+  private sessionStartedAt: number | null = null;
 
   constructor(options: GrokBridgeOptions) {
     this.options = options;
@@ -500,6 +502,7 @@ export class GrokBridge {
               );
             });
             this.isConnected = true;
+            this.sessionStartedAt = Date.now();
             this.hasEverConnected = true;
             this.sessionSpan = startSpan('grok.realtime.session', {
               kind: SpanKind.CLIENT,
@@ -764,6 +767,11 @@ At the START of this call:
         )
         .join('\n');
       prompt += `\n\n## Active Story Arcs\n${arcs}`;
+    }
+
+    // Conversation continuation (for session handoff)
+    if (this.options.conversationContinuation) {
+      prompt += `\n\n## Conversation Continuation\nYou are continuing an ongoing conversation. Here is what has been discussed:\n\n${this.options.conversationContinuation}\n\nIMPORTANT: Do NOT greet the user again or introduce yourself. Continue naturally from where the conversation left off.`;
     }
 
     return this.appendLifeNoteSection(prompt);
@@ -2752,7 +2760,15 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
     return this.isConnected;
   }
 
-  private cancelCurrentResponse(): void {
+  public getSessionStartedAt(): number | null {
+    return this.sessionStartedAt;
+  }
+
+  public getIsGeneratingAudio(): boolean {
+    return this.isGeneratingAudio;
+  }
+
+  public cancelCurrentResponse(): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     this.ws.send(JSON.stringify({ type: 'response.cancel' }));
@@ -2788,6 +2804,23 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
       });
       return false;
     }
+  }
+
+  public cloneForHandoff(conversationSummary: string): GrokBridge {
+    const clonedOptions: GrokBridgeOptions = {
+      ...this.options,
+      conversationContinuation: conversationSummary,
+      lifeNote: null,
+      // Use no-op callbacks — real ones will be re-attached by media-stream on reconnect
+      onDisconnect: undefined,
+      onError: () => {},
+      onAudioReceived: (_audioBase64: string) => {},
+      onClearBuffer: () => {},
+      onToolCall: (_toolName: string, _args: Record<string, unknown>) => {},
+      onBargeIn: undefined,
+    };
+
+    return new GrokBridge(clonedOptions);
   }
 
   public forceClose(): void {
@@ -2855,9 +2888,11 @@ If ${safeUserName} doesn't engage with this topic, move on gracefully and do not
   }
 
   // Close the connection
-  close(): void {
+  close(options?: { suppressSafetyCleanup?: boolean }): void {
     this.stopPeriodicSweeps();
-    clearJobsForSession(this.options.callSessionId);
+    if (!options?.suppressSafetyCleanup) {
+      clearJobsForSession(this.options.callSessionId);
+    }
 
     if (this.ws) {
       this.suppressDisconnect = true;

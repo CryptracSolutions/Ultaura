@@ -147,6 +147,20 @@ export const onboardingMaintenanceRunsTotal = new Counter({
   registers: [registry],
 });
 
+export const sessionHandoffsTotal = new Counter({
+  name: 'ultaura_session_handoffs_total',
+  help: 'Total session handoff attempts',
+  labelNames: ['status'],
+  registers: [registry],
+});
+
+export const sessionHandoffDurationMs = new Histogram({
+  name: 'ultaura_session_handoff_duration_ms',
+  help: 'End-to-end handoff duration in milliseconds',
+  buckets: [500, 1000, 1500, 2000, 3000, 5000, 8000, 12000, 20000],
+  registers: [registry],
+});
+
 activeWebSocketConnections.set(0);
 activeCalls.set(0);
 

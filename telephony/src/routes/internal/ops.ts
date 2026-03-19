@@ -4,6 +4,7 @@ import { getSupabaseClient } from '../../utils/supabase.js';
 import { logger } from '../../utils/logger.js';
 import { registry } from '../../utils/metrics.js';
 import { getActiveCallCount, getActiveCallSessionIds } from '../../services/active-calls.js';
+import { getActiveBridgeCount } from '../../websocket/grok-bridge-registry.js';
 
 export const internalOpsRouter = Router();
 
@@ -65,5 +66,12 @@ internalOpsRouter.get('/active-calls', (_req: Request, res: Response) => {
   res.json({
     count: getActiveCallCount(),
     callSessionIds: getActiveCallSessionIds(),
+  });
+});
+
+internalOpsRouter.get('/handoff-stats', (_req: Request, res: Response) => {
+  res.json({
+    activeBridges: getActiveBridgeCount(),
+    activeCalls: getActiveCallCount(),
   });
 });

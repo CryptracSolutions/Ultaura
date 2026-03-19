@@ -21,7 +21,7 @@ export interface EphemeralBuffer {
 
 const buffers = new Map<string, EphemeralBuffer>();
 
-const MAX_BUFFER_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+const MAX_BUFFER_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours (supports multi-handoff calls)
 const MAX_TURNS = 200;
 
 export function createBuffer(callSessionId: string, lineId: string, accountId: string): void {
@@ -42,15 +42,24 @@ export function addTurn(callSessionId: string, turn: TurnSummary): void {
 
   buffer.turns.push(turn);
 
+  let pruned = 0;
+
   // Auto-prune by count
   while (buffer.turns.length > MAX_TURNS) {
     buffer.turns.shift();
+    pruned++;
   }
 
   // Auto-prune by time
   const cutoff = Date.now() - MAX_BUFFER_DURATION_MS;
   while (buffer.turns.length > 0 && buffer.turns[0].timestamp < cutoff) {
     buffer.turns.shift();
+    pruned++;
+  }
+
+  // Fix: adjust consent index after pruning
+  if (pruned > 0 && buffer.consentGrantedAtTurnIndex !== null) {
+    buffer.consentGrantedAtTurnIndex = Math.max(0, buffer.consentGrantedAtTurnIndex - pruned);
   }
 }
 
@@ -78,4 +87,22 @@ export function clearBuffer(callSessionId: string): EphemeralBuffer | null {
   const buffer = buffers.get(callSessionId);
   buffers.delete(callSessionId);
   return buffer || null;
+}
+
+export function getFormattedTurns(
+  callSessionId: string,
+  options?: { maxTurns?: number; consentOnly?: boolean }
+): string | null {
+  const buffer = buffers.get(callSessionId);
+  if (!buffer || buffer.turns.length === 0) return null;
+
+  let turns = buffer.turns;
+  if (options?.consentOnly) {
+    if (buffer.consentGrantedAtTurnIndex === null) return null;
+    turns = turns.slice(buffer.consentGrantedAtTurnIndex);
+  }
+  if (options?.maxTurns && turns.length > options.maxTurns) {
+    turns = turns.slice(-options.maxTurns);
+  }
+  return turns.map(t => `[${t.speaker.toUpperCase()}] ${t.summary}`).join('\n');
 }

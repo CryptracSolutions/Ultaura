@@ -37,7 +37,20 @@ import {
   GROK_RECONNECT_MAX_ATTEMPTS,
   GROK_RECONNECT_TIMEOUT_MS,
   TRIAL_DAILY_LIMIT_MINUTES,
+  HANDOFF_SUMMARY_START_MS,
+  HANDOFF_PREWARM_START_MS,
+  HANDOFF_EXECUTE_MS,
+  HANDOFF_FORCE_MS,
 } from '../utils/constants.js';
+import {
+  createHandoffState,
+  clearHandoffTimers,
+  startSummaryGeneration,
+  startPreWarm,
+  executeHandoff,
+  resetForNextHandoff,
+} from '../services/session-handoff.js';
+import type { HandoffState, HandoffCallbacks } from '../services/session-handoff.js';
 import { getTwilioClient, getVoiceConfigForLanguage, getVoiceForLanguage, generateStreamTwiML } from '../utils/twilio.js';
 import { getWebsocketUrl } from '../utils/env.js';
 import { runWithLogContext, updateLogContext, withLogContext, type LogContext } from '../observability/log-context.js';
@@ -129,6 +142,7 @@ export async function handleMediaStreamConnection(
   let firstAudioSent = false;
   let forcedEndReason: 'trial_cap' | null = null;
   let trialReservationReleased = false;
+  let handoffState: HandoffState = createHandoffState();
 
   // Get session info
   const session = await getCallSession(callSessionId);
@@ -287,6 +301,110 @@ export async function handleMediaStreamConnection(
       }
     }, 60000);
   };
+
+  function buildHandoffCallbacks(): HandoffCallbacks {
+    // Snapshot the current bridge at invocation time (not timer scheduling time)
+    const currentBridge = grokBridge;
+    const lang = currentBridge?.getDetectedLanguage() || 'en';
+    return {
+      playBridgePhrase: () =>
+        playFallbackTTS(
+          twilioCallSid,
+          getFallbackMessage(lang, 'handoff_bridge'),
+          lang,
+          { pauseSeconds: 1 }
+        ),
+      reconnectStream: () =>
+        reconnectMediaStream(twilioCallSid, callSessionId),
+      closeOldBridge: (old) =>
+        old.close({ suppressSafetyCleanup: true }),
+      getOldBridge: () => grokBridge,
+      isResponseInFlight: () => currentBridge?.getIsGeneratingAudio() ?? false,
+      cancelResponse: () => currentBridge?.cancelCurrentResponse(),
+      setKeepBridgeAlive: (value) => {
+        keepBridgeAlive = value;
+      },
+    };
+  }
+
+  async function attemptHandoff(): Promise<void> {
+    const success = await executeHandoff(callSessionId, handoffState, buildHandoffCallbacks());
+    if (success && handoffState.prewarmedBridge) {
+      grokBridge = handoffState.prewarmedBridge;
+      keepBridgeAlive = false;
+      resetForNextHandoff(handoffState);
+      scheduleHandoffTimers(grokBridge);
+    } else if (!success) {
+      // Graceful goodbye — play handoff_failed message and let session expire naturally
+      const lang = grokBridge?.getDetectedLanguage() || 'en';
+      await playFallbackTTS(
+        twilioCallSid,
+        getFallbackMessage(lang, 'handoff_failed'),
+        lang,
+        { hangup: true }
+      );
+    }
+  }
+
+  function scheduleHandoffTimers(bridge: GrokBridge): void {
+    clearHandoffTimers(handoffState);
+
+    const sessionStart = bridge.getSessionStartedAt();
+    if (!sessionStart) return;
+
+    const elapsed = Date.now() - sessionStart;
+
+    // Schedule summary generation at 25 min
+    const summaryDelay = HANDOFF_SUMMARY_START_MS - elapsed;
+    if (summaryDelay > 0) {
+      handoffState.timers.push(
+        setTimeout(() => {
+          void startSummaryGeneration(callSessionId, handoffState);
+        }, summaryDelay)
+      );
+    }
+
+    // Schedule pre-warm at 26.5 min
+    const prewarmDelay = HANDOFF_PREWARM_START_MS - elapsed;
+    if (prewarmDelay > 0) {
+      handoffState.timers.push(
+        setTimeout(() => {
+          if ((handoffState.phase === 'summarizing' || handoffState.phase === 'summary_ready' || handoffState.summary) && grokBridge) {
+            // Use current grokBridge (not captured bridge) to clone from
+            void startPreWarm(callSessionId, grokBridge, handoffState);
+          }
+        }, prewarmDelay)
+      );
+    }
+
+    // Schedule handoff execution at 27 min
+    const executeDelay = HANDOFF_EXECUTE_MS - elapsed;
+    if (executeDelay > 0) {
+      handoffState.timers.push(
+        setTimeout(() => {
+          if (handoffState.phase === 'prewarming' || handoffState.prewarmedBridge) {
+            void attemptHandoff();
+          }
+        }, executeDelay)
+      );
+    }
+
+    // Schedule force handoff at 29.5 min (emergency fallback)
+    const forceDelay = HANDOFF_FORCE_MS - elapsed;
+    if (forceDelay > 0) {
+      handoffState.timers.push(
+        setTimeout(() => {
+          if (
+            handoffState.phase !== 'complete' &&
+            handoffState.phase !== 'failed' &&
+            handoffState.prewarmedBridge
+          ) {
+            void attemptHandoff();
+          }
+        }, forceDelay)
+      );
+    }
+  }
 
   // Handle messages from Twilio
   ws.on('message', withContext(async (data: Buffer) => {
@@ -640,6 +758,12 @@ export async function handleMediaStreamConnection(
             };
 
             const onDisconnect = async (type: 'error' | 'close', detail: string) => {
+              // Skip normal recovery if handoff is in progress — handoff handles it
+              if (['summarizing', 'summary_ready', 'prewarming', 'executing'].includes(handoffState.phase)) {
+                logger.info({ callSessionId, handoffPhase: handoffState.phase }, 'Grok disconnected during handoff — handoff will handle recovery');
+                return;
+              }
+
               if (isReconnecting) {
                 return;
               }
@@ -842,6 +966,10 @@ export async function handleMediaStreamConnection(
               scheduleTrialCapTimers(trialReservedMinutes);
             }
 
+            if (isConnected && grokBridge) {
+              scheduleHandoffTimers(grokBridge);
+            }
+
             // If the trial expires mid-call, let the call continue but add a gentle wrap-up note.
             if (account.status === 'trial' && account.trial_ends_at && !session.is_reminder_call) {
               const trialEndsMs = new Date(account.trial_ends_at).getTime();
@@ -948,6 +1076,8 @@ export async function handleMediaStreamConnection(
     const endSpan = () => {
       wsSpan?.end();
     };
+
+    clearHandoffTimers(handoffState);
 
     if (trialExpiryTimeout) {
       clearTimeout(trialExpiryTimeout);

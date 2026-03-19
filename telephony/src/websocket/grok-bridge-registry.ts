@@ -13,3 +13,7 @@ export function unregisterGrokBridge(callSessionId: string): void {
 export function getGrokBridge(callSessionId: string): GrokBridge | undefined {
   return bridges.get(callSessionId);
 }
+
+export function getActiveBridgeCount(): number {
+  return bridges.size;
+}
