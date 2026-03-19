@@ -63,6 +63,45 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
     : null;
   const isViewer = normalizedRole === Number(MembershipRole.Viewer);
   const hasResolvedRole = normalizedRole !== null;
+  const manageChildren: NavigationItemLink[] = [
+    {
+      label: isSelfUser ? 'My Line' : 'Lines',
+      path: getPath('lines'),
+      Icon: ({ className }: { className: string }) => {
+        return <PhoneIcon className={className} />;
+      },
+      activeMatch: isLineRouteActive,
+    },
+    {
+      label: 'Calls',
+      path: getPath('calls'),
+      Icon: ({ className }: { className: string }) => {
+        return <CalendarDaysIcon className={className} />;
+      },
+      activeMatch: isCallsRouteActive,
+    },
+  ];
+
+  manageChildren.push({
+    label: 'Reminders',
+    path: getPath('reminders'),
+    Icon: ({ className }: { className: string }) => {
+      return <BellIcon className={className} />;
+    },
+    activeMatch: isRemindersRouteActive,
+  });
+
+  if (!isSelfUser) {
+    manageChildren.push({
+      label: 'Alerts',
+      path: getPath('alerts'),
+      Icon: ({ className }: { className: string }) => {
+        return <ExclamationTriangleIcon className={className} />;
+      },
+      activeMatch: isAlertsRouteActive,
+    });
+  }
+
   const items: NavigationItem[] = [
     {
       label: 'Dashboard',
@@ -79,60 +118,23 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
       ],
     },
     {
-      label: 'Care',
+      label: 'Manage',
       collapsible: false,
-      children: [
-        {
-          label: isSelfUser ? 'My Line' : 'Lines',
-          path: getPath('lines'),
-          Icon: ({ className }: { className: string }) => {
-            return <PhoneIcon className={className} />;
-          },
-          activeMatch: isLineRouteActive,
-        },
-        {
-          label: 'Calls',
-          path: getPath('calls'),
-          Icon: ({ className }: { className: string }) => {
-            return <CalendarDaysIcon className={className} />;
-          },
-          activeMatch: isCallsRouteActive,
-        },
-        {
-          label: 'Reminders',
-          path: getPath('reminders'),
-          Icon: ({ className }: { className: string }) => {
-            return <BellIcon className={className} />;
-          },
-          activeMatch: isRemindersRouteActive,
-        },
-      ],
+      children: manageChildren,
     },
   ];
 
-  if (!isSelfUser) {
-    const careGroup = items.find(
-      (item): item is NavigationGroup => 'children' in item && item.label === 'Care',
-    );
+  const careChildren: NavigationItemLink[] = [];
 
-    careGroup?.children.push(
-      {
-        label: 'Insights',
-        path: getPath('insights'),
-        Icon: ({ className }: { className: string }) => {
-          return <EyeIcon className={className} />;
-        },
-        activeMatch: isInsightsRouteActive,
+  if (!isSelfUser) {
+    careChildren.push({
+      label: 'Insights',
+      path: getPath('insights'),
+      Icon: ({ className }: { className: string }) => {
+        return <EyeIcon className={className} />;
       },
-      {
-        label: 'Alerts',
-        path: getPath('alerts'),
-        Icon: ({ className }: { className: string }) => {
-          return <ExclamationTriangleIcon className={className} />;
-        },
-        activeMatch: isAlertsRouteActive,
-      },
-    );
+      activeMatch: isInsightsRouteActive,
+    });
   }
 
   // Health is owner-only (R9) and feature-flag-gated (Section 7.1B).
@@ -145,11 +147,7 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
   // Show Health nav only to canonical owners when the feature flag is on.
   // For ineligible owners (Care/trial), show as locked with no counts/badges (R4, R5).
   if (isHealthOwner && isHealthFlagOn) {
-    const careGroup = items.find(
-      (item): item is NavigationGroup => 'children' in item && item.label === 'Care',
-    );
-
-    careGroup?.children.push({
+    careChildren.push({
       label: 'Health',
       path: getPath('health'),
       Icon: ({ className }: { className: string }) => {
@@ -158,6 +156,14 @@ const NAVIGATION_CONFIG = (context?: NavigationContext): NavigationConfig => {
       activeMatch: isHealthRouteActive,
       locked: !isHealthEligible,
       badge: isHealthEligible ? (context?.pendingSuggestionCount ?? 0) : undefined,
+    });
+  }
+
+  if (careChildren.length > 0) {
+    items.push({
+      label: 'Care',
+      collapsible: false,
+      children: careChildren,
     });
   }
 

@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { Play, X, Plus } from 'lucide-react';
+import { Play, Pause, X, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
-import TextField from '~/core/ui/TextField';
 import { TimePicker } from '~/core/ui/TimePicker';
 import {
   createHealthReminderAction,
   getHealthRemindersForMedicationAction,
   resumeHealthReminderAction,
+  pauseHealthReminderAction,
   cancelHealthReminderAction,
 } from '~/lib/ultaura/health/actions';
 
@@ -24,7 +25,6 @@ type HealthLinkedReminder = {
   linkId: string;
   reminderId: string;
   timeOfDay: string | null;
-  label: string | null;
   status: string;
   isActive: boolean;
   pauseSources: PauseSource[];
@@ -57,6 +57,8 @@ const PAUSE_SOURCE_LABELS: Record<PauseSource, string> = {
   health_plan_ineligible: 'Current plan does not include medication reminders',
 };
 
+const HEALTH_REMINDER_LIMIT = 8;
+
 function formatTime(timeOfDay: string | null): string {
   if (!timeOfDay) return 'Unknown time';
   const [h, m] = timeOfDay.split(':');
@@ -78,7 +80,6 @@ export function HealthMedicationReminderPanel({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTimeOfDay, setNewTimeOfDay] = useState('08:00');
-  const [newLabel, setNewLabel] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -99,6 +100,19 @@ export function HealthMedicationReminderPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [medicationId, lineId]);
 
+  function isTooCloseToExisting(time: string): boolean {
+    const [h, m] = time.split(':').map(Number);
+    const newMinutes = (h ?? 0) * 60 + (m ?? 0);
+    return activeReminders.some((r) => {
+      if (!r.timeOfDay) return false;
+      const [rh, rm] = r.timeOfDay.split(':').map(Number);
+      const existingMinutes = (rh ?? 0) * 60 + (rm ?? 0);
+      const diff = Math.abs(newMinutes - existingMinutes);
+      const wrappedDiff = Math.min(diff, 1440 - diff); // handle midnight wrap
+      return wrappedDiff < 5;
+    });
+  }
+
   function handleAdd() {
     setAddError(null);
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -106,17 +120,20 @@ export function HealthMedicationReminderPanel({
       setAddError('Please enter a valid time in HH:MM format.');
       return;
     }
+    if (isTooCloseToExisting(newTimeOfDay)) {
+      setAddError('A reminder already exists within 5 minutes of this time. Choose a different time.');
+      return;
+    }
     startTransition(async () => {
       const result = await createHealthReminderAction(
         medicationId,
         lineId,
         newTimeOfDay,
-        newLabel.trim() || undefined,
       );
       if (result.success) {
+        toast.success('Reminder created');
         setShowAddForm(false);
         setNewTimeOfDay('08:00');
-        setNewLabel('');
         await loadReminders();
       } else {
         setAddError(result.error);
@@ -128,7 +145,22 @@ export function HealthMedicationReminderPanel({
     startTransition(async () => {
       const result = await resumeHealthReminderAction(reminderId, lineId);
       if (result.success) {
+        toast.success('Reminder resumed');
         await loadReminders();
+      } else {
+        toast.error(result.error ?? 'Failed to resume reminder');
+      }
+    });
+  }
+
+  function handlePause(reminderId: string) {
+    startTransition(async () => {
+      const result = await pauseHealthReminderAction(reminderId, lineId);
+      if (result.success) {
+        toast.success('Reminder paused');
+        await loadReminders();
+      } else {
+        toast.error(result.error ?? 'Failed to pause reminder');
       }
     });
   }
@@ -137,42 +169,50 @@ export function HealthMedicationReminderPanel({
     startTransition(async () => {
       const result = await cancelHealthReminderAction(reminderId, lineId);
       if (result.success) {
+        toast.success('Reminder removed');
         setReminders((prev) => prev.filter((r) => r.reminderId !== reminderId));
+      } else {
+        toast.error('Failed to remove reminder');
       }
     });
   }
 
   const activeReminders = reminders.filter((r) => r.status !== 'canceled');
   const activeCount = activeReminders.filter((r) => r.isActive).length;
+  const remaining = HEALTH_REMINDER_LIMIT - activeReminders.length;
 
   return (
     <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 px-5 py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      {/* Header + count */}
+      <div>
+        <div>
           <h4 className="text-sm font-semibold text-foreground">Medication Reminders</h4>
-          {!loading && activeReminders.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {activeCount} active
-            </span>
+          {!loading && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {activeCount} active · {remaining} remaining
+            </p>
           )}
+          <p className="mt-1 text-xs text-primary/70">
+            Managed separately from your regular reminders. Delivered during calls only.
+          </p>
         </div>
-        <Button
-          variant="outline"
-          size="small"
-          onClick={() => setShowAddForm((v) => !v)}
-          disabled={isPending}
-          aria-label={`Add reminder for ${medicationName}`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add reminder
-        </Button>
       </div>
 
-      {/* Informational note */}
-      <p className="text-xs text-primary/70">
-        Medication reminders are managed here, separate from your regular reminders. They are delivered during calls only.
-      </p>
+      {!loading && !loadError && activeReminders.length > 0 && !showAddForm && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="small"
+            className="w-full sm:w-auto"
+            onClick={() => setShowAddForm((v) => !v)}
+            disabled={isPending}
+            aria-label={`Add reminder for ${medicationName}`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add reminder
+          </Button>
+        </div>
+      )}
 
       {/* Add form */}
       {showAddForm && (
@@ -190,26 +230,11 @@ export function HealthMedicationReminderPanel({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label htmlFor="reminder-label" className="block text-xs font-medium text-muted-foreground">
-              Label <span className="font-normal text-muted-foreground/70">(optional)</span>
-            </label>
-            <TextField.Input
-              id="reminder-label"
-              type="text"
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              placeholder={`${medicationName} reminder`}
-              maxLength={120}
-              aria-label="Reminder label"
-            />
-          </div>
-
           {addError && (
             <p className="text-xs text-destructive" role="alert">{addError}</p>
           )}
 
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
               size="small"
@@ -226,7 +251,7 @@ export function HealthMedicationReminderPanel({
               onClick={handleAdd}
               disabled={isPending}
             >
-              {isPending ? 'Saving…' : 'Save reminder'}
+              {isPending ? 'Creating…' : 'Create reminder'}
             </Button>
           </div>
         </div>
@@ -244,17 +269,32 @@ export function HealthMedicationReminderPanel({
         <p className="text-xs text-destructive" role="alert">{loadError}</p>
       )}
 
-      {!loading && !loadError && activeReminders.length === 0 && (
-        <p className="text-xs text-muted-foreground py-3 text-center">No reminders yet</p>
+      {!loading && !loadError && activeReminders.length === 0 && !showAddForm && (
+        <div className="flex flex-col items-center gap-2 py-3 text-center">
+          <p className="text-xs text-muted-foreground">No reminders yet</p>
+          <Button
+            variant="outline"
+            size="small"
+            className="w-full sm:w-auto"
+            onClick={() => setShowAddForm((v) => !v)}
+            disabled={isPending}
+            aria-label={`Add reminder for ${medicationName}`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add reminder
+          </Button>
+        </div>
       )}
 
       {/* Reminder list */}
       {!loading && !loadError && activeReminders.length > 0 && (
         <ul className="space-y-2" aria-label={`Reminders for ${medicationName}`}>
           {activeReminders.map((reminder) => {
-            const needsResume = reminder.pauseSources.includes('health_manual_resume_required');
             const consentPaused = isConsentPaused(reminder.pauseSources);
-            const otherSources = reminder.pauseSources.filter((s) => s !== 'health_manual_resume_required');
+            const manuallyPaused = reminder.pauseSources.includes('manual');
+            const pauseExplanations = reminder.pauseSources.filter(
+              (s) => s !== 'manual' && s !== 'health_manual_resume_required',
+            );
 
             // Determine status label and style
             let statusLabel = 'Active';
@@ -275,54 +315,59 @@ export function HealthMedicationReminderPanel({
                 className="flex flex-col gap-2 rounded-lg border border-border/60 bg-background px-4 py-3"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="text-sm font-medium text-foreground">
-                        {formatTime(reminder.timeOfDay)}
-                      </p>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClasses}`}>
-                        {statusLabel}
-                      </span>
-                    </div>
-                    {reminder.label && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{reminder.label}</p>
-                    )}
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="shrink-0 text-sm font-medium text-foreground">
+                      {formatTime(reminder.timeOfDay)}
+                    </p>
+                    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClasses}`}>
+                      {statusLabel}
+                    </span>
                   </div>
 
-                  <button
-                    onClick={() => handleCancel(reminder.reminderId)}
-                    disabled={isPending}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 shrink-0"
-                    aria-label={`Cancel reminder at ${formatTime(reminder.timeOfDay)}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Pause/Resume toggle — only show for non-consent-paused reminders */}
+                    {!consentPaused && (
+                      reminder.isActive ? (
+                        <button
+                          onClick={() => handlePause(reminder.reminderId)}
+                          disabled={isPending}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors disabled:opacity-50"
+                          aria-label={`Pause reminder at ${formatTime(reminder.timeOfDay)}`}
+                        >
+                          <Pause className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleResume(reminder.reminderId)}
+                          disabled={isPending}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                          aria-label={`Resume reminder at ${formatTime(reminder.timeOfDay)}`}
+                        >
+                          <Play className="h-4 w-4" />
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      onClick={() => handleCancel(reminder.reminderId)}
+                      disabled={isPending}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      aria-label={`Remove reminder at ${formatTime(reminder.timeOfDay)}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Pause source explanations */}
-                {otherSources.length > 0 && (
+                {pauseExplanations.length > 0 && (
                   <ul className="space-y-0.5" aria-label="Pause reasons">
-                    {otherSources.map((source) => (
+                    {pauseExplanations.map((source) => (
                       <li key={source} className={`text-xs ${consentPaused ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`}>
                         {PAUSE_SOURCE_LABELS[source] ?? source}
                       </li>
                     ))}
                   </ul>
-                )}
-
-                {/* Resume button */}
-                {needsResume && (
-                  <Button
-                    variant="outline"
-                    size="small"
-                    onClick={() => handleResume(reminder.reminderId)}
-                    disabled={isPending}
-                    className="self-start"
-                    aria-label={`Resume reminder at ${formatTime(reminder.timeOfDay)}`}
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                    Resume
-                  </Button>
                 )}
               </li>
             );

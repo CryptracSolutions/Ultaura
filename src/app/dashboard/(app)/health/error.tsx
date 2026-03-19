@@ -33,7 +33,7 @@ export default function HealthError({
     <>
       <AppHeader
         title="Health Profile"
-        description="Manage health information and call context for your loved one"
+        description="Manage health information, medications, and medical documents"
       />
       <PageBody>
         <div className="py-8">

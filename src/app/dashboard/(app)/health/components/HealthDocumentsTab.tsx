@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, FileText, FileImage } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, FileImage, X } from 'lucide-react';
 import { HealthEmptyState } from './HealthEmptyState';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
@@ -102,14 +102,33 @@ function EditMetadataDialog({
     }
   }
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen && saving) return;
+    onOpenChange(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
         overlayClassName="bg-black/50 backdrop-blur-none"
       >
-        <DialogTitle>Edit Document</DialogTitle>
-        <form onSubmit={handleSave} className="space-y-4 mt-2">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <DialogTitle className="truncate">Edit Document</DialogTitle>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDialogOpenChange(false)}
+            disabled={saving}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+        <form onSubmit={handleSave} className="mt-4 space-y-4">
           <div>
             <label htmlFor="edit-title" className="block text-sm font-medium text-foreground mb-1.5">
               Title <span className="text-destructive">*</span>

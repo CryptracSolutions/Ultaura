@@ -33,7 +33,7 @@ export default async function InsightsMoodPage({ params }: PageProps) {
   if (!loaderResult) {
     return (
       <>
-        <AppHeader title="Insights" description="Weekly insights without transcripts" />
+        <AppHeader title="Insights" description="Your hub to view insights gathered during conversations with Ultaura" />
         <PageBody>
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
@@ -89,7 +89,7 @@ export default async function InsightsMoodPage({ params }: PageProps) {
             </a>
           </PageTitleWithInfo>
         }
-        description="Weekly insights without transcripts"
+        description="Your hub to view insights gathered during conversations with Ultaura"
       >
         {isTrialActive && trialInfo ? (
           <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />

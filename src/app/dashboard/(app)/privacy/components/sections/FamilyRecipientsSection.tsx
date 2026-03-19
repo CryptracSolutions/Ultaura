@@ -24,11 +24,11 @@ import {
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import TextField from '~/core/ui/TextField';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
+import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
 import type { NotificationRecipient } from '~/lib/ultaura/types';
 import { getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { InvitedFamilyList } from '../InvitedFamilyList';
-import { PrivacyInfoBanner } from '../PrivacyInfoBanner';
 import type { RecipientDeliveryChannel } from '../../lib/recipient-delivery';
 
 const MAX_RECIPIENTS = 5;
@@ -123,32 +123,33 @@ export function FamilyRecipientsSection({
   const hasReachedRecipientLimit = activeRecipientCount >= MAX_RECIPIENTS;
 
   return (
-    <>
-      <PrivacyInfoBanner storageKey="privacy_recipients_info_collapsed">
-        Family recipients receive weekly summaries and alert updates. Trusted
-        contacts are managed separately for urgent safety outreach by SMS. What
-        is shared follows your loved one&apos;s sharing preferences during
-        calls.{' '}
-        <Link
-          href="/docs/insights-and-reports/sharing-with-family"
-          className="text-primary font-medium underline underline-offset-2 hover:no-underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          Learn more →
-        </Link>
-      </PrivacyInfoBanner>
-
-      <Section>
-        <SectionHeader
-          title={
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              Family Recipients
-            </div>
-          }
-          description="Invite up to 5 family members for ongoing updates. Weekly summaries stay on email, and alerts can be sent by email, SMS, or both."
-        />
-        <SectionBody className="gap-6">
+    <Section>
+      <SectionHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>Family Recipients</span>
+            <CollapsibleInfoTip
+              storageKey="privacy_recipients_info_collapsed"
+              collapsedLabel="Privacy info"
+            >
+              Family recipients receive weekly summaries and alert updates. Trusted
+              contacts are managed separately for urgent safety outreach by SMS. What
+              is shared follows your loved one&apos;s sharing preferences during
+              calls.{' '}
+              <Link
+                href="/docs/insights-and-reports/sharing-with-family"
+                className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Learn more →
+              </Link>
+            </CollapsibleInfoTip>
+          </span>
+        }
+        description="Invite up to 5 family members for ongoing updates. Weekly summaries stay on email, and alerts can be sent by email, SMS, or both."
+      />
+      <SectionBody className="gap-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               {activeRecipientCount}/{MAX_RECIPIENTS} active recipients
@@ -424,6 +425,5 @@ export function FamilyRecipientsSection({
           />
         </SectionBody>
       </Section>
-    </>
   );
 }

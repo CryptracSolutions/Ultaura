@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Plus, Pencil, Trash2, History, CheckCircle2, Stethoscope } from 'lucide-react';
+import { Plus, Pencil, Trash2, History, CheckCircle2, Stethoscope, StickyNote, X } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
 import { HealthEmptyState } from './HealthEmptyState';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
@@ -61,6 +62,7 @@ function ConditionCard({
   const [editOpen, setEditOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [_isPending, startTransition] = useTransition();
 
   const badge = STATUS_BADGE[condition.status];
@@ -116,6 +118,11 @@ function ConditionCard({
             <ResponsiveActionMenu
               title={condition.name}
               actions={[
+                ...(condition.notes ? [{
+                  label: 'Notes',
+                  icon: <StickyNote className="w-5 h-5" />,
+                  onClick: () => setNotesOpen(true),
+                }] : []),
                 {
                   label: 'Edit',
                   icon: <Pencil className="w-5 h-5" />,
@@ -150,6 +157,7 @@ function ConditionCard({
           </div>
           <Badge color={badge.color} size="small">{badge.label}</Badge>
         </div>
+
       </div>
 
       {/* Modals */}
@@ -180,6 +188,31 @@ function ConditionCard({
         variant="destructive"
         onConfirm={handleDelete}
       />
+
+      {condition.notes && (
+        <Dialog open={notesOpen} onOpenChange={setNotesOpen}>
+          <DialogContent
+            className="mobile-form-sheet sm:max-w-[468px]"
+            overlayClassName="bg-black/50 backdrop-blur-none"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="truncate">Notes — {condition.name}</DialogTitle>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setNotesOpen(false)}
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground whitespace-pre-wrap">{condition.notes}</p>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

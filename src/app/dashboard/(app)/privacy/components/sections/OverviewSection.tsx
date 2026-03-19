@@ -1,11 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { LayoutDashboard, Users } from 'lucide-react';
 
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import Button from '~/core/ui/Button';
-import { PrivacyInfoBanner } from '../PrivacyInfoBanner';
 
 export interface OverviewSectionProps {
   isSelfUser: boolean;
@@ -54,22 +52,6 @@ export function OverviewSection({
 
   return (
     <>
-      <PrivacyInfoBanner storageKey="privacy_overview_info_collapsed">
-          All data stays in your control. Ultaura stores call insights and
-          memories securely.{' '}
-          {isSelfUser
-            ? 'Your recording and sharing preferences are set during your calls\u2014not from this dashboard.'
-            : 'Recording and sharing consent is given by your loved one during their calls\u2014not from this dashboard.'}{' '}
-          You can export or delete all data at any time.{' '}
-          <Link
-            href="/docs/privacy"
-            className="text-primary font-medium underline underline-offset-2 hover:no-underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Learn more →
-          </Link>
-      </PrivacyInfoBanner>
-
       <Section>
         <SectionHeader
           title={

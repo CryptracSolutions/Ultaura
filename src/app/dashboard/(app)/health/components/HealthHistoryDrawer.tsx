@@ -51,11 +51,37 @@ function formatFieldName(field: string): string {
   return map[field] ?? field;
 }
 
-function formatFieldValue(value: unknown): string {
+/** Condition + medication status enums stored as snake_case in history payloads */
+const HEALTH_STATUS_LABELS: Record<string, string> = {
+  active: 'Active',
+  monitoring: 'Monitoring',
+  resolved: 'Resolved',
+  current: 'Current',
+  as_needed: 'As needed',
+  discontinued: 'Discontinued',
+};
+
+function formatHealthStatusValue(raw: string): string {
+  if (HEALTH_STATUS_LABELS[raw]) {
+    return HEALTH_STATUS_LABELS[raw];
+  }
+  if (raw.includes('_')) {
+    return raw
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  }
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
+function formatFieldValue(value: unknown, field?: string): string {
   if (value === null || value === undefined) return '(none)';
   if (typeof value === 'object' && 'precision' in (value as object)) {
     const d = value as { precision: string; value: string };
     return d.value;
+  }
+  if (field === 'status' && typeof value === 'string') {
+    return formatHealthStatusValue(value);
   }
   return String(value);
 }
@@ -93,7 +119,15 @@ function HistoryEntryItem({ entry }: { entry: HealthHistoryEntry }) {
                 <p><span className="font-medium text-foreground">Name:</span> {String(payload.snapshot.name)}</p>
               )}
               {'status' in payload.snapshot && (
-                <p><span className="font-medium text-foreground">Status:</span> <span className="text-primary">{String(payload.snapshot.status)}</span></p>
+                <p>
+                  <span className="font-medium text-foreground">Status:</span>{' '}
+                  <span className="text-primary">
+                    {formatFieldValue(
+                      (payload.snapshot as { status: string }).status,
+                      'status',
+                    )}
+                  </span>
+                </p>
               )}
             </div>
           )}
@@ -105,9 +139,13 @@ function HistoryEntryItem({ entry }: { entry: HealthHistoryEntry }) {
               <li key={i} className="rounded-md bg-muted/40 border border-border px-3 py-2 text-xs">
                 <p className="font-medium text-foreground mb-0.5">{formatFieldName(change.field)}</p>
                 <div className="flex items-start gap-2 text-muted-foreground">
-                  <span className="line-through">{formatFieldValue(change.before)}</span>
+                  <span className="line-through">
+                    {formatFieldValue(change.before, change.field)}
+                  </span>
                   <span aria-hidden="true">→</span>
-                  <span className="text-primary font-medium">{formatFieldValue(change.after)}</span>
+                  <span className="text-primary font-medium">
+                    {formatFieldValue(change.after, change.field)}
+                  </span>
                 </div>
               </li>
             ))}
@@ -164,7 +202,7 @@ export function HealthHistoryDrawer({
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <DialogTitle>{title}</DialogTitle>
+            <DialogTitle className="truncate">{title}</DialogTitle>
             <DialogDescription className="text-sm text-primary mt-1">
               Most recent activity first
             </DialogDescription>

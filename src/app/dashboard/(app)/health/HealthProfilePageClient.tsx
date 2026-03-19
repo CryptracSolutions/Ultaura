@@ -235,6 +235,7 @@ export function HealthProfilePageClient({
               tab={activeTab}
               lineId={selectedLine.short_id}
               lineFullId={selectedLine.id}
+              lineTimezone={selectedLine.timezone}
               accountId={account.id}
               initialTabData={initialTabDataSeed}
             />
@@ -402,10 +403,12 @@ function ConditionsTabLoader({
 
 function MedicationsTabLoader({
   lineId,
+  lineTimezone,
   accountId,
   initialMedications,
 }: {
   lineId: string;
+  lineTimezone: string;
   accountId: string;
   initialMedications?: HealthMedication[];
 }) {
@@ -437,6 +440,7 @@ function MedicationsTabLoader({
   return (
     <HealthMedicationsTab
       lineId={lineId}
+      lineTimezone={lineTimezone}
       accountId={accountId}
       conditions={conditions}
       initialMedications={initialMedications}
@@ -618,12 +622,14 @@ function HealthTabContent({
   tab,
   lineId,
   lineFullId,
+  lineTimezone,
   accountId,
   initialTabData,
 }: {
   tab: HealthTabValue;
   lineId: string;
   lineFullId: string;
+  lineTimezone: string;
   accountId: string;
   initialTabData: HealthInitialTabData | null;
 }) {
@@ -655,6 +661,7 @@ function HealthTabContent({
     return (
       <MedicationsTabLoader
         lineId={lineFullId}
+        lineTimezone={lineTimezone}
         accountId={accountId}
         initialMedications={initialMedications}
       />

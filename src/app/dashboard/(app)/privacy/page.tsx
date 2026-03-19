@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 
 import AppHeader from '../components/AppHeader';
 import { PageBody } from '~/core/ui/Page';
+import { PageTitleWithInfo } from '~/core/ui/PageTitleWithInfo';
 import getLogger from '~/core/logger';
 import { loadAppDataForUser } from '~/lib/server/loaders/load-app-data';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
@@ -24,11 +25,42 @@ export const metadata: Metadata = {
 };
 const logger = getLogger();
 
+const PRIVACY_CENTER_DESCRIPTION =
+  'Manage consent, sharing, recording, and data exports';
+
+function privacyCenterPageHeader(isSelfUser: boolean) {
+  return (
+    <AppHeader
+      title={
+        <PageTitleWithInfo
+          title="Privacy Center"
+          storageKey="privacy_center_info_tip_collapsed"
+          infoLabel="Privacy info"
+        >
+          All data stays in your control. Ultaura stores call insights and
+          memories securely.{' '}
+          {isSelfUser
+            ? 'Your recording and sharing preferences are set during your calls\u2014not from this dashboard.'
+            : 'Recording and sharing consent is given by your loved one during their calls\u2014not from this dashboard.'}{' '}
+          You can export or delete all data at any time.{' '}
+          <a
+            href="/docs/privacy"
+            className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+          >
+            Learn more →
+          </a>
+        </PageTitleWithInfo>
+      }
+      description={PRIVACY_CENTER_DESCRIPTION}
+    />
+  );
+}
+
 export default async function PrivacyCenterPage() {
-  const pageHeader = (
+  const pageHeaderFallback = (
     <AppHeader
       title="Privacy Center"
-      description="Manage consent, sharing, recording, and data exports"
+      description={PRIVACY_CENTER_DESCRIPTION}
     />
   );
   const appData = await loadAppDataForUser();
@@ -38,7 +70,7 @@ export default async function PrivacyCenterPage() {
   if (!organizationId) {
     return (
       <>
-        {pageHeader}
+        {pageHeaderFallback}
         <PageBody>
           <div className="py-8">
             <p className="text-muted-foreground">
@@ -56,7 +88,7 @@ export default async function PrivacyCenterPage() {
   if (!account) {
     return (
       <>
-        {pageHeader}
+        {pageHeaderFallback}
         <PageBody>
           <div className="py-8">
             <div className="max-w-lg rounded-xl border border-border bg-card p-6">
@@ -127,10 +159,11 @@ export default async function PrivacyCenterPage() {
     account.plan_id ??
     'free_trial') as keyof typeof PLANS;
   const trialPlanName = PLANS[trialPlanId]?.displayName ?? 'Trial';
+  const isSelfUser = account.user_type === 'self';
 
   return (
     <>
-      {pageHeader}
+      {privacyCenterPageHeader(isSelfUser)}
       <PageBody>
         {isTrialExpired && <TrialExpiredBanner trialPlanName={trialPlanName} />}
         <PrivacyCenterClient

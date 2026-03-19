@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import { X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogDescription,
 } from '~/core/ui/Dialog';
 import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
@@ -196,15 +198,39 @@ export function HealthMedicationForm({
 
   const activeConditions = conditions.filter((c) => c.status === 'active' || c.status === 'monitoring');
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen && isPending) return;
+    onOpenChange(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
         overlayClassName="bg-black/50 backdrop-blur-none"
       >
-        <DialogTitle>{isEditing ? 'Edit medication' : 'Add medication'}</DialogTitle>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <DialogTitle className="truncate">
+              {isEditing ? 'Edit medication' : 'Add medication'}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {isEditing ? 'Update the medication details below' : 'Enter the medication details below'}
+            </DialogDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDialogOpenChange(false)}
+            disabled={isPending}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {/* Name */}
           <TextField>
             <TextField.Label htmlFor="med-name">
@@ -383,7 +409,7 @@ export function HealthMedicationForm({
               type="button"
               variant="outline"
               className="w-full"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleDialogOpenChange(false)}
               disabled={isPending}
             >
               Cancel

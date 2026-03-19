@@ -67,6 +67,14 @@ export function HealthDocumentUploadForm({
     onOpenChange(false);
   }
 
+  function handleDialogOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      onOpenChange(true);
+    } else {
+      handleClose();
+    }
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFileError(null);
     const selected = e.target.files?.[0] ?? null;
@@ -131,14 +139,28 @@ export function HealthDocumentUploadForm({
   const canSubmit = !!file && title.trim().length > 0 && !uploading;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
         overlayClassName="bg-black/50 backdrop-blur-none"
       >
-        <DialogTitle>Upload Document</DialogTitle>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <DialogTitle className="truncate">Upload Document</DialogTitle>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleClose}
+            disabled={uploading}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {/* File input */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -255,7 +277,6 @@ export function HealthDocumentUploadForm({
               rows={3}
               className="resize-none"
             />
-            <p className="mt-0.5 text-xs text-muted-foreground text-right">{notes.length}/2000</p>
           </div>
 
           {/* Upload progress */}

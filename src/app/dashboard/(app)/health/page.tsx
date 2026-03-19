@@ -96,7 +96,7 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
   const pageHeader = (
     <AppHeader
       title="Health Profile"
-      description="Manage health information and call context for your loved one"
+      description="Manage health information, medications, and medical documents"
     />
   );
 
@@ -293,7 +293,7 @@ export default async function HealthProfilePage({ searchParams }: PageProps) {
             </a>
           </PageTitleWithInfo>
         }
-        description="Manage health information and call context for your loved one"
+        description="Manage health information, medications, and medical documents"
       />
       <PageBody>
         <Suspense>

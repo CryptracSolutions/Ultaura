@@ -43,6 +43,7 @@ import {
   createHealthReminder,
   getHealthRemindersForMedication,
   resumeHealthReminder,
+  pauseHealthReminder,
   cancelSingleHealthReminder,
 } from './reminders';
 import {
@@ -601,6 +602,26 @@ export async function resumeHealthReminderAction(
   const { accountId, actorUserId } = access.context;
 
   const result = await resumeHealthReminder(reminderId, lineId, accountId, actorUserId);
+  if (!result.success) {
+    return { success: false, error: result.message };
+  }
+
+  revalidatePath('/dashboard/health');
+  return { success: true };
+}
+
+export async function pauseHealthReminderAction(
+  reminderId: string,
+  lineId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const access = await requireHealthLineAccess(lineId);
+  if (!access.ok) {
+    return { success: false, error: access.error };
+  }
+
+  const { accountId, actorUserId } = access.context;
+
+  const result = await pauseHealthReminder(reminderId, lineId, accountId, actorUserId);
   if (!result.success) {
     return { success: false, error: result.message };
   }

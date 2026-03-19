@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef, useTransition } from 'react';
-import { Plus, Pencil, Trash2, Clock, Bell, Loader2, Pill, CheckCircle2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Clock, Bell, Loader2, Pill, CheckCircle2, StickyNote, X } from 'lucide-react';
+import { DateTime } from 'luxon';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
+import { Dialog, DialogContent, DialogTitle } from '~/core/ui/Dialog';
 import { HealthEmptyState } from './HealthEmptyState';
 import { HealthMedicationForm } from './HealthMedicationForm';
 import { HealthHistoryDrawer } from './HealthHistoryDrawer';
@@ -21,6 +23,7 @@ import type { HealthMedication, HealthCondition, HealthMedicationStatus } from '
 
 interface HealthMedicationsTabProps {
   lineId: string;
+  lineTimezone: string;
   accountId: string;
   conditions: HealthCondition[];
   initialMedications?: HealthMedication[];
@@ -42,6 +45,7 @@ const MEDICATION_STATUS_BADGE: Record<HealthMedicationStatus, { label: string; c
 
 export function HealthMedicationsTab({
   lineId,
+  lineTimezone,
   accountId,
   conditions,
   initialMedications,
@@ -168,7 +172,7 @@ export function HealthMedicationsTab({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <Pill className="h-4 w-4 text-muted-foreground" />
@@ -244,6 +248,7 @@ export function HealthMedicationsTab({
               medication={med}
               conditionNameMap={conditionNameMap}
               lineId={lineId}
+              lineTimezone={lineTimezone}
               accountId={accountId}
               isPending={isPending}
               onEdit={() => handleEdit(med)}
@@ -312,6 +317,7 @@ interface MedicationCardProps {
   medication: HealthMedication;
   conditionNameMap: Record<string, string>;
   lineId: string;
+  lineTimezone: string;
   accountId: string;
   isPending: boolean;
   onEdit: () => void;
@@ -324,6 +330,7 @@ function MedicationCard({
   medication,
   conditionNameMap,
   lineId,
+  lineTimezone,
   accountId,
   isPending,
   onEdit,
@@ -332,6 +339,7 @@ function MedicationCard({
   onViewHistory,
 }: MedicationCardProps) {
   const [showReminders, setShowReminders] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const linkedConditionName = medication.linkedConditionId
     ? conditionNameMap[medication.linkedConditionId]
     : null;
@@ -341,7 +349,7 @@ function MedicationCard({
     (s) => s !== medication.status,
   );
 
-  const hasDetails = medication.dosage || medication.frequency || medication.timesOfDay.length > 0 || linkedConditionName;
+  const hasNotesContent = medication.notes || medication.linkedReason;
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-3">
@@ -379,6 +387,11 @@ function MedicationCard({
           <ResponsiveActionMenu
             title={medication.name}
             actions={[
+              ...(hasNotesContent ? [{
+                label: 'Notes',
+                icon: <StickyNote className="w-5 h-5" />,
+                onClick: () => setNotesOpen(true),
+              }] : []),
               {
                 label: 'Edit',
                 icon: <Pencil className="w-5 h-5" />,
@@ -408,14 +421,18 @@ function MedicationCard({
       </div>
 
       {/* Details row — medication info + status badge */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           {medication.dosage && <span>Dosage: {medication.dosage}</span>}
           {medication.frequency && <span>Frequency: {medication.frequency}</span>}
-          {medication.timesOfDay.length > 0 && <span>Times: {medication.timesOfDay.join(', ')}</span>}
+          {medication.timesOfDay.length > 0 && (
+            <span>Times: {medication.timesOfDay.map((time) => formatMedicationTime(time, lineTimezone)).join(', ')}</span>
+          )}
           {linkedConditionName && <span>For: {linkedConditionName}</span>}
         </div>
-        <Badge color={badge.color} size="small">{badge.label}</Badge>
+        <Badge color={badge.color} size="small" className="self-start sm:self-auto">
+          {badge.label}
+        </Badge>
       </div>
 
       {/* Reminder panel */}
@@ -427,6 +444,65 @@ function MedicationCard({
           medicationName={medication.name}
         />
       )}
+
+      {hasNotesContent && (
+        <Dialog open={notesOpen} onOpenChange={setNotesOpen}>
+          <DialogContent
+            className="mobile-form-sheet sm:max-w-[468px]"
+            overlayClassName="bg-black/50 backdrop-blur-none"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="truncate">Notes — {medication.name}</DialogTitle>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setNotesOpen(false)}
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="mt-4 space-y-3">
+              {medication.linkedReason && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Reason for link</p>
+                  <p className="text-sm text-foreground">{medication.linkedReason}</p>
+                </div>
+              )}
+              {medication.notes && (
+                <div>
+                  {medication.linkedReason && (
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
+                  )}
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{medication.notes}</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
+}
+
+function formatMedicationTime(timeOfDay: string, timezone: string): string {
+  const [hourPart, minutePart] = timeOfDay.split(':');
+  const hour = Number(hourPart);
+  const minute = Number(minutePart);
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return timeOfDay;
+  }
+
+  const localTime = DateTime.now().setZone(timezone).set({
+    hour,
+    minute,
+    second: 0,
+    millisecond: 0,
+  });
+
+  return localTime.isValid ? localTime.toFormat('h:mm a') : timeOfDay;
 }

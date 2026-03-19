@@ -36,7 +36,7 @@ export default async function InsightsPage() {
   if (!organizationId) {
     return (
       <>
-        <AppHeader title="Insights" description="Weekly insights without transcripts" />
+        <AppHeader title="Insights" description="Your hub to view insights gathered during conversations with Ultaura" />
         <PageBody>
           <p className="text-muted-foreground">Organization not found.</p>
         </PageBody>
@@ -49,7 +49,7 @@ export default async function InsightsPage() {
   if (!account) {
     return (
       <>
-        <AppHeader title="Insights" description="Weekly insights without transcripts" />
+        <AppHeader title="Insights" description="Your hub to view insights gathered during conversations with Ultaura" />
         <PageBody>
           <div className="max-w-lg mx-auto text-center py-8">
             <h2 className="text-2xl font-semibold mb-4">Get Started with Ultaura</h2>
@@ -90,7 +90,7 @@ export default async function InsightsPage() {
               </a>
             </PageTitleWithInfo>
           }
-          description="Weekly insights without transcripts"
+          description="Your hub to view insights gathered during conversations with Ultaura"
         >
           {isTrialActive && trialInfo ? (
             <TrialStatusBadge daysRemaining={trialInfo.daysRemaining} planName={trialPlanName} />
@@ -142,7 +142,7 @@ export default async function InsightsPage() {
   // Fallback (shouldn't reach here if lines.length > 0)
   return (
     <>
-      <AppHeader title="Insights" description="Weekly insights without transcripts" />
+      <AppHeader title="Insights" description="Your hub to view insights gathered during conversations with Ultaura" />
       <PageBody>
         <p className="text-muted-foreground">No lines available.</p>
       </PageBody>

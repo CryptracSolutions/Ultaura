@@ -14,7 +14,7 @@ const logger = getLogger();
 
 type PauseSource = Database['public']['Enums']['ultaura_reminder_pause_source'];
 
-const HEALTH_REMINDER_LIMIT = 20;
+const HEALTH_REMINDER_LIMIT = 8;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,10 +92,28 @@ export async function createHealthReminder(params: {
 
   const consentStatus = (consentRow?.health_consent ?? 'not_requested') as HealthConsentStatus;
 
-  const initialPauseSources: PauseSource[] = ['health_manual_resume_required'];
   const consentPauseSource = consentStatusToPauseSource(consentStatus);
+  const initialPauseSources: PauseSource[] = [];
   if (consentPauseSource) {
+    // Consent not granted — pause until consent is obtained
     initialPauseSources.push(consentPauseSource);
+  }
+
+  // Check for existing reminders within 5 minutes of the requested time
+  const existingReminders = await getHealthRemindersForMedication(medicationId, lineId);
+  const [newH, newM] = timeOfDay.split(':').map(Number);
+  const newMinutes = (newH ?? 0) * 60 + (newM ?? 0);
+  const tooClose = existingReminders
+    .filter((r) => r.status !== 'canceled' && r.timeOfDay)
+    .some((r) => {
+      const [rh, rm] = r.timeOfDay!.split(':').map(Number);
+      const existingMinutes = (rh ?? 0) * 60 + (rm ?? 0);
+      const diff = Math.abs(newMinutes - existingMinutes);
+      return Math.min(diff, 1440 - diff) < 5;
+    });
+
+  if (tooClose) {
+    return { success: false, code: 'too_close', message: 'A reminder already exists within 5 minutes of this time.' };
   }
 
   // Generate a reminder ID ahead of time for AAD
@@ -198,7 +216,6 @@ export type HealthLinkedReminder = {
   linkId: string;
   reminderId: string;
   timeOfDay: string | null;
-  label: string | null;
   status: string;
   isActive: boolean;
   pauseSources: PauseSource[];
@@ -221,7 +238,6 @@ export async function getHealthRemindersForMedication(
         id,
         status,
         time_of_day,
-        label,
         pause_sources,
         is_paused
       )
@@ -240,7 +256,6 @@ export async function getHealthRemindersForMedication(
       id: string;
       status: string;
       time_of_day: string | null;
-      label: string | null;
       pause_sources: PauseSource[];
       is_paused: boolean;
     };
@@ -248,7 +263,6 @@ export async function getHealthRemindersForMedication(
       linkId: row.id,
       reminderId: row.reminder_id,
       timeOfDay: reminder.time_of_day,
-      label: reminder.label ?? null,
       status: reminder.status,
       isActive: reminder.status === 'scheduled' && !reminder.is_paused,
       pauseSources: reminder.pause_sources ?? [],
@@ -287,7 +301,7 @@ export async function resumeHealthReminder(
   }
 
   const currentSources = (reminder.pause_sources ?? []) as PauseSource[];
-  const newSources = currentSources.filter((s) => s !== 'health_manual_resume_required');
+  const newSources = currentSources.filter((s) => s !== 'health_manual_resume_required' && s !== 'manual');
   const stillPaused = newSources.length > 0;
 
   // Check active reminder count if this resume would make it active
@@ -334,6 +348,69 @@ export async function resumeHealthReminder(
     eventType: 'health_link_resumed',
     triggeredBy: 'dashboard',
     metadata: { actorUserId, removedSource: 'health_manual_resume_required', remainingSources: newSources },
+  });
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// pauseHealthReminder (manual pause by user)
+// ---------------------------------------------------------------------------
+
+export async function pauseHealthReminder(
+  reminderId: string,
+  lineId: string,
+  accountId: string,
+  actorUserId: string,
+): Promise<
+  | { success: true }
+  | { success: false; code: string; message: string }
+> {
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+
+  const { data: reminder, error: fetchError } = await adminClient
+    .from('ultaura_reminders')
+    .select('id, line_id, account_id, status, pause_sources, is_paused')
+    .eq('id', reminderId)
+    .single();
+
+  if (fetchError || !reminder || reminder.line_id !== lineId || reminder.account_id !== accountId) {
+    return { success: false, code: 'not_found', message: 'Reminder not found' };
+  }
+
+  if (reminder.status === 'canceled') {
+    return { success: false, code: 'already_canceled', message: 'Cannot pause a canceled reminder' };
+  }
+
+  const currentSources = (reminder.pause_sources ?? []) as PauseSource[];
+  if (currentSources.includes('manual')) {
+    return { success: true }; // Already paused manually
+  }
+
+  const newSources: PauseSource[] = [...currentSources, 'manual'];
+
+  const { error: updateError } = await adminClient
+    .from('ultaura_reminders')
+    .update({
+      pause_sources: newSources,
+      is_paused: true,
+      paused_at: new Date().toISOString(),
+    })
+    .eq('id', reminderId)
+    .eq('line_id', lineId);
+
+  if (updateError) {
+    logger.error({ updateError, reminderId }, 'Failed to pause health reminder');
+    return { success: false, code: 'update_failed', message: updateError.message };
+  }
+
+  await logReminderEvent({
+    accountId,
+    reminderId,
+    lineId,
+    eventType: 'health_link_paused',
+    triggeredBy: 'dashboard',
+    metadata: { actorUserId, addedSource: 'manual' },
   });
 
   return { success: true };

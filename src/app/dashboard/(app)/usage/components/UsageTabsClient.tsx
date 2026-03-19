@@ -561,9 +561,9 @@ function PerUserTab({ perLineUsage }: PerUserTabProps) {
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Minutes are pooled across all lines
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Minutes are pooled across all lines on your account.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {perLineUsage.map((entry) => (

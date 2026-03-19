@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -103,22 +104,34 @@ export function HealthObservationForm({
     });
   };
 
-  const handleClose = () => {
-    if (isPending) return;
-    onOpenChange(false);
-  };
+  function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen && isPending) return;
+    onOpenChange(nextOpen);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         className="mobile-form-sheet sm:max-w-[468px] max-h-[85vh] overflow-y-auto"
         overlayClassName="bg-black/50 backdrop-blur-none"
       >
-        <div className="min-w-0">
-          <DialogTitle>{isEdit ? 'Edit observation' : 'Add observation'}</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            {isEdit ? 'Update the details below' : 'Record an observation about wellbeing, mood, or behaviour'}
-          </DialogDescription>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <DialogTitle className="truncate">{isEdit ? 'Edit observation' : 'Add observation'}</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {isEdit ? 'Update the details below' : 'Record an observation about wellbeing, mood, or behaviour'}
+            </DialogDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDialogOpenChange(false)}
+            disabled={isPending}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
@@ -137,7 +150,6 @@ export function HealthObservationForm({
               placeholder="Describe what you observed…"
               className="resize-none"
             />
-            <p className="text-xs text-muted-foreground mt-1">{text.length}/2000</p>
           </div>
 
           {/* Category */}
@@ -206,7 +218,7 @@ export function HealthObservationForm({
               type="button"
               variant="outline"
               className="w-full"
-              onClick={handleClose}
+              onClick={() => handleDialogOpenChange(false)}
               disabled={isPending}
             >
               Cancel

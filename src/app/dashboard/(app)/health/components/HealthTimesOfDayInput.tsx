@@ -30,6 +30,10 @@ export function HealthTimesOfDayInput({ value, onChange }: HealthTimesOfDayInput
 
   return (
     <div className="space-y-2">
+      {value.length === 0 && (
+        <p className="text-xs text-muted-foreground">No times set. Use &quot;Add time&quot; to schedule doses.</p>
+      )}
+
       {value.map((time, index) => (
         <div key={index} className="flex items-center gap-2">
           <div className="flex-1">
@@ -51,19 +55,18 @@ export function HealthTimesOfDayInput({ value, onChange }: HealthTimesOfDayInput
       ))}
 
       {value.length < MAX_TIMES && (
-        <Button
-          type="button"
-          variant="outline"
-          size="small"
-          onClick={handleAdd}
-        >
-          <Plus className="h-4 w-4" />
-          Add time
-        </Button>
-      )}
-
-      {value.length === 0 && (
-        <p className="text-xs text-muted-foreground">No times set. Use &quot;Add time&quot; to schedule doses.</p>
+        <div className="flex justify-start">
+          <Button
+            type="button"
+            variant="default"
+            size="small"
+            className="!h-[32px] !min-h-[32px] w-full sm:w-auto"
+            onClick={handleAdd}
+          >
+            <Plus className="h-4 w-4" />
+            Add time
+          </Button>
+        </div>
       )}
     </div>
   );
