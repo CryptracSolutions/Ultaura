@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { Bell, Play, X, Plus } from 'lucide-react';
+import { Play, X, Plus } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import TextField from '~/core/ui/TextField';
+import { TimePicker } from '~/core/ui/TimePicker';
 import {
   createHealthReminderAction,
   getHealthRemindersForMedicationAction,
@@ -23,6 +24,7 @@ type HealthLinkedReminder = {
   linkId: string;
   reminderId: string;
   timeOfDay: string | null;
+  label: string | null;
   status: string;
   isActive: boolean;
   pauseSources: PauseSource[];
@@ -36,13 +38,23 @@ interface HealthMedicationReminderPanelProps {
   medicationName: string;
 }
 
+const CONSENT_SOURCES: PauseSource[] = [
+  'health_consent_not_requested',
+  'health_consent_denied',
+  'health_consent_revoked',
+];
+
+function isConsentPaused(sources: PauseSource[]): boolean {
+  return sources.some((s) => CONSENT_SOURCES.includes(s));
+}
+
 const PAUSE_SOURCE_LABELS: Record<PauseSource, string> = {
   manual: 'Manually paused',
-  health_manual_resume_required: 'Waiting for manual resume',
-  health_consent_not_requested: 'Health consent not yet requested',
-  health_consent_denied: 'Health consent denied',
-  health_consent_revoked: 'Health consent revoked',
-  health_plan_ineligible: 'Current plan does not include health reminders',
+  health_manual_resume_required: 'Needs manual resume',
+  health_consent_not_requested: 'Activates once your loved one consents to health info during calls',
+  health_consent_denied: 'Your loved one has not consented to health info during calls',
+  health_consent_revoked: 'Your loved one revoked consent for health info during calls',
+  health_plan_ineligible: 'Current plan does not include medication reminders',
 };
 
 function formatTime(timeOfDay: string | null): string {
@@ -131,14 +143,19 @@ export function HealthMedicationReminderPanel({
   }
 
   const activeReminders = reminders.filter((r) => r.status !== 'canceled');
+  const activeCount = activeReminders.filter((r) => r.isActive).length;
 
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-6">
+    <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 px-5 py-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Bell className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          <h4 className="text-sm font-semibold text-foreground">Call Reminders</h4>
+          <h4 className="text-sm font-semibold text-foreground">Medication Reminders</h4>
+          {!loading && activeReminders.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {activeCount} active
+            </span>
+          )}
         </div>
         <Button
           variant="outline"
@@ -153,31 +170,29 @@ export function HealthMedicationReminderPanel({
       </div>
 
       {/* Informational note */}
-      <p className="text-xs text-muted-foreground">
-        Health-linked reminders are call-only. They are not delivered by SMS.
+      <p className="text-xs text-primary/70">
+        Medication reminders are managed here, separate from your regular reminders. They are delivered during calls only.
       </p>
 
       {/* Add form */}
       {showAddForm && (
-        <div className="rounded-md border border-border bg-background p-3 space-y-3">
-          <p className="text-sm font-medium text-foreground">New reminder</p>
+        <div className="rounded-lg border border-primary/20 bg-primary/[0.03] p-4 space-y-4">
+          <p className="text-sm font-semibold text-foreground">New reminder</p>
 
-          <div className="space-y-1">
-            <label htmlFor="reminder-time" className="text-xs font-medium text-muted-foreground">
-              Time (HH:MM)
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Reminder time
             </label>
-            <TextField.Input
-              id="reminder-time"
-              type="time"
+            <TimePicker
               value={newTimeOfDay}
-              onChange={(e) => setNewTimeOfDay(e.target.value)}
-              aria-label="Reminder time"
+              onChange={setNewTimeOfDay}
+              placeholder="Select time"
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="reminder-label" className="text-xs font-medium text-muted-foreground">
-              Label (optional)
+          <div className="space-y-1.5">
+            <label htmlFor="reminder-label" className="block text-xs font-medium text-muted-foreground">
+              Label <span className="font-normal text-muted-foreground/70">(optional)</span>
             </label>
             <TextField.Input
               id="reminder-label"
@@ -194,22 +209,24 @@ export function HealthMedicationReminderPanel({
             <p className="text-xs text-destructive" role="alert">{addError}</p>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button
-              variant="default"
+              variant="outline"
               size="small"
-              onClick={handleAdd}
-              disabled={isPending}
-            >
-              {isPending ? 'Saving…' : 'Save reminder'}
-            </Button>
-            <Button
-              variant="ghost"
-              size="small"
+              className="w-full sm:w-auto"
               onClick={() => { setShowAddForm(false); setAddError(null); }}
               disabled={isPending}
             >
               Cancel
+            </Button>
+            <Button
+              variant="default"
+              size="small"
+              className="w-full sm:w-auto"
+              onClick={handleAdd}
+              disabled={isPending}
+            >
+              {isPending ? 'Saving…' : 'Save reminder'}
             </Button>
           </div>
         </div>
@@ -217,7 +234,7 @@ export function HealthMedicationReminderPanel({
 
       {/* Loading / error states */}
       {loading && (
-        <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
           <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
           Loading reminders…
         </div>
@@ -228,7 +245,7 @@ export function HealthMedicationReminderPanel({
       )}
 
       {!loading && !loadError && activeReminders.length === 0 && (
-        <p className="text-xs text-muted-foreground py-2">No reminders yet. Add one above.</p>
+        <p className="text-xs text-muted-foreground py-3 text-center">No reminders yet</p>
       )}
 
       {/* Reminder list */}
@@ -236,41 +253,57 @@ export function HealthMedicationReminderPanel({
         <ul className="space-y-2" aria-label={`Reminders for ${medicationName}`}>
           {activeReminders.map((reminder) => {
             const needsResume = reminder.pauseSources.includes('health_manual_resume_required');
+            const consentPaused = isConsentPaused(reminder.pauseSources);
             const otherSources = reminder.pauseSources.filter((s) => s !== 'health_manual_resume_required');
+
+            // Determine status label and style
+            let statusLabel = 'Active';
+            let statusClasses = 'bg-primary/10 text-primary';
+            if (!reminder.isActive) {
+              if (consentPaused) {
+                statusLabel = 'Pending consent';
+                statusClasses = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+              } else {
+                statusLabel = 'Paused';
+                statusClasses = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+              }
+            }
 
             return (
               <li
                 key={reminder.reminderId}
-                className="flex flex-col gap-2 rounded-md border border-border bg-background p-3"
+                className="flex flex-col gap-2 rounded-lg border border-border/60 bg-background px-4 py-3"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-foreground">
-                      {formatTime(reminder.timeOfDay)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {reminder.isActive ? 'Active' : 'Paused'}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm font-medium text-foreground">
+                        {formatTime(reminder.timeOfDay)}
+                      </p>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClasses}`}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                    {reminder.label && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{reminder.label}</p>
+                    )}
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="small"
+                  <button
                     onClick={() => handleCancel(reminder.reminderId)}
                     disabled={isPending}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 shrink-0"
                     aria-label={`Cancel reminder at ${formatTime(reminder.timeOfDay)}`}
                   >
-                    <X className="h-3.5 w-3.5" />
-                    Cancel
-                  </Button>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
 
                 {/* Pause source explanations */}
                 {otherSources.length > 0 && (
                   <ul className="space-y-0.5" aria-label="Pause reasons">
                     {otherSources.map((source) => (
-                      <li key={source} className="text-xs text-amber-600 dark:text-amber-400">
+                      <li key={source} className={`text-xs ${consentPaused ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`}>
                         {PAUSE_SOURCE_LABELS[source] ?? source}
                       </li>
                     ))}
@@ -288,7 +321,7 @@ export function HealthMedicationReminderPanel({
                     aria-label={`Resume reminder at ${formatTime(reminder.timeOfDay)}`}
                   >
                     <Play className="h-3.5 w-3.5" />
-                    Resume reminder
+                    Resume
                   </Button>
                 )}
               </li>

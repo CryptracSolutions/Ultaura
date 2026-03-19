@@ -7,7 +7,7 @@ import NavigationMenu from '~/core/ui/Navigation/NavigationMenu';
 import NavigationItem from '~/core/ui/Navigation/NavigationItem';
 import MobileNavigationDropdown from '~/core/ui/MobileNavigationDropdown';
 
-import type { HealthTabValue, HealthConsentStatus, HealthCondition, HealthObservation, HealthDocument } from '@ultaura/types';
+import type { HealthTabValue, HealthConsentStatus, HealthCondition, HealthMedication, HealthObservation, HealthDocument } from '@ultaura/types';
 import { cn } from '~/core/generic/shadcn-utils';
 import type { LineRow, UltauraAccountRow } from '~/lib/ultaura/types';
 
@@ -400,6 +400,50 @@ function ConditionsTabLoader({
   );
 }
 
+function MedicationsTabLoader({
+  lineId,
+  accountId,
+  initialMedications,
+}: {
+  lineId: string;
+  accountId: string;
+  initialMedications?: HealthMedication[];
+}) {
+  const [conditions, setConditions] = useState<HealthCondition[]>([]);
+  const requestVersionRef = useRef(0);
+
+  useEffect(() => {
+    requestVersionRef.current += 1;
+    const requestVersion = requestVersionRef.current;
+
+    runWithRetries(() => getConditionsAction(lineId))
+      .then((result) => {
+        if (requestVersionRef.current !== requestVersion) return;
+        if (result.success) {
+          setConditions(result.conditions);
+        }
+      })
+      .catch(() => {
+        // Non-critical: medications still work without linked conditions
+      });
+
+    return () => {
+      if (requestVersionRef.current === requestVersion) {
+        requestVersionRef.current += 1;
+      }
+    };
+  }, [lineId]);
+
+  return (
+    <HealthMedicationsTab
+      lineId={lineId}
+      accountId={accountId}
+      conditions={conditions}
+      initialMedications={initialMedications}
+    />
+  );
+}
+
 function ObservationsTabLoader({
   lineId,
   initialObservations,
@@ -609,10 +653,9 @@ function HealthTabContent({
         : undefined;
 
     return (
-      <HealthMedicationsTab
+      <MedicationsTabLoader
         lineId={lineFullId}
         accountId={accountId}
-        conditions={[]}
         initialMedications={initialMedications}
       />
     );

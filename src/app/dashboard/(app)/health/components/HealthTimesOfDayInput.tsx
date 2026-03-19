@@ -2,7 +2,7 @@
 
 import { Plus, X } from 'lucide-react';
 import Button from '~/core/ui/Button';
-import TextField from '~/core/ui/TextField';
+import { TimePicker } from '~/core/ui/TimePicker';
 
 interface HealthTimesOfDayInputProps {
   value: string[];
@@ -32,12 +32,13 @@ export function HealthTimesOfDayInput({ value, onChange }: HealthTimesOfDayInput
     <div className="space-y-2">
       {value.map((time, index) => (
         <div key={index} className="flex items-center gap-2">
-          <TextField.Input
-            type="time"
-            value={time}
-            onChange={(e) => handleTimeChange(index, e.target.value)}
-            aria-label={`Time ${index + 1}`}
-          />
+          <div className="flex-1">
+            <TimePicker
+              value={time}
+              onChange={(newTime: string) => handleTimeChange(index, newTime)}
+              placeholder="Select time"
+            />
+          </div>
           <button
             type="button"
             onClick={() => handleRemove(index)}

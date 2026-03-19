@@ -198,6 +198,7 @@ export type HealthLinkedReminder = {
   linkId: string;
   reminderId: string;
   timeOfDay: string | null;
+  label: string | null;
   status: string;
   isActive: boolean;
   pauseSources: PauseSource[];
@@ -220,6 +221,7 @@ export async function getHealthRemindersForMedication(
         id,
         status,
         time_of_day,
+        label,
         pause_sources,
         is_paused
       )
@@ -238,6 +240,7 @@ export async function getHealthRemindersForMedication(
       id: string;
       status: string;
       time_of_day: string | null;
+      label: string | null;
       pause_sources: PauseSource[];
       is_paused: boolean;
     };
@@ -245,6 +248,7 @@ export async function getHealthRemindersForMedication(
       linkId: row.id,
       reminderId: row.reminder_id,
       timeOfDay: reminder.time_of_day,
+      label: reminder.label ?? null,
       status: reminder.status,
       isActive: reminder.status === 'scheduled' && !reminder.is_paused,
       pauseSources: reminder.pause_sources ?? [],

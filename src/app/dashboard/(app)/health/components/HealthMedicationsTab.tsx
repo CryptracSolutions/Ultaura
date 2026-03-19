@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useTransition } from 'react';
-import { Plus, Pencil, Trash2, Clock, Bell, Loader2, Pill } from 'lucide-react';
+import { Plus, Pencil, Trash2, Clock, Bell, Loader2, Pill, CheckCircle2 } from 'lucide-react';
 import Button from '~/core/ui/Button';
 import Badge from '~/core/ui/Badge';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
@@ -9,6 +9,8 @@ import { HealthEmptyState } from './HealthEmptyState';
 import { HealthMedicationForm } from './HealthMedicationForm';
 import { HealthHistoryDrawer } from './HealthHistoryDrawer';
 import { HealthMedicationReminderPanel } from './HealthMedicationReminderPanel';
+import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import {
   getMedicationsAction,
   deleteMedicationAction,
@@ -180,6 +182,7 @@ export function HealthMedicationsTab({
           <Button
             variant="default"
             size="small"
+            className="w-full sm:w-auto"
             onClick={handleAdd}
           >
             <Plus className="h-4 w-4" />
@@ -245,8 +248,8 @@ export function HealthMedicationsTab({
               isPending={isPending}
               onEdit={() => handleEdit(med)}
               onDelete={() => setDeleteTarget(med)}
-              onChangeStatus={() =>
-                setStatusTarget({ medication: med, newStatus: getNextStatus(med.status) })
+              onChangeStatus={(newStatus) =>
+                setStatusTarget({ medication: med, newStatus })
               }
               onViewHistory={() => setHistoryTarget(med)}
             />
@@ -313,7 +316,7 @@ interface MedicationCardProps {
   isPending: boolean;
   onEdit: () => void;
   onDelete: () => void;
-  onChangeStatus: () => void;
+  onChangeStatus: (newStatus: HealthMedicationStatus) => void;
   onViewHistory: () => void;
 }
 
@@ -333,102 +336,86 @@ function MedicationCard({
     ? conditionNameMap[medication.linkedConditionId]
     : null;
 
+  const badge = MEDICATION_STATUS_BADGE[medication.status];
+  const otherStatuses = (Object.keys(MEDICATION_STATUS_BADGE) as HealthMedicationStatus[]).filter(
+    (s) => s !== medication.status,
+  );
+
+  const hasDetails = medication.dosage || medication.frequency || medication.timesOfDay.length > 0 || linkedConditionName;
+
   return (
-    <div className="rounded-xl border border-border bg-card p-6 space-y-2">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-base font-semibold text-foreground leading-snug">{medication.name}</p>
-          <Badge color={MEDICATION_STATUS_BADGE[medication.status].color} size="small">
-            {MEDICATION_STATUS_BADGE[medication.status].label}
-          </Badge>
+    <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+      {/* Header row — name + action buttons */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground truncate">{medication.name}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setShowReminders((v) => !v)}
+                className={`p-2 rounded-lg transition-colors ${showReminders ? 'bg-primary/10 text-primary' : 'text-primary hover:bg-primary/10'}`}
+                aria-label={`${showReminders ? 'Hide' : 'Show'} reminders for ${medication.name}`}
+                aria-expanded={showReminders}
+              >
+                <Bell className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent sideOffset={20}>Reminders</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onViewHistory}
+                className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                aria-label={`View history for ${medication.name}`}
+              >
+                <Clock className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent sideOffset={20}>History</TooltipContent>
+          </Tooltip>
+          <ResponsiveActionMenu
+            title={medication.name}
+            actions={[
+              {
+                label: 'Edit',
+                icon: <Pencil className="w-5 h-5" />,
+                onClick: onEdit,
+                disabled: isPending,
+              },
+              {
+                label: 'Change status',
+                icon: <CheckCircle2 className="w-5 h-5" />,
+                subItems: otherStatuses.map((s) => ({
+                  label: MEDICATION_STATUS_BADGE[s].label,
+                  onClick: () => onChangeStatus(s),
+                })),
+              },
+              {
+                label: 'Delete',
+                icon: <Trash2 className="w-5 h-5" />,
+                onClick: onDelete,
+                variant: 'destructive' as const,
+                separator: true,
+                disabled: isPending,
+              },
+            ]}
+            disabled={isPending}
+          />
         </div>
       </div>
 
-      {/* Details */}
-      <dl className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
-        {medication.dosage && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Dosage</dt>
-            <dd className="text-foreground">{medication.dosage}</dd>
-          </div>
-        )}
-        {medication.frequency && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Frequency</dt>
-            <dd className="text-foreground">{medication.frequency}</dd>
-          </div>
-        )}
-        {medication.timesOfDay.length > 0 && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Times</dt>
-            <dd className="text-foreground">{medication.timesOfDay.join(', ')}</dd>
-          </div>
-        )}
-        {linkedConditionName && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Linked condition</dt>
-            <dd className="text-foreground">{linkedConditionName}</dd>
-          </div>
-        )}
-      </dl>
-
-      {/* Action buttons */}
-      <div className="flex flex-wrap gap-2 pt-1">
-        <Button
-          variant="outline"
-          size="small"
-          onClick={onEdit}
-          disabled={isPending}
-          aria-label={`Edit ${medication.name}`}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Edit
-        </Button>
-
-        <Button
-          variant="outline"
-          size="small"
-          onClick={onChangeStatus}
-          disabled={isPending}
-          aria-label={`Change status of ${medication.name}`}
-        >
-          Change status
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="small"
-          onClick={() => setShowReminders((v) => !v)}
-          disabled={isPending}
-          aria-label={`${showReminders ? 'Hide' : 'Show'} reminders for ${medication.name}`}
-          aria-expanded={showReminders}
-        >
-          <Bell className="h-3.5 w-3.5" />
-          Reminders
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="small"
-          onClick={onViewHistory}
-          disabled={isPending}
-          aria-label={`View history for ${medication.name}`}
-        >
-          <Clock className="h-3.5 w-3.5" />
-          History
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="small"
-          onClick={onDelete}
-          disabled={isPending}
-          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          aria-label={`Delete ${medication.name}`}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Delete
-        </Button>
+      {/* Details row — medication info + status badge */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {medication.dosage && <span>Dosage: {medication.dosage}</span>}
+          {medication.frequency && <span>Frequency: {medication.frequency}</span>}
+          {medication.timesOfDay.length > 0 && <span>Times: {medication.timesOfDay.join(', ')}</span>}
+          {linkedConditionName && <span>For: {linkedConditionName}</span>}
+        </div>
+        <Badge color={badge.color} size="small">{badge.label}</Badge>
       </div>
 
       {/* Reminder panel */}

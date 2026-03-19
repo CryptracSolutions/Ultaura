@@ -116,18 +116,29 @@ export function HealthMedicationForm({
   }, [open, medication]);
 
   // Check for duplicate name on name change (client-side quick check)
+  // Uses the same fuzzy matching as conditions: exact, reordered words,
+  // and substring containment (3+ char input to avoid false positives).
   useEffect(() => {
     if (!form.name.trim()) {
       setDuplicateWarning(null);
       return;
     }
 
-    const trimmedName = form.name.trim().toLowerCase();
-    const duplicate = existingMedications.find(
-      (m) =>
-        m.name.trim().toLowerCase() === trimmedName &&
-        m.id !== medication?.id,
-    );
+    const normalize = (s: string) =>
+      s.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).sort().join(' ');
+
+    const inputLower = form.name.trim().toLowerCase();
+    const inputNorm = normalize(form.name);
+
+    const duplicate = existingMedications.find((m) => {
+      if (m.id === medication?.id) return false;
+      const existingLower = m.name.trim().toLowerCase();
+      const existingNorm = normalize(m.name);
+      if (existingLower === inputLower) return true;
+      if (existingNorm === inputNorm) return true;
+      if (inputLower.length >= 3 && (existingLower.includes(inputLower) || inputLower.includes(existingLower))) return true;
+      return false;
+    });
 
     if (duplicate) {
       setDuplicateWarning(`A medication named "${duplicate.name}" already exists.`);
