@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { Check, Share2, X } from 'lucide-react';
 
 import Button from '~/core/ui/Button';
+import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import { Switch } from '~/core/ui/Switch';
 import type { LineRow, LineVoiceConsent } from '~/lib/ultaura/types';
 import { useCurrentTimeMs } from '../../hooks/useCurrentTimeMs';
-import { PrivacyInfoBanner } from '../PrivacyInfoBanner';
 import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 
 export interface SharingFeature {
@@ -77,26 +77,28 @@ export function SharingPreferencesSection({
 
   return (
     <>
-      <PrivacyInfoBanner storageKey="privacy_sharing_info_collapsed">
-        Family sharing lets you invite family members to receive weekly
-          summaries and wellness alerts. What is shared follows your loved
-          one&apos;s sharing preferences during calls.{' '}
-        <Link
-          href="/docs/insights-and-reports/sharing-with-family"
-          className="text-primary font-medium underline underline-offset-2 hover:no-underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          Learn more →
-        </Link>
-      </PrivacyInfoBanner>
-
       <Section>
         <SectionHeader
           title={
-            <div className="flex items-center gap-2">
-              <Share2 className="h-4 w-4 text-muted-foreground" />
-              Sharing preferences
-            </div>
+            <span className="inline-flex items-center gap-2">
+              <Share2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>Sharing preferences</span>
+              <CollapsibleInfoTip
+                storageKey="privacy_sharing_info_collapsed"
+                collapsedLabel="Sharing info"
+              >
+                Family sharing lets you invite family members to receive weekly
+                summaries and wellness alerts. What is shared follows your
+                loved one&apos;s sharing preferences during calls.{' '}
+                <Link
+                  href="/docs/insights-and-reports/sharing-with-family"
+                  className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Learn more →
+                </Link>
+              </CollapsibleInfoTip>
+            </span>
           }
           description={
             isSelfUser

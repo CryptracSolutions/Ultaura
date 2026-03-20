@@ -29,6 +29,25 @@ export async function getHealthConsentState(
   return data;
 }
 
+export async function getHealthConsentCounts(
+  lineIds: string[]
+): Promise<{ granted: number; total: number }> {
+  if (lineIds.length === 0) return { granted: 0, total: 0 };
+
+  const userClient = getSupabaseServerActionClient();
+  const { data, error } = await userClient.from('ultaura_health_line_consent')
+    .select('line_id, health_consent')
+    .in('line_id', lineIds);
+
+  if (error) {
+    logger.error({ error }, 'Failed to load health consent counts');
+    return { granted: 0, total: lineIds.length };
+  }
+
+  const granted = (data ?? []).filter((r: any) => r.health_consent === 'granted').length;
+  return { granted, total: lineIds.length };
+}
+
 export async function requestHealthConsentRePrompt(
   lineId: string
 ): Promise<

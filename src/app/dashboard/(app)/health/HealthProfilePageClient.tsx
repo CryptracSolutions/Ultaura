@@ -216,6 +216,7 @@ export function HealthProfilePageClient({
               userType={userType}
               consentStatus={consentState.consentStatus}
               consentRequestedAt={consentState.consentRequestedAt}
+              historyPreview={consentState.historyPreview}
             />
           </div>
         ) : null}

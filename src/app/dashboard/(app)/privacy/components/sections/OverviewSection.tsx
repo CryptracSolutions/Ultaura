@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { LayoutDashboard, Users } from 'lucide-react';
 
 import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
@@ -12,6 +13,7 @@ export interface OverviewSectionProps {
     recordingSet: number;
     sharingSet: number;
   };
+  healthConsentSummary: { granted: number; total: number };
   showSharingSummary: boolean;
   recordingEnabled: boolean;
   aiSummarizationEnabled: boolean;
@@ -30,6 +32,7 @@ export function OverviewSection({
   isSelfUser,
   lineCount,
   consentSummary,
+  healthConsentSummary,
   showSharingSummary,
   recordingEnabled,
   aiSummarizationEnabled,
@@ -87,6 +90,17 @@ export function OverviewSection({
                     </span>
                   </div>
                 ) : null}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Health profile access</span>
+                  <Link
+                    href="/dashboard/health"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {lineCount === 0
+                      ? 'No lines'
+                      : `${healthConsentSummary.granted}/${healthConsentSummary.total}`}
+                  </Link>
+                </div>
               </div>
             </div>
 

@@ -15,6 +15,7 @@ import {
 } from '~/lib/ultaura/privacy';
 import { PrivacyCenterClient } from './PrivacyCenterClient';
 import { getNotificationRecipients } from '~/lib/ultaura/notification-recipients';
+import { getHealthConsentCounts } from '~/lib/ultaura/health/consent';
 import { getTrialStatus } from '~/lib/ultaura/helpers';
 import { PLANS } from '~/lib/ultaura/constants';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
@@ -153,6 +154,16 @@ export default async function PrivacyCenterPage() {
   const lineVoiceConsents =
     results[5].status === 'fulfilled' ? results[5].value : [];
 
+  // Health consent counts (needs line IDs from above)
+  let healthConsentSummary = { granted: 0, total: lines.length };
+  if (lines.length > 0) {
+    try {
+      healthConsentSummary = await getHealthConsentCounts(lines.map((l) => l.id));
+    } catch (err) {
+      logger.error({ accountId: account.id, reason: err }, 'Failed to load health consent counts');
+    }
+  }
+
   const trialStatus = getTrialStatus(account);
   const isTrialExpired = trialStatus.isExpired;
   const trialPlanId = (trialStatus.trialPlanId ??
@@ -174,6 +185,7 @@ export default async function PrivacyCenterPage() {
           exportRequests={exportRequests}
           notificationRecipients={notificationRecipients}
           lineVoiceConsents={lineVoiceConsents}
+          healthConsentSummary={healthConsentSummary}
         />
       </PageBody>
     </>

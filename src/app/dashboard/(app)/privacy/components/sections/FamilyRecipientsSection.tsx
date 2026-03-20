@@ -131,7 +131,7 @@ export function FamilyRecipientsSection({
             <span>Family Recipients</span>
             <CollapsibleInfoTip
               storageKey="privacy_recipients_info_collapsed"
-              collapsedLabel="Privacy info"
+              collapsedLabel="Recipients info"
             >
               Family recipients receive weekly summaries and alert updates. Trusted
               contacts are managed separately for urgent safety outreach by SMS. What

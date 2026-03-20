@@ -68,6 +68,7 @@ interface PrivacyCenterClientProps {
   auditLog: ConsentAuditEntry[];
   exportRequests: DataExportRequest[];
   notificationRecipients: NotificationRecipient[];
+  healthConsentSummary: { granted: number; total: number };
 }
 
 const RETENTION_OPTIONS: Array<{
@@ -152,6 +153,7 @@ export function PrivacyCenterClient({
   auditLog,
   exportRequests,
   notificationRecipients,
+  healthConsentSummary,
 }: PrivacyCenterClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -490,6 +492,7 @@ export function PrivacyCenterClient({
             isSelfUser={isSelfUser}
             lineCount={lineCount}
             consentSummary={consentSummary}
+            healthConsentSummary={healthConsentSummary}
             showSharingSummary={showSharingSummary}
             recordingEnabled={recordingEnabled}
             aiSummarizationEnabled={aiSummarizationEnabled}

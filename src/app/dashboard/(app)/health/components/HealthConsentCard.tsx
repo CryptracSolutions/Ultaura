@@ -17,12 +17,20 @@ import {
 
 const COOLDOWN_DAYS = 30;
 
+interface ConsentHistoryEntry {
+  id: string;
+  eventType: string;
+  resultingStatus: HealthConsentStatus | null;
+  createdAt: string;
+}
+
 interface HealthConsentCardProps {
   lineId: string;
   lineName: string;
   userType: 'self' | 'family_managed';
   consentStatus: HealthConsentStatus;
   consentRequestedAt: string | null;
+  historyPreview?: ConsentHistoryEntry[];
 }
 
 function isCooldownActive(requestedAt: string | null): boolean {
@@ -31,12 +39,31 @@ function isCooldownActive(requestedAt: string | null): boolean {
   return ms < COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 }
 
+const EVENT_LABELS: Record<string, string> = {
+  owner_request: 'Re-prompt requested',
+  spoken_prompt: 'Prompted during call',
+  spoken_decision: 'Decision during call',
+  self_service_decision: 'Changed from dashboard',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  granted: 'Granted',
+  denied: 'Denied',
+  revoked: 'Revoked',
+};
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function HealthConsentCard({
   lineId,
   lineName,
   userType,
   consentStatus,
   consentRequestedAt,
+  historyPreview,
 }: HealthConsentCardProps) {
   const [isPending, startTransition] = useTransition();
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -160,6 +187,32 @@ export function HealthConsentCard({
               {feedback.message}
             </p>
           ) : null}
+
+          {historyPreview && historyPreview.length > 0 && (
+            <div className="border-t border-border/60 pt-2 mt-1">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
+                Recent activity
+              </p>
+              <div className="space-y-1">
+                {historyPreview.slice(0, 3).map((entry) => {
+                  const label = EVENT_LABELS[entry.eventType] ?? entry.eventType;
+                  const statusSuffix = entry.resultingStatus
+                    ? ` — ${STATUS_LABELS[entry.resultingStatus] ?? entry.resultingStatus}`
+                    : '';
+                  return (
+                    <div key={entry.id} className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground truncate mr-2">
+                        {label}{statusSuffix}
+                      </span>
+                      <span className="text-muted-foreground/70 shrink-0">
+                        {formatShortDate(entry.createdAt)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
