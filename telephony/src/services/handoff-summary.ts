@@ -73,7 +73,7 @@ export async function generateHandoffSummary(
       throw new Error(`xAI API returned ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
     const summaryText = data.choices?.[0]?.message?.content?.trim();
 
     if (!summaryText) {
