@@ -25,7 +25,7 @@ import { Section, SectionBody, SectionHeader } from '~/core/ui/Section';
 import TextField from '~/core/ui/TextField';
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/core/ui/Tooltip';
 import { CollapsibleInfoTip } from '~/core/ui/CollapsibleInfoTip';
-import type { NotificationRecipient } from '~/lib/ultaura/types';
+import type { LineRow, NotificationRecipient } from '~/lib/ultaura/types';
 import { getUsPhoneValidationError } from '~/lib/ultaura/phone';
 import PhoneInput from '~/components/ultaura/PhoneInput';
 import { InvitedFamilyList } from '../InvitedFamilyList';
@@ -77,6 +77,10 @@ export interface FamilyRecipientsSectionProps {
   showDiscardConfirm: boolean;
   setShowDiscardConfirm: (open: boolean) => void;
   closeInviteModal: () => void;
+  lines: LineRow[];
+  inviteLineIds: string[];
+  setInviteLineIds: (ids: string[]) => void;
+  onUpdateLineAssignments: (recipientId: string, lineIds: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function FamilyRecipientsSection({
@@ -119,6 +123,10 @@ export function FamilyRecipientsSection({
   showDiscardConfirm,
   setShowDiscardConfirm,
   closeInviteModal,
+  lines,
+  inviteLineIds,
+  setInviteLineIds,
+  onUpdateLineAssignments,
 }: FamilyRecipientsSectionProps) {
   const hasReachedRecipientLimit = activeRecipientCount >= MAX_RECIPIENTS;
 
@@ -201,6 +209,8 @@ export function FamilyRecipientsSection({
             onUpdateRecipientDeliveryChannel={updateRecipientDeliveryChannel}
             dashboardAccessLoading={isDashboardSharingLoading}
             disabled={isInviting}
+            lines={lines}
+            onUpdateLineAssignments={onUpdateLineAssignments}
           />
 
           <Dialog
@@ -353,6 +363,38 @@ export function FamilyRecipientsSection({
                   </TextField>
                 </div>
 
+                <div className="col-span-full space-y-2">
+                  <label className="text-sm font-medium">
+                    Lines <span className="text-destructive">*</span>
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which loved ones this person should receive updates about.
+                  </p>
+                  <div className="space-y-2 rounded-xl border border-border px-4 py-3">
+                    {lines.map((line) => {
+                      const isChecked = inviteLineIds.includes(line.id);
+                      const isSingleLine = lines.length === 1;
+                      return (
+                        <label key={line.id} className="flex items-center gap-3 text-sm">
+                          <Checkbox
+                            checked={isChecked}
+                            disabled={isSingleLine || isInviting}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setInviteLineIds([...inviteLineIds, line.id]);
+                              } else {
+                                const next = inviteLineIds.filter((id) => id !== line.id);
+                                if (next.length > 0) setInviteLineIds(next);
+                              }
+                            }}
+                          />
+                          <span>{line.display_name || 'Unnamed line'}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {inviteDeliveryChannel !== 'email' ? (
                   <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
                     <Checkbox
@@ -414,8 +456,17 @@ export function FamilyRecipientsSection({
             title="Grant dashboard access?"
             description={
               pendingGrantRecipient
-                ? `This gives ${pendingGrantRecipient.name} read-only access to your dashboard, including call history, insights, wellness data, schedules, and reminders for all lines.`
-                : 'This gives read-only dashboard access for all lines.'
+                ? (() => {
+                    const assignedNames = lines
+                      .filter((l) => pendingGrantRecipient.assignedLineIds.includes(l.id))
+                      .map((l) => l.display_name);
+                    const lineDesc =
+                      assignedNames.length === 0 ? 'all lines'
+                      : assignedNames.length === lines.length ? 'all loved ones on this account'
+                      : assignedNames.join(' and ');
+                    return `This gives ${pendingGrantRecipient.name} read-only access to your dashboard, including call history, insights, wellness data, schedules, and reminders for ${lineDesc}.`;
+                  })()
+                : 'This gives read-only dashboard access.'
             }
             confirmLabel="Grant access"
             cancelLabel="Cancel"

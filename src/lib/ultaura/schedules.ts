@@ -649,7 +649,10 @@ export async function getActiveScheduleStatsByLine(
   return stats;
 }
 
-export async function getAllSchedules(accountId: string): Promise<{
+export async function getAllSchedules(
+  accountId: string,
+  options?: { lineIds?: string[] },
+): Promise<{
   scheduleId: string;
   lineId: string;
   lineShortId: string;
@@ -666,7 +669,7 @@ export async function getAllSchedules(accountId: string): Promise<{
 }[]> {
   const client = getSupabaseServerComponentClient();
 
-  const { data: schedules, error } = await client
+  let query = client
     .from('ultaura_schedules')
     .select(`
       id,
@@ -685,7 +688,13 @@ export async function getAllSchedules(accountId: string): Promise<{
         preferred_grok_voice
       )
     `)
-    .eq('account_id', accountId)
+    .eq('account_id', accountId);
+
+  if (options?.lineIds && options.lineIds.length > 0) {
+    query = query.in('line_id', options.lineIds);
+  }
+
+  const { data: schedules, error } = await query
     .order('line_id', { ascending: true })
     .order('created_at', { ascending: true });
 

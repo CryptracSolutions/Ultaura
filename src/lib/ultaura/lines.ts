@@ -18,13 +18,22 @@ import { cleanupHealthDataForDeletion } from './health/deletion';
 
 const logger = getLogger();
 
-export async function getLines(accountId: string): Promise<LineRow[]> {
+export async function getLines(
+  accountId: string,
+  options?: { lineIds?: string[] },
+): Promise<LineRow[]> {
   const client = getSupabaseServerComponentClient();
 
-  const { data, error } = await client
+  let query = client
     .from('ultaura_lines')
     .select('*')
-    .eq('account_id', accountId)
+    .eq('account_id', accountId);
+
+  if (options?.lineIds && options.lineIds.length > 0) {
+    query = query.in('id', options.lineIds);
+  }
+
+  const { data, error } = await query
     .order('display_name', { ascending: true })
     .order('created_at', { ascending: true });
 

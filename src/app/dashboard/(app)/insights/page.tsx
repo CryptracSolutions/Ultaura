@@ -11,6 +11,7 @@ import getSupabaseServerComponentClient from '~/core/supabase/server-component-c
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import Button from '~/core/ui/Button';
+import { isViewerRole, getViewerLineIds } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Insights - Ultaura',
@@ -31,6 +32,7 @@ function getDefaultLine(lines: LineOption[]): LineOption | null {
 
 export default async function InsightsPage() {
   const appData = await loadAppDataForUser();
+  const isViewer = isViewerRole(appData.role);
   const organizationId = appData.organization?.id;
 
   if (!organizationId) {
@@ -65,8 +67,14 @@ export default async function InsightsPage() {
     );
   }
 
+  const viewerLineIds = await getViewerLineIds({
+    isViewer,
+    accountId: account.id,
+    userId: appData.auth.user.id,
+  });
+
   const [lines, trialInfo] = await Promise.all([
-    getLines(account.id),
+    getLines(account.id, { lineIds: viewerLineIds }),
     getTrialInfo(account.id),
   ]);
 

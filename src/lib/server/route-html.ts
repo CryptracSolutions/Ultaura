@@ -1,5 +1,14 @@
 import { escapeHtml, escapeHtmlAttr } from '~/lib/server/html-escape';
 
+export function getSiteUrl(): string {
+  const siteUrl =
+    process.env.NODE_ENV !== 'production'
+      ? process.env.SITE_URL || 'http://localhost:3000'
+      : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  return siteUrl.replace(/\/$/, '');
+}
+
 type CspDirectives = Record<string, readonly string[]>;
 const HEX_COLOR_RE = /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 

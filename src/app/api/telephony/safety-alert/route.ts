@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import getLogger from '~/core/logger';
 import sendEmail from '~/core/email/send-email';
@@ -15,6 +14,7 @@ import {
   resolveFamilyAlertDestinations,
   sendAlertSms,
 } from '~/lib/ultaura/alert-fanout';
+import { validateWebhookSecret } from '../webhook-auth';
 
 interface SafetyAlertPayload {
   accountId: string;
@@ -26,34 +26,6 @@ interface SafetyAlertPayload {
 }
 
 const logger = getLogger();
-
-function validateWebhookSecret(request: Request): NextResponse | null {
-  const expectedSecret = process.env.ULTAURA_INTERNAL_API_SECRET;
-  const providedSecret = request.headers.get('x-webhook-secret');
-
-  if (!expectedSecret) {
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  if (!providedSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const providedBuffer = Buffer.from(providedSecret, 'utf8');
-  const expectedBuffer = Buffer.from(expectedSecret, 'utf8');
-
-  if (
-    providedBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(
-      Uint8Array.from(providedBuffer),
-      Uint8Array.from(expectedBuffer)
-    )
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  return null;
-}
 
 function buildSafetyEmailAction(
   actionTaken: string,
@@ -166,6 +138,7 @@ export async function POST(request: Request) {
         billing_email: account.billing_email,
         created_by_user_id: account.created_by_user_id,
       },
+      lineId: payload.lineId,
       includeOwner: canSendToBillingEmail,
       includeRecipients: canSendToRecipients,
     });

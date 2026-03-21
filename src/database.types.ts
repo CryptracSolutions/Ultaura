@@ -4368,6 +4368,42 @@ export type Database = {
           },
         ]
       }
+      ultaura_recipient_line_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          line_id: string
+          recipient_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_id: string
+          recipient_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_id?: string
+          recipient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultaura_recipient_line_assignments_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ultaura_recipient_line_assignments_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "ultaura_notification_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ultaura_relationships: {
         Row: {
           account_id: string
@@ -5984,6 +6020,10 @@ export type Database = {
         }[]
       }
       get_user_id_by_email: { Args: { lookup_email: string }; Returns: string }
+      get_viewer_assigned_line_ids: {
+        Args: { p_account_id: string }
+        Returns: string[]
+      }
       has_exportable_health_document_files: {
         Args: { target_account_id: string }
         Returns: boolean

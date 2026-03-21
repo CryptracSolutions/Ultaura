@@ -212,6 +212,7 @@ export interface NotificationRecipient {
   confirmedAt: string | null;
   unsubscribedAt: string | null;
   dashboardAccessGrantedAt: string | null;
+  assignedLineIds: string[];
   createdAt: string;
   updatedAt: string;
 }

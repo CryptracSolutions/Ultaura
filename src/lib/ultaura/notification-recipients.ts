@@ -24,6 +24,7 @@ import {
 } from './notification-tokens';
 import { revokeDashboardAccess } from './dashboard-sharing';
 import { issueRecipientSmsVerificationAccessToken } from './recipient-sms-verification';
+import { getSiteUrl } from '~/lib/server/route-html';
 
 const logger = getLogger();
 const MAX_NOTIFICATION_RECIPIENTS = 5;
@@ -77,18 +78,10 @@ function createInviteFailedError() {
   return createError(ErrorCodes.DATABASE_ERROR, INVITE_FAILED_ERROR_MESSAGE);
 }
 
-function getSiteUrl(): string {
-  const siteUrl =
-    process.env.NODE_ENV !== 'production'
-      ? process.env.SITE_URL || 'http://localhost:3000'
-      : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-  return siteUrl.replace(/\/$/, '');
-}
-
 async function resolveAccountContext(
   accountId: string,
-  client?: SupabaseClient<Database>
+  client?: SupabaseClient<Database>,
+  lineIds?: string[],
 ): Promise<{
   accountName: string;
   lineName: string;
@@ -101,19 +94,39 @@ async function resolveAccountContext(
     .eq('id', accountId)
     .single();
 
-  const { data: lines } = await clientInstance
-    .from('ultaura_lines')
-    .select('display_name, created_at')
-    .eq('account_id', accountId)
-    .order('created_at', { ascending: true });
-
   const accountName = account?.name || 'Ultaura';
-  const lineName =
-    lines?.length === 1
-      ? lines[0].display_name
-      : lines && lines.length > 1
-        ? 'your loved ones'
-        : 'your loved one';
+
+  let lineName = 'your loved one';
+
+  if (lineIds && lineIds.length > 0) {
+    const { data: lines } = await clientInstance
+      .from('ultaura_lines')
+      .select('display_name')
+      .in('id', lineIds)
+      .order('created_at', { ascending: true });
+
+    const names = (lines || []).map((l) => l.display_name).filter(Boolean);
+    if (names.length === 1) {
+      lineName = names[0];
+    } else if (names.length === 2) {
+      lineName = `${names[0]} and ${names[1]}`;
+    } else if (names.length > 2) {
+      lineName = `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+    }
+  } else {
+    const { data: lines } = await clientInstance
+      .from('ultaura_lines')
+      .select('display_name, created_at')
+      .eq('account_id', accountId)
+      .order('created_at', { ascending: true });
+
+    lineName =
+      lines?.length === 1
+        ? lines[0].display_name
+        : lines && lines.length > 1
+          ? 'your loved ones'
+          : 'your loved one';
+  }
 
   const { data: user } = await clientInstance.auth.getUser();
   const userId = user.user?.id;
@@ -178,7 +191,10 @@ async function requireAccountOwner(
   return { success: true, data: { userId } };
 }
 
-function mapRecipient(row: NotificationRecipientRow): NotificationRecipient {
+function mapRecipient(
+  row: NotificationRecipientRow,
+  assignedLineIds: string[] = [],
+): NotificationRecipient {
   const rowWithDashboardAccess = row as NotificationRecipientRowWithSmsOptOut;
 
   return {
@@ -197,6 +213,7 @@ function mapRecipient(row: NotificationRecipientRow): NotificationRecipient {
     confirmedAt: row.confirmed_at,
     unsubscribedAt: row.unsubscribed_at,
     dashboardAccessGrantedAt: rowWithDashboardAccess.dashboard_access_granted_at ?? null,
+    assignedLineIds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -259,12 +276,84 @@ export async function getNotificationRecipients(
     }
   }
 
+  // Load line assignments
+  const recipientIds = rows.map((r) => r.id);
+  const assignmentsByRecipient = new Map<string, string[]>();
+
+  if (recipientIds.length > 0) {
+    const { data: assignmentRows } = await client
+      .from('ultaura_recipient_line_assignments')
+      .select('recipient_id, line_id')
+      .in('recipient_id', recipientIds);
+
+    for (const row of assignmentRows || []) {
+      const existing = assignmentsByRecipient.get(row.recipient_id) || [];
+      existing.push(row.line_id);
+      assignmentsByRecipient.set(row.recipient_id, existing);
+    }
+  }
+
   return rows.map((row) =>
-    mapRecipient({
-      ...row,
-      sms_opted_out: Boolean(row.phone_e164 && optedOutPhones.has(row.phone_e164)),
-    } as NotificationRecipientRow),
+    mapRecipient(
+      { ...row, sms_opted_out: Boolean(row.phone_e164 && optedOutPhones.has(row.phone_e164)) } as NotificationRecipientRow,
+      assignmentsByRecipient.get(row.id) || [],
+    ),
   );
+}
+
+export async function updateRecipientLineAssignments(
+  recipientId: string,
+  lineIds: string[],
+): Promise<ActionResult<{ assignedLineIds: string[] }>> {
+  const client = getSupabaseServerActionClient();
+
+  const { data: recipient, error: lookupError } = await client
+    .from('ultaura_notification_recipients')
+    .select('id, account_id')
+    .eq('id', recipientId)
+    .maybeSingle();
+
+  if (lookupError || !recipient) {
+    return { success: false, error: createError(ErrorCodes.NOT_FOUND, 'Recipient not found') };
+  }
+
+  const auth = await requireAccountOwner(client, recipient.account_id);
+  if (!auth.success) return { success: false, error: auth.error };
+
+  if (lineIds.length === 0) {
+    return { success: false, error: createError(ErrorCodes.INVALID_INPUT, 'At least one line must be selected') };
+  }
+
+  // Validate all lineIds belong to this account
+  const { data: validLines } = await client
+    .from('ultaura_lines')
+    .select('id')
+    .eq('account_id', recipient.account_id)
+    .in('id', lineIds);
+
+  const validLineIds = new Set((validLines || []).map((l) => l.id));
+  if (lineIds.some((id) => !validLineIds.has(id))) {
+    return { success: false, error: createError(ErrorCodes.INVALID_INPUT, 'One or more lines do not belong to this account') };
+  }
+
+  // Delete existing, insert new (safe because orphan trigger is on ultaura_lines, NOT the junction table)
+  const adminClient = getSupabaseServerActionClient({ admin: true });
+
+  await adminClient
+    .from('ultaura_recipient_line_assignments')
+    .delete()
+    .eq('recipient_id', recipientId);
+
+  const { error: insertError } = await adminClient
+    .from('ultaura_recipient_line_assignments')
+    .insert(lineIds.map((lineId) => ({ recipient_id: recipientId, line_id: lineId })));
+
+  if (insertError) {
+    return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to update line assignments') };
+  }
+
+  revalidatePath('/dashboard/privacy', 'page');
+  return { success: true, data: { assignedLineIds: lineIds } };
 }
 
 export async function inviteNotificationRecipient(
@@ -278,6 +367,7 @@ export async function inviteNotificationRecipient(
     relationship?: string;
     addAsTrustedContact?: boolean;
     allowReinvite?: boolean;
+    lineIds?: string[];
   },
   options: {
     client?: SupabaseClient<Database>;
@@ -287,6 +377,28 @@ export async function inviteNotificationRecipient(
   const auth = await requireAccountOwner(client, accountId);
   if (!auth.success) {
     return { success: false, error: auth.error };
+  }
+
+  if (!input.lineIds || input.lineIds.length === 0) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'At least one line must be selected'),
+    };
+  }
+
+  // Validate all lineIds belong to this account (prevents cross-account injection via admin client)
+  const { data: validLines } = await client
+    .from('ultaura_lines')
+    .select('id')
+    .eq('account_id', accountId)
+    .in('id', input.lineIds);
+
+  const validLineIds = new Set((validLines || []).map((l) => l.id));
+  if (input.lineIds.some((id) => !validLineIds.has(id))) {
+    return {
+      success: false,
+      error: createError(ErrorCodes.INVALID_INPUT, 'One or more lines do not belong to this account'),
+    };
   }
 
   const name = normalizeRecipientName(input.name);
@@ -454,6 +566,19 @@ export async function inviteNotificationRecipient(
       rollbackSnapshot,
     };
 
+    // Replace line assignments
+    if (input.lineIds && input.lineIds.length > 0) {
+      const adminClient = getSupabaseServerActionClient({ admin: true });
+      await adminClient.from('ultaura_recipient_line_assignments').delete().eq('recipient_id', existing.id);
+      const { error: assignmentError } = await adminClient
+        .from('ultaura_recipient_line_assignments')
+        .insert(input.lineIds.map((lineId) => ({ recipient_id: existing.id, line_id: lineId })));
+
+      if (assignmentError) {
+        logger.error({ error: assignmentError, recipientId: existing.id }, 'Failed to create line assignments for reinvited recipient');
+      }
+    }
+
     try {
       await sendInviteEmail({
         recipientName: updated.name,
@@ -462,6 +587,7 @@ export async function inviteNotificationRecipient(
         token: tokenState.token,
         deliveryChannel,
         client,
+        lineIds: input.lineIds,
       });
     } catch (error) {
       const rollbackResult = await rollbackNotificationInviteMutation(
@@ -490,7 +616,7 @@ export async function inviteNotificationRecipient(
     }
 
     revalidatePath('/dashboard/privacy', 'page');
-    return { success: true, data: mapRecipient(updated) };
+    return { success: true, data: mapRecipient(updated, input.lineIds ?? []) };
   }
 
   const { count: activeRecipientCount, error: countError } =
@@ -555,6 +681,20 @@ export async function inviteNotificationRecipient(
     mutationType: 'insert',
   };
 
+  // Create line assignments
+  if (input.lineIds && input.lineIds.length > 0) {
+    const adminClient = getSupabaseServerActionClient({ admin: true });
+    const { error: assignmentError } = await adminClient
+      .from('ultaura_recipient_line_assignments')
+      .insert(input.lineIds.map((lineId) => ({ recipient_id: inserted.id, line_id: lineId })));
+
+    if (assignmentError) {
+      logger.error({ error: assignmentError, recipientId: inserted.id }, 'Failed to create line assignments for new recipient');
+      await client.from('ultaura_notification_recipients').delete().eq('id', inserted.id);
+      return { success: false, error: createError(ErrorCodes.DATABASE_ERROR, 'Failed to assign lines') };
+    }
+  }
+
   try {
     await sendInviteEmail({
       recipientName: updated.name,
@@ -563,6 +703,7 @@ export async function inviteNotificationRecipient(
       token: tokenState.token,
       deliveryChannel,
       client,
+      lineIds: input.lineIds,
     });
   } catch (error) {
     const rollbackResult = await rollbackNotificationInviteMutation(
@@ -591,7 +732,7 @@ export async function inviteNotificationRecipient(
   }
 
   revalidatePath('/dashboard/privacy', 'page');
-  return { success: true, data: mapRecipient(updated) };
+  return { success: true, data: mapRecipient(updated, input.lineIds ?? []) };
 }
 
 async function sendRecipientSmsVerificationEmail(options: {
@@ -790,8 +931,15 @@ export async function updateNotificationRecipientDelivery(
     }
   }
 
+  // Load current line assignments so the returned object has accurate assignedLineIds
+  const { data: currentAssignments } = await client
+    .from('ultaura_recipient_line_assignments')
+    .select('line_id')
+    .eq('recipient_id', recipientId);
+  const currentLineIds = (currentAssignments || []).map((r) => r.line_id);
+
   revalidatePath('/dashboard/privacy', 'page');
-  return { success: true, data: mapRecipient(updated) };
+  return { success: true, data: mapRecipient(updated, currentLineIds) };
 }
 
 export async function resendRecipientSmsVerificationLink(
@@ -1209,13 +1357,15 @@ async function sendInviteEmail(options: {
   token: string;
   deliveryChannel: AlertDeliveryChannel;
   client?: SupabaseClient<Database>;
+  lineIds?: string[];
 }) {
   const emailFrom = getNotificationsEmailSender();
   const replyTo = getSupportReplyToEmail();
 
   const { accountName, lineName, inviterName } = await resolveAccountContext(
     options.accountId,
-    options.client
+    options.client,
+    options.lineIds,
   );
   const siteUrl = getSiteUrl();
   const confirmLink = `${siteUrl}/api/ultaura/confirm/${options.token}`;

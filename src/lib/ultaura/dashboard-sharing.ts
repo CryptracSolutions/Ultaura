@@ -17,6 +17,7 @@ import requireSession from '~/lib/user/require-session';
 import MembershipRole from '~/lib/organizations/types/membership-role';
 import renderDashboardAccessInviteEmail from '~/lib/emails/dashboard-access-invite';
 import renderDashboardAccessGrantedEmail from '~/lib/emails/dashboard-access-granted';
+import { getSiteUrl } from '~/lib/server/route-html';
 
 const logger = getLogger();
 const VIEWER_ROLE = MembershipRole.Viewer;
@@ -37,15 +38,6 @@ type MembershipUpsertResult = {
   linkedAuthUserId: string | null;
   linkedInvitedEmail: string | null;
 };
-
-function getSiteUrl(): string {
-  const siteUrl =
-    process.env.NODE_ENV !== 'production'
-      ? process.env.SITE_URL || 'http://localhost:3000'
-      : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-  return siteUrl.replace(/\/$/, '');
-}
 
 function isProductionEnvironment(): boolean {
   return process.env.NODE_ENV === 'production';
@@ -147,17 +139,30 @@ async function resolveAccountAndRecipientContext(
   accountId: string,
   recipient: RecipientRow,
 ) {
+  // Get assigned line IDs for this recipient
+  const { data: assignmentRows } = await adminClient
+    .from('ultaura_recipient_line_assignments')
+    .select('line_id')
+    .eq('recipient_id', recipient.id);
+  const assignedLineIds = (assignmentRows || []).map((r) => r.line_id);
+
   const [{ data: account }, { data: lines }] = await Promise.all([
     adminClient
       .from('ultaura_accounts')
       .select('name, organization_id, created_by_user_id')
       .eq('id', accountId)
       .single(),
-    adminClient
-      .from('ultaura_lines')
-      .select('display_name, created_at')
-      .eq('account_id', accountId)
-      .order('created_at', { ascending: true }),
+    assignedLineIds.length > 0
+      ? adminClient
+          .from('ultaura_lines')
+          .select('display_name, created_at')
+          .in('id', assignedLineIds)
+          .order('created_at', { ascending: true })
+      : adminClient
+          .from('ultaura_lines')
+          .select('display_name, created_at')
+          .eq('account_id', accountId)
+          .order('created_at', { ascending: true }),
   ]);
 
   let inviterName = account?.name || 'Ultaura';
@@ -876,19 +881,12 @@ export async function getViewerContext(
   adminClient: SupabaseClient<Database>,
   accountId: string,
   userId: string,
-): Promise<{ accountHolderName: string; seniorName: string | null }> {
-  const [{ data: account }, { data: lines }] = await Promise.all([
-    adminClient
-      .from('ultaura_accounts')
-      .select('created_by_user_id, name')
-      .eq('id', accountId)
-      .single(),
-    adminClient
-      .from('ultaura_lines')
-      .select('display_name, created_at')
-      .eq('account_id', accountId)
-      .order('created_at', { ascending: true }),
-  ]);
+): Promise<{ accountHolderName: string; seniorName: string | null; assignedLineIds: string[] }> {
+  const { data: account } = await adminClient
+    .from('ultaura_accounts')
+    .select('created_by_user_id, name')
+    .eq('id', accountId)
+    .single();
 
   let accountHolderName = account?.name || 'Account holder';
 
@@ -902,7 +900,37 @@ export async function getViewerContext(
     accountHolderName = holder?.display_name?.trim() || accountHolderName;
   }
 
-  const seniorName = lines?.length === 1 ? lines[0]?.display_name ?? null : null;
+  // Get line IDs this viewer is assigned to
+  const { data: recipientRow } = await adminClient
+    .from('ultaura_notification_recipients')
+    .select('id')
+    .eq('account_id', accountId)
+    .eq('dashboard_access_user_id', userId)
+    .is('unsubscribed_at', null)
+    .not('dashboard_access_granted_at', 'is', null)
+    .maybeSingle();
 
-  return { accountHolderName, seniorName };
+  const assignedLineIds: string[] = [];
+  if (recipientRow) {
+    const { data: assignmentRows } = await adminClient
+      .from('ultaura_recipient_line_assignments')
+      .select('line_id')
+      .eq('recipient_id', recipientRow.id);
+    for (const row of assignmentRows || []) {
+      assignedLineIds.push(row.line_id);
+    }
+  }
+
+  // Resolve seniorName from assigned lines only
+  let seniorName: string | null = null;
+  if (assignedLineIds.length > 0) {
+    const { data: assignedLines } = await adminClient
+      .from('ultaura_lines')
+      .select('display_name')
+      .in('id', assignedLineIds)
+      .order('created_at', { ascending: true });
+    seniorName = assignedLines?.length === 1 ? assignedLines[0]?.display_name ?? null : null;
+  }
+
+  return { accountHolderName, seniorName, assignedLineIds };
 }

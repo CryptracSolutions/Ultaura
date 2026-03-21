@@ -11,7 +11,7 @@ import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import { getTrialStatus } from '~/lib/ultaura/helpers';
 import Button from '~/core/ui/Button';
-import { isViewerRole } from '~/lib/ultaura/viewer-guards';
+import { isViewerRole, getViewerLineIds } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Calls - Ultaura',
@@ -68,9 +68,15 @@ export default async function CallsPage() {
     ? 'Manage when Ultaura calls you'
     : 'Manage when Ultaura calls your loved ones';
 
+  const viewerLineIds = await getViewerLineIds({
+    isViewer,
+    accountId: account.id,
+    userId: appData.auth.user.id,
+  });
+
   const [lines, schedules] = await Promise.all([
-    getLines(account.id),
-    getAllSchedules(account.id),
+    getLines(account.id, { lineIds: viewerLineIds }),
+    getAllSchedules(account.id, { lineIds: viewerLineIds }),
   ]);
 
   // Filter to only verified lines

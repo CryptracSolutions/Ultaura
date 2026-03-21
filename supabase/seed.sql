@@ -122,7 +122,8 @@ CASCADE;
 
 DELETE FROM public.users
 WHERE id IN (
-  'aaaaaaaa-0000-4000-a000-000000000001'
+  'aaaaaaaa-0000-4000-a000-000000000001',
+  'aaaaaaaa-0000-4000-a000-000000000002'
 );
 
 DELETE FROM auth.users WHERE email LIKE '%@ultaura-seed.test';
@@ -134,7 +135,13 @@ DELETE FROM public.organizations WHERE name = 'Johnson Family';
 -- UUID REFERENCE GUIDE
 -- =============================================================================
 -- Users:
---   payer@ultaura-seed.test  → aaaaaaaa-0000-4000-a000-000000000001
+--   payer@ultaura-seed.test   → aaaaaaaa-0000-4000-a000-000000000001
+--   viewer@ultaura-seed.test  → aaaaaaaa-0000-4000-a000-000000000002
+--
+-- Notification Recipients:
+--   Sarah Payer   → dddddddd-0000-4000-b000-000000000001
+--   Michael Payer → dddddddd-0000-4000-b000-000000000002
+--   Emma Viewer   → dddddddd-0000-4000-b000-000000000003
 --
 -- Organization: id=1 (Johnson Family)
 --
@@ -160,6 +167,11 @@ DELETE FROM public.organizations WHERE name = 'Johnson Family';
 -- =============================================================================
 
 -- =============================================================================
+-- SECTION 0B: FEATURE FLAGS (override migration defaults for local dev)
+-- =============================================================================
+UPDATE ultaura_runtime_feature_flags SET enabled = true WHERE flag_key = 'health_profile';
+
+-- =============================================================================
 -- SECTION 1: AUTH USERS
 -- =============================================================================
 
@@ -179,6 +191,18 @@ INSERT INTO auth.users (
   '{"provider": "email", "providers": ["email"], "role": "super-admin"}',
   '{}',
   NOW() - INTERVAL '30 days', NOW(), '', '', '', ''
+),
+-- viewer (dashboard-only access via Emma Viewer recipient)
+(
+  '00000000-0000-0000-0000-000000000000',
+  'aaaaaaaa-0000-4000-a000-000000000002',
+  'authenticated', 'authenticated',
+  'viewer@ultaura-seed.test',
+  crypt('testingpassword', gen_salt('bf')),
+  NOW() - INTERVAL '10 days',
+  '{"provider": "email", "providers": ["email"]}',
+  '{}',
+  NOW() - INTERVAL '10 days', NOW(), '', '', '', ''
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -196,6 +220,13 @@ INSERT INTO auth.identities (
   'payer@ultaura-seed.test',
   '{"sub": "aaaaaaaa-0000-4000-a000-000000000001", "email": "payer@ultaura-seed.test"}',
   'email', NOW() - INTERVAL '1 day', NOW() - INTERVAL '30 days', NOW()
+),
+(
+  'aaaaaaaa-0000-4000-a000-000000000002',
+  'aaaaaaaa-0000-4000-a000-000000000002',
+  'viewer@ultaura-seed.test',
+  '{"sub": "aaaaaaaa-0000-4000-a000-000000000002", "email": "viewer@ultaura-seed.test"}',
+  'email', NOW() - INTERVAL '1 day', NOW() - INTERVAL '10 days', NOW()
 )
 ON CONFLICT (provider_id, provider) DO NOTHING;
 
@@ -204,7 +235,8 @@ ON CONFLICT (provider_id, provider) DO NOTHING;
 -- =============================================================================
 
 INSERT INTO public.users (id, onboarded, created_at) VALUES
-('aaaaaaaa-0000-4000-a000-000000000001', true, NOW() - INTERVAL '30 days')
+('aaaaaaaa-0000-4000-a000-000000000001', true, NOW() - INTERVAL '30 days'),
+('aaaaaaaa-0000-4000-a000-000000000002', true, NOW() - INTERVAL '10 days')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.organizations (id, name, created_at)
@@ -219,9 +251,10 @@ SELECT setval(
   COALESCE((SELECT MAX(id) FROM organizations), 1)
 );
 
--- payer = role 2 (owner)
+-- payer = role 2 (owner), viewer = role -1 (dashboard viewer)
 INSERT INTO public.memberships (user_id, organization_id, role, created_at) VALUES
-('aaaaaaaa-0000-4000-a000-000000000001', 1, 2, NOW() - INTERVAL '30 days')
+('aaaaaaaa-0000-4000-a000-000000000001', 1, 2, NOW() - INTERVAL '30 days'),
+('aaaaaaaa-0000-4000-a000-000000000002', 1, -1, NOW() - INTERVAL '10 days')
 ON CONFLICT (user_id, organization_id) DO NOTHING;
 
 -- Stripe subscription
@@ -3287,25 +3320,62 @@ ON CONFLICT (account_id, line_id) DO NOTHING;
 -- ============================================================
 INSERT INTO ultaura_notification_recipients (
   id, account_id, name, email, phone_e164, relationship,
-  is_trusted_contact, confirmed_at
+  is_trusted_contact, confirmed_at,
+  dashboard_access_user_id, dashboard_access_granted_at, dashboard_access_invited_email
 ) VALUES
 
-(gen_random_uuid(), 'bbbbbbbb-0000-4000-a000-000000000001',
+-- Sarah & Michael: confirmed, NO dashboard access → use for grant dialog testing
+('dddddddd-0000-4000-b000-000000000001', 'bbbbbbbb-0000-4000-a000-000000000001',
  'Sarah Payer', 'sarah.payer@example.com', '+15555550401',
  'Account Holder',
- false, NOW() - INTERVAL '30 days'),
+ false, NOW() - INTERVAL '30 days',
+ NULL, NULL, NULL),
 
-(gen_random_uuid(), 'bbbbbbbb-0000-4000-a000-000000000001',
+('dddddddd-0000-4000-b000-000000000002', 'bbbbbbbb-0000-4000-a000-000000000001',
  'Michael Payer', 'michael.payer@example.com', '+15555550402',
  'Co-caregiver',
- false, NOW() - INTERVAL '25 days'),
+ false, NOW() - INTERVAL '25 days',
+ NULL, NULL, NULL),
 
-(gen_random_uuid(), 'bbbbbbbb-0000-4000-a000-000000000001',
+-- Emma: confirmed, HAS dashboard access → login as viewer@ultaura-seed.test
+-- Assigned to only Margaret Johnson + Eleanor Martinez (2 of 4 lines)
+('dddddddd-0000-4000-b000-000000000003', 'bbbbbbbb-0000-4000-a000-000000000001',
  'Emma Viewer', 'emma.viewer@example.com', NULL,
  'Extended family',
- false, NULL)
+ false, NOW() - INTERVAL '20 days',
+ 'aaaaaaaa-0000-4000-a000-000000000002', NOW() - INTERVAL '10 days', 'emma.viewer@example.com')
 
 ON CONFLICT (account_id, email) DO NOTHING;
+
+-- ============================================================
+-- SECTION 28B2: RECIPIENT LINE ASSIGNMENTS
+-- Sarah & Michael → all 4 lines.  Emma → only 2 lines (viewer scoping test).
+-- ============================================================
+
+-- Sarah & Michael: all lines on their account
+INSERT INTO ultaura_recipient_line_assignments (recipient_id, line_id)
+SELECT nr.id, ul.id
+FROM ultaura_notification_recipients nr
+JOIN ultaura_lines ul ON ul.account_id = nr.account_id
+WHERE nr.unsubscribed_at IS NULL
+  AND nr.id != 'dddddddd-0000-4000-b000-000000000003'  -- exclude Emma
+ON CONFLICT (recipient_id, line_id) DO NOTHING;
+
+-- Emma: only Margaret Johnson + Eleanor Martinez (2 of 4 lines)
+INSERT INTO ultaura_recipient_line_assignments (recipient_id, line_id) VALUES
+('dddddddd-0000-4000-b000-000000000003', 'cccccccc-0000-4000-a000-000000000001'),  -- Margaret Johnson
+('dddddddd-0000-4000-b000-000000000003', 'cccccccc-0000-4000-a000-000000000003')   -- Eleanor Martinez
+ON CONFLICT (recipient_id, line_id) DO NOTHING;
+
+-- Link Emma's dashboard_access_membership_id to the viewer's membership row
+UPDATE ultaura_notification_recipients
+SET dashboard_access_membership_id = (
+  SELECT id FROM public.memberships
+  WHERE user_id = 'aaaaaaaa-0000-4000-a000-000000000002'
+    AND organization_id = 1
+  LIMIT 1
+)
+WHERE id = 'dddddddd-0000-4000-b000-000000000003';
 
 -- ============================================================
 -- SECTION 28C: WEEKLY SUMMARIES (6 total: 2 weeks × 3 lines; Jim has 1)

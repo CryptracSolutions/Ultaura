@@ -12,7 +12,7 @@ const logger = getLogger();
 
 export async function getWellnessAlerts(
   accountId: string,
-  options?: { limit?: number }
+  options?: { limit?: number; lineIds?: string[] }
 ): Promise<WellnessAlert[]> {
   const limit = options?.limit ?? 50;
   const userClient = getSupabaseServerActionClient();
@@ -49,7 +49,7 @@ export async function getWellnessAlerts(
   const requesterIsViewer = viewerRoleError ? true : Boolean(isDashboardViewer);
 
   const adminClient = getSupabaseServerActionClient({ admin: true });
-  const { data: alerts, error } = await adminClient
+  let alertsQuery = adminClient
     .from('ultaura_wellness_alerts')
     .select(`
       id,
@@ -62,7 +62,13 @@ export async function getWellnessAlerts(
       acknowledged_at,
       ultaura_lines!inner(display_name, account_id)
     `)
-    .eq('ultaura_lines.account_id', accountId)
+    .eq('ultaura_lines.account_id', accountId);
+
+  if (options?.lineIds && options.lineIds.length > 0) {
+    alertsQuery = alertsQuery.in('line_id', options.lineIds);
+  }
+
+  const { data: alerts, error } = await alertsQuery
     .order('created_at', { ascending: false })
     .limit(limit);
 

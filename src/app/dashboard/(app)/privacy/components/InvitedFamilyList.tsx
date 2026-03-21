@@ -22,7 +22,8 @@ import {
 import TableContainer from '~/core/ui/TableContainer';
 import TableEmptyState from '~/core/ui/TableEmptyState';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
-import type { NotificationRecipient } from '~/lib/ultaura/types';
+import type { LineRow, NotificationRecipient } from '~/lib/ultaura/types';
+import { Popover, PopoverContent, PopoverTrigger } from '~/core/ui/Popover';
 import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
 import { Switch } from '~/core/ui/Switch';
@@ -55,6 +56,101 @@ interface InvitedFamilyListProps {
   ) => Promise<{ success: boolean; error?: string }>;
   dashboardAccessLoading?: boolean;
   disabled?: boolean;
+  lines: LineRow[];
+  onUpdateLineAssignments: (recipientId: string, lineIds: string[]) => Promise<{ success: boolean; error?: string }>;
+}
+
+function RecipientLineEditor({
+  recipient,
+  lines,
+  onSave,
+  disabled,
+}: {
+  recipient: NotificationRecipient;
+  lines: LineRow[];
+  onSave: (recipientId: string, lineIds: string[]) => Promise<{ success: boolean; error?: string }>;
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [pendingIds, setPendingIds] = useState<string[]>(recipient.assignedLineIds);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const assignedLines = lines.filter((l) => recipient.assignedLineIds.includes(l.id));
+  const hasChanges =
+    pendingIds.length !== recipient.assignedLineIds.length ||
+    pendingIds.some((id) => !recipient.assignedLineIds.includes(id));
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {assignedLines.length === 0 ? (
+        <span className="text-xs text-muted-foreground italic">None assigned</span>
+      ) : (
+        assignedLines.map((line) => (
+          <span
+            key={line.id}
+            className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium"
+          >
+            {line.display_name}
+          </span>
+        ))
+      )}
+      <Popover
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (open) setPendingIds(recipient.assignedLineIds);
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="ml-1 text-xs text-primary hover:underline disabled:opacity-50"
+            disabled={disabled}
+          >
+            Edit
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-3" align="start">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Receives updates for:
+          </p>
+          <div className="space-y-2">
+            {lines.map((line) => (
+              <label key={line.id} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={pendingIds.includes(line.id)}
+                  disabled={isSaving}
+                  onCheckedChange={(checked) => {
+                    setPendingIds((prev) => {
+                      if (checked) return [...prev, line.id];
+                      const next = prev.filter((id) => id !== line.id);
+                      return next.length > 0 ? next : prev;
+                    });
+                  }}
+                />
+                <span>{line.display_name || 'Unnamed line'}</span>
+              </label>
+            ))}
+          </div>
+          <Button
+            type="button"
+            size="small"
+            className="mt-3 w-full"
+            disabled={!hasChanges || isSaving || pendingIds.length === 0}
+            loading={isSaving}
+            onClick={async () => {
+              setIsSaving(true);
+              const result = await onSave(recipient.id, pendingIds);
+              setIsSaving(false);
+              if (result.success) setIsOpen(false);
+            }}
+          >
+            Save
+          </Button>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }
 
 function getStatus(recipient: NotificationRecipient): {
@@ -80,6 +176,8 @@ export function InvitedFamilyList({
   onUpdateRecipientDeliveryChannel,
   dashboardAccessLoading = false,
   disabled = false,
+  lines,
+  onUpdateLineAssignments,
 }: InvitedFamilyListProps) {
   const [pendingRemove, setPendingRemove] = useState<{
     id: string;
@@ -116,6 +214,7 @@ export function InvitedFamilyList({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead>Lines</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Phone</TableHead>
             <TableHead>Alert Delivery</TableHead>
@@ -136,6 +235,14 @@ export function InvitedFamilyList({
             return (
               <TableRow key={recipient.id}>
                 <TableCell>{recipient.name}</TableCell>
+                <TableCell>
+                  <RecipientLineEditor
+                    recipient={recipient}
+                    lines={lines}
+                    onSave={onUpdateLineAssignments}
+                    disabled={disabled}
+                  />
+                </TableCell>
                 <TableCell>{recipient.email}</TableCell>
                 <TableCell>
                   {recipient.phoneE164 ? (

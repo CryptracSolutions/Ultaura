@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import sendEmail from '~/core/email/send-email';
 import {
@@ -11,43 +10,8 @@ import getSupabaseRouteHandlerClient from '~/core/supabase/route-handler-client'
 import renderWeeklySummaryEmail from '~/lib/emails/weekly-summary';
 import type { WeeklySummaryData } from '~/lib/ultaura/types';
 import { issueNotificationRecipientUnsubscribeToken } from '~/lib/ultaura/notification-recipients';
-
-function validateWebhookSecret(request: Request): NextResponse | null {
-  const expectedSecret = process.env.ULTAURA_INTERNAL_API_SECRET;
-  const providedSecret = request.headers.get('x-webhook-secret');
-
-  if (!expectedSecret) {
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  if (!providedSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const providedBuffer = Buffer.from(providedSecret, 'utf8');
-  const expectedBuffer = Buffer.from(expectedSecret, 'utf8');
-
-  if (
-    providedBuffer.length !== expectedBuffer.length ||
-    !crypto.timingSafeEqual(
-      Uint8Array.from(providedBuffer),
-      Uint8Array.from(expectedBuffer)
-    )
-  ) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  return null;
-}
-
-function getSiteUrl(): string {
-  const siteUrl =
-    process.env.NODE_ENV !== 'production'
-      ? process.env.SITE_URL || 'http://localhost:3000'
-      : process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-  return siteUrl.replace(/\/$/, '');
-}
+import { validateWebhookSecret } from '../webhook-auth';
+import { getSiteUrl } from '~/lib/server/route-html';
 
 export async function POST(request: Request) {
   const unauthorizedResponse = validateWebhookSecret(request);
@@ -158,37 +122,51 @@ export async function POST(request: Request) {
     }
 
     if (canSendToRecipients) {
-      const { data: recipientRows, error: recipientError } = await supabase
-        .from('ultaura_notification_recipients')
-        .select('id, email, dashboard_access_granted_at')
-        .eq('account_id', normalizedSummary.accountId)
-        .not('confirmed_at', 'is', null)
-        .is('unsubscribed_at', null);
+      // Get recipient IDs assigned to this line
+      const { data: assignmentRows } = await supabase
+        .from('ultaura_recipient_line_assignments')
+        .select('recipient_id')
+        .eq('line_id', normalizedSummary.lineId);
 
-      if (recipientError) {
-        return NextResponse.json({ error: 'Failed to load recipients' }, { status: 500 });
+      const assignedRecipientIds = (assignmentRows || []).map((r) => r.recipient_id);
+      let recipientRows: Array<{ id: string; email: string; dashboard_access_granted_at: string | null }> = [];
+
+      if (assignedRecipientIds.length > 0) {
+        const { data, error: recipientError } = await supabase
+          .from('ultaura_notification_recipients')
+          .select('id, email, dashboard_access_granted_at')
+          .eq('account_id', normalizedSummary.accountId)
+          .not('confirmed_at', 'is', null)
+          .is('unsubscribed_at', null)
+          .in('id', assignedRecipientIds);
+
+        if (recipientError) {
+          return NextResponse.json({ error: 'Failed to load recipients' }, { status: 500 });
+        }
+        recipientRows = data || [];
       }
 
-      for (const recipient of recipientRows || []) {
-        if (!recipients.has(recipient.email)) {
-          const tokenResult = await issueNotificationRecipientUnsubscribeToken(
-            recipient.id,
-            { client: supabase }
+      const uniqueRecipients = recipientRows.filter((r) => !recipients.has(r.email));
+      const tokenResults = await Promise.all(
+        uniqueRecipients.map((r) =>
+          issueNotificationRecipientUnsubscribeToken(r.id, { client: supabase }),
+        ),
+      );
+
+      for (let i = 0; i < uniqueRecipients.length; i++) {
+        const tokenResult = tokenResults[i];
+        if (!tokenResult.success) {
+          return NextResponse.json(
+            { error: 'Failed to issue unsubscribe tokens' },
+            { status: 500 },
           );
-
-          if (!tokenResult.success) {
-            return NextResponse.json(
-              { error: 'Failed to issue unsubscribe tokens' },
-              { status: 500 }
-            );
-          }
-
-          recipients.set(recipient.email, {
-            isPrimary: false,
-            token: tokenResult.data.token,
-            hasDashboardAccess: Boolean(recipient.dashboard_access_granted_at),
-          });
         }
+        const recipient = uniqueRecipients[i];
+        recipients.set(recipient.email, {
+          isPrimary: false,
+          token: tokenResult.data.token,
+          hasDashboardAccess: Boolean(recipient.dashboard_access_granted_at),
+        });
       }
     }
 

@@ -14,7 +14,7 @@ import { getTrialStatus } from '~/lib/ultaura/helpers';
 import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import Button from '~/core/ui/Button';
-import { isViewerRole } from '~/lib/ultaura/viewer-guards';
+import { isViewerRole, getViewerLineIds } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Lines - Ultaura',
@@ -77,9 +77,15 @@ export default async function LinesPage() {
     ? 'Manage your phone number and call settings'
     : 'Manage phone numbers for your loved ones';
 
+  const viewerLineIds = await getViewerLineIds({
+    isViewer,
+    accountId: account.id,
+    userId: appData.auth.user.id,
+  });
+
   // Get lines and usage
   const [lines, usage, privacySettings] = await Promise.all([
-    getLines(account.id),
+    getLines(account.id, { lineIds: viewerLineIds }),
     getUsageSummary(account.id),
     getAccountPrivacySettings(account.id),
   ]);

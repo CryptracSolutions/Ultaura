@@ -3,10 +3,11 @@ import AppRouteShell from '~/app/dashboard/(app)/components/OrganizationScopeLay
 import { UltauraErrorBoundary } from '~/components/ultaura/ErrorBoundary';
 import { getUltauraAccount } from '~/lib/ultaura/accounts';
 import { getDocsIndex } from '~/lib/search/docs-index';
-import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 import MembershipRole from '~/lib/organizations/types/membership-role';
 import { isHealthFeatureEnabled } from '~/lib/ultaura/health/entitlements';
 import { HealthFeatureFlagProvider } from '~/lib/contexts/health-feature-flag';
+import { getViewerContext } from '~/lib/ultaura/dashboard-sharing';
+import getSupabaseServerComponentClient from '~/core/supabase/server-component-client';
 
 type AppDataWithOrganizations = Awaited<ReturnType<typeof loadAppDataForUser>> & {
   allOrganizations?: Array<{
@@ -32,30 +33,19 @@ async function AppLayout({ children }: React.PropsWithChildren) {
 
   let accountHolderName: string | null = null;
   let seniorName: string | null = null;
+  let assignedLineIds: string[] = [];
 
   if (isViewer && account) {
     try {
       const adminClient = getSupabaseServerComponentClient({ admin: true });
-      const dashboardSharingModule = await import('~/lib/ultaura/dashboard-sharing');
-      const getViewerContext = dashboardSharingModule.getViewerContext as
-        | ((client: unknown, accountId: string, userId: string) => Promise<{
-          accountHolderName: string;
-          seniorName: string | null;
-        }>)
-        | undefined;
-
-      if (getViewerContext) {
-        const viewerContext = await getViewerContext(
-          adminClient,
-          account.id,
-          data.auth.user.id,
-        );
-        accountHolderName = viewerContext.accountHolderName;
-        seniorName = viewerContext.seniorName;
-      }
+      const viewerContext = await getViewerContext(adminClient, account.id, data.auth.user.id);
+      accountHolderName = viewerContext.accountHolderName;
+      seniorName = viewerContext.seniorName;
+      assignedLineIds = viewerContext.assignedLineIds;
     } catch {
       accountHolderName = null;
       seniorName = null;
+      assignedLineIds = [];
     }
   }
 
@@ -70,6 +60,7 @@ async function AppLayout({ children }: React.PropsWithChildren) {
         isViewer={isViewer}
         accountHolderName={accountHolderName}
         seniorName={seniorName}
+        assignedLineIds={assignedLineIds}
         allOrganizations={allOrganizations}
       >
         <UltauraErrorBoundary>{children}</UltauraErrorBoundary>

@@ -250,6 +250,7 @@ export function PrivacyCenterClient({
   const inviteFlow = useInviteFlow({
     accountId: account.id,
     initialRecipients: notificationRecipients,
+    lines,
   });
   const dashboardSharingToggle = useDashboardSharingToggle({
     accountId: account.id,
@@ -651,6 +652,10 @@ export function PrivacyCenterClient({
               showDiscardConfirm={inviteFlow.showDiscardConfirm}
               setShowDiscardConfirm={inviteFlow.setShowDiscardConfirm}
               closeInviteModal={inviteFlow.closeInviteModal}
+              lines={lines}
+              inviteLineIds={inviteFlow.inviteLineIds}
+              setInviteLineIds={inviteFlow.setInviteLineIds}
+              onUpdateLineAssignments={inviteFlow.updateRecipientLineAssignments}
             />
           );
         }

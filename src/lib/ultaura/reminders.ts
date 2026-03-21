@@ -1403,7 +1403,10 @@ export async function getUpcomingReminders(accountId: string): Promise<{
     }));
 }
 
-export async function getAllReminders(accountId: string): Promise<{
+export async function getAllReminders(
+  accountId: string,
+  options?: { lineIds?: string[] },
+): Promise<{
   reminderId: string;
   lineId: string;
   lineShortId: string;
@@ -1427,7 +1430,7 @@ export async function getAllReminders(accountId: string): Promise<{
   const client = getSupabaseServerComponentClient();
   const adminClient = getSupabaseServerActionClient({ admin: true }) as SupabaseClient;
 
-  const { data: reminders, error } = await client
+  let query = client
     .from('ultaura_reminders')
     .select(`
       id,
@@ -1458,8 +1461,13 @@ export async function getAllReminders(accountId: string): Promise<{
       )
     `)
     .eq('account_id', accountId)
-    .eq('source_context', 'general')
-    .order('due_at', { ascending: true });
+    .eq('source_context', 'general');
+
+  if (options?.lineIds && options.lineIds.length > 0) {
+    query = query.in('line_id', options.lineIds);
+  }
+
+  const { data: reminders, error } = await query.order('due_at', { ascending: true });
 
   if (error) {
     logger.error({ error }, 'Failed to get all reminders');

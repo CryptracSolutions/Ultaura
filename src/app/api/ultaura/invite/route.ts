@@ -23,6 +23,7 @@ const InviteSchema = z.object({
   relationship: z.string().optional(),
   addAsTrustedContact: z.boolean().optional(),
   allowReinvite: z.boolean().optional(),
+  lineIds: z.array(z.string().uuid()).min(1, 'At least one line must be selected'),
 }).superRefine((value, ctx) => {
   const requiresSms = value.deliveryChannel === 'sms' || value.deliveryChannel === 'both';
   if (requiresSms && !value.phoneE164) {
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
         relationship: inviteInput.relationship,
         addAsTrustedContact: inviteInput.addAsTrustedContact,
         allowReinvite: inviteInput.allowReinvite,
+        lineIds: inviteInput.lineIds,
       },
       { client: supabase }
     );

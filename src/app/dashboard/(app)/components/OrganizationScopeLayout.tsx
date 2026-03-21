@@ -49,6 +49,7 @@ const OrganizationScopeLayout: React.FCC<{
   isViewer?: boolean;
   accountHolderName?: string | null;
   seniorName?: string | null;
+  assignedLineIds?: string[];
   allOrganizations?: OrganizationRoleEntry[];
 }> = ({
   data,
@@ -57,6 +58,7 @@ const OrganizationScopeLayout: React.FCC<{
   isViewer = false,
   accountHolderName = null,
   seniorName = null,
+  assignedLineIds = [],
   allOrganizations = [],
   children,
 }) => {
@@ -108,6 +110,7 @@ const OrganizationScopeLayout: React.FCC<{
                   isViewer={isViewer}
                   accountHolderName={accountHolderName}
                   seniorName={seniorName}
+                  assignedLineIds={assignedLineIds}
                 >
                   <HelpPanelProvider>
                     <ManualCallProvider>

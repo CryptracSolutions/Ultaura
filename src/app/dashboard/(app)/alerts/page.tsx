@@ -14,7 +14,7 @@ import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import type { PlanId } from '~/lib/ultaura/types';
 import { AlertsPageClient } from './AlertsPageClient';
-import { isViewerRole } from '~/lib/ultaura/viewer-guards';
+import { isViewerRole, getViewerLineIds } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Alerts - Ultaura',
@@ -75,9 +75,15 @@ export default async function AlertsPage() {
     ? 'Manage notifications and wellness alerts for your line'
     : 'Manage notifications and wellness alerts for your loved ones';
 
+  const viewerLineIds = await getViewerLineIds({
+    isViewer,
+    accountId: account.id,
+    userId: appData.auth.user.id,
+  });
+
   const [lines, alerts, trialInfo] = await Promise.all([
-    getLines(account.id),
-    getWellnessAlerts(account.id, { limit: 100 }),
+    getLines(account.id, { lineIds: viewerLineIds }),
+    getWellnessAlerts(account.id, { limit: 100, lineIds: viewerLineIds }),
     getTrialInfo(account.id),
   ]);
 

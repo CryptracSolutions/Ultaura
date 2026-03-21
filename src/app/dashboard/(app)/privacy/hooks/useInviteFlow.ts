@@ -10,9 +10,10 @@ import {
   removeNotificationRecipient,
   resendRecipientSmsVerificationLink,
   updateNotificationRecipientDelivery,
+  updateRecipientLineAssignments,
 } from '~/lib/ultaura/notification-recipients';
 import { formatToE164, getUsPhoneValidationError } from '~/lib/ultaura/phone';
-import type { NotificationRecipient } from '~/lib/ultaura/types';
+import type { LineRow, NotificationRecipient } from '~/lib/ultaura/types';
 import {
   getRecipientDeliveryChannel as getRecipientPersistedDeliveryChannel,
   getRecipientSmsConsentTimestamp,
@@ -30,6 +31,7 @@ type InvitePayload = {
   deliveryChannel: RecipientDeliveryChannel;
   smsConsentAcknowledged: boolean;
   smsConsentedAt?: string;
+  lineIds: string[];
 };
 
 type InvitePayloadOverride = Partial<InvitePayload>;
@@ -37,6 +39,7 @@ type InvitePayloadOverride = Partial<InvitePayload>;
 export interface UseInviteFlowOptions {
   accountId: string;
   initialRecipients: NotificationRecipient[];
+  lines: LineRow[];
 }
 
 export interface UseInviteFlowResult {
@@ -88,11 +91,15 @@ export interface UseInviteFlowResult {
     deliveryChannel: RecipientDeliveryChannel,
     smsConsentAcknowledgedAt?: string | null,
   ) => Promise<{ success: boolean; error?: string }>;
+  inviteLineIds: string[];
+  setInviteLineIds: (ids: string[]) => void;
+  updateRecipientLineAssignments: (recipientId: string, lineIds: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function useInviteFlow({
   accountId,
   initialRecipients,
+  lines,
 }: UseInviteFlowOptions): UseInviteFlowResult {
   const [recipients, setRecipients] = useState<NotificationRecipient[]>(
     initialRecipients,
@@ -116,6 +123,10 @@ export function useInviteFlow({
   const [reinviteDialogOpen, setReinviteDialogOpen] = useState(false);
   const [pendingInvite, setPendingInvite] = useState<InvitePayload | null>(null);
 
+  const [inviteLineIds, setInviteLineIds] = useState<string[]>(() =>
+    lines.length === 1 ? [lines[0].id] : []
+  );
+
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   const confirmedRecipients = useMemo(
@@ -134,7 +145,8 @@ export function useInviteFlow({
     invitePhone.trim() !== '' ||
     inviteRelationship.trim() !== '' ||
     inviteDeliveryChannel !== 'email' ||
-    inviteSmsConsentAcknowledged;
+    inviteSmsConsentAcknowledged ||
+    (lines.length > 1 && inviteLineIds.length > 0);
 
   const resetInviteForm = useCallback(() => {
     setInviteName('');
@@ -145,7 +157,8 @@ export function useInviteFlow({
     setInviteRelationship('');
     setInvitePhoneError(undefined);
     setInviteError(null);
-  }, []);
+    setInviteLineIds(lines.length === 1 ? [lines[0].id] : []);
+  }, [lines]);
 
   const closeInviteModal = useCallback(() => {
     resetInviteForm();
@@ -186,11 +199,13 @@ export function useInviteFlow({
           override?.smsConsentAcknowledged ?? inviteSmsConsentAcknowledged
             ? new Date().toISOString()
             : undefined,
+        lineIds: override?.lineIds ?? inviteLineIds,
       };
     },
     [
       inviteDeliveryChannel,
       inviteEmail,
+      inviteLineIds,
       inviteName,
       invitePhone,
       inviteRelationship,
@@ -224,6 +239,11 @@ export function useInviteFlow({
 
       if (requiresSmsChannel && !payload.smsConsentAcknowledged) {
         setInviteError('Please confirm SMS consent before sending this invite');
+        return;
+      }
+
+      if (inviteLineIds.length === 0) {
+        setInviteError('Please select at least one line.');
         return;
       }
 
@@ -265,7 +285,7 @@ export function useInviteFlow({
         setIsInviting(false);
       }
     },
-    [accountId, buildInvitePayload, closeInviteModal, invitePhone],
+    [accountId, buildInvitePayload, closeInviteModal, inviteLineIds, invitePhone],
   );
 
   const submitInvite = useCallback(async () => {
@@ -409,6 +429,23 @@ export function useInviteFlow({
     [recipients],
   );
 
+  const handleUpdateLineAssignments = useCallback(
+    async (recipientId: string, lineIds: string[]) => {
+      const result = await updateRecipientLineAssignments(recipientId, lineIds);
+      if (result.success) {
+        setRecipients((prev) =>
+          prev.map((r) => r.id === recipientId ? { ...r, assignedLineIds: result.data.assignedLineIds } : r)
+        );
+        toast.success('Line assignments updated');
+        return { success: true as const };
+      }
+      const errorMsg = result.error?.message || 'Failed to update line assignments';
+      toast.error(errorMsg);
+      return { success: false as const, error: errorMsg };
+    },
+    []
+  );
+
   useEffect(() => {
     setRecipients(initialRecipients);
   }, [initialRecipients]);
@@ -456,5 +493,8 @@ export function useInviteFlow({
     getRecipientSmsConsentTimestamp: getRecipientSmsConsentTimestampValue,
     resendRecipientSmsInvite,
     updateRecipientDeliveryChannel,
+    inviteLineIds,
+    setInviteLineIds,
+    updateRecipientLineAssignments: handleUpdateLineAssignments,
   };
 }

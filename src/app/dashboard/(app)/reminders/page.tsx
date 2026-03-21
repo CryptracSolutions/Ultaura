@@ -14,7 +14,7 @@ import { TrialExpiredBanner } from '~/components/ultaura/TrialExpiredBanner';
 import { TrialStatusBadge } from '~/components/ultaura/TrialStatusBadge';
 import { PLANS } from '~/lib/ultaura/constants';
 import Button from '~/core/ui/Button';
-import { isViewerRole } from '~/lib/ultaura/viewer-guards';
+import { isViewerRole, getViewerLineIds } from '~/lib/ultaura/viewer-guards';
 
 export const metadata: Metadata = {
   title: 'Reminders - Ultaura',
@@ -57,9 +57,15 @@ export default async function RemindersPage() {
     );
   }
 
+  const viewerLineIds = await getViewerLineIds({
+    isViewer,
+    accountId: account.id,
+    userId: appData.auth.user.id,
+  });
+
   const [lines, reminders] = await Promise.all([
-    getLines(account.id),
-    getAllReminders(account.id),
+    getLines(account.id, { lineIds: viewerLineIds }),
+    getAllReminders(account.id, { lineIds: viewerLineIds }),
   ]);
 
   const trialStatus = getTrialStatus(account);

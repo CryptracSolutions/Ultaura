@@ -45,6 +45,7 @@ export type SmsDestination = {
 type ResolveFamilyDestinationArgs = {
   supabase: SupabaseClient<Database>;
   account: AccountRow;
+  lineId: string;
   includeOwner: boolean;
   includeRecipients: boolean;
 };
@@ -147,45 +148,56 @@ export async function resolveFamilyAlertDestinations(
   }
 
   if (includeRecipients) {
-    const { data: recipientRows } = await supabase
-      .from('ultaura_notification_recipients')
-      .select(
-        'id, email, phone_e164, delivery_channel, sms_verified_at, dashboard_access_granted_at',
-      )
-      .eq('account_id', account.id)
-      .not('confirmed_at', 'is', null)
-      .is('unsubscribed_at', null);
+    // Get recipient IDs assigned to this specific line
+    const { data: assignmentRows } = await supabase
+      .from('ultaura_recipient_line_assignments')
+      .select('recipient_id')
+      .eq('line_id', args.lineId);
 
-    for (const row of (recipientRows || []) as RecipientRow[]) {
-      const channel = normalizeChannel(row.delivery_channel);
-      const email = normalizeEmail(row.email);
+    const assignedRecipientIds = (assignmentRows || []).map((r) => r.recipient_id);
 
-      if (channel === 'email' || channel === 'both') {
-        if (!emailMap.has(email)) {
-          const tokenResult = await issueNotificationRecipientUnsubscribeToken(row.id, {
-            client: supabase,
-          });
+    if (assignedRecipientIds.length > 0) {
+      const { data: recipientRows } = await supabase
+        .from('ultaura_notification_recipients')
+        .select(
+          'id, email, phone_e164, delivery_channel, sms_verified_at, dashboard_access_granted_at',
+        )
+        .eq('account_id', account.id)
+        .not('confirmed_at', 'is', null)
+        .is('unsubscribed_at', null)
+        .in('id', assignedRecipientIds);
 
-          if (tokenResult.success) {
-            emailMap.set(email, {
-              email,
-              isPrimary: false,
-              unsubscribeToken: tokenResult.data.token,
-              hasDashboardAccess: Boolean(row.dashboard_access_granted_at),
+      for (const row of (recipientRows || []) as RecipientRow[]) {
+        const channel = normalizeChannel(row.delivery_channel);
+        const email = normalizeEmail(row.email);
+
+        if (channel === 'email' || channel === 'both') {
+          if (!emailMap.has(email)) {
+            const tokenResult = await issueNotificationRecipientUnsubscribeToken(row.id, {
+              client: supabase,
             });
+
+            if (tokenResult.success) {
+              emailMap.set(email, {
+                email,
+                isPrimary: false,
+                unsubscribeToken: tokenResult.data.token,
+                hasDashboardAccess: Boolean(row.dashboard_access_granted_at),
+              });
+            }
           }
         }
-      }
 
-      if ((channel === 'sms' || channel === 'both') && row.phone_e164 && row.sms_verified_at) {
-        const optedOut = await isPhoneSmsOptedOut(supabase, row.phone_e164);
-        if (!optedOut) {
-          const key = normalizePhone(row.phone_e164);
-          if (!smsMap.has(key)) {
-            smsMap.set(key, {
-              phoneE164: row.phone_e164,
-              source: 'recipient',
-            });
+        if ((channel === 'sms' || channel === 'both') && row.phone_e164 && row.sms_verified_at) {
+          const optedOut = await isPhoneSmsOptedOut(supabase, row.phone_e164);
+          if (!optedOut) {
+            const key = normalizePhone(row.phone_e164);
+            if (!smsMap.has(key)) {
+              smsMap.set(key, {
+                phoneE164: row.phone_e164,
+                source: 'recipient',
+              });
+            }
           }
         }
       }
