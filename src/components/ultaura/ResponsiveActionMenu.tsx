@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MoreVertical, X } from 'lucide-react';
+import { MoreVertical, X, CheckCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,7 @@ export interface ActionItem {
   variant?: 'default' | 'destructive';
   disabled?: boolean;
   separator?: boolean;
-  subItems?: { label: string; onClick: () => void }[];
+  subItems?: { label: string; onClick: () => void; checked?: boolean }[];
 }
 
 interface ResponsiveActionMenuProps {
@@ -127,7 +127,7 @@ export function ResponsiveActionMenu({
                     className={`gap-2 ${
                       action.variant === 'destructive'
                         ? 'text-destructive focus:bg-destructive/10 focus:text-destructive'
-                        : ''
+                        : 'focus:text-accent-foreground data-[state=open]:text-accent-foreground'
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -148,6 +148,9 @@ export function ResponsiveActionMenu({
                             subItem.onClick();
                           }}
                         >
+                          {subItem.checked && (
+                            <CheckCircle className="w-4 h-4 mr-2 shrink-0" />
+                          )}
                           {subItem.label}
                         </DropdownMenuItem>
                       ))}
@@ -216,6 +219,9 @@ export function ResponsiveActionMenu({
                         }}
                         className="flex w-full items-center h-[44px] pl-10 pr-4 text-left text-sm text-foreground hover:bg-muted transition-colors touch-manipulation rounded-md"
                       >
+                        {subItem.checked && (
+                          <CheckCircle className="w-4 h-4 mr-2 shrink-0" />
+                        )}
                         {subItem.label}
                       </button>
                     ))}

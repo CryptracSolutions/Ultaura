@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Mail, Trash2 } from 'lucide-react';
+import { Mail, Trash2, Pencil, Monitor, Users, Bell } from 'lucide-react';
 
 import Button from '~/core/ui/Button';
 import { Checkbox } from '~/core/ui/Checkbox';
@@ -11,29 +11,10 @@ import {
   DialogDescription,
   DialogTitle,
 } from '~/core/ui/Dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '~/core/ui/Table';
-import TableContainer from '~/core/ui/TableContainer';
-import TableEmptyState from '~/core/ui/TableEmptyState';
 import { ConfirmationDialog } from '~/core/ui/ConfirmationDialog';
 import type { LineRow, NotificationRecipient } from '~/lib/ultaura/types';
-import { Popover, PopoverContent, PopoverTrigger } from '~/core/ui/Popover';
 import { formatUsPhoneForDisplay } from '~/lib/ultaura/phone';
 import { ResponsiveActionMenu } from '~/components/ultaura/ResponsiveActionMenu';
-import { Switch } from '~/core/ui/Switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/core/ui/Select';
 import {
   getRecipientDeliveryLabel,
   getRecipientSmsState,
@@ -60,60 +41,68 @@ interface InvitedFamilyListProps {
   onUpdateLineAssignments: (recipientId: string, lineIds: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
-function RecipientLineEditor({
+function getStatusBadge(recipient: NotificationRecipient): {
+  label: string;
+  className: string;
+} {
+  if (recipient.unsubscribedAt) {
+    return {
+      label: 'Unsubscribed',
+      className: 'bg-muted text-muted-foreground',
+    };
+  }
+  if (recipient.confirmedAt) {
+    return {
+      label: 'Confirmed',
+      className: 'bg-success/10 text-success',
+    };
+  }
+  return {
+    label: 'Pending',
+    className: 'bg-warning/10 text-warning',
+  };
+}
+
+function EditLinesDialog({
   recipient,
   lines,
+  isOpen,
+  onClose,
   onSave,
-  disabled,
 }: {
   recipient: NotificationRecipient;
   lines: LineRow[];
+  isOpen: boolean;
+  onClose: () => void;
   onSave: (recipientId: string, lineIds: string[]) => Promise<{ success: boolean; error?: string }>;
-  disabled?: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>(recipient.assignedLineIds);
   const [isSaving, setIsSaving] = useState(false);
 
-  const assignedLines = lines.filter((l) => recipient.assignedLineIds.includes(l.id));
   const hasChanges =
     pendingIds.length !== recipient.assignedLineIds.length ||
     pendingIds.some((id) => !recipient.assignedLineIds.includes(id));
 
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {assignedLines.length === 0 ? (
-        <span className="text-xs text-muted-foreground italic">None assigned</span>
-      ) : (
-        assignedLines.map((line) => (
-          <span
-            key={line.id}
-            className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium"
-          >
-            {line.display_name}
-          </span>
-        ))
-      )}
-      <Popover
-        open={isOpen}
-        onOpenChange={(open) => {
-          setIsOpen(open);
-          if (open) setPendingIds(recipient.assignedLineIds);
-        }}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+        else setPendingIds(recipient.assignedLineIds);
+      }}
+    >
+      <DialogContent
+        className="sm:max-w-[400px] max-h-[85vh] overflow-y-auto"
+        overlayClassName="bg-black/50 backdrop-blur-none"
       >
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="ml-1 text-xs text-primary hover:underline disabled:opacity-50"
-            disabled={disabled}
-          >
-            Edit
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-56 p-3" align="start">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">
-            Receives updates for:
-          </p>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <DialogTitle>Edit Lines</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Choose which lines {recipient.name} receives updates for.
+            </DialogDescription>
+          </div>
+
           <div className="space-y-2">
             {lines.map((line) => (
               <label key={line.id} className="flex items-center gap-2 text-sm">
@@ -132,38 +121,29 @@ function RecipientLineEditor({
               </label>
             ))}
           </div>
-          <Button
-            type="button"
-            size="small"
-            className="mt-3 w-full"
-            disabled={!hasChanges || isSaving || pendingIds.length === 0}
-            loading={isSaving}
-            onClick={async () => {
-              setIsSaving(true);
-              const result = await onSave(recipient.id, pendingIds);
-              setIsSaving(false);
-              if (result.success) setIsOpen(false);
-            }}
-          >
-            Save
-          </Button>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
 
-function getStatus(recipient: NotificationRecipient): {
-  label: string;
-  className: string;
-} {
-  if (recipient.unsubscribedAt) {
-    return { label: 'Unsubscribed', className: 'text-muted-foreground' };
-  }
-  if (recipient.confirmedAt) {
-    return { label: 'Confirmed', className: 'text-success' };
-  }
-  return { label: 'Pending', className: 'text-warning' };
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
+            <Button variant="outline" className="w-full" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              className="w-full"
+              disabled={!hasChanges || isSaving || pendingIds.length === 0}
+              loading={isSaving}
+              onClick={async () => {
+                setIsSaving(true);
+                const result = await onSave(recipient.id, pendingIds);
+                setIsSaving(false);
+                if (result.success) onClose();
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function InvitedFamilyList({
@@ -183,6 +163,7 @@ export function InvitedFamilyList({
     id: string;
     name: string;
   } | null>(null);
+  const [pendingLineEdit, setPendingLineEdit] = useState<NotificationRecipient | null>(null);
   const [pendingSmsConsent, setPendingSmsConsent] = useState<{
     id: string;
     name: string;
@@ -191,7 +172,9 @@ export function InvitedFamilyList({
   const [smsConsentChecked, setSmsConsentChecked] = useState(false);
   const sorted = useMemo(
     () =>
-      [...recipients].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      [...recipients].sort(
+        (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+      ),
     [recipients],
   );
 
@@ -202,146 +185,134 @@ export function InvitedFamilyList({
 
   if (sorted.length === 0) {
     return (
-      <TableContainer>
-        <TableEmptyState message="No invited family members yet." />
-      </TableContainer>
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 px-4 text-center">
+        <Users className="w-10 h-10 text-muted-foreground/50 mb-3" />
+        <p className="text-sm text-muted-foreground">
+          No invited family members yet.
+        </p>
+      </div>
     );
   }
 
   return (
-    <TableContainer>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Lines</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Alert Delivery</TableHead>
-            <TableHead>SMS Status</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Dashboard Access</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sorted.map((recipient) => {
-            const status = getStatus(recipient);
-            const deliveryChannel = getRecipientDeliveryChannel(recipient.id);
-            const smsState = getRecipientSmsState({
-              ...recipient,
-              deliveryChannel,
-            });
-            return (
-              <TableRow key={recipient.id}>
-                <TableCell>{recipient.name}</TableCell>
-                <TableCell>
-                  <RecipientLineEditor
-                    recipient={recipient}
-                    lines={lines}
-                    onSave={onUpdateLineAssignments}
-                    disabled={disabled}
-                  />
-                </TableCell>
-                <TableCell>{recipient.email}</TableCell>
-                <TableCell>
-                  {recipient.phoneE164 ? (
-                    <span className="text-sm">
-                      {formatUsPhoneForDisplay(recipient.phoneE164)}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="min-w-[150px]">
-                  <Select
-                    value={deliveryChannel}
-                    onValueChange={(value) => {
-                      const nextChannel = value as RecipientDeliveryChannel;
-                      if (nextChannel === deliveryChannel) {
-                        return;
-                      }
+    <>
+      <div className="flex flex-col gap-3">
+        {sorted.map((recipient) => {
+          const status = getStatusBadge(recipient);
+          const deliveryChannel = getRecipientDeliveryChannel(recipient.id);
+          const smsState = getRecipientSmsState({
+            ...recipient,
+            deliveryChannel,
+          });
+          const assignedLines = lines.filter((l) =>
+            recipient.assignedLineIds.includes(l.id),
+          );
+          const hasDashboard = Boolean(recipient.dashboardAccessGrantedAt);
 
-                      if (
-                        nextChannel !== 'email' &&
-                        !recipient.smsConsentAcknowledgedAt
-                      ) {
-                        setPendingSmsConsent({
-                          id: recipient.id,
-                          name: recipient.name,
-                          deliveryChannel: nextChannel,
-                        });
-                        setSmsConsentChecked(false);
-                        return;
-                      }
-
-                      void onUpdateRecipientDeliveryChannel(
-                        recipient.id,
-                        nextChannel,
-                      );
-                    }}
-                    disabled={disabled || recipient.unsubscribedAt !== null}
+          return (
+            <div
+              key={recipient.id}
+              className="bg-card rounded-xl border border-border shadow-sm p-4"
+            >
+              {/* Header: Name + Status + Actions */}
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground min-w-0 break-words">
+                  {recipient.name}
+                </h3>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.className}`}
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue>
-                        {getRecipientDeliveryLabel(deliveryChannel)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="sms" disabled={!recipient.phoneE164}>
-                        SMS
-                      </SelectItem>
-                      <SelectItem value="both" disabled={!recipient.phoneE164}>
-                        Both
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <span className={`text-xs font-medium ${smsState.className}`}>
-                    {smsState.label}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className={`text-xs font-medium ${status.className}`}>
                     {status.label}
                   </span>
-                </TableCell>
-                <TableCell>
-                  {!recipient.confirmedAt ? (
-                    <span className="text-xs text-muted-foreground">Confirm email first</span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={Boolean(recipient.dashboardAccessGrantedAt)}
-                        disabled={disabled || dashboardAccessLoading}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            onGrantDashboardAccess(recipient);
-                            return;
-                          }
-
-                          void onRevokeDashboardAccess(recipient.id);
-                        }}
-                        aria-label={`Dashboard access for ${recipient.name}`}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        {recipient.dashboardAccessGrantedAt ? 'Active' : 'Off'}
-                      </span>
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
                   <ResponsiveActionMenu
+                    title={recipient.name}
                     actions={[
+                      {
+                        label: 'Edit Lines',
+                        icon: <Pencil className="w-5 h-5" />,
+                        onClick: () => setPendingLineEdit(recipient),
+                      },
+                      {
+                        label: `Delivery: ${getRecipientDeliveryLabel(deliveryChannel)}`,
+                        icon: <Bell className="w-5 h-5" />,
+                        disabled: disabled || recipient.unsubscribedAt !== null,
+                        subItems: [
+                          {
+                            label: 'Email',
+                            checked: deliveryChannel === 'email',
+                            onClick: () => {
+                              if (deliveryChannel === 'email') return;
+                              void onUpdateRecipientDeliveryChannel(recipient.id, 'email');
+                            },
+                          },
+                          ...(recipient.phoneE164
+                            ? [
+                                {
+                                  label: 'SMS',
+                                  checked: deliveryChannel === 'sms',
+                                  onClick: () => {
+                                    if (deliveryChannel === 'sms') return;
+                                    if (!recipient.smsConsentAcknowledgedAt) {
+                                      setPendingSmsConsent({
+                                        id: recipient.id,
+                                        name: recipient.name,
+                                        deliveryChannel: 'sms' as RecipientDeliveryChannel,
+                                      });
+                                      setSmsConsentChecked(false);
+                                      return;
+                                    }
+                                    void onUpdateRecipientDeliveryChannel(recipient.id, 'sms');
+                                  },
+                                },
+                                {
+                                  label: 'Both',
+                                  checked: deliveryChannel === 'both',
+                                  onClick: () => {
+                                    if (deliveryChannel === 'both') return;
+                                    if (!recipient.smsConsentAcknowledgedAt) {
+                                      setPendingSmsConsent({
+                                        id: recipient.id,
+                                        name: recipient.name,
+                                        deliveryChannel: 'both' as RecipientDeliveryChannel,
+                                      });
+                                      setSmsConsentChecked(false);
+                                      return;
+                                    }
+                                    void onUpdateRecipientDeliveryChannel(recipient.id, 'both');
+                                  },
+                                },
+                              ]
+                            : []),
+                        ],
+                      },
+                      {
+                        label: hasDashboard
+                          ? 'Revoke Dashboard Access'
+                          : 'Grant Dashboard Access',
+                        icon: <Monitor className="w-5 h-5" />,
+                        onClick: () => {
+                          if (hasDashboard) {
+                            void onRevokeDashboardAccess(recipient.id);
+                          } else {
+                            onGrantDashboardAccess(recipient);
+                          }
+                        },
+                        disabled:
+                          !recipient.confirmedAt ||
+                          disabled ||
+                          dashboardAccessLoading,
+                        separator: true,
+                      },
                       ...(smsState.canResendSmsInvite
                         ? [
                             {
                               label: 'Resend verification link',
                               icon: <Mail className="w-5 h-5" />,
                               onClick: () =>
-                                void onResendSmsVerificationLink(recipient.id),
+                                void onResendSmsVerificationLink(
+                                  recipient.id,
+                                ),
                             },
                           ]
                         : []),
@@ -353,17 +324,84 @@ export function InvitedFamilyList({
                             id: recipient.id,
                             name: recipient.name,
                           }),
-                        variant: 'destructive',
+                        variant: 'destructive' as const,
+                        separator: true,
                       },
                     ]}
                     disabled={disabled}
                   />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                </div>
+              </div>
+
+              {/* Contact info */}
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {recipient.email}
+              </p>
+              {recipient.phoneE164 && (
+                <p className="text-sm text-muted-foreground">
+                  {formatUsPhoneForDisplay(recipient.phoneE164)}
+                </p>
+              )}
+
+              {/* Status indicators */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>
+                  Delivery:{' '}
+                  <span className="text-primary font-medium">
+                    {getRecipientDeliveryLabel(deliveryChannel)}
+                  </span>
+                </span>
+                {smsState.label !== 'Email only' && (
+                  <span className={`font-medium ${smsState.className}`}>
+                    {smsState.label}
+                  </span>
+                )}
+                <span>
+                  Dashboard access:{' '}
+                  <span className={!recipient.confirmedAt ? 'text-warning font-medium' : hasDashboard ? 'text-primary font-medium' : ''}>
+                    {!recipient.confirmedAt
+                      ? 'Confirm email'
+                      : hasDashboard
+                        ? 'Active'
+                        : 'Off'}
+                  </span>
+                </span>
+              </div>
+
+              {/* Lines chips */}
+              <div className="mt-3 flex flex-wrap items-center gap-1">
+                {assignedLines.length === 0 ? (
+                  <span className="text-xs text-muted-foreground italic">
+                    No lines assigned
+                  </span>
+                ) : (
+                  assignedLines.map((line) => (
+                    <span
+                      key={line.id}
+                      className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
+                    >
+                      {line.display_name}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Edit Lines Dialog */}
+      {pendingLineEdit && (
+        <EditLinesDialog
+          recipient={pendingLineEdit}
+          lines={lines}
+          isOpen
+          onClose={() => setPendingLineEdit(null)}
+          onSave={onUpdateLineAssignments}
+        />
+      )}
+
+      {/* Remove Confirmation Dialog */}
       <ConfirmationDialog
         open={pendingRemove !== null}
         onOpenChange={(open) => !open && setPendingRemove(null)}
@@ -381,6 +419,8 @@ export function InvitedFamilyList({
           setPendingRemove(null);
         }}
       />
+
+      {/* SMS Consent Dialog */}
       <Dialog
         open={pendingSmsConsent !== null}
         onOpenChange={(open) => !open && closeSmsConsentDialog()}
@@ -445,6 +485,6 @@ export function InvitedFamilyList({
           </div>
         </DialogContent>
       </Dialog>
-    </TableContainer>
+    </>
   );
 }
