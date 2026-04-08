@@ -20,7 +20,7 @@ import { Testimonials } from '~/app/(site)/components/Testimonials';
 import { HowItWorks } from '~/app/(site)/components/HowItWorks';
 import { MainCallToActionButton } from '~/app/(site)/components/MainCallToActionButton';
 import { AudienceValueTabs } from '~/app/(site)/components/AudienceValueTabs';
-import { HeroDashboardPreview } from '~/app/(site)/components/HeroDashboardPreview';
+import { LazyHeroDashboardPreview } from '~/app/(site)/components/LazyHeroDashboardPreview';
 import BlendedDemoFrame from '~/app/(site)/components/BlendedDemoFrame';
 import { OpenChatCard } from '~/app/(site)/components/OpenChatButton';
 import { FadeInWhenVisible, StaggerChildren } from '~/app/(site)/components/MotionWrappers';
@@ -32,75 +32,74 @@ function Home() {
       {/* Hero Section */}
       <Container className="pb-8 lg:pb-0">
         <div className="relative mt-8 mb-6 lg:mt-16 lg:mb-12 lg:min-h-[calc(100svh-80px)] lg:flex lg:items-center">
-          <div className="absolute -left-24 top-8 h-96 w-96 rounded-full bg-primary/15 blur-3xl dark:bg-primary/8" />
-          <div className="absolute -right-24 bottom-8 h-96 w-96 rounded-full bg-primary/15 blur-3xl dark:bg-primary/8" />
-          <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/3 blur-3xl" />
+          <div className="absolute -left-24 top-8 h-96 w-96 rounded-full bg-primary/15 blur-3xl dark:bg-primary/8 hidden lg:block" />
+          <div className="absolute -right-24 bottom-8 h-96 w-96 rounded-full bg-primary/15 blur-3xl dark:bg-primary/8 hidden lg:block" />
+          <div className="absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-primary/3 blur-3xl hidden lg:block" />
 
           <div className="relative w-full grid grid-cols-1 items-start gap-8 sm:gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-10">
             <div className="flex min-w-0 flex-col space-y-5">
+              {/* Group 1: Headline block (single observer instead of 4) */}
               <FadeInWhenVisible>
-                <Pill>
-                  <span>Companionship, one conversation at a time</span>
-                </Pill>
-              </FadeInWhenVisible>
+                <div className="flex flex-col space-y-5">
+                  <Pill>
+                    <span>Companionship, one conversation at a time</span>
+                  </Pill>
 
-              <FadeInWhenVisible delay={0.08}>
-                <Heading
-                  type={1}
-                  className="text-4xl md:text-[2.475rem] xl:text-[3.3rem] 2xl:text-[4.125rem]"
-                >
-                  <span className="block leading-[1.1]">
-                    <span className="block">The call they look</span>
-                    <span className="block">forward to.</span>
-                  </span>
-                  <span className="block leading-[1.1] bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
-                    <span className="block">The peace of mind</span>
-                    <span className="block">you need.</span>
-                  </span>
-                </Heading>
-              </FadeInWhenVisible>
-
-              <FadeInWhenVisible delay={0.14}>
-                <SubHeading className={'max-w-2xl'}>
-                  Know they&apos;re okay, connected, and looking forward to
-                  tomorrow — without rearranging your schedule. Ultaura calls
-                  your loved one at the time you choose, reminds them of anything
-                  they need, holds great conversations, and keeps you informed.
-                </SubHeading>
-              </FadeInWhenVisible>
-
-              <FadeInWhenVisible delay={0.18}>
-                <p className="text-base text-foreground/80 italic border-l-2 border-primary/40 pl-3">
-                  Every quiet day alone is a day their world gets a little smaller.
-                </p>
-              </FadeInWhenVisible>
-
-              <FadeInWhenVisible delay={0.22} margin="200px">
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <MainCallToActionButton />
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    round
-                    href="/demo"
-                    className="border-primary/30 text-primary hover:bg-primary/5"
+                  <Heading
+                    type={1}
+                    className="text-4xl md:text-[2.475rem] xl:text-[3.3rem] 2xl:text-[4.125rem]"
                   >
-                    <span className="flex items-center gap-2">
-                      <PlayCircleIcon className="h-5 w-5" />
-                      Try the voices
+                    <span className="block leading-[1.1]">
+                      <span className="block">The call they look</span>
+                      <span className="block">forward to.</span>
                     </span>
-                  </Button>
+                    <span className="block leading-[1.1] bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
+                      <span className="block">The peace of mind</span>
+                      <span className="block">you need.</span>
+                    </span>
+                  </Heading>
+
+                  <SubHeading className={'max-w-2xl'}>
+                    Know they&apos;re okay, connected, and looking forward to
+                    tomorrow — without rearranging your schedule. Ultaura calls
+                    your loved one at the time you choose, reminds them of anything
+                    they need, holds great conversations, and keeps you informed.
+                  </SubHeading>
+
+                  <p className="text-base text-foreground/80 italic border-l-2 border-primary/40 pl-3">
+                    Every quiet day alone is a day their world gets a little smaller.
+                  </p>
                 </div>
               </FadeInWhenVisible>
 
-              <FadeInWhenVisible delay={0.26} margin="200px">
-                <span className={'mt-4 text-xs text-center text-primary flex items-center gap-1.5 justify-center sm:justify-start'}>
-                  <ShieldCheckIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                  14-day free trial • Start at $19/mo • Cancel anytime
-                </span>
+              {/* Group 2: CTA buttons */}
+              <FadeInWhenVisible delay={0.15} margin="200px">
+                <div className="flex flex-col space-y-5">
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <MainCallToActionButton />
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      round
+                      href="/demo"
+                      className="border-primary/30 text-primary hover:bg-primary/5"
+                    >
+                      <span className="flex items-center gap-2">
+                        <PlayCircleIcon className="h-5 w-5" />
+                        Try the voices
+                      </span>
+                    </Button>
+                  </div>
+
+                  <span className={'mt-4 text-xs text-center text-primary flex items-center gap-1.5 justify-center sm:justify-start'}>
+                    <ShieldCheckIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+                    14-day free trial • Start at $19/mo • Cancel anytime
+                  </span>
+                </div>
               </FadeInWhenVisible>
 
-              <FadeInWhenVisible delay={0.30} margin="200px">
+              {/* Group 3: Trust checklist */}
+              <FadeInWhenVisible delay={0.25} margin="200px">
                 <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                   <div className="flex items-center gap-2">
                     <CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
@@ -125,7 +124,7 @@ function Home() {
             <FadeInWhenVisible delay={0.3} direction="right">
               <div className="mt-10 w-full min-w-0 lg:mt-0">
                 <BlendedDemoFrame>
-                  <HeroDashboardPreview />
+                  <LazyHeroDashboardPreview />
                 </BlendedDemoFrame>
               </div>
             </FadeInWhenVisible>

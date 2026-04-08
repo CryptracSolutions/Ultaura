@@ -212,74 +212,48 @@ export function HeroDashboardPreview() {
     };
   }, [isLiveCall]);
 
-  /* Measure active panel height for smooth container sizing */
+  /* Single consolidated ResizeObserver for all layout measurements */
   useEffect(() => {
-    if (isLiveCall) return;
-
-    const panel = panelRefs.current[activeTab];
-    if (!panel) return;
-
-    const measure = () => setContentHeight(panel.scrollHeight);
-    measure();
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(panel);
-    return () => observer.disconnect();
-  }, [activeTab, isLiveCall]);
-
-  /* Lock shell width from Dashboard mode so Live mode stays 1:1 */
-  useEffect(() => {
-    if (!shellRef.current || typeof ResizeObserver === 'undefined') return;
-
-    const element = shellRef.current;
-    const measure = () => {
-      if (isLiveCall) return;
-      setDashboardShellWidth(element.getBoundingClientRect().width);
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [isLiveCall]);
-
-  /* Smoothly animate height between Dashboard and Live mode containers */
-  useEffect(() => {
-    const measureActiveMode = () => {
-      const activeElement = isLiveCall
-        ? liveModeRef.current
-        : dashboardModeRef.current;
-      if (!activeElement) return;
-      const nextHeight = activeElement.getBoundingClientRect().height;
-      if (nextHeight > 0) setModeHeight(nextHeight);
-    };
-
-    measureActiveMode();
-
     if (typeof ResizeObserver === 'undefined') return;
 
-    const observers: ResizeObserver[] = [];
+    const panel = panelRefs.current[activeTab];
+    const shell = shellRef.current;
+    const dashboardMode = dashboardModeRef.current;
+    const liveMode = liveModeRef.current;
 
-    if (dashboardModeRef.current) {
-      const observer = new ResizeObserver(() => {
-        if (!isLiveCall) measureActiveMode();
-      });
-      observer.observe(dashboardModeRef.current);
-      observers.push(observer);
+    // Initial measurements
+    if (!isLiveCall && panel) setContentHeight(panel.scrollHeight);
+    if (!isLiveCall && shell) setDashboardShellWidth(shell.getBoundingClientRect().width);
+    const activeElement = isLiveCall ? liveMode : dashboardMode;
+    if (activeElement) {
+      const h = activeElement.getBoundingClientRect().height;
+      if (h > 0) setModeHeight(h);
     }
 
-    if (liveModeRef.current) {
-      const observer = new ResizeObserver(() => {
-        if (isLiveCall) measureActiveMode();
-      });
-      observer.observe(liveModeRef.current);
-      observers.push(observer);
-    }
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const target = entry.target;
+        if (target === panel && !isLiveCall) {
+          setContentHeight(panel.scrollHeight);
+        } else if (target === shell && !isLiveCall) {
+          setDashboardShellWidth(shell.getBoundingClientRect().width);
+        } else if (target === dashboardMode && !isLiveCall) {
+          const h = dashboardMode.getBoundingClientRect().height;
+          if (h > 0) setModeHeight(h);
+        } else if (target === liveMode && isLiveCall) {
+          const h = liveMode.getBoundingClientRect().height;
+          if (h > 0) setModeHeight(h);
+        }
+      }
+    });
 
-    return () => {
-      observers.forEach((observer) => observer.disconnect());
-    };
-  }, [isLiveCall, activeTab, contentHeight, visibleMessages]);
+    if (panel) observer.observe(panel);
+    if (shell) observer.observe(shell);
+    if (dashboardMode) observer.observe(dashboardMode);
+    if (liveMode) observer.observe(liveMode);
+
+    return () => observer.disconnect();
+  }, [isLiveCall, activeTab, visibleMessages]);
 
   const handleTabClick = useCallback((index: number) => {
     setActiveTab(index);
