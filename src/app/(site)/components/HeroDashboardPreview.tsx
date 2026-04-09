@@ -303,7 +303,7 @@ export function HeroDashboardPreview() {
   }, [heroPlayState]);
 
   return (
-    <div ref={containerRef} className="relative min-w-0 w-full">
+    <div ref={containerRef} className="relative min-w-0 w-full [contain:layout_style]">
       <audio ref={heroAudioRef} className="hidden" />
       <div className="mt-3 mb-3 flex justify-center">
         <button
@@ -384,7 +384,7 @@ export function HeroDashboardPreview() {
         </div>
 
         <div
-          className="relative mt-5 overflow-hidden transition-[height] duration-[380ms] ease-out motion-reduce:transition-none"
+          className="relative mt-5 overflow-hidden lg:transition-[height] lg:duration-[380ms] lg:ease-out motion-reduce:transition-none"
           style={modeHeight !== undefined ? { height: modeHeight } : undefined}
         >
           {/* Dashboard Mode */}
@@ -392,7 +392,7 @@ export function HeroDashboardPreview() {
             ref={dashboardModeRef}
             aria-hidden={isLiveCall}
             className={cn(
-              'w-full transition-all duration-[380ms] ease-out motion-reduce:transition-none',
+              'w-full transition-[opacity,transform] duration-[380ms] ease-out motion-reduce:transition-none',
               isLiveCall
                 ? 'pointer-events-none absolute inset-x-0 top-0 opacity-0 translate-y-2'
                 : 'relative opacity-100 translate-y-0',
@@ -560,7 +560,7 @@ export function HeroDashboardPreview() {
             {/* Tab content */}
             <div
               ref={contentRef}
-              className="mt-4 overflow-hidden transition-[height] duration-300 ease-in-out"
+              className="mt-4 overflow-hidden lg:transition-[height] lg:duration-300 lg:ease-in-out"
               style={
                 contentHeight !== undefined
                   ? { height: contentHeight }
@@ -846,7 +846,7 @@ export function HeroDashboardPreview() {
             ref={liveModeRef}
             aria-hidden={!isLiveCall}
             className={cn(
-              'w-full transition-all duration-[380ms] ease-out motion-reduce:transition-none',
+              'w-full transition-[opacity,transform] duration-[380ms] ease-out motion-reduce:transition-none',
               isLiveCall
                 ? 'relative opacity-100 translate-y-0'
                 : 'pointer-events-none absolute inset-x-0 top-0 opacity-0 -translate-y-2',
@@ -864,12 +864,12 @@ export function HeroDashboardPreview() {
                   />
                 </div>
 
-                {/* Waveform */}
+                {/* Waveform — uses scaleY transform (GPU-composited, no layout thrashing) */}
                 <div className="mt-4 flex items-center justify-center gap-1">
                   {Array.from({ length: 10 }).map((_, i) => (
                     <span
                       key={i}
-                      className="w-1.5 rounded-full bg-primary animate-waveform"
+                      className="h-2 w-1.5 origin-center rounded-full bg-primary animate-waveform will-change-transform"
                       style={{
                         animationDelay: `${i * 0.12}s`,
                       }}
@@ -889,7 +889,7 @@ export function HeroDashboardPreview() {
             {/* Chat transcript */}
             <div
               aria-live="polite"
-              className="mt-4 w-full min-h-[120px] space-y-2 rounded-2xl border border-border/60 bg-background p-4"
+              className="mt-4 w-full min-h-[120px] space-y-2 rounded-2xl border border-border/60 bg-background p-4 [contain:layout_style]"
             >
               {CHAT_MESSAGES.map((msg, i) => {
                 if (i >= visibleMessages) return null;
